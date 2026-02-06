@@ -1,13 +1,4 @@
-import { Link } from '@inertiajs/react';
-import {
-    BookOpen,
-    CalendarClock,
-    FileText,
-    LayoutGrid,
-    MessageSquareText,
-    Settings,
-    Upload,
-} from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -23,57 +14,27 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { roleNavigationConfig } from '@/config/role-navigation';
 import { useActiveUrl } from '@/hooks/use-active-url';
-import {
-    dashboard,
-    jadwalBimbingan,
-    panduan,
-    pesan,
-    settingNotifikasi,
-    tugasAkhir,
-    uploadDokumen,
-} from '@/routes';
-import { type NavItem } from '@/types';
+import { ROLE_DASHBOARD_PATHS } from '@/lib/roles';
+import { AppRole, SharedData, type NavItem } from '@/types';
 
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Tugas Akhir saya',
-        href: tugasAkhir().url,
-        icon: FileText,
-    },
-    {
-        title: 'Jadwal Bimbingan',
-        href: jadwalBimbingan().url,
-        icon: CalendarClock,
-    },
-    {
-        title: 'Upload Dokumen',
-        href: uploadDokumen().url,
-        icon: Upload,
-    },
-    {
-        title: 'Pesan',
-        href: pesan().url,
-        icon: MessageSquareText,
-    },
-    {
-        title: 'Panduan',
-        href: panduan().url,
-        icon: BookOpen,
-    },
-];
-
 const footerNavItems: NavItem[] = [];
 
-export function AppSidebar() {
-    const { urlIsActive } = useActiveUrl();
+interface AppSidebarProps {
+    role?: AppRole | null;
+}
+
+export function AppSidebar({ role }: AppSidebarProps) {
+    const { auth } = usePage<SharedData>().props;
+    const { currentUrl } = useActiveUrl();
+    const activeRole = role ?? auth.activeRole ?? 'mahasiswa';
+    const navigation = roleNavigationConfig[activeRole];
+    const dashboardHref = ROLE_DASHBOARD_PATHS[activeRole];
+    const settingsIsActive =
+        currentUrl === '/settings' || currentUrl.startsWith('/settings/');
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -81,7 +42,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard().url} prefetch>
+                            <Link href={dashboardHref} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -90,7 +51,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navigation.main} />
             </SidebarContent>
 
             <SidebarFooter>
@@ -105,16 +66,13 @@ export function AppSidebar() {
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={urlIsActive(
-                                        settingNotifikasi().url,
-                                    )}
+                                    isActive={settingsIsActive}
                                     tooltip={{ children: 'Settings' }}
                                 >
-                                    <Link
-                                        href={settingNotifikasi().url}
-                                        prefetch
-                                    >
-                                        <Settings />
+                                    <Link href={navigation.settings.href} prefetch>
+                                        {navigation.settings.icon && (
+                                            <navigation.settings.icon />
+                                        )}
                                         <span>Settings</span>
                                     </Link>
                                 </SidebarMenuButton>
