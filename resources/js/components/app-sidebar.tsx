@@ -15,12 +15,24 @@ import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, tugasAkhir } from '@/routes';
+import { useActiveUrl } from '@/hooks/use-active-url';
+import {
+    dashboard,
+    jadwalBimbingan,
+    panduan,
+    pesan,
+    settingNotifikasi,
+    tugasAkhir,
+    uploadDokumen,
+} from '@/routes';
 import { type NavItem } from '@/types';
 
 import AppLogo from './app-logo';
@@ -38,22 +50,22 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Jadwal Bimbingan',
-        href: '#',
+        href: jadwalBimbingan().url,
         icon: CalendarClock,
     },
     {
         title: 'Upload Dokumen',
-        href: '#',
+        href: uploadDokumen().url,
         icon: Upload,
     },
     {
         title: 'Pesan',
-        href: '#',
+        href: pesan().url,
         icon: MessageSquareText,
     },
     {
         title: 'Panduan',
-        href: '#',
+        href: panduan().url,
         icon: BookOpen,
     },
 ];
@@ -61,6 +73,8 @@ const mainNavItems: NavItem[] = [
 const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
+    const { urlIsActive } = useActiveUrl();
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -83,20 +97,34 @@ export function AppSidebar() {
                 {footerNavItems.length > 0 && (
                     <NavFooter items={footerNavItems} className="mt-auto" />
                 )}
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            size="lg"
-                            tooltip="Settings"
-                            type="button"
-                            disabled
-                            data-test="sidebar-settings-placeholder"
-                        >
-                            <Settings />
-                            <span>Settings</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+
+                <SidebarGroup className="px-2 py-0">
+                    <SidebarGroupLabel>Pengaturan</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    size="lg"
+                                    asChild
+                                    isActive={urlIsActive(
+                                        settingNotifikasi().url,
+                                    )}
+                                    tooltip={{ children: 'Settings' }}
+                                >
+                                    <Link
+                                        href={settingNotifikasi().url}
+                                        prefetch
+                                    >
+                                        <Settings />
+                                        <span className="group-data-[collapsible=icon]:hidden">
+                                            Settings
+                                        </span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
             </SidebarFooter>
         </Sidebar>
     );

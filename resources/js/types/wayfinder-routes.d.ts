@@ -6,7 +6,13 @@ declare module '@/routes' {
 
     export const home: (...args: unknown[]) => WayfinderLocation;
     export const dashboard: (...args: unknown[]) => WayfinderLocation;
+    export const editProfile: (...args: unknown[]) => WayfinderLocation;
     export const tugasAkhir: (...args: unknown[]) => WayfinderLocation;
+    export const jadwalBimbingan: (...args: unknown[]) => WayfinderLocation;
+    export const uploadDokumen: (...args: unknown[]) => WayfinderLocation;
+    export const pesan: (...args: unknown[]) => WayfinderLocation;
+    export const panduan: (...args: unknown[]) => WayfinderLocation;
+    export const settingNotifikasi: (...args: unknown[]) => WayfinderLocation;
     export const login: (...args: unknown[]) => WayfinderLocation;
     export const register: (...args: unknown[]) => WayfinderLocation;
     export const logout: (...args: unknown[]) => WayfinderLocation;
@@ -18,30 +24,30 @@ declare module '@/routes/*' {
         [key: string]: unknown;
     };
 
-    export const index: (...args: unknown[]) => WayfinderLocation;
-    export const show: (...args: unknown[]) => WayfinderLocation;
-    export const create: (...args: unknown[]) => WayfinderLocation;
-    export const store: { form: () => Record<string, unknown> } & Record<
-        string,
-        unknown
-    >;
-    export const edit: (...args: unknown[]) => WayfinderLocation;
-    export const update: (...args: unknown[]) => WayfinderLocation;
-    export const destroy: (...args: unknown[]) => WayfinderLocation;
+    export type WayfinderRoute = ((...args: unknown[]) => WayfinderLocation) & {
+        url: (...args: unknown[]) => string;
+        form: () => Record<string, unknown>;
+    };
 
-    export const send: (...args: unknown[]) => WayfinderLocation;
-    export const email: (...args: unknown[]) => WayfinderLocation;
-    export const request: (...args: unknown[]) => WayfinderLocation;
+    export const index: WayfinderRoute;
+    export const show: WayfinderRoute;
+    export const create: WayfinderRoute;
+    export const store: WayfinderRoute;
+    export const edit: WayfinderRoute;
+    export const update: WayfinderRoute;
+    export const destroy: WayfinderRoute;
 
-    export const enable: (...args: unknown[]) => WayfinderLocation;
-    export const disable: (...args: unknown[]) => WayfinderLocation;
-    export const confirm: (...args: unknown[]) => WayfinderLocation;
-    export const qrCode: (...args: unknown[]) => WayfinderLocation;
-    export const recoveryCodes: (...args: unknown[]) => WayfinderLocation;
-    export const secretKey: (...args: unknown[]) => WayfinderLocation;
-    export const regenerateRecoveryCodes: (
-        ...args: unknown[]
-    ) => WayfinderLocation;
+    export const send: WayfinderRoute;
+    export const email: WayfinderRoute;
+    export const request: WayfinderRoute;
+
+    export const enable: WayfinderRoute;
+    export const disable: WayfinderRoute;
+    export const confirm: WayfinderRoute;
+    export const qrCode: WayfinderRoute;
+    export const recoveryCodes: WayfinderRoute;
+    export const secretKey: WayfinderRoute;
+    export const regenerateRecoveryCodes: WayfinderRoute;
 
     const _default: Record<string, unknown>;
     export default _default;

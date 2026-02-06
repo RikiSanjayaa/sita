@@ -12,6 +12,7 @@ export default defineConfig({
             refresh: true,
         }),
         react({
+            include: /\.[jt]sx$/,
             babel: {
                 plugins: ['babel-plugin-react-compiler'],
             },

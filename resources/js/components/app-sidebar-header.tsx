@@ -8,7 +8,6 @@ import {
     PencilLine,
     type LucideIcon,
 } from 'lucide-react';
-import { type ReactNode } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -204,12 +203,8 @@ function HeaderUserMenu() {
 
 export function AppSidebarHeader({
     breadcrumbs = [],
-    title,
-    subtitle,
 }: {
     breadcrumbs?: BreadcrumbItemType[];
-    title?: ReactNode;
-    subtitle?: ReactNode;
 }) {
     return (
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
@@ -217,20 +212,6 @@ export function AppSidebarHeader({
                 <SidebarTrigger className="-ml-1" />
                 <div className="flex min-w-0 items-center gap-3">
                     <Breadcrumbs breadcrumbs={breadcrumbs} />
-                    {(title ?? subtitle) && (
-                        <div className="min-w-0 border-l border-sidebar-border/50 pl-3">
-                            {title && (
-                                <div className="truncate text-sm leading-tight font-semibold">
-                                    {title}
-                                </div>
-                            )}
-                            {subtitle && (
-                                <div className="truncate text-xs text-muted-foreground">
-                                    {subtitle}
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
             <div className="ml-auto flex items-center gap-2">

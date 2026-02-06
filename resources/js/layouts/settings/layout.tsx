@@ -15,22 +15,22 @@ import { type NavItem } from '@/types';
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
-        href: edit(),
+        href: edit().url,
         icon: null,
     },
     {
         title: 'Password',
-        href: editPassword(),
+        href: editPassword().url,
         icon: null,
     },
     {
         title: 'Two-Factor Auth',
-        href: show(),
+        href: show().url,
         icon: null,
     },
     {
         title: 'Appearance',
-        href: editAppearance(),
+        href: editAppearance().url,
         icon: null,
     },
 ];

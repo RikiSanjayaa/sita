@@ -1,151 +1,386 @@
 import { Transition } from '@headlessui/react';
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
+import { Camera } from 'lucide-react';
 
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/delete-user';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
-import { send } from '@/routes/verification';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Profile settings',
+        title: 'Edit Profil',
         href: edit().url,
     },
 ];
 
-export default function Profile({
-    mustVerifyEmail,
-    status,
-}: {
-    mustVerifyEmail: boolean;
-    status?: string;
-}) {
+type Pembimbing = {
+    nama: string;
+    email: string;
+};
+
+export default function Profile() {
     const { auth } = usePage<SharedData>().props;
+    const getInitials = useInitials();
+
+    const userAny = auth.user as unknown as Record<string, unknown>;
+    const nim =
+        typeof userAny.nim === 'string'
+            ? userAny.nim
+            : typeof userAny.nim === 'number'
+                ? String(userAny.nim)
+                : String(auth.user.id).padStart(9, '0');
+
+    const akademik = {
+        nim,
+        programStudi:
+            typeof userAny.program_studi === 'string'
+                ? userAny.program_studi
+                : 'Ilmu Komputer',
+        fakultas:
+            typeof userAny.fakultas === 'string'
+                ? userAny.fakultas
+                : 'Fakultas Teknik',
+        status:
+            typeof userAny.status_mahasiswa === 'string'
+                ? userAny.status_mahasiswa
+                : 'Aktif',
+        tahunAngkatan:
+            typeof userAny.tahun_angkatan === 'string'
+                ? userAny.tahun_angkatan
+                : '2023',
+    };
+
+    const pembimbing1: Pembimbing = {
+        nama: 'Dr. Budi Santoso, M.Kom.',
+        email: 'budi.santoso@univ.ac.id',
+    };
+
+    const pembimbing2: Pembimbing = {
+        nama: 'Dr. Siti Aminah, M.T.',
+        email: 'siti.aminah@univ.ac.id',
+    };
+
+    const tugasAkhir = {
+        judul: 'Implementasi Machine Learning untuk Prediksi Kelulusan Mahasiswa Menggunakan Algoritma Random Forest',
+        pembimbing1,
+        pembimbing2,
+    };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Profile settings" />
+        <AppLayout
+            breadcrumbs={breadcrumbs}
+            subtitle={`Selamat datang kembali, ${auth.user.name}`}
+        >
+            <Head title="Edit Profil" />
 
-            <h1 className="sr-only">Profile Settings</h1>
-
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <Heading
-                        variant="small"
-                        title="Profile information"
-                        description="Update your name and email address"
-                    />
-
-                    <Form
-                        {...ProfileController.update.form()}
-                        options={{
-                            preserveScroll: true,
-                        }}
-                        className="space-y-6"
-                    >
-                        {({ processing, recentlySuccessful, errors }) => (
-                            <>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Name</Label>
-
-                                    <Input
-                                        id="name"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.name}
-                                        name="name"
-                                        required
-                                        autoComplete="name"
-                                        placeholder="Full name"
-                                    />
-
-                                    <InputError
-                                        className="mt-2"
-                                        message={errors.name}
-                                    />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email address</Label>
-
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.email}
-                                        name="email"
-                                        required
-                                        autoComplete="username"
-                                        placeholder="Email address"
-                                    />
-
-                                    <InputError
-                                        className="mt-2"
-                                        message={errors.email}
-                                    />
-                                </div>
-
-                                {mustVerifyEmail &&
-                                    auth.user.email_verified_at === null && (
-                                        <div>
-                                            <p className="-mt-4 text-sm text-muted-foreground">
-                                                Your email address is
-                                                unverified.{' '}
-                                                <Link
-                                                    href={send()}
-                                                    as="button"
-                                                    className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                                >
-                                                    Click here to resend the
-                                                    verification email.
-                                                </Link>
-                                            </p>
-
-                                            {status ===
-                                                'verification-link-sent' && (
-                                                <div className="mt-2 text-sm font-medium text-green-600">
-                                                    A new verification link has
-                                                    been sent to your email
-                                                    address.
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                <div className="flex items-center gap-4">
-                                    <Button
-                                        disabled={processing}
-                                        data-test="update-profile-button"
-                                    >
-                                        Save
-                                    </Button>
-
-                                    <Transition
-                                        show={recentlySuccessful}
-                                        enter="transition ease-in-out"
-                                        enterFrom="opacity-0"
-                                        leave="transition ease-in-out"
-                                        leaveTo="opacity-0"
-                                    >
-                                        <p className="text-sm text-neutral-600">
-                                            Saved
-                                        </p>
-                                    </Transition>
-                                </div>
-                            </>
-                        )}
-                    </Form>
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
+                <div>
+                    <h1 className="text-xl font-semibold">Edit Profil</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Kelola informasi profil Anda
+                    </p>
                 </div>
 
-                <DeleteUser />
-            </SettingsLayout>
+                <Card>
+                    <CardHeader className="gap-1">
+                        <CardTitle>Informasi Pribadi</CardTitle>
+                        <CardDescription>
+                            Data yang dapat Anda perbarui
+                        </CardDescription>
+                    </CardHeader>
+                    <Separator />
+                    <CardContent className="pt-6">
+                        <Form
+                            {...ProfileController.update.form()}
+                            options={{
+                                preserveScroll: true,
+                            }}
+                            id="edit-profile-form"
+                            className="grid gap-6"
+                        >
+                            {({ errors, processing, recentlySuccessful }) => (
+                                <>
+                                    <div className="grid gap-4 md:items-center">
+
+
+                                        <div className="flex items-start gap-4">
+                                            <div className="relative">
+                                                <Avatar className="h-20 w-20">
+                                                    <AvatarImage
+                                                        src={auth.user.avatar}
+                                                        alt={auth.user.name}
+                                                    />
+                                                    <AvatarFallback>
+                                                        {getInitials(
+                                                            auth.user.name,
+                                                        )}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="absolute -right-2 -bottom-2 h-9 w-9 rounded-full bg-background"
+                                                    aria-label="Ubah foto profil"
+                                                >
+                                                    <Camera className="size-4" />
+                                                </Button>
+                                            </div>
+
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium">
+                                                    Foto Profil
+                                                </div>
+                                                <div className="mt-1 text-xs text-muted-foreground">
+                                                    Klik ikon kamera untuk mengubah foto profil
+                                                </div>
+                                                <div className="mt-2 text-xs text-muted-foreground">
+                                                    Rekomendasi: JPG/PNG,
+                                                    maksimal 2 MB
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="name">
+                                                Nama Lengkap
+                                            </Label>
+                                            <Input
+                                                id="name"
+                                                name="name"
+                                                autoComplete="name"
+                                                defaultValue={auth.user.name}
+                                                placeholder="Nama sesuai identitas"
+                                                required
+                                            />
+                                            <InputError
+                                                message={errors.name}
+                                                className="text-xs"
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Nama ini akan tampil di profil
+                                                dan beberapa dokumen.
+                                            </p>
+                                        </div>
+
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="email">
+                                                    Email Personal
+                                                </Label>
+                                                <Input
+                                                    id="email"
+                                                    name="email"
+                                                    type="email"
+                                                    autoComplete="email"
+                                                    defaultValue={auth.user.email}
+                                                    placeholder="nama@email.com"
+                                                    required
+                                                />
+                                                <InputError
+                                                    message={errors.email}
+                                                    className="text-xs"
+                                                />
+                                                <p className="text-xs text-muted-foreground">
+                                                    Digunakan untuk pengingat dan
+                                                    notifikasi.
+                                                </p>
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="telp">
+                                                    Nomor Telepon
+                                                </Label>
+                                                <Input
+                                                    id="telp"
+                                                    name="telp"
+                                                    inputMode="tel"
+                                                    autoComplete="tel"
+                                                    placeholder="08xxxxxxxxxx"
+                                                />
+                                                <p className="text-xs text-muted-foreground">
+                                                    Pastikan nomor aktif untuk
+                                                    verifikasi cepat.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="alamat">
+                                                Alamat
+                                            </Label>
+                                            <Input
+                                                id="alamat"
+                                                name="alamat"
+                                                placeholder="Jl. Contoh No. 123, Jakarta Selatan"
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Gunakan alamat domisili saat ini.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <Transition
+                                            show={recentlySuccessful}
+                                            enter="transition ease-in-out"
+                                            enterFrom="opacity-0"
+                                            leave="transition ease-in-out"
+                                            leaveTo="opacity-0"
+                                        >
+                                            <p className="text-sm text-neutral-600">
+                                                Tersimpan
+                                            </p>
+                                        </Transition>
+                                        <div className="ml-auto flex gap-2">
+                                            <Button
+                                                type="reset"
+                                                variant="outline"
+                                                disabled={processing}
+                                            >
+                                                Batalkan
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                className="bg-slate-900 text-white hover:bg-slate-900/90"
+                                                disabled={processing}
+                                            >
+                                                Simpan Perubahan
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </Form>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="gap-1">
+                        <CardTitle>Informasi Akademik</CardTitle>
+                        <CardDescription>
+                            Data dari sistem akademik (tidak dapat diubah)
+                        </CardDescription>
+                    </CardHeader>
+                    <Separator />
+                    <CardContent className="pt-6">
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <div className="grid gap-1">
+                                <div className="text-xs text-muted-foreground">
+                                    NIM
+                                </div>
+                                <div className="text-sm font-medium">
+                                    {akademik.nim}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-1">
+                                <div className="text-xs text-muted-foreground">
+                                    Status
+                                </div>
+                                <div>
+                                    <Badge className="bg-slate-900 text-white hover:bg-slate-900">
+                                        {akademik.status}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-1">
+                                <div className="text-xs text-muted-foreground">
+                                    Program Studi
+                                </div>
+                                <div className="text-sm font-medium">
+                                    {akademik.programStudi}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-1">
+                                <div className="text-xs text-muted-foreground">
+                                    Tahun Angkatan
+                                </div>
+                                <div className="text-sm font-medium">
+                                    {akademik.tahunAngkatan}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-1">
+                                <div className="text-xs text-muted-foreground">
+                                    Fakultas
+                                </div>
+                                <div className="text-sm font-medium">
+                                    {akademik.fakultas}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="gap-1">
+                        <CardTitle>Informasi Tugas Akhir</CardTitle>
+                        <CardDescription>
+                            Detail pembimbingan tugas akhir Anda
+                        </CardDescription>
+                    </CardHeader>
+                    <Separator />
+                    <CardContent className="pt-6">
+                        <div className="grid gap-6">
+                            <div className="grid gap-1">
+                                <div className="text-xs text-muted-foreground">
+                                    Judul Tugas Akhir
+                                </div>
+                                <div className="text-sm font-medium">
+                                    {tugasAkhir.judul}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="rounded-lg border bg-background p-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        Dosen Pembimbing 1
+                                    </div>
+                                    <div className="mt-1 text-sm font-medium">
+                                        {tugasAkhir.pembimbing1.nama}
+                                    </div>
+                                    <div className="mt-1 text-sm text-muted-foreground">
+                                        {tugasAkhir.pembimbing1.email}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border bg-background p-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        Dosen Pembimbing 2
+                                    </div>
+                                    <div className="mt-1 text-sm font-medium">
+                                        {tugasAkhir.pembimbing2.nama}
+                                    </div>
+                                    <div className="mt-1 text-sm text-muted-foreground">
+                                        {tugasAkhir.pembimbing2.email}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </AppLayout>
     );
 }
