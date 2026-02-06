@@ -122,10 +122,10 @@ function HeaderNotifications() {
                             const Icon = n.icon;
                             const toneClasses =
                                 n.tone === 'success'
-                                    ? 'text-green-600'
+                                    ? 'text-green-600 dark:text-green-300'
                                     : n.tone === 'warning'
-                                      ? 'text-orange-500'
-                                      : 'text-blue-600';
+                                      ? 'text-orange-500 dark:text-orange-300'
+                                      : 'text-primary';
 
                             return (
                                 <div
@@ -146,7 +146,7 @@ function HeaderNotifications() {
                                                 {n.title}
                                             </p>
                                             {n.unread && (
-                                                <span className="mt-1 size-2 rounded-[3px] bg-blue-600" />
+                                                <span className="mt-1 size-2 rounded-[3px] bg-primary" />
                                             )}
                                         </div>
                                         <p className="text-sm text-muted-foreground">
@@ -184,7 +184,7 @@ function HeaderUserMenu() {
                             src={auth.user.avatar}
                             alt={auth.user.name}
                         />
-                        <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                        <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
                             {getInitials(auth.user.name)}
                         </AvatarFallback>
                     </Avatar>

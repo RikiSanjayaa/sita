@@ -403,7 +403,7 @@ export default function Panduan() {
                                             {card.id === 'jadwal' && (
                                                 <Button
                                                     type="button"
-                                                    className="h-9 bg-slate-900 text-white hover:bg-slate-900/90"
+                                                    className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
                                                     asChild
                                                 >
                                                     <Link
@@ -545,7 +545,7 @@ export default function Panduan() {
                                                                 {doc.format}
                                                             </Badge>
                                                             {doc.badge && (
-                                                                <Badge className="rounded-full bg-slate-900 text-white hover:bg-slate-900">
+                                                                <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
                                                                     {doc.badge}
                                                                 </Badge>
                                                             )}
@@ -608,7 +608,7 @@ export default function Panduan() {
                                     <div className="grid gap-2">
                                         <Button
                                             type="button"
-                                            className="h-9 bg-slate-900 text-white hover:bg-slate-900/90"
+                                            className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
                                             asChild
                                         >
                                             <Link href={pesan().url}>
@@ -660,3 +660,4 @@ export default function Panduan() {
         </AppLayout>
     );
 }
+

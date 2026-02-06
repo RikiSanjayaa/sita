@@ -193,7 +193,7 @@ export default function Pesan() {
                     {notice && <div className="rounded-lg border bg-muted/30 p-3 text-sm">{notice.fileName}</div>}
                     <div className="flex justify-end gap-2">
                         <Button variant="outline" onClick={closeNotice}>Tutup</Button>
-                        <Button className="bg-slate-900 text-white hover:bg-slate-900/90" onClick={() => { setActiveId('group'); closeNotice(); }}>Buka Grup</Button>
+                        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => { setActiveId('group'); closeNotice(); }}>Buka Grup</Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -211,7 +211,7 @@ export default function Pesan() {
                     <Separator />
                     <CardContent className="grid gap-2 pt-4">
                         {filtered.map((t) => (
-                            <button key={t.id} type="button" onClick={() => openThread(t.id)} className={cn('flex items-start gap-3 rounded-lg border p-3 text-left hover:bg-muted/50', t.id === activeId && 'border-slate-900/20 bg-muted/60')}>
+                            <button key={t.id} type="button" onClick={() => openThread(t.id)} className={cn('flex items-start gap-3 rounded-lg border p-3 text-left hover:bg-muted/50', t.id === activeId && 'border-primary/25 bg-muted/60')}>
                                 <Avatar className="size-9"><AvatarFallback>{t.id === 'group' ? 'GC' : initials(t.name)}</AvatarFallback></Avatar>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex justify-between gap-2">
@@ -220,7 +220,7 @@ export default function Pesan() {
                                     </div>
                                     <div className="mt-1 flex items-center gap-2">
                                         <Badge variant="outline" className="bg-background">{t.role}</Badge>
-                                        {t.unread > 0 && <Badge className="bg-slate-900 text-white">{t.unread}</Badge>}
+                                        {t.unread > 0 && <Badge className="bg-primary text-primary-foreground">{t.unread}</Badge>}
                                     </div>
                                     <div className="mt-2 line-clamp-2 text-xs text-muted-foreground">{t.preview}</div>
                                 </div>
@@ -246,17 +246,17 @@ export default function Pesan() {
                         <div className="grid gap-3">
                             {active?.messages.map((m) =>
                                 m.from === 'system' ? (
-                                    <div key={m.id} className="rounded-lg border border-blue-100 bg-blue-50 p-3">
-                                        <div className="text-sm text-blue-900">{m.text}</div>
-                                        {m.file && <div className="mt-2 rounded border bg-white p-2 text-sm">{m.file}</div>}
+                                    <div key={m.id} className="rounded-lg border border-primary/25 bg-primary/10 p-3">
+                                        <div className="text-sm text-primary">{m.text}</div>
+                                        {m.file && <div className="mt-2 rounded border bg-background p-2 text-sm">{m.file}</div>}
                                         <div className="mt-2 flex justify-end"><Button size="sm" variant="outline" className="h-8 gap-2"><Download className="size-3.5" />Unduh</Button></div>
                                     </div>
                                 ) : (
                                     <div key={m.id} className={cn('flex', m.from === 'me' && 'justify-end')}>
-                                        <div className={cn('max-w-[78%] rounded-2xl border px-3 py-2 text-sm', m.from === 'me' ? 'bg-slate-900 text-white' : 'bg-background')}>
-                                            {m.file && <div className={cn('mb-2 rounded border p-2 text-xs', m.from === 'me' ? 'border-white/20 bg-white/10' : 'bg-muted/30')}>{m.file}</div>}
+                                        <div className={cn('max-w-[78%] rounded-2xl border px-3 py-2 text-sm', m.from === 'me' ? 'bg-primary text-primary-foreground' : 'bg-background')}>
+                                            {m.file && <div className={cn('mb-2 rounded border p-2 text-xs', m.from === 'me' ? 'border-primary-foreground/25 bg-primary-foreground/15' : 'bg-muted/30')}>{m.file}</div>}
                                             {m.text && <div>{m.text}</div>}
-                                            <div className={cn('mt-1 text-[11px]', m.from === 'me' ? 'text-white/70' : 'text-muted-foreground')}>{m.time}</div>
+                                            <div className={cn('mt-1 text-[11px]', m.from === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{m.time}</div>
                                         </div>
                                     </div>
                                 ),
@@ -269,7 +269,7 @@ export default function Pesan() {
                         <div className="flex items-center gap-2">
                             <Button type="button" variant="outline" size="icon" onClick={() => fileRef.current?.click()}><Paperclip className="size-4" /></Button>
                             <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Tulis pesan..." onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), send())} />
-                            <Button type="button" onClick={send} className="bg-slate-900 text-white hover:bg-slate-900/90"><Send className="size-4" /></Button>
+                            <Button type="button" onClick={send} className="bg-primary text-primary-foreground hover:bg-primary/90"><Send className="size-4" /></Button>
                         </div>
                         {file && <div className="text-xs text-muted-foreground">Lampiran: {file}</div>}
                     </CardFooter>
@@ -278,3 +278,4 @@ export default function Pesan() {
         </AppLayout>
     );
 }
+

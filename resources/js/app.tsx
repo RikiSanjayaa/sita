@@ -6,6 +6,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
+import { initializePrimaryColor } from './hooks/use-primary-color';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -32,3 +33,4 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+initializePrimaryColor();

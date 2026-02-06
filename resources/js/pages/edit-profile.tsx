@@ -69,6 +69,9 @@ export default function EditProfile() {
                 ? userAny.tahun_angkatan
                 : '2023',
     };
+    const statusIsPositive = /aktif|disetujui|selesai|terjadwal/i.test(
+        akademik.status,
+    );
 
     const pembimbing1: Pembimbing = {
         nama: 'Dr. Budi Santoso, M.Kom.',
@@ -236,7 +239,7 @@ export default function EditProfile() {
                         <Button
                             type="submit"
                             form="edit-profile-form"
-                            className="bg-slate-900 text-white hover:bg-slate-900/90"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
                         >
                             Simpan Perubahan
                         </Button>
@@ -267,7 +270,13 @@ export default function EditProfile() {
                                     Status
                                 </div>
                                 <div>
-                                    <Badge className="bg-slate-900 text-white hover:bg-slate-900">
+                                    <Badge
+                                        className={
+                                            statusIsPositive
+                                                ? 'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90'
+                                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                        }
+                                    >
                                         {akademik.status}
                                     </Badge>
                                 </div>
@@ -354,3 +363,4 @@ export default function EditProfile() {
         </AppLayout>
     );
 }
+

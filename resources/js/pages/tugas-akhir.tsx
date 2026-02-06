@@ -26,9 +26,8 @@ import {
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import { type BreadcrumbItem } from '@/types';
-
 import { dashboard, tugasAkhir } from '@/routes';
+import { type BreadcrumbItem } from '@/types';
 
 type TabKey = 'judul' | 'proposal' | 'dokumen';
 
@@ -193,9 +192,9 @@ const dokumenRows: DokumenRow[] = [
 
 function StatusBadge({ label }: { label: string }) {
     return (
-        <Badge className="bg-slate-900 text-white hover:bg-slate-900">
+        <Badge className="bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
             <span className="inline-flex items-center gap-1">
-                <span className="inline-flex size-4 items-center justify-center rounded-full bg-white/10">
+                <span className="inline-flex size-4 items-center justify-center rounded-full bg-white/20">
                     <CheckCircle2 className="size-3" />
                 </span>
                 {label}
@@ -210,7 +209,11 @@ function ProposalStatusBadge({
     status: ProposalVersion['status'];
 }) {
     if (status === 'Disetujui') {
-        return <Badge className="bg-slate-900 text-white">Disetujui</Badge>;
+        return (
+            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
+                Disetujui
+            </Badge>
+        );
     }
 
     return (
@@ -255,7 +258,11 @@ function DokumenVersionBadge({ versi }: { versi: string }) {
 
 function DokumenStatusBadge({ status }: { status: DokumenStatus }) {
     if (status === 'Disetujui') {
-        return <Badge className="bg-slate-900 text-white">Disetujui</Badge>;
+        return (
+            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
+                Disetujui
+            </Badge>
+        );
     }
 
     if (status === 'Ditinjau') {
@@ -444,12 +451,12 @@ export default function TugasAkhirSaya() {
                                             const Icon = item.icon;
                                             const tone =
                                                 item.tone === 'success'
-                                                    ? 'bg-green-50 text-green-700 ring-green-200'
+                                                    ? 'bg-green-50 text-green-700 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40'
                                                     : item.tone === 'warning'
-                                                        ? 'bg-yellow-50 text-yellow-700 ring-yellow-200'
+                                                        ? 'bg-yellow-50 text-yellow-700 ring-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-300 dark:ring-yellow-500/40'
                                                         : item.tone === 'danger'
-                                                            ? 'bg-red-50 text-red-700 ring-red-200'
-                                                            : 'bg-blue-50 text-blue-700 ring-blue-200';
+                                                            ? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/40'
+                                                            : 'bg-primary/10 text-primary ring-primary/25';
 
                                             return (
                                                 <div
@@ -562,11 +569,11 @@ export default function TugasAkhirSaya() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-lg border bg-blue-50 p-4 text-sm text-blue-900">
+                                <div className="rounded-lg border bg-primary/10 p-4 text-sm text-primary">
                                     <div className="font-semibold">
                                         Panduan Proposal:
                                     </div>
-                                    <ul className="mt-2 list-disc space-y-1 pl-5 text-blue-800">
+                                    <ul className="mt-2 list-disc space-y-1 pl-5 text-foreground/80">
                                         <li>
                                             Gunakan template proposal yang telah
                                             disediakan
@@ -684,7 +691,7 @@ export default function TugasAkhirSaya() {
                                                 className={cn(
                                                     'rounded-full',
                                                     v.status === 'Disetujui'
-                                                        ? 'bg-slate-900 text-white'
+                                                        ? 'bg-emerald-600 text-white dark:bg-emerald-500'
                                                         : 'bg-destructive text-white',
                                                 )}
                                             >
@@ -849,3 +856,4 @@ export default function TugasAkhirSaya() {
         </AppLayout>
     );
 }
+

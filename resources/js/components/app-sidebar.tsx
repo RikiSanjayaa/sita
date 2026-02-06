@@ -104,7 +104,6 @@ export function AppSidebar() {
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton
-                                    size="lg"
                                     asChild
                                     isActive={urlIsActive(
                                         settingNotifikasi().url,
@@ -116,9 +115,7 @@ export function AppSidebar() {
                                         prefetch
                                     >
                                         <Settings />
-                                        <span className="group-data-[collapsible=icon]:hidden">
-                                            Settings
-                                        </span>
+                                        <span>Settings</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>

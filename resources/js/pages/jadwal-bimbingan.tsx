@@ -169,12 +169,16 @@ function MeetingTypeBadge({ tipe }: { tipe: MeetingType }) {
 
 function StatusBadge({ status }: { status: MeetingStatus }) {
     if (status === 'Terjadwal') {
-        return <Badge className="bg-slate-900 text-white">Terjadwal</Badge>;
+        return (
+            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
+                Terjadwal
+            </Badge>
+        );
     }
 
     if (status === 'Selesai') {
         return (
-            <Badge variant="outline" className="gap-1 rounded-full">
+            <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
                 <CheckCircle2 className="size-3" />
                 Selesai
             </Badge>
@@ -310,8 +314,8 @@ export default function JadwalBimbingan() {
                             />
                         </div>
 
-                        <Alert className="border-sky-200 bg-sky-50 text-sky-950">
-                            <AlertDescription className="text-sky-900">
+                        <Alert className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
+                            <AlertDescription className="text-sky-900 dark:text-sky-200">
                                 <span className="font-medium">Catatan:</span> Jadwal akan dikonfirmasi oleh dosen pembimbing dalam 1-2 hari kerja.
                             </AlertDescription>
                         </Alert>
@@ -326,7 +330,7 @@ export default function JadwalBimbingan() {
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-slate-900 text-white hover:bg-slate-900/90"
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
                             >
                                 <Send className="size-4" />
                                 Kirim Permintaan
@@ -349,7 +353,7 @@ export default function JadwalBimbingan() {
                     </div>
                     <Button
                         type="button"
-                        className="h-9 bg-slate-900 text-white hover:bg-slate-900/90"
+                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
                         onClick={() => setIsAjukanOpen(true)}
                     >
                         <Plus className="size-4" />
@@ -586,3 +590,4 @@ export default function JadwalBimbingan() {
         </AppLayout>
     );
 }
+

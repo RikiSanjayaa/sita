@@ -75,13 +75,6 @@ export default function Welcome({
             <Head title="SiTA UBG | Portal Mahasiswa" />
 
             <div className="relative min-h-screen bg-background text-foreground">
-                <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0"
-                >
-                    <div className="absolute top-0 right-0 h-56 w-56 rounded-full bg-amber-200/25 blur-3xl dark:bg-amber-500/10" />
-                </div>
-
                 <header className="relative z-10 border-b bg-background/95 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
                         <Link

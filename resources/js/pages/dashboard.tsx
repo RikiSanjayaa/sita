@@ -21,9 +21,8 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-
 import { dashboard } from '@/routes';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -120,7 +119,7 @@ export default function Dashboard() {
                                             akhir Anda
                                         </CardDescription>
                                     </div>
-                                    <Badge className="bg-blue-600 text-white">
+                                    <Badge className="bg-primary text-primary-foreground">
                                         {tugasAkhir.status}
                                     </Badge>
                                 </div>
@@ -134,7 +133,7 @@ export default function Dashboard() {
                                     </div>
                                     <div className="h-2 w-full rounded-full bg-muted">
                                         <div
-                                            className="h-full rounded-full bg-slate-900"
+                                            className="h-full rounded-full bg-primary"
                                             style={{
                                                 width: `${tugasAkhir.progress}%`,
                                             }}
@@ -230,14 +229,14 @@ export default function Dashboard() {
                                                 }
                                                 className={
                                                     isPrimary
-                                                        ? 'h-auto justify-start gap-3 bg-slate-900 p-4 text-left text-white hover:bg-slate-900/90'
+                                                        ? 'h-auto justify-start gap-3 bg-primary p-4 text-left text-primary-foreground hover:bg-primary/90'
                                                         : 'h-auto justify-start gap-3 p-4 text-left'
                                                 }
                                             >
                                                 <span
                                                     className={
                                                         isPrimary
-                                                            ? 'inline-flex size-9 items-center justify-center rounded-md bg-white/10'
+                                                            ? 'inline-flex size-9 items-center justify-center rounded-md bg-primary-foreground/15'
                                                             : 'inline-flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground'
                                                     }
                                                 >
@@ -250,7 +249,7 @@ export default function Dashboard() {
                                                     <span
                                                         className={
                                                             isPrimary
-                                                                ? 'text-xs text-white/70'
+                                                                ? 'text-xs text-primary-foreground/70'
                                                                 : 'text-xs text-muted-foreground'
                                                         }
                                                     >
@@ -289,9 +288,9 @@ export default function Dashboard() {
                                                 <div
                                                     className={
                                                         isDone
-                                                            ? 'mt-0.5 flex size-8 items-center justify-center rounded-full bg-slate-900 text-white'
+                                                            ? 'mt-0.5 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground'
                                                             : isCurrent
-                                                                ? 'mt-0.5 flex size-8 items-center justify-center rounded-full border-2 border-slate-900 bg-background'
+                                                                ? 'mt-0.5 flex size-8 items-center justify-center rounded-full border-2 border-primary bg-background'
                                                                 : 'mt-0.5 flex size-8 items-center justify-center rounded-full border bg-background'
                                                     }
                                                 >
@@ -301,7 +300,7 @@ export default function Dashboard() {
                                                         <span
                                                             className={
                                                                 isCurrent
-                                                                    ? 'size-2 rounded-full bg-slate-900'
+                                                                    ? 'size-2 rounded-full bg-primary'
                                                                     : 'size-2 rounded-full bg-muted-foreground/40'
                                                             }
                                                         />
@@ -330,3 +329,4 @@ export default function Dashboard() {
         </AppLayout>
     );
 }
+

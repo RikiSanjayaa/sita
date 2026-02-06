@@ -195,8 +195,8 @@ export default function UploadDokumenForm() {
                                     ) : null}
                                 </div>
 
-                                <Alert className="border-sky-100 bg-sky-50 text-sky-900">
-                                    <AlertDescription className="text-sky-900">
+                                <Alert className="border-sky-100 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
+                                    <AlertDescription className="text-sky-900 dark:text-sky-200">
                                         <span className="font-medium">
                                             Catatan:
                                         </span>{' '}
@@ -214,7 +214,7 @@ export default function UploadDokumenForm() {
                                     </Button>
                                     <Button
                                         type="submit"
-                                        className="bg-slate-900 text-white hover:bg-slate-900/90"
+                                        className="bg-primary text-primary-foreground hover:bg-primary/90"
                                         disabled={!kategori || !file}
                                     >
                                         Upload
@@ -228,3 +228,4 @@ export default function UploadDokumenForm() {
         </AppLayout>
     );
 }
+

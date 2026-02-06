@@ -179,7 +179,7 @@ function KategoriBadge({ kategori }: { kategori: string }) {
 function StatusBadge({ status }: { status: DokumenStatus }) {
     if (status === 'Disetujui') {
         return (
-            <Badge className="gap-1 bg-slate-900 text-white hover:bg-slate-900">
+            <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
                 <CheckCircle2 className="size-3" />
                 Disetujui
             </Badge>
@@ -362,8 +362,8 @@ export default function UploadDokumen() {
                             ) : null}
                         </div>
 
-                        <Alert className="border-sky-100 bg-sky-50 text-sky-900">
-                            <AlertDescription className="text-sky-900">
+                        <Alert className="border-sky-100 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
+                            <AlertDescription className="text-sky-900 dark:text-sky-200">
                                 <span className="font-medium">Catatan:</span> Pastikan dokumen sudah sesuai dengan format dan panduan yang diberikan sebelum mengupload.
                             </AlertDescription>
                         </Alert>
@@ -378,7 +378,7 @@ export default function UploadDokumen() {
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-slate-900 text-white hover:bg-slate-900/90"
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
                                 disabled={!kategori || !file}
                             >
                                 Upload
@@ -411,7 +411,7 @@ export default function UploadDokumen() {
                         </Button>
                         <Button
                             asChild
-                            className="bg-slate-900 text-white hover:bg-slate-900/90"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
                         >
                             <Link href={routes.pesan().url}>
                                 Buka Group Chat
@@ -432,7 +432,7 @@ export default function UploadDokumen() {
                         </p>
                     </div>
                     <Button
-                        className="h-10 gap-2 bg-slate-900 text-white hover:bg-slate-900/90"
+                        className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
                         onClick={() => setIsUploadOpen(true)}
                     >
                         <Upload className="size-4" />
@@ -452,7 +452,7 @@ export default function UploadDokumen() {
                                     key={item}
                                     className="flex items-start gap-3 text-sm"
                                 >
-                                    <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-green-50 text-green-700 ring-1 ring-green-200">
+                                    <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40">
                                         <CheckCircle2 className="size-4" />
                                     </span>
                                     <span className="text-muted-foreground">
@@ -562,3 +562,4 @@ export default function UploadDokumen() {
         </AppLayout>
     );
 }
+
