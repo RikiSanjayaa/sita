@@ -1,17 +1,16 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     CircleAlert,
     Clock,
     Download,
-    Eye,
     FileText,
     Trash2,
     Upload,
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,39 +39,25 @@ import {
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import * as routes from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type DokumenStatus = 'Menunggu Review' | 'Disetujui' | 'Perlu Revisi';
 
 type UploadedDokumenRow = {
-    nama: string;
-    versi: string;
-    kategori: string;
-    tanggalUpload: string;
-    ukuran: string;
-    status: DokumenStatus;
-};
-
-type GroupDocEvent = {
-    id: string;
-    fileName: string;
+    id: number;
+    title: string;
     category: string;
-    uploadedAt: string;
-    uploadedBy: string;
     version: string;
+    uploadedAt: string;
+    fileName: string;
+    size: string;
+    status: DokumenStatus;
+    downloadUrl: string;
 };
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'pptx'] as const;
-const ACCEPT_ATTR = '.pdf,.docx,.pptx';
-const GROUP_DOC_EVENTS_KEY = 'sita:group-doc-events:v1';
-
-const categoryLabels: Record<string, string> = {
-    'draft-tugas-akhir': 'Draft Tugas Akhir',
-    proposal: 'Proposal',
-    laporan: 'Laporan',
-    'slide-presentasi': 'Slide Presentasi',
-    lampiran: 'Lampiran',
+type UploadDokumenProps = {
+    uploadedDocuments: UploadedDokumenRow[];
+    flashMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -87,94 +72,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const panduanItems = [
-    'Format file yang didukung: PDF, DOCX, PPTX',
+    'Format file yang didukung: PDF, DOC, DOCX',
     'Ukuran maksimal file: 10 MB',
-    'Gunakan penamaan file yang jelas dan deskriptif',
-    'Dokumen akan direview oleh pembimbing dalam 2-3 hari kerja',
+    'Setiap upload membuat versi baru dokumen',
+    'Dosen pembimbing mendapat notifikasi realtime di group chat',
 ];
-
-const uploadedDokumen: UploadedDokumenRow[] = [
-    {
-        nama: 'Draft Tugas Akhir v2.0.pdf',
-        versi: 'v2.0',
-        kategori: 'Draft Tugas Akhir',
-        tanggalUpload: '23 Januari 2026',
-        ukuran: '2.4 MB',
-        status: 'Menunggu Review',
-    },
-    {
-        nama: 'Proposal Tugas Akhir.pdf',
-        versi: 'v1.0',
-        kategori: 'Proposal',
-        tanggalUpload: '16 Januari 2026',
-        ukuran: '1.8 MB',
-        status: 'Disetujui',
-    },
-    {
-        nama: 'Slide Presentasi Sidang.pptx',
-        versi: 'v1.0',
-        kategori: 'Slide Presentasi',
-        tanggalUpload: '20 Januari 2026',
-        ukuran: '5.2 MB',
-        status: 'Perlu Revisi',
-    },
-    {
-        nama: 'Draft Tugas Akhir v1.0.pdf',
-        versi: 'v1.0',
-        kategori: 'Draft Tugas Akhir',
-        tanggalUpload: '10 Januari 2026',
-        ukuran: '2.1 MB',
-        status: 'Disetujui',
-    },
-];
-
-function formatBytes(bytes: number) {
-    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    const order = Math.min(
-        Math.floor(Math.log(bytes) / Math.log(1024)),
-        units.length - 1,
-    );
-    const value = bytes / 1024 ** order;
-    const rounded =
-        value >= 10 || order === 0 ? value.toFixed(0) : value.toFixed(1);
-    return `${rounded} ${units[order]}`;
-}
-
-function getExtension(filename: string) {
-    const lastDot = filename.lastIndexOf('.');
-    if (lastDot === -1) return '';
-    return filename.slice(lastDot + 1).toLowerCase();
-}
-
-function validateFile(file: File) {
-    if (file.size > MAX_FILE_BYTES) {
-        return 'Ukuran file melebihi 10 MB. Silakan pilih file lain.';
-    }
-
-    const ext = getExtension(file.name);
-    if (
-        ext &&
-        !ACCEPTED_EXTENSIONS.includes(
-            ext as (typeof ACCEPTED_EXTENSIONS)[number],
-        )
-    ) {
-        return 'Format file tidak didukung. Gunakan PDF, DOCX, atau PPTX.';
-    }
-
-    return null;
-}
-
-function KategoriBadge({ kategori }: { kategori: string }) {
-    return (
-        <Badge
-            variant="outline"
-            className="rounded-full bg-background text-foreground"
-        >
-            {kategori}
-        </Badge>
-    );
-}
 
 function StatusBadge({ status }: { status: DokumenStatus }) {
     if (status === 'Disetujui') {
@@ -203,65 +105,34 @@ function StatusBadge({ status }: { status: DokumenStatus }) {
     );
 }
 
-function ActionIconButton({
-    label,
-    tone = 'default',
-    icon: Icon,
-}: {
-    label: string;
-    tone?: 'default' | 'danger';
-    icon: typeof Eye;
-}) {
-    return (
-        <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={
-                tone === 'danger'
-                    ? 'h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                    : 'h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground'
-            }
-            aria-label={label}
-            title={label}
-        >
-            <Icon className="size-4" />
-        </Button>
-    );
-}
-
-export default function UploadDokumen() {
-    const page = usePage();
+export default function UploadDokumenPage() {
+    const page = usePage<SharedData & UploadDokumenProps>();
     const query = page.url.split('?')[1] ?? '';
     const [isUploadOpen, setIsUploadOpen] = useState(
         new URLSearchParams(query).get('open') === 'unggah',
     );
-    const [kategori, setKategori] = useState<string>('draft-tugas-akhir');
-    const [file, setFile] = useState<File | null>(null);
-    const [fileError, setFileError] = useState<string | null>(null);
-    const [isUploadSuccessOpen, setIsUploadSuccessOpen] = useState(false);
 
-    function publishUploadToGroupChat(nextFile: File, selectedCategory: string) {
-        if (typeof window === 'undefined') return;
+    const form = useForm<{
+        title: string;
+        category: string;
+        document: File | null;
+    }>({
+        title: '',
+        category: 'draft-tugas-akhir',
+        document: null,
+    });
 
-        const raw = window.localStorage.getItem(GROUP_DOC_EVENTS_KEY);
-        const currentEvents = raw
-            ? (JSON.parse(raw) as GroupDocEvent[])
-            : [];
+    const deleteForm = useForm({});
 
-        const nextEvent: GroupDocEvent = {
-            id: `evt-${Date.now()}`,
-            fileName: nextFile.name,
-            category: categoryLabels[selectedCategory] ?? selectedCategory,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: 'Mahasiswa',
-            version: 'v1.0',
-        };
-
-        window.localStorage.setItem(
-            GROUP_DOC_EVENTS_KEY,
-            JSON.stringify([...currentEvents, nextEvent]),
-        );
+    function submitUpload() {
+        form.post('/mahasiswa/upload-dokumen', {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setIsUploadOpen(false);
+            },
+        });
     }
 
     return (
@@ -283,20 +154,37 @@ export default function UploadDokumen() {
 
                     <form
                         className="grid gap-5"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            if (!file || !kategori) return;
-                            publishUploadToGroupChat(file, kategori);
-                            setIsUploadOpen(false);
-                            setIsUploadSuccessOpen(true);
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            submitUpload();
                         }}
                     >
                         <div className="grid gap-2">
-                            <Label htmlFor="kategori-dokumen">
-                                Kategori Dokumen
-                            </Label>
-                            <Select value={kategori} onValueChange={setKategori}>
-                                <SelectTrigger id="kategori-dokumen">
+                            <Label htmlFor="title">Judul Dokumen</Label>
+                            <Input
+                                id="title"
+                                value={form.data.title}
+                                onChange={(event) =>
+                                    form.setData('title', event.target.value)
+                                }
+                                placeholder="Contoh: Draft Bab 3 Metodologi"
+                            />
+                            {form.errors.title && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.title}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="category">Kategori Dokumen</Label>
+                            <Select
+                                value={form.data.category}
+                                onValueChange={(value) =>
+                                    form.setData('category', value)
+                                }
+                            >
+                                <SelectTrigger id="category">
                                     <SelectValue placeholder="Pilih kategori dokumen" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -309,64 +197,40 @@ export default function UploadDokumen() {
                                     <SelectItem value="laporan">
                                         Laporan
                                     </SelectItem>
-                                    <SelectItem value="slide-presentasi">
-                                        Slide Presentasi
-                                    </SelectItem>
                                     <SelectItem value="lampiran">
                                         Lampiran
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
-                                Pastikan kategori sesuai dengan jenis dokumen agar proses review lebih cepat.
-                            </p>
+                            {form.errors.category && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.category}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="file-dokumen">File Dokumen</Label>
+                            <Label htmlFor="document">File Dokumen</Label>
                             <Input
-                                id="file-dokumen"
+                                id="document"
                                 type="file"
-                                accept={ACCEPT_ATTR}
-                                onChange={(e) => {
-                                    const nextFile =
-                                        e.currentTarget.files?.[0] ?? null;
-
-                                    if (!nextFile) {
-                                        setFile(null);
-                                        setFileError(null);
-                                        return;
-                                    }
-
-                                    const error = validateFile(nextFile);
-                                    setFileError(error);
-                                    setFile(error ? null : nextFile);
-                                }}
+                                accept=".pdf,.doc,.docx"
+                                onChange={(event) =>
+                                    form.setData(
+                                        'document',
+                                        event.currentTarget.files?.[0] ?? null,
+                                    )
+                                }
                             />
                             <p className="text-xs text-muted-foreground">
-                                Format: PDF, DOCX, PPTX. Ukuran maksimal: 10 MB.
+                                Format: PDF, DOC, DOCX. Ukuran maksimal: 10 MB.
                             </p>
-                            {file ? (
-                                <p className="text-xs text-muted-foreground">
-                                    File terpilih:{' '}
-                                    <span className="font-medium text-foreground">
-                                        {file.name}
-                                    </span>{' '}
-                                    ({formatBytes(file.size)})
+                            {form.errors.document && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.document}
                                 </p>
-                            ) : null}
-                            {fileError ? (
-                                <Alert variant="destructive">
-                                    <AlertDescription>{fileError}</AlertDescription>
-                                </Alert>
-                            ) : null}
+                            )}
                         </div>
-
-                        <Alert className="border-sky-100 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
-                            <AlertDescription className="text-sky-900 dark:text-sky-200">
-                                <span className="font-medium">Catatan:</span> Pastikan dokumen sudah sesuai dengan format dan panduan yang diberikan sebelum mengupload.
-                            </AlertDescription>
-                        </Alert>
 
                         <div className="flex items-center justify-end gap-2">
                             <Button
@@ -379,45 +243,16 @@ export default function UploadDokumen() {
                             <Button
                                 type="submit"
                                 className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                disabled={!kategori || !file}
+                                disabled={
+                                    form.processing ||
+                                    form.data.title.trim() === '' ||
+                                    form.data.document === null
+                                }
                             >
                                 Upload
                             </Button>
                         </div>
                     </form>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={isUploadSuccessOpen}
-                onOpenChange={setIsUploadSuccessOpen}
-            >
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Upload berhasil</DialogTitle>
-                        <DialogDescription>
-                            Notifikasi dokumen baru sudah dikirim ke Group Chat
-                            Bimbingan. Dosen pembimbing dapat langsung melihat
-                            dan mengunduh dokumen.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex items-center justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsUploadSuccessOpen(false)}
-                        >
-                            Tutup
-                        </Button>
-                        <Button
-                            asChild
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                        >
-                            <Link href={routes.pesan().url}>
-                                Buka Group Chat
-                            </Link>
-                        </Button>
-                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -439,6 +274,15 @@ export default function UploadDokumen() {
                         Upload Dokumen
                     </Button>
                 </div>
+
+                {page.props.flashMessage && (
+                    <Alert>
+                        <AlertTitle>Berhasil</AlertTitle>
+                        <AlertDescription>
+                            {page.props.flashMessage}
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <Card>
                     <CardHeader>
@@ -468,7 +312,7 @@ export default function UploadDokumen() {
                     <CardHeader className="gap-1">
                         <CardTitle>Dokumen yang Diupload</CardTitle>
                         <CardDescription>
-                            Daftar semua dokumen yang telah Anda upload
+                            Daftar dokumen beserta riwayat versi
                         </CardDescription>
                     </CardHeader>
                     <Separator />
@@ -498,9 +342,9 @@ export default function UploadDokumen() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {uploadedDokumen.map((row) => (
+                                    {page.props.uploadedDocuments.map((row) => (
                                         <tr
-                                            key={`${row.nama}-${row.versi}`}
+                                            key={`${row.id}-${row.version}`}
                                             className="group border-b transition-colors last:border-b-0 hover:bg-muted/30"
                                         >
                                             <td className="px-4 py-3">
@@ -510,24 +354,28 @@ export default function UploadDokumen() {
                                                     </span>
                                                     <div className="min-w-0">
                                                         <div className="text-sm font-medium">
-                                                            {row.nama}
+                                                            {row.title}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {row.versi}
+                                                            {row.fileName} -{' '}
+                                                            {row.version}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <KategoriBadge
-                                                    kategori={row.kategori}
-                                                />
+                                                <Badge
+                                                    variant="outline"
+                                                    className="rounded-full bg-background text-foreground"
+                                                >
+                                                    {row.category}
+                                                </Badge>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
-                                                {row.tanggalUpload}
+                                                {row.uploadedAt}
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
-                                                {row.ukuran}
+                                                {row.size}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <StatusBadge
@@ -536,19 +384,40 @@ export default function UploadDokumen() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex justify-end gap-1">
-                                                    <ActionIconButton
-                                                        label="Lihat"
-                                                        icon={Eye}
-                                                    />
-                                                    <ActionIconButton
-                                                        label="Unduh"
-                                                        icon={Download}
-                                                    />
-                                                    <ActionIconButton
-                                                        label="Hapus"
-                                                        tone="danger"
-                                                        icon={Trash2}
-                                                    />
+                                                    <Button
+                                                        asChild
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                    >
+                                                        <Link
+                                                            href={
+                                                                row.downloadUrl
+                                                            }
+                                                        >
+                                                            <Download className="size-4" />
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                        disabled={
+                                                            deleteForm.processing
+                                                        }
+                                                        onClick={() => {
+                                                            deleteForm.delete(
+                                                                `/mahasiswa/upload-dokumen/${row.id}`,
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -562,4 +431,3 @@ export default function UploadDokumen() {
         </AppLayout>
     );
 }
-

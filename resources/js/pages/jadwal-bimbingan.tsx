@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import {
     Calendar,
     CheckCircle2,
@@ -10,8 +10,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,40 +29,52 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard, jadwalBimbingan } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
-type MeetingType = 'Online' | 'Offline';
-type MeetingStatus = 'Terjadwal' | 'Selesai' | 'Dibatalkan';
+type ScheduleStatus =
+    | 'pending'
+    | 'approved'
+    | 'rescheduled'
+    | 'rejected'
+    | 'completed'
+    | 'cancelled';
 
 type UpcomingMeeting = {
-    id: string;
-    topik: string;
-    pembimbing: {
-        nama: string;
-        avatar?: string | null;
-    };
-    tanggal: string;
-    waktu: string;
-    lokasi: string;
-    tipe: MeetingType;
-    status: Extract<MeetingStatus, 'Terjadwal'>;
+    id: number;
+    topic: string;
+    lecturer: string;
+    requestedAt: string;
+    scheduledAt: string | null;
+    location: string;
+    status: ScheduleStatus;
+    lecturerNote: string | null;
 };
 
 type HistoryMeeting = {
-    id: string;
-    tanggal: string;
-    waktu: string;
-    topik: string;
-    pembimbing: string;
-    tipe: MeetingType;
-    lokasi: string;
-    status: Exclude<MeetingStatus, 'Terjadwal'>;
-    catatan: string;
+    id: number;
+    topic: string;
+    lecturer: string;
+    scheduledAt: string;
+    location: string;
+    status: ScheduleStatus;
+    lecturerNote: string | null;
+};
+
+type JadwalPageProps = {
+    upcomingMeetings: UpcomingMeeting[];
+    historyMeetings: HistoryMeeting[];
+    flashMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -77,110 +88,21 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const upcomingMeetings: UpcomingMeeting[] = [
-    {
-        id: 'up-1',
-        topik: 'Review Bab 3 - Metodologi Penelitian',
-        pembimbing: {
-            nama: 'Dr. Budi Santoso, M.Kom.',
-            avatar: null,
-        },
-        tanggal: '30 Januari 2026',
-        waktu: '10:00 - 11:00',
-        lokasi: 'Ruang Dosen 301',
-        tipe: 'Offline',
-        status: 'Terjadwal',
-    },
-    {
-        id: 'up-2',
-        topik: 'Pembahasan Dataset dan Preprocessing',
-        pembimbing: {
-            nama: 'Dr. Budi Santoso, M.Kom.',
-            avatar: null,
-        },
-        tanggal: '5 Februari 2026',
-        waktu: '14:00 - 15:00',
-        lokasi: 'Google Meet',
-        tipe: 'Online',
-        status: 'Terjadwal',
-    },
-];
-
-const historyMeetings: HistoryMeeting[] = [
-    {
-        id: 'h-1',
-        tanggal: '23 Januari 2026',
-        waktu: '10:00 - 11:00',
-        topik: 'Review Proposal dan Pembahasan Metode',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Offline',
-        lokasi: 'Ruang Dosen 301',
-        status: 'Selesai',
-        catatan:
-            'Proposal disetujui. Lanjutkan ke implementasi. Perbaiki bagian evaluasi dan tuliskan metrik yang digunakan.',
-    },
-    {
-        id: 'h-2',
-        tanggal: '16 Januari 2026',
-        waktu: '14:00 - 15:00',
-        topik: 'Konsultasi Judul dan Outline Proposal',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Online',
-        lokasi: 'Zoom Meeting',
-        status: 'Selesai',
-        catatan:
-            'Judul disetujui. Segera lengkapi proposal dengan tinjauan pustaka dan rencana eksperimen.',
-    },
-    {
-        id: 'h-3',
-        tanggal: '10 Januari 2026',
-        waktu: '10:00 - 11:00',
-        topik: 'Diskusi Awal Topik Penelitian',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Offline',
-        lokasi: 'Ruang Dosen 301',
-        status: 'Selesai',
-        catatan:
-            'Topik IoT dan Machine Learning menarik. Fokuskan ruang lingkup dan tentukan dataset yang relevan.',
-    },
-    {
-        id: 'h-4',
-        tanggal: '8 Januari 2026',
-        waktu: '09:00 - 10:00',
-        topik: 'Bimbingan Pemilihan Topik',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Offline',
-        lokasi: 'Ruang Dosen 301',
-        status: 'Dibatalkan',
-        catatan: 'Dibatalkan karena dosen berhalangan.',
-    },
-];
-
-function MeetingTypeBadge({ tipe }: { tipe: MeetingType }) {
-    return (
-        <Badge
-            variant="outline"
-            className="rounded-full bg-background text-foreground"
-        >
-            {tipe}
-        </Badge>
-    );
-}
-
-function StatusBadge({ status }: { status: MeetingStatus }) {
-    if (status === 'Terjadwal') {
+function StatusBadge({ status }: { status: ScheduleStatus }) {
+    if (status === 'approved' || status === 'rescheduled') {
         return (
-            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
+            <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
+                <CheckCircle2 className="size-3" />
                 Terjadwal
             </Badge>
         );
     }
 
-    if (status === 'Selesai') {
+    if (status === 'pending') {
         return (
-            <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-                <CheckCircle2 className="size-3" />
-                Selesai
+            <Badge variant="secondary" className="gap-1 rounded-full">
+                <Clock className="size-3" />
+                Menunggu Konfirmasi
             </Badge>
         );
     }
@@ -188,53 +110,34 @@ function StatusBadge({ status }: { status: MeetingStatus }) {
     return (
         <Badge variant="destructive" className="gap-1 rounded-full">
             <XCircle className="size-3" />
-            Dibatalkan
+            Ditolak / Dibatalkan
         </Badge>
     );
 }
 
-function PembimbingLine({
-    nama,
-    avatar,
-}: {
-    nama: string;
-    avatar?: string | null;
-}) {
-    return (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Avatar className="h-6 w-6">
-                <AvatarImage src={avatar ?? undefined} alt={nama} />
-                <AvatarFallback>
-                    {nama
-                        .split(' ')
-                        .slice(0, 2)
-                        .map((p) => p[0])
-                        .join('')}
-                </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{nama}</span>
-        </div>
-    );
-}
-
-function EmptyState() {
-    return (
-        <div className="rounded-lg border bg-muted/40 p-6">
-            <div className="text-sm font-medium">Belum ada jadwal.</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-                Ajukan bimbingan untuk membuat jadwal pertemuan dengan
-                pembimbing.
-            </div>
-        </div>
-    );
-}
-
-export default function JadwalBimbingan() {
-    const page = usePage();
+export default function JadwalBimbinganPage() {
+    const page = usePage<SharedData & JadwalPageProps>();
     const query = page.url.split('?')[1] ?? '';
     const [isAjukanOpen, setIsAjukanOpen] = useState(
         new URLSearchParams(query).get('open') === 'ajukan',
     );
+
+    const form = useForm({
+        topic: '',
+        requested_for: '',
+        meeting_type: 'offline',
+        student_note: '',
+    });
+
+    function submitRequest() {
+        form.post('/mahasiswa/jadwal-bimbingan', {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setIsAjukanOpen(false);
+            },
+        });
+    }
 
     return (
         <AppLayout
@@ -249,76 +152,106 @@ export default function JadwalBimbingan() {
                     <DialogHeader>
                         <DialogTitle>Ajukan Jadwal Bimbingan</DialogTitle>
                         <DialogDescription>
-                            Isi formulir untuk mengajukan jadwal bimbingan dengan dosen pembimbing
+                            Isi formulir untuk mengajukan jadwal bimbingan
                         </DialogDescription>
                     </DialogHeader>
 
                     <form
                         className="grid gap-5"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            setIsAjukanOpen(false);
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            submitRequest();
                         }}
                     >
                         <div className="grid gap-2">
-                            <Label htmlFor="topik">Topik Bimbingan</Label>
+                            <Label htmlFor="topic">Topik Bimbingan</Label>
                             <Input
-                                id="topik"
-                                name="topik"
+                                id="topic"
+                                value={form.data.topic}
+                                onChange={(event) =>
+                                    form.setData('topic', event.target.value)
+                                }
                                 required
-                                placeholder="Contoh: Review Bab 2 - Tinjauan Pustaka"
+                                placeholder="Contoh: Review Bab 3 - Metodologi Penelitian"
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Tulis fokus diskusi agar pembimbing bisa menyiapkan arahan.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="tanggal">Tanggal Preferensi</Label>
-                                <Input id="tanggal" name="tanggal" type="date" required />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="waktu">Waktu Preferensi</Label>
-                                <Input id="waktu" name="waktu" type="time" required />
-                            </div>
+                            {form.errors.topic && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.topic}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="tipe">Tipe Bimbingan</Label>
-                            <Select defaultValue="offline">
-                                <SelectTrigger id="tipe">
+                            <Label htmlFor="requested_for">
+                                Tanggal & Waktu Preferensi
+                            </Label>
+                            <Input
+                                id="requested_for"
+                                type="datetime-local"
+                                value={form.data.requested_for}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'requested_for',
+                                        event.target.value,
+                                    )
+                                }
+                                required
+                            />
+                            {form.errors.requested_for && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.requested_for}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="meeting_type">Tipe Bimbingan</Label>
+                            <Select
+                                value={form.data.meeting_type}
+                                onValueChange={(value) =>
+                                    form.setData('meeting_type', value)
+                                }
+                            >
+                                <SelectTrigger id="meeting_type">
                                     <SelectValue placeholder="Pilih tipe bimbingan" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="offline">
                                         Offline (Tatap Muka)
                                     </SelectItem>
-                                    <SelectItem value="online">Online</SelectItem>
+                                    <SelectItem value="online">
+                                        Online
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
+                            {form.errors.meeting_type && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.meeting_type}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="catatan">
-                                Catatan Tambahan{' '}
-                                <span className="font-normal text-muted-foreground">
-                                    (Opsional)
-                                </span>
+                            <Label htmlFor="student_note">
+                                Catatan Tambahan (Opsional)
                             </Label>
                             <Textarea
-                                id="catatan"
-                                name="catatan"
+                                id="student_note"
+                                value={form.data.student_note}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'student_note',
+                                        event.target.value,
+                                    )
+                                }
                                 placeholder="Jelaskan hal-hal yang ingin didiskusikan..."
                             />
+                            {form.errors.student_note && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.student_note}
+                                </p>
+                            )}
                         </div>
-
-                        <Alert className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
-                            <AlertDescription className="text-sky-900 dark:text-sky-200">
-                                <span className="font-medium">Catatan:</span> Jadwal akan dikonfirmasi oleh dosen pembimbing dalam 1-2 hari kerja.
-                            </AlertDescription>
-                        </Alert>
 
                         <div className="flex items-center justify-end gap-2">
                             <Button
@@ -331,6 +264,7 @@ export default function JadwalBimbingan() {
                             <Button
                                 type="submit"
                                 className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                disabled={form.processing}
                             >
                                 <Send className="size-4" />
                                 Kirim Permintaan
@@ -361,70 +295,72 @@ export default function JadwalBimbingan() {
                     </Button>
                 </div>
 
+                {page.props.flashMessage && (
+                    <Alert>
+                        <AlertTitle>Berhasil</AlertTitle>
+                        <AlertDescription>
+                            {page.props.flashMessage}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <Card>
                     <CardHeader className="gap-1">
                         <CardTitle>Bimbingan Akan Datang</CardTitle>
                         <CardDescription>
-                            Jadwal bimbingan yang telah dikonfirmasi
+                            Jadwal bimbingan yang diajukan atau telah
+                            dikonfirmasi
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {upcomingMeetings.length === 0 ? (
-                            <EmptyState />
-                        ) : (
-                            <div className="grid gap-3">
-                                {upcomingMeetings.map((m) => (
-                                    <div
-                                        key={m.id}
-                                        className="rounded-xl border bg-background p-4"
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="min-w-0">
-                                                <div className="truncate text-sm font-semibold">
-                                                    {m.topik}
-                                                </div>
-                                                <div className="mt-1">
-                                                    <PembimbingLine
-                                                        nama={m.pembimbing.nama}
-                                                        avatar={
-                                                            m.pembimbing.avatar
-                                                        }
-                                                    />
-                                                </div>
+                        <div className="grid gap-3">
+                            {page.props.upcomingMeetings.map((meeting) => (
+                                <div
+                                    key={meeting.id}
+                                    className="rounded-xl border bg-background p-4"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="truncate text-sm font-semibold">
+                                                {meeting.topic}
                                             </div>
-                                            <StatusBadge status={m.status} />
-                                        </div>
-
-                                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                            <div className="grid gap-2 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="size-4" />
-                                                    <span>{m.tanggal}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <MapPin className="size-4" />
-                                                    <span className="truncate">
-                                                        {m.lokasi}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid gap-2 text-sm text-muted-foreground md:justify-items-end">
-                                                <div className="flex items-center gap-2 md:justify-end">
-                                                    <Clock className="size-4" />
-                                                    <span>{m.waktu}</span>
-                                                </div>
-                                                <div className="md:justify-self-end">
-                                                    <MeetingTypeBadge
-                                                        tipe={m.tipe}
-                                                    />
-                                                </div>
+                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                {meeting.lecturer}
                                             </div>
                                         </div>
+                                        <StatusBadge status={meeting.status} />
                                     </div>
-                                ))}
-                            </div>
-                        )}
+
+                                    <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar className="size-4" />
+                                            <span>
+                                                Preferensi:{' '}
+                                                {meeting.requestedAt}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="size-4" />
+                                            <span>
+                                                Terkonfirmasi:{' '}
+                                                {meeting.scheduledAt ??
+                                                    'Menunggu konfirmasi dosen'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <MapPin className="size-4" />
+                                            <span>{meeting.location}</span>
+                                        </div>
+                                        {meeting.lecturerNote && (
+                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+                                                Catatan dosen:{' '}
+                                                {meeting.lecturerNote}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -432,162 +368,52 @@ export default function JadwalBimbingan() {
                     <CardHeader className="gap-1">
                         <CardTitle>Riwayat Bimbingan</CardTitle>
                         <CardDescription>
-                            Catatan semua sesi bimbingan yang telah dilakukan
+                            Riwayat bimbingan yang sudah selesai / ditutup
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {historyMeetings.length === 0 ? (
-                            <EmptyState />
-                        ) : (
-                            <>
-                                <div className="grid gap-3 md:hidden">
-                                    {historyMeetings.map((row) => (
-                                        <div
-                                            key={row.id}
-                                            className="rounded-xl border bg-background p-4"
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="min-w-0">
-                                                    <div className="text-sm font-semibold">
-                                                        {row.topik}
-                                                    </div>
-                                                    <div className="mt-1 text-sm text-muted-foreground">
-                                                        {row.pembimbing}
-                                                    </div>
-                                                </div>
-                                                <StatusBadge
-                                                    status={row.status}
-                                                />
+                        <div className="grid gap-3">
+                            {page.props.historyMeetings.map((row) => (
+                                <div
+                                    key={row.id}
+                                    className="rounded-xl border bg-background p-4"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-semibold">
+                                                {row.topic}
                                             </div>
-
-                                            <Separator className="my-4" />
-
-                                            <div className="grid gap-2 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="size-4" />
-                                                    <span>{row.tanggal}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="size-4" />
-                                                    <span>{row.waktu}</span>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <MeetingTypeBadge
-                                                        tipe={row.tipe}
-                                                    />
-                                                    <div className="flex items-center gap-2 truncate">
-                                                        <MapPin className="size-4" />
-                                                        <span className="truncate">
-                                                            {row.lokasi}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="rounded-lg border bg-muted/30 p-3">
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Catatan
-                                                    </div>
-                                                    <div className="mt-1 text-sm text-foreground">
-                                                        {row.catatan}
-                                                    </div>
-                                                </div>
+                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                {row.lecturer}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                        <StatusBadge status={row.status} />
+                                    </div>
 
-                                <div className="hidden overflow-hidden rounded-lg border md:block">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-background">
-                                            <tr className="border-b">
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tanggal & Waktu
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Topik
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tipe
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Status
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Catatan
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {historyMeetings.map((row) => (
-                                                <tr
-                                                    key={row.id}
-                                                    className="border-b last:border-b-0"
-                                                >
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="grid gap-2 text-sm text-muted-foreground">
-                                                            <div className="flex items-center gap-2">
-                                                                <Calendar className="size-4" />
-                                                                <span>
-                                                                    {
-                                                                        row.tanggal
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Clock className="size-4" />
-                                                                <span>
-                                                                    {row.waktu}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="min-w-0">
-                                                            <div className="text-sm font-medium">
-                                                                {row.topik}
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-muted-foreground">
-                                                                {row.pembimbing}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="grid gap-2">
-                                                            <div>
-                                                                <MeetingTypeBadge
-                                                                    tipe={
-                                                                        row.tipe
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                <MapPin className="size-3.5" />
-                                                                <span className="truncate">
-                                                                    {row.lokasi}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <StatusBadge
-                                                            status={row.status}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="max-w-[360px] text-sm text-muted-foreground">
-                                                            {row.catatan}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    <Separator className="my-3" />
+
+                                    <div className="grid gap-2 text-sm text-muted-foreground">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar className="size-4" />
+                                            <span>{row.scheduledAt}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <MapPin className="size-4" />
+                                            <span>{row.location}</span>
+                                        </div>
+                                        {row.lecturerNote && (
+                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+                                                Catatan dosen:{' '}
+                                                {row.lecturerNote}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </>
-                        )}
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
             </div>
         </AppLayout>
     );
 }
-
