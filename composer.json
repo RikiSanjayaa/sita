@@ -13,6 +13,7 @@
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/fortify": "^1.30",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.7",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9"
     },
@@ -50,12 +51,12 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan reverb:start --host=0.0.0.0 --port=8080\" \"npm run dev\" --names='server,queue,reverb,vite'"
         ],
         "dev:ssr": [
             "npm run build:ssr",
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"php artisan inertia:start-ssr\" --names=server,queue,logs,ssr --kill-others"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#f59e0b,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan reverb:start --host=0.0.0.0 --port=8080\" \"php artisan pail --timeout=0\" \"php artisan inertia:start-ssr\" --names=server,queue,reverb,logs,ssr --kill-others"
         ],
         "lint": [
             "pint --parallel"
