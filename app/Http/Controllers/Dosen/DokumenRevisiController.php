@@ -43,7 +43,9 @@ class DokumenRevisiController extends Controller
                         default => 'Perlu Review',
                     },
                     'revisionNotes' => $document->revision_notes,
-                    'fileUrl' => $document->file_url,
+                    'fileUrl' => $document->storage_path === null
+                        ? $document->file_url
+                        : route('files.documents.download', ['document' => $document->id]),
                 ];
             })
             ->all();

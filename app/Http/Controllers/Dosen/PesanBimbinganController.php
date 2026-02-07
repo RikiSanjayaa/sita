@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dosen;
 
+use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
@@ -57,8 +58,12 @@ class PesanBimbinganController extends Controller
                                 'message' => $message->message,
                                 'time' => $message->created_at->format('d M Y H:i'),
                                 'type' => $message->message_type,
-                                'documentName' => $message->relatedDocument?->file_name,
-                                'documentUrl' => $message->relatedDocument?->file_url,
+                                'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
+                                'documentUrl' => $message->attachment_path === null
+                                    ? ($message->related_document_id === null
+                                        ? null
+                                        : route('files.documents.download', ['document' => $message->related_document_id]))
+                                    : route('files.chat-attachments.download', ['message' => $message->id]),
                             ];
                         })
                         ->all(),
@@ -82,15 +87,54 @@ class PesanBimbinganController extends Controller
         abort_unless(in_array($thread->student_user_id, $studentIds, true), 403);
 
         $data = $request->validate([
-            'message' => ['required', 'string', 'max:2000'],
+            'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
         ]);
 
-        $thread->messages()->create([
+        $attachment = $data['attachment'] ?? null;
+        $attachmentPath = null;
+        $attachmentDisk = null;
+        $attachmentName = null;
+        $attachmentMime = null;
+        $attachmentSizeKb = null;
+
+        if ($attachment !== null) {
+            $attachmentDisk = 'public';
+            $attachmentPath = $attachment->store(
+                sprintf('chat/dosen/%d/student/%d', $lecturer->id, $thread->student_user_id),
+                $attachmentDisk,
+            );
+            $attachmentName = $attachment->getClientOriginalName();
+            $attachmentMime = $attachment->getClientMimeType();
+            $attachmentSizeKb = (int) ceil($attachment->getSize() / 1024);
+        }
+
+        $message = $thread->messages()->create([
             'sender_user_id' => $lecturer->id,
-            'message_type' => 'text',
-            'message' => trim($data['message']),
+            'message_type' => $attachmentPath === null ? 'text' : 'revision_suggestion',
+            'message' => trim((string) ($data['message'] ?? '')),
+            'attachment_disk' => $attachmentDisk,
+            'attachment_path' => $attachmentPath,
+            'attachment_name' => $attachmentName,
+            'attachment_mime' => $attachmentMime,
+            'attachment_size_kb' => $attachmentSizeKb,
             'sent_at' => now(),
         ]);
+
+        broadcast(new ChatMessageCreated(
+            threadId: $thread->id,
+            messagePayload: [
+                'id' => $message->id,
+                'author' => $lecturer->name,
+                'message' => $message->message,
+                'time' => $message->created_at->format('d M Y H:i'),
+                'type' => $message->message_type,
+                'documentName' => $message->attachment_name,
+                'documentUrl' => $message->attachment_path === null
+                    ? null
+                    : route('files.chat-attachments.download', ['message' => $message->id]),
+            ],
+        ))->toOthers();
 
         return back()->with('success', 'Pesan berhasil dikirim.');
     }

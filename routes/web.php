@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\File\ChatAttachmentDownloadController;
+use App\Http\Controllers\File\DocumentDownloadController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\RoleSwitchController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +18,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', PortalController::class)->name('dashboard');
     Route::get('portal', PortalController::class)->name('portal');
     Route::post('role/switch', RoleSwitchController::class)->name('role.switch');
+    Route::get('files/documents/{document}/download', DocumentDownloadController::class)->name('files.documents.download');
+    Route::get('files/chat-attachments/{message}/download', ChatAttachmentDownloadController::class)->name('files.chat-attachments.download');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

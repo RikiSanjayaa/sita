@@ -24,6 +24,18 @@ class ChatThreadController extends Controller
                     'author' => $message->sender?->name ?? 'Sistem',
                     'message' => $message->message,
                     'time' => $message->created_at->format('Y-m-d H:i'),
+                    'attachment_name' => $message->attachment_name,
+                    'attachment_url' => $message->attachment_path === null
+                        ? ($message->related_document_id === null
+                            ? null
+                            : route('files.documents.download', [
+                                'document' => $message->related_document_id,
+                                'escalated' => 1,
+                            ]))
+                        : route('files.chat-attachments.download', [
+                            'message' => $message->id,
+                            'escalated' => 1,
+                        ]),
                 ])
                 ->all(),
         ]);
