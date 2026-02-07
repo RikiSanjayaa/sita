@@ -18,6 +18,11 @@ class MentorshipChatMessage extends Model
         'mentorship_chat_thread_id',
         'sender_user_id',
         'related_document_id',
+        'attachment_disk',
+        'attachment_path',
+        'attachment_name',
+        'attachment_mime',
+        'attachment_size_kb',
         'message_type',
         'message',
         'sent_at',
@@ -30,6 +35,7 @@ class MentorshipChatMessage extends Model
     {
         return [
             'sent_at' => 'datetime',
+            'attachment_size_kb' => 'integer',
         ];
     }
 

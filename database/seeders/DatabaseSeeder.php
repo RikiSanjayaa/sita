@@ -180,12 +180,19 @@ class DatabaseSeeder extends Seeder
                 [
                     'mentorship_assignment_id' => $assignment->id,
                     'title' => 'Draft Skripsi',
+                    'category' => 'draft-tugas-akhir',
+                    'document_group' => sprintf('%d:%s', $student->id, 'draft-tugas-akhir'),
+                    'version_number' => 1,
                     'file_url' => '/storage/demo/draft.pdf',
+                    'storage_disk' => null,
+                    'storage_path' => null,
+                    'mime_type' => 'application/pdf',
                     'file_size_kb' => 850,
                     'status' => 'submitted',
                     'revision_notes' => null,
                     'reviewed_at' => null,
                     'uploaded_by_user_id' => $student->id,
+                    'uploaded_by_role' => 'mahasiswa',
                 ],
             );
 
@@ -206,6 +213,11 @@ class DatabaseSeeder extends Seeder
                 [
                     'sender_user_id' => null,
                     'message' => 'Mahasiswa mengunggah dokumen baru untuk direview.',
+                    'attachment_disk' => null,
+                    'attachment_path' => null,
+                    'attachment_name' => $document->file_name,
+                    'attachment_mime' => 'application/pdf',
+                    'attachment_size_kb' => $document->file_size_kb,
                     'sent_at' => $document->created_at,
                 ],
             );

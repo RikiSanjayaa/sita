@@ -20,13 +20,20 @@ class MentorshipDocument extends Model
         'lecturer_user_id',
         'mentorship_assignment_id',
         'title',
+        'category',
+        'document_group',
+        'version_number',
         'file_name',
         'file_url',
+        'storage_disk',
+        'storage_path',
+        'mime_type',
         'file_size_kb',
         'status',
         'revision_notes',
         'reviewed_at',
         'uploaded_by_user_id',
+        'uploaded_by_role',
     ];
 
     /**
@@ -36,6 +43,7 @@ class MentorshipDocument extends Model
     {
         return [
             'reviewed_at' => 'datetime',
+            'version_number' => 'integer',
         ];
     }
 

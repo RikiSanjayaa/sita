@@ -22,13 +22,20 @@ class MentorshipDocumentFactory extends Factory
             'lecturer_user_id' => User::factory()->asDosen(),
             'mentorship_assignment_id' => null,
             'title' => fake()->sentence(3),
+            'category' => 'draft-tugas-akhir',
+            'document_group' => fake()->uuid(),
+            'version_number' => 1,
             'file_name' => 'dokumen_ta_v'.fake()->numberBetween(1, 5).'.pdf',
             'file_url' => null,
+            'storage_disk' => null,
+            'storage_path' => null,
+            'mime_type' => 'application/pdf',
             'file_size_kb' => fake()->numberBetween(150, 1500),
             'status' => fake()->randomElement(['submitted', 'needs_revision', 'approved']),
             'revision_notes' => null,
             'reviewed_at' => null,
             'uploaded_by_user_id' => User::factory()->asMahasiswa(),
+            'uploaded_by_role' => 'mahasiswa',
         ];
     }
 }
