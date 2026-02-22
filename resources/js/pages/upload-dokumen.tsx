@@ -5,6 +5,7 @@ import {
     Clock,
     Download,
     FileText,
+    Inbox,
     Trash2,
     Upload,
 } from 'lucide-react';
@@ -134,6 +135,8 @@ export default function UploadDokumenPage() {
             },
         });
     }
+
+    const hasUploadedDocuments = page.props.uploadedDocuments.length > 0;
 
     return (
         <AppLayout
@@ -317,114 +320,136 @@ export default function UploadDokumenPage() {
                     </CardHeader>
                     <Separator />
                     <CardContent className="pt-6">
-                        <div className="overflow-hidden rounded-lg border">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-background">
-                                    <tr className="border-b">
-                                        <th className="px-4 py-3 font-medium">
-                                            Nama Dokumen
-                                        </th>
-                                        <th className="px-4 py-3 font-medium">
-                                            Kategori
-                                        </th>
-                                        <th className="px-4 py-3 font-medium">
-                                            Tanggal Upload
-                                        </th>
-                                        <th className="px-4 py-3 font-medium">
-                                            Ukuran
-                                        </th>
-                                        <th className="px-4 py-3 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="px-4 py-3 text-right font-medium">
-                                            Aksi
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {page.props.uploadedDocuments.map((row) => (
-                                        <tr
-                                            key={`${row.id}-${row.version}`}
-                                            className="group border-b transition-colors last:border-b-0 hover:bg-muted/30"
-                                        >
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-start gap-3">
-                                                    <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                                        <FileText className="size-4" />
-                                                    </span>
-                                                    <div className="min-w-0">
-                                                        <div className="text-sm font-medium">
-                                                            {row.title}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {row.fileName} -{' '}
-                                                            {row.version}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge
-                                                    variant="outline"
-                                                    className="rounded-full bg-background text-foreground"
-                                                >
-                                                    {row.category}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {row.uploadedAt}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {row.size}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <StatusBadge
-                                                    status={row.status}
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        asChild
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                    >
-                                                        <Link
-                                                            href={
-                                                                row.downloadUrl
-                                                            }
-                                                        >
-                                                            <Download className="size-4" />
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                        disabled={
-                                                            deleteForm.processing
-                                                        }
-                                                        onClick={() => {
-                                                            deleteForm.delete(
-                                                                `/mahasiswa/upload-dokumen/${row.id}`,
-                                                                {
-                                                                    preserveScroll: true,
-                                                                },
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
+                        {hasUploadedDocuments ? (
+                            <div className="overflow-hidden rounded-lg border">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-background">
+                                        <tr className="border-b">
+                                            <th className="px-4 py-3 font-medium">
+                                                Nama Dokumen
+                                            </th>
+                                            <th className="px-4 py-3 font-medium">
+                                                Kategori
+                                            </th>
+                                            <th className="px-4 py-3 font-medium">
+                                                Tanggal Upload
+                                            </th>
+                                            <th className="px-4 py-3 font-medium">
+                                                Ukuran
+                                            </th>
+                                            <th className="px-4 py-3 font-medium">
+                                                Status
+                                            </th>
+                                            <th className="px-4 py-3 text-right font-medium">
+                                                Aksi
+                                            </th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {page.props.uploadedDocuments.map(
+                                            (row) => (
+                                                <tr
+                                                    key={`${row.id}-${row.version}`}
+                                                    className="group border-b transition-colors last:border-b-0 hover:bg-muted/30"
+                                                >
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                                                <FileText className="size-4" />
+                                                            </span>
+                                                            <div className="min-w-0">
+                                                                <div className="text-sm font-medium">
+                                                                    {row.title}
+                                                                </div>
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {
+                                                                        row.fileName
+                                                                    }{' '}
+                                                                    -{' '}
+                                                                    {
+                                                                        row.version
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="rounded-full bg-background text-foreground"
+                                                        >
+                                                            {row.category}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                        {row.uploadedAt}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                        {row.size}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <StatusBadge
+                                                            status={row.status}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button
+                                                                asChild
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                            >
+                                                                <Link
+                                                                    href={
+                                                                        row.downloadUrl
+                                                                    }
+                                                                >
+                                                                    <Download className="size-4" />
+                                                                </Link>
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                disabled={
+                                                                    deleteForm.processing
+                                                                }
+                                                                onClick={() => {
+                                                                    deleteForm.delete(
+                                                                        `/mahasiswa/upload-dokumen/${row.id}`,
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="size-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ),
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center">
+                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                    <Inbox className="size-5" />
+                                </span>
+                                <p className="text-sm font-medium">
+                                    Belum ada dokumen yang diupload
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Mulai unggah dokumen pertama Anda untuk
+                                    memulai proses review.
+                                </p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -1,14 +1,15 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     Calendar,
     CheckCircle2,
     Clock,
+    Inbox,
     MapPin,
     Plus,
     Send,
     XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -72,6 +73,12 @@ type HistoryMeeting = {
 };
 
 type JadwalPageProps = {
+    advisors: Array<{
+        assignmentId: number;
+        lecturerUserId: number;
+        lecturerName: string;
+        advisorType: string;
+    }>;
     upcomingMeetings: UpcomingMeeting[];
     historyMeetings: HistoryMeeting[];
     flashMessage?: string | null;
@@ -89,6 +96,24 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 function StatusBadge({ status }: { status: ScheduleStatus }) {
+    if (status === 'completed') {
+        return (
+            <Badge className="gap-1 rounded-full bg-blue-600 text-white hover:bg-blue-600/90 dark:bg-blue-500 dark:hover:bg-blue-500/90">
+                <CheckCircle2 className="size-3" />
+                Selesai
+            </Badge>
+        );
+    }
+
+    if (status === 'cancelled') {
+        return (
+            <Badge variant="outline" className="gap-1 rounded-full">
+                <XCircle className="size-3" />
+                Dibatalkan
+            </Badge>
+        );
+    }
+
     if (status === 'approved' || status === 'rescheduled') {
         return (
             <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
@@ -110,7 +135,7 @@ function StatusBadge({ status }: { status: ScheduleStatus }) {
     return (
         <Badge variant="destructive" className="gap-1 rounded-full">
             <XCircle className="size-3" />
-            Ditolak / Dibatalkan
+            Ditolak
         </Badge>
     );
 }
@@ -124,10 +149,45 @@ export default function JadwalBimbinganPage() {
 
     const form = useForm({
         topic: '',
+        lecturer_user_id: '',
         requested_for: '',
         meeting_type: 'offline',
         student_note: '',
     });
+
+    useEffect(() => {
+        if (
+            form.data.lecturer_user_id === '' &&
+            page.props.advisors.length > 0
+        ) {
+            form.setData(
+                'lecturer_user_id',
+                String(page.props.advisors[0].lecturerUserId),
+            );
+        }
+    }, [form, form.data.lecturer_user_id, page.props.advisors]);
+
+    useEffect(() => {
+        const userId = page.props.auth.user?.id;
+        if (typeof window === 'undefined' || !window.Echo || !userId) {
+            return;
+        }
+
+        const channelName = `schedule.user.${userId}`;
+        const channel = window.Echo.private(channelName).listen(
+            '.schedule.updated',
+            () => {
+                router.reload({
+                    only: ['upcomingMeetings', 'historyMeetings'],
+                });
+            },
+        );
+
+        return () => {
+            channel.stopListening('.schedule.updated');
+            window.Echo.leaveChannel(`private-${channelName}`);
+        };
+    }, [page.props.auth.user?.id]);
 
     function submitRequest() {
         form.post('/mahasiswa/jadwal-bimbingan', {
@@ -138,6 +198,9 @@ export default function JadwalBimbinganPage() {
             },
         });
     }
+
+    const hasUpcomingMeetings = page.props.upcomingMeetings.length > 0;
+    const hasHistoryMeetings = page.props.historyMeetings.length > 0;
 
     return (
         <AppLayout
@@ -177,6 +240,43 @@ export default function JadwalBimbinganPage() {
                             {form.errors.topic && (
                                 <p className="text-xs text-destructive">
                                     {form.errors.topic}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="lecturer_user_id">
+                                Dosen Pembimbing Tujuan
+                            </Label>
+                            <Select
+                                value={form.data.lecturer_user_id}
+                                onValueChange={(value) =>
+                                    form.setData('lecturer_user_id', value)
+                                }
+                            >
+                                <SelectTrigger id="lecturer_user_id">
+                                    <SelectValue placeholder="Pilih dosen pembimbing" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {page.props.advisors.map((advisor) => (
+                                        <SelectItem
+                                            key={`${advisor.assignmentId}-${advisor.lecturerUserId}`}
+                                            value={String(
+                                                advisor.lecturerUserId,
+                                            )}
+                                        >
+                                            {advisor.lecturerName} (
+                                            {advisor.advisorType === 'primary'
+                                                ? 'Pembimbing 1'
+                                                : 'Pembimbing 2'}
+                                            )
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {form.errors.lecturer_user_id && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.lecturer_user_id}
                                 </p>
                             )}
                         </div>
@@ -314,52 +414,69 @@ export default function JadwalBimbinganPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-3">
-                            {page.props.upcomingMeetings.map((meeting) => (
-                                <div
-                                    key={meeting.id}
-                                    className="rounded-xl border bg-background p-4"
-                                >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <div className="truncate text-sm font-semibold">
-                                                {meeting.topic}
+                            {hasUpcomingMeetings ? (
+                                page.props.upcomingMeetings.map((meeting) => (
+                                    <div
+                                        key={meeting.id}
+                                        className="rounded-xl border bg-background p-4"
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <div className="truncate text-sm font-semibold">
+                                                    {meeting.topic}
+                                                </div>
+                                                <div className="mt-1 text-sm text-muted-foreground">
+                                                    {meeting.lecturer}
+                                                </div>
                                             </div>
-                                            <div className="mt-1 text-sm text-muted-foreground">
-                                                {meeting.lecturer}
-                                            </div>
+                                            <StatusBadge
+                                                status={meeting.status}
+                                            />
                                         </div>
-                                        <StatusBadge status={meeting.status} />
-                                    </div>
 
-                                    <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="size-4" />
-                                            <span>
-                                                Preferensi:{' '}
-                                                {meeting.requestedAt}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Clock className="size-4" />
-                                            <span>
-                                                Terkonfirmasi:{' '}
-                                                {meeting.scheduledAt ??
-                                                    'Menunggu konfirmasi dosen'}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <MapPin className="size-4" />
-                                            <span>{meeting.location}</span>
-                                        </div>
-                                        {meeting.lecturerNote && (
-                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-                                                Catatan dosen:{' '}
-                                                {meeting.lecturerNote}
+                                        <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="size-4" />
+                                                <span>
+                                                    Preferensi:{' '}
+                                                    {meeting.requestedAt}
+                                                </span>
                                             </div>
-                                        )}
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="size-4" />
+                                                <span>
+                                                    Terkonfirmasi:{' '}
+                                                    {meeting.scheduledAt ??
+                                                        'Menunggu konfirmasi dosen'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="size-4" />
+                                                <span>{meeting.location}</span>
+                                            </div>
+                                            {meeting.lecturerNote && (
+                                                <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+                                                    Catatan dosen:{' '}
+                                                    {meeting.lecturerNote}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
+                                    <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                        <Inbox className="size-5" />
+                                    </span>
+                                    <p className="text-sm font-medium">
+                                        Belum ada jadwal mendatang
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Ajukan jadwal baru untuk mulai sesi
+                                        bimbingan berikutnya.
+                                    </p>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -373,43 +490,58 @@ export default function JadwalBimbinganPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-3">
-                            {page.props.historyMeetings.map((row) => (
-                                <div
-                                    key={row.id}
-                                    className="rounded-xl border bg-background p-4"
-                                >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <div className="text-sm font-semibold">
-                                                {row.topic}
+                            {hasHistoryMeetings ? (
+                                page.props.historyMeetings.map((row) => (
+                                    <div
+                                        key={row.id}
+                                        className="rounded-xl border bg-background p-4"
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-semibold">
+                                                    {row.topic}
+                                                </div>
+                                                <div className="mt-1 text-sm text-muted-foreground">
+                                                    {row.lecturer}
+                                                </div>
                                             </div>
-                                            <div className="mt-1 text-sm text-muted-foreground">
-                                                {row.lecturer}
-                                            </div>
+                                            <StatusBadge status={row.status} />
                                         </div>
-                                        <StatusBadge status={row.status} />
-                                    </div>
 
-                                    <Separator className="my-3" />
+                                        <Separator className="my-3" />
 
-                                    <div className="grid gap-2 text-sm text-muted-foreground">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="size-4" />
-                                            <span>{row.scheduledAt}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <MapPin className="size-4" />
-                                            <span>{row.location}</span>
-                                        </div>
-                                        {row.lecturerNote && (
-                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-                                                Catatan dosen:{' '}
-                                                {row.lecturerNote}
+                                        <div className="grid gap-2 text-sm text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="size-4" />
+                                                <span>{row.scheduledAt}</span>
                                             </div>
-                                        )}
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="size-4" />
+                                                <span>{row.location}</span>
+                                            </div>
+                                            {row.lecturerNote && (
+                                                <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+                                                    Catatan dosen:{' '}
+                                                    {row.lecturerNote}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
+                                    <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                        <Calendar className="size-5" />
+                                    </span>
+                                    <p className="text-sm font-medium">
+                                        Belum ada riwayat bimbingan
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Riwayat akan muncul setelah sesi pertama
+                                        selesai.
+                                    </p>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </CardContent>
                 </Card>

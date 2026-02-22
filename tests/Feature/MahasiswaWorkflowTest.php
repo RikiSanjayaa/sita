@@ -21,7 +21,7 @@ function createUserWithRole(string $role): User
     return $user;
 }
 
-test('mahasiswa can request schedule to all active advisors', function () {
+test('mahasiswa can request schedule to selected active advisor', function () {
     $admin = createUserWithRole(AppRole::Admin->value);
     $student = createUserWithRole(AppRole::Mahasiswa->value);
     $dosen1 = createUserWithRole(AppRole::Dosen->value);
@@ -50,13 +50,52 @@ test('mahasiswa can request schedule to all active advisors', function () {
     $this->actingAs($student)
         ->post('/mahasiswa/jadwal-bimbingan', [
             'topic' => 'Review Bab 3',
+            'lecturer_user_id' => $dosen1->id,
             'requested_for' => now()->addDay()->format('Y-m-d H:i:s'),
             'meeting_type' => 'online',
             'student_note' => 'Mohon jadwalkan siang hari.',
         ])
         ->assertRedirect('/mahasiswa/jadwal-bimbingan');
 
-    $this->assertDatabaseCount('mentorship_schedules', 2);
+    $this->assertDatabaseCount('mentorship_schedules', 1);
+    $this->assertDatabaseHas('mentorship_schedules', [
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $dosen1->id,
+    ]);
+});
+
+test('mahasiswa cannot request schedule to lecturer outside active advisors', function () {
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $activeDosen = createUserWithRole(AppRole::Dosen->value);
+    $foreignDosen = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'status_akademik' => 'aktif',
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $activeDosen->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+
+    $this->actingAs($student)
+        ->from('/mahasiswa/jadwal-bimbingan')
+        ->post('/mahasiswa/jadwal-bimbingan', [
+            'topic' => 'Review Bab 4',
+            'lecturer_user_id' => $foreignDosen->id,
+            'requested_for' => now()->addDay()->format('Y-m-d H:i:s'),
+            'meeting_type' => 'offline',
+            'student_note' => 'Mohon konfirmasi.',
+        ])
+        ->assertRedirect('/mahasiswa/jadwal-bimbingan')
+        ->assertSessionHasErrors('lecturer_user_id');
+
+    $this->assertDatabaseCount('mentorship_schedules', 0);
 });
 
 test('mahasiswa upload creates document version rows and chat event', function () {

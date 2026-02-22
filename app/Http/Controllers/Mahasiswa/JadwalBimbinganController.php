@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Enums\AssignmentStatus;
+use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipSchedule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class JadwalBimbinganController extends Controller
 {
@@ -23,6 +26,20 @@ class JadwalBimbinganController extends Controller
             ->where('student_user_id', $student->id)
             ->latest('created_at')
             ->get();
+
+        $advisors = MentorshipAssignment::query()
+            ->with('lecturer')
+            ->where('student_user_id', $student->id)
+            ->where('status', AssignmentStatus::Active->value)
+            ->get()
+            ->map(fn (MentorshipAssignment $assignment): array => [
+                'assignmentId' => $assignment->id,
+                'lecturerUserId' => $assignment->lecturer_user_id,
+                'lecturerName' => $assignment->lecturer?->name ?? '-',
+                'advisorType' => $assignment->advisor_type,
+            ])
+            ->values()
+            ->all();
 
         $upcomingMeetings = $schedules
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
@@ -61,6 +78,7 @@ class JadwalBimbinganController extends Controller
             ->all();
 
         return Inertia::render('jadwal-bimbingan', [
+            'advisors' => $advisors,
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
             'flashMessage' => $request->session()->get('success'),
@@ -74,6 +92,7 @@ class JadwalBimbinganController extends Controller
 
         $data = $request->validate([
             'topic' => ['required', 'string', 'max:255'],
+            'lecturer_user_id' => ['required', 'integer'],
             'requested_for' => ['required', 'date'],
             'meeting_type' => ['required', 'in:online,offline'],
             'student_note' => ['nullable', 'string', 'max:2000'],
@@ -90,24 +109,46 @@ class JadwalBimbinganController extends Controller
             ]);
         }
 
-        foreach ($assignments as $assignment) {
-            MentorshipSchedule::query()->create([
-                'student_user_id' => $student->id,
-                'lecturer_user_id' => $assignment->lecturer_user_id,
-                'mentorship_assignment_id' => $assignment->id,
-                'topic' => trim($data['topic']),
-                'status' => 'pending',
-                'requested_for' => $data['requested_for'],
-                'scheduled_for' => null,
-                'location' => $data['meeting_type'] === 'online' ? 'Online (akan ditentukan dosen)' : 'Offline (akan ditentukan dosen)',
-                'student_note' => $data['student_note'] ?? null,
-                'lecturer_note' => null,
-                'created_by_user_id' => $student->id,
+        $selectedAssignment = $assignments
+            ->firstWhere('lecturer_user_id', (int) $data['lecturer_user_id']);
+
+        if ($selectedAssignment === null) {
+            return back()->withErrors([
+                'lecturer_user_id' => 'Pilih dosen pembimbing yang valid.',
             ]);
         }
+
+        MentorshipSchedule::query()->create([
+            'student_user_id' => $student->id,
+            'lecturer_user_id' => $selectedAssignment->lecturer_user_id,
+            'mentorship_assignment_id' => $selectedAssignment->id,
+            'topic' => trim($data['topic']),
+            'status' => 'pending',
+            'requested_for' => $data['requested_for'],
+            'scheduled_for' => null,
+            'location' => $data['meeting_type'] === 'online' ? 'Online (akan ditentukan dosen)' : 'Offline (akan ditentukan dosen)',
+            'student_note' => $data['student_note'] ?? null,
+            'lecturer_note' => null,
+            'created_by_user_id' => $student->id,
+        ]);
+
+        $this->broadcastScheduleUpdated($selectedAssignment->lecturer_user_id);
+        $this->broadcastScheduleUpdated($student->id);
 
         return redirect()
             ->route('mahasiswa.jadwal-bimbingan')
             ->with('success', 'Permintaan jadwal bimbingan berhasil dikirim.');
+    }
+
+    private function broadcastScheduleUpdated(int $userId): void
+    {
+        try {
+            broadcast(new ScheduleUpdated($userId))->toOthers();
+        } catch (Throwable $exception) {
+            Log::warning('Schedule realtime update skipped because realtime server is unavailable.', [
+                'user_id' => $userId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

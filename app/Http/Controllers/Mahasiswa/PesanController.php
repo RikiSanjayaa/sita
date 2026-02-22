@@ -10,8 +10,10 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class PesanController extends Controller
 {
@@ -98,10 +100,7 @@ class PesanController extends Controller
             'sent_at' => now(),
         ]);
 
-        broadcast(new ChatMessageCreated(
-            threadId: $thread->id,
-            messagePayload: $this->mapMessagePayload($message),
-        ))->toOthers();
+        $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
 
         return back()->with('success', 'Pesan berhasil dikirim.');
     }
@@ -124,5 +123,23 @@ class PesanController extends Controller
                     : route('files.documents.download', ['document' => $message->related_document_id]))
                 : route('files.chat-attachments.download', ['message' => $message->id]),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function broadcastChatMessage(int $threadId, array $payload): void
+    {
+        try {
+            broadcast(new ChatMessageCreated(
+                threadId: $threadId,
+                messagePayload: $payload,
+            ))->toOthers();
+        } catch (Throwable $exception) {
+            Log::warning('Chat broadcast skipped because realtime server is unavailable.', [
+                'thread_id' => $threadId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

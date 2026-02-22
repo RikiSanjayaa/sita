@@ -33,3 +33,7 @@ Broadcast::channel('mentorship.thread.{threadId}', function ($user, int $threadI
         ->where('status', AssignmentStatus::Active->value)
         ->exists();
 });
+
+Broadcast::channel('schedule.user.{userId}', function ($user, int $userId): bool {
+    return (int) $user->id === $userId;
+});

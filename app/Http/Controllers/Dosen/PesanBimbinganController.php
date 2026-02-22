@@ -9,8 +9,10 @@ use App\Models\MentorshipChatThread;
 use App\Services\DosenBimbinganService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class PesanBimbinganController extends Controller
 {
@@ -121,21 +123,36 @@ class PesanBimbinganController extends Controller
             'sent_at' => now(),
         ]);
 
-        broadcast(new ChatMessageCreated(
-            threadId: $thread->id,
-            messagePayload: [
-                'id' => $message->id,
-                'author' => $lecturer->name,
-                'message' => $message->message,
-                'time' => $message->created_at->format('d M Y H:i'),
-                'type' => $message->message_type,
-                'documentName' => $message->attachment_name,
-                'documentUrl' => $message->attachment_path === null
-                    ? null
-                    : route('files.chat-attachments.download', ['message' => $message->id]),
-            ],
-        ))->toOthers();
+        $this->broadcastChatMessage($thread->id, [
+            'id' => $message->id,
+            'author' => $lecturer->name,
+            'message' => $message->message,
+            'time' => $message->created_at->format('d M Y H:i'),
+            'type' => $message->message_type,
+            'documentName' => $message->attachment_name,
+            'documentUrl' => $message->attachment_path === null
+                ? null
+                : route('files.chat-attachments.download', ['message' => $message->id]),
+        ]);
 
         return back()->with('success', 'Pesan berhasil dikirim.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function broadcastChatMessage(int $threadId, array $payload): void
+    {
+        try {
+            broadcast(new ChatMessageCreated(
+                threadId: $threadId,
+                messagePayload: $payload,
+            ))->toOthers();
+        } catch (Throwable $exception) {
+            Log::warning('Chat broadcast skipped because realtime server is unavailable.', [
+                'thread_id' => $threadId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

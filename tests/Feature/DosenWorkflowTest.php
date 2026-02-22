@@ -148,7 +148,6 @@ test('dosen can decide schedule only for own assignment', function () {
     $this->actingAs($dosen)
         ->post(route('dosen.jadwal-bimbingan.decision', $ownSchedule), [
             'decision' => 'approve',
-            'scheduled_for' => now()->addDay()->format('Y-m-d H:i:s'),
             'location' => 'Google Meet',
             'lecturer_note' => 'Disetujui',
         ])
@@ -157,6 +156,7 @@ test('dosen can decide schedule only for own assignment', function () {
     $this->assertDatabaseHas('mentorship_schedules', [
         'id' => $ownSchedule->id,
         'status' => 'approved',
+        'scheduled_for' => $ownSchedule->requested_for?->format('Y-m-d H:i:s'),
     ]);
 
     $this->actingAs($dosen)
@@ -164,6 +164,103 @@ test('dosen can decide schedule only for own assignment', function () {
             'decision' => 'reject',
         ])
         ->assertForbidden();
+});
+
+test('dosen can close confirmed schedule as completed or cancelled', function () {
+    $admin = User::factory()->asAdmin()->create();
+    $dosen = createDosenUser();
+    $student = createMahasiswaUser('2210519998');
+
+    $assignment = assignStudentToLecturer($student, $dosen, $admin);
+
+    $schedule = MentorshipSchedule::factory()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $dosen->id,
+        'mentorship_assignment_id' => $assignment->id,
+        'status' => 'approved',
+        'scheduled_for' => now()->addDay(),
+        'created_by_user_id' => $student->id,
+    ]);
+
+    $this->actingAs($dosen)
+        ->post(route('dosen.jadwal-bimbingan.decision', $schedule), [
+            'decision' => 'complete',
+            'lecturer_note' => 'Sesi selesai.',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('mentorship_schedules', [
+        'id' => $schedule->id,
+        'status' => 'completed',
+    ]);
+
+    $this->actingAs($dosen)
+        ->post(route('dosen.jadwal-bimbingan.decision', $schedule), [
+            'decision' => 'cancel',
+            'lecturer_note' => 'Dibatalkan.',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('mentorship_schedules', [
+        'id' => $schedule->id,
+        'status' => 'cancelled',
+    ]);
+});
+
+test('dosen must provide clear feedback for reject and reschedule', function () {
+    $admin = User::factory()->asAdmin()->create();
+    $dosen = createDosenUser();
+    $student = createMahasiswaUser('2210519999');
+
+    $assignment = assignStudentToLecturer($student, $dosen, $admin);
+    $schedule = MentorshipSchedule::factory()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $dosen->id,
+        'mentorship_assignment_id' => $assignment->id,
+        'status' => 'pending',
+        'created_by_user_id' => $student->id,
+    ]);
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.jadwal-bimbingan'))
+        ->post(route('dosen.jadwal-bimbingan.decision', $schedule), [
+            'decision' => 'reject',
+        ])
+        ->assertRedirect(route('dosen.jadwal-bimbingan'))
+        ->assertSessionHasErrors('lecturer_note');
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.jadwal-bimbingan'))
+        ->post(route('dosen.jadwal-bimbingan.decision', $schedule), [
+            'decision' => 'reschedule',
+            'lecturer_note' => 'Silakan pindah ke jadwal lain.',
+        ])
+        ->assertRedirect(route('dosen.jadwal-bimbingan'))
+        ->assertSessionHasErrors('scheduled_for');
+});
+
+test('dosen must provide feedback for approve decision', function () {
+    $admin = User::factory()->asAdmin()->create();
+    $dosen = createDosenUser();
+    $student = createMahasiswaUser('2210519910');
+
+    $assignment = assignStudentToLecturer($student, $dosen, $admin);
+    $schedule = MentorshipSchedule::factory()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $dosen->id,
+        'mentorship_assignment_id' => $assignment->id,
+        'status' => 'pending',
+        'created_by_user_id' => $student->id,
+    ]);
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.jadwal-bimbingan'))
+        ->post(route('dosen.jadwal-bimbingan.decision', $schedule), [
+            'decision' => 'approve',
+            'location' => 'Ruang Bimbingan 2',
+        ])
+        ->assertRedirect(route('dosen.jadwal-bimbingan'))
+        ->assertSessionHasErrors('lecturer_note');
 });
 
 test('dosen can review document and send message to own thread', function () {

@@ -1,18 +1,21 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { BellDot, Download, MessageSquareText, Paperclip } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Download, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
     CardDescription,
+    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -52,12 +55,24 @@ type PesanBimbinganProps = {
     flashMessage?: string | null;
 };
 
+type ThreadFilter = 'all' | 'unread';
+
+function initials(name: string) {
+    return name
+        .split(' ')
+        .map((chunk) => chunk[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
+}
+
 export default function DosenPesanBimbinganPage() {
     const { threads, flashMessage, auth } = usePage<
         SharedData & PesanBimbinganProps
     >().props;
 
     const [search, setSearch] = useState('');
+    const [filter, setFilter] = useState<ThreadFilter>('all');
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
         threads[0]?.id ?? null,
     );
@@ -122,30 +137,59 @@ export default function DosenPesanBimbinganPage() {
         };
     }, [threads]);
 
-    const filteredThreads = useMemo(
-        () =>
-            threads.filter((thread) =>
-                thread.student.toLowerCase().includes(search.toLowerCase()),
-            ),
-        [threads, search],
-    );
+    const filteredThreads = useMemo(() => {
+        return threads.filter((thread) => {
+            const matchesName = thread.student
+                .toLowerCase()
+                .includes(search.trim().toLowerCase());
+            const matchesFilter = filter === 'all' ? true : thread.unread > 0;
+
+            return matchesName && matchesFilter;
+        });
+    }, [filter, search, threads]);
+
+    useEffect(() => {
+        if (filteredThreads.length === 0) {
+            setActiveThreadId(null);
+
+            return;
+        }
+
+        if (
+            activeThreadId === null ||
+            !filteredThreads.some((thread) => thread.id === activeThreadId)
+        ) {
+            setActiveThreadId(filteredThreads[0].id);
+        }
+    }, [activeThreadId, filteredThreads]);
 
     const activeThread =
-        filteredThreads.find((thread) => thread.id === activeThreadId) ??
-        filteredThreads[0] ??
-        null;
+        filteredThreads.find((thread) => thread.id === activeThreadId) ?? null;
 
     const activeMessages =
         activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
 
-    function submitMessage() {
-        if (!activeThread || form.processing) {
-            return;
-        }
+    const canSend = useMemo(
+        () =>
+            !form.processing &&
+            activeThread !== null &&
+            (form.data.message.trim() !== '' || form.data.attachment !== null),
+        [
+            activeThread,
+            form.data.attachment,
+            form.data.message,
+            form.processing,
+        ],
+    );
 
-        const hasMessage = form.data.message.trim() !== '';
-        const hasAttachment = form.data.attachment !== null;
-        if (!hasMessage && !hasAttachment) {
+    function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
+        const nextFile = event.target.files?.[0] ?? null;
+        form.setData('attachment', nextFile);
+        setAttachmentName(nextFile?.name ?? null);
+    }
+
+    function sendMessage() {
+        if (!canSend || activeThread === null) {
             return;
         }
 
@@ -171,209 +215,333 @@ export default function DosenPesanBimbinganPage() {
         <DosenLayout
             breadcrumbs={breadcrumbs}
             title="Pesan Bimbingan"
-            subtitle="Group chat per mahasiswa bimbingan"
+            subtitle="Kelola group chat bimbingan per mahasiswa"
         >
             <Head title="Pesan Bimbingan Dosen" />
 
             <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[340px_1fr]">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Ruang Bimbingan</CardTitle>
-                        <CardDescription>
-                            Satu grup untuk tiap mahasiswa
-                        </CardDescription>
-                        <Input
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Cari mahasiswa..."
-                        />
+                    <CardHeader className="space-y-3">
+                        <div>
+                            <CardTitle>Ruang Bimbingan</CardTitle>
+                            <CardDescription>
+                                Pilih grup mahasiswa untuk mulai berdiskusi
+                            </CardDescription>
+                        </div>
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                className="pl-9"
+                                placeholder="Cari mahasiswa..."
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    filter === 'all' ? 'default' : 'outline'
+                                }
+                                onClick={() => setFilter('all')}
+                            >
+                                Semua
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    filter === 'unread' ? 'default' : 'outline'
+                                }
+                                onClick={() => setFilter('unread')}
+                            >
+                                Belum Dibaca
+                            </Button>
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        {filteredThreads.map((thread) => {
-                            const threadMessages =
-                                messagesByThread[thread.id] ?? thread.messages;
-                            const latestMessage = threadMessages.at(-1);
+                    <CardContent className="grid gap-2">
+                        {filteredThreads.length > 0 ? (
+                            filteredThreads.map((thread) => {
+                                const threadMessages =
+                                    messagesByThread[thread.id] ??
+                                    thread.messages;
+                                const latestMessage = threadMessages.at(-1);
 
-                            return (
-                                <button
-                                    key={thread.id}
-                                    type="button"
-                                    className={cn(
-                                        'w-full rounded-lg border p-3 text-left transition hover:bg-muted/30',
-                                        activeThread?.id === thread.id &&
-                                            'border-primary/30 bg-muted/40',
-                                    )}
-                                    onClick={() => setActiveThreadId(thread.id)}
-                                >
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-semibold">
-                                            {thread.student}
-                                        </p>
-                                        <Badge variant="outline">
-                                            {thread.lastTime}
-                                        </Badge>
-                                    </div>
-                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                        {latestMessage?.message ??
-                                            thread.preview}
-                                    </p>
-                                    <div className="mt-2 flex items-center gap-2">
-                                        {thread.unread > 0 && (
-                                            <Badge className="bg-primary text-primary-foreground">
-                                                {thread.unread} baru
-                                            </Badge>
+                                return (
+                                    <button
+                                        key={thread.id}
+                                        type="button"
+                                        className={cn(
+                                            'w-full rounded-lg border p-3 text-left transition hover:bg-muted/30',
+                                            activeThread?.id === thread.id &&
+                                                'border-primary/30 bg-muted/40',
                                         )}
-                                        <Badge variant="secondary">
-                                            Group Bimbingan
-                                        </Badge>
-                                    </div>
-                                </button>
-                            );
-                        })}
+                                        onClick={() =>
+                                            setActiveThreadId(thread.id)
+                                        }
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold">
+                                                {thread.student}
+                                            </p>
+                                            <span className="text-xs text-muted-foreground">
+                                                {thread.lastTime}
+                                            </span>
+                                        </div>
+                                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                            {latestMessage?.message ||
+                                                latestMessage?.documentName ||
+                                                thread.preview}
+                                        </p>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <Badge variant="secondary">
+                                                Group Bimbingan
+                                            </Badge>
+                                            {thread.unread > 0 && (
+                                                <Badge className="bg-primary text-primary-foreground">
+                                                    {thread.unread} baru
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
+                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                    <Inbox className="size-5" />
+                                </span>
+                                <p className="text-sm font-medium">
+                                    Tidak ada grup yang sesuai
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Coba kata kunci lain atau ubah filter
+                                    percakapan.
+                                </p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="flex min-h-[620px] flex-col">
                     <CardHeader>
-                        <CardTitle>{activeThread?.student ?? '-'}</CardTitle>
-                        <CardDescription>
-                            Aktivitas chat dan event dokumen terbaru
-                        </CardDescription>
+                        {activeThread ? (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <CardTitle>
+                                        {activeThread.student}
+                                    </CardTitle>
+                                    <Badge variant="secondary">
+                                        Group Bimbingan
+                                    </Badge>
+                                </div>
+                                <CardDescription className="inline-flex items-center gap-1">
+                                    <Users className="size-3.5" />
+                                    {activeThread.student} - {auth.user?.name}
+                                </CardDescription>
+                            </>
+                        ) : (
+                            <>
+                                <CardTitle>Pilih Grup Bimbingan</CardTitle>
+                                <CardDescription>
+                                    Buka salah satu percakapan untuk melihat
+                                    detail chat.
+                                </CardDescription>
+                            </>
+                        )}
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <Separator />
+
+                    <CardContent className="flex-1 overflow-auto pt-4">
                         {flashMessage && (
-                            <Alert>
-                                <AlertTitle>Berhasil</AlertTitle>
+                            <Alert className="mb-3">
+                                <AlertTitle>Info</AlertTitle>
                                 <AlertDescription>
                                     {flashMessage}
                                 </AlertDescription>
                             </Alert>
                         )}
 
-                        {activeMessages.map((message) => {
-                            if (
-                                message.type === 'document_event' ||
-                                message.type === 'revision_suggestion'
-                            ) {
-                                const isRevision =
-                                    message.type === 'revision_suggestion';
+                        {activeThread ? (
+                            <div className="grid gap-3">
+                                {activeMessages.map((message) => {
+                                    const isMe =
+                                        message.author === auth.user?.name;
 
-                                return (
-                                    <div
-                                        key={message.id}
-                                        className="rounded-lg border border-primary/25 bg-primary/10 p-4"
-                                    >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="inline-flex items-center gap-2 text-sm text-primary">
-                                                <BellDot className="size-4" />
-                                                {isRevision
-                                                    ? 'File Revisi Dosen'
-                                                    : 'Event Upload Dokumen'}
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={!message.documentUrl}
-                                                onClick={() => {
-                                                    if (message.documentUrl) {
-                                                        window.open(
-                                                            message.documentUrl,
-                                                            '_blank',
-                                                            'noopener,noreferrer',
-                                                        );
-                                                    }
-                                                }}
+                                    if (
+                                        message.type === 'document_event' ||
+                                        message.type === 'revision_suggestion'
+                                    ) {
+                                        const isRevision =
+                                            message.type ===
+                                            'revision_suggestion';
+
+                                        return (
+                                            <div
+                                                key={message.id}
+                                                className="rounded-lg border border-primary/25 bg-primary/10 p-3"
                                             >
-                                                <Download className="size-4" />
-                                                Unduh
-                                            </Button>
+                                                <div className="text-sm font-medium text-primary">
+                                                    {isRevision
+                                                        ? 'File revisi dari dosen'
+                                                        : 'Dokumen baru diunggah'}
+                                                </div>
+                                                <div className="mt-1 text-sm text-primary">
+                                                    {message.message}
+                                                </div>
+                                                {message.documentName && (
+                                                    <div className="mt-2 rounded border bg-background p-2 text-sm">
+                                                        {message.documentName}
+                                                    </div>
+                                                )}
+                                                <div className="mt-2 flex items-center justify-between gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {message.author} -{' '}
+                                                        {message.time}
+                                                    </span>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 gap-2"
+                                                        disabled={
+                                                            !message.documentUrl
+                                                        }
+                                                        onClick={() => {
+                                                            if (
+                                                                message.documentUrl
+                                                            ) {
+                                                                window.open(
+                                                                    message.documentUrl,
+                                                                    '_blank',
+                                                                    'noopener,noreferrer',
+                                                                );
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Download className="size-3.5" />
+                                                        Unduh
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div
+                                            key={message.id}
+                                            className={`flex ${isMe ? 'justify-end' : ''}`}
+                                        >
+                                            {!isMe && (
+                                                <Avatar className="mt-0.5 mr-2 size-7">
+                                                    <AvatarFallback>
+                                                        {initials(
+                                                            message.author,
+                                                        )}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            )}
+                                            <div
+                                                className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${
+                                                    isMe
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'bg-background'
+                                                }`}
+                                            >
+                                                {message.documentName && (
+                                                    <div
+                                                        className={`mb-2 rounded border p-2 text-xs ${
+                                                            isMe
+                                                                ? 'border-primary-foreground/25 bg-primary-foreground/15'
+                                                                : 'bg-muted/30'
+                                                        }`}
+                                                    >
+                                                        {message.documentName}
+                                                    </div>
+                                                )}
+                                                {message.message && (
+                                                    <div>{message.message}</div>
+                                                )}
+                                                <div
+                                                    className={`mt-1 text-[11px] ${
+                                                        isMe
+                                                            ? 'text-primary-foreground/70'
+                                                            : 'text-muted-foreground'
+                                                    }`}
+                                                >
+                                                    {message.author} -{' '}
+                                                    {message.time}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="mt-2 text-sm">
-                                            {message.documentName ??
-                                                message.message}
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            {message.author} - {message.time}
-                                        </p>
-                                    </div>
-                                );
-                            }
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center">
+                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                    <Users className="size-5" />
+                                </span>
+                                <p className="text-sm font-medium">
+                                    Belum ada grup yang dipilih
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Pilih salah satu mahasiswa di panel kiri
+                                    untuk mulai berdiskusi.
+                                </p>
+                            </div>
+                        )}
+                    </CardContent>
 
-                            const isMe = message.author === auth.user?.name;
+                    <Separator />
 
-                            return (
-                                <div
-                                    key={message.id}
-                                    className={`rounded-lg border p-4 ${
-                                        isMe
-                                            ? 'border-primary/25 bg-primary/10'
-                                            : 'bg-background'
-                                    }`}
-                                >
-                                    {message.documentName && (
-                                        <div className="mb-2 rounded border bg-muted/20 p-2 text-xs">
-                                            {message.documentName}
-                                        </div>
-                                    )}
-                                    <p className="text-sm">
-                                        {message.author}: "{message.message}"
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        {message.time}
-                                    </p>
-                                </div>
-                            );
-                        })}
-
+                    <CardFooter className="flex-col items-stretch gap-3">
                         <input
                             ref={fileRef}
                             type="file"
                             accept=".pdf,.doc,.docx"
                             className="hidden"
-                            onChange={(event) => {
-                                const nextFile =
-                                    event.currentTarget.files?.[0] ?? null;
-                                form.setData('attachment', nextFile);
-                                setAttachmentName(nextFile?.name ?? null);
-                            }}
+                            onChange={pickAttachment}
                         />
-
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex items-center gap-2">
                             <Button
-                                size="sm"
+                                type="button"
                                 variant="outline"
+                                size="icon"
                                 onClick={() => fileRef.current?.click()}
+                                disabled={activeThread === null}
                             >
                                 <Paperclip className="size-4" />
-                                Lampirkan File
                             </Button>
                             <Input
                                 value={form.data.message}
                                 onChange={(event) =>
                                     form.setData('message', event.target.value)
                                 }
-                                placeholder="Tulis balasan di grup..."
+                                placeholder="Tulis pesan..."
+                                disabled={activeThread === null}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        sendMessage();
+                                    }
+                                }}
                             />
                             <Button
-                                size="sm"
+                                type="button"
+                                onClick={sendMessage}
+                                disabled={!canSend}
                                 className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                disabled={
-                                    !activeThread ||
-                                    form.processing ||
-                                    (form.data.message.trim() === '' &&
-                                        form.data.attachment === null)
-                                }
-                                onClick={submitMessage}
                             >
-                                <MessageSquareText className="size-4" />
-                                Kirim
+                                <Send className="size-4" />
                             </Button>
                         </div>
-
                         {attachmentName && (
-                            <p className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                                 Lampiran: {attachmentName}
-                            </p>
+                            </div>
                         )}
                         {form.errors.attachment && (
                             <p className="text-xs text-destructive">
@@ -385,7 +553,7 @@ export default function DosenPesanBimbinganPage() {
                                 {form.errors.message}
                             </p>
                         )}
-                    </CardContent>
+                    </CardFooter>
                 </Card>
             </div>
         </DosenLayout>
