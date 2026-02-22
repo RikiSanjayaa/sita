@@ -43,6 +43,11 @@ class MentorshipChatThread extends Model
         return $this->hasMany(MentorshipChatMessage::class, 'mentorship_chat_thread_id');
     }
 
+    public function readMarkers(): HasMany
+    {
+        return $this->hasMany(MentorshipChatRead::class, 'mentorship_chat_thread_id');
+    }
+
     public function latestMessage(): HasOne
     {
         return $this->hasOne(MentorshipChatMessage::class, 'mentorship_chat_thread_id')->latestOfMany();

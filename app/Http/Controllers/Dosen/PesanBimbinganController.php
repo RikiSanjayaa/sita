@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Dosen;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatMessage;
+use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
 use App\Services\DosenBimbinganService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -35,12 +37,24 @@ class PesanBimbinganController extends Controller
                 'messages' => fn ($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
             ])
             ->whereIn('student_user_id', $studentIds)
+            ->get();
+
+        $readsByThread = MentorshipChatRead::query()
+            ->where('user_id', $lecturer->id)
+            ->whereIn('mentorship_chat_thread_id', $threads->pluck('id'))
             ->get()
-            ->map(function (MentorshipChatThread $thread) use ($lecturer): array {
+            ->keyBy('mentorship_chat_thread_id');
+
+        $threads = $threads
+            ->map(function (MentorshipChatThread $thread) use ($lecturer, $readsByThread): array {
                 $latestMessage = $thread->latestMessage;
-                $unreadCount = $thread->messages
+                $lastReadAt = $readsByThread->get($thread->id)?->last_read_at;
+                $unreadCount = MentorshipChatMessage::query()
+                    ->where('mentorship_chat_thread_id', $thread->id)
                     ->where('sender_user_id', '!=', $lecturer->id)
-                    ->where('created_at', '>=', now()->subDays(7))
+                    ->when($lastReadAt !== null, function ($query) use ($lastReadAt) {
+                        $query->where('created_at', '>', $lastReadAt);
+                    })
                     ->count();
 
                 return [
@@ -56,6 +70,7 @@ class PesanBimbinganController extends Controller
                         ->map(function (MentorshipChatMessage $message): array {
                             return [
                                 'id' => $message->id,
+                                'senderUserId' => $message->sender_user_id,
                                 'author' => $message->sender?->name ?? 'Sistem',
                                 'message' => $message->message,
                                 'time' => $message->created_at->format('d M Y H:i'),
@@ -78,6 +93,29 @@ class PesanBimbinganController extends Controller
             'threads' => $threads,
             'flashMessage' => $request->session()->get('success'),
         ]);
+    }
+
+    public function markAsRead(Request $request, MentorshipChatThread $thread): JsonResponse
+    {
+        $lecturer = $request->user();
+        abort_if($lecturer === null, 401);
+
+        $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
+        abort_unless(in_array($thread->student_user_id, $studentIds, true), 403);
+
+        $lastMessageAt = $thread->messages()->max('created_at');
+
+        MentorshipChatRead::query()->updateOrCreate(
+            [
+                'mentorship_chat_thread_id' => $thread->id,
+                'user_id' => $lecturer->id,
+            ],
+            [
+                'last_read_at' => $lastMessageAt ?? now(),
+            ],
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     public function storeMessage(Request $request, MentorshipChatThread $thread): RedirectResponse
@@ -125,6 +163,7 @@ class PesanBimbinganController extends Controller
 
         $this->broadcastChatMessage($thread->id, [
             'id' => $message->id,
+            'senderUserId' => $message->sender_user_id,
             'author' => $lecturer->name,
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),

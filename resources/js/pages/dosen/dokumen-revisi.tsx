@@ -1,6 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Download, FileText, MessageSquareMore } from 'lucide-react';
-import { useState } from 'react';
+import { Download, FileText } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +11,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import DosenLayout from '@/layouts/dosen-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -42,8 +40,6 @@ export default function DosenDokumenRevisiPage() {
         SharedData & DokumenRevisiProps
     >().props;
 
-    const [notes, setNotes] = useState<Record<number, string>>({});
-
     const form = useForm({
         status: 'needs_revision' as 'needs_revision' | 'approved',
         revision_notes: '',
@@ -55,7 +51,7 @@ export default function DosenDokumenRevisiPage() {
     ) {
         form.setData({
             status,
-            revision_notes: (notes[documentId] ?? '').trim(),
+            revision_notes: '',
         });
 
         form.transform((data) => ({
@@ -119,78 +115,76 @@ export default function DosenDokumenRevisiPage() {
                                             </p>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge
-                                            variant={
-                                                doc.status === 'Disetujui'
-                                                    ? 'default'
-                                                    : doc.status ===
-                                                        'Perlu Revisi'
-                                                      ? 'destructive'
-                                                      : 'secondary'
-                                            }
-                                            className={
-                                                doc.status === 'Disetujui'
-                                                    ? 'bg-emerald-600 text-white dark:bg-emerald-500'
-                                                    : ''
-                                            }
-                                        >
-                                            {doc.status}
-                                        </Badge>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                if (doc.fileUrl) {
-                                                    window.open(
-                                                        doc.fileUrl,
-                                                        '_blank',
-                                                        'noopener,noreferrer',
-                                                    );
+                                    <div className="flex flex-col items-end gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <Badge
+                                                variant={
+                                                    doc.status === 'Disetujui'
+                                                        ? 'default'
+                                                        : doc.status ===
+                                                            'Perlu Revisi'
+                                                          ? 'destructive'
+                                                          : 'secondary'
                                                 }
-                                            }}
-                                            disabled={!doc.fileUrl}
-                                        >
-                                            <Download className="size-4" />
-                                            Unduh
-                                        </Button>
+                                                className={
+                                                    doc.status === 'Disetujui'
+                                                        ? 'bg-emerald-600 text-white dark:bg-emerald-500'
+                                                        : ''
+                                                }
+                                            >
+                                                {doc.status}
+                                            </Badge>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    if (doc.fileUrl) {
+                                                        window.open(
+                                                            doc.fileUrl,
+                                                            '_blank',
+                                                            'noopener,noreferrer',
+                                                        );
+                                                    }
+                                                }}
+                                                disabled={!doc.fileUrl}
+                                            >
+                                                <Download className="size-4" />
+                                                Unduh
+                                            </Button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {doc.status === 'Perlu Review' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={form.processing}
+                                                    onClick={() =>
+                                                        submitReview(
+                                                            doc.id,
+                                                            'needs_revision',
+                                                        )
+                                                    }
+                                                >
+                                                    Perlu Revisi
+                                                </Button>
+                                            )}
+                                            {doc.status === 'Perlu Review' && (
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                                    disabled={form.processing}
+                                                    onClick={() =>
+                                                        submitReview(
+                                                            doc.id,
+                                                            'approved',
+                                                        )
+                                                    }
+                                                >
+                                                    Setujui
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                                    <Input
-                                        value={notes[doc.id] ?? ''}
-                                        onChange={(event) =>
-                                            setNotes((prev) => ({
-                                                ...prev,
-                                                [doc.id]: event.target.value,
-                                            }))
-                                        }
-                                        placeholder="Tulis catatan revisi singkat..."
-                                    />
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={form.processing}
-                                        onClick={() =>
-                                            submitReview(
-                                                doc.id,
-                                                'needs_revision',
-                                            )
-                                        }
-                                    >
-                                        <MessageSquareMore className="size-4" />
-                                        Perlu Revisi
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                        disabled={form.processing}
-                                        onClick={() =>
-                                            submitReview(doc.id, 'approved')
-                                        }
-                                    >
-                                        Setujui
-                                    </Button>
                                 </div>
                             </div>
                         ))}

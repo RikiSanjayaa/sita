@@ -163,6 +163,7 @@ class UploadDokumenController extends Controller
     {
         return [
             'id' => $message->id,
+            'senderUserId' => $message->sender_user_id,
             'author' => $message->sender?->name ?? 'Sistem',
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),

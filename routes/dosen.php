@@ -23,4 +23,6 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::get('pesan-bimbingan', [PesanBimbinganController::class, 'index'])->name('pesan-bimbingan');
     Route::post('pesan-bimbingan/{thread}/messages', [PesanBimbinganController::class, 'storeMessage'])
         ->name('pesan-bimbingan.messages.store');
+    Route::post('pesan-bimbingan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])
+        ->name('pesan-bimbingan.read');
 });

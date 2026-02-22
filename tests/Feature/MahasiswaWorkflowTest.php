@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function createUserWithRole(string $role): User
 {
@@ -146,6 +147,69 @@ test('mahasiswa upload creates document version rows and chat event', function (
         'message_type' => 'document_event',
         'attachment_name' => 'draft-bab3.pdf',
     ]);
+});
+
+test('mahasiswa chat attachment creates document event and appears as versioned upload', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $dosen = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'status_akademik' => 'aktif',
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $dosen->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/pesan/messages', [
+            'message' => 'Lampiran pertama',
+            'attachment' => UploadedFile::fake()->create('lampiran-v1.pdf', 250, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/pesan/messages', [
+            'message' => 'Lampiran kedua',
+            'attachment' => UploadedFile::fake()->create('lampiran-v2.pdf', 300, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('mentorship_documents', [
+        'student_user_id' => $student->id,
+        'category' => 'lampiran-chat',
+        'version_number' => 1,
+    ]);
+
+    $this->assertDatabaseHas('mentorship_documents', [
+        'student_user_id' => $student->id,
+        'category' => 'lampiran-chat',
+        'version_number' => 2,
+    ]);
+
+    $this->assertDatabaseCount('mentorship_chat_messages', 2);
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'message_type' => 'document_event',
+        'message' => 'Mahasiswa mengunggah dokumen lampiran chat versi v1.',
+    ]);
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'message_type' => 'document_event',
+        'message' => 'Mahasiswa mengunggah dokumen lampiran chat versi v2.',
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/upload-dokumen')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('upload-dokumen')
+            ->has('uploadedDocuments', 2));
 });
 
 test('download permissions enforce ownership and escalation rules', function () {

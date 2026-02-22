@@ -1,4 +1,4 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Download, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
@@ -27,6 +27,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type ThreadMessage = {
     id: number;
+    senderUserId: number | null;
     author: string;
     message: string;
     time: string;
@@ -55,8 +56,6 @@ type PesanBimbinganProps = {
     flashMessage?: string | null;
 };
 
-type ThreadFilter = 'all' | 'unread';
-
 function initials(name: string) {
     return name
         .split(' ')
@@ -67,20 +66,23 @@ function initials(name: string) {
 }
 
 export default function DosenPesanBimbinganPage() {
-    const { threads, flashMessage, auth } = usePage<
-        SharedData & PesanBimbinganProps
-    >().props;
+    const {
+        threads: initialThreads,
+        flashMessage,
+        auth,
+    } = usePage<SharedData & PesanBimbinganProps>().props;
 
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState<ThreadFilter>('all');
+    const [threadItems, setThreadItems] =
+        useState<ThreadItem[]>(initialThreads);
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
-        threads[0]?.id ?? null,
+        initialThreads[0]?.id ?? null,
     );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ThreadMessage[]>
     >(() =>
         Object.fromEntries(
-            threads.map((thread) => [thread.id, thread.messages]),
+            initialThreads.map((thread) => [thread.id, thread.messages]),
         ),
     );
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
@@ -95,11 +97,45 @@ export default function DosenPesanBimbinganPage() {
     });
 
     useEffect(() => {
+        router.reload({
+            only: ['threads'],
+        });
+    }, []);
+
+    useEffect(() => {
+        setThreadItems(initialThreads);
+        setMessagesByThread(
+            Object.fromEntries(
+                initialThreads.map((thread) => [thread.id, thread.messages]),
+            ),
+        );
+    }, [initialThreads]);
+
+    async function markThreadAsRead(threadId: number) {
+        const csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '';
+
+        await fetch(`/dosen/pesan-bimbingan/${threadId}/read`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    }
+
+    useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
             return;
         }
 
-        const channels = threads.map((thread) => {
+        const channels = initialThreads.map((thread) => {
             const channelName = `mentorship.thread.${thread.id}`;
 
             return window.Echo.private(channelName).listen(
@@ -123,33 +159,81 @@ export default function DosenPesanBimbinganPage() {
                             ],
                         };
                     });
+
+                    setThreadItems((current) =>
+                        current.map((thread) => {
+                            if (thread.id !== event.threadId) {
+                                return thread;
+                            }
+
+                            const latestPreview =
+                                event.message.message ||
+                                event.message.documentName ||
+                                thread.preview;
+                            const isIncomingMessage =
+                                event.message.senderUserId !== null &&
+                                event.message.senderUserId !== auth.user?.id;
+                            const shouldIncrementUnread =
+                                isIncomingMessage &&
+                                activeThreadId !== event.threadId;
+
+                            return {
+                                ...thread,
+                                preview: latestPreview,
+                                lastTime: 'baru saja',
+                                unread: shouldIncrementUnread
+                                    ? thread.unread + 1
+                                    : thread.unread,
+                            };
+                        }),
+                    );
+
+                    if (
+                        event.threadId === activeThreadId &&
+                        event.message.senderUserId !== null &&
+                        event.message.senderUserId !== auth.user?.id
+                    ) {
+                        void markThreadAsRead(event.threadId);
+                    }
                 },
             );
         });
 
         return () => {
-            for (const [index, thread] of threads.entries()) {
+            for (const [index, thread] of initialThreads.entries()) {
                 channels[index]?.stopListening('.chat.message.created');
                 window.Echo.leaveChannel(
                     `private-mentorship.thread.${thread.id}`,
                 );
             }
         };
-    }, [threads]);
-
-    const filteredThreads = useMemo(() => {
-        return threads.filter((thread) => {
-            const matchesName = thread.student
-                .toLowerCase()
-                .includes(search.trim().toLowerCase());
-            const matchesFilter = filter === 'all' ? true : thread.unread > 0;
-
-            return matchesName && matchesFilter;
-        });
-    }, [filter, search, threads]);
+    }, [activeThreadId, auth.user?.id, initialThreads]);
 
     useEffect(() => {
-        if (filteredThreads.length === 0) {
+        if (activeThreadId === null) {
+            return;
+        }
+
+        setThreadItems((current) =>
+            current.map((thread) =>
+                thread.id === activeThreadId
+                    ? { ...thread, unread: 0 }
+                    : thread,
+            ),
+        );
+        void markThreadAsRead(activeThreadId);
+    }, [activeThreadId]);
+
+    const visibleThreads = useMemo(() => {
+        return threadItems.filter((thread) => {
+            return thread.student
+                .toLowerCase()
+                .includes(search.trim().toLowerCase());
+        });
+    }, [search, threadItems]);
+
+    useEffect(() => {
+        if (visibleThreads.length === 0) {
             setActiveThreadId(null);
 
             return;
@@ -157,14 +241,14 @@ export default function DosenPesanBimbinganPage() {
 
         if (
             activeThreadId === null ||
-            !filteredThreads.some((thread) => thread.id === activeThreadId)
+            !visibleThreads.some((thread) => thread.id === activeThreadId)
         ) {
-            setActiveThreadId(filteredThreads[0].id);
+            setActiveThreadId(visibleThreads[0].id);
         }
-    }, [activeThreadId, filteredThreads]);
+    }, [activeThreadId, visibleThreads]);
 
     const activeThread =
-        filteredThreads.find((thread) => thread.id === activeThreadId) ?? null;
+        visibleThreads.find((thread) => thread.id === activeThreadId) ?? null;
 
     const activeMessages =
         activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
@@ -239,32 +323,10 @@ export default function DosenPesanBimbinganPage() {
                                 placeholder="Cari mahasiswa..."
                             />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant={
-                                    filter === 'all' ? 'default' : 'outline'
-                                }
-                                onClick={() => setFilter('all')}
-                            >
-                                Semua
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant={
-                                    filter === 'unread' ? 'default' : 'outline'
-                                }
-                                onClick={() => setFilter('unread')}
-                            >
-                                Belum Dibaca
-                            </Button>
-                        </div>
                     </CardHeader>
                     <CardContent className="grid gap-2">
-                        {filteredThreads.length > 0 ? (
-                            filteredThreads.map((thread) => {
+                        {visibleThreads.length > 0 ? (
+                            visibleThreads.map((thread) => {
                                 const threadMessages =
                                     messagesByThread[thread.id] ??
                                     thread.messages;
@@ -296,10 +358,7 @@ export default function DosenPesanBimbinganPage() {
                                                 latestMessage?.documentName ||
                                                 thread.preview}
                                         </p>
-                                        <div className="mt-2 flex items-center gap-2">
-                                            <Badge variant="secondary">
-                                                Group Bimbingan
-                                            </Badge>
+                                        <div className="mt-2 flex items-center justify-end">
                                             {thread.unread > 0 && (
                                                 <Badge className="bg-primary text-primary-foreground">
                                                     {thread.unread} baru
@@ -334,9 +393,6 @@ export default function DosenPesanBimbinganPage() {
                                     <CardTitle>
                                         {activeThread.student}
                                     </CardTitle>
-                                    <Badge variant="secondary">
-                                        Group Bimbingan
-                                    </Badge>
                                 </div>
                                 <CardDescription className="inline-flex items-center gap-1">
                                     <Users className="size-3.5" />
