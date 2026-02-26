@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
@@ -32,25 +33,29 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        foreach (self::MAHASISWA_EMAILS as $index => $email) {
-            $student = User::query()->where('email', $email)->first();
-            if ($student === null) {
-                continue;
-            }
+        $students = User::query()
+            ->whereHas('roles', function ($query) {
+                $query->where('name', AppRole::Mahasiswa->value);
+            })
+            ->get();
+
+        foreach ($students as $index => $student) {
+            // Set first 3 students as 'ended' to test the archive feature, the rest as active
+            $status = $index < 3 ? AssignmentStatus::Ended->value : AssignmentStatus::Active->value;
 
             $assignment = MentorshipAssignment::query()->firstOrCreate([
                 'student_user_id' => $student->id,
                 'lecturer_user_id' => $dosen->id,
                 'advisor_type' => 'primary',
-                'status' => AssignmentStatus::Active->value,
+                'status' => $status,
             ], [
                 'assigned_by' => $admin->id,
-                'started_at' => now()->subMonths(2),
+                'started_at' => now()->subMonths(9),
                 'notes' => 'Assignment seeded',
             ]);
 
             $this->seedSchedules($assignment->id, $student->id, $dosen->id, $index);
-            $document = $this->seedDocument($assignment->id, $student->id, $dosen->id, $email);
+            $document = $this->seedDocument($assignment->id, $student->id, $dosen->id, $student->email);
             $thread = $this->seedThread($student->id);
             $this->seedThreadMessages($thread->id, $student->id, $dosen->id, $document);
         }
