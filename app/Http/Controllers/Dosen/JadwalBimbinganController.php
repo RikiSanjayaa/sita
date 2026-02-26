@@ -6,6 +6,7 @@ use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipSchedule;
 use App\Services\DosenBimbinganService;
+use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,7 @@ class JadwalBimbinganController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
+        private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
     public function index(Request $request): Response
@@ -146,6 +148,16 @@ class JadwalBimbinganController extends Controller
 
         $this->broadcastScheduleUpdated($schedule->lecturer_user_id);
         $this->broadcastScheduleUpdated($schedule->student_user_id);
+
+        if ($schedule->student !== null) {
+            $this->realtimeNotificationService->notifyUser($schedule->student, 'konfirmasiBimbingan', [
+                'title' => 'Status jadwal bimbingan diperbarui',
+                'description' => sprintf('Jadwal "%s" telah %s.', $schedule->topic, $status),
+                'url' => '/mahasiswa/jadwal-bimbingan',
+                'icon' => 'calendar-clock',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
 
         return back()->with('success', 'Keputusan jadwal berhasil disimpan.');
     }

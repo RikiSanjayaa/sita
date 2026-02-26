@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
+use App\Models\User;
 use App\Services\DosenBimbinganService;
+use App\Services\RealtimeNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,7 @@ class PesanBimbinganController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
+        private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
     public function index(Request $request): Response
@@ -174,7 +177,34 @@ class PesanBimbinganController extends Controller
                 : route('files.chat-attachments.download', ['message' => $message->id]),
         ]);
 
+        $this->notifyStudent($thread, $lecturer, $message->message_type);
+
         return back()->with('success', 'Pesan berhasil dikirim.');
+    }
+
+    private function notifyStudent(MentorshipChatThread $thread, User $lecturer, string $messageType): void
+    {
+        $student = $thread->student;
+
+        if (! $student instanceof User) {
+            return;
+        }
+
+        $preferenceKey = $messageType === 'revision_suggestion'
+            ? 'feedbackDokumen'
+            : 'pesanBaru';
+
+        $title = $messageType === 'revision_suggestion'
+            ? 'Feedback dokumen baru'
+            : 'Pesan bimbingan baru';
+
+        $this->realtimeNotificationService->notifyUser($student, $preferenceKey, [
+            'title' => $title,
+            'description' => sprintf('%s mengirim pembaruan bimbingan.', $lecturer->name),
+            'url' => '/mahasiswa/pesan',
+            'icon' => $messageType === 'revision_suggestion' ? 'file-text' : 'message-square',
+            'createdAt' => now()->toIso8601String(),
+        ]);
     }
 
     /**

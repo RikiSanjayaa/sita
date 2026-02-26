@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
+use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,10 @@ use Throwable;
 
 class UploadDokumenController extends Controller
 {
+    public function __construct(
+        private readonly RealtimeNotificationService $realtimeNotificationService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $student = $request->user();
@@ -71,6 +76,7 @@ class UploadDokumenController extends Controller
         ]);
 
         $assignments = MentorshipAssignment::query()
+            ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->where('status', AssignmentStatus::Active->value)
             ->get();
@@ -149,6 +155,20 @@ class UploadDokumenController extends Controller
             ]);
 
             $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+
+            foreach ($assignments as $assignment) {
+                if ($assignment->lecturer === null) {
+                    continue;
+                }
+
+                $this->realtimeNotificationService->notifyUser($assignment->lecturer, 'statusTugasAkhir', [
+                    'title' => 'Dokumen bimbingan baru diunggah',
+                    'description' => sprintf('%s mengunggah dokumen %s.', $student->name, trim($data['category'])),
+                    'url' => '/dosen/dokumen-revisi',
+                    'icon' => 'file-text',
+                    'createdAt' => now()->toIso8601String(),
+                ]);
+            }
         });
 
         return redirect()

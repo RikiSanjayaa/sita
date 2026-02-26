@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     CalendarClock,
@@ -9,7 +9,7 @@ import {
     MessageSquareText,
     Timer,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import AppearanceTabs from '@/components/appearance-tabs';
 import { Badge } from '@/components/ui/badge';
@@ -27,18 +27,11 @@ import { usePrimaryColor } from '@/hooks/use-primary-color';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard, settingNotifikasi } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-
-type NotificationSettings = {
-    browserNotifications: boolean;
-    pesanBaru: boolean;
-    statusTugasAkhir: boolean;
-    jadwalBimbingan: boolean;
-    feedbackDokumen: boolean;
-    reminderDeadline: boolean;
-    pengumumanSistem: boolean;
-    konfirmasiBimbingan: boolean;
-};
+import {
+    type BreadcrumbItem,
+    type NotificationSettings,
+    type SharedData,
+} from '@/types';
 
 type JenisNotifikasiItem = {
     key: Exclude<keyof NotificationSettings, 'browserNotifications'>;
@@ -59,17 +52,122 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function SettingNotifikasi() {
+    const { notificationSettings } = usePage<SharedData>().props;
     const { presetId, presets, updatePreset, resetPreset } = usePrimaryColor();
+    const [isSaving, setIsSaving] = useState(false);
+    const [browserPermission, setBrowserPermission] = useState<
+        NotificationPermission | 'unsupported'
+    >(() => {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+            return 'unsupported';
+        }
+
+        return window.Notification.permission;
+    });
+
     const [settings, setSettings] = useState<NotificationSettings>(() => ({
-        browserNotifications: true,
-        pesanBaru: true,
-        statusTugasAkhir: true,
-        jadwalBimbingan: true,
-        feedbackDokumen: true,
-        reminderDeadline: true,
-        pengumumanSistem: true,
-        konfirmasiBimbingan: true,
+        browserNotifications:
+            notificationSettings?.browserNotifications ?? false,
+        pesanBaru: notificationSettings?.pesanBaru ?? true,
+        statusTugasAkhir: notificationSettings?.statusTugasAkhir ?? true,
+        jadwalBimbingan: notificationSettings?.jadwalBimbingan ?? true,
+        feedbackDokumen: notificationSettings?.feedbackDokumen ?? true,
+        reminderDeadline: notificationSettings?.reminderDeadline ?? true,
+        pengumumanSistem: notificationSettings?.pengumumanSistem ?? true,
+        konfirmasiBimbingan: notificationSettings?.konfirmasiBimbingan ?? true,
     }));
+
+    const persistSettings = (nextSettings: NotificationSettings) => {
+        setIsSaving(true);
+
+        const payload: Record<string, boolean> = {
+            ...nextSettings,
+        };
+
+        router.patch('/settings/notifications', payload, {
+            preserveScroll: true,
+            onFinish: () => setIsSaving(false),
+        });
+    };
+
+    const setAndPersistSettings = (nextSettings: NotificationSettings) => {
+        setSettings(nextSettings);
+        persistSettings(nextSettings);
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+            return;
+        }
+
+        const syncPermission = () => {
+            setBrowserPermission(window.Notification.permission);
+        };
+
+        window.addEventListener('focus', syncPermission);
+        document.addEventListener('visibilitychange', syncPermission);
+
+        return () => {
+            window.removeEventListener('focus', syncPermission);
+            document.removeEventListener('visibilitychange', syncPermission);
+        };
+    }, []);
+
+    const requestBrowserPermission = async () => {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+            setBrowserPermission('unsupported');
+
+            return;
+        }
+
+        const permission = await window.Notification.requestPermission();
+        setBrowserPermission(permission);
+
+        if (permission === 'granted' && !settings.browserNotifications) {
+            setAndPersistSettings({
+                ...settings,
+                browserNotifications: true,
+            });
+        }
+    };
+
+    const handleBrowserNotificationToggle = async (checked: boolean) => {
+        if (!checked) {
+            setAndPersistSettings({
+                ...settings,
+                browserNotifications: false,
+            });
+
+            return;
+        }
+
+        if (browserPermission === 'unsupported') {
+            return;
+        }
+
+        if (browserPermission === 'denied') {
+            return;
+        }
+
+        if (browserPermission === 'default') {
+            const permission = await window.Notification.requestPermission();
+            setBrowserPermission(permission);
+
+            if (permission !== 'granted') {
+                setAndPersistSettings({
+                    ...settings,
+                    browserNotifications: false,
+                });
+
+                return;
+            }
+        }
+
+        setAndPersistSettings({
+            ...settings,
+            browserNotifications: true,
+        });
+    };
 
     const items: JenisNotifikasiItem[] = useMemo(
         () => [
@@ -256,9 +354,19 @@ export default function SettingNotifikasi() {
                                     mendapatkan pemberitahuan real-time
                                 </CardDescription>
                             </div>
-                            <Badge variant="secondary" className="mt-0.5">
-                                Disarankan
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="mt-0.5">
+                                    Disarankan
+                                </Badge>
+                                <Badge
+                                    variant="outline"
+                                    className="mt-0.5 capitalize"
+                                >
+                                    {browserPermission === 'unsupported'
+                                        ? 'tidak didukung'
+                                        : browserPermission}
+                                </Badge>
+                            </div>
                         </div>
                     </CardHeader>
 
@@ -275,20 +383,38 @@ export default function SettingNotifikasi() {
                                     aktif
                                 </div>
                                 <div className="mt-3 text-xs text-muted-foreground">
-                                    Jika belum diizinkan, browser akan meminta
-                                    izin saat fitur ini diaktifkan.
+                                    {browserPermission === 'denied'
+                                        ? 'Izin notifikasi ditolak di browser. Ubah melalui pengaturan browser untuk mengaktifkan kembali.'
+                                        : 'Jika belum diizinkan, browser akan meminta izin saat fitur ini diaktifkan.'}
                                 </div>
+                                {(browserPermission === 'default' ||
+                                    browserPermission === 'denied') && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-3"
+                                        onClick={requestBrowserPermission}
+                                        disabled={isSaving}
+                                    >
+                                        {browserPermission === 'default'
+                                            ? 'Minta Izin Notifikasi'
+                                            : 'Coba Minta Izin Lagi'}
+                                    </Button>
+                                )}
                             </div>
                             <Switch
                                 checked={settings.browserNotifications}
-                                onCheckedChange={(checked) =>
-                                    setSettings((prev) => ({
-                                        ...prev,
-                                        browserNotifications: checked,
-                                    }))
+                                onCheckedChange={
+                                    handleBrowserNotificationToggle
                                 }
                                 aria-label="Aktifkan Notifikasi Browser"
                                 className="mt-1"
+                                disabled={
+                                    browserPermission === 'unsupported' ||
+                                    browserPermission === 'denied' ||
+                                    isSaving
+                                }
                             />
                         </div>
                     </CardContent>
@@ -351,15 +477,16 @@ export default function SettingNotifikasi() {
                                         <Switch
                                             checked={checked}
                                             onCheckedChange={(next) =>
-                                                setSettings((prev) => ({
-                                                    ...prev,
+                                                setAndPersistSettings({
+                                                    ...settings,
                                                     [item.key]: next,
-                                                }))
+                                                })
                                             }
                                             aria-label={`Aktifkan ${item.title}`}
                                             className="mt-1"
                                             disabled={
-                                                !settings.browserNotifications
+                                                !settings.browserNotifications ||
+                                                isSaving
                                             }
                                         />
                                     </div>

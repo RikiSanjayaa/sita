@@ -1,14 +1,17 @@
 import { router, usePage } from '@inertiajs/react';
 import {
     Bell,
+    BellOff,
     CalendarClock,
     CheckCircle2,
     ChevronsUpDown,
     Megaphone,
+    MessageSquareText,
     PencilLine,
     Repeat,
     type LucideIcon,
 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -31,144 +34,337 @@ import { ROLE_LABELS, UI_ROLES } from '@/lib/roles';
 import {
     AppRole,
     type BreadcrumbItem as BreadcrumbItemType,
+    type HeaderNotification,
     type SharedData,
 } from '@/types';
 
-type NotificationTone = 'success' | 'warning' | 'info';
-
-type NotificationItem = {
-    title: string;
-    description: string;
-    time: string;
-    icon: LucideIcon;
-    tone: NotificationTone;
-    unread: boolean;
+const notificationIconMap: Record<string, LucideIcon> = {
+    bell: Bell,
+    'calendar-clock': CalendarClock,
+    'check-circle': CheckCircle2,
+    megaphone: Megaphone,
+    'message-square': MessageSquareText,
+    'file-text': PencilLine,
 };
 
-const notifications: NotificationItem[] = [
-    {
-        title: 'Revisi Bimbingan',
-        description: 'Dosen pembimbing memberikan catatan revisi pada BAB II',
-        time: '2 jam lalu',
-        icon: PencilLine,
-        tone: 'warning',
-        unread: true,
-    },
-    {
-        title: 'Jadwal Bimbingan',
-        description: 'Bimbingan dengan Dr. Budi Santoso besok pukul 10.00 WIB',
-        time: '5 jam lalu',
-        icon: CalendarClock,
-        tone: 'info',
-        unread: true,
-    },
-    {
-        title: 'Dokumen Disetujui',
-        description: 'BAB I telah disetujui oleh pembimbing',
-        time: '1 hari lalu',
-        icon: CheckCircle2,
-        tone: 'success',
-        unread: false,
-    },
-    {
-        title: 'Pengumuman',
-        description: 'Pendaftaran seminar proposal gelombang 2 dibuka',
-        time: '2 hari lalu',
-        icon: Megaphone,
-        tone: 'info',
-        unread: false,
-    },
-];
+type IncomingNotification = {
+    id?: string;
+    data?: {
+        title?: string;
+        description?: string;
+        icon?: string;
+        url?: string;
+        createdAt?: string;
+    };
+    read_at?: string | null;
+};
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
+    );
+}
+
+function mapIncomingNotification(
+    payload: IncomingNotification,
+): HeaderNotification {
+    const data = (payload.data ?? payload) as Record<string, unknown>;
+
+    return {
+        id: payload.id ?? String(Math.random()),
+        title: typeof data.title === 'string' ? data.title : 'Notifikasi baru',
+        description:
+            typeof data.description === 'string' ? data.description : '',
+        icon: typeof data.icon === 'string' ? data.icon : 'bell',
+        url: typeof data.url === 'string' ? data.url : null,
+        time: 'baru saja',
+        unread: payload.read_at === null || payload.read_at === undefined,
+    };
+}
 
 function HeaderNotifications() {
-    const unreadCount = notifications.filter((n) => n.unread).length;
+    const {
+        auth,
+        notifications = [],
+        notificationSettings,
+        unreadNotificationCount = 0,
+    } = usePage<SharedData>().props;
+
+    const [notificationItems, setNotificationItems] =
+        useState<HeaderNotification[]>(notifications);
+    const [unreadCount, setUnreadCount] = useState(unreadNotificationCount);
+    const [toastNotification, setToastNotification] =
+        useState<HeaderNotification | null>(null);
+    const toastTimeoutRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        setNotificationItems(notifications);
+    }, [notifications]);
+
+    useEffect(() => {
+        setUnreadCount(unreadNotificationCount);
+    }, [unreadNotificationCount]);
+
+    useEffect(() => {
+        return () => {
+            if (toastTimeoutRef.current !== null) {
+                window.clearTimeout(toastTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.Echo || !auth.user?.id) {
+            return;
+        }
+
+        const channelName = `App.Models.User.${auth.user.id}`;
+        const channel = window.Echo.private(channelName);
+
+        channel.notification((payload: IncomingNotification) => {
+            const nextNotification = mapIncomingNotification(payload);
+
+            setNotificationItems((current) => {
+                const isNewNotification = !current.some(
+                    (item) => item.id === nextNotification.id,
+                );
+
+                if (isNewNotification) {
+                    setUnreadCount((value) => value + 1);
+                }
+
+                const withoutDuplicate = current.filter(
+                    (item) => item.id !== nextNotification.id,
+                );
+
+                return [nextNotification, ...withoutDuplicate].slice(0, 15);
+            });
+            setToastNotification(nextNotification);
+
+            if (toastTimeoutRef.current !== null) {
+                window.clearTimeout(toastTimeoutRef.current);
+            }
+
+            toastTimeoutRef.current = window.setTimeout(() => {
+                setToastNotification(null);
+            }, 4500);
+
+            if (
+                notificationSettings?.browserNotifications &&
+                'Notification' in window &&
+                window.Notification.permission === 'granted'
+            ) {
+                const nativeNotification = new window.Notification(
+                    nextNotification.title,
+                    {
+                        body: nextNotification.description,
+                    },
+                );
+
+                nativeNotification.onclick = () => {
+                    window.focus();
+
+                    if (nextNotification.url) {
+                        router.visit(nextNotification.url);
+                    }
+                };
+            }
+        });
+
+        return () => {
+            window.Echo.leaveChannel(`private-${channelName}`);
+        };
+    }, [auth.user?.id, notificationSettings?.browserNotifications]);
+
+    const markNotificationAsRead = async (notificationId: string) => {
+        await fetch(`/settings/notifications/${notificationId}/read`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleMarkAllAsRead = async () => {
+        if (unreadCount === 0) {
+            return;
+        }
+
+        setNotificationItems((current) =>
+            current.map((notification) => ({
+                ...notification,
+                unread: false,
+            })),
+        );
+        setUnreadCount(0);
+
+        await fetch('/settings/notifications/read-all', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleNotificationClick = async (
+        notification: HeaderNotification,
+    ) => {
+        if (notification.unread) {
+            setNotificationItems((current) =>
+                current.map((item) =>
+                    item.id === notification.id
+                        ? {
+                              ...item,
+                              unread: false,
+                          }
+                        : item,
+                ),
+            );
+
+            setUnreadCount((current) => Math.max(0, current - 1));
+            await markNotificationAsRead(notification.id);
+        }
+
+        if (notification.url) {
+            router.visit(notification.url);
+        }
+    };
+
+    const toast = toastNotification;
 
     return (
-        <Sheet>
-            <SheetTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="relative h-9 w-9 p-0"
-                    aria-label="Open notifications"
-                >
-                    <Bell className="size-4" />
-                    {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-medium text-destructive-foreground">
-                            {unreadCount}
-                        </span>
-                    )}
-                </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="p-0">
-                <div className="flex h-full flex-col">
-                    <div className="flex items-center justify-between gap-3 p-4 pr-12">
-                        <div className="flex items-center gap-2">
-                            <div className="text-sm leading-tight font-semibold">
-                                Notifikasi
-                            </div>
-                            <Badge variant="destructive" className="px-1.5">
+        <>
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="relative h-9 w-9 p-0 transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                        aria-label="Open notifications"
+                    >
+                        <Bell className="size-4" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-medium text-destructive-foreground">
                                 {unreadCount}
-                            </Badge>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-8 px-2 text-xs"
-                        >
-                            Tandai Semua Dibaca
-                        </Button>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid flex-1 auto-rows-min gap-3 overflow-auto p-4">
-                        {notifications.map((n) => {
-                            const Icon = n.icon;
-                            const toneClasses =
-                                n.tone === 'success'
-                                    ? 'text-green-600 dark:text-green-300'
-                                    : n.tone === 'warning'
-                                      ? 'text-orange-500 dark:text-orange-300'
-                                      : 'text-primary';
-
-                            return (
-                                <div
-                                    key={n.title}
-                                    className="flex items-start gap-3 rounded-lg border bg-background p-4"
-                                >
-                                    <span
-                                        className={
-                                            'mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted ' +
-                                            toneClasses
-                                        }
-                                    >
-                                        <Icon className="size-4" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <p className="text-sm font-medium">
-                                                {n.title}
-                                            </p>
-                                            {n.unread && (
-                                                <span className="mt-1 size-2 rounded-[3px] bg-primary" />
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {n.description}
-                                        </p>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            {n.time}
-                                        </p>
-                                    </div>
+                            </span>
+                        )}
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="p-0">
+                    <div className="flex h-full flex-col">
+                        <div className="flex items-center justify-between gap-3 p-4 pr-12">
+                            <div className="flex items-center gap-2">
+                                <div className="text-sm leading-tight font-semibold">
+                                    Notifikasi
                                 </div>
-                            );
-                        })}
+                                <Badge variant="destructive" className="px-1.5">
+                                    {unreadCount}
+                                </Badge>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs"
+                                onClick={handleMarkAllAsRead}
+                                disabled={unreadCount === 0}
+                            >
+                                Tandai Semua Dibaca
+                            </Button>
+                        </div>
+
+                        <Separator />
+
+                        <div className="grid flex-1 auto-rows-min gap-3 overflow-auto p-4">
+                            {notificationItems.length === 0 ? (
+                                <div className="flex h-full min-h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
+                                    <BellOff className="size-5 text-muted-foreground" />
+                                    <p className="text-sm font-medium">
+                                        Belum ada notifikasi baru
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Notifikasi baru akan muncul di sini saat
+                                        ada aktivitas.
+                                    </p>
+                                </div>
+                            ) : (
+                                notificationItems.map(
+                                    (n: HeaderNotification) => {
+                                        const Icon =
+                                            notificationIconMap[n.icon] ?? Bell;
+
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={n.id}
+                                                className="flex w-full items-start gap-3 rounded-lg border bg-background p-4 text-left transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                onClick={() =>
+                                                    handleNotificationClick(n)
+                                                }
+                                            >
+                                                <span
+                                                    className={
+                                                        'mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted text-primary'
+                                                    }
+                                                >
+                                                    <Icon className="size-4" />
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <p className="text-sm font-medium">
+                                                            {n.title}
+                                                        </p>
+                                                        {n.unread && (
+                                                            <span className="mt-1 size-2 rounded-[3px] bg-primary" />
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {n.description}
+                                                    </p>
+                                                    <p className="mt-2 text-xs text-muted-foreground">
+                                                        {n.time}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        );
+                                    },
+                                )
+                            )}
+                        </div>
                     </div>
-                </div>
-            </SheetContent>
-        </Sheet>
+                </SheetContent>
+            </Sheet>
+
+            {toast !== null && (
+                <button
+                    type="button"
+                    className="fixed top-4 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-primary/30 bg-primary/10 p-4 text-left shadow-2xl shadow-primary/20 transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
+                    onClick={() => handleNotificationClick(toast)}
+                >
+                    <p className="text-sm font-semibold text-primary">
+                        {toast.title}
+                    </p>
+                    <p className="mt-1 text-sm text-foreground/85">
+                        {toast.description}
+                    </p>
+                    <p className="mt-2 text-[11px] text-primary/80">
+                        Klik untuk buka detail
+                    </p>
+                </button>
+            )}
+        </>
     );
 }
 
@@ -187,10 +383,7 @@ function HeaderUserMenu() {
                     data-test="header-user-menu-trigger"
                 >
                     <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                        <AvatarImage
-                            src={user.avatar}
-                            alt={user.name}
-                        />
+                        <AvatarImage src={user.avatar} alt={user.name} />
                         <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
                             {getInitials(user.name)}
                         </AvatarFallback>

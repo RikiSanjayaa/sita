@@ -69,6 +69,9 @@
             "@test:lint",
             "@php artisan test"
         ],
+        "ci:verify": [
+            "@php artisan test --compact"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

@@ -39,6 +39,9 @@ class HandleInertiaRequests extends Middleware
         $activeRole = null;
         $availableRoles = [];
         $userPayload = null;
+        $notificationSettings = null;
+        $notifications = [];
+        $unreadNotificationCount = 0;
 
         if ($user !== null) {
             $user->loadMissing('roles');
@@ -51,6 +54,28 @@ class HandleInertiaRequests extends Middleware
 
             $userPayload = $user->toArray();
             $userPayload['roles'] = $user->roleNames();
+
+            $notificationSettings = [
+                'browserNotifications' => (bool) $user->browser_notifications_enabled,
+                ...$user->resolvedNotificationPreferences(),
+            ];
+
+            $notifications = $user->notifications()
+                ->latest()
+                ->limit(15)
+                ->get()
+                ->map(fn ($notification): array => [
+                    'id' => $notification->id,
+                    'title' => (string) data_get($notification->data, 'title', 'Notifikasi'),
+                    'description' => (string) data_get($notification->data, 'description', ''),
+                    'time' => $notification->created_at->diffForHumans(),
+                    'icon' => (string) data_get($notification->data, 'icon', 'bell'),
+                    'unread' => $notification->read_at === null,
+                    'url' => data_get($notification->data, 'url'),
+                ])
+                ->all();
+
+            $unreadNotificationCount = $user->unreadNotifications()->count();
         }
 
         return [
@@ -62,6 +87,9 @@ class HandleInertiaRequests extends Middleware
                 'availableRoles' => $availableRoles,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'notificationSettings' => $notificationSettings,
+            'notifications' => $notifications,
+            'unreadNotificationCount' => $unreadNotificationCount,
         ];
     }
 }
