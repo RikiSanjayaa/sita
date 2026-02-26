@@ -23,21 +23,25 @@ class PesanBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
+        $tab = $request->query('tab', 'aktif');
+        $studentIds = $tab === 'arsip'
+            ? $this->dosenBimbinganService->archivedStudentIds($lecturer)
+            : $this->dosenBimbinganService->activeStudentIds($lecturer);
 
         $threads = MentorshipChatThread::query()
             ->with([
                 'student',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
-                'messages' => fn ($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
             ])
             ->whereIn('student_user_id', $studentIds)
             ->get();
@@ -49,7 +53,7 @@ class PesanBimbinganController extends Controller
             ->keyBy('mentorship_chat_thread_id');
 
         $threads = $threads
-            ->map(function (MentorshipChatThread $thread) use ($lecturer, $readsByThread): array {
+            ->map(function (MentorshipChatThread $thread) use ($lecturer, $readsByThread, $tab): array {
                 $latestMessage = $thread->latestMessage;
                 $lastReadAt = $readsByThread->get($thread->id)?->last_read_at;
                 $unreadCount = MentorshipChatMessage::query()
@@ -67,6 +71,7 @@ class PesanBimbinganController extends Controller
                     'preview' => $latestMessage?->message ?? 'Belum ada pesan',
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
                     'isEscalated' => $thread->is_escalated,
+                    'isArchived' => $tab === 'arsip',
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
@@ -94,6 +99,7 @@ class PesanBimbinganController extends Controller
 
         return Inertia::render('dosen/pesan-bimbingan', [
             'threads' => $threads,
+            'tab' => $tab,
             'flashMessage' => $request->session()->get('success'),
         ]);
     }
@@ -103,8 +109,11 @@ class PesanBimbinganController extends Controller
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
-        abort_unless(in_array($thread->student_user_id, $studentIds, true), 403);
+        $activeIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
+        $archivedIds = $this->dosenBimbinganService->archivedStudentIds($lecturer);
+        $allIds = array_merge($activeIds, $archivedIds);
+
+        abort_unless(in_array($thread->student_user_id, $allIds, true), 403);
 
         $lastMessageAt = $thread->messages()->max('created_at');
 
@@ -127,7 +136,9 @@ class PesanBimbinganController extends Controller
         abort_if($lecturer === null, 401);
 
         $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
-        abort_unless(in_array($thread->student_user_id, $studentIds, true), 403);
+
+        // Block archived requests from being responded to
+        abort_unless(in_array($thread->student_user_id, $studentIds, true), 403, 'Sesi bimbingan ini telah selesai dan tidak dapat menerima pesan baru.');
 
         $data = $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
@@ -186,7 +197,7 @@ class PesanBimbinganController extends Controller
     {
         $student = $thread->student;
 
-        if (! $student instanceof User) {
+        if (!$student instanceof User) {
             return;
         }
 

@@ -67,8 +67,8 @@ export const THEME_PRESETS: ThemePreset[] = [
             card: '#ffffff',
             muted: '#e7f6ef',
             mutedForeground: '#4d776c',
-            accent: '#ffe9c5',
-            accentForeground: '#5c4116',
+            accent: '#d7f0e4',
+            accentForeground: '#173a32',
             border: '#cde8db',
             sidebar: '#eaf8f1',
             sidebarForeground: '#173a32',
@@ -97,8 +97,8 @@ export const THEME_PRESETS: ThemePreset[] = [
             card: '#ffffff',
             muted: '#ffe9dc',
             mutedForeground: '#8f6249',
-            accent: '#ffe7c1',
-            accentForeground: '#5f4318',
+            accent: '#ffd9c1',
+            accentForeground: '#4d2a17',
             border: '#f7d8c4',
             sidebar: '#fff0e3',
             sidebarForeground: '#4d2a17',
@@ -127,8 +127,8 @@ export const THEME_PRESETS: ThemePreset[] = [
             card: '#ffffff',
             muted: '#ffe6ef',
             mutedForeground: '#8d5a6a',
-            accent: '#ffe6bf',
-            accentForeground: '#5a4017',
+            accent: '#ffd9e7',
+            accentForeground: '#4b1f2d',
             border: '#f6cfde',
             sidebar: '#ffebf3',
             sidebarForeground: '#4b1f2d',
@@ -159,7 +159,11 @@ const subscribe = (callback: () => void) => {
     return () => listeners.delete(callback);
 };
 
-const notify = (): void => listeners.forEach((listener) => listener());
+const notify = (): void => {
+    listeners.forEach((listener) => {
+        listener();
+    });
+};
 
 const setCookie = (name: string, value: string, days = 365): void => {
     if (typeof document === 'undefined') return;
@@ -169,8 +173,10 @@ const setCookie = (name: string, value: string, days = 365): void => {
 };
 
 const getPresetById = (id: string | null | undefined): ThemePreset => {
-    return THEME_PRESETS.find((preset) => preset.id === id) ??
-        THEME_PRESETS.find((preset) => preset.id === DEFAULT_PRESET_ID)!;
+    return (
+        THEME_PRESETS.find((preset) => preset.id === id) ??
+        THEME_PRESETS.find((preset) => preset.id === DEFAULT_PRESET_ID)!
+    );
 };
 
 const getContrastForeground = (hex: string): string => {
@@ -226,7 +232,8 @@ const applyCurrentPreset = (): void => {
 };
 
 const setupAppearanceObserver = (): void => {
-    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    if (typeof document === 'undefined' || typeof window === 'undefined')
+        return;
     if (classObserver) classObserver.disconnect();
 
     classObserver = new MutationObserver(() => {
@@ -256,14 +263,17 @@ export function usePrimaryColor() {
         () => DEFAULT_PRESET_ID,
     );
 
-    const updatePreset = useCallback((nextPresetId: ThemePreset['id']): void => {
-        const nextPreset = getPresetById(nextPresetId);
-        currentPresetId = nextPreset.id;
-        localStorage.setItem(STORAGE_KEY, nextPreset.id);
-        setCookie(COOKIE_KEY, nextPreset.id);
-        applyPresetToCssVariables(nextPreset);
-        notify();
-    }, []);
+    const updatePreset = useCallback(
+        (nextPresetId: ThemePreset['id']): void => {
+            const nextPreset = getPresetById(nextPresetId);
+            currentPresetId = nextPreset.id;
+            localStorage.setItem(STORAGE_KEY, nextPreset.id);
+            setCookie(COOKIE_KEY, nextPreset.id);
+            applyPresetToCssVariables(nextPreset);
+            notify();
+        },
+        [],
+    );
 
     const resetPreset = useCallback((): void => {
         currentPresetId = DEFAULT_PRESET_ID;

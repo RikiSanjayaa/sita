@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
+import { playPopSound } from '@/lib/sounds';
 import { dashboard, pesan } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -64,6 +65,16 @@ export default function PesanPage() {
     const [messages, setMessages] = useState<ChatMessage[]>(thread.messages);
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // Scroll automatically on initial load or when messages change
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages.length]);
 
     const form = useForm<{
         message: string;
@@ -97,6 +108,11 @@ export default function PesanPage() {
                         return current;
                     }
 
+                    // If the message is not from me, play the pop sound
+                    if (event.message.author !== myName) {
+                        playPopSound();
+                    }
+
                     return [...current, event.message];
                 });
             },
@@ -106,7 +122,7 @@ export default function PesanPage() {
             channel.stopListening('.chat.message.created');
             window.Echo.leaveChannel(`private-${channelName}`);
         };
-    }, [thread.id]);
+    }, [thread.id, myName]);
 
     const canSend = useMemo(
         () =>
@@ -140,6 +156,8 @@ export default function PesanPage() {
                 if (fileRef.current) {
                     fileRef.current.value = '';
                 }
+                playPopSound();
+                scrollToBottom();
             },
         });
     }
@@ -152,8 +170,8 @@ export default function PesanPage() {
         >
             <Head title="Pesan" />
 
-            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6">
-                <Card className="flex min-h-[620px] flex-col">
+            <div className="mx-auto box-border flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 overflow-hidden px-4 py-6 md:px-6">
+                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <CardTitle>{thread.name}</CardTitle>
@@ -165,7 +183,7 @@ export default function PesanPage() {
                         </CardDescription>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="flex-1 overflow-auto pt-4">
+                    <CardContent className="h-0 flex-1 overflow-y-auto pt-4">
                         {flashMessage && (
                             <Alert className="mb-3">
                                 <AlertTitle>Info</AlertTitle>
@@ -189,7 +207,7 @@ export default function PesanPage() {
                                     return (
                                         <div
                                             key={message.id}
-                                            className="rounded-lg border border-primary/25 bg-primary/10 p-3"
+                                            className="animate-pop rounded-lg border border-primary/25 bg-primary/10 p-3"
                                         >
                                             <div className="text-sm font-medium text-primary">
                                                 {isRevision
@@ -239,7 +257,7 @@ export default function PesanPage() {
                                 return (
                                     <div
                                         key={message.id}
-                                        className={`flex ${isMe ? 'justify-end' : ''}`}
+                                        className={`animate-pop flex ${isMe ? 'justify-end' : ''}`}
                                     >
                                         {!isMe && (
                                             <Avatar className="mt-0.5 mr-2 size-7">
@@ -249,19 +267,17 @@ export default function PesanPage() {
                                             </Avatar>
                                         )}
                                         <div
-                                            className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${
-                                                isMe
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-background'
-                                            }`}
+                                            className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${isMe
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-background'
+                                                }`}
                                         >
                                             {message.documentName && (
                                                 <div
-                                                    className={`mb-2 rounded border p-2 text-xs ${
-                                                        isMe
-                                                            ? 'border-primary-foreground/25 bg-primary-foreground/15'
-                                                            : 'bg-muted/30'
-                                                    }`}
+                                                    className={`mb-2 rounded border p-2 text-xs ${isMe
+                                                        ? 'border-primary-foreground/25 bg-primary-foreground/15'
+                                                        : 'bg-muted/30'
+                                                        }`}
                                                 >
                                                     {message.documentName}
                                                 </div>
@@ -270,11 +286,10 @@ export default function PesanPage() {
                                                 <div>{message.message}</div>
                                             )}
                                             <div
-                                                className={`mt-1 text-[11px] ${
-                                                    isMe
-                                                        ? 'text-primary-foreground/70'
-                                                        : 'text-muted-foreground'
-                                                }`}
+                                                className={`mt-1 text-[11px] ${isMe
+                                                    ? 'text-primary-foreground/70'
+                                                    : 'text-muted-foreground'
+                                                    }`}
                                             >
                                                 {message.author} -{' '}
                                                 {message.time}
@@ -283,6 +298,8 @@ export default function PesanPage() {
                                     </div>
                                 );
                             })}
+
+                            <div ref={messagesEndRef} />
                         </div>
                     </CardContent>
                     <Separator />
