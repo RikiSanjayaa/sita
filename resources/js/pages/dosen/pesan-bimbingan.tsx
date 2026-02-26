@@ -32,11 +32,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-    | 'text'
-    | 'document_event'
-    | 'attachment'
-    | 'revision_suggestion'
-    | string;
+        | 'text'
+        | 'document_event'
+        | 'attachment'
+        | 'revision_suggestion'
+        | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -65,6 +65,27 @@ function initials(name: string) {
         .toUpperCase();
 }
 
+function resolveInitialThreadId(initialThreads: ThreadItem[]): number | null {
+    const fallbackThreadId = initialThreads[0]?.id ?? null;
+
+    if (typeof window === 'undefined') {
+        return fallbackThreadId;
+    }
+
+    const queryThread = Number(
+        new URLSearchParams(window.location.search).get('thread'),
+    );
+
+    if (
+        Number.isInteger(queryThread) &&
+        initialThreads.some((thread) => thread.id === queryThread)
+    ) {
+        return queryThread;
+    }
+
+    return fallbackThreadId;
+}
+
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
@@ -76,7 +97,7 @@ export default function DosenPesanBimbinganPage() {
     const [threadItems, setThreadItems] =
         useState<ThreadItem[]>(initialThreads);
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
-        initialThreads[0]?.id ?? null,
+        resolveInitialThreadId(initialThreads),
     );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ThreadMessage[]>
@@ -106,7 +127,6 @@ export default function DosenPesanBimbinganPage() {
         // If initialThreads changed, we no longer reset activeThreadId here.
         // It will be resolved dynamically within the component via EvaluatedActiveThreadId
         // if the old activeThreadId no longer exists.
-
         // Note: the component should ideally be using `useMemo` for `threadItems`, but `setThreadItems` and `setMessagesByThread` are called elsewhere too.
         // To fix this particular lint warning, we remove the synchronous `setActiveThreadId` directly within `useEffect`.
     }, [initialThreads]);
@@ -220,17 +240,19 @@ export default function DosenPesanBimbinganPage() {
     }, [activeThreadId]);
 
     const visibleThreads = useMemo(() => {
-        return threadItems.map((thread) => {
-            // Apply the 'unread: 0' logic for the active thread during derived state calculation
-            if (thread.id === activeThreadId) {
-                return { ...thread, unread: 0 };
-            }
-            return thread;
-        }).filter((thread) => {
-            return thread.student
-                .toLowerCase()
-                .includes(search.trim().toLowerCase());
-        });
+        return threadItems
+            .map((thread) => {
+                // Apply the 'unread: 0' logic for the active thread during derived state calculation
+                if (thread.id === activeThreadId) {
+                    return { ...thread, unread: 0 };
+                }
+                return thread;
+            })
+            .filter((thread) => {
+                return thread.student
+                    .toLowerCase()
+                    .includes(search.trim().toLowerCase());
+            });
     }, [search, threadItems, activeThreadId]);
 
     // Derived active thread, resolving to the first visible thread if the current one is invalid
@@ -258,9 +280,10 @@ export default function DosenPesanBimbinganPage() {
         void markThreadAsRead(evaluatedActiveThreadId);
     }, [evaluatedActiveThreadId]);
 
-
     const activeThread =
-        visibleThreads.find((thread) => thread.id === evaluatedActiveThreadId) ?? null;
+        visibleThreads.find(
+            (thread) => thread.id === evaluatedActiveThreadId,
+        ) ?? null;
 
     const activeMessages =
         activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
@@ -285,7 +308,11 @@ export default function DosenPesanBimbinganPage() {
     }
 
     function sendMessage() {
-        if (!canSend || activeThread === null || evaluatedActiveThreadId === null) {
+        if (
+            !canSend ||
+            activeThread === null ||
+            evaluatedActiveThreadId === null
+        ) {
             return;
         }
 
@@ -294,17 +321,20 @@ export default function DosenPesanBimbinganPage() {
             message: data.message.trim(),
         }));
 
-        form.post(`/dosen/pesan-bimbingan/${evaluatedActiveThreadId}/messages`, {
-            preserveScroll: true,
-            forceFormData: true,
-            onSuccess: () => {
-                form.reset('message', 'attachment');
-                setAttachmentName(null);
-                if (fileRef.current) {
-                    fileRef.current.value = '';
-                }
+        form.post(
+            `/dosen/pesan-bimbingan/${evaluatedActiveThreadId}/messages`,
+            {
+                preserveScroll: true,
+                forceFormData: true,
+                onSuccess: () => {
+                    form.reset('message', 'attachment');
+                    setAttachmentName(null);
+                    if (fileRef.current) {
+                        fileRef.current.value = '';
+                    }
+                },
             },
-        });
+        );
     }
 
     return (
@@ -351,7 +381,7 @@ export default function DosenPesanBimbinganPage() {
                                         className={cn(
                                             'w-full rounded-lg border p-3 text-left transition hover:bg-muted/30',
                                             activeThread?.id === thread.id &&
-                                            'border-primary/30 bg-muted/40',
+                                                'border-primary/30 bg-muted/40',
                                         )}
                                         onClick={() =>
                                             setActiveThreadId(thread.id)
@@ -512,17 +542,19 @@ export default function DosenPesanBimbinganPage() {
                                                 </Avatar>
                                             )}
                                             <div
-                                                className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${isMe
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-background'
-                                                    }`}
+                                                className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${
+                                                    isMe
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'bg-background'
+                                                }`}
                                             >
                                                 {message.documentName && (
                                                     <div
-                                                        className={`mb-2 rounded border p-2 text-xs ${isMe
-                                                            ? 'border-primary-foreground/25 bg-primary-foreground/15'
-                                                            : 'bg-muted/30'
-                                                            }`}
+                                                        className={`mb-2 rounded border p-2 text-xs ${
+                                                            isMe
+                                                                ? 'border-primary-foreground/25 bg-primary-foreground/15'
+                                                                : 'bg-muted/30'
+                                                        }`}
                                                     >
                                                         {message.documentName}
                                                     </div>
@@ -531,10 +563,11 @@ export default function DosenPesanBimbinganPage() {
                                                     <div>{message.message}</div>
                                                 )}
                                                 <div
-                                                    className={`mt-1 text-[11px] ${isMe
-                                                        ? 'text-primary-foreground/70'
-                                                        : 'text-muted-foreground'
-                                                        }`}
+                                                    className={`mt-1 text-[11px] ${
+                                                        isMe
+                                                            ? 'text-primary-foreground/70'
+                                                            : 'text-muted-foreground'
+                                                    }`}
                                                 >
                                                     {message.author} -{' '}
                                                     {message.time}

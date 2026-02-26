@@ -9,6 +9,8 @@ use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
+use App\Models\User;
+use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,10 @@ use Throwable;
 
 class PesanController extends Controller
 {
+    public function __construct(
+        private readonly RealtimeNotificationService $realtimeNotificationService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $student = $request->user();
@@ -156,8 +162,31 @@ class PesanController extends Controller
         });
 
         $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+        $this->notifyLecturers($student, $thread->id);
 
         return back()->with('success', 'Pesan berhasil dikirim.');
+    }
+
+    private function notifyLecturers(User $student, int $threadId): void
+    {
+        $lecturers = MentorshipAssignment::query()
+            ->where('student_user_id', $student->id)
+            ->where('status', AssignmentStatus::Active->value)
+            ->with('lecturer')
+            ->get()
+            ->pluck('lecturer')
+            ->filter()
+            ->unique('id');
+
+        foreach ($lecturers as $lecturer) {
+            $this->realtimeNotificationService->notifyUser($lecturer, 'pesanBaru', [
+                'title' => 'Pesan bimbingan baru',
+                'description' => sprintf('%s mengirim pesan baru.', $student->name),
+                'url' => sprintf('/dosen/pesan-bimbingan?thread=%d', $threadId),
+                'icon' => 'message-square',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
     }
 
     /**

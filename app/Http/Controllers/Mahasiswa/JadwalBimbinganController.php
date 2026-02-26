@@ -7,6 +7,7 @@ use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipSchedule;
+use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,10 @@ use Throwable;
 
 class JadwalBimbinganController extends Controller
 {
+    public function __construct(
+        private readonly RealtimeNotificationService $realtimeNotificationService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $student = $request->user();
@@ -99,6 +104,7 @@ class JadwalBimbinganController extends Controller
         ]);
 
         $assignments = MentorshipAssignment::query()
+            ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->where('status', AssignmentStatus::Active->value)
             ->get();
@@ -134,6 +140,16 @@ class JadwalBimbinganController extends Controller
 
         $this->broadcastScheduleUpdated($selectedAssignment->lecturer_user_id);
         $this->broadcastScheduleUpdated($student->id);
+
+        if ($selectedAssignment->lecturer !== null) {
+            $this->realtimeNotificationService->notifyUser($selectedAssignment->lecturer, 'jadwalBimbingan', [
+                'title' => 'Permintaan jadwal bimbingan baru',
+                'description' => sprintf('%s mengajukan jadwal bimbingan baru.', $student->name),
+                'url' => '/dosen/jadwal-bimbingan',
+                'icon' => 'calendar-clock',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
 
         return redirect()
             ->route('mahasiswa.jadwal-bimbingan')

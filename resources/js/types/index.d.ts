@@ -50,7 +50,31 @@ export interface SharedData {
     name: string;
     auth: Auth;
     sidebarOpen: boolean;
+    notificationSettings?: NotificationSettings;
+    notifications?: HeaderNotification[];
+    unreadNotificationCount?: number;
     [key: string]: unknown;
+}
+
+export interface NotificationSettings {
+    browserNotifications: boolean;
+    pesanBaru: boolean;
+    statusTugasAkhir: boolean;
+    jadwalBimbingan: boolean;
+    feedbackDokumen: boolean;
+    reminderDeadline: boolean;
+    pengumumanSistem: boolean;
+    konfirmasiBimbingan: boolean;
+}
+
+export interface HeaderNotification {
+    id: string;
+    title: string;
+    description: string;
+    time: string;
+    icon: string;
+    unread: boolean;
+    url?: string | null;
 }
 
 export interface User {

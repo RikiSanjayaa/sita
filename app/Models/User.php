@@ -27,6 +27,18 @@ class User extends Authenticatable
         'email',
         'password',
         'last_active_role',
+        'browser_notifications_enabled',
+        'notification_preferences',
+    ];
+
+    public const NOTIFICATION_PREFERENCE_KEYS = [
+        'pesanBaru',
+        'statusTugasAkhir',
+        'jadwalBimbingan',
+        'feedbackDokumen',
+        'reminderDeadline',
+        'pengumumanSistem',
+        'konfirmasiBimbingan',
     ];
 
     /**
@@ -52,7 +64,33 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'browser_notifications_enabled' => 'bool',
+            'notification_preferences' => 'array',
         ];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function resolvedNotificationPreferences(): array
+    {
+        $storedPreferences = is_array($this->notification_preferences)
+            ? $this->notification_preferences
+            : [];
+
+        $preferences = [];
+
+        foreach (self::NOTIFICATION_PREFERENCE_KEYS as $key) {
+            $preferences[$key] = true;
+        }
+
+        foreach ($storedPreferences as $key => $value) {
+            if (in_array($key, self::NOTIFICATION_PREFERENCE_KEYS, true)) {
+                $preferences[$key] = (bool) $value;
+            }
+        }
+
+        return $preferences;
     }
 
     public function roles(): BelongsToMany
