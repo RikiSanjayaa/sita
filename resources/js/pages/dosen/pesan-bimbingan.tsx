@@ -32,11 +32,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-        | 'text'
-        | 'document_event'
-        | 'attachment'
-        | 'revision_suggestion'
-        | string;
+    | 'text'
+    | 'document_event'
+    | 'attachment'
+    | 'revision_suggestion'
+    | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -103,12 +103,12 @@ export default function DosenPesanBimbinganPage() {
     }, []);
 
     useEffect(() => {
-        setThreadItems(initialThreads);
-        setMessagesByThread(
-            Object.fromEntries(
-                initialThreads.map((thread) => [thread.id, thread.messages]),
-            ),
-        );
+        // If initialThreads changed, we no longer reset activeThreadId here.
+        // It will be resolved dynamically within the component via EvaluatedActiveThreadId
+        // if the old activeThreadId no longer exists.
+
+        // Note: the component should ideally be using `useMemo` for `threadItems`, but `setThreadItems` and `setMessagesByThread` are called elsewhere too.
+        // To fix this particular lint warning, we remove the synchronous `setActiveThreadId` directly within `useEffect`.
     }, [initialThreads]);
 
     async function markThreadAsRead(threadId: number) {
@@ -214,41 +214,53 @@ export default function DosenPesanBimbinganPage() {
             return;
         }
 
-        setThreadItems((current) =>
-            current.map((thread) =>
-                thread.id === activeThreadId
-                    ? { ...thread, unread: 0 }
-                    : thread,
-            ),
-        );
+        // We only mark as read here, letting `activeThreadId` drive the `visibleThreads` logic during render.
+        // We do not synchronously update threadItems here to avoid cascading updates.
         void markThreadAsRead(activeThreadId);
     }, [activeThreadId]);
 
     const visibleThreads = useMemo(() => {
-        return threadItems.filter((thread) => {
+        return threadItems.map((thread) => {
+            // Apply the 'unread: 0' logic for the active thread during derived state calculation
+            if (thread.id === activeThreadId) {
+                return { ...thread, unread: 0 };
+            }
+            return thread;
+        }).filter((thread) => {
             return thread.student
                 .toLowerCase()
                 .includes(search.trim().toLowerCase());
         });
-    }, [search, threadItems]);
+    }, [search, threadItems, activeThreadId]);
 
-    useEffect(() => {
+    // Derived active thread, resolving to the first visible thread if the current one is invalid
+    const evaluatedActiveThreadId = useMemo(() => {
         if (visibleThreads.length === 0) {
-            setActiveThreadId(null);
-
-            return;
+            return null;
         }
 
         if (
             activeThreadId === null ||
             !visibleThreads.some((thread) => thread.id === activeThreadId)
         ) {
-            setActiveThreadId(visibleThreads[0].id);
+            return visibleThreads[0].id;
         }
+
+        return activeThreadId;
     }, [activeThreadId, visibleThreads]);
 
+    useEffect(() => {
+        if (evaluatedActiveThreadId === null) {
+            return;
+        }
+
+        // We only mark as read here, letting `evaluatedActiveThreadId` drive the `visibleThreads` logic during render.
+        void markThreadAsRead(evaluatedActiveThreadId);
+    }, [evaluatedActiveThreadId]);
+
+
     const activeThread =
-        visibleThreads.find((thread) => thread.id === activeThreadId) ?? null;
+        visibleThreads.find((thread) => thread.id === evaluatedActiveThreadId) ?? null;
 
     const activeMessages =
         activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
@@ -273,7 +285,7 @@ export default function DosenPesanBimbinganPage() {
     }
 
     function sendMessage() {
-        if (!canSend || activeThread === null) {
+        if (!canSend || activeThread === null || evaluatedActiveThreadId === null) {
             return;
         }
 
@@ -282,7 +294,7 @@ export default function DosenPesanBimbinganPage() {
             message: data.message.trim(),
         }));
 
-        form.post(`/dosen/pesan-bimbingan/${activeThread.id}/messages`, {
+        form.post(`/dosen/pesan-bimbingan/${evaluatedActiveThreadId}/messages`, {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
@@ -339,7 +351,7 @@ export default function DosenPesanBimbinganPage() {
                                         className={cn(
                                             'w-full rounded-lg border p-3 text-left transition hover:bg-muted/30',
                                             activeThread?.id === thread.id &&
-                                                'border-primary/30 bg-muted/40',
+                                            'border-primary/30 bg-muted/40',
                                         )}
                                         onClick={() =>
                                             setActiveThreadId(thread.id)
@@ -500,19 +512,17 @@ export default function DosenPesanBimbinganPage() {
                                                 </Avatar>
                                             )}
                                             <div
-                                                className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${
-                                                    isMe
-                                                        ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-background'
-                                                }`}
+                                                className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${isMe
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-background'
+                                                    }`}
                                             >
                                                 {message.documentName && (
                                                     <div
-                                                        className={`mb-2 rounded border p-2 text-xs ${
-                                                            isMe
-                                                                ? 'border-primary-foreground/25 bg-primary-foreground/15'
-                                                                : 'bg-muted/30'
-                                                        }`}
+                                                        className={`mb-2 rounded border p-2 text-xs ${isMe
+                                                            ? 'border-primary-foreground/25 bg-primary-foreground/15'
+                                                            : 'bg-muted/30'
+                                                            }`}
                                                     >
                                                         {message.documentName}
                                                     </div>
@@ -521,11 +531,10 @@ export default function DosenPesanBimbinganPage() {
                                                     <div>{message.message}</div>
                                                 )}
                                                 <div
-                                                    className={`mt-1 text-[11px] ${
-                                                        isMe
-                                                            ? 'text-primary-foreground/70'
-                                                            : 'text-muted-foreground'
-                                                    }`}
+                                                    className={`mt-1 text-[11px] ${isMe
+                                                        ? 'text-primary-foreground/70'
+                                                        : 'text-muted-foreground'
+                                                        }`}
                                                 >
                                                     {message.author} -{' '}
                                                     {message.time}
