@@ -22,11 +22,35 @@ class DosenBimbinganService
     }
 
     /**
+     * @return Collection<int, \App\Models\MentorshipAssignment>
+     */
+    public function archivedAssignmentsWithStudent(User $lecturer): Collection
+    {
+        return MentorshipAssignment::query()
+            ->with(['student.mahasiswaProfile'])
+            ->where('lecturer_user_id', $lecturer->id)
+            ->where('status', AssignmentStatus::Ended->value)
+            ->get();
+    }
+
+    /**
      * @return array<int, int>
      */
     public function activeStudentIds(User $lecturer): array
     {
         return $this->activeAssignmentsWithStudent($lecturer)
+            ->pluck('student_user_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function archivedStudentIds(User $lecturer): array
+    {
+        return $this->archivedAssignmentsWithStudent($lecturer)
             ->pluck('student_user_id')
             ->unique()
             ->values()

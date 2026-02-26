@@ -226,9 +226,9 @@ function HeaderNotifications() {
                 current.map((item) =>
                     item.id === notification.id
                         ? {
-                              ...item,
-                              unread: false,
-                          }
+                            ...item,
+                            unread: false,
+                        }
                         : item,
                 ),
             );
@@ -350,18 +350,21 @@ function HeaderNotifications() {
             {toast !== null && (
                 <button
                     type="button"
-                    className="fixed top-4 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-primary/30 bg-primary/10 p-4 text-left shadow-2xl shadow-primary/20 transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
+                    className="group fixed top-4 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-primary/30 bg-background p-4 text-left shadow-2xl shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                     onClick={() => handleNotificationClick(toast)}
                 >
-                    <p className="text-sm font-semibold text-primary">
-                        {toast.title}
-                    </p>
-                    <p className="mt-1 text-sm text-foreground/85">
-                        {toast.description}
-                    </p>
-                    <p className="mt-2 text-[11px] text-primary/80">
-                        Klik untuk buka detail
-                    </p>
+                    <div className="pointer-events-none absolute inset-0 bg-primary/10 transition-colors group-hover:bg-primary/20" />
+                    <div className="relative z-10">
+                        <p className="text-sm font-semibold text-primary">
+                            {toast.title}
+                        </p>
+                        <p className="mt-1 text-sm text-foreground/85">
+                            {toast.description}
+                        </p>
+                        <p className="mt-2 text-[11px] text-primary/80">
+                            Klik untuk buka detail
+                        </p>
+                    </div>
                 </button>
             )}
         </>

@@ -51,7 +51,7 @@ class UserSeeder extends Seeder
     private function seedRoles(): array
     {
         return collect(AppRole::values())
-            ->mapWithKeys(fn (string $role): array => [
+            ->mapWithKeys(fn(string $role): array => [
                 $role => Role::query()->firstOrCreate(['name' => $role]),
             ])
             ->all();
@@ -111,6 +111,22 @@ class UserSeeder extends Seeder
                     'nim' => (string) $account['nim'],
                     'program_studi' => 'Informatika',
                     'angkatan' => (int) $account['angkatan'],
+                    'status_akademik' => 'aktif',
+                ],
+            );
+        }
+
+        // Generate 10 additional random students
+        $extraStudents = User::factory()->count(10)->asMahasiswa()->create();
+        foreach ($extraStudents as $index => $student) {
+            $student->roles()->syncWithoutDetaching([$mahasiswaRole->id]);
+
+            MahasiswaProfile::query()->updateOrCreate(
+                ['user_id' => $student->id],
+                [
+                    'nim' => '221051' . str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
+                    'program_studi' => 'Informatika',
+                    'angkatan' => 2022,
                     'status_akademik' => 'aktif',
                 ],
             );
