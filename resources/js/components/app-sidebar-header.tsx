@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     Bell,
     CalendarClock,
@@ -6,6 +6,7 @@ import {
     ChevronsUpDown,
     Megaphone,
     PencilLine,
+    Repeat,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -16,6 +17,9 @@ import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
@@ -23,7 +27,9 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
+import { ROLE_LABELS, UI_ROLES } from '@/lib/roles';
 import {
+    AppRole,
     type BreadcrumbItem as BreadcrumbItemType,
     type SharedData,
 } from '@/types';
@@ -169,6 +175,7 @@ function HeaderNotifications() {
 function HeaderUserMenu() {
     const { auth } = usePage<SharedData>().props;
     const getInitials = useInitials();
+    const user = auth.user;
 
     return (
         <DropdownMenu>
@@ -181,21 +188,66 @@ function HeaderUserMenu() {
                 >
                     <Avatar className="h-8 w-8 overflow-hidden rounded-full">
                         <AvatarImage
-                            src={auth.user.avatar}
-                            alt={auth.user.name}
+                            src={user.avatar}
+                            alt={user.name}
                         />
                         <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
-                            {getInitials(auth.user.name)}
+                            {getInitials(user.name)}
                         </AvatarFallback>
                     </Avatar>
                     <span className="hidden max-w-40 truncate text-sm font-medium md:inline">
-                        {auth.user.name}
+                        {user.name}
                     </span>
                     <ChevronsUpDown className="size-4 text-muted-foreground" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="min-w-56 rounded-lg" align="end">
-                <UserMenuContent user={auth.user} />
+                <UserMenuContent user={user} />
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
+
+function HeaderRoleSwitcher() {
+    const { auth } = usePage<SharedData>().props;
+    const activeRole = auth.activeRole as AppRole | null;
+    const availableRoles = auth.availableRoles.filter((role) =>
+        UI_ROLES.includes(role),
+    ) as AppRole[];
+
+    if (activeRole === null || availableRoles.length <= 1) {
+        return null;
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-2">
+                    <Repeat className="size-4" />
+                    <span className="hidden sm:inline">
+                        {ROLE_LABELS[activeRole]}
+                    </span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuLabel>Pilih Role Aktif</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {availableRoles.map((role) => (
+                    <DropdownMenuItem
+                        key={role}
+                        className="cursor-pointer"
+                        disabled={role === activeRole}
+                        onClick={() => {
+                            router.post(
+                                '/role/switch',
+                                { role },
+                                { preserveScroll: true },
+                            );
+                        }}
+                    >
+                        {ROLE_LABELS[role]}
+                    </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -215,6 +267,7 @@ export function AppSidebarHeader({
                 </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
+                <HeaderRoleSwitcher />
                 <HeaderNotifications />
                 <Separator orientation="vertical" className="mx-1 h-6" />
                 <HeaderUserMenu />
