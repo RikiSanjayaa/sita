@@ -72,7 +72,7 @@ export default function Welcome({
 
     return (
         <>
-            <Head title="SiTA UBG | Portal Mahasiswa" />
+            <Head title="SiTA UBG" />
 
             <div className="relative min-h-screen bg-background text-foreground">
                 <header className="relative z-10 border-b bg-background/95 backdrop-blur">
