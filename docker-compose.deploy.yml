@@ -1,0 +1,30 @@
+services:
+  init:
+    build: null
+    image: ${APP_IMAGE}
+    pull_policy: always
+
+  app:
+    build: null
+    image: ${APP_IMAGE}
+    pull_policy: always
+
+  web:
+    build: null
+    image: ${WEB_IMAGE}
+    pull_policy: always
+
+  queue:
+    build: null
+    image: ${APP_IMAGE}
+    pull_policy: always
+
+  scheduler:
+    build: null
+    image: ${APP_IMAGE}
+    pull_policy: always
+
+  reverb:
+    build: null
+    image: ${APP_IMAGE}
+    pull_policy: always
