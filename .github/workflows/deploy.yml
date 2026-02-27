@@ -151,13 +151,13 @@ jobs:
             exit 1
           fi
 
-          if [[ "${client_id}" == tskey-auth-* || "${oauth_secret}" == tskey-auth-* ]]; then
-            echo "Detected auth key format (tskey-auth-...). Use OAuth client credentials instead."
+          if [[ "${client_id}" == tskey-auth-* || "${client_id}" == tskey-api-* || "${oauth_secret}" == tskey-auth-* || "${oauth_secret}" == tskey-api-* ]]; then
+            echo "Detected auth/API key format (tskey-auth-* or tskey-api-*). Use OAuth client credentials instead."
             exit 1
           fi
 
-          if [[ "${client_id}" != tskey-client-* ]]; then
-            echo "TS_OAUTH_CLIENT_ID should start with tskey-client-."
+          if [[ "${client_id}" =~ [[:space:]] || "${oauth_secret}" =~ [[:space:]] ]]; then
+            echo "Tailscale OAuth credentials must not contain spaces or line breaks."
             exit 1
           fi
 

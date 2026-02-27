@@ -208,7 +208,9 @@ Jika deploy gagal di langkah `ssh-keyscan` / `Trust deploy host`, biasanya `DEPL
 
 Jika host sudah berupa IP Tailscale tapi masih gagal di `Trust deploy host`, cek bahwa SSH port sesuai (`DEPLOY_SSH_PORT`) dan bisa diakses dari tailnet (ACL + firewall + sshd).
 
-Jika gagal di step Tailscale dengan `backend error: invalid key: unable to validate API key`, artinya kredensial OAuth salah format/salah nilai. `TS_OAUTH_CLIENT_ID` + `TS_OAUTH_SECRET` harus pasangan dari OAuth Client yang sama (bukan `tskey-auth-*`), berada di tailnet yang sama, punya scope `auth_keys` writable, dan diizinkan request tag `tag:ci`.
+Jika gagal di step Tailscale dengan `backend error: invalid key: unable to validate API key`, artinya kredensial OAuth salah format/salah nilai. `TS_OAUTH_CLIENT_ID` + `TS_OAUTH_SECRET` harus pasangan dari OAuth Client yang sama (bukan `tskey-auth-*` / `tskey-api-*`), berada di tailnet yang sama, punya scope `auth_keys` writable, dan diizinkan request tag `tag:ci`.
+
+Catatan format terbaru: `TS_OAUTH_CLIENT_ID` dari halaman Trust Credentials bisa berupa ID pendek alfanumerik (tidak harus prefix `tskey-client-`).
 
 Untuk Tailscale ACL, pastikan node CI (`tag:ci`) diizinkan akses ke server deploy port 22. Contoh ACL legacy:
 
