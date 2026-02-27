@@ -1,8 +1,8 @@
 x-build-args: &build-args
   INSTALL_DEV_DEPENDENCIES: ${INSTALL_DEV_DEPENDENCIES:-false}
   VITE_REVERB_APP_KEY: ${VITE_REVERB_APP_KEY:-local-key}
-  VITE_REVERB_HOST: ${FRONTEND_REVERB_HOST:-localhost}
-  VITE_REVERB_PORT: ${REVERB_EXPOSE_PORT:-8089}
+  VITE_REVERB_HOST: ${VITE_REVERB_HOST:-localhost}
+  VITE_REVERB_PORT: ${VITE_REVERB_PORT:-8089}
   VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME:-http}
 
 x-app-build: &app-build
@@ -24,7 +24,7 @@ services:
     env_file:
       - .env.docker
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      test: [ 'CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}' ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -41,7 +41,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ['init']
+    command: [ 'init' ]
     restart: 'no'
     volumes:
       - storage_data:/var/www/html/storage
@@ -56,13 +56,9 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-    command: ['php-fpm', '-F']
+    command: [ 'php-fpm', '-F' ]
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'SCRIPT_NAME=/up SCRIPT_FILENAME=/var/www/html/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 > /dev/null',
-        ]
+      test: [ 'CMD-SHELL', 'SCRIPT_NAME=/up SCRIPT_FILENAME=/var/www/html/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 > /dev/null' ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -91,7 +87,7 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-    command: ['queue']
+    command: [ 'queue' ]
     volumes:
       - storage_data:/var/www/html/storage
 
@@ -105,7 +101,7 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-    command: ['scheduler']
+    command: [ 'scheduler' ]
     volumes:
       - storage_data:/var/www/html/storage
 
@@ -119,7 +115,7 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-    command: ['reverb']
+    command: [ 'reverb' ]
     ports:
       - '${REVERB_EXPOSE_PORT:-8089}:8080'
     volumes:
