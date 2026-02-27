@@ -177,7 +177,6 @@ Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
 
 - `TS_OAUTH_CLIENT_ID`
 - `TS_OAUTH_SECRET`
-- `TAILSCALE_AUTHKEY` (opsional, fallback kalau tidak pakai OAuth)
 - `DEPLOY_HOST` (gunakan Tailscale IP `100.x.y.z` atau full MagicDNS hostname)
 - `DEPLOY_USER`
 - `DEPLOY_PATH` (path repo di server)
@@ -209,7 +208,7 @@ Jika deploy gagal di langkah `ssh-keyscan` / `Trust deploy host`, biasanya `DEPL
 
 Jika host sudah berupa IP Tailscale tapi masih gagal di `Trust deploy host`, cek bahwa SSH port sesuai (`DEPLOY_SSH_PORT`) dan bisa diakses dari tailnet (ACL + firewall + sshd).
 
-Jika gagal di step Tailscale dengan `backend error: invalid key: unable to validate API key`, artinya kredensial OAuth salah format/salah nilai. Untuk mode OAuth, `TS_OAUTH_CLIENT_ID` dan `TS_OAUTH_SECRET` harus pasangan OAuth client yang valid dan punya scope `auth_keys` writable + izin tag `tag:ci`.
+Jika gagal di step Tailscale dengan `backend error: invalid key: unable to validate API key`, artinya kredensial OAuth salah format/salah nilai. `TS_OAUTH_CLIENT_ID` + `TS_OAUTH_SECRET` harus pasangan dari OAuth Client yang sama (bukan `tskey-auth-*`), berada di tailnet yang sama, punya scope `auth_keys` writable, dan diizinkan request tag `tag:ci`.
 
 Untuk Tailscale ACL, pastikan node CI (`tag:ci`) diizinkan akses ke server deploy port 22. Contoh ACL legacy:
 
