@@ -14,8 +14,9 @@ fi
 
 compose_files=(-f docker-compose.yml -f docker-compose.deploy.yml)
 
-echo "Pulling deployment images..."
-docker compose "${compose_files[@]}" pull init app web queue scheduler reverb
+echo "Pulling deployment images sequentially to prevent timeouts..."
+docker pull "${APP_IMAGE}"
+docker pull "${WEB_IMAGE}"
 
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
