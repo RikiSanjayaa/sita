@@ -38,8 +38,10 @@ FROM php:8.4-fpm-alpine AS app
 
 WORKDIR /var/www/html
 
-RUN apk add --no-cache fcgi postgresql-client postgresql-dev \
-    && docker-php-ext-install pdo_mysql pdo_pgsql bcmath pcntl
+RUN apk add --no-cache fcgi postgresql-client postgresql-dev icu-dev \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && docker-php-ext-install pdo_mysql pdo_pgsql bcmath pcntl intl \
+    && apk del .build-deps
 
 COPY . .
 COPY --from=vendor /var/www/html/vendor ./vendor
