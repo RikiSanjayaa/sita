@@ -14,10 +14,27 @@ fi
 
 compose_files=(-f docker-compose.yml -f docker-compose.deploy.yml)
 
-echo "Pulling deployment images sequentially to prevent timeouts..."
-docker pull "${APP_IMAGE}"
-docker pull "${WEB_IMAGE}"
+echo "Pulling deployment images with retry logic to prevent network timeouts..."
+pull_with_retry() {
+    local image=$1
+    local retries=3
+    local count=0
+    until docker pull "$image"; do
+        exit_code=$?
+        count=$((count + 1))
+        if [ $count -lt $retries ]; then
+            echo "Pull failed with exit code $exit_code. Retrying in 10 seconds... ($count/$retries)"
+            sleep 10
+        else
+            echo "Failed to pull image after $retries attempts."
+            return $exit_code
+        fi
+    done
+    return 0
+}
 
+pull_with_retry "${APP_IMAGE}"
+pull_with_retry "${WEB_IMAGE}"
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
 
