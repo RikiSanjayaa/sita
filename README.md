@@ -39,7 +39,7 @@ docker compose up --build -d
 Layanan utama:
 
 - App HTTP: `http://localhost`
-- Reverb WS: `ws://localhost:8080`
+- Reverb WS: `ws://localhost:8089`
 
 Catatan penting:
 
@@ -156,3 +156,47 @@ dan menjalankan `composer run ci:verify` sebelum setiap push.
 
 - Perubahan frontend tidak muncul
     - Jalankan ulang Vite dengan `npm run dev`.
+
+## CI/CD (GitHub Actions + Tailscale)
+
+Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
+
+1. Verify (`composer install`, `npm ci`, `npm run build`, `php artisan test`, `npm run types`)
+2. Build + push image ke GHCR (`app` dan `web`)
+3. Join Tailscale dari GitHub Actions
+4. SSH ke server private, pull image terbaru, jalankan `scripts/deploy-via-compose.sh`
+
+### File deploy penting
+
+- `docker-compose.deploy.yml`: override agar service pakai image dari registry (bukan build lokal)
+- `scripts/deploy-via-compose.sh`: pull image, jalankan init (migrate/cache), restart service, healthcheck
+
+### GitHub Secrets yang wajib
+
+- `TS_OAUTH_CLIENT_ID`
+- `TS_OAUTH_SECRET`
+- `DEPLOY_HOST` (hostname/IP Tailscale target)
+- `DEPLOY_USER`
+- `DEPLOY_PATH` (path repo di server)
+- `DEPLOY_SSH_PRIVATE_KEY`
+- `GHCR_USERNAME`
+- `GHCR_READ_TOKEN` (token read:packages untuk pull di server)
+- `VITE_REVERB_APP_KEY`
+
+### GitHub Variables yang disarankan
+
+- `FRONTEND_REVERB_HOST` (default: `localhost`)
+- `FRONTEND_REVERB_PORT` (default: `8089`)
+- `VITE_REVERB_SCHEME` (default: `http`)
+- `DEPLOY_HEALTHCHECK_URL` (contoh: `http://localhost:8088/up`)
+
+### Bootstrap server (sekali saja)
+
+Di server homeserver:
+
+1. Clone repo ke `DEPLOY_PATH`
+2. Siapkan `.env.docker` production values
+3. Login GHCR sekali untuk validasi (`docker login ghcr.io`)
+4. Pastikan Docker + Compose plugin aktif
+
+Setelah itu deploy feature cukup push ke `main` (tanpa SSH manual).
