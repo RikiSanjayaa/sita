@@ -1,9 +1,9 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Download, Paperclip, Send, Users } from 'lucide-react';
+import { Paperclip, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
+import { ChatBubble } from '@/components/chat-bubble';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,9 +15,9 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
-import { playPopSound } from '@/lib/sounds';
 import { dashboard, pesan } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -48,14 +48,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pesan', href: pesan().url },
 ];
 
-function initials(name: string) {
-    return name
-        .split(' ')
-        .map((chunk) => chunk[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-}
 
 export default function PesanPage() {
     const { thread, flashMessage, auth } = usePage<
@@ -76,6 +68,12 @@ export default function PesanPage() {
         scrollToBottom();
     }, [messages.length]);
 
+    // Synchronize local state when server finishes processing messages via inertial response
+    /* eslint-disable react-hooks/set-state-in-effect */
+    useEffect(() => {
+        setMessages(thread.messages);
+    }, [thread.messages]);
+    /* eslint-enable react-hooks/set-state-in-effect */
     const form = useForm<{
         message: string;
         attachment: File | null;
@@ -108,10 +106,6 @@ export default function PesanPage() {
                         return current;
                     }
 
-                    // If the message is not from me, play the pop sound
-                    if (event.message.author !== myName) {
-                        playPopSound();
-                    }
 
                     return [...current, event.message];
                 });
@@ -156,7 +150,7 @@ export default function PesanPage() {
                 if (fileRef.current) {
                     fileRef.current.value = '';
                 }
-                playPopSound();
+
                 scrollToBottom();
             },
         });
@@ -170,9 +164,9 @@ export default function PesanPage() {
         >
             <Head title="Pesan" />
 
-            <div className="mx-auto box-border flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6 overflow-hidden px-4 py-6 md:px-6">
-                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <CardHeader>
+            <div className="mx-auto box-border flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-6 md:px-6">
+                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden !gap-0 !p-0">
+                    <CardHeader className="p-6 pb-4">
                         <div className="flex items-center gap-2">
                             <CardTitle>{thread.name}</CardTitle>
                             <Badge variant="secondary">Group Bimbingan</Badge>
@@ -183,130 +177,37 @@ export default function PesanPage() {
                         </CardDescription>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="h-0 flex-1 overflow-y-auto pt-4">
-                        {flashMessage && (
-                            <Alert className="mb-3">
-                                <AlertTitle>Info</AlertTitle>
-                                <AlertDescription>
-                                    {flashMessage}
-                                </AlertDescription>
-                            </Alert>
-                        )}
+                    <CardContent className="flex-1 p-0 relative overflow-hidden">
+                        <ScrollArea className="h-full w-full">
+                            <div className="p-4 flex flex-col min-h-full">
+                                {flashMessage && (
+                                    <Alert className="mb-3">
+                                        <AlertTitle>Info</AlertTitle>
+                                        <AlertDescription>
+                                            {flashMessage}
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
 
-                        <div className="grid gap-3">
-                            {messages.map((message) => {
-                                const isMe = message.author === myName;
+                                <div className="grid gap-3">
+                                    {messages.map((message) => {
+                                        const isMe = message.author === myName;
+                                        return (
+                                            <ChatBubble
+                                                key={message.id}
+                                                message={message}
+                                                isMe={isMe}
+                                            />
+                                        );
+                                    })}
 
-                                if (
-                                    message.type === 'document_event' ||
-                                    message.type === 'revision_suggestion'
-                                ) {
-                                    const isRevision =
-                                        message.type === 'revision_suggestion';
-
-                                    return (
-                                        <div
-                                            key={message.id}
-                                            className="animate-pop relative overflow-hidden rounded-lg border border-primary/25 bg-background p-3"
-                                        >
-                                            <div className="pointer-events-none absolute inset-0 bg-primary/10" />
-                                            <div className="relative z-10">
-                                                <div className="text-sm font-medium text-primary">
-                                                    {isRevision
-                                                        ? 'File revisi dari dosen'
-                                                        : 'Dokumen baru diunggah'}
-                                                </div>
-                                                <div className="mt-1 text-sm text-primary">
-                                                    {message.message}
-                                                </div>
-                                                {message.documentName && (
-                                                    <div className="mt-2 rounded border bg-background p-2 text-sm">
-                                                        {message.documentName}
-                                                    </div>
-                                                )}
-                                                <div className="mt-2 flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {message.author} -{' '}
-                                                        {message.time}
-                                                    </span>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-8 gap-2"
-                                                        disabled={
-                                                            !message.documentUrl
-                                                        }
-                                                        onClick={() => {
-                                                            if (
-                                                                message.documentUrl
-                                                            ) {
-                                                                window.open(
-                                                                    message.documentUrl,
-                                                                    '_blank',
-                                                                    'noopener,noreferrer',
-                                                                );
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Download className="size-3.5" />
-                                                        Unduh
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <div
-                                        key={message.id}
-                                        className={`animate-pop flex ${isMe ? 'justify-end' : ''}`}
-                                    >
-                                        {!isMe && (
-                                            <Avatar className="mt-0.5 mr-2 size-7">
-                                                <AvatarFallback>
-                                                    {initials(message.author)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        )}
-                                        <div
-                                            className={`max-w-[78%] rounded-2xl border px-3 py-2 text-sm ${isMe
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'bg-background'
-                                                }`}
-                                        >
-                                            {message.documentName && (
-                                                <div
-                                                    className={`mb-2 rounded border p-2 text-xs ${isMe
-                                                        ? 'border-primary-foreground/25 bg-primary-foreground/15'
-                                                        : 'bg-muted/30'
-                                                        }`}
-                                                >
-                                                    {message.documentName}
-                                                </div>
-                                            )}
-                                            {message.message && (
-                                                <div>{message.message}</div>
-                                            )}
-                                            <div
-                                                className={`mt-1 text-[11px] ${isMe
-                                                    ? 'text-primary-foreground/70'
-                                                    : 'text-muted-foreground'
-                                                    }`}
-                                            >
-                                                {message.author} -{' '}
-                                                {message.time}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            <div ref={messagesEndRef} />
-                        </div>
+                                    <div ref={messagesEndRef} className="h-1" />
+                                </div>
+                            </div>
+                        </ScrollArea>
                     </CardContent>
                     <Separator />
-                    <CardFooter className="flex-col items-stretch gap-3">
+                    <CardFooter className="flex-col items-stretch gap-3 shrink-0 p-6 pt-4">
                         <input
                             ref={fileRef}
                             type="file"

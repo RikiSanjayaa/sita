@@ -140,6 +140,27 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Shadcn-like Custom Global Scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: var(--border);
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--muted-foreground);
+    }
 }
 
 @layer utilities {
