@@ -42,7 +42,7 @@ wait_for_database() {
 
 run_init() {
     if [ -z "${APP_KEY:-}" ]; then
-        echo "APP_KEY is required. Set APP_KEY in .env.docker before running compose."
+        echo "APP_KEY is required. Set APP_KEY in .env before running compose."
         exit 1
     fi
 
