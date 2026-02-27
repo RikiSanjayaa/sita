@@ -1,12 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Inbox,
-    Paperclip,
-    Search,
-    Send,
-    Users,
-} from 'lucide-react';
+import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -40,11 +33,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-    | 'text'
-    | 'document_event'
-    | 'attachment'
-    | 'revision_suggestion'
-    | string;
+        | 'text'
+        | 'document_event'
+        | 'attachment'
+        | 'revision_suggestion'
+        | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -55,6 +48,7 @@ type ThreadItem = {
     unread: number;
     preview: string;
     lastTime: string;
+    latestActivityAt: string | null;
     isEscalated: boolean;
     isArchived: boolean;
     messages: ThreadMessage[];
@@ -143,13 +137,19 @@ export default function DosenPesanBimbinganPage() {
         setMessagesByThread(
             Object.fromEntries(
                 initialThreads.map((thread) => [thread.id, thread.messages]),
-            )
+            ),
         );
         setActiveThreadId(resolveInitialThreadId(initialThreads));
         /* eslint-enable react-hooks/set-state-in-effect */
     }, [initialThreads]);
 
     async function markThreadAsRead(threadId: number) {
+        setThreadItems((current) =>
+            current.map((thread) =>
+                thread.id === threadId ? { ...thread, unread: 0 } : thread,
+            ),
+        );
+
         const csrfToken =
             document
                 .querySelector('meta[name="csrf-token"]')
@@ -193,7 +193,6 @@ export default function DosenPesanBimbinganPage() {
                             activeThreadIdRef.current === event.threadId &&
                             event.message.senderUserId !== auth.user?.id
                         ) {
-
                             // small delay for smooth scrolling on receive
                             setTimeout(() => scrollToBottom(), 50);
                         }
@@ -207,33 +206,43 @@ export default function DosenPesanBimbinganPage() {
                         };
                     });
 
-                    setThreadItems((current) =>
-                        current.map((t) => {
-                            if (t.id !== event.threadId) {
-                                return t;
-                            }
+                    setThreadItems((current) => {
+                        const targetThread = current.find(
+                            (thread) => thread.id === event.threadId,
+                        );
 
-                            const latestPreview =
-                                event.message.message ||
-                                event.message.documentName ||
-                                t.preview;
-                            const isIncomingMessage =
-                                event.message.senderUserId !== null &&
-                                event.message.senderUserId !== auth.user?.id;
-                            const shouldIncrementUnread =
-                                isIncomingMessage &&
-                                activeThreadIdRef.current !== event.threadId;
+                        if (!targetThread) {
+                            return current;
+                        }
 
-                            return {
-                                ...t,
-                                preview: latestPreview,
-                                lastTime: 'baru saja',
-                                unread: shouldIncrementUnread
-                                    ? t.unread + 1
-                                    : t.unread,
-                            };
-                        }),
-                    );
+                        const latestPreview =
+                            event.message.message ||
+                            event.message.documentName ||
+                            targetThread.preview;
+                        const isIncomingMessage =
+                            event.message.senderUserId !== null &&
+                            event.message.senderUserId !== auth.user?.id;
+                        const shouldIncrementUnread =
+                            isIncomingMessage &&
+                            activeThreadIdRef.current !== event.threadId;
+
+                        const updatedThread: ThreadItem = {
+                            ...targetThread,
+                            preview: latestPreview,
+                            lastTime: 'baru saja',
+                            latestActivityAt: new Date().toISOString(),
+                            unread: shouldIncrementUnread
+                                ? targetThread.unread + 1
+                                : targetThread.unread,
+                        };
+
+                        return [
+                            updatedThread,
+                            ...current.filter(
+                                (thread) => thread.id !== event.threadId,
+                            ),
+                        ];
+                    });
 
                     if (
                         event.threadId === activeThreadIdRef.current &&
@@ -264,7 +273,22 @@ export default function DosenPesanBimbinganPage() {
     }, [activeThreadId]);
 
     const visibleThreads = useMemo(() => {
-        return threadItems
+        return [...threadItems]
+            .sort((a, b) => {
+                if (a.latestActivityAt === b.latestActivityAt) {
+                    return b.id - a.id;
+                }
+
+                if (a.latestActivityAt === null) {
+                    return 1;
+                }
+
+                if (b.latestActivityAt === null) {
+                    return -1;
+                }
+
+                return b.latestActivityAt.localeCompare(a.latestActivityAt);
+            })
             .map((thread) => {
                 if (thread.id === activeThreadId) {
                     return { ...thread, unread: 0 };
@@ -372,17 +396,16 @@ export default function DosenPesanBimbinganPage() {
         >
             <Head title="Pesan Bimbingan Dosen" />
 
-            <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:h-[calc(100vh-4rem-3rem)] lg:grid lg:grid-cols-[340px_1fr]">
-
+            <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid lg:h-[calc(100vh-4rem-3rem)] lg:grid-cols-[340px_1fr]">
                 {/* Thread List / Side Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-col overflow-hidden lg:h-full lg:w-[340px] lg:shrink-0 !gap-0 !p-0',
+                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
                         mobileView === 'chat' && 'hidden lg:flex',
-                        mobileView === 'threads' && 'flex-1 lg:flex-initial'
+                        mobileView === 'threads' && 'flex-1 lg:flex-initial',
                     )}
                 >
-                    <CardHeader className="space-y-3 shrink-0 p-6 pb-4">
+                    <CardHeader className="shrink-0 space-y-3 p-6 pb-4">
                         <div>
                             <CardTitle>Ruang Bimbingan</CardTitle>
                             <CardDescription>
@@ -393,9 +416,9 @@ export default function DosenPesanBimbinganPage() {
                             <Link
                                 href="/dosen/pesan-bimbingan?tab=aktif"
                                 className={cn(
-                                    'flex flex-1 items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 transition-all text-muted-foreground',
+                                    'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'aktif' &&
-                                    'bg-background text-foreground shadow-sm'
+                                        'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Aktif
@@ -403,9 +426,9 @@ export default function DosenPesanBimbinganPage() {
                             <Link
                                 href="/dosen/pesan-bimbingan?tab=arsip"
                                 className={cn(
-                                    'flex flex-1 items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 transition-all text-muted-foreground',
+                                    'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'arsip' &&
-                                    'bg-background text-foreground shadow-sm'
+                                        'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Arsip
@@ -424,7 +447,7 @@ export default function DosenPesanBimbinganPage() {
                         </div>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="flex-1 p-0 relative overflow-hidden">
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
                             <div className="flex flex-col gap-2 p-4 pt-0">
                                 {visibleThreads.length > 0 ? (
@@ -432,21 +455,25 @@ export default function DosenPesanBimbinganPage() {
                                         const threadMessages =
                                             messagesByThread[thread.id] ??
                                             thread.messages;
-                                        const latestMessage = threadMessages.at(-1);
+                                        const latestMessage =
+                                            threadMessages.at(-1);
 
                                         return (
                                             <button
                                                 key={thread.id}
                                                 type="button"
                                                 className={cn(
-                                                    'w-full rounded-lg border p-3 text-left transition hover:bg-muted/30 shrink-0',
-                                                    activeThread?.id === thread.id &&
-                                                    'border-primary/30 bg-muted/40'
+                                                    'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
+                                                    activeThread?.id ===
+                                                        thread.id &&
+                                                        'border-primary/30 bg-muted/40',
                                                 )}
-                                                onClick={() => selectThread(thread.id)}
+                                                onClick={() =>
+                                                    selectThread(thread.id)
+                                                }
                                             >
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <p className="text-sm font-semibold truncate">
+                                                    <p className="truncate text-sm font-semibold">
                                                         {thread.student}
                                                     </p>
                                                     <span className="shrink-0 text-xs text-muted-foreground">
@@ -477,8 +504,8 @@ export default function DosenPesanBimbinganPage() {
                                             Tidak ada grup yang sesuai
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Coba kata kunci lain atau ubah filter
-                                            percakapan.
+                                            Coba kata kunci lain atau ubah
+                                            filter percakapan.
                                         </p>
                                     </div>
                                 )}
@@ -490,8 +517,8 @@ export default function DosenPesanBimbinganPage() {
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-1 flex-col overflow-hidden lg:h-full !gap-0 !p-0',
-                        mobileView === 'threads' && 'hidden lg:flex'
+                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
+                        mobileView === 'threads' && 'hidden lg:flex',
                     )}
                 >
                     <CardHeader className="shrink-0 p-6 pb-4">
@@ -542,9 +569,9 @@ export default function DosenPesanBimbinganPage() {
                     </CardHeader>
                     <Separator />
 
-                    <CardContent className="flex-1 p-0 relative overflow-hidden">
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
-                            <div className="p-4 flex flex-col min-h-full">
+                            <div className="flex min-h-full flex-col p-4">
                                 {flashMessage && (
                                     <Alert className="mb-3">
                                         <AlertTitle>Info</AlertTitle>
@@ -557,7 +584,9 @@ export default function DosenPesanBimbinganPage() {
                                 {activeThread ? (
                                     <div className="grid gap-3">
                                         {activeMessages.map((message) => {
-                                            const isMe = message.author === auth.user?.name;
+                                            const isMe =
+                                                message.author ===
+                                                auth.user?.name;
                                             return (
                                                 <ChatBubble
                                                     key={message.id}
@@ -566,10 +595,13 @@ export default function DosenPesanBimbinganPage() {
                                                 />
                                             );
                                         })}
-                                        <div ref={messagesEndRef} className="h-1" />
+                                        <div
+                                            ref={messagesEndRef}
+                                            className="h-1"
+                                        />
                                     </div>
                                 ) : (
-                                    <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center mt-10">
+                                    <div className="mt-10 rounded-xl border border-dashed bg-muted/20 p-8 text-center">
                                         <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
                                             <Users className="size-5" />
                                         </span>
@@ -577,8 +609,8 @@ export default function DosenPesanBimbinganPage() {
                                             Belum ada grup yang dipilih
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Pilih salah satu mahasiswa di panel kiri
-                                            untuk mulai berdiskusi.
+                                            Pilih salah satu mahasiswa di panel
+                                            kiri untuk mulai berdiskusi.
                                         </p>
                                     </div>
                                 )}
@@ -589,14 +621,14 @@ export default function DosenPesanBimbinganPage() {
                     <Separator />
 
                     {activeThread?.isArchived ? (
-                        <div className="p-4 text-center shrink-0">
+                        <div className="shrink-0 p-4 text-center">
                             <p className="text-sm font-medium text-muted-foreground">
                                 Sesi bimbingan telah selesai. Percakapan ini
                                 diarsipkan dan tidak dapat diperbarui.
                             </p>
                         </div>
                     ) : (
-                        <CardFooter className="flex-col items-stretch gap-3 shrink-0 p-6 pt-4">
+                        <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
                             <input
                                 ref={fileRef}
                                 type="file"
@@ -619,7 +651,7 @@ export default function DosenPesanBimbinganPage() {
                                     onChange={(event) =>
                                         form.setData(
                                             'message',
-                                            event.target.value
+                                            event.target.value,
                                         )
                                     }
                                     placeholder="Tulis pesan..."
@@ -641,7 +673,7 @@ export default function DosenPesanBimbinganPage() {
                                 </Button>
                             </div>
                             {attachmentName && (
-                                <div className="text-xs text-muted-foreground truncate">
+                                <div className="truncate text-xs text-muted-foreground">
                                     Lampiran: {attachmentName}
                                 </div>
                             )}
