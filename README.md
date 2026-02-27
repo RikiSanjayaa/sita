@@ -18,6 +18,51 @@ termasuk chat real-time, pembaruan jadwal, dan notifikasi dalam aplikasi.
 - Node.js 20+ dan npm
 - MySQL/PostgreSQL (sesuai konfigurasi di `.env`)
 
+## Menjalankan Dengan Docker Compose (Production-like)
+
+Stack Docker sudah disiapkan agar langsung jalan dengan sekali perintah, termasuk:
+
+- `db` (PostgreSQL)
+- `init` (migrate + cache optimize)
+- `app` (PHP-FPM)
+- `web` (Nginx)
+- `queue` (queue worker)
+- `scheduler` (Laravel scheduler)
+- `reverb` (WebSocket server)
+
+Jalankan:
+
+```bash
+docker compose up --build -d
+```
+
+Layanan utama:
+
+- App HTTP: `http://localhost`
+- Reverb WS: `ws://localhost:8080`
+
+Catatan penting:
+
+- Konfigurasi container memakai `.env.docker`.
+- Nilai `VITE_REVERB_*` di `.env.docker` ikut dipakai saat image build, jadi frontend tidak kehilangan app key Pusher/Reverb.
+- Seeder bisa diaktifkan tanpa mengubah `APP_ENV`: set `RUN_DB_SEED=true` di `.env.docker` (akan dijalankan saat service `init`).
+- Default `SEED_IF_EMPTY_ONLY=true` agar `docker compose up --build -d` tidak gagal saat data sudah ada; set `false` kalau memang ingin memaksa re-seed.
+- Jika seeder memakai Faker/factory dev dependency, biarkan `INIT_INSTALL_DEV_DEPENDENCIES=true` agar hanya service `init` yang install dev dependency; service runtime tetap lean.
+- Untuk environment server/CI, override nilai sensitif (`APP_KEY`, password DB, dsb) lewat secret/variable pipeline.
+- Saat pertama kali naik, service `init` akan otomatis menjalankan migrasi dan cache (`config:cache`, `route:cache`, `view:cache`).
+
+Matikan stack:
+
+```bash
+docker compose down
+```
+
+Hapus volume data DB + storage:
+
+```bash
+docker compose down -v
+```
+
 ## Mulai Cepat
 
 1. Install dependensi
