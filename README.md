@@ -176,7 +176,7 @@ Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
 
 - `TS_OAUTH_CLIENT_ID`
 - `TS_OAUTH_SECRET`
-- `DEPLOY_HOST` (hostname/IP Tailscale target)
+- `DEPLOY_HOST` (gunakan Tailscale IP `100.x.y.z` atau full MagicDNS hostname)
 - `DEPLOY_USER`
 - `DEPLOY_PATH` (path repo di server)
 - `DEPLOY_SSH_PRIVATE_KEY`
@@ -189,6 +189,7 @@ Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
 - `FRONTEND_REVERB_HOST` (default: `localhost`)
 - `FRONTEND_REVERB_PORT` (default: `8089`)
 - `VITE_REVERB_SCHEME` (default: `http`)
+- `DEPLOY_SSH_PORT` (default: `22`)
 - `DEPLOY_HEALTHCHECK_URL` (contoh: `http://localhost:8088/up`)
 
 ### Bootstrap server (sekali saja)
@@ -201,3 +202,7 @@ Di server homeserver:
 4. Pastikan Docker + Compose plugin aktif
 
 Setelah itu deploy feature cukup push ke `main` (tanpa SSH manual).
+
+Jika deploy gagal di langkah `ssh-keyscan` / `Trust deploy host`, biasanya `DEPLOY_HOST` tidak bisa di-resolve di runner. Solusi paling stabil adalah isi `DEPLOY_HOST` dengan Tailscale IP langsung.
+
+Jika host sudah berupa IP Tailscale tapi masih gagal di `Trust deploy host`, cek bahwa SSH port sesuai (`DEPLOY_SSH_PORT`) dan bisa diakses dari tailnet (ACL + firewall + sshd).

@@ -98,9 +98,9 @@ jobs:
           build-args: |
             INSTALL_DEV_DEPENDENCIES=false
             VITE_REVERB_APP_KEY=${{ secrets.VITE_REVERB_APP_KEY }}
-            VITE_REVERB_HOST=${{ vars.FRONTEND_REVERB_HOST || 'localhost' }}
-            VITE_REVERB_PORT=${{ vars.FRONTEND_REVERB_PORT || '8089' }}
-            VITE_REVERB_SCHEME=${{ vars.VITE_REVERB_SCHEME || 'http' }}
+            VITE_REVERB_HOST=${{ vars.FRONTEND_REVERB_HOST || '' }}
+            VITE_REVERB_PORT=${{ vars.FRONTEND_REVERB_PORT || '443' }}
+            VITE_REVERB_SCHEME=${{ vars.VITE_REVERB_SCHEME || 'https' }}
 
       - name: Build and push web image
         uses: docker/build-push-action@v6
@@ -115,9 +115,9 @@ jobs:
           build-args: |
             INSTALL_DEV_DEPENDENCIES=false
             VITE_REVERB_APP_KEY=${{ secrets.VITE_REVERB_APP_KEY }}
-            VITE_REVERB_HOST=${{ vars.FRONTEND_REVERB_HOST || 'localhost' }}
-            VITE_REVERB_PORT=${{ vars.FRONTEND_REVERB_PORT || '8089' }}
-            VITE_REVERB_SCHEME=${{ vars.VITE_REVERB_SCHEME || 'http' }}
+            VITE_REVERB_HOST=${{ vars.FRONTEND_REVERB_HOST || '' }}
+            VITE_REVERB_PORT=${{ vars.FRONTEND_REVERB_PORT || '443' }}
+            VITE_REVERB_SCHEME=${{ vars.VITE_REVERB_SCHEME || 'https' }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -137,12 +137,81 @@ jobs:
           printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
+      - name: Resolve deploy host
+        id: resolve-host
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEPLOY_HOST}" ]]; then
+            echo "DEPLOY_HOST secret is required"
+            exit 1
+          fi
+
+          resolved_host=""
+          if [[ "${DEPLOY_HOST}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            resolved_host="${DEPLOY_HOST}"
+          else
+            for attempt in {1..20}; do
+              if getent hosts "${DEPLOY_HOST}" >/dev/null 2>&1; then
+                resolved_host="${DEPLOY_HOST}"
+                break
+              fi
+
+              tailscale ping -c 1 "${DEPLOY_HOST}" >/dev/null 2>&1 || true
+              sleep 3
+            done
+          fi
+
+          if [[ -z "${resolved_host}" ]]; then
+            echo "Unable to resolve DEPLOY_HOST='${DEPLOY_HOST}' on this runner."
+            echo "Use a Tailscale IP (100.x.y.z) or full MagicDNS hostname."
+            tailscale status || true
+            exit 1
+          fi
+
+          echo "target=${resolved_host}" >> "$GITHUB_OUTPUT"
+          echo "port=${DEPLOY_PORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Probe SSH connectivity
+        env:
+          DEPLOY_TARGET: ${{ steps.resolve-host.outputs.target }}
+          DEPLOY_PORT: ${{ steps.resolve-host.outputs.port }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..10}; do
+            if nc -z -w 3 "${DEPLOY_TARGET}" "${DEPLOY_PORT}"; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "SSH port ${DEPLOY_PORT} is not reachable on ${DEPLOY_TARGET}."
+          echo "Check sshd status, firewall, and Tailscale ACLs."
+          tailscale status || true
+          exit 1
+
       - name: Trust deploy host
-        run: ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+        env:
+          DEPLOY_TARGET: ${{ steps.resolve-host.outputs.target }}
+          DEPLOY_PORT: ${{ steps.resolve-host.outputs.port }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..10}; do
+            if ssh-keyscan -T 5 -p "${DEPLOY_PORT}" -H "${DEPLOY_TARGET}" >> ~/.ssh/known_hosts 2>/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Failed to collect SSH host key for ${DEPLOY_TARGET}:${DEPLOY_PORT}"
+          exit 1
 
       - name: Deploy to server
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_HOST: ${{ steps.resolve-host.outputs.target }}
+          DEPLOY_PORT: ${{ steps.resolve-host.outputs.port }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           GHCR_USER: ${{ secrets.GHCR_USERNAME }}
@@ -151,7 +220,7 @@ jobs:
           WEB_IMAGE: ${{ needs.build-and-push.outputs.web-image }}
           HEALTHCHECK_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
         run: |
-          ssh -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "bash -se" <<EOF
+          ssh -p "${DEPLOY_PORT}" -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "bash -se" <<EOF
           set -euo pipefail
           cd "${DEPLOY_PATH}"
           git fetch --all --prune
