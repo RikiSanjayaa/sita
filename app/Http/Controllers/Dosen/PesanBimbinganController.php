@@ -44,6 +44,9 @@ class PesanBimbinganController extends Controller
                 'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
             ])
             ->whereIn('student_user_id', $studentIds)
+            ->withMax('messages', 'created_at')
+            ->orderByDesc('messages_max_created_at')
+            ->orderByDesc('id')
             ->get();
 
         $readsByThread = MentorshipChatRead::query()
@@ -70,6 +73,7 @@ class PesanBimbinganController extends Controller
                     'unread' => $unreadCount,
                     'preview' => $latestMessage?->message ?? 'Belum ada pesan',
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
+                    'latestActivityAt' => $latestMessage?->created_at?->toIso8601String(),
                     'isEscalated' => $thread->is_escalated,
                     'isArchived' => $tab === 'arsip',
                     'messages' => $thread->messages
