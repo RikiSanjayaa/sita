@@ -106,7 +106,9 @@ export default function AdminDashboardPage() {
                         return (
                             <Card key={kpi.title}>
                                 <CardHeader className="pb-2">
-                                    <CardDescription>{kpi.title}</CardDescription>
+                                    <CardDescription>
+                                        {kpi.title}
+                                    </CardDescription>
                                     <CardTitle className="text-2xl">
                                         {kpi.value}
                                     </CardTitle>

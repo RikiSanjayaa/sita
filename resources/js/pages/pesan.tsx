@@ -48,7 +48,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pesan', href: pesan().url },
 ];
 
-
 export default function PesanPage() {
     const { thread, flashMessage, auth } = usePage<
         SharedData & PesanPageProps
@@ -105,7 +104,6 @@ export default function PesanPage() {
                     ) {
                         return current;
                     }
-
 
                     return [...current, event.message];
                 });
@@ -165,7 +163,7 @@ export default function PesanPage() {
             <Head title="Pesan" />
 
             <div className="mx-auto box-border flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-6 md:px-6">
-                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden !gap-0 !p-0">
+                <Card className="flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0">
                     <CardHeader className="p-6 pb-4">
                         <div className="flex items-center gap-2">
                             <CardTitle>{thread.name}</CardTitle>
@@ -177,9 +175,9 @@ export default function PesanPage() {
                         </CardDescription>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="flex-1 p-0 relative overflow-hidden">
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
-                            <div className="p-4 flex flex-col min-h-full">
+                            <div className="flex min-h-full flex-col p-4">
                                 {flashMessage && (
                                     <Alert className="mb-3">
                                         <AlertTitle>Info</AlertTitle>
@@ -207,7 +205,7 @@ export default function PesanPage() {
                         </ScrollArea>
                     </CardContent>
                     <Separator />
-                    <CardFooter className="flex-col items-stretch gap-3 shrink-0 p-6 pt-4">
+                    <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
                         <input
                             ref={fileRef}
                             type="file"

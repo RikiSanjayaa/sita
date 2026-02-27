@@ -9,7 +9,11 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { ROLE_DASHBOARD_PATHS, ROLE_PORTAL_LABELS } from '@/lib/roles';
-import { AppRole, type BreadcrumbItem as BreadcrumbItemType, type SharedData } from '@/types';
+import {
+    AppRole,
+    type BreadcrumbItem as BreadcrumbItemType,
+    type SharedData,
+} from '@/types';
 
 export function Breadcrumbs({
     breadcrumbs,

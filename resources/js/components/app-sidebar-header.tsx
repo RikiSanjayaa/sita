@@ -226,9 +226,9 @@ function HeaderNotifications() {
                 current.map((item) =>
                     item.id === notification.id
                         ? {
-                            ...item,
-                            unread: false,
-                        }
+                              ...item,
+                              unread: false,
+                          }
                         : item,
                 ),
             );
@@ -350,7 +350,7 @@ function HeaderNotifications() {
             {toast !== null && (
                 <button
                     type="button"
-                    className="group fixed top-4 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-primary/30 bg-background p-4 text-left shadow-2xl shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    className="group fixed top-4 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-primary/30 bg-background p-4 text-left shadow-2xl shadow-primary/20 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
                     onClick={() => handleNotificationClick(toast)}
                 >
                     <div className="pointer-events-none absolute inset-0 bg-primary/10 transition-colors group-hover:bg-primary/20" />
@@ -455,7 +455,7 @@ export function AppSidebarHeader({
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     return (
-        <header className="sticky top-0 z-50 flex h-16 shrink-0 bg-background items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
                 <div className="flex min-w-0 items-center gap-3">

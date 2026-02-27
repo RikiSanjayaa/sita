@@ -101,13 +101,14 @@ export default function AdminPenugasanPage() {
     const selectedPrimaryLecturer =
         form.data.primary_lecturer_user_id === ''
             ? null
-            : lecturersById.get(Number(form.data.primary_lecturer_user_id)) ??
-              null;
+            : (lecturersById.get(Number(form.data.primary_lecturer_user_id)) ??
+              null);
     const selectedSecondaryLecturer =
         form.data.secondary_lecturer_user_id === 'none'
             ? null
-            : lecturersById.get(Number(form.data.secondary_lecturer_user_id)) ??
-              null;
+            : (lecturersById.get(
+                  Number(form.data.secondary_lecturer_user_id),
+              ) ?? null);
 
     const selectedStudentIsInactive =
         selected === null
@@ -320,7 +321,10 @@ export default function AdminPenugasanPage() {
                                 <Textarea
                                     value={form.data.notes}
                                     onChange={(event) =>
-                                        form.setData('notes', event.target.value)
+                                        form.setData(
+                                            'notes',
+                                            event.target.value,
+                                        )
                                     }
                                     placeholder="Contoh: pertimbangan topik dan kepakaran dosen."
                                 />
@@ -373,7 +377,7 @@ export default function AdminPenugasanPage() {
                 </DialogContent>
             </Dialog>
 
-            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[1fr_320px] md:px-6">
+            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[1fr_320px]">
                 <Card>
                     <CardHeader>
                         <CardTitle>Queue Penugasan Mahasiswa</CardTitle>
@@ -476,15 +480,15 @@ export default function AdminPenugasanPage() {
                                         className={
                                             advisor.load >= advisor.limit
                                                 ? 'h-2 rounded-full bg-destructive'
-                                                : advisor.load >= advisor.limit - 2
+                                                : advisor.load >=
+                                                    advisor.limit - 2
                                                   ? 'h-2 rounded-full bg-amber-500'
                                                   : 'h-2 rounded-full bg-emerald-600'
                                         }
                                         style={{
                                             width: `${Math.min(
                                                 100,
-                                                (advisor.load /
-                                                    advisor.limit) *
+                                                (advisor.load / advisor.limit) *
                                                     100,
                                             )}%`,
                                         }}

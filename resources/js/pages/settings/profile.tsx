@@ -43,8 +43,8 @@ export default function Profile() {
         typeof userAny.nim === 'string'
             ? userAny.nim
             : typeof userAny.nim === 'number'
-                ? String(userAny.nim)
-                : String(auth.user.id).padStart(9, '0');
+              ? String(userAny.nim)
+              : String(auth.user.id).padStart(9, '0');
 
     const akademik = {
         nim,
@@ -120,8 +120,6 @@ export default function Profile() {
                             {({ errors, processing, recentlySuccessful }) => (
                                 <>
                                     <div className="grid gap-4 md:items-center">
-
-
                                         <div className="flex items-start gap-4">
                                             <div className="relative">
                                                 <Avatar className="h-20 w-20">
@@ -151,7 +149,8 @@ export default function Profile() {
                                                     Foto Profil
                                                 </div>
                                                 <div className="mt-1 text-xs text-muted-foreground">
-                                                    Klik ikon kamera untuk mengubah foto profil
+                                                    Klik ikon kamera untuk
+                                                    mengubah foto profil
                                                 </div>
                                                 <div className="mt-2 text-xs text-muted-foreground">
                                                     Rekomendasi: JPG/PNG,
@@ -194,7 +193,9 @@ export default function Profile() {
                                                     name="email"
                                                     type="email"
                                                     autoComplete="email"
-                                                    defaultValue={auth.user.email}
+                                                    defaultValue={
+                                                        auth.user.email
+                                                    }
                                                     placeholder="nama@email.com"
                                                     required
                                                 />
@@ -203,8 +204,8 @@ export default function Profile() {
                                                     className="text-xs"
                                                 />
                                                 <p className="text-xs text-muted-foreground">
-                                                    Digunakan untuk pengingat dan
-                                                    notifikasi.
+                                                    Digunakan untuk pengingat
+                                                    dan notifikasi.
                                                 </p>
                                             </div>
 
@@ -236,7 +237,8 @@ export default function Profile() {
                                                 placeholder="Jl. Contoh No. 123, Jakarta Selatan"
                                             />
                                             <p className="text-xs text-muted-foreground">
-                                                Gunakan alamat domisili saat ini.
+                                                Gunakan alamat domisili saat
+                                                ini.
                                             </p>
                                         </div>
                                     </div>
@@ -393,4 +395,3 @@ export default function Profile() {
         </AppLayout>
     );
 }
-

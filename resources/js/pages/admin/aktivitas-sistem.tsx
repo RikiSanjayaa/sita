@@ -37,8 +37,7 @@ const events: SystemActivityEvent[] = [
         id: 'evt-002',
         type: 'jadwal',
         actor: 'Muhammad Akbar',
-        description:
-            'Mengajukan jadwal bimbingan baru pada 10 Feb 2026 13:00.',
+        description: 'Mengajukan jadwal bimbingan baru pada 10 Feb 2026 13:00.',
         timestamp: '9 Feb 2026 09:01',
     },
     {
@@ -52,8 +51,7 @@ const events: SystemActivityEvent[] = [
         id: 'evt-004',
         type: 'chat-escalation',
         actor: 'System',
-        description:
-            'Thread GRP-102 ditandai eskalasi untuk monitoring admin.',
+        description: 'Thread GRP-102 ditandai eskalasi untuk monitoring admin.',
         timestamp: '9 Feb 2026 10:10',
     },
     {

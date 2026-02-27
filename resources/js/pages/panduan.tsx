@@ -24,12 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import {
-    dashboard,
-    panduan,
-    pesan,
-    uploadDokumen,
-} from '@/routes';
+import { dashboard, panduan, pesan, uploadDokumen } from '@/routes';
 import { create as jadwalBimbinganCreate } from '@/routes/jadwal-bimbingan';
 import { type BreadcrumbItem } from '@/types';
 
@@ -660,4 +655,3 @@ export default function Panduan() {
         </AppLayout>
     );
 }
-

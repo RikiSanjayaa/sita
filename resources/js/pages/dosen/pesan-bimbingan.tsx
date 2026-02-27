@@ -1,3 +1,4 @@
+ 
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -33,11 +34,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-        | 'text'
-        | 'document_event'
-        | 'attachment'
-        | 'revision_suggestion'
-        | string;
+    | 'text'
+    | 'document_event'
+    | 'attachment'
+    | 'revision_suggestion'
+    | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -319,6 +320,7 @@ export default function DosenPesanBimbinganPage() {
 
     useEffect(() => {
         if (evaluatedActiveThreadId === null) return;
+        /* eslint-disable-next-line react-hooks/set-state-in-effect */
         void markThreadAsRead(evaluatedActiveThreadId);
     }, [evaluatedActiveThreadId]);
 
@@ -418,7 +420,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'aktif' &&
-                                        'bg-background text-foreground shadow-sm',
+                                    'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Aktif
@@ -428,7 +430,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'arsip' &&
-                                        'bg-background text-foreground shadow-sm',
+                                    'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Arsip
@@ -465,8 +467,8 @@ export default function DosenPesanBimbinganPage() {
                                                 className={cn(
                                                     'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
                                                     activeThread?.id ===
-                                                        thread.id &&
-                                                        'border-primary/30 bg-muted/40',
+                                                    thread.id &&
+                                                    'border-primary/30 bg-muted/40',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
