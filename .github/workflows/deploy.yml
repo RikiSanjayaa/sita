@@ -1,9 +1,13 @@
 name: deploy
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - tests
     branches:
       - main
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -16,11 +20,15 @@ concurrency:
 
 jobs:
   verify:
+    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -64,16 +72,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set image names
         id: meta
         env:
           OWNER: ${{ github.repository_owner }}
+          IMAGE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           owner_lower=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
           echo "owner_lower=${owner_lower}" >> "$GITHUB_OUTPUT"
-          echo "app_image=ghcr.io/${owner_lower}/sita-app:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "web_image=ghcr.io/${owner_lower}/sita-web:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "app_image=ghcr.io/${owner_lower}/sita-app:${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "web_image=ghcr.io/${owner_lower}/sita-web:${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -124,12 +136,48 @@ jobs:
     needs: build-and-push
 
     steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v3
+      - name: Validate Tailscale OAuth credentials
+        if: ${{ secrets.TAILSCALE_AUTHKEY == '' }}
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${TS_OAUTH_CLIENT_ID}" || -z "${TS_OAUTH_SECRET}" ]]; then
+            echo "TS_OAUTH_CLIENT_ID and TS_OAUTH_SECRET are required when TAILSCALE_AUTHKEY is not set."
+            exit 1
+          fi
+
+          if [[ "${TS_OAUTH_CLIENT_ID}" != tskey-client-* ]]; then
+            echo "TS_OAUTH_CLIENT_ID looks invalid. Expected prefix tskey-client-."
+            exit 1
+          fi
+
+          if [[ "${TS_OAUTH_SECRET}" != tskey-client-* ]]; then
+            echo "TS_OAUTH_SECRET looks invalid. Expected OAuth client secret with tskey-client- prefix."
+            exit 1
+          fi
+
+      - name: Connect to Tailscale (auth key)
+        if: ${{ secrets.TAILSCALE_AUTHKEY != '' }}
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          ping: ${{ secrets.DEPLOY_HOST }}
+
+      - name: Connect to Tailscale (OAuth)
+        if: ${{ secrets.TAILSCALE_AUTHKEY == '' }}
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
+          ping: ${{ secrets.DEPLOY_HOST }}
+
+      - name: Print Tailscale status
+        run: |
+          tailscale status || true
 
       - name: Configure SSH key
         run: |
@@ -180,6 +228,7 @@ jobs:
           DEPLOY_PORT: ${{ steps.resolve-host.outputs.port }}
         run: |
           set -euo pipefail
+          tailscale ping -c 1 "${DEPLOY_TARGET}" >/dev/null 2>&1 || true
           for attempt in {1..10}; do
             if nc -z -w 3 "${DEPLOY_TARGET}" "${DEPLOY_PORT}"; then
               exit 0
@@ -189,6 +238,7 @@ jobs:
 
           echo "SSH port ${DEPLOY_PORT} is not reachable on ${DEPLOY_TARGET}."
           echo "Check sshd status, firewall, and Tailscale ACLs."
+          tailscale ping -c 3 "${DEPLOY_TARGET}" || true
           tailscale status || true
           exit 1
 

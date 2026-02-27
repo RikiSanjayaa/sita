@@ -162,10 +162,11 @@ dan menjalankan `composer run ci:verify` sebelum setiap push.
 
 Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
 
-1. Verify (`composer install`, `npm ci`, `npm run build`, `php artisan test`, `npm run types`)
-2. Build + push image ke GHCR (`app` dan `web`)
-3. Join Tailscale dari GitHub Actions
-4. SSH ke server private, pull image terbaru, jalankan `scripts/deploy-via-compose.sh`
+1. Trigger setelah workflow `tests` sukses di branch `main` (atau manual `workflow_dispatch`)
+2. Verify (`composer install`, `npm ci`, `npm run build`, `php artisan test`, `npm run types`)
+3. Build + push image ke GHCR (`app` dan `web`)
+4. Join Tailscale dari GitHub Actions
+5. SSH ke server private, pull image terbaru, jalankan `scripts/deploy-via-compose.sh`
 
 ### File deploy penting
 
@@ -176,6 +177,7 @@ Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
 
 - `TS_OAUTH_CLIENT_ID`
 - `TS_OAUTH_SECRET`
+- `TAILSCALE_AUTHKEY` (opsional, fallback kalau tidak pakai OAuth)
 - `DEPLOY_HOST` (gunakan Tailscale IP `100.x.y.z` atau full MagicDNS hostname)
 - `DEPLOY_USER`
 - `DEPLOY_PATH` (path repo di server)
@@ -206,6 +208,8 @@ Setelah itu deploy feature cukup push ke `main` (tanpa SSH manual).
 Jika deploy gagal di langkah `ssh-keyscan` / `Trust deploy host`, biasanya `DEPLOY_HOST` tidak bisa di-resolve di runner. Solusi paling stabil adalah isi `DEPLOY_HOST` dengan Tailscale IP langsung.
 
 Jika host sudah berupa IP Tailscale tapi masih gagal di `Trust deploy host`, cek bahwa SSH port sesuai (`DEPLOY_SSH_PORT`) dan bisa diakses dari tailnet (ACL + firewall + sshd).
+
+Jika gagal di step Tailscale dengan `backend error: invalid key: unable to validate API key`, artinya kredensial OAuth salah format/salah nilai. Untuk mode OAuth, `TS_OAUTH_CLIENT_ID` dan `TS_OAUTH_SECRET` harus pasangan OAuth client yang valid dan punya scope `auth_keys` writable + izin tag `tag:ci`.
 
 Untuk Tailscale ACL, pastikan node CI (`tag:ci`) diizinkan akses ke server deploy port 22. Contoh ACL legacy:
 
