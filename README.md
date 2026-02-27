@@ -186,9 +186,9 @@ Workflow deploy ada di `.github/workflows/deploy.yml` dengan alur:
 
 ### GitHub Variables yang disarankan
 
-- `FRONTEND_REVERB_HOST` (default: `localhost`)
-- `FRONTEND_REVERB_PORT` (default: `8089`)
-- `VITE_REVERB_SCHEME` (default: `http`)
+- `FRONTEND_REVERB_HOST` (default workflow: kosong, fallback ke domain halaman)
+- `FRONTEND_REVERB_PORT` (default: `443`)
+- `VITE_REVERB_SCHEME` (default: `https`)
 - `DEPLOY_SSH_PORT` (default: `22`)
 - `DEPLOY_HEALTHCHECK_URL` (contoh: `http://localhost:8088/up`)
 
@@ -206,3 +206,22 @@ Setelah itu deploy feature cukup push ke `main` (tanpa SSH manual).
 Jika deploy gagal di langkah `ssh-keyscan` / `Trust deploy host`, biasanya `DEPLOY_HOST` tidak bisa di-resolve di runner. Solusi paling stabil adalah isi `DEPLOY_HOST` dengan Tailscale IP langsung.
 
 Jika host sudah berupa IP Tailscale tapi masih gagal di `Trust deploy host`, cek bahwa SSH port sesuai (`DEPLOY_SSH_PORT`) dan bisa diakses dari tailnet (ACL + firewall + sshd).
+
+Untuk Tailscale ACL, pastikan node CI (`tag:ci`) diizinkan akses ke server deploy port 22. Contoh ACL legacy:
+
+```json
+{
+    "tagOwners": {
+        "tag:ci": ["autogroup:admin"]
+    },
+    "acls": [
+        {
+            "action": "accept",
+            "src": ["tag:ci"],
+            "dst": ["100.101.102.103:22"]
+        }
+    ]
+}
+```
+
+Ganti `100.101.102.103` dengan Tailscale IP server kamu.

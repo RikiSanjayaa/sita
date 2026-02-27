@@ -21,7 +21,6 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard, editProfile } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
-
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
@@ -47,8 +46,8 @@ export default function EditProfile() {
         typeof userAny.nim === 'string'
             ? userAny.nim
             : typeof userAny.nim === 'number'
-                ? String(userAny.nim)
-                : String(auth.user.id).padStart(9, '0');
+              ? String(userAny.nim)
+              : String(auth.user.id).padStart(9, '0');
 
     const akademik = {
         nim,
@@ -363,4 +362,3 @@ export default function EditProfile() {
         </AppLayout>
     );
 }
-

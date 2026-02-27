@@ -124,7 +124,7 @@ class UserSeeder extends Seeder
             MahasiswaProfile::query()->updateOrCreate(
                 ['user_id' => $student->id],
                 [
-                    'nim' => '221051' . str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
+                    'nim' => '221051'.str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
                     'program_studi' => 'Informatika',
                     'angkatan' => 2022,
                     'status_akademik' => 'aktif',

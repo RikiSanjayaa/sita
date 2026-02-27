@@ -69,7 +69,10 @@ export function AppSidebar({ role }: AppSidebarProps) {
                                     isActive={settingsIsActive}
                                     tooltip={{ children: 'Settings' }}
                                 >
-                                    <Link href={navigation.settings.href} prefetch>
+                                    <Link
+                                        href={navigation.settings.href}
+                                        prefetch
+                                    >
                                         {navigation.settings.icon && (
                                             <navigation.settings.icon />
                                         )}
