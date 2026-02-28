@@ -15,8 +15,8 @@ import AdminLayout from '@/layouts/admin-layout';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Dosen', href: '/admin/dosen' },
+    { title: 'Dashboard', href: '/admin-legacy/dashboard' },
+    { title: 'Dosen', href: '/admin-legacy/dosen' },
 ];
 
 const dosenRows = [

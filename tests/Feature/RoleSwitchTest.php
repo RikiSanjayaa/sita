@@ -16,7 +16,7 @@ test('user can switch to another assigned role', function () {
 
     $this->actingAs($user)
         ->post('/role/switch', ['role' => AppRole::Admin->value])
-        ->assertRedirect('/admin/dashboard');
+        ->assertRedirect('/admin');
 
     $user->refresh();
 

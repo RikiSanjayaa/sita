@@ -39,7 +39,7 @@ test('admin can view assignment queue from database', function () {
     ]);
 
     $this->actingAs($admin)
-        ->get(route('admin.penugasan'))
+        ->get(route('adminLegacy.penugasan'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/penugasan')
             ->has('queue', 1)
@@ -61,13 +61,13 @@ test('admin can assign primary and secondary advisor', function () {
     ]);
 
     $this->actingAs($admin)
-        ->post(route('admin.penugasan.store'), [
+        ->post(route('adminLegacy.penugasan.store'), [
             'student_user_id' => $student->id,
             'primary_lecturer_user_id' => $primaryLecturer->id,
             'secondary_lecturer_user_id' => $secondaryLecturer->id,
             'notes' => 'Assignment awal',
         ])
-        ->assertRedirect(route('admin.penugasan'));
+        ->assertRedirect(route('adminLegacy.penugasan'));
 
     $this->assertDatabaseHas('mentorship_assignments', [
         'student_user_id' => $student->id,
@@ -104,13 +104,13 @@ test('admin can reassign advisor and old assignment is ended', function () {
     ]);
 
     $this->actingAs($admin)
-        ->post(route('admin.penugasan.store'), [
+        ->post(route('adminLegacy.penugasan.store'), [
             'student_user_id' => $student->id,
             'primary_lecturer_user_id' => $newLecturer->id,
             'secondary_lecturer_user_id' => null,
             'notes' => null,
         ])
-        ->assertRedirect(route('admin.penugasan'));
+        ->assertRedirect(route('adminLegacy.penugasan'));
 
     $oldAssignment->refresh();
 
@@ -153,7 +153,7 @@ test('admin assignment is blocked when lecturer quota is full', function () {
     ]);
 
     $this->actingAs($admin)
-        ->post(route('admin.penugasan.store'), [
+        ->post(route('adminLegacy.penugasan.store'), [
             'student_user_id' => $newStudent->id,
             'primary_lecturer_user_id' => $fullLecturer->id,
             'secondary_lecturer_user_id' => null,
@@ -173,7 +173,7 @@ test('admin cannot assign mahasiswa with final academic status', function () {
     ]);
 
     $this->actingAs($admin)
-        ->post(route('admin.penugasan.store'), [
+        ->post(route('adminLegacy.penugasan.store'), [
             'student_user_id' => $student->id,
             'primary_lecturer_user_id' => $lecturer->id,
             'secondary_lecturer_user_id' => null,

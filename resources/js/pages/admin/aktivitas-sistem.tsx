@@ -20,8 +20,8 @@ import AdminLayout from '@/layouts/admin-layout';
 import { type BreadcrumbItem, type SystemActivityEvent } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Aktivitas Sistem', href: '/admin/aktivitas-sistem' },
+    { title: 'Dashboard', href: '/admin-legacy/dashboard' },
+    { title: 'Aktivitas Sistem', href: '/admin-legacy/aktivitas-sistem' },
 ];
 
 const events: SystemActivityEvent[] = [
@@ -123,7 +123,7 @@ export default function AdminAktivitasSistemPage() {
                                         </div>
                                         {event.type === 'chat-escalation' && (
                                             <Button asChild size="sm">
-                                                <Link href="/admin/chat/threads/GRP-102?escalated=1">
+                                                <Link href="/admin-legacy/chat/threads/GRP-102?escalated=1">
                                                     Buka Eskalasi
                                                 </Link>
                                             </Button>

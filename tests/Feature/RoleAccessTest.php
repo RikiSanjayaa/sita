@@ -26,7 +26,7 @@ test('mahasiswa can only access mahasiswa area', function () {
 
     $this->get('/mahasiswa/dashboard')->assertOk();
     $this->get('/dosen/dashboard')->assertForbidden();
-    $this->get('/admin/dashboard')->assertForbidden();
+    $this->get('/admin')->assertForbidden();
 });
 
 test('dosen can only access dosen area', function () {
@@ -36,7 +36,7 @@ test('dosen can only access dosen area', function () {
 
     $this->get('/dosen/dashboard')->assertOk();
     $this->get('/mahasiswa/dashboard')->assertForbidden();
-    $this->get('/admin/dashboard')->assertForbidden();
+    $this->get('/admin')->assertForbidden();
 });
 
 test('admin can only access admin area', function () {
@@ -44,7 +44,7 @@ test('admin can only access admin area', function () {
 
     $this->actingAs($user);
 
-    $this->get('/admin/dashboard')->assertOk();
+    $this->get('/admin')->assertOk();
     $this->get('/mahasiswa/dashboard')->assertForbidden();
     $this->get('/dosen/dashboard')->assertForbidden();
 });
@@ -64,5 +64,5 @@ test('dashboard resolver sends authenticated user to active role dashboard', fun
 
     $this->actingAs($admin)
         ->get('/dashboard')
-        ->assertRedirect('/admin/dashboard');
+        ->assertRedirect('/admin');
 });

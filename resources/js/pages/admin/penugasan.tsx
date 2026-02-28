@@ -63,8 +63,8 @@ type PenugasanProps = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Penugasan', href: '/admin/penugasan' },
+    { title: 'Dashboard', href: '/admin-legacy/dashboard' },
+    { title: 'Penugasan', href: '/admin-legacy/penugasan' },
 ];
 
 const FINAL_STATUSES = ['lulus', 'drop', 'nonaktif'];
@@ -162,7 +162,7 @@ export default function AdminPenugasanPage() {
             notes: data.notes.trim() === '' ? null : data.notes.trim(),
         }));
 
-        form.post('/admin/penugasan', {
+        form.post('/admin-legacy/penugasan', {
             preserveScroll: true,
             onSuccess: () => {
                 closeDialog();

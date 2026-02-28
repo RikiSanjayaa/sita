@@ -19,7 +19,7 @@ test('admin can access chat metadata page', function () {
     $admin = createAdminVisibilityUser(AppRole::Admin->value);
 
     $this->actingAs($admin)
-        ->get('/admin/aktivitas-sistem')
+        ->get('/admin-legacy/aktivitas-sistem')
         ->assertOk();
 });
 
@@ -27,7 +27,7 @@ test('non-admin cannot access admin metadata page', function () {
     $mahasiswa = createAdminVisibilityUser(AppRole::Mahasiswa->value);
 
     $this->actingAs($mahasiswa)
-        ->get('/admin/aktivitas-sistem')
+        ->get('/admin-legacy/aktivitas-sistem')
         ->assertForbidden();
 });
 
@@ -48,11 +48,11 @@ test('admin must use escalation to open chat content', function () {
     ]);
 
     $this->actingAs($admin)
-        ->get("/admin/chat/threads/{$thread->id}")
+        ->get("/admin-legacy/chat/threads/{$thread->id}")
         ->assertForbidden();
 
     $this->actingAs($admin)
-        ->get("/admin/chat/threads/{$thread->id}?escalated=1")
+        ->get("/admin-legacy/chat/threads/{$thread->id}?escalated=1")
         ->assertOk()
         ->assertJsonStructure([
             'thread_id',
