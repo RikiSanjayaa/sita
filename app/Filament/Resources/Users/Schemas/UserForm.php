@@ -3,10 +3,11 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AppRole;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class UserForm
@@ -15,7 +16,16 @@ class UserForm
     {
         return $schema
             ->components([
+                Section::make('User Role')
+                    ->schema([
+                        Select::make('role')
+                            ->label('Role')
+                            ->options(array_combine(AppRole::uiValues(), AppRole::uiValues()))
+                            ->required()
+                            ->live(),
+                    ]),
                 Section::make('User Account')
+                    ->visible(fn(Get $get): bool => filled($get('role')))
                     ->columns(2)
                     ->schema([
                         TextInput::make('name')
@@ -29,41 +39,40 @@ class UserForm
                         TextInput::make('password')
                             ->password()
                             ->revealable()
-                            ->required(fn (string $operation): bool => $operation === 'create')
-                            ->dehydrated(fn (?string $state): bool => filled($state))
+                            ->required(fn(string $operation): bool => $operation === 'create')
+                            ->dehydrated(fn(?string $state): bool => filled($state))
                             ->maxLength(255),
-                        Select::make('role')
-                            ->label('Role')
-                            ->options(array_combine(AppRole::uiValues(), AppRole::uiValues()))
-                            ->required(),
-                        Toggle::make('browser_notifications_enabled')
-                            ->default(true)
-                            ->required(),
+                        TextInput::make('prodi')
+                            ->label('Prodi')
+                            ->maxLength(255)
+                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true))
+                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true)),
                     ]),
                 Section::make('Mahasiswa Profile')
+                    ->visible(fn(Get $get): bool => $get('role') === AppRole::Mahasiswa->value)
                     ->columns(2)
                     ->schema([
                         TextInput::make('nim')
                             ->label('NIM')
-                            ->maxLength(255),
-                        TextInput::make('program_studi')
-                            ->label('Program Studi (Prodi)')
+                            ->required()
                             ->maxLength(255),
                         TextInput::make('angkatan')
                             ->numeric()
+                            ->required()
                             ->minValue(1990)
                             ->maxValue(2100),
-                        TextInput::make('status_akademik')
-                            ->maxLength(255),
+                        Toggle::make('is_active')
+                            ->label('Status (Aktif/Nonaktif)')
+                            ->default(true)
+                            ->required(),
                     ]),
                 Section::make('Dosen Profile')
+                    ->visible(fn(Get $get): bool => $get('role') === AppRole::Dosen->value)
                     ->columns(2)
                     ->schema([
-                        TextInput::make('nidn')
-                            ->label('NIDN')
-                            ->maxLength(255),
-                        TextInput::make('homebase')
-                            ->label('Homebase / Prodi')
+                        TextInput::make('nik')
+                            ->label('NIK')
+                            ->required()
                             ->maxLength(255),
                         Toggle::make('is_active')
                             ->default(true)

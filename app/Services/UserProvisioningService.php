@@ -26,9 +26,9 @@ class UserProvisioningService
                 ['user_id' => $user->id],
                 [
                     'nim' => $this->nullableString($data['nim'] ?? null),
-                    'program_studi' => $this->nullableString($data['program_studi'] ?? null),
+                    'program_studi' => $this->nullableString($data['prodi'] ?? ($data['program_studi'] ?? ($data['homebase'] ?? null))),
                     'angkatan' => $this->nullableInt($data['angkatan'] ?? null),
-                    'status_akademik' => $this->nullableString($data['status_akademik'] ?? null),
+                    'is_active' => (bool) ($data['is_active'] ?? true),
                 ],
             );
 
@@ -39,8 +39,8 @@ class UserProvisioningService
             $user->dosenProfile()->updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'nidn' => $this->nullableString($data['nidn'] ?? null),
-                    'homebase' => $this->nullableString($data['homebase'] ?? ($data['program_studi'] ?? null)),
+                    'nik' => $this->nullableString($data['nik'] ?? ($data['nidn'] ?? null)),
+                    'homebase' => $this->nullableString($data['prodi'] ?? ($data['homebase'] ?? ($data['program_studi'] ?? null))),
                     'is_active' => (bool) ($data['is_active'] ?? true),
                 ],
             );

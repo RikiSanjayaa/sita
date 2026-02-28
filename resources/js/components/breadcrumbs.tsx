@@ -31,7 +31,11 @@ export function Breadcrumbs({
             <BreadcrumbList>
                 <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                        <Link href={portalHref}>{portalLabel}</Link>
+                        {portalHref.startsWith('/admin') ? (
+                            <a href={portalHref}>{portalLabel}</a>
+                        ) : (
+                            <Link href={portalHref}>{portalLabel}</Link>
+                        )}
                     </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />

@@ -37,7 +37,7 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: dashboard().url,
     },
     {
-        title: 'Tugas Akhir Saya',
+        title: 'Skripsi Saya',
         href: tugasAkhir().url,
     },
 ];
@@ -54,30 +54,30 @@ type TimelineItem = {
 
 const timelineItems: TimelineItem[] = [
     {
-        title: 'Pengajuan Pertama',
+        title: 'Draft Judul Dibuat',
         name: 'Muhammad Akbar',
-        time: '8 Januari 2026, 10:00',
+        time: '3 Februari 2026, 09:10',
         icon: CheckCircle2,
         tone: 'info',
     },
     {
-        title: 'Perlu Revisi',
+        title: 'Judul Perlu Revisi',
         name: 'Dr. Budi Santoso, M.Kom.',
-        time: '10 Januari 2026, 16:45',
+        time: '4 Februari 2026, 13:40',
         icon: CircleAlert,
         tone: 'danger',
     },
     {
-        title: 'Revisi Diajukan',
+        title: 'Revisi Judul Dikirim',
         name: 'Muhammad Akbar',
-        time: '12 Januari 2026, 09:15',
+        time: '5 Februari 2026, 08:20',
         icon: PencilLine,
         tone: 'warning',
     },
     {
-        title: 'Judul Disetujui',
+        title: 'Judul Disetujui, Lanjut Proposal',
         name: 'Dr. Budi Santoso, M.Kom.',
-        time: '15 Januari 2026, 14:30',
+        time: '6 Februari 2026, 11:00',
         icon: CheckCircle2,
         tone: 'success',
     },
@@ -94,28 +94,20 @@ type ProposalVersion = {
 
 const proposalVersions: ProposalVersion[] = [
     {
-        version: 'v3.0',
-        fileName: 'Proposal_TA_MuhammadAkbar_v3.pdf',
-        uploadedAt: '15 Januari 2026, 10:30',
-        size: '2.4 MB',
-        status: 'Disetujui',
-        note: 'Proposal disetujui. Silakan lanjutkan ke tahap penelitian.',
-    },
-    {
         version: 'v2.0',
         fileName: 'Proposal_TA_MuhammadAkbar_v2.pdf',
-        uploadedAt: '12 Januari 2026, 14:20',
-        size: '2.3 MB',
-        status: 'Revisi',
-        note: 'Perbaiki metodologi penelitian pada Bab 3. Tambahkan referensi lebih detail.',
+        uploadedAt: '11 Februari 2026, 15:30',
+        size: '2.5 MB',
+        status: 'Disetujui',
+        note: 'Proposal disetujui untuk maju ke tahap sempro. Tunggu penetapan penguji dan jadwal.',
     },
     {
         version: 'v1.0',
         fileName: 'Proposal_TA_MuhammadAkbar_v1.pdf',
-        uploadedAt: '8 Januari 2026, 09:15',
-        size: '2.1 MB',
+        uploadedAt: '9 Februari 2026, 10:20',
+        size: '2.3 MB',
         status: 'Revisi',
-        note: 'Tinjauan pustaka perlu diperluas. Jelaskan lebih detail tentang dataset yang akan digunakan.',
+        note: 'Bab 3 perlu dipertegas untuk rancangan evaluasi dan metrik pengujian.',
     },
 ];
 
@@ -134,8 +126,8 @@ type DokumenRow = {
 
 const dokumenRows: DokumenRow[] = [
     {
-        title: 'Draft Tugas Akhir',
-        description: 'Dokumen lengkap tugas akhir (semua bab)',
+        title: 'Draft Skripsi',
+        description: 'Dokumen lengkap skripsi (semua bab)',
         tipe: 'Dokumen Utama',
         tenggatWaktu: '1 Maret 2026',
         versi: 'v2.0',
@@ -144,7 +136,7 @@ const dokumenRows: DokumenRow[] = [
     },
     {
         title: 'Slide Presentasi',
-        description: 'Presentasi untuk sidang tugas akhir',
+        description: 'Presentasi untuk sidang skripsi',
         tipe: 'Pendukung',
         tenggatWaktu: '10 Maret 2026',
         versi: 'v1.0',
@@ -315,13 +307,13 @@ export default function TugasAkhirSaya() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Tugas Akhir Saya" />
+            <Head title="Skripsi Saya" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div>
-                    <h1 className="text-xl font-semibold">Tugas Akhir Saya</h1>
+                    <h1 className="text-xl font-semibold">Skripsi Saya</h1>
                     <p className="text-sm text-muted-foreground">
-                        Kelola judul, proposal, dan dokumen tugas akhir Anda
+                        Kelola judul, proposal, dan dokumen skripsi Anda
                     </p>
                 </div>
 
@@ -359,7 +351,7 @@ export default function TugasAkhirSaya() {
                                             Status Pengajuan Judul
                                         </CardTitle>
                                         <CardDescription>
-                                            Status persetujuan judul tugas akhir
+                                            Status persetujuan judul skripsi
                                             Anda
                                         </CardDescription>
                                     </div>
@@ -370,9 +362,9 @@ export default function TugasAkhirSaya() {
                                 <Alert>
                                     <CheckCircle2 />
                                     <AlertDescription>
-                                        Judul Anda telah disetujui oleh
-                                        pembimbing. Anda dapat melanjutkan ke
-                                        tahap proposal.
+                                        Judul Anda telah disetujui. Silakan
+                                        fokus pada penguatan proposal sebelum
+                                        penjadwalan sempro.
                                     </AlertDescription>
                                 </Alert>
                             </CardContent>
@@ -384,7 +376,7 @@ export default function TugasAkhirSaya() {
                                     <div>
                                         <CardTitle>Informasi Judul</CardTitle>
                                         <CardDescription>
-                                            Detail judul tugas akhir dalam
+                                            Detail judul skripsi dalam
                                             Bahasa Indonesia dan Inggris
                                         </CardDescription>
                                     </div>
@@ -424,11 +416,11 @@ export default function TugasAkhirSaya() {
                                         Deskripsi Singkat
                                     </div>
                                     <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-                                        Penelitian ini bertujuan untuk
-                                        mengembangkan sistem prediksi kualitas
-                                        air menggunakan algoritma machine
-                                        learning yang terintegrasi dengan sensor
-                                        IoT untuk monitoring real-time.
+                                        Penelitian ini bertujuan untuk membangun
+                                        sistem rekomendasi topik bimbingan
+                                        berbasis progres mahasiswa dengan
+                                        dukungan analisis histori interaksi
+                                        bimbingan.
                                     </div>
                                 </div>
                             </CardContent>
@@ -498,7 +490,7 @@ export default function TugasAkhirSaya() {
                                     <div>
                                         <CardTitle>Status Proposal</CardTitle>
                                         <CardDescription>
-                                            Status terkini proposal tugas akhir
+                                            Status terkini proposal skripsi
                                             Anda
                                         </CardDescription>
                                     </div>
@@ -509,9 +501,17 @@ export default function TugasAkhirSaya() {
                                 <Alert>
                                     <CheckCircle2 />
                                     <AlertDescription>
-                                        Proposal Anda telah disetujui pada 15
-                                        Januari 2026. Anda dapat melanjutkan ke
-                                        tahap penelitian dan bimbingan.
+                                        Proposal Anda disetujui. Menunggu admin
+                                        menetapkan penguji dan jadwal sempro.
+                                    </AlertDescription>
+                                </Alert>
+
+                                <Alert>
+                                    <Calendar className="size-4" />
+                                    <AlertDescription>
+                                        Todo berikutnya: integrasi kalender
+                                        akademik untuk menampilkan jadwal sempro
+                                        langsung di dashboard.
                                     </AlertDescription>
                                 </Alert>
 
@@ -525,11 +525,11 @@ export default function TugasAkhirSaya() {
                                         </div>
                                         <div className="mt-1 text-sm text-muted-foreground">
                                             Proposal disetujui. Silakan
-                                            lanjutkan ke tahap penelitian.
+                                            lanjutkan dengan persiapan sempro.
                                         </div>
                                         <div className="mt-2 text-xs text-muted-foreground">
-                                            Dr. Budi Santoso, M.Kom. - 15
-                                            Januari 2026, 10:30
+                                            Dr. Budi Santoso, M.Kom. - 11
+                                            Februari 2026, 16:00
                                         </div>
                                     </div>
                                 </div>
@@ -727,7 +727,7 @@ export default function TugasAkhirSaya() {
                             <CardHeader className="gap-1">
                                 <CardTitle>Daftar Dokumen</CardTitle>
                                 <CardDescription>
-                                    Kelola semua dokumen tugas akhir Anda dalam
+                                    Kelola semua dokumen skripsi Anda dalam
                                     satu tempat
                                 </CardDescription>
                             </CardHeader>

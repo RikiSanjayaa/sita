@@ -142,7 +142,7 @@ export default function UploadDokumenPage() {
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Upload Dokumen"
-            subtitle="Kelola dan upload dokumen tugas akhir Anda"
+            subtitle="Kelola dan upload dokumen skripsi Anda"
         >
             <Head title="Upload Dokumen" />
 
@@ -192,7 +192,7 @@ export default function UploadDokumenPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="draft-tugas-akhir">
-                                        Draft Tugas Akhir
+                                        Draft Skripsi
                                     </SelectItem>
                                     <SelectItem value="proposal">
                                         Proposal
@@ -266,7 +266,7 @@ export default function UploadDokumenPage() {
                             Upload Dokumen
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola dan upload dokumen tugas akhir Anda
+                            Kelola dan upload dokumen skripsi Anda
                         </p>
                     </div>
                     <Button

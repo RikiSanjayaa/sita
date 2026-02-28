@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\UserImportTemplateDownloadController;
 use App\Http\Controllers\File\ChatAttachmentDownloadController;
 use App\Http\Controllers\File\DocumentDownloadController;
 use App\Http\Controllers\PortalController;
@@ -44,7 +45,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('panduan', '/mahasiswa/panduan')->name('panduan');
 });
 
+Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
+    Route::get('admin/import-template.{format}', UserImportTemplateDownloadController::class)
+        ->whereIn('format', ['csv', 'xlsx'])
+        ->name('admin.users.import-template');
+});
+
 require __DIR__.'/mahasiswa.php';
 require __DIR__.'/dosen.php';
-require __DIR__.'/admin.php';
 require __DIR__.'/settings.php';

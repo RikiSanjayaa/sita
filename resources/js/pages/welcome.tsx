@@ -42,7 +42,7 @@ const infoItems: InfoItem[] = [
         id: 'dokumen',
         title: 'Unggah Dokumen',
         description:
-            'File tugas akhir dikelola dalam versi yang rapi untuk memudahkan penelusuran revisi.',
+            'File skripsi dikelola dalam versi yang rapi untuk memudahkan penelusuran revisi.',
         icon: FileText,
     },
     {

@@ -2,7 +2,8 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
-use Filament\Infolists\Components\IconEntry;
+use App\Enums\AppRole;
+use App\Models\User;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -18,38 +19,44 @@ class UserInfolist
                         TextEntry::make('name'),
                         TextEntry::make('email')
                             ->label('Email address'),
-                        TextEntry::make('last_active_role')
-                            ->badge(),
-                        IconEntry::make('browser_notifications_enabled')
-                            ->boolean(),
+                        TextEntry::make('role')
+                            ->label('Role')
+                            ->badge()
+                            ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-'),
                         TextEntry::make('created_at')
                             ->dateTime(),
                         TextEntry::make('updated_at')
                             ->dateTime(),
                     ]),
                 Section::make('Mahasiswa Profile')
+                    ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Mahasiswa) ?? false)
                     ->schema([
                         TextEntry::make('mahasiswaProfile.nim')
                             ->label('NIM')
                             ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.program_studi')
-                            ->label('Program Studi (Prodi)')
+                            ->label('Prodi')
                             ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.angkatan')
                             ->placeholder('-'),
-                        TextEntry::make('mahasiswaProfile.status_akademik')
-                            ->placeholder('-'),
+                        TextEntry::make('mahasiswaProfile.is_active')
+                            ->label('Status')
+                            ->badge()
+                            ->formatStateUsing(fn(?bool $state): string => $state ? 'active' : 'inactive'),
                     ]),
                 Section::make('Dosen Profile')
+                    ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)
                     ->schema([
-                        TextEntry::make('dosenProfile.nidn')
-                            ->label('NIDN')
+                        TextEntry::make('dosenProfile.nik')
+                            ->label('NIK')
                             ->placeholder('-'),
                         TextEntry::make('dosenProfile.homebase')
-                            ->label('Homebase / Prodi')
+                            ->label('Prodi')
                             ->placeholder('-'),
-                        IconEntry::make('dosenProfile.is_active')
-                            ->boolean(),
+                        TextEntry::make('dosenProfile.is_active')
+                            ->label('Status')
+                            ->badge()
+                            ->formatStateUsing(fn(?bool $state): string => $state ? 'active' : 'inactive'),
                     ]),
             ]);
     }

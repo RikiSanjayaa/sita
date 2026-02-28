@@ -1,5 +1,4 @@
 import {
-    Activity,
     BookOpen,
     CalendarClock,
     FileStack,
@@ -31,7 +30,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Tugas Akhir saya',
+                title: 'Skripsi saya',
                 href: '/mahasiswa/tugas-akhir',
                 icon: FileText,
             },
@@ -114,19 +113,9 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: ShieldCheck,
             },
             {
-                title: 'Thesis Submissions',
+                title: 'Judul & Proposal',
                 href: '/admin/thesis-submissions',
                 icon: Users,
-            },
-            {
-                title: 'Legacy Penugasan',
-                href: '/admin-legacy/penugasan',
-                icon: UsersRound,
-            },
-            {
-                title: 'Legacy Aktivitas',
-                href: '/admin-legacy/aktivitas-sistem',
-                icon: Activity,
             },
         ],
         settings: {

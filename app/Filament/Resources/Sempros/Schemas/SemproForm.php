@@ -19,12 +19,12 @@ class SemproForm
         return $schema
             ->components([
                 Select::make('thesis_submission_id')
-                    ->label('Thesis Submission')
-                    ->options(fn (): array => ThesisSubmission::query()
+                    ->label('Judul & Proposal')
+                    ->options(fn(): array => ThesisSubmission::query()
                         ->with('student')
                         ->orderByDesc('id')
                         ->get()
-                        ->mapWithKeys(static fn (ThesisSubmission $submission): array => [
+                        ->mapWithKeys(static fn(ThesisSubmission $submission): array => [
                             $submission->id => sprintf(
                                 '#%d - %s',
                                 $submission->id,
@@ -61,8 +61,8 @@ class SemproForm
                     ->schema([
                         Select::make('user_id')
                             ->label('Dosen Penguji')
-                            ->options(fn (): array => User::query()
-                                ->whereHas('roles', static fn ($query) => $query->where('name', AppRole::Dosen->value))
+                            ->options(fn(): array => User::query()
+                                ->whereHas('roles', static fn($query) => $query->where('name', AppRole::Dosen->value))
                                 ->orderBy('name')
                                 ->pluck('name', 'id')
                                 ->all())
@@ -75,8 +75,8 @@ class SemproForm
                 DateTimePicker::make('approved_at'),
                 Select::make('approved_by')
                     ->label('Approved By')
-                    ->options(fn (): array => User::query()
-                        ->whereHas('roles', static fn ($query) => $query->where('name', AppRole::Admin->value))
+                    ->options(fn(): array => User::query()
+                        ->whereHas('roles', static fn($query) => $query->where('name', AppRole::Admin->value))
                         ->orderBy('name')
                         ->pluck('name', 'id')
                         ->all())

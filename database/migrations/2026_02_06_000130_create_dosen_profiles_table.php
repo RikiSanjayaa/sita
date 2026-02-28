@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('dosen_profiles', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
-            $table->string('nidn')->nullable()->unique();
+            $table->string('nik')->nullable()->unique();
             $table->string('homebase')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

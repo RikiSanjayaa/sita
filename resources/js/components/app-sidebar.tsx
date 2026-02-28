@@ -42,9 +42,15 @@ export function AppSidebar({ role }: AppSidebarProps) {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboardHref} prefetch>
-                                <AppLogo />
-                            </Link>
+                            {dashboardHref.startsWith('/admin') ? (
+                                <a href={dashboardHref}>
+                                    <AppLogo />
+                                </a>
+                            ) : (
+                                <Link href={dashboardHref} prefetch>
+                                    <AppLogo />
+                                </Link>
+                            )}
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

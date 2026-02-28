@@ -41,7 +41,7 @@ class SemproResource extends Resource
 
     public static function getNavigationGroup(): string
     {
-        return 'Thesis Workflow';
+        return 'Tugas Akhir Workflow';
     }
 
     public static function form(Schema $schema): Schema

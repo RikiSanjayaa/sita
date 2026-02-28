@@ -66,3 +66,19 @@ test('dashboard resolver sends authenticated user to active role dashboard', fun
         ->get('/dashboard')
         ->assertRedirect('/admin');
 });
+
+test('unauthenticated admin panel access redirects to default login', function () {
+    $this->get('/admin')->assertRedirect('/login');
+});
+
+test('authenticated admin opening default login gets redirected to panel', function () {
+    $admin = createUserWithRoles([AppRole::Admin->value], AppRole::Admin->value);
+
+    $this->actingAs($admin)
+        ->get('/login')
+        ->assertRedirect('/admin');
+});
+
+test('panel-specific admin login page is disabled', function () {
+    $this->get('/admin/login')->assertNotFound();
+});

@@ -112,7 +112,7 @@ export default function Dashboard() {
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
                                         <CardTitle>
-                                            Status Tugas Akhir
+                                            Status Skripsi
                                         </CardTitle>
                                         <CardDescription>
                                             Informasi terkini tentang tugas
@@ -268,7 +268,7 @@ export default function Dashboard() {
                         <CardHeader>
                             <CardTitle>Timeline Progres</CardTitle>
                             <CardDescription>
-                                Tahapan penyelesaian tugas akhir Anda
+                                Tahapan penyelesaian skripsi Anda
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

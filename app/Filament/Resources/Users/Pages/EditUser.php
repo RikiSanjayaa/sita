@@ -19,12 +19,10 @@ class EditUser extends EditRecord
     {
         $data['role'] = $this->record->roles->pluck('name')->first() ?? $this->record->last_active_role ?? AppRole::Mahasiswa->value;
         $data['nim'] = $this->record->mahasiswaProfile?->nim;
-        $data['program_studi'] = $this->record->mahasiswaProfile?->program_studi;
+        $data['prodi'] = $this->record->mahasiswaProfile?->program_studi ?? $this->record->dosenProfile?->homebase;
         $data['angkatan'] = $this->record->mahasiswaProfile?->angkatan;
-        $data['status_akademik'] = $this->record->mahasiswaProfile?->status_akademik;
-        $data['nidn'] = $this->record->dosenProfile?->nidn;
-        $data['homebase'] = $this->record->dosenProfile?->homebase;
-        $data['is_active'] = $this->record->dosenProfile?->is_active ?? true;
+        $data['nik'] = $this->record->dosenProfile?->nik;
+        $data['is_active'] = $this->record->mahasiswaProfile?->is_active ?? $this->record->dosenProfile?->is_active ?? true;
 
         return $data;
     }
@@ -34,22 +32,18 @@ class EditUser extends EditRecord
         $this->provisioningData = [
             'role' => $data['role'] ?? null,
             'nim' => $data['nim'] ?? null,
-            'program_studi' => $data['program_studi'] ?? null,
+            'prodi' => $data['prodi'] ?? null,
             'angkatan' => $data['angkatan'] ?? null,
-            'status_akademik' => $data['status_akademik'] ?? null,
-            'nidn' => $data['nidn'] ?? null,
-            'homebase' => $data['homebase'] ?? null,
+            'nik' => $data['nik'] ?? null,
             'is_active' => $data['is_active'] ?? true,
         ];
 
         unset(
             $data['role'],
             $data['nim'],
-            $data['program_studi'],
+            $data['prodi'],
             $data['angkatan'],
-            $data['status_akademik'],
-            $data['nidn'],
-            $data['homebase'],
+            $data['nik'],
             $data['is_active'],
         );
 
@@ -58,8 +52,11 @@ class EditUser extends EditRecord
 
     protected function afterSave(): void
     {
+        /** @var \App\Models\User $user */
+        $user = $this->record;
+
         app(UserProvisioningService::class)->syncRoleAndProfiles(
-            $this->record,
+            $user,
             $this->provisioningData,
         );
     }

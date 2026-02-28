@@ -17,22 +17,18 @@ class CreateUser extends CreateRecord
         $this->provisioningData = [
             'role' => $data['role'] ?? null,
             'nim' => $data['nim'] ?? null,
-            'program_studi' => $data['program_studi'] ?? null,
+            'prodi' => $data['prodi'] ?? null,
             'angkatan' => $data['angkatan'] ?? null,
-            'status_akademik' => $data['status_akademik'] ?? null,
-            'nidn' => $data['nidn'] ?? null,
-            'homebase' => $data['homebase'] ?? null,
+            'nik' => $data['nik'] ?? null,
             'is_active' => $data['is_active'] ?? true,
         ];
 
         unset(
             $data['role'],
             $data['nim'],
-            $data['program_studi'],
+            $data['prodi'],
             $data['angkatan'],
-            $data['status_akademik'],
-            $data['nidn'],
-            $data['homebase'],
+            $data['nik'],
             $data['is_active'],
         );
 
@@ -41,8 +37,11 @@ class CreateUser extends CreateRecord
 
     protected function afterCreate(): void
     {
+        /** @var \App\Models\User $user */
+        $user = $this->record;
+
         app(UserProvisioningService::class)->syncRoleAndProfiles(
-            $this->record,
+            $user,
             $this->provisioningData,
         );
     }

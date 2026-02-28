@@ -14,6 +14,10 @@ function createRoleUser(string $role): User
     $roleModel = Role::query()->firstOrCreate(['name' => $role]);
     $user->roles()->sync([$roleModel->id]);
 
+    if ($role === AppRole::Mahasiswa->value) {
+        \App\Models\MahasiswaProfile::factory()->create(['user_id' => $user->id, 'is_active' => true]);
+    }
+
     return $user;
 }
 
