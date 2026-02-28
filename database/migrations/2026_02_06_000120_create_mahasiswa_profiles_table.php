@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -17,7 +16,7 @@ return new class extends Migration
             $table->string('nim')->nullable()->unique();
             $table->string('program_studi')->nullable();
             $table->unsignedSmallInteger('angkatan')->nullable();
-            $table->string('status_akademik')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

@@ -85,7 +85,7 @@ class UserSeeder extends Seeder
         DosenProfile::query()->updateOrCreate(
             ['user_id' => $dosen->id],
             [
-                'nidn' => '1234567890',
+                'nik' => '7301010101010001',
                 'homebase' => 'Informatika',
                 'is_active' => true,
             ],
@@ -111,7 +111,7 @@ class UserSeeder extends Seeder
                     'nim' => (string) $account['nim'],
                     'program_studi' => 'Informatika',
                     'angkatan' => (int) $account['angkatan'],
-                    'status_akademik' => 'aktif',
+                    'is_active' => true,
                 ],
             );
         }
@@ -124,10 +124,10 @@ class UserSeeder extends Seeder
             MahasiswaProfile::query()->updateOrCreate(
                 ['user_id' => $student->id],
                 [
-                    'nim' => '221051'.str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
+                    'nim' => '221051' . str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
                     'program_studi' => 'Informatika',
                     'angkatan' => 2022,
-                    'status_akademik' => 'aktif',
+                    'is_active' => true,
                 ],
             );
         }

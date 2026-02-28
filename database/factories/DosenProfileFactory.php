@@ -19,7 +19,7 @@ class DosenProfileFactory extends Factory
     {
         return [
             'user_id' => User::factory()->asDosen(),
-            'nidn' => fake()->unique()->numerify('##########'),
+            'nik' => fake()->unique()->numerify('################'),
             'homebase' => 'Informatika',
             'is_active' => true,
         ];

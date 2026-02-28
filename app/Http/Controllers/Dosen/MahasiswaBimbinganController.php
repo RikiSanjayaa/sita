@@ -15,7 +15,8 @@ class MahasiswaBimbinganController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
-    ) {}
+    ) {
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -45,14 +46,9 @@ class MahasiswaBimbinganController extends Controller
             $latestSchedule = $latestScheduleByStudent->get($assignment->student_user_id);
             $latestDocument = $latestDocumentByStudent->get($assignment->student_user_id);
 
-            $statusAkademik = strtolower((string) ($profile?->status_akademik ?? 'aktif'));
-            $isFinal = in_array(
-                $statusAkademik,
-                MentorshipAssignmentService::INACTIVE_STUDENT_STATUSES,
-                true,
-            );
+            $isActive = $profile?->is_active ?? true;
 
-            $statusLabel = $isFinal ? ucfirst($statusAkademik) : 'Aktif';
+            $statusLabel = $isActive ? 'Aktif' : 'Nonaktif';
             $progress = $latestDocument?->status === 'approved'
                 ? 90
                 : ($latestDocument?->status === 'needs_revision' ? 55 : 70);

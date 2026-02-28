@@ -346,9 +346,9 @@ export default function Profile() {
 
                 <Card>
                     <CardHeader className="gap-1">
-                        <CardTitle>Informasi Tugas Akhir</CardTitle>
+                        <CardTitle>Informasi Skripsi</CardTitle>
                         <CardDescription>
-                            Detail pembimbingan tugas akhir Anda
+                            Detail pembimbingan skripsi Anda
                         </CardDescription>
                     </CardHeader>
                     <Separator />
@@ -356,7 +356,7 @@ export default function Profile() {
                         <div className="grid gap-6">
                             <div className="grid gap-1">
                                 <div className="text-xs text-muted-foreground">
-                                    Judul Tugas Akhir
+                                    Judul Skripsi
                                 </div>
                                 <div className="text-sm font-medium">
                                     {tugasAkhir.judul}

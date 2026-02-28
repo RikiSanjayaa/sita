@@ -206,7 +206,7 @@ export default function JadwalBimbinganPage() {
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Jadwal Bimbingan"
-            subtitle="Kelola jadwal bimbingan tugas akhir dengan dosen pembimbing"
+            subtitle="Kelola jadwal bimbingan skripsi dengan dosen pembimbing"
         >
             <Head title="Jadwal Bimbingan" />
 
@@ -381,7 +381,7 @@ export default function JadwalBimbinganPage() {
                             Jadwal Bimbingan
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola jadwal bimbingan tugas akhir dengan dosen
+                            Kelola jadwal bimbingan skripsi dengan dosen
                             pembimbing
                         </p>
                     </div>

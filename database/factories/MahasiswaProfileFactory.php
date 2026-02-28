@@ -22,7 +22,7 @@ class MahasiswaProfileFactory extends Factory
             'nim' => fake()->unique()->numerify('##########'),
             'program_studi' => 'Teknik Informatika',
             'angkatan' => (int) now()->format('Y'),
-            'status_akademik' => 'aktif',
+            'is_active' => true,
         ];
     }
 }

@@ -106,3 +106,30 @@ it('approves sempro only when both examiners approved', function (): void {
     expect($sempro->fresh()->status)->toBe(SemproStatus::Approved->value)
         ->and($submission->fresh()->status)->toBe(ThesisSubmissionStatus::SemproApproved->value);
 });
+
+it('sends mahasiswa notifications when examiners are assigned and sempro is scheduled', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $dosenA = User::factory()->asDosen()->create(['name' => 'Dosen A']);
+    $dosenB = User::factory()->asDosen()->create(['name' => 'Dosen B']);
+
+    $submission = ThesisSubmission::query()->create([
+        'student_user_id' => $student->id,
+        'title_id' => 'Integrasi Notifikasi Sempro',
+        'status' => ThesisSubmissionStatus::ProposalSubmitted->value,
+        'is_active' => true,
+    ]);
+
+    $sempro = Sempro::query()->create([
+        'thesis_submission_id' => $submission->id,
+        'status' => SemproStatus::Draft->value,
+        'scheduled_for' => now()->addDays(5),
+        'created_by' => $admin->id,
+    ]);
+
+    $service = app(SemproWorkflowService::class);
+    $service->assignExaminers($sempro, [$dosenA->id, $dosenB->id], $admin->id);
+    $service->scheduleSempro($sempro->fresh());
+
+    expect($student->notifications()->count())->toBe(2);
+});

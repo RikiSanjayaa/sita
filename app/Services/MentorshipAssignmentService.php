@@ -16,14 +16,7 @@ class MentorshipAssignmentService
 
     public const MAX_ACTIVE_STUDENTS_PER_LECTURER = 14;
 
-    /**
-     * @var array<int, string>
-     */
-    public const INACTIVE_STUDENT_STATUSES = [
-        'lulus',
-        'drop',
-        'nonaktif',
-    ];
+
 
     public function syncStudentAdvisors(
         int $studentUserId,
@@ -32,13 +25,7 @@ class MentorshipAssignmentService
         ?int $secondaryLecturerUserId = null,
         ?string $notes = null,
     ): void {
-        DB::transaction(function () use (
-            $studentUserId,
-            $assignedBy,
-            $primaryLecturerUserId,
-            $secondaryLecturerUserId,
-            $notes
-        ): void {
+        DB::transaction(function () use ($studentUserId, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): void {
             $this->syncAdvisor(
                 studentUserId: $studentUserId,
                 assignedBy: $assignedBy,
@@ -65,9 +52,7 @@ class MentorshipAssignmentService
             ->where('mentorship_assignments.lecturer_user_id', $lecturerUserId)
             ->where('mentorship_assignments.status', AssignmentStatus::Active->value)
             ->where(function ($query): void {
-                $query
-                    ->whereNull('mahasiswa_profiles.status_akademik')
-                    ->orWhereNotIn('mahasiswa_profiles.status_akademik', self::INACTIVE_STUDENT_STATUSES);
+                $query->where('mahasiswa_profiles.is_active', true);
             })
             ->distinct();
 
@@ -76,16 +61,14 @@ class MentorshipAssignmentService
             ->count();
     }
 
-    public function isInactiveStudentStatus(?string $status): bool
+    public function isInactiveStudentStatus(bool $isActive): bool
     {
-        $normalized = strtolower((string) $status);
-
-        return in_array($normalized, self::INACTIVE_STUDENT_STATUSES, true);
+        return !$isActive;
     }
 
     public function validateForSave(MentorshipAssignment $assignment): void
     {
-        if (! $assignment->isActive()) {
+        if (!$assignment->isActive()) {
             return;
         }
 
@@ -100,7 +83,7 @@ class MentorshipAssignmentService
     {
         $hasRole = User::query()
             ->whereKey($userId)
-            ->whereHas('roles', static fn ($query) => $query->where('name', $role))
+            ->whereHas('roles', static fn($query) => $query->where('name', $role))
             ->exists();
 
         if ($hasRole) {
@@ -123,7 +106,7 @@ class MentorshipAssignmentService
             $query->whereKeyNot($assignment->getKey());
         }
 
-        if (! $query->exists()) {
+        if (!$query->exists()) {
             return;
         }
 
@@ -165,7 +148,7 @@ class MentorshipAssignmentService
             ->where('status', AssignmentStatus::Active->value)
             ->when(
                 $assignment->exists,
-                static fn ($query) => $query->whereKeyNot($assignment->getKey()),
+                static fn($query) => $query->whereKeyNot($assignment->getKey()),
             )
             ->exists();
 

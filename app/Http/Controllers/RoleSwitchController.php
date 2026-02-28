@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 
 class RoleSwitchController extends Controller
 {
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\Response
     {
         $validated = $request->validate([
             'role' => ['required', 'string', Rule::in(AppRole::uiValues())],
@@ -27,6 +27,10 @@ class RoleSwitchController extends Controller
         }
 
         $dashboardRouteName = AppRole::from($role)->dashboardRouteName();
+
+        if ($role === AppRole::Admin->value) {
+            return \Inertia\Inertia::location(route($dashboardRouteName));
+        }
 
         return redirect()->route($dashboardRouteName);
     }

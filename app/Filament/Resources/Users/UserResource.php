@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users;
 
+use App\Enums\AssignmentStatus;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
@@ -47,7 +48,14 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['roles', 'mahasiswaProfile', 'dosenProfile']);
+        return parent::getEloquentQuery()
+            ->with(['roles', 'mahasiswaProfile', 'dosenProfile'])
+            ->withCount([
+                'thesisSubmissions as thesis_submission_count',
+                'mentorshipAssignmentsAsLecturer as active_bimbingan_count' => static fn (Builder $query): Builder => $query->where('status', AssignmentStatus::Active->value),
+                'mentorshipAssignmentsAsLecturer as finished_bimbingan_count' => static fn (Builder $query): Builder => $query->where('status', AssignmentStatus::Ended->value),
+                'semproExaminerAssignments as active_uji_count' => static fn (Builder $query): Builder => $query->whereHas('sempro', static fn (Builder $semproQuery): Builder => $semproQuery->whereIn('status', ['draft', 'scheduled', 'revision_open'])),
+            ]);
     }
 
     public static function getPages(): array

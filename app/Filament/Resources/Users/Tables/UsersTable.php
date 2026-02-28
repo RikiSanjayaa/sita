@@ -3,12 +3,13 @@
 namespace App\Filament\Resources\Users\Tables;
 
 use App\Enums\AppRole;
+use App\Models\User;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
@@ -25,23 +26,40 @@ class UsersTable
                     ->label('Email address')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('last_active_role')
+                TextColumn::make('role')
+                    ->label('Role')
                     ->badge()
-                    ->sortable(),
+                    ->state(fn (?User $record): string => $record?->roles->pluck('name')->first() ?? '-'),
                 TextColumn::make('mahasiswaProfile.nim')
                     ->label('NIM')
+                    ->searchable()
+                    ->visible(fn (HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa')),
+                TextColumn::make('dosenProfile.nik')
+                    ->label('NIK')
+                    ->searchable()
+                    ->visible(fn (HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                TextColumn::make('prodi')
+                    ->label('Prodi')
+                    ->state(fn (?User $record): string => $record?->mahasiswaProfile?->program_studi ?? $record?->dosenProfile?->homebase ?? '-')
+                    ->visible(fn (HasTable $livewire): bool => ! self::isTab($livewire, 'admin'))
                     ->searchable(),
-                TextColumn::make('dosenProfile.nidn')
-                    ->label('NIDN')
-                    ->searchable(),
-                TextColumn::make('mahasiswaProfile.program_studi')
-                    ->label('Prodi (Mahasiswa)')
+                TextColumn::make('thesis_submission_count')
+                    ->label('Submission')
+                    ->numeric()
+                    ->sortable(),
+                TextColumn::make('active_bimbingan_count')
+                    ->label('Bimbingan Aktif')
+                    ->numeric()
+                    ->sortable(),
+                TextColumn::make('active_uji_count')
+                    ->label('Uji Aktif')
+                    ->numeric()
+                    ->sortable(),
+                TextColumn::make('finished_bimbingan_count')
+                    ->label('Bimbingan Selesai')
+                    ->numeric()
+                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('dosenProfile.homebase')
-                    ->label('Homebase (Dosen)')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                IconColumn::make('browser_notifications_enabled')
-                    ->boolean(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -69,5 +87,12 @@ class UsersTable
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    private static function isTab(HasTable $livewire, string $tab): bool
+    {
+        $activeTab = property_exists($livewire, 'activeTab') ? $livewire->activeTab : null;
+
+        return $activeTab === $tab;
     }
 }

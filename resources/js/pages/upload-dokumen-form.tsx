@@ -126,7 +126,7 @@ export default function UploadDokumenForm() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="draft-tugas-akhir">
-                                                Draft Tugas Akhir
+                                                Draft Skripsi
                                             </SelectItem>
                                             <SelectItem value="proposal">
                                                 Proposal

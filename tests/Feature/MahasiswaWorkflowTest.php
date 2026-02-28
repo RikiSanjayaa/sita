@@ -30,7 +30,7 @@ test('mahasiswa can request schedule to selected active advisor', function () {
 
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
-        'status_akademik' => 'aktif',
+        'is_active' => true,
     ]);
 
     MentorshipAssignment::query()->create([
@@ -73,7 +73,7 @@ test('mahasiswa cannot request schedule to lecturer outside active advisors', fu
 
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
-        'status_akademik' => 'aktif',
+        'is_active' => true,
     ]);
 
     MentorshipAssignment::query()->create([
@@ -109,7 +109,7 @@ test('mahasiswa upload creates document version rows and chat event', function (
 
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
-        'status_akademik' => 'aktif',
+        'is_active' => true,
     ]);
 
     MentorshipAssignment::query()->create([
@@ -158,7 +158,7 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
 
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
-        'status_akademik' => 'aktif',
+        'is_active' => true,
     ]);
 
     MentorshipAssignment::query()->create([
@@ -207,7 +207,7 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
 
     $this->actingAs($student)
         ->get('/mahasiswa/upload-dokumen')
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->component('upload-dokumen')
             ->has('uploadedDocuments', 2));
 });
@@ -220,8 +220,8 @@ test('download permissions enforce ownership and escalation rules', function () 
     $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
     $dosen = createUserWithRole(AppRole::Dosen->value);
 
-    MahasiswaProfile::factory()->create(['user_id' => $student->id, 'status_akademik' => 'aktif']);
-    MahasiswaProfile::factory()->create(['user_id' => $otherStudent->id, 'status_akademik' => 'aktif']);
+    MahasiswaProfile::factory()->create(['user_id' => $student->id, 'is_active' => true]);
+    MahasiswaProfile::factory()->create(['user_id' => $otherStudent->id, 'is_active' => true]);
 
     MentorshipAssignment::query()->create([
         'student_user_id' => $student->id,

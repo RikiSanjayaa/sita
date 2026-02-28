@@ -3,10 +3,13 @@
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,6 +31,16 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
+        $middleware->redirectUsersTo(function (Request $request): string {
+            $user = $request->user();
+
+            if ($user instanceof User && $user->hasRole('admin')) {
+                return Filament::getPanel('admin')?->getUrl() ?? url('/admin');
+            }
+
+            return url('/dashboard');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -23,7 +23,7 @@ function createMahasiswaUser(string $nim): User
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
         'nim' => $nim,
-        'status_akademik' => 'aktif',
+        'is_active' => true,
     ]);
 
     return $student;
@@ -96,26 +96,29 @@ test('dosen pages only show data from assigned mahasiswa', function () {
 
     $this->actingAs($dosen)
         ->get(route('dosen.jadwal-bimbingan'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('dosen/jadwal-bimbingan')
-            ->has('pendingRequests', 1)
-            ->where('pendingRequests.0.mahasiswa', $assignedStudent->name)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('dosen/jadwal-bimbingan')
+                ->has('pendingRequests', 1)
+                ->where('pendingRequests.0.mahasiswa', $assignedStudent->name)
         );
 
     $this->actingAs($dosen)
         ->get(route('dosen.dokumen-revisi'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('dosen/dokumen-revisi')
-            ->has('documentQueue', 1)
-            ->where('documentQueue.0.mahasiswa', $assignedStudent->name)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('dosen/dokumen-revisi')
+                ->has('documentQueue', 1)
+                ->where('documentQueue.0.mahasiswa', $assignedStudent->name)
         );
 
     $this->actingAs($dosen)
         ->get(route('dosen.pesan-bimbingan'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('dosen/pesan-bimbingan')
-            ->has('threads', 1)
-            ->where('threads.0.student', $assignedStudent->name)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('dosen/pesan-bimbingan')
+                ->has('threads', 1)
+                ->where('threads.0.student', $assignedStudent->name)
         );
 });
 

@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class PortalController extends Controller
 {
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\Response
     {
         $user = $request->user();
         $activeRole = $user->resolveActiveRole($request->session()->get('active_role'));
@@ -19,10 +19,13 @@ class PortalController extends Controller
             $user->forceFill(['last_active_role' => $activeRole])->save();
         }
 
-        $role = AppRole::tryFrom($activeRole);
+        $role = AppRole::tryFrom($activeRole) ?? AppRole::Mahasiswa;
+        $dashboardRouteName = $role->dashboardRouteName();
 
-        return redirect()->route(
-            $role?->dashboardRouteName() ?? AppRole::Mahasiswa->dashboardRouteName(),
-        );
+        if ($role === AppRole::Admin) {
+            return \Inertia\Inertia::location(route($dashboardRouteName));
+        }
+
+        return redirect()->route($dashboardRouteName);
     }
 }

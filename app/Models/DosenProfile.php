@@ -16,7 +16,7 @@ class DosenProfile extends Model
      */
     protected $fillable = [
         'user_id',
-        'nidn',
+        'nik',
         'homebase',
         'is_active',
     ];

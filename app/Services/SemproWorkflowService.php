@@ -9,6 +9,7 @@ use App\Enums\ThesisSubmissionStatus;
 use App\Models\Sempro;
 use App\Models\ThesisSubmission;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -46,6 +47,28 @@ class SemproWorkflowService
                 ]);
             }
         });
+
+        $sempro->loadMissing(['submission.student', 'examiners.examiner']);
+
+        $student = $sempro->submission?->student;
+
+        if ($student instanceof User) {
+            $examinerNames = $sempro->examiners
+                ->pluck('examiner.name')
+                ->filter()
+                ->values()
+                ->implode(', ');
+
+            app(RealtimeNotificationService::class)->notifyUser($student, 'statusTugasAkhir', [
+                'title' => 'Penguji Sempro Ditetapkan',
+                'description' => $examinerNames === ''
+                    ? 'Penguji sempro Anda sudah ditetapkan oleh admin.'
+                    : 'Penguji sempro Anda: '.$examinerNames,
+                'icon' => 'check-circle',
+                'url' => '/mahasiswa/tugas-akhir',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
     }
 
     public function scheduleSempro(Sempro $sempro): void
@@ -63,6 +86,20 @@ class SemproWorkflowService
         $sempro->submission->forceFill([
             'status' => ThesisSubmissionStatus::SemproScheduled->value,
         ])->save();
+
+        $sempro->loadMissing(['submission.student']);
+
+        $student = $sempro->submission?->student;
+
+        if ($student instanceof User) {
+            app(RealtimeNotificationService::class)->notifyUser($student, 'jadwalBimbingan', [
+                'title' => 'Jadwal Sempro Sudah Ditentukan',
+                'description' => 'Sempro Anda dijadwalkan pada '.$this->formatSchedule($sempro->scheduled_for).'.',
+                'icon' => 'calendar-clock',
+                'url' => '/mahasiswa/tugas-akhir',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
     }
 
     public function approveSempro(Sempro $sempro, int $approvedBy): void
@@ -91,5 +128,18 @@ class SemproWorkflowService
                 'approved_at' => now(),
             ])->save();
         });
+    }
+
+    private function formatSchedule(CarbonInterface|string|null $scheduledFor): string
+    {
+        if ($scheduledFor instanceof CarbonInterface) {
+            return $scheduledFor->timezone('Asia/Makassar')->format('d M Y H:i');
+        }
+
+        if (is_string($scheduledFor) && $scheduledFor !== '') {
+            return $scheduledFor;
+        }
+
+        return 'waktu yang akan diinformasikan';
     }
 }

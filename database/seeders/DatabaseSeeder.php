@@ -24,7 +24,10 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        $this->call([UserSeeder::class]);
+        $this->call([
+            UserSeeder::class,
+            ThesisWorkflowSeeder::class,
+        ]);
 
         $admin = User::query()->where('email', 'admin@sita.test')->first();
         $dosen = User::query()->where('email', 'dosen@sita.test')->first();

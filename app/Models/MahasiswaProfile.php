@@ -20,28 +20,21 @@ class MahasiswaProfile extends Model
         'nim',
         'program_studi',
         'angkatan',
-        'status_akademik',
+        'is_active',
     ];
 
-    /**
-     * @var array<int, string>
-     */
-    private const FINAL_STATUSES = [
-        'lulus',
-        'drop',
-        'nonaktif',
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     protected static function booted(): void
     {
         static::updated(function (self $profile): void {
-            if (! $profile->wasChanged('status_akademik')) {
+            if (!$profile->wasChanged('is_active')) {
                 return;
             }
 
-            $currentStatus = strtolower((string) $profile->status_akademik);
-
-            if (! in_array($currentStatus, self::FINAL_STATUSES, true)) {
+            if ($profile->is_active) {
                 return;
             }
 

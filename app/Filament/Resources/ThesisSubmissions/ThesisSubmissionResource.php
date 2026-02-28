@@ -26,22 +26,22 @@ class ThesisSubmissionResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'Thesis Submissions';
+        return 'Judul & Proposal';
     }
 
     public static function getModelLabel(): string
     {
-        return 'Thesis Submission';
+        return 'Judul & Proposal';
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Thesis Submissions';
+        return 'Judul & Proposal';
     }
 
     public static function getNavigationGroup(): string
     {
-        return 'Thesis Workflow';
+        return 'Tugas Akhir Workflow';
     }
 
     public static function form(Schema $schema): Schema
