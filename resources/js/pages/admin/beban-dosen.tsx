@@ -15,8 +15,8 @@ import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Beban Dosen', href: '/admin/beban-dosen' },
+    { title: 'Dashboard', href: '/admin-legacy/dashboard' },
+    { title: 'Beban Dosen', href: '/admin-legacy/beban-dosen' },
 ];
 
 const dosenLoads = [

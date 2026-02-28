@@ -155,7 +155,7 @@ class PenugasanController extends Controller
         }
 
         return redirect()
-            ->route('admin.penugasan')
+            ->route('adminLegacy.penugasan')
             ->with('success', 'Penugasan pembimbing berhasil diperbarui.');
     }
 }

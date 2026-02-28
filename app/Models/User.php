@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\AppRole;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,7 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
@@ -148,6 +150,41 @@ class User extends Authenticatable
         return $this->hasMany(MentorshipChatMessage::class, 'sender_user_id');
     }
 
+    public function thesisSubmissions(): HasMany
+    {
+        return $this->hasMany(ThesisSubmission::class, 'student_user_id');
+    }
+
+    public function approvedThesisSubmissions(): HasMany
+    {
+        return $this->hasMany(ThesisSubmission::class, 'approved_by');
+    }
+
+    public function semproApprovals(): HasMany
+    {
+        return $this->hasMany(Sempro::class, 'approved_by');
+    }
+
+    public function createdSempros(): HasMany
+    {
+        return $this->hasMany(Sempro::class, 'created_by');
+    }
+
+    public function semproExaminerAssignments(): HasMany
+    {
+        return $this->hasMany(SemproExaminer::class, 'examiner_user_id');
+    }
+
+    public function semproRevisionRequests(): HasMany
+    {
+        return $this->hasMany(SemproRevision::class, 'requested_by_user_id');
+    }
+
+    public function resolvedSemproRevisions(): HasMany
+    {
+        return $this->hasMany(SemproRevision::class, 'resolved_by_user_id');
+    }
+
     /**
      * @return array<int, string>
      */
@@ -213,5 +250,10 @@ class User extends Authenticatable
         }
 
         return $availableRoles[0];
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->hasRole(AppRole::Admin);
     }
 }

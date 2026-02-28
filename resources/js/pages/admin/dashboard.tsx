@@ -20,7 +20,7 @@ import AdminLayout from '@/layouts/admin-layout';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/admin/dashboard' },
+    { title: 'Dashboard', href: '/admin-legacy/dashboard' },
 ];
 
 const kpis = [

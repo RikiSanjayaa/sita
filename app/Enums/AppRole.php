@@ -37,7 +37,7 @@ enum AppRole: string
         return match ($this) {
             self::Mahasiswa => 'mahasiswa.dashboard',
             self::Dosen => 'dosen.dashboard',
-            self::Admin => 'admin.dashboard',
+            self::Admin => 'filament.admin.pages.dashboard',
             self::Penguji => 'mahasiswa.dashboard',
         };
     }

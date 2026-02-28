@@ -17,7 +17,7 @@ export const ROLE_PORTAL_LABELS: Record<AppRole, string> = {
 export const ROLE_DASHBOARD_PATHS: Record<AppRole, string> = {
     mahasiswa: '/mahasiswa/dashboard',
     dosen: '/dosen/dashboard',
-    admin: '/admin/dashboard',
+    admin: '/admin',
     penguji: '/mahasiswa/dashboard',
 };
 

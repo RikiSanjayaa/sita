@@ -100,32 +100,32 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
         main: [
             {
                 title: 'Dashboard',
-                href: '/admin/dashboard',
+                href: '/admin',
                 icon: Gauge,
             },
             {
-                title: 'Penugasan',
-                href: '/admin/penugasan',
+                title: 'Users',
+                href: '/admin/users',
                 icon: UserCog,
             },
             {
-                title: 'Beban Dosen',
-                href: '/admin/beban-dosen',
+                title: 'Sempro',
+                href: '/admin/sempros',
                 icon: ShieldCheck,
             },
             {
-                title: 'Mahasiswa',
-                href: '/admin/mahasiswa',
+                title: 'Thesis Submissions',
+                href: '/admin/thesis-submissions',
                 icon: Users,
             },
             {
-                title: 'Dosen',
-                href: '/admin/dosen',
+                title: 'Legacy Penugasan',
+                href: '/admin-legacy/penugasan',
                 icon: UsersRound,
             },
             {
-                title: 'Aktivitas Sistem',
-                href: '/admin/aktivitas-sistem',
+                title: 'Legacy Aktivitas',
+                href: '/admin-legacy/aktivitas-sistem',
                 icon: Activity,
             },
         ],
