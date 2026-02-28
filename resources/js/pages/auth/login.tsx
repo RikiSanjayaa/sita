@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
-import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -119,17 +118,9 @@ export default function Login({
                                 Masuk
                             </Button>
 
-                            {canRegister && (
-                                <div className="text-center text-sm text-muted-foreground">
-                                    Belum punya akun?{' '}
-                                    <TextLink
-                                        href={register().url}
-                                        tabIndex={5}
-                                    >
-                                        Daftar
-                                    </TextLink>
-                                </div>
-                            )}
+                            <div className="text-center text-sm text-muted-foreground invisible">
+                                Belum punya akun?{' '}
+                            </div>
                         </CardFooter>
                     </Card>
                 )}

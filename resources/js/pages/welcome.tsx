@@ -20,7 +20,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { useAppearance } from '@/hooks/use-appearance';
-import { dashboard, home, login, register } from '@/routes';
+import { dashboard, home, login } from '@/routes';
 import { type SharedData } from '@/types';
 
 type InfoItem = {
@@ -127,18 +127,9 @@ export default function Welcome({
                                     </Link>
                                 </Button>
                             ) : (
-                                <>
-                                    <Button asChild variant="ghost">
-                                        <Link href={login().url}>Masuk</Link>
-                                    </Button>
-                                    {canRegister && (
-                                        <Button asChild>
-                                            <Link href={register().url}>
-                                                Daftar
-                                            </Link>
-                                        </Button>
-                                    )}
-                                </>
+                                <Button asChild variant="ghost">
+                                    <Link href={login().url}>Masuk</Link>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -169,20 +160,11 @@ export default function Welcome({
                                     </Link>
                                 </Button>
                             ) : (
-                                <>
-                                    <Button asChild>
-                                        <Link href={login().url}>
-                                            Masuk ke SiTA
-                                        </Link>
-                                    </Button>
-                                    {canRegister && (
-                                        <Button asChild variant="secondary">
-                                            <Link href={register().url}>
-                                                Daftar akun
-                                            </Link>
-                                        </Button>
-                                    )}
-                                </>
+                                <Button asChild>
+                                    <Link href={login().url}>
+                                        Masuk ke SiTA
+                                    </Link>
+                                </Button>
                             )}
                         </div>
                     </section>
