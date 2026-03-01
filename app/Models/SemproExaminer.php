@@ -16,6 +16,7 @@ class SemproExaminer extends Model
         'examiner_order',
         'decision',
         'decision_notes',
+        'score',
         'decided_at',
         'assigned_by',
     ];
@@ -24,6 +25,7 @@ class SemproExaminer extends Model
     {
         return [
             'examiner_order' => 'int',
+            'score' => 'decimal:2',
             'decided_at' => 'datetime',
         ];
     }
