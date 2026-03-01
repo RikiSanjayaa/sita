@@ -37,6 +37,45 @@ class UserSeeder extends Seeder
             'nim' => '2210510011',
             'angkatan' => 2022,
         ],
+        [
+            'name' => 'Siti Aminah',
+            'email' => 'siti@sita.test',
+            'nim' => '2210510030',
+            'angkatan' => 2022,
+        ],
+        [
+            'name' => 'Farhan Maulana',
+            'email' => 'farhan@sita.test',
+            'nim' => '2210510041',
+            'angkatan' => 2022,
+        ],
+    ];
+
+    private const DOSEN_ACCOUNTS = [
+        [
+            'name' => 'Dr. Budi Santoso, M.Kom.',
+            'email' => 'dosen@sita.test',
+            'nik' => '7301010101010001',
+            'homebase' => 'Informatika',
+        ],
+        [
+            'name' => 'Dr. Ratna Kusuma, M.Kom.',
+            'email' => 'dosen2@sita.test',
+            'nik' => '7301010101010002',
+            'homebase' => 'Informatika',
+        ],
+        [
+            'name' => 'Prof. Ahmad Hidayat, Ph.D.',
+            'email' => 'dosen3@sita.test',
+            'nik' => '7301010101010003',
+            'homebase' => 'Informatika',
+        ],
+        [
+            'name' => 'Dr. Dewi Lestari, M.T.',
+            'email' => 'dosen4@sita.test',
+            'nik' => '7301010101010004',
+            'homebase' => 'Informatika',
+        ],
     ];
 
     public function run(): void
@@ -44,7 +83,7 @@ class UserSeeder extends Seeder
         $roles = $this->seedRoles();
 
         $this->upsertAdmin($roles[AppRole::Admin->value]);
-        $this->upsertDosen($roles[AppRole::Dosen->value]);
+        $this->upsertDosenAccounts($roles[AppRole::Dosen->value]);
         $this->upsertMahasiswaAccounts($roles[AppRole::Mahasiswa->value]);
     }
 
@@ -70,26 +109,28 @@ class UserSeeder extends Seeder
         $admin->roles()->syncWithoutDetaching([$adminRole->id]);
     }
 
-    private function upsertDosen(Role $dosenRole): void
+    private function upsertDosenAccounts(Role $dosenRole): void
     {
-        $dosen = User::query()->updateOrCreate([
-            'email' => 'dosen@sita.test',
-        ], [
-            'name' => 'Dr. Budi Santoso, M.Kom.',
-            'password' => Hash::make('password'),
-            'last_active_role' => AppRole::Dosen->value,
-        ]);
+        foreach (self::DOSEN_ACCOUNTS as $account) {
+            $dosen = User::query()->updateOrCreate([
+                'email' => $account['email'],
+            ], [
+                'name' => $account['name'],
+                'password' => Hash::make('password'),
+                'last_active_role' => AppRole::Dosen->value,
+            ]);
 
-        $dosen->roles()->syncWithoutDetaching([$dosenRole->id]);
+            $dosen->roles()->syncWithoutDetaching([$dosenRole->id]);
 
-        DosenProfile::query()->updateOrCreate(
-            ['user_id' => $dosen->id],
-            [
-                'nik' => '7301010101010001',
-                'homebase' => 'Informatika',
-                'is_active' => true,
-            ],
-        );
+            DosenProfile::query()->updateOrCreate(
+                ['user_id' => $dosen->id],
+                [
+                    'nik' => $account['nik'],
+                    'homebase' => $account['homebase'],
+                    'is_active' => true,
+                ],
+            );
+        }
     }
 
     private function upsertMahasiswaAccounts(Role $mahasiswaRole): void
@@ -124,7 +165,7 @@ class UserSeeder extends Seeder
             MahasiswaProfile::query()->updateOrCreate(
                 ['user_id' => $student->id],
                 [
-                    'nim' => '221051'.str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
+                    'nim' => '221051' . str_pad((string) ($index + 100), 4, '0', STR_PAD_LEFT),
                     'program_studi' => 'Informatika',
                     'angkatan' => 2022,
                     'is_active' => true,

@@ -5,12 +5,12 @@ namespace App\Filament\Resources\ThesisSubmissions\Schemas;
 use App\Enums\AppRole;
 use App\Enums\ThesisSubmissionStatus;
 use App\Models\User;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class ThesisSubmissionForm
@@ -19,57 +19,66 @@ class ThesisSubmissionForm
     {
         return $schema
             ->components([
-                Select::make('student_user_id')
-                    ->label('Mahasiswa')
-                    ->options(fn (): array => User::query()
-                        ->whereHas('roles', static fn ($query) => $query->where('name', AppRole::Mahasiswa->value))
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                        ->all())
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->native(false),
-                TextInput::make('program_studi')
-                    ->maxLength(255),
-                TextInput::make('title_id')
-                    ->label('Judul (Bahasa Indonesia)')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('title_en')
-                    ->label('Judul (Bahasa Inggris)')
-                    ->maxLength(255),
-                Textarea::make('proposal_summary')
-                    ->label('Ringkasan Proposal')
-                    ->rows(4)
-                    ->columnSpanFull(),
-                FileUpload::make('proposal_file_path')
-                    ->label('File Proposal')
-                    ->disk('public')
-                    ->directory('proposal_files')
-                    ->acceptedFileTypes(['application/pdf'])
-                    ->maxSize(10240)
-                    ->required(),
-                Select::make('status')
-                    ->options(array_combine(ThesisSubmissionStatus::values(), array_map(fn ($v) => ucwords(str_replace('_', ' ', $v)), ThesisSubmissionStatus::values())))
-                    ->required()
-                    ->default(ThesisSubmissionStatus::MenungguPersetujuan->value)
-                    ->native(false),
-                Toggle::make('is_active')
-                    ->default(true)
-                    ->required(),
-                DateTimePicker::make('submitted_at'),
-                DateTimePicker::make('approved_at'),
-                Select::make('approved_by')
-                    ->label('Disetujui oleh')
-                    ->options(fn (): array => User::query()
-                        ->whereHas('roles', static fn ($query) => $query->where('name', AppRole::Admin->value))
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                        ->all())
-                    ->searchable()
-                    ->preload()
-                    ->native(false),
+                Section::make('Informasi Mahasiswa')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('student_user_id')
+                            ->label('Mahasiswa')
+                            ->options(fn(): array => User::query()
+                                ->whereHas('roles', static fn($query) => $query->where('name', AppRole::Mahasiswa->value))
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn(User $user) => [
+                                    $user->id => $user->name . ' (' . ($user->mahasiswaProfile?->nim ?? '-') . ')',
+                                ])
+                                ->all())
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->native(false)
+                            ->disabled(fn(string $operation): bool => $operation === 'edit'),
+                        TextInput::make('program_studi')
+                            ->label('Program Studi')
+                            ->maxLength(255),
+                    ]),
+                Section::make('Detail Proposal')
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('title_id')
+                            ->label('Judul (Bahasa Indonesia)')
+                            ->required()
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+                        TextInput::make('title_en')
+                            ->label('Judul (Bahasa Inggris)')
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+                        Textarea::make('proposal_summary')
+                            ->label('Ringkasan Proposal')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                        FileUpload::make('proposal_file_path')
+                            ->label('File Proposal')
+                            ->disk('public')
+                            ->directory('proposal_files')
+                            ->acceptedFileTypes(['application/pdf'])
+                            ->maxSize(10240),
+                    ]),
+                Section::make('Status')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('status')
+                            ->options(collect(ThesisSubmissionStatus::cases())
+                                ->mapWithKeys(fn(ThesisSubmissionStatus $s) => [
+                                    $s->value => ucwords(str_replace('_', ' ', $s->value)),
+                                ])->all())
+                            ->required()
+                            ->default(ThesisSubmissionStatus::MenungguPersetujuan->value)
+                            ->native(false),
+                        Toggle::make('is_active')
+                            ->default(true)
+                            ->required(),
+                    ]),
             ]);
     }
 }

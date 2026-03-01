@@ -46,7 +46,7 @@ class DatabaseSeeder extends Seeder
             // Set students at index 1 to 3 as 'ended' to test the archive feature, leaving index 0 (mahasiswa@sita.test) active
             $status = ($index >= 1 && $index <= 3) ? AssignmentStatus::Ended->value : AssignmentStatus::Active->value;
 
-            $assignment = MentorshipAssignment::query()->firstOrCreate([
+            $assignment = MentorshipAssignment::withoutEvents(fn() => MentorshipAssignment::query()->firstOrCreate([
                 'student_user_id' => $student->id,
                 'lecturer_user_id' => $dosen->id,
                 'advisor_type' => 'primary',
@@ -55,7 +55,7 @@ class DatabaseSeeder extends Seeder
                 'assigned_by' => $admin->id,
                 'started_at' => now()->subMonths(9),
                 'notes' => 'Assignment seeded',
-            ]);
+            ]));
 
             $this->seedSchedules($assignment->id, $student->id, $dosen->id, $index);
             $document = $this->seedDocument($assignment->id, $student->id, $dosen->id, $student->email);

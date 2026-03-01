@@ -15,18 +15,19 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SemproResource extends Resource
 {
     protected static ?string $model = Sempro::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
     protected static ?int $navigationSort = 2;
 
     public static function getNavigationLabel(): string
     {
-        return 'Sempro';
+        return 'Seminar Proposal';
     }
 
     public static function getModelLabel(): string
@@ -41,7 +42,7 @@ class SemproResource extends Resource
 
     public static function getNavigationGroup(): string
     {
-        return 'Tugas Akhir Workflow';
+        return 'Tugas Akhir';
     }
 
     public static function form(Schema $schema): Schema
@@ -57,6 +58,18 @@ class SemproResource extends Resource
     public static function table(Table $table): Table
     {
         return SemprosTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with([
+                'submission.student.mahasiswaProfile',
+                'examiners.examiner',
+                'revisions',
+                'approvedBy',
+                'createdBy',
+            ]);
     }
 
     public static function getRelations(): array

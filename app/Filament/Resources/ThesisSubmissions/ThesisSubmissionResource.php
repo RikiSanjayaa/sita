@@ -15,12 +15,13 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ThesisSubmissionResource extends Resource
 {
     protected static ?string $model = ThesisSubmission::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
     protected static ?int $navigationSort = 1;
 
@@ -41,7 +42,7 @@ class ThesisSubmissionResource extends Resource
 
     public static function getNavigationGroup(): string
     {
-        return 'Tugas Akhir Workflow';
+        return 'Tugas Akhir';
     }
 
     public static function form(Schema $schema): Schema
@@ -57,6 +58,15 @@ class ThesisSubmissionResource extends Resource
     public static function table(Table $table): Table
     {
         return ThesisSubmissionsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with([
+                'student.mahasiswaProfile',
+                'approvedBy',
+            ]);
     }
 
     public static function getRelations(): array

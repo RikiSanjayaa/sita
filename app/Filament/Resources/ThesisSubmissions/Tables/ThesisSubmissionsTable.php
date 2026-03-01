@@ -9,11 +9,9 @@ use App\Services\SemproWorkflowService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class ThesisSubmissionsTable
@@ -25,45 +23,39 @@ class ThesisSubmissionsTable
                 TextColumn::make('student.name')
                     ->label('Mahasiswa')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn(?ThesisSubmission $record): string => $record?->student?->mahasiswaProfile?->nim ?? '-'),
                 TextColumn::make('program_studi')
                     ->label('Program Studi')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('title_id')
                     ->label('Judul')
-                    ->limit(45)
-                    ->searchable(),
+                    ->limit(50)
+                    ->searchable()
+                    ->wrap(),
                 BadgeColumn::make('status')
                     ->colors([
-                        'gray' => 'menunggu_persetujuan',
-                        'info' => 'sempro_dijadwalkan',
-                        'warning' => 'revisi_sempro',
-                        'success' => ['sempro_selesai', 'pembimbing_ditetapkan'],
+                        'gray' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+                        'info' => ThesisSubmissionStatus::SemproDijadwalkan->value,
+                        'warning' => ThesisSubmissionStatus::RevisiSempro->value,
+                        'success' => ThesisSubmissionStatus::SemproSelesai->value,
+                        'primary' => ThesisSubmissionStatus::PembimbingDitetapkan->value,
                     ])
-                    ->formatStateUsing(fn(string $state): string => ucwords(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn(string $state): string => self::statusLabel($state)),
                 TextColumn::make('submitted_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('approved_at')
-                    ->dateTime()
+                    ->label('Tanggal Submit')
+                    ->dateTime('d M Y')
                     ->sortable(),
                 TextColumn::make('approvedBy.name')
                     ->label('Disetujui Oleh')
-                    ->sortable(),
-            ])
-            ->filters([
-                SelectFilter::make('status')
-                    ->options([
-                        'menunggu_persetujuan' => 'Menunggu Persetujuan',
-                        'sempro_dijadwalkan' => 'Sempro Dijadwalkan',
-                        'revisi_sempro' => 'Revisi Sempro',
-                        'sempro_selesai' => 'Sempro Selesai',
-                        'pembimbing_ditetapkan' => 'Pembimbing Ditetapkan',
-                    ]),
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
                 Action::make('assign_sempro')
                     ->label('Jadwalkan Sempro')
+                    ->icon('heroicon-m-calendar')
                     ->color('warning')
                     ->visible(fn(ThesisSubmission $record): bool => $record->status === ThesisSubmissionStatus::MenungguPersetujuan->value)
                     ->action(function (ThesisSubmission $record) {
@@ -78,12 +70,23 @@ class ThesisSubmissionsTable
                         return redirect(SemproResource::getUrl('edit', ['record' => $sempro->getKey()]));
                     }),
                 ViewAction::make(),
-                EditAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function statusLabel(string $status): string
+    {
+        return match ($status) {
+            'menunggu_persetujuan' => 'Menunggu Review',
+            'sempro_dijadwalkan' => 'Sempro Dijadwalkan',
+            'revisi_sempro' => 'Revisi Sempro',
+            'sempro_selesai' => 'Sempro Selesai',
+            'pembimbing_ditetapkan' => 'Pembimbing Ditetapkan',
+            default => ucwords(str_replace('_', ' ', $status)),
+        };
     }
 }
