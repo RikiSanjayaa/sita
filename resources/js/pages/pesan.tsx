@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Paperclip, Send, Users } from 'lucide-react';
+import { ArrowLeft, Inbox, Paperclip, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -18,11 +18,18 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { dashboard, pesan } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Pesan', href: pesan().url },
+];
+
 type ChatMessage = {
     id: number;
+    senderUserId: number | null;
     author: string;
     message: string;
     time: string;
@@ -31,30 +38,53 @@ type ChatMessage = {
     documentUrl: string | null;
 };
 
-type ChatThreadPayload = {
+type ThreadItem = {
     id: number;
     name: string;
+    threadType: string;
+    threadLabel: string;
     members: string[];
     messages: ChatMessage[];
+    preview: string;
+    lastTime: string;
 };
 
 type PesanPageProps = {
     hasDosbing: boolean;
-    thread: ChatThreadPayload;
+    threads: ThreadItem[];
     flashMessage?: string | null;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Pesan', href: pesan().url },
-];
+function resolveInitialThreadId(threads: ThreadItem[]): number | null {
+    if (typeof window !== 'undefined') {
+        const queryThread = Number(
+            new URLSearchParams(window.location.search).get('thread'),
+        );
+        if (
+            Number.isInteger(queryThread) &&
+            threads.some((t) => t.id === queryThread)
+        ) {
+            return queryThread;
+        }
+    }
+    return threads[0]?.id ?? null;
+}
 
 export default function PesanPage() {
-    const { thread, flashMessage, auth, hasDosbing } = usePage<
-        SharedData & PesanPageProps
-    >().props;
+    const { threads: initialThreads, hasDosbing, flashMessage, auth } =
+        usePage<SharedData & PesanPageProps>().props;
 
-    const [messages, setMessages] = useState<ChatMessage[]>(thread.messages);
+    const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
+    const [activeThreadId, setActiveThreadId] = useState<number | null>(
+        resolveInitialThreadId(initialThreads),
+    );
+    const [messagesByThread, setMessagesByThread] = useState<
+        Record<number, ChatMessage[]>
+    >(() =>
+        Object.fromEntries(
+            initialThreads.map((t) => [t.id, t.messages]),
+        ),
+    );
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -63,66 +93,106 @@ export default function PesanPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    // Scroll automatically on initial load or when messages change
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages.length]);
-
-    // Synchronize local state when server finishes processing messages via inertial response
-    /* eslint-disable react-hooks/set-state-in-effect */
-    useEffect(() => {
-        setMessages(thread.messages);
-    }, [thread.messages]);
-    /* eslint-enable react-hooks/set-state-in-effect */
-    const form = useForm<{
-        message: string;
-        attachment: File | null;
-    }>({
+    const form = useForm<{ message: string; attachment: File | null }>({
         message: '',
         attachment: null,
     });
 
-    const myName = auth.user?.name ?? '';
+    useEffect(() => {
+        /* eslint-disable react-hooks/set-state-in-effect */
+        setMessagesByThread(
+            Object.fromEntries(
+                initialThreads.map((t) => [t.id, t.messages]),
+            ),
+        );
+        /* eslint-enable react-hooks/set-state-in-effect */
+    }, [initialThreads]);
+
+    useEffect(() => {
+        // @ts-expect-error - injected globally for app-sidebar-header to read
+        window.activeMentorshipThreadId = activeThreadId;
+        return () => {
+            // @ts-expect-error - injected globally
+            window.activeMentorshipThreadId = null;
+        };
+    }, [activeThreadId]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
             return;
         }
 
-        const channelName = `mentorship.thread.${thread.id}`;
-        const channel = window.Echo.private(channelName).listen(
-            '.chat.message.created',
-            (event: { threadId: number; message: ChatMessage }) => {
-                if (event.threadId !== thread.id) {
-                    return;
-                }
+        const channels = initialThreads.map((thread) => {
+            const channelName = `mentorship.thread.${thread.id}`;
 
-                setMessages((current) => {
-                    if (
-                        current.some(
-                            (message) => message.id === event.message.id,
-                        )
-                    ) {
-                        return current;
-                    }
+            return window.Echo.private(channelName).listen(
+                '.chat.message.created',
+                (event: { threadId: number; message: ChatMessage }) => {
+                    setMessagesByThread((current) => {
+                        const currentMessages = current[event.threadId] ?? [];
+                        if (
+                            currentMessages.some(
+                                (m) => m.id === event.message.id,
+                            )
+                        ) {
+                            return current;
+                        }
 
-                    return [...current, event.message];
-                });
-            },
-        );
+                        if (
+                            activeThreadId === event.threadId &&
+                            event.message.senderUserId !== auth.user?.id
+                        ) {
+                            setTimeout(() => scrollToBottom(), 50);
+                        }
+
+                        return {
+                            ...current,
+                            [event.threadId]: [
+                                ...currentMessages,
+                                event.message,
+                            ],
+                        };
+                    });
+                },
+            );
+        });
 
         return () => {
-            channel.stopListening('.chat.message.created');
-            window.Echo.leaveChannel(`private-${channelName}`);
+            for (const [index, thread] of initialThreads.entries()) {
+                channels[index]?.stopListening('.chat.message.created');
+                window.Echo.leave(
+                    `mentorship.thread.${thread.id}`,
+                );
+            }
         };
-    }, [thread.id, myName]);
+    }, [auth.user?.id, initialThreads, activeThreadId]);
+
+    const activeThread = useMemo(
+        () => initialThreads.find((t) => t.id === activeThreadId) ?? null,
+        [activeThreadId, initialThreads],
+    );
+
+    const activeMessages = useMemo(
+        () => (activeThread ? (messagesByThread[activeThread.id] ?? []) : []),
+        [activeThread, messagesByThread],
+    );
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [activeMessages.length, activeThreadId]);
 
     const canSend = useMemo(
         () =>
             !form.processing &&
+            activeThread !== null &&
             (form.data.message.trim() !== '' || form.data.attachment !== null),
-        [form.data.attachment, form.data.message, form.processing],
+        [activeThread, form.data.attachment, form.data.message, form.processing],
     );
+
+    function selectThread(threadId: number) {
+        setActiveThreadId(threadId);
+        setMobileView('chat');
+    }
 
     function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
         const nextFile = event.target.files?.[0] ?? null;
@@ -131,82 +201,193 @@ export default function PesanPage() {
     }
 
     function sendMessage() {
-        if (!canSend) {
-            return;
-        }
+        if (!canSend || activeThread === null) return;
 
         form.transform((data) => ({
             ...data,
             message: data.message.trim(),
         }));
 
-        form.post('/mahasiswa/pesan/messages', {
+        form.post(`/mahasiswa/pesan/${activeThread.id}/messages`, {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
                 form.reset('message', 'attachment');
                 setAttachmentName(null);
-                if (fileRef.current) {
-                    fileRef.current.value = '';
-                }
-
-                scrollToBottom();
+                if (fileRef.current) fileRef.current.value = '';
+                setTimeout(() => scrollToBottom(), 50);
             },
         });
     }
 
     return (
-        <AppLayout
-            breadcrumbs={breadcrumbs}
-            title="Pesan"
-            subtitle="Group chat bimbingan bersama dosen pembimbing"
-        >
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pesan" />
 
-            <div className="mx-auto box-border flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-6 md:px-6">
-                {!auth.activeRole || !hasDosbing ? (
-                    <Card className="flex min-h-[400px] flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
-                        <Users className="mb-4 size-12 opacity-20" />
-                        <h2 className="mb-2 text-xl font-semibold text-foreground">
-                            Fitur Pesan Belum Aktif
-                        </h2>
-                        <p className="max-w-md">
-                            Anda belum memiliki Dosen Pembimbing yang
-                            ditugaskan. Fitur pesan akan otomatis aktif setelah
-                            admin menetapkan dosen pembimbing untuk Anda.
-                        </p>
-                    </Card>
-                ) : (
-                    <Card className="flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0">
-                        <CardHeader className="p-6 pb-4">
-                            <div className="flex items-center gap-2">
-                                <CardTitle>{thread.name}</CardTitle>
-                                <Badge variant="secondary">
-                                    Group Bimbingan
-                                </Badge>
-                            </div>
-                            <CardDescription className="inline-flex items-center gap-1">
-                                <Users className="size-3.5" />
-                                {thread.members.join(' - ')}
-                            </CardDescription>
-                        </CardHeader>
-                        <Separator />
-                        <CardContent className="relative flex-1 overflow-hidden p-0">
-                            <ScrollArea className="h-full w-full">
-                                <div className="flex min-h-full flex-col p-4">
-                                    {flashMessage && (
-                                        <Alert className="mb-3">
-                                            <AlertTitle>Info</AlertTitle>
-                                            <AlertDescription>
-                                                {flashMessage}
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
+            <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid lg:h-[calc(100vh-4rem-3rem)] lg:grid-cols-[340px_1fr]">
+                {/* Thread List */}
+                <Card
+                    className={cn(
+                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
+                        mobileView === 'chat' && 'hidden lg:flex',
+                        mobileView === 'threads' && 'flex-1 lg:flex-initial',
+                    )}
+                >
+                    <CardHeader className="shrink-0 p-6 pb-4">
+                        <CardTitle>Pesan</CardTitle>
+                        <CardDescription>
+                            Thread bimbingan dan sempro Anda
+                        </CardDescription>
+                    </CardHeader>
+                    <Separator />
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
+                        <ScrollArea className="h-full w-full">
+                            <div className="flex flex-col gap-2 p-4 pt-0">
+                                {initialThreads.length > 0 ? (
+                                    initialThreads.map((thread) => {
+                                        const threadMessages =
+                                            messagesByThread[thread.id] ?? thread.messages;
+                                        const latestMessage = threadMessages.at(-1);
 
+                                        return (
+                                            <button
+                                                key={thread.id}
+                                                type="button"
+                                                className={cn(
+                                                    'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
+                                                    activeThread?.id === thread.id &&
+                                                    'border-primary/30 bg-muted/40',
+                                                )}
+                                                onClick={() => selectThread(thread.id)}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="truncate text-sm font-semibold">
+                                                        {thread.name}
+                                                    </p>
+                                                    <span className="shrink-0 text-xs text-muted-foreground">
+                                                        {thread.lastTime}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                    {latestMessage?.message ||
+                                                        latestMessage?.documentName ||
+                                                        thread.preview}
+                                                </p>
+                                                <div className="mt-2 flex items-center gap-1">
+                                                    <Badge
+                                                        variant={thread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
+                                                        className={thread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                                    >
+                                                        {thread.threadLabel}
+                                                    </Badge>
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="rounded-xl border border-dashed bg-muted/50 p-6 text-center shadow-sm">
+                                        <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm">
+                                            <Inbox className="size-5" />
+                                        </span>
+                                        <p className="text-sm font-semibold text-foreground">
+                                            Belum ada thread
+                                        </p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Thread akan muncul setelah dosen pembimbing atau penguji ditetapkan.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                {/* Chat Panel */}
+                <Card
+                    className={cn(
+                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
+                        mobileView === 'threads' && 'hidden lg:flex',
+                    )}
+                >
+                    <CardHeader className="shrink-0 p-6 pb-4">
+                        {activeThread ? (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="-ml-2 lg:hidden"
+                                        onClick={() => setMobileView('threads')}
+                                    >
+                                        <ArrowLeft className="size-5" />
+                                    </Button>
+                                    <CardTitle className="truncate">
+                                        {activeThread.name}
+                                    </CardTitle>
+                                    <Badge
+                                        variant={activeThread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
+                                        className={activeThread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                    >
+                                        {activeThread.threadLabel}
+                                    </Badge>
+                                </div>
+                                <CardDescription className="inline-flex items-center gap-1">
+                                    <Users className="size-3.5 shrink-0" />
+                                    <span className="truncate">
+                                        {activeThread.members.join(', ')}
+                                    </span>
+                                </CardDescription>
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="-ml-2 lg:hidden"
+                                        onClick={() => setMobileView('threads')}
+                                    >
+                                        <ArrowLeft className="size-5" />
+                                    </Button>
+                                    <CardTitle>Pilih Thread</CardTitle>
+                                </div>
+                                <CardDescription>
+                                    Buka salah satu percakapan untuk melihat chat.
+                                </CardDescription>
+                            </>
+                        )}
+                    </CardHeader>
+                    <Separator />
+
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
+                        <ScrollArea className="h-full w-full">
+                            <div className="flex min-h-full flex-col p-4">
+                                {flashMessage && (
+                                    <Alert className="mb-3">
+                                        <AlertTitle>Info</AlertTitle>
+                                        <AlertDescription>
+                                            {flashMessage}
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                {activeThread && !hasDosbing && activeThread.threadType === 'pembimbing' && (
+                                    <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
+                                        <AlertTitle className="text-red-900 dark:text-red-200">Belum ada Dosen Pembimbing</AlertTitle>
+                                        <AlertDescription className="text-red-800 dark:text-red-300">
+                                            Anda belum memiliki dosen pembimbing aktif. Pesan akan
+                                            tersedia setelah dosen pembimbing ditetapkan.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                {activeThread ? (
                                     <div className="grid gap-3">
-                                        {messages.map((message) => {
+                                        {activeMessages.map((message) => {
                                             const isMe =
-                                                message.author === myName;
+                                                message.senderUserId === auth.user?.id;
                                             return (
                                                 <ChatBubble
                                                     key={message.id}
@@ -215,76 +396,85 @@ export default function PesanPage() {
                                                 />
                                             );
                                         })}
-
-                                        <div
-                                            ref={messagesEndRef}
-                                            className="h-1"
-                                        />
+                                        <div ref={messagesEndRef} className="h-1" />
                                     </div>
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                        <Separator />
-                        <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
-                            <input
-                                ref={fileRef}
-                                type="file"
-                                accept=".pdf,.doc,.docx"
-                                className="hidden"
-                                onChange={pickAttachment}
-                            />
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => fileRef.current?.click()}
-                                >
-                                    <Paperclip className="size-4" />
-                                </Button>
-                                <Input
-                                    value={form.data.message}
-                                    onChange={(event) =>
-                                        form.setData(
-                                            'message',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="Tulis pesan..."
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                            event.preventDefault();
-                                            sendMessage();
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    type="button"
-                                    onClick={sendMessage}
-                                    disabled={!canSend}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                >
-                                    <Send className="size-4" />
-                                </Button>
+                                ) : (
+                                    <div className="mt-10 rounded-xl border border-dashed bg-muted/50 p-8 text-center shadow-sm">
+                                        <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm">
+                                            <Users className="size-5" />
+                                        </span>
+                                        <p className="text-sm font-semibold text-foreground">
+                                            Belum ada thread yang dipilih
+                                        </p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Pilih thread di panel kiri untuk mulai berdiskusi.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                            {attachmentName && (
-                                <div className="text-xs text-muted-foreground">
-                                    Lampiran: {attachmentName}
-                                </div>
-                            )}
-                            {form.errors.attachment && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.attachment}
-                                </p>
-                            )}
-                            {form.errors.message && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.message}
-                                </p>
-                            )}
-                        </CardFooter>
-                    </Card>
-                )}
+                        </ScrollArea>
+                    </CardContent>
+
+                    <Separator />
+
+                    <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
+                        <input
+                            ref={fileRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            className="hidden"
+                            onChange={pickAttachment}
+                        />
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => fileRef.current?.click()}
+                                disabled={activeThread === null}
+                            >
+                                <Paperclip className="size-4" />
+                            </Button>
+                            <Input
+                                value={form.data.message}
+                                onChange={(event) =>
+                                    form.setData('message', event.target.value)
+                                }
+                                placeholder="Tulis pesan..."
+                                disabled={activeThread === null}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        sendMessage();
+                                    }
+                                }}
+                            />
+                            <Button
+                                type="button"
+                                onClick={sendMessage}
+                                disabled={!canSend}
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                <Send className="size-4" />
+                            </Button>
+                        </div>
+                        {attachmentName && (
+                            <div className="truncate text-xs text-muted-foreground">
+                                Lampiran: {attachmentName}
+                            </div>
+                        )}
+                        {form.errors.attachment && (
+                            <p className="text-xs text-destructive">
+                                {form.errors.attachment}
+                            </p>
+                        )}
+                        {form.errors.message && (
+                            <p className="text-xs text-destructive">
+                                {form.errors.message}
+                            </p>
+                        )}
+                    </CardFooter>
+                </Card>
             </div>
         </AppLayout>
     );

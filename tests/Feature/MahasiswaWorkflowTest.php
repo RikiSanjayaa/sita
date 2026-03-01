@@ -174,15 +174,21 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
         'assigned_by' => $admin->id,
     ]);
 
+    // Create the pembimbing thread first
+    $thread = MentorshipChatThread::query()->create([
+        'student_user_id' => $student->id,
+        'type' => 'pembimbing',
+    ]);
+
     $this->actingAs($student)
-        ->post('/mahasiswa/pesan/messages', [
+        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
             'message' => 'Lampiran pertama',
             'attachment' => UploadedFile::fake()->create('lampiran-v1.pdf', 250, 'application/pdf'),
         ])
         ->assertRedirect();
 
     $this->actingAs($student)
-        ->post('/mahasiswa/pesan/messages', [
+        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
             'message' => 'Lampiran kedua',
             'attachment' => UploadedFile::fake()->create('lampiran-v2.pdf', 300, 'application/pdf'),
         ])
@@ -212,7 +218,7 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
 
     $this->actingAs($student)
         ->get('/mahasiswa/upload-dokumen')
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->component('upload-dokumen')
             ->has('uploadedDocuments', 2));
 });
@@ -284,7 +290,7 @@ test('tugas akhir page includes proposal file, dosen assignments, and sempro sch
 
     $this->actingAs($student)
         ->get('/mahasiswa/tugas-akhir')
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->component('tugas-akhir')
             ->where('submission.proposal_file_name', 'proposal-awal.pdf')
             ->where(

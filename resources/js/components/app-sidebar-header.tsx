@@ -126,6 +126,33 @@ function HeaderNotifications() {
         channel.notification((payload: IncomingNotification) => {
             const nextNotification = mapIncomingNotification(payload);
 
+            let isThreadCurrentlyOpen = false;
+            const url = nextNotification.url || '';
+            const threadMatch = url.match(/[?&]thread=(\d+)/);
+
+            if (threadMatch) {
+                const threadId = parseInt(threadMatch[1], 10);
+                // @ts-expect-error - activeMentorshipThreadId is injected globally
+                if (window.activeMentorshipThreadId === threadId && document.visibilityState === 'visible') {
+                    isThreadCurrentlyOpen = true;
+                }
+            }
+
+            if (isThreadCurrentlyOpen) {
+                fetch(`/settings/notifications/${nextNotification.id}/read`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({}),
+                }).catch(console.error);
+                return;
+            }
+
             setNotificationItems((current) => {
                 const isNewNotification = !current.some(
                     (item) => item.id === nextNotification.id,
@@ -174,7 +201,7 @@ function HeaderNotifications() {
         });
 
         return () => {
-            window.Echo.leaveChannel(`private-${channelName}`);
+            window.Echo.leave(channelName);
         };
     }, [auth.user?.id, notificationSettings?.browserNotifications]);
 
@@ -226,9 +253,9 @@ function HeaderNotifications() {
                 current.map((item) =>
                     item.id === notification.id
                         ? {
-                              ...item,
-                              unread: false,
-                          }
+                            ...item,
+                            unread: false,
+                        }
                         : item,
                 ),
             );

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,9 @@ class MentorshipChatThread extends Model
      */
     protected $fillable = [
         'student_user_id',
+        'type',
+        'context_id',
+        'label',
         'is_escalated',
         'escalated_at',
     ];
@@ -51,5 +55,24 @@ class MentorshipChatThread extends Model
     public function latestMessage(): HasOne
     {
         return $this->hasOne(MentorshipChatMessage::class, 'mentorship_chat_thread_id')->latestOfMany();
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(MentorshipChatThreadParticipant::class, 'thread_id');
+    }
+
+    public function sempro(): BelongsTo
+    {
+        return $this->belongsTo(Sempro::class, 'context_id');
+    }
+
+    /**
+     * @param  Builder<MentorshipChatThread>  $query
+     * @return Builder<MentorshipChatThread>
+     */
+    public function scopeOfType(Builder $query, string $type): Builder
+    {
+        return $query->where('type', $type);
     }
 }

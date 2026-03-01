@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
@@ -23,7 +24,8 @@ class PesanBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
@@ -31,9 +33,26 @@ class PesanBimbinganController extends Controller
         abort_if($lecturer === null, 401);
 
         $tab = $request->query('tab', 'aktif');
+
+        // Bimbingan threads (existing: by student IDs from assignment)
         $studentIds = $tab === 'arsip'
             ? $this->dosenBimbinganService->archivedStudentIds($lecturer)
             : $this->dosenBimbinganService->activeStudentIds($lecturer);
+
+        $bimbinganThreads = MentorshipChatThread::query()
+            ->ofType('pembimbing')
+            ->whereIn('student_user_id', $studentIds)
+            ->pluck('id')
+            ->all();
+
+        // Penguji threads (new: by participant table)
+        $pengujiThreadIds = MentorshipChatThreadParticipant::query()
+            ->where('user_id', $lecturer->id)
+            ->where('role', 'examiner')
+            ->pluck('thread_id')
+            ->all();
+
+        $allThreadIds = array_unique(array_merge($bimbinganThreads, $pengujiThreadIds));
 
         $threads = MentorshipChatThread::query()
             ->with([
@@ -42,7 +61,7 @@ class PesanBimbinganController extends Controller
                 'latestMessage.relatedDocument',
                 'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
             ])
-            ->whereIn('student_user_id', $studentIds)
+            ->whereIn('id', $allThreadIds)
             ->withMax('messages', 'created_at')
             ->orderByDesc('messages_max_created_at')
             ->orderByDesc('id')
@@ -61,6 +80,7 @@ class PesanBimbinganController extends Controller
                 $unreadCount = MentorshipChatMessage::query()
                     ->where('mentorship_chat_thread_id', $thread->id)
                     ->where('sender_user_id', '!=', $lecturer->id)
+                    ->where('message_type', '!=', 'document_event') // Do not count system events as separate unread messages
                     ->when($lastReadAt !== null, function ($query) use ($lastReadAt) {
                         $query->where('created_at', '>', $lastReadAt);
                     })
@@ -75,6 +95,8 @@ class PesanBimbinganController extends Controller
                     'latestActivityAt' => $latestMessage?->created_at?->toIso8601String(),
                     'isEscalated' => $thread->is_escalated,
                     'isArchived' => $tab === 'arsip',
+                    'threadType' => $thread->type,
+                    'threadLabel' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji'),
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
@@ -112,11 +134,9 @@ class PesanBimbinganController extends Controller
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $activeIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
-        $archivedIds = $this->dosenBimbinganService->archivedStudentIds($lecturer);
-        $allIds = array_merge($activeIds, $archivedIds);
-
-        abort_unless(in_array($thread->student_user_id, $allIds, true), 403);
+        // Allow marking as read for bimbingan threads (by student assignment) or penguji threads (by participant)
+        $canAccess = $this->canAccessThread($lecturer, $thread);
+        abort_unless($canAccess, 403);
 
         $lastMessageAt = $thread->messages()->max('created_at');
 
@@ -138,10 +158,8 @@ class PesanBimbinganController extends Controller
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
-
-        // Block archived requests from being responded to
-        abort_unless(in_array($thread->student_user_id, $studentIds, true), 403, 'Sesi bimbingan ini telah selesai dan tidak dapat menerima pesan baru.');
+        $canAccess = $this->canAccessThread($lecturer, $thread);
+        abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
         $data = $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
@@ -196,11 +214,28 @@ class PesanBimbinganController extends Controller
         return back()->with('success', 'Pesan berhasil dikirim.');
     }
 
+    private function canAccessThread(User $lecturer, MentorshipChatThread $thread): bool
+    {
+        // Bimbingan thread: check student assignment
+        if ($thread->type === 'pembimbing') {
+            $activeIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
+            $archivedIds = $this->dosenBimbinganService->archivedStudentIds($lecturer);
+
+            return in_array($thread->student_user_id, array_merge($activeIds, $archivedIds), true);
+        }
+
+        // Penguji/other threads: check participant table
+        return MentorshipChatThreadParticipant::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', $lecturer->id)
+            ->exists();
+    }
+
     private function notifyStudent(MentorshipChatThread $thread, User $lecturer, string $messageType): void
     {
         $student = $thread->student;
 
-        if (! $student instanceof User) {
+        if (!$student instanceof User) {
             return;
         }
 
