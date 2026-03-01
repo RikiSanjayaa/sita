@@ -304,7 +304,7 @@ export default function TugasAkhirSaya() {
         : '';
     const description = submission
         ? (statusDescription[submission.status] ??
-          'Pengajuan sedang diproses admin.')
+            'Pengajuan sedang diproses admin.')
         : '';
 
     const createSubmission: FormEventHandler = (event) => {
@@ -322,7 +322,8 @@ export default function TugasAkhirSaya() {
         form.transform((data) => ({
             ...data,
             _method: 'patch',
-        })).post(`/mahasiswa/tugas-akhir/${submission.id}`, {
+        }));
+        form.post(`/mahasiswa/tugas-akhir/${submission.id}`, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -406,7 +407,7 @@ export default function TugasAkhirSaya() {
                             <CardContent>
                                 <Alert>
                                     {submission.status ===
-                                    'menunggu_persetujuan' ? (
+                                        'menunggu_persetujuan' ? (
                                         <Clock className="size-4" />
                                     ) : (
                                         <CheckCircle2 className="size-4" />
