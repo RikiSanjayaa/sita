@@ -6,6 +6,7 @@ use App\Enums\AppRole;
 use App\Enums\ThesisSubmissionStatus;
 use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -42,10 +43,17 @@ class ThesisSubmissionForm
                     ->label('Ringkasan Proposal')
                     ->rows(4)
                     ->columnSpanFull(),
+                FileUpload::make('proposal_file_path')
+                    ->label('File Proposal')
+                    ->disk('public')
+                    ->directory('proposal_files')
+                    ->acceptedFileTypes(['application/pdf'])
+                    ->maxSize(10240)
+                    ->required(),
                 Select::make('status')
-                    ->options(array_combine(ThesisSubmissionStatus::values(), ThesisSubmissionStatus::values()))
+                    ->options(array_combine(ThesisSubmissionStatus::values(), array_map(fn ($v) => ucwords(str_replace('_', ' ', $v)), ThesisSubmissionStatus::values())))
                     ->required()
-                    ->default(ThesisSubmissionStatus::IntakeCreated->value)
+                    ->default(ThesisSubmissionStatus::MenungguPersetujuan->value)
                     ->native(false),
                 Toggle::make('is_active')
                     ->default(true)

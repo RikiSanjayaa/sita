@@ -15,9 +15,28 @@ use Illuminate\Validation\ValidationException;
 
 class SemproWorkflowService
 {
+    public function ensureSemproForSubmission(ThesisSubmission $submission, int $createdBy): Sempro
+    {
+        $existingSempro = Sempro::query()
+            ->where('thesis_submission_id', $submission->getKey())
+            ->latest('id')
+            ->first();
+
+        if ($existingSempro instanceof Sempro) {
+            return $existingSempro;
+        }
+
+        return Sempro::query()->create([
+            'thesis_submission_id' => $submission->getKey(),
+            'status' => SemproStatus::Draft->value,
+            'mode' => 'offline',
+            'created_by' => $createdBy,
+        ]);
+    }
+
     public function assignExaminers(Sempro $sempro, array $examinerUserIds, int $assignedBy): void
     {
-        $normalized = array_values(array_unique(array_filter($examinerUserIds, static fn ($id): bool => is_int($id))));
+        $normalized = array_values(array_unique(array_filter($examinerUserIds, static fn($id): bool => is_int($id))));
 
         if (count($normalized) !== 2) {
             throw ValidationException::withMessages([
@@ -27,7 +46,7 @@ class SemproWorkflowService
 
         $validExaminerCount = User::query()
             ->whereIn('id', $normalized)
-            ->whereHas('roles', static fn ($query) => $query->where('name', AppRole::Dosen->value))
+            ->whereHas('roles', static fn($query) => $query->where('name', AppRole::Dosen->value))
             ->count();
 
         if ($validExaminerCount !== 2) {
@@ -84,7 +103,7 @@ class SemproWorkflowService
         ])->save();
 
         $sempro->submission->forceFill([
-            'status' => ThesisSubmissionStatus::SemproScheduled->value,
+            'status' => ThesisSubmissionStatus::SemproDijadwalkan->value,
         ])->save();
 
         $sempro->loadMissing(['submission.student']);
@@ -123,7 +142,7 @@ class SemproWorkflowService
 
             $submission = ThesisSubmission::query()->findOrFail($sempro->thesis_submission_id);
             $submission->forceFill([
-                'status' => ThesisSubmissionStatus::SemproApproved->value,
+                'status' => ThesisSubmissionStatus::SemproSelesai->value,
                 'approved_by' => $approvedBy,
                 'approved_at' => now(),
             ])->save();

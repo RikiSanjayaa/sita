@@ -37,7 +37,7 @@ class JadwalBimbinganController extends Controller
             ->where('student_user_id', $student->id)
             ->where('status', AssignmentStatus::Active->value)
             ->get()
-            ->map(fn (MentorshipAssignment $assignment): array => [
+            ->map(fn(MentorshipAssignment $assignment): array => [
                 'assignmentId' => $assignment->id,
                 'lecturerUserId' => $assignment->lecturer_user_id,
                 'lecturerName' => $assignment->lecturer?->name ?? '-',
@@ -48,7 +48,7 @@ class JadwalBimbinganController extends Controller
 
         $upcomingMeetings = $schedules
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
-            ->sortBy(fn (MentorshipSchedule $schedule) => $schedule->scheduled_for ?? $schedule->requested_for)
+            ->sortBy(fn(MentorshipSchedule $schedule) => $schedule->scheduled_for ?? $schedule->requested_for)
             ->map(function (MentorshipSchedule $schedule): array {
                 return [
                     'id' => $schedule->id,
@@ -83,6 +83,7 @@ class JadwalBimbinganController extends Controller
             ->all();
 
         return Inertia::render('jadwal-bimbingan', [
+            'hasDosbing' => ! empty($advisors),
             'advisors' => $advisors,
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,

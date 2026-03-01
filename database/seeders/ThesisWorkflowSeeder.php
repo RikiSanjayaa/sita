@@ -63,7 +63,7 @@ class ThesisWorkflowSeeder extends Seeder
                 'program_studi' => 'Informatika',
                 'title_en' => 'Mentoring Topic Recommendation System Based on Interaction History',
                 'proposal_summary' => 'Sistem rekomendasi topik bimbingan untuk meningkatkan efektivitas konsultasi mahasiswa.',
-                'status' => ThesisSubmissionStatus::SemproScheduled->value,
+                'status' => ThesisSubmissionStatus::SemproDijadwalkan->value,
                 'is_active' => true,
                 'submitted_at' => now()->subDays(12),
             ],

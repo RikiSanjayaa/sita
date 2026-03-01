@@ -2,8 +2,8 @@
     "agents": [
         "codex"
     ],
-    "editors": [
-        "opencode"
-    ],
-    "guidelines": []
+    "herd_mcp": false,
+    "mcp": true,
+    "nightwatch_mcp": false,
+    "sail": false
 }

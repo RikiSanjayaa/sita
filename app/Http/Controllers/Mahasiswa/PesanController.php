@@ -32,7 +32,7 @@ class PesanController extends Controller
 
         $thread = MentorshipChatThread::query()
             ->with([
-                'messages' => fn ($query) => $query->with(['sender', 'relatedDocument'])->orderBy('created_at')->limit(50),
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->orderBy('created_at')->limit(50),
             ])
             ->firstOrCreate([
                 'student_user_id' => $student->id,
@@ -43,17 +43,18 @@ class PesanController extends Controller
             ->where('student_user_id', $student->id)
             ->where('status', AssignmentStatus::Active->value)
             ->get()
-            ->map(fn (MentorshipAssignment $assignment): string => $assignment->lecturer?->name ?? '-')
+            ->map(fn(MentorshipAssignment $assignment): string => $assignment->lecturer?->name ?? '-')
             ->unique()
             ->values()
             ->all();
 
         $messages = $thread->messages
-            ->map(fn (MentorshipChatMessage $message): array => $this->mapMessagePayload($message))
+            ->map(fn(MentorshipChatMessage $message): array => $this->mapMessagePayload($message))
             ->values()
             ->all();
 
         return Inertia::render('pesan', [
+            'hasDosbing' => ! empty($advisors),
             'thread' => [
                 'id' => $thread->id,
                 'name' => 'Group Chat Bimbingan',
@@ -84,12 +85,7 @@ class PesanController extends Controller
         $attachment = $data['attachment'] ?? null;
         $trimmedMessage = trim((string) ($data['message'] ?? ''));
 
-        $message = DB::transaction(function () use (
-            $attachment,
-            $student,
-            $thread,
-            $trimmedMessage,
-        ): MentorshipChatMessage {
+        $message = DB::transaction(function () use ($attachment, $student, $thread, $trimmedMessage, ): MentorshipChatMessage {
             if ($attachment === null) {
                 $textMessage = $thread->messages()->create([
                     'sender_user_id' => $student->id,

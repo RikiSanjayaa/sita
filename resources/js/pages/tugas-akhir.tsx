@@ -1,17 +1,14 @@
-import { Head } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import {
-    Calendar,
+    BookOpen,
     CheckCircle2,
-    CircleAlert,
+    Clock,
     Download,
     Eye,
     FileText,
-    MessageSquareText,
     Pencil,
-    PencilLine,
-    Upload,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { FormEventHandler, useEffect, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -24,827 +21,450 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import { dashboard, tugasAkhir } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
-type TabKey = 'judul' | 'proposal' | 'dokumen';
+type Submission = {
+    id: number;
+    program_studi: string;
+    title_id: string;
+    title_en: string;
+    proposal_summary: string;
+    status: string;
+    proposal_file_name: string | null;
+    proposal_file_view_url: string | null;
+    proposal_file_download_url: string | null;
+};
+
+type AssignedLecturers = {
+    pembimbing1: string | null;
+    pembimbing2: string | null;
+    penguji1: string | null;
+    penguji2: string | null;
+};
+
+type TugasAkhirPageProps = {
+    submission: Submission | null;
+    assignedLecturers: AssignedLecturers;
+    semproDate: string | null;
+    profileProgramStudi: string;
+    flashMessage?: string | null;
+    errorMessage?: string | null;
+};
+
+type FormData = {
+    title_id: string;
+    title_en: string;
+    proposal_summary: string;
+    proposal_file: File | null;
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-    {
-        title: 'Skripsi Saya',
-        href: tugasAkhir().url,
-    },
+    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Judul dan Proposal', href: tugasAkhir().url },
 ];
 
-type TimelineTone = 'info' | 'danger' | 'warning' | 'success';
-
-type TimelineItem = {
-    title: string;
-    name: string;
-    time: string;
-    icon: typeof PencilLine;
-    tone: TimelineTone;
+const statusLabel: Record<string, string> = {
+    menunggu_persetujuan: 'Menunggu Persetujuan',
+    pembimbing_ditetapkan: 'Pembimbing Ditetapkan',
+    sempro_dijadwalkan: 'Sempro Dijadwalkan',
+    revisi_sempro: 'Revisi Sempro',
+    sempro_selesai: 'Sempro Selesai',
 };
 
-const timelineItems: TimelineItem[] = [
-    {
-        title: 'Draft Judul Dibuat',
-        name: 'Muhammad Akbar',
-        time: '3 Februari 2026, 09:10',
-        icon: CheckCircle2,
-        tone: 'info',
-    },
-    {
-        title: 'Judul Perlu Revisi',
-        name: 'Dr. Budi Santoso, M.Kom.',
-        time: '4 Februari 2026, 13:40',
-        icon: CircleAlert,
-        tone: 'danger',
-    },
-    {
-        title: 'Revisi Judul Dikirim',
-        name: 'Muhammad Akbar',
-        time: '5 Februari 2026, 08:20',
-        icon: PencilLine,
-        tone: 'warning',
-    },
-    {
-        title: 'Judul Disetujui, Lanjut Proposal',
-        name: 'Dr. Budi Santoso, M.Kom.',
-        time: '6 Februari 2026, 11:00',
-        icon: CheckCircle2,
-        tone: 'success',
-    },
-];
-
-type ProposalVersion = {
-    version: string;
-    fileName: string;
-    uploadedAt: string;
-    size: string;
-    status: 'Disetujui' | 'Revisi';
-    note: string;
+const statusDescription: Record<string, string> = {
+    menunggu_persetujuan: 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
+    pembimbing_ditetapkan: 'Dosen pembimbing sudah ditetapkan. Pantau pembaruan dari admin.',
+    sempro_dijadwalkan: 'Sempro sudah dijadwalkan. Cek informasi dosen dan tanggal di halaman ini.',
+    revisi_sempro: 'Pengajuan berada pada tahap revisi Sempro.',
+    sempro_selesai: 'Tahap Sempro telah selesai.',
 };
 
-const proposalVersions: ProposalVersion[] = [
-    {
-        version: 'v2.0',
-        fileName: 'Proposal_TA_MuhammadAkbar_v2.pdf',
-        uploadedAt: '11 Februari 2026, 15:30',
-        size: '2.5 MB',
-        status: 'Disetujui',
-        note: 'Proposal disetujui untuk maju ke tahap sempro. Tunggu penetapan penguji dan jadwal.',
-    },
-    {
-        version: 'v1.0',
-        fileName: 'Proposal_TA_MuhammadAkbar_v1.pdf',
-        uploadedAt: '9 Februari 2026, 10:20',
-        size: '2.3 MB',
-        status: 'Revisi',
-        note: 'Bab 3 perlu dipertegas untuk rancangan evaluasi dan metrik pengujian.',
-    },
-];
+function normalizeTitleEn(value: string | null | undefined): string {
+    if (value === null || value === '-' || value === undefined) {
+        return '';
+    }
 
-type DokumenStatus = 'Disetujui' | 'Ditinjau' | 'Belum Diunggah';
-type DokumenType = 'Dokumen Utama' | 'Pendukung' | 'Administrasi';
-
-type DokumenRow = {
-    title: string;
-    description: string;
-    tipe: DokumenType;
-    tenggatWaktu: string;
-    versi: string;
-    status: DokumenStatus;
-    actions: Array<'view' | 'download' | 'upload'>;
-};
-
-const dokumenRows: DokumenRow[] = [
-    {
-        title: 'Draft Skripsi',
-        description: 'Dokumen lengkap skripsi (semua bab)',
-        tipe: 'Dokumen Utama',
-        tenggatWaktu: '1 Maret 2026',
-        versi: 'v2.0',
-        status: 'Disetujui',
-        actions: ['view', 'download', 'upload'],
-    },
-    {
-        title: 'Slide Presentasi',
-        description: 'Presentasi untuk sidang skripsi',
-        tipe: 'Pendukung',
-        tenggatWaktu: '10 Maret 2026',
-        versi: 'v1.0',
-        status: 'Ditinjau',
-        actions: ['view', 'download', 'upload'],
-    },
-    {
-        title: 'Kode Program / Source Code',
-        description: 'File source code implementasi sistem',
-        tipe: 'Pendukung',
-        tenggatWaktu: '1 Maret 2026',
-        versi: '-',
-        status: 'Belum Diunggah',
-        actions: ['upload'],
-    },
-    {
-        title: 'Logbook Bimbingan',
-        description: 'Catatan dan dokumentasi setiap sesi bimbingan',
-        tipe: 'Administrasi',
-        tenggatWaktu: '-',
-        versi: 'v1.0',
-        status: 'Disetujui',
-        actions: ['view', 'download', 'upload'],
-    },
-    {
-        title: 'Lembar Persetujuan Pembimbing',
-        description:
-            'Lembar persetujuan pembimbing untuk melanjutkan ke tahap sidang',
-        tipe: 'Administrasi',
-        tenggatWaktu: '20 Maret 2026',
-        versi: '-',
-        status: 'Belum Diunggah',
-        actions: ['upload'],
-    },
-    {
-        title: 'Kartu Bimbingan',
-        description: 'Kartu bimbingan yang telah ditandatangani pembimbing',
-        tipe: 'Administrasi',
-        tenggatWaktu: '20 Maret 2026',
-        versi: '-',
-        status: 'Belum Diunggah',
-        actions: ['upload'],
-    },
-];
-
-function StatusBadge({ label }: { label: string }) {
-    return (
-        <Badge className="bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-            <span className="inline-flex items-center gap-1">
-                <span className="inline-flex size-4 items-center justify-center rounded-full bg-white/20">
-                    <CheckCircle2 className="size-3" />
-                </span>
-                {label}
-            </span>
-        </Badge>
-    );
+    return value;
 }
 
-function ProposalStatusBadge({
-    status,
+function submissionDefaults(submission: Submission | null): FormData {
+    return {
+        title_id: submission?.title_id ?? '',
+        title_en: normalizeTitleEn(submission?.title_en),
+        proposal_summary: submission?.proposal_summary ?? '',
+        proposal_file: null,
+    };
+}
+
+function AssignmentValue({
+    value,
+    placeholder,
 }: {
-    status: ProposalVersion['status'];
+    value: string | null;
+    placeholder: string;
 }) {
-    if (status === 'Disetujui') {
+    if (value !== null && value.trim() !== '') {
+        return <p className="text-sm font-medium">{value}</p>;
+    }
+
+    return <p className="text-sm text-muted-foreground">{placeholder}</p>;
+}
+
+function ProposalFileCard({ submission }: { submission: Submission }) {
+    if (
+        submission.proposal_file_download_url === null ||
+        submission.proposal_file_view_url === null
+    ) {
         return (
-            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
-                Disetujui
-            </Badge>
+            <Card>
+                <CardHeader>
+                    <CardTitle>File Proposal Terkirim</CardTitle>
+                    <CardDescription>
+                        File proposal belum tersedia. Admin akan membantu jika terjadi kendala.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
         );
     }
 
     return (
-        <Badge variant="destructive" className="gap-1">
-            <span className="inline-flex size-3 items-center justify-center rounded-full bg-white/20" />
-            Revisi
-        </Badge>
+        <Card>
+            <CardHeader>
+                <CardTitle>File Proposal Terkirim</CardTitle>
+                <CardDescription>
+                    Anda dapat melihat dan mengunduh ulang file proposal.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                            <FileText className="size-4" />
+                        </span>
+                        <div>
+                            <p className="text-sm font-medium">
+                                {submission.proposal_file_name ?? 'Proposal.pdf'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Dokumen proposal yang tersimpan dari pengajuan Anda.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Button asChild type="button" variant="outline">
+                            <a href={submission.proposal_file_view_url} target="_blank" rel="noreferrer">
+                                <Eye className="mr-2 size-4" />
+                                Lihat
+                            </a>
+                        </Button>
+                        <Button asChild type="button">
+                            <a href={submission.proposal_file_download_url}>
+                                <Download className="mr-2 size-4" />
+                                Unduh
+                            </a>
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
-function DokumenTypeBadge({ tipe }: { tipe: DokumenType }) {
-    const base = 'rounded-full border px-2 py-0.5 text-xs font-medium';
-    if (tipe === 'Dokumen Utama') {
-        return (
-            <span className={cn(base, 'bg-background text-foreground')}>
-                {tipe}
-            </span>
-        );
-    }
-
-    return (
-        <span className={cn(base, 'bg-background text-foreground')}>
-            {tipe}
-        </span>
-    );
-}
-
-function DokumenVersionBadge({ versi }: { versi: string }) {
-    if (versi === '-') {
-        return <span className="text-sm text-muted-foreground">-</span>;
-    }
-
-    return (
-        <Badge
-            variant="secondary"
-            className="rounded-full bg-muted text-foreground"
-        >
-            {versi}
-        </Badge>
-    );
-}
-
-function DokumenStatusBadge({ status }: { status: DokumenStatus }) {
-    if (status === 'Disetujui') {
-        return (
-            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
-                Disetujui
-            </Badge>
-        );
-    }
-
-    if (status === 'Ditinjau') {
-        return (
-            <Badge variant="secondary" className="bg-muted text-foreground">
-                Ditinjau
-            </Badge>
-        );
-    }
-
-    return (
-        <Badge variant="outline" className="gap-1">
-            <CircleAlert className="size-3" />
-            Belum Diunggah
-        </Badge>
-    );
-}
-
-function ActionIconButton({
-    label,
-    icon: Icon,
+function SubmissionFields({
+    form,
+    fileRequired,
+    idPrefix,
 }: {
-    label: string;
-    icon: typeof Eye;
+    form: ReturnType<typeof useForm<FormData>>;
+    fileRequired: boolean;
+    idPrefix: string;
 }) {
     return (
-        <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            aria-label={label}
-        >
-            <Icon className="size-4" />
-        </Button>
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <Label htmlFor={`${idPrefix}title_id`}>Judul Skripsi (Bahasa Indonesia)</Label>
+                <Textarea
+                    id={`${idPrefix}title_id`}
+                    value={form.data.title_id}
+                    onChange={(event) => form.setData('title_id', event.target.value)}
+                    className="h-20"
+                    required
+                />
+                {form.errors.title_id && <p className="text-sm text-destructive">{form.errors.title_id}</p>}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor={`${idPrefix}title_en`}>Judul Skripsi (Bahasa Inggris)</Label>
+                <Textarea
+                    id={`${idPrefix}title_en`}
+                    value={form.data.title_en}
+                    onChange={(event) => form.setData('title_en', event.target.value)}
+                    className="h-20"
+                />
+                {form.errors.title_en && <p className="text-sm text-destructive">{form.errors.title_en}</p>}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor={`${idPrefix}proposal_summary`}>Ringkasan Proposal</Label>
+                <Textarea
+                    id={`${idPrefix}proposal_summary`}
+                    value={form.data.proposal_summary}
+                    onChange={(event) => form.setData('proposal_summary', event.target.value)}
+                    className="h-40"
+                    required
+                />
+                {form.errors.proposal_summary && <p className="text-sm text-destructive">{form.errors.proposal_summary}</p>}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor={`${idPrefix}proposal_file`}>
+                    {fileRequired ? 'File Proposal (PDF)' : 'Ganti File Proposal (Opsional)'}
+                </Label>
+                <Input
+                    id={`${idPrefix}proposal_file`}
+                    type="file"
+                    accept=".pdf"
+                    onChange={(event) => form.setData('proposal_file', event.target.files?.[0] ?? null)}
+                    required={fileRequired}
+                />
+                {form.errors.proposal_file && <p className="text-sm text-destructive">{form.errors.proposal_file}</p>}
+            </div>
+        </div>
     );
 }
 
 export default function TugasAkhirSaya() {
-    const [tab, setTab] = useState<TabKey>('judul');
+    const { submission, assignedLecturers, semproDate, flashMessage, errorMessage } =
+        usePage<SharedData & TugasAkhirPageProps>().props;
+    const [isEditing, setIsEditing] = useState(false);
+    const form = useForm<FormData>(submissionDefaults(submission));
 
-    const tabs = useMemo(
-        () => [
-            { key: 'judul' as const, label: 'Judul' },
-            { key: 'proposal' as const, label: 'Proposal' },
-            { key: 'dokumen' as const, label: 'Dokumen' },
-        ],
-        [],
-    );
+    useEffect(() => {
+        form.setData(submissionDefaults(submission));
+    }, [submission]);
+
+    const canEditSubmission = submission?.status === 'menunggu_persetujuan';
+    const label = submission ? (statusLabel[submission.status] ?? 'Dalam Proses') : '';
+    const description = submission
+        ? (statusDescription[submission.status] ?? 'Pengajuan sedang diproses admin.')
+        : '';
+
+    const createSubmission: FormEventHandler = (event) => {
+        event.preventDefault();
+        form.post('/mahasiswa/tugas-akhir', { forceFormData: true, preserveScroll: true });
+    };
+
+    const updateSubmission: FormEventHandler = (event) => {
+        event.preventDefault();
+        if (submission === null) return;
+
+        form
+            .transform((data) => ({
+                ...data,
+                _method: 'patch',
+            }))
+            .post(`/mahasiswa/tugas-akhir/${submission.id}`, {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsEditing(false);
+                    form.setData('proposal_file', null);
+                },
+            });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Skripsi Saya" />
-
+            <Head title="Judul dan Proposal" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div>
-                    <h1 className="text-xl font-semibold">Skripsi Saya</h1>
+                    <h1 className="text-xl font-semibold">Judul dan Proposal</h1>
                     <p className="text-sm text-muted-foreground">
-                        Kelola judul, proposal, dan dokumen skripsi Anda
+                        Kelola judul, proposal, dan informasi penugasan skripsi Anda.
                     </p>
                 </div>
 
-                <div className="rounded-lg bg-muted p-1">
-                    <div className="grid grid-cols-3 gap-1">
-                        {tabs.map((t) => {
-                            const isActive = tab === t.key;
-                            return (
-                                <Button
-                                    key={t.key}
-                                    type="button"
-                                    variant="ghost"
-                                    className={cn(
-                                        'h-10 w-full rounded-md text-sm font-medium',
-                                        isActive
-                                            ? 'bg-background shadow-sm hover:bg-background'
-                                            : 'text-muted-foreground hover:text-foreground',
-                                    )}
-                                    onClick={() => setTab(t.key)}
-                                >
-                                    {t.label}
-                                </Button>
-                            );
-                        })}
-                    </div>
-                </div>
+                {(flashMessage || errorMessage) && (
+                    <Alert variant={errorMessage ? 'destructive' : 'default'}>
+                        <AlertDescription>{errorMessage || flashMessage}</AlertDescription>
+                    </Alert>
+                )}
 
-                {tab === 'judul' && (
+                {submission === null && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Ajukan Judul & Proposal</CardTitle>
+                            <CardDescription>
+                                Isi formulir di bawah ini untuk mengajukan judul dan proposal skripsi.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={createSubmission} className="space-y-6">
+                                <SubmissionFields form={form} fileRequired idPrefix="create_" />
+                                <Button
+                                    type="submit"
+                                    disabled={form.processing}
+                                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
+                                >
+                                    <BookOpen className="mr-2 size-4" />
+                                    Ajukan Sekarang
+                                </Button>
+                            </form>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {submission !== null && (
                     <div className="space-y-6">
                         <Card>
                             <CardHeader className="gap-3">
-                                <div className="flex items-start justify-between gap-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
-                                        <CardTitle>
-                                            Status Pengajuan Judul
-                                        </CardTitle>
+                                        <CardTitle>Status Pengajuan</CardTitle>
                                         <CardDescription>
-                                            Status persetujuan judul skripsi
-                                            Anda
+                                            Status proses judul dan proposal skripsi Anda.
                                         </CardDescription>
                                     </div>
-                                    <StatusBadge label="Disetujui" />
+                                    <Badge className="w-fit bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
+                                        {label}
+                                    </Badge>
                                 </div>
                             </CardHeader>
                             <CardContent>
                                 <Alert>
-                                    <CheckCircle2 />
-                                    <AlertDescription>
-                                        Judul Anda telah disetujui. Silakan
-                                        fokus pada penguatan proposal sebelum
-                                        penjadwalan sempro.
-                                    </AlertDescription>
+                                    {submission.status === 'menunggu_persetujuan' ? (
+                                        <Clock className="size-4" />
+                                    ) : (
+                                        <CheckCircle2 className="size-4" />
+                                    )}
+                                    <AlertDescription>{description}</AlertDescription>
                                 </Alert>
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader className="gap-3">
-                                <div className="flex items-start justify-between gap-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <CardTitle>Informasi Judul</CardTitle>
                                         <CardDescription>
-                                            Detail judul skripsi dalam
-                                            Bahasa Indonesia dan Inggris
+                                            Detail judul dan ringkasan proposal yang Anda kirim.
                                         </CardDescription>
                                     </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="h-9"
-                                    >
-                                        <Pencil className="size-4" />
-                                        Edit
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="text-sm font-medium">
-                                        Judul (Bahasa Indonesia)
-                                    </div>
-                                    <Input
-                                        readOnly
-                                        defaultValue="Implementasi Machine Learning untuk Prediksi Kualitas Air Berbasis IoT"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="text-sm font-medium">
-                                        Judul (Bahasa Inggris)
-                                    </div>
-                                    <Input
-                                        readOnly
-                                        defaultValue="Implementation of Machine Learning for Water Quality Prediction Based on IoT"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="text-sm font-medium">
-                                        Deskripsi Singkat
-                                    </div>
-                                    <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-                                        Penelitian ini bertujuan untuk membangun
-                                        sistem rekomendasi topik bimbingan
-                                        berbasis progres mahasiswa dengan
-                                        dukungan analisis histori interaksi
-                                        bimbingan.
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Riwayat Pengajuan</CardTitle>
-                                <CardDescription>
-                                    Timeline perubahan dan persetujuan judul
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="relative">
-                                    <div className="absolute top-0 left-3 h-full w-px bg-border" />
-                                    <div className="space-y-6">
-                                        {timelineItems.map((item) => {
-                                            const Icon = item.icon;
-                                            const tone =
-                                                item.tone === 'success'
-                                                    ? 'bg-green-50 text-green-700 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40'
-                                                    : item.tone === 'warning'
-                                                      ? 'bg-yellow-50 text-yellow-700 ring-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-300 dark:ring-yellow-500/40'
-                                                      : item.tone === 'danger'
-                                                        ? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/40'
-                                                        : 'bg-primary/10 text-primary ring-primary/25';
-
-                                            return (
-                                                <div
-                                                    key={item.title}
-                                                    className="relative flex gap-4"
-                                                >
-                                                    <span
-                                                        className={cn(
-                                                            'relative z-10 inline-flex size-7 shrink-0 items-center justify-center rounded-full ring-2',
-                                                            tone,
-                                                        )}
-                                                    >
-                                                        <Icon className="size-4" />
-                                                    </span>
-                                                    <div className="min-w-0">
-                                                        <div className="text-sm font-semibold">
-                                                            {item.title}
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {item.name}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {item.time}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-
-                {tab === 'proposal' && (
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader className="gap-3">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <CardTitle>Status Proposal</CardTitle>
-                                        <CardDescription>
-                                            Status terkini proposal skripsi
-                                            Anda
-                                        </CardDescription>
-                                    </div>
-                                    <StatusBadge label="Disetujui" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <Alert>
-                                    <CheckCircle2 />
-                                    <AlertDescription>
-                                        Proposal Anda disetujui. Menunggu admin
-                                        menetapkan penguji dan jadwal sempro.
-                                    </AlertDescription>
-                                </Alert>
-
-                                <Alert>
-                                    <Calendar className="size-4" />
-                                    <AlertDescription>
-                                        Todo berikutnya: integrasi kalender
-                                        akademik untuk menampilkan jadwal sempro
-                                        langsung di dashboard.
-                                    </AlertDescription>
-                                </Alert>
-
-                                <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
-                                    <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-background text-muted-foreground">
-                                        <MessageSquareText className="size-4" />
-                                    </span>
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium">
-                                            Catatan Pembimbing
-                                        </div>
-                                        <div className="mt-1 text-sm text-muted-foreground">
-                                            Proposal disetujui. Silakan
-                                            lanjutkan dengan persiapan sempro.
-                                        </div>
-                                        <div className="mt-2 text-xs text-muted-foreground">
-                                            Dr. Budi Santoso, M.Kom. - 11
-                                            Februari 2026, 16:00
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Unggah Proposal</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="text-sm text-muted-foreground">
-                                    Unggah dokumen proposal dalam format PDF
-                                    (maksimal 5 MB)
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="text-sm font-medium">
-                                        Pilih File
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <Input
-                                            type="file"
-                                            className="flex-1"
-                                            aria-label="Pilih file proposal"
-                                        />
+                                    {!isEditing && (
                                         <Button
                                             type="button"
-                                            variant="secondary"
-                                            className="h-9"
+                                            variant="outline"
+                                            disabled={!canEditSubmission}
+                                            onClick={() => setIsEditing(true)}
                                         >
-                                            <Upload className="size-4" />
-                                            Unggah
+                                            <Pencil className="mr-2 size-4" />
+                                            Edit
                                         </Button>
-                                    </div>
+                                    )}
                                 </div>
-
-                                <div className="rounded-lg border bg-primary/10 p-4 text-sm text-primary">
-                                    <div className="font-semibold">
-                                        Panduan Proposal:
-                                    </div>
-                                    <ul className="mt-2 list-disc space-y-1 pl-5 text-foreground/80">
-                                        <li>
-                                            Gunakan template proposal yang telah
-                                            disediakan
-                                        </li>
-                                        <li>
-                                            Pastikan semua bab sudah lengkap
-                                            (Bab 1-5)
-                                        </li>
-                                        <li>
-                                            Sertakan daftar pustaka minimal 15
-                                            referensi
-                                        </li>
-                                        <li>
-                                            Format file harus PDF dengan ukuran
-                                            maksimal 5 MB
-                                        </li>
-                                    </ul>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Riwayat Versi</CardTitle>
-                                <CardDescription>
-                                    Daftar semua versi proposal yang pernah
-                                    diunggah
-                                </CardDescription>
+                                {!canEditSubmission && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Pengajuan yang sudah diproses tidak bisa diedit. Silakan hubungi admin jika perlu perubahan.
+                                    </p>
+                                )}
                             </CardHeader>
                             <CardContent>
-                                <div className="overflow-hidden rounded-lg border">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-background">
-                                            <tr className="border-b">
-                                                <th className="px-4 py-3 font-medium">
-                                                    Versi
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Nama File
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tanggal Upload
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Ukuran
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Status
-                                                </th>
-                                                <th className="px-4 py-3 text-right font-medium">
-                                                    Aksi
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {proposalVersions.map((row) => (
-                                                <tr
-                                                    key={row.version}
-                                                    className="border-b last:border-b-0"
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        {row.version}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="size-4 text-muted-foreground" />
-                                                            <span className="text-foreground underline-offset-4 hover:underline">
-                                                                {row.fileName}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">
-                                                        {row.uploadedAt}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">
-                                                        {row.size}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <ProposalStatusBadge
-                                                            status={row.status}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-end gap-1">
-                                                            <ActionIconButton
-                                                                label="Lihat"
-                                                                icon={Eye}
-                                                            />
-                                                            <ActionIconButton
-                                                                label="Unduh"
-                                                                icon={Download}
-                                                            />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Detail Catatan Per Versi</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {proposalVersions.map((v) => (
-                                    <div
-                                        key={v.version}
-                                        className="rounded-lg border bg-background p-4"
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <Badge
-                                                className={cn(
-                                                    'rounded-full',
-                                                    v.status === 'Disetujui'
-                                                        ? 'bg-emerald-600 text-white dark:bg-emerald-500'
-                                                        : 'bg-destructive text-white',
-                                                )}
+                                {isEditing ? (
+                                    <form onSubmit={updateSubmission} className="space-y-6">
+                                        <SubmissionFields form={form} fileRequired={false} idPrefix="edit_" />
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                type="submit"
+                                                disabled={form.processing}
+                                                className="bg-primary text-primary-foreground hover:bg-primary/90"
                                             >
-                                                {v.version}
-                                            </Badge>
-                                            <div className="min-w-0">
-                                                <div className="text-sm font-medium">
-                                                    {v.fileName}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {v.uploadedAt}
-                                                </div>
-                                            </div>
+                                                Simpan Perubahan
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    form.setData(submissionDefaults(submission));
+                                                    setIsEditing(false);
+                                                }}
+                                            >
+                                                Batal
+                                            </Button>
                                         </div>
-
-                                        <div className="mt-4 rounded-lg bg-muted/40 p-4 text-sm">
-                                            <div className="text-muted-foreground">
-                                                Catatan dari Dr. Budi Santoso,
-                                                M.Kom.:
-                                            </div>
-                                            <div className="mt-1 text-foreground">
-                                                {v.note}
+                                    </form>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium">Judul (Bahasa Indonesia)</p>
+                                            <Input readOnly value={submission.title_id} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium">Judul (Bahasa Inggris)</p>
+                                            <Input readOnly value={submission.title_en} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium">Ringkasan Proposal</p>
+                                            <div className="whitespace-pre-wrap rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                                                {submission.proposal_summary}
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </CardContent>
                         </Card>
-                    </div>
-                )}
 
-                {tab === 'dokumen' && (
-                    <div className="space-y-6">
+                        <ProposalFileCard submission={submission} />
+
                         <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Daftar Dokumen</CardTitle>
+                            <CardHeader>
+                                <CardTitle>Dosen Pembimbing, Penguji, dan Jadwal Sempro</CardTitle>
                                 <CardDescription>
-                                    Kelola semua dokumen skripsi Anda dalam
-                                    satu tempat
+                                    Penetapan dosen pembimbing, dosen penguji, dan jadwal Sempro dikelola admin.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <div className="overflow-hidden rounded-lg border">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-background">
-                                            <tr className="border-b">
-                                                <th className="px-4 py-3 font-medium">
-                                                    Dokumen
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tipe
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tenggat Waktu
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Versi
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Status
-                                                </th>
-                                                <th className="px-4 py-3 text-right font-medium">
-                                                    Aksi
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dokumenRows.map((row) => (
-                                                <tr
-                                                    key={row.title}
-                                                    className="border-b last:border-b-0"
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-start gap-3">
-                                                            <FileText className="mt-0.5 size-4 text-muted-foreground" />
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-medium">
-                                                                    {row.title}
-                                                                </div>
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    {
-                                                                        row.description
-                                                                    }
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <DokumenTypeBadge
-                                                            tipe={row.tipe}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {row.tenggatWaktu ===
-                                                        '-' ? (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                -
-                                                            </span>
-                                                        ) : (
-                                                            <div className="inline-flex items-center gap-2 text-muted-foreground">
-                                                                <Calendar className="size-4" />
-                                                                <span>
-                                                                    {
-                                                                        row.tenggatWaktu
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <DokumenVersionBadge
-                                                            versi={row.versi}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <DokumenStatusBadge
-                                                            status={row.status}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-end gap-1">
-                                                            {row.actions.includes(
-                                                                'view',
-                                                            ) && (
-                                                                <ActionIconButton
-                                                                    label="Lihat"
-                                                                    icon={Eye}
-                                                                />
-                                                            )}
-                                                            {row.actions.includes(
-                                                                'download',
-                                                            ) && (
-                                                                <ActionIconButton
-                                                                    label="Unduh"
-                                                                    icon={
-                                                                        Download
-                                                                    }
-                                                                />
-                                                            )}
-                                                            {row.actions.includes(
-                                                                'upload',
-                                                            ) && (
-                                                                <ActionIconButton
-                                                                    label="Unggah"
-                                                                    icon={
-                                                                        Upload
-                                                                    }
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                            <CardContent className="space-y-6">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">Dosen Pembimbing 1</p>
+                                        <AssignmentValue
+                                            value={assignedLecturers.pembimbing1}
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen pembimbing."
+                                        />
+                                    </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">Dosen Pembimbing 2</p>
+                                        <AssignmentValue
+                                            value={assignedLecturers.pembimbing2}
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen pembimbing."
+                                        />
+                                    </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">Dosen Penguji 1</p>
+                                        <AssignmentValue
+                                            value={assignedLecturers.penguji1}
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
+                                        />
+                                    </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">Dosen Penguji 2</p>
+                                        <AssignmentValue
+                                            value={assignedLecturers.penguji2}
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2 rounded-lg border p-4">
+                                    <p className="text-sm font-semibold">Tanggal Sempro</p>
+                                    <AssignmentValue
+                                        value={semproDate}
+                                        placeholder="Belum dijadwalkan. Admin akan menetapkan jadwal Sempro."
+                                    />
                                 </div>
                             </CardContent>
                         </Card>
