@@ -30,7 +30,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Skripsi saya',
+                title: 'Judul dan Proposal',
                 href: '/mahasiswa/tugas-akhir',
                 icon: FileText,
             },

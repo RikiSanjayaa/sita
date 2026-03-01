@@ -17,6 +17,7 @@ class ThesisSubmission extends Model
         'title_id',
         'title_en',
         'proposal_summary',
+        'proposal_file_path',
         'status',
         'is_active',
         'submitted_at',

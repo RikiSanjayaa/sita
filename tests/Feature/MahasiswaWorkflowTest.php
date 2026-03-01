@@ -3,11 +3,16 @@
 use App\Enums\AdvisorType;
 use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
+use App\Enums\SemproStatus;
+use App\Enums\ThesisSubmissionStatus;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\Role;
+use App\Models\Sempro;
+use App\Models\SemproExaminer;
+use App\Models\ThesisSubmission;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -207,9 +212,177 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
 
     $this->actingAs($student)
         ->get('/mahasiswa/upload-dokumen')
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('upload-dokumen')
             ->has('uploadedDocuments', 2));
+});
+
+test('tugas akhir page includes proposal file, dosen assignments, and sempro schedule', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $pembimbing1 = createUserWithRole(AppRole::Dosen->value);
+    $pembimbing2 = createUserWithRole(AppRole::Dosen->value);
+    $penguji1 = createUserWithRole(AppRole::Dosen->value);
+    $penguji2 = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'is_active' => true,
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $pembimbing1->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $pembimbing2->id,
+        'advisor_type' => AdvisorType::Secondary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+
+    $proposalPath = 'proposal_files/proposal-awal.pdf';
+    Storage::disk('public')->put($proposalPath, 'proposal-content');
+
+    $submission = ThesisSubmission::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi' => 'Informatika',
+        'title_id' => 'Sistem Monitoring Skripsi',
+        'title_en' => 'Thesis Monitoring System',
+        'proposal_summary' => 'Ringkasan proposal.',
+        'proposal_file_path' => $proposalPath,
+        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+        'is_active' => true,
+        'submitted_at' => now(),
+    ]);
+
+    $scheduledAt = now()->addDays(7)->setSecond(0);
+    $sempro = Sempro::query()->create([
+        'thesis_submission_id' => $submission->id,
+        'status' => SemproStatus::Scheduled->value,
+        'scheduled_for' => $scheduledAt,
+        'location' => 'Ruang Sidang A',
+        'mode' => 'offline',
+    ]);
+
+    SemproExaminer::query()->create([
+        'sempro_id' => $sempro->id,
+        'examiner_user_id' => $penguji1->id,
+        'examiner_order' => 1,
+    ]);
+    SemproExaminer::query()->create([
+        'sempro_id' => $sempro->id,
+        'examiner_user_id' => $penguji2->id,
+        'examiner_order' => 2,
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('submission.proposal_file_name', 'proposal-awal.pdf')
+            ->where(
+                'submission.proposal_file_view_url',
+                route('files.thesis-proposals', ['submission' => $submission->id, 'inline' => 1]),
+            )
+            ->where(
+                'submission.proposal_file_download_url',
+                route('files.thesis-proposals', ['submission' => $submission->id]),
+            )
+            ->where('assignedLecturers.pembimbing1', $pembimbing1->name)
+            ->where('assignedLecturers.pembimbing2', $pembimbing2->name)
+            ->where('assignedLecturers.penguji1', $penguji1->name)
+            ->where('assignedLecturers.penguji2', $penguji2->name)
+            ->where('semproDate', $scheduledAt->locale('id')->translatedFormat('d F Y, H:i')));
+});
+
+test('mahasiswa can update pending thesis submission and replace proposal file', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi' => 'Sistem Informasi',
+        'is_active' => true,
+    ]);
+
+    $oldPath = 'proposal_files/proposal-lama.pdf';
+    Storage::disk('public')->put($oldPath, 'old-content');
+
+    $submission = ThesisSubmission::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi' => 'Informatika',
+        'title_id' => 'Judul Lama',
+        'title_en' => 'Old Title',
+        'proposal_summary' => 'Ringkasan lama.',
+        'proposal_file_path' => $oldPath,
+        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+        'is_active' => true,
+        'submitted_at' => now(),
+    ]);
+
+    $this->actingAs($student)
+        ->from('/mahasiswa/tugas-akhir')
+        ->patch("/mahasiswa/tugas-akhir/{$submission->id}", [
+            'title_id' => 'Judul Revisi',
+            'title_en' => 'Revised Title',
+            'proposal_summary' => 'Ringkasan revisi.',
+            'proposal_file' => UploadedFile::fake()->create('proposal-revisi.pdf', 600, 'application/pdf'),
+        ])
+        ->assertRedirect('/mahasiswa/tugas-akhir');
+
+    $updated = $submission->fresh();
+
+    expect($updated)->not()->toBeNull()
+        ->and($updated?->program_studi)->toBe('Sistem Informasi')
+        ->and($updated?->title_id)->toBe('Judul Revisi')
+        ->and($updated?->title_en)->toBe('Revised Title')
+        ->and($updated?->proposal_summary)->toBe('Ringkasan revisi.')
+        ->and($updated?->proposal_file_path)->not()->toBeNull();
+
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists((string) $updated?->proposal_file_path);
+});
+
+test('proposal file access is restricted to owning mahasiswa', function () {
+    Storage::fake('public');
+
+    $owner = createUserWithRole(AppRole::Mahasiswa->value);
+    $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+
+    $path = 'proposal_files/proposal-owner.pdf';
+    Storage::disk('public')->put($path, 'owner-content');
+
+    $submission = ThesisSubmission::query()->create([
+        'student_user_id' => $owner->id,
+        'program_studi' => 'Informatika',
+        'title_id' => 'Judul Owner',
+        'title_en' => 'Owner Title',
+        'proposal_summary' => 'Ringkasan owner.',
+        'proposal_file_path' => $path,
+        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+        'is_active' => true,
+        'submitted_at' => now(),
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
+        ->assertOk();
+
+    $this->actingAs($otherStudent)
+        ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
+        ->assertOk();
 });
 
 test('download permissions enforce ownership and escalation rules', function () {

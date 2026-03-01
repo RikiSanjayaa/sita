@@ -22,6 +22,12 @@ class ThesisSubmissionInfolist
                 TextEntry::make('proposal_summary')
                     ->placeholder('-')
                     ->columnSpanFull(),
+                TextEntry::make('proposal_file_path')
+                    ->label('File Proposal')
+                    ->formatStateUsing(fn (?string $state): string => $state === null ? '-' : 'Download Proposal')
+                    ->url(fn (?string $state): ?string => $state === null ? null : asset('storage/'.$state))
+                    ->openUrlInNewTab()
+                    ->placeholder('-'),
                 TextEntry::make('status'),
                 IconEntry::make('is_active')
                     ->boolean(),

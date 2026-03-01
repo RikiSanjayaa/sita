@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
 use App\Http\Controllers\Mahasiswa\PesanController;
+use App\Http\Controllers\Mahasiswa\TugasAkhirController;
 use App\Http\Controllers\Mahasiswa\UploadDokumenController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -11,9 +12,9 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
         return Inertia::render('dashboard');
     })->name('dashboard');
 
-    Route::get('tugas-akhir', function () {
-        return Inertia::render('tugas-akhir');
-    })->name('tugas-akhir');
+    Route::get('tugas-akhir', [TugasAkhirController::class, 'index'])->name('tugas-akhir');
+    Route::post('tugas-akhir', [TugasAkhirController::class, 'store'])->name('tugas-akhir.store');
+    Route::patch('tugas-akhir/{submission}', [TugasAkhirController::class, 'update'])->name('tugas-akhir.update');
 
     Route::get('jadwal-bimbingan', [JadwalBimbinganController::class, 'index'])->name('jadwal-bimbingan');
     Route::post('jadwal-bimbingan', [JadwalBimbinganController::class, 'store'])->name('jadwal-bimbingan.store');

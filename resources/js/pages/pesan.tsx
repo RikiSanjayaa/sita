@@ -39,6 +39,7 @@ type ChatThreadPayload = {
 };
 
 type PesanPageProps = {
+    hasDosbing: boolean;
     thread: ChatThreadPayload;
     flashMessage?: string | null;
 };
@@ -49,7 +50,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function PesanPage() {
-    const { thread, flashMessage, auth } = usePage<
+    const { thread, flashMessage, auth, hasDosbing } = usePage<
         SharedData & PesanPageProps
     >().props;
 
@@ -163,104 +164,116 @@ export default function PesanPage() {
             <Head title="Pesan" />
 
             <div className="mx-auto box-border flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-6 md:px-6">
-                <Card className="flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0">
-                    <CardHeader className="p-6 pb-4">
-                        <div className="flex items-center gap-2">
-                            <CardTitle>{thread.name}</CardTitle>
-                            <Badge variant="secondary">Group Bimbingan</Badge>
-                        </div>
-                        <CardDescription className="inline-flex items-center gap-1">
-                            <Users className="size-3.5" />
-                            {thread.members.join(' - ')}
-                        </CardDescription>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="relative flex-1 overflow-hidden p-0">
-                        <ScrollArea className="h-full w-full">
-                            <div className="flex min-h-full flex-col p-4">
-                                {flashMessage && (
-                                    <Alert className="mb-3">
-                                        <AlertTitle>Info</AlertTitle>
-                                        <AlertDescription>
-                                            {flashMessage}
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
+                {!auth.activeRole || !hasDosbing ? (
+                    <Card className="flex min-h-[400px] flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                        <Users className="mb-4 size-12 opacity-20" />
+                        <h2 className="mb-2 text-xl font-semibold text-foreground">
+                            Fitur Pesan Belum Aktif
+                        </h2>
+                        <p className="max-w-md">
+                            Anda belum memiliki Dosen Pembimbing yang ditugaskan. Fitur pesan akan otomatis aktif setelah admin menetapkan dosen pembimbing untuk Anda.
+                        </p>
+                    </Card>
+                ) : (
+                    <Card className="flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0">
+                        <CardHeader className="p-6 pb-4">
+                            <div className="flex items-center gap-2">
+                                <CardTitle>{thread.name}</CardTitle>
+                                <Badge variant="secondary">Group Bimbingan</Badge>
+                            </div>
+                            <CardDescription className="inline-flex items-center gap-1">
+                                <Users className="size-3.5" />
+                                {thread.members.join(' - ')}
+                            </CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="relative flex-1 overflow-hidden p-0">
+                            <ScrollArea className="h-full w-full">
+                                <div className="flex min-h-full flex-col p-4">
+                                    {flashMessage && (
+                                        <Alert className="mb-3">
+                                            <AlertTitle>Info</AlertTitle>
+                                            <AlertDescription>
+                                                {flashMessage}
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
 
-                                <div className="grid gap-3">
-                                    {messages.map((message) => {
-                                        const isMe = message.author === myName;
-                                        return (
-                                            <ChatBubble
-                                                key={message.id}
-                                                message={message}
-                                                isMe={isMe}
-                                            />
-                                        );
-                                    })}
+                                    <div className="grid gap-3">
+                                        {messages.map((message) => {
+                                            const isMe = message.author === myName;
+                                            return (
+                                                <ChatBubble
+                                                    key={message.id}
+                                                    message={message}
+                                                    isMe={isMe}
+                                                />
+                                            );
+                                        })}
 
-                                    <div ref={messagesEndRef} className="h-1" />
+                                        <div ref={messagesEndRef} className="h-1" />
+                                    </div>
                                 </div>
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                    <Separator />
-                    <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            accept=".pdf,.doc,.docx"
-                            className="hidden"
-                            onChange={pickAttachment}
-                        />
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => fileRef.current?.click()}
-                            >
-                                <Paperclip className="size-4" />
-                            </Button>
-                            <Input
-                                value={form.data.message}
-                                onChange={(event) =>
-                                    form.setData('message', event.target.value)
-                                }
-                                placeholder="Tulis pesan..."
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        event.preventDefault();
-                                        sendMessage();
-                                    }
-                                }}
+                            </ScrollArea>
+                        </CardContent>
+                        <Separator />
+                        <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
+                            <input
+                                ref={fileRef}
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                className="hidden"
+                                onChange={pickAttachment}
                             />
-                            <Button
-                                type="button"
-                                onClick={sendMessage}
-                                disabled={!canSend}
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                            >
-                                <Send className="size-4" />
-                            </Button>
-                        </div>
-                        {attachmentName && (
-                            <div className="text-xs text-muted-foreground">
-                                Lampiran: {attachmentName}
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => fileRef.current?.click()}
+                                >
+                                    <Paperclip className="size-4" />
+                                </Button>
+                                <Input
+                                    value={form.data.message}
+                                    onChange={(event) =>
+                                        form.setData('message', event.target.value)
+                                    }
+                                    placeholder="Tulis pesan..."
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            event.preventDefault();
+                                            sendMessage();
+                                        }
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    onClick={sendMessage}
+                                    disabled={!canSend}
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                >
+                                    <Send className="size-4" />
+                                </Button>
                             </div>
-                        )}
-                        {form.errors.attachment && (
-                            <p className="text-xs text-destructive">
-                                {form.errors.attachment}
-                            </p>
-                        )}
-                        {form.errors.message && (
-                            <p className="text-xs text-destructive">
-                                {form.errors.message}
-                            </p>
-                        )}
-                    </CardFooter>
-                </Card>
+                            {attachmentName && (
+                                <div className="text-xs text-muted-foreground">
+                                    Lampiran: {attachmentName}
+                                </div>
+                            )}
+                            {form.errors.attachment && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.attachment}
+                                </p>
+                            )}
+                            {form.errors.message && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.message}
+                                </p>
+                            )}
+                        </CardFooter>
+                    </Card>
+                )}
             </div>
         </AppLayout>
     );

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('title_id');
             $table->string('title_en')->nullable();
             $table->text('proposal_summary')->nullable();
-            $table->string('status')->default(ThesisSubmissionStatus::IntakeCreated->value);
+            $table->string('status')->default(ThesisSubmissionStatus::MenungguPersetujuan->value);
             $table->boolean('is_active')->default(true);
             $table->timestamp('submitted_at')->nullable();
             $table->timestamp('approved_at')->nullable();
