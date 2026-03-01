@@ -6,9 +6,9 @@ ARG INSTALL_DEV_DEPENDENCIES=false
 
 COPY composer.json composer.lock ./
 RUN if [ "$INSTALL_DEV_DEPENDENCIES" = "true" ]; then \
-        composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts; \
+        composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-reqs; \
     else \
-        composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts; \
+        composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-reqs; \
     fi
 
 
