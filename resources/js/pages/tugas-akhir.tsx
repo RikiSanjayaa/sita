@@ -76,9 +76,12 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusDescription: Record<string, string> = {
-    menunggu_persetujuan: 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
-    pembimbing_ditetapkan: 'Dosen pembimbing sudah ditetapkan. Pantau pembaruan dari admin.',
-    sempro_dijadwalkan: 'Sempro sudah dijadwalkan. Cek informasi dosen dan tanggal di halaman ini.',
+    menunggu_persetujuan:
+        'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
+    pembimbing_ditetapkan:
+        'Dosen pembimbing sudah ditetapkan. Pantau pembaruan dari admin.',
+    sempro_dijadwalkan:
+        'Sempro sudah dijadwalkan. Cek informasi dosen dan tanggal di halaman ini.',
     revisi_sempro: 'Pengajuan berada pada tahap revisi Sempro.',
     sempro_selesai: 'Tahap Sempro telah selesai.',
 };
@@ -124,7 +127,8 @@ function ProposalFileCard({ submission }: { submission: Submission }) {
                 <CardHeader>
                     <CardTitle>File Proposal Terkirim</CardTitle>
                     <CardDescription>
-                        File proposal belum tersedia. Admin akan membantu jika terjadi kendala.
+                        File proposal belum tersedia. Admin akan membantu jika
+                        terjadi kendala.
                     </CardDescription>
                 </CardHeader>
             </Card>
@@ -147,17 +151,23 @@ function ProposalFileCard({ submission }: { submission: Submission }) {
                         </span>
                         <div>
                             <p className="text-sm font-medium">
-                                {submission.proposal_file_name ?? 'Proposal.pdf'}
+                                {submission.proposal_file_name ??
+                                    'Proposal.pdf'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Dokumen proposal yang tersimpan dari pengajuan Anda.
+                                Dokumen proposal yang tersimpan dari pengajuan
+                                Anda.
                             </p>
                         </div>
                     </div>
 
                     <div className="flex gap-2">
                         <Button asChild type="button" variant="outline">
-                            <a href={submission.proposal_file_view_url} target="_blank" rel="noreferrer">
+                            <a
+                                href={submission.proposal_file_view_url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
                                 <Eye className="mr-2 size-4" />
                                 Lihat
                             </a>
@@ -187,60 +197,100 @@ function SubmissionFields({
     return (
         <div className="space-y-6">
             <div className="space-y-2">
-                <Label htmlFor={`${idPrefix}title_id`}>Judul Skripsi (Bahasa Indonesia)</Label>
+                <Label htmlFor={`${idPrefix}title_id`}>
+                    Judul Skripsi (Bahasa Indonesia)
+                </Label>
                 <Textarea
                     id={`${idPrefix}title_id`}
                     value={form.data.title_id}
-                    onChange={(event) => form.setData('title_id', event.target.value)}
+                    onChange={(event) =>
+                        form.setData('title_id', event.target.value)
+                    }
                     className="h-20"
                     required
                 />
-                {form.errors.title_id && <p className="text-sm text-destructive">{form.errors.title_id}</p>}
+                {form.errors.title_id && (
+                    <p className="text-sm text-destructive">
+                        {form.errors.title_id}
+                    </p>
+                )}
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor={`${idPrefix}title_en`}>Judul Skripsi (Bahasa Inggris)</Label>
+                <Label htmlFor={`${idPrefix}title_en`}>
+                    Judul Skripsi (Bahasa Inggris)
+                </Label>
                 <Textarea
                     id={`${idPrefix}title_en`}
                     value={form.data.title_en}
-                    onChange={(event) => form.setData('title_en', event.target.value)}
+                    onChange={(event) =>
+                        form.setData('title_en', event.target.value)
+                    }
                     className="h-20"
                 />
-                {form.errors.title_en && <p className="text-sm text-destructive">{form.errors.title_en}</p>}
+                {form.errors.title_en && (
+                    <p className="text-sm text-destructive">
+                        {form.errors.title_en}
+                    </p>
+                )}
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor={`${idPrefix}proposal_summary`}>Ringkasan Proposal</Label>
+                <Label htmlFor={`${idPrefix}proposal_summary`}>
+                    Ringkasan Proposal
+                </Label>
                 <Textarea
                     id={`${idPrefix}proposal_summary`}
                     value={form.data.proposal_summary}
-                    onChange={(event) => form.setData('proposal_summary', event.target.value)}
+                    onChange={(event) =>
+                        form.setData('proposal_summary', event.target.value)
+                    }
                     className="h-40"
                     required
                 />
-                {form.errors.proposal_summary && <p className="text-sm text-destructive">{form.errors.proposal_summary}</p>}
+                {form.errors.proposal_summary && (
+                    <p className="text-sm text-destructive">
+                        {form.errors.proposal_summary}
+                    </p>
+                )}
             </div>
 
             <div className="space-y-2">
                 <Label htmlFor={`${idPrefix}proposal_file`}>
-                    {fileRequired ? 'File Proposal (PDF)' : 'Ganti File Proposal (Opsional)'}
+                    {fileRequired
+                        ? 'File Proposal (PDF)'
+                        : 'Ganti File Proposal (Opsional)'}
                 </Label>
                 <Input
                     id={`${idPrefix}proposal_file`}
                     type="file"
                     accept=".pdf"
-                    onChange={(event) => form.setData('proposal_file', event.target.files?.[0] ?? null)}
+                    onChange={(event) =>
+                        form.setData(
+                            'proposal_file',
+                            event.target.files?.[0] ?? null,
+                        )
+                    }
                     required={fileRequired}
                 />
-                {form.errors.proposal_file && <p className="text-sm text-destructive">{form.errors.proposal_file}</p>}
+                {form.errors.proposal_file && (
+                    <p className="text-sm text-destructive">
+                        {form.errors.proposal_file}
+                    </p>
+                )}
             </div>
         </div>
     );
 }
 
 export default function TugasAkhirSaya() {
-    const { submission, assignedLecturers, semproDate, flashMessage, errorMessage } =
-        usePage<SharedData & TugasAkhirPageProps>().props;
+    const {
+        submission,
+        assignedLecturers,
+        semproDate,
+        flashMessage,
+        errorMessage,
+    } = usePage<SharedData & TugasAkhirPageProps>().props;
     const [isEditing, setIsEditing] = useState(false);
     const form = useForm<FormData>(submissionDefaults(submission));
 
@@ -249,33 +299,37 @@ export default function TugasAkhirSaya() {
     }, [submission]);
 
     const canEditSubmission = submission?.status === 'menunggu_persetujuan';
-    const label = submission ? (statusLabel[submission.status] ?? 'Dalam Proses') : '';
+    const label = submission
+        ? (statusLabel[submission.status] ?? 'Dalam Proses')
+        : '';
     const description = submission
-        ? (statusDescription[submission.status] ?? 'Pengajuan sedang diproses admin.')
+        ? (statusDescription[submission.status] ??
+          'Pengajuan sedang diproses admin.')
         : '';
 
     const createSubmission: FormEventHandler = (event) => {
         event.preventDefault();
-        form.post('/mahasiswa/tugas-akhir', { forceFormData: true, preserveScroll: true });
+        form.post('/mahasiswa/tugas-akhir', {
+            forceFormData: true,
+            preserveScroll: true,
+        });
     };
 
     const updateSubmission: FormEventHandler = (event) => {
         event.preventDefault();
         if (submission === null) return;
 
-        form
-            .transform((data) => ({
-                ...data,
-                _method: 'patch',
-            }))
-            .post(`/mahasiswa/tugas-akhir/${submission.id}`, {
-                forceFormData: true,
-                preserveScroll: true,
-                onSuccess: () => {
-                    setIsEditing(false);
-                    form.setData('proposal_file', null);
-                },
-            });
+        form.transform((data) => ({
+            ...data,
+            _method: 'patch',
+        })).post(`/mahasiswa/tugas-akhir/${submission.id}`, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsEditing(false);
+                form.setData('proposal_file', null);
+            },
+        });
     };
 
     return (
@@ -283,15 +337,20 @@ export default function TugasAkhirSaya() {
             <Head title="Judul dan Proposal" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div>
-                    <h1 className="text-xl font-semibold">Judul dan Proposal</h1>
+                    <h1 className="text-xl font-semibold">
+                        Judul dan Proposal
+                    </h1>
                     <p className="text-sm text-muted-foreground">
-                        Kelola judul, proposal, dan informasi penugasan skripsi Anda.
+                        Kelola judul, proposal, dan informasi penugasan skripsi
+                        Anda.
                     </p>
                 </div>
 
                 {(flashMessage || errorMessage) && (
                     <Alert variant={errorMessage ? 'destructive' : 'default'}>
-                        <AlertDescription>{errorMessage || flashMessage}</AlertDescription>
+                        <AlertDescription>
+                            {errorMessage || flashMessage}
+                        </AlertDescription>
                     </Alert>
                 )}
 
@@ -300,12 +359,20 @@ export default function TugasAkhirSaya() {
                         <CardHeader>
                             <CardTitle>Ajukan Judul & Proposal</CardTitle>
                             <CardDescription>
-                                Isi formulir di bawah ini untuk mengajukan judul dan proposal skripsi.
+                                Isi formulir di bawah ini untuk mengajukan judul
+                                dan proposal skripsi.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={createSubmission} className="space-y-6">
-                                <SubmissionFields form={form} fileRequired idPrefix="create_" />
+                            <form
+                                onSubmit={createSubmission}
+                                className="space-y-6"
+                            >
+                                <SubmissionFields
+                                    form={form}
+                                    fileRequired
+                                    idPrefix="create_"
+                                />
                                 <Button
                                     type="submit"
                                     disabled={form.processing}
@@ -327,7 +394,8 @@ export default function TugasAkhirSaya() {
                                     <div>
                                         <CardTitle>Status Pengajuan</CardTitle>
                                         <CardDescription>
-                                            Status proses judul dan proposal skripsi Anda.
+                                            Status proses judul dan proposal
+                                            skripsi Anda.
                                         </CardDescription>
                                     </div>
                                     <Badge className="w-fit bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
@@ -337,12 +405,15 @@ export default function TugasAkhirSaya() {
                             </CardHeader>
                             <CardContent>
                                 <Alert>
-                                    {submission.status === 'menunggu_persetujuan' ? (
+                                    {submission.status ===
+                                    'menunggu_persetujuan' ? (
                                         <Clock className="size-4" />
                                     ) : (
                                         <CheckCircle2 className="size-4" />
                                     )}
-                                    <AlertDescription>{description}</AlertDescription>
+                                    <AlertDescription>
+                                        {description}
+                                    </AlertDescription>
                                 </Alert>
                             </CardContent>
                         </Card>
@@ -353,7 +424,8 @@ export default function TugasAkhirSaya() {
                                     <div>
                                         <CardTitle>Informasi Judul</CardTitle>
                                         <CardDescription>
-                                            Detail judul dan ringkasan proposal yang Anda kirim.
+                                            Detail judul dan ringkasan proposal
+                                            yang Anda kirim.
                                         </CardDescription>
                                     </div>
                                     {!isEditing && (
@@ -370,14 +442,23 @@ export default function TugasAkhirSaya() {
                                 </div>
                                 {!canEditSubmission && (
                                     <p className="text-xs text-muted-foreground">
-                                        Pengajuan yang sudah diproses tidak bisa diedit. Silakan hubungi admin jika perlu perubahan.
+                                        Pengajuan yang sudah diproses tidak bisa
+                                        diedit. Silakan hubungi admin jika perlu
+                                        perubahan.
                                     </p>
                                 )}
                             </CardHeader>
                             <CardContent>
                                 {isEditing ? (
-                                    <form onSubmit={updateSubmission} className="space-y-6">
-                                        <SubmissionFields form={form} fileRequired={false} idPrefix="edit_" />
+                                    <form
+                                        onSubmit={updateSubmission}
+                                        className="space-y-6"
+                                    >
+                                        <SubmissionFields
+                                            form={form}
+                                            fileRequired={false}
+                                            idPrefix="edit_"
+                                        />
                                         <div className="flex flex-wrap gap-2">
                                             <Button
                                                 type="submit"
@@ -390,7 +471,11 @@ export default function TugasAkhirSaya() {
                                                 type="button"
                                                 variant="outline"
                                                 onClick={() => {
-                                                    form.setData(submissionDefaults(submission));
+                                                    form.setData(
+                                                        submissionDefaults(
+                                                            submission,
+                                                        ),
+                                                    );
                                                     setIsEditing(false);
                                                 }}
                                             >
@@ -401,16 +486,28 @@ export default function TugasAkhirSaya() {
                                 ) : (
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium">Judul (Bahasa Indonesia)</p>
-                                            <Input readOnly value={submission.title_id} />
+                                            <p className="text-sm font-medium">
+                                                Judul (Bahasa Indonesia)
+                                            </p>
+                                            <Input
+                                                readOnly
+                                                value={submission.title_id}
+                                            />
                                         </div>
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium">Judul (Bahasa Inggris)</p>
-                                            <Input readOnly value={submission.title_en} />
+                                            <p className="text-sm font-medium">
+                                                Judul (Bahasa Inggris)
+                                            </p>
+                                            <Input
+                                                readOnly
+                                                value={submission.title_en}
+                                            />
                                         </div>
                                         <div className="space-y-2">
-                                            <p className="text-sm font-medium">Ringkasan Proposal</p>
-                                            <div className="whitespace-pre-wrap rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                                            <p className="text-sm font-medium">
+                                                Ringkasan Proposal
+                                            </p>
+                                            <div className="rounded-md border bg-background px-3 py-2 text-sm whitespace-pre-wrap text-muted-foreground">
                                                 {submission.proposal_summary}
                                             </div>
                                         </div>
@@ -423,36 +520,51 @@ export default function TugasAkhirSaya() {
 
                         <Card>
                             <CardHeader>
-                                <CardTitle>Dosen Pembimbing, Penguji, dan Jadwal Sempro</CardTitle>
+                                <CardTitle>
+                                    Dosen Pembimbing, Penguji, dan Jadwal Sempro
+                                </CardTitle>
                                 <CardDescription>
-                                    Penetapan dosen pembimbing, dosen penguji, dan jadwal Sempro dikelola admin.
+                                    Penetapan dosen pembimbing, dosen penguji,
+                                    dan jadwal Sempro dikelola admin.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">Dosen Pembimbing 1</p>
+                                        <p className="text-sm font-semibold">
+                                            Dosen Pembimbing 1
+                                        </p>
                                         <AssignmentValue
-                                            value={assignedLecturers.pembimbing1}
+                                            value={
+                                                assignedLecturers.pembimbing1
+                                            }
                                             placeholder="Belum ditetapkan. Admin akan menetapkan dosen pembimbing."
                                         />
                                     </div>
                                     <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">Dosen Pembimbing 2</p>
+                                        <p className="text-sm font-semibold">
+                                            Dosen Pembimbing 2
+                                        </p>
                                         <AssignmentValue
-                                            value={assignedLecturers.pembimbing2}
+                                            value={
+                                                assignedLecturers.pembimbing2
+                                            }
                                             placeholder="Belum ditetapkan. Admin akan menetapkan dosen pembimbing."
                                         />
                                     </div>
                                     <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">Dosen Penguji 1</p>
+                                        <p className="text-sm font-semibold">
+                                            Dosen Penguji 1
+                                        </p>
                                         <AssignmentValue
                                             value={assignedLecturers.penguji1}
                                             placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
                                         />
                                     </div>
                                     <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">Dosen Penguji 2</p>
+                                        <p className="text-sm font-semibold">
+                                            Dosen Penguji 2
+                                        </p>
                                         <AssignmentValue
                                             value={assignedLecturers.penguji2}
                                             placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
@@ -460,7 +572,9 @@ export default function TugasAkhirSaya() {
                                     </div>
                                 </div>
                                 <div className="space-y-2 rounded-lg border p-4">
-                                    <p className="text-sm font-semibold">Tanggal Sempro</p>
+                                    <p className="text-sm font-semibold">
+                                        Tanggal Sempro
+                                    </p>
                                     <AssignmentValue
                                         value={semproDate}
                                         placeholder="Belum dijadwalkan. Admin akan menetapkan jadwal Sempro."

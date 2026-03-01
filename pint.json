@@ -2,5 +2,8 @@
     "preset": "laravel",
     "rules": {
         "function_declaration": false
-    }
+    },
+    "exclude": [
+        "tmp-filament"
+    ]
 }

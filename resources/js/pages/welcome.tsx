@@ -60,11 +60,7 @@ const steps = [
     'Finalisasi berkas hingga siap tahap berikutnya.',
 ];
 
-export default function Welcome({
-    canRegister = true,
-}: {
-    canRegister?: boolean;
-}) {
+export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
     const { resolvedAppearance, updateAppearance } = useAppearance();
     const isAuthenticated = Boolean(auth.user);

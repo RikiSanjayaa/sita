@@ -16,8 +16,6 @@ class MentorshipAssignmentService
 
     public const MAX_ACTIVE_STUDENTS_PER_LECTURER = 14;
 
-
-
     public function syncStudentAdvisors(
         int $studentUserId,
         int $assignedBy,
@@ -63,12 +61,12 @@ class MentorshipAssignmentService
 
     public function isInactiveStudentStatus(bool $isActive): bool
     {
-        return !$isActive;
+        return ! $isActive;
     }
 
     public function validateForSave(MentorshipAssignment $assignment): void
     {
-        if (!$assignment->isActive()) {
+        if (! $assignment->isActive()) {
             return;
         }
 
@@ -106,7 +104,7 @@ class MentorshipAssignmentService
             $query->whereKeyNot($assignment->getKey());
         }
 
-        if (!$query->exists()) {
+        if (! $query->exists()) {
             return;
         }
 

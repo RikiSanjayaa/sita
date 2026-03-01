@@ -111,9 +111,7 @@ export default function Dashboard() {
                             <CardHeader className="gap-3">
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <CardTitle>
-                                            Status Skripsi
-                                        </CardTitle>
+                                        <CardTitle>Status Skripsi</CardTitle>
                                         <CardDescription>
                                             Informasi terkini tentang tugas
                                             akhir Anda
