@@ -64,6 +64,9 @@ export default [
             'bootstrap/ssr',
             'tailwind.config.js',
             'resources/js/pages/dosen/pesan-bimbingan.tsx',
+            'tmp-filament',
+            '.*',
+            'tmp-*',
         ],
     },
     prettier, // Turn off all rules that might conflict with Prettier

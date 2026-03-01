@@ -400,13 +400,16 @@ export default function JadwalBimbinganPage() {
                 </div>
 
                 {!page.props.auth.activeRole || !page.props.hasDosbing ? (
-                    <Card className="flex min-h-[400px] flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground mt-4">
+                    <Card className="mt-4 flex min-h-[400px] flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
                         <Users className="mb-4 size-12 opacity-20" />
                         <h2 className="mb-2 text-xl font-semibold text-foreground">
                             Fitur Bimbingan Belum Aktif
                         </h2>
                         <p className="max-w-md">
-                            Anda belum memiliki Dosen Pembimbing yang ditugaskan. Fitur jadwal bimbingan akan otomatis aktif setelah admin menetapkan dosen pembimbing untuk Anda.
+                            Anda belum memiliki Dosen Pembimbing yang
+                            ditugaskan. Fitur jadwal bimbingan akan otomatis
+                            aktif setelah admin menetapkan dosen pembimbing
+                            untuk Anda.
                         </p>
                     </Card>
                 ) : (
@@ -431,54 +434,68 @@ export default function JadwalBimbinganPage() {
                             <CardContent>
                                 <div className="grid gap-3">
                                     {hasUpcomingMeetings ? (
-                                        page.props.upcomingMeetings.map((meeting) => (
-                                            <div
-                                                key={meeting.id}
-                                                className="rounded-xl border bg-background p-4"
-                                            >
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="min-w-0">
-                                                        <div className="truncate text-sm font-semibold">
-                                                            {meeting.topic}
+                                        page.props.upcomingMeetings.map(
+                                            (meeting) => (
+                                                <div
+                                                    key={meeting.id}
+                                                    className="rounded-xl border bg-background p-4"
+                                                >
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="min-w-0">
+                                                            <div className="truncate text-sm font-semibold">
+                                                                {meeting.topic}
+                                                            </div>
+                                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                                {
+                                                                    meeting.lecturer
+                                                                }
+                                                            </div>
                                                         </div>
-                                                        <div className="mt-1 text-sm text-muted-foreground">
-                                                            {meeting.lecturer}
-                                                        </div>
+                                                        <StatusBadge
+                                                            status={
+                                                                meeting.status
+                                                            }
+                                                        />
                                                     </div>
-                                                    <StatusBadge
-                                                        status={meeting.status}
-                                                    />
-                                                </div>
 
-                                                <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
-                                                    <div className="flex items-center gap-2">
-                                                        <Calendar className="size-4" />
-                                                        <span>
-                                                            Preferensi:{' '}
-                                                            {meeting.requestedAt}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className="size-4" />
-                                                        <span>
-                                                            Terkonfirmasi:{' '}
-                                                            {meeting.scheduledAt ??
-                                                                'Menunggu konfirmasi dosen'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <MapPin className="size-4" />
-                                                        <span>{meeting.location}</span>
-                                                    </div>
-                                                    {meeting.lecturerNote && (
-                                                        <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-                                                            Catatan dosen:{' '}
-                                                            {meeting.lecturerNote}
+                                                    <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+                                                        <div className="flex items-center gap-2">
+                                                            <Calendar className="size-4" />
+                                                            <span>
+                                                                Preferensi:{' '}
+                                                                {
+                                                                    meeting.requestedAt
+                                                                }
+                                                            </span>
                                                         </div>
-                                                    )}
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className="size-4" />
+                                                            <span>
+                                                                Terkonfirmasi:{' '}
+                                                                {meeting.scheduledAt ??
+                                                                    'Menunggu konfirmasi dosen'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <MapPin className="size-4" />
+                                                            <span>
+                                                                {
+                                                                    meeting.location
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                        {meeting.lecturerNote && (
+                                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+                                                                Catatan dosen:{' '}
+                                                                {
+                                                                    meeting.lecturerNote
+                                                                }
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            ),
+                                        )
                                     ) : (
                                         <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
                                             <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -488,8 +505,8 @@ export default function JadwalBimbinganPage() {
                                                 Belum ada jadwal mendatang
                                             </p>
                                             <p className="mt-1 text-sm text-muted-foreground">
-                                                Ajukan jadwal baru untuk mulai sesi
-                                                bimbingan berikutnya.
+                                                Ajukan jadwal baru untuk mulai
+                                                sesi bimbingan berikutnya.
                                             </p>
                                         </div>
                                     )}
@@ -501,49 +518,62 @@ export default function JadwalBimbinganPage() {
                             <CardHeader className="gap-1">
                                 <CardTitle>Riwayat Bimbingan</CardTitle>
                                 <CardDescription>
-                                    Riwayat bimbingan yang sudah selesai / ditutup
+                                    Riwayat bimbingan yang sudah selesai /
+                                    ditutup
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid gap-3">
                                     {hasHistoryMeetings ? (
-                                        page.props.historyMeetings.map((row) => (
-                                            <div
-                                                key={row.id}
-                                                className="rounded-xl border bg-background p-4"
-                                            >
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="min-w-0">
-                                                        <div className="text-sm font-semibold">
-                                                            {row.topic}
+                                        page.props.historyMeetings.map(
+                                            (row) => (
+                                                <div
+                                                    key={row.id}
+                                                    className="rounded-xl border bg-background p-4"
+                                                >
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-semibold">
+                                                                {row.topic}
+                                                            </div>
+                                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                                {row.lecturer}
+                                                            </div>
                                                         </div>
-                                                        <div className="mt-1 text-sm text-muted-foreground">
-                                                            {row.lecturer}
-                                                        </div>
+                                                        <StatusBadge
+                                                            status={row.status}
+                                                        />
                                                     </div>
-                                                    <StatusBadge status={row.status} />
-                                                </div>
 
-                                                <Separator className="my-3" />
+                                                    <Separator className="my-3" />
 
-                                                <div className="grid gap-2 text-sm text-muted-foreground">
-                                                    <div className="flex items-center gap-2">
-                                                        <Calendar className="size-4" />
-                                                        <span>{row.scheduledAt}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <MapPin className="size-4" />
-                                                        <span>{row.location}</span>
-                                                    </div>
-                                                    {row.lecturerNote && (
-                                                        <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-                                                            Catatan dosen:{' '}
-                                                            {row.lecturerNote}
+                                                    <div className="grid gap-2 text-sm text-muted-foreground">
+                                                        <div className="flex items-center gap-2">
+                                                            <Calendar className="size-4" />
+                                                            <span>
+                                                                {
+                                                                    row.scheduledAt
+                                                                }
+                                                            </span>
                                                         </div>
-                                                    )}
+                                                        <div className="flex items-center gap-2">
+                                                            <MapPin className="size-4" />
+                                                            <span>
+                                                                {row.location}
+                                                            </span>
+                                                        </div>
+                                                        {row.lecturerNote && (
+                                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+                                                                Catatan dosen:{' '}
+                                                                {
+                                                                    row.lecturerNote
+                                                                }
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            ),
+                                        )
                                     ) : (
                                         <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
                                             <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -553,8 +583,8 @@ export default function JadwalBimbinganPage() {
                                                 Belum ada riwayat bimbingan
                                             </p>
                                             <p className="mt-1 text-sm text-muted-foreground">
-                                                Riwayat akan muncul setelah sesi pertama
-                                                selesai.
+                                                Riwayat akan muncul setelah sesi
+                                                pertama selesai.
                                             </p>
                                         </div>
                                     )}

@@ -15,8 +15,7 @@ class MahasiswaBimbinganController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
-    ) {
-    }
+    ) {}
 
     public function __invoke(Request $request): Response
     {

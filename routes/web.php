@@ -11,9 +11,7 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::get('/', function () {
-    return Inertia::render('welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
+    return Inertia::render('welcome');
 })->name('home');
 
 Route::middleware(['auth'])->group(function () {
@@ -53,6 +51,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
         ->name('admin.users.import-template');
 });
 
-require __DIR__.'/mahasiswa.php';
-require __DIR__.'/dosen.php';
-require __DIR__.'/settings.php';
+require __DIR__ . '/mahasiswa.php';
+require __DIR__ . '/dosen.php';
+require __DIR__ . '/settings.php';

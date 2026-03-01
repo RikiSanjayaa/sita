@@ -22,14 +22,9 @@ import { request } from '@/routes/password';
 interface LoginProps {
     status?: string;
     canResetPassword: boolean;
-    canRegister: boolean;
 }
 
-export default function Login({
-    status,
-    canResetPassword,
-    canRegister,
-}: LoginProps) {
+export default function Login({ status, canResetPassword }: LoginProps) {
     return (
         <AuthLayout
             title="Masuk"
@@ -118,7 +113,7 @@ export default function Login({
                                 Masuk
                             </Button>
 
-                            <div className="text-center text-sm text-muted-foreground invisible">
+                            <div className="invisible text-center text-sm text-muted-foreground">
                                 Belum punya akun?{' '}
                             </div>
                         </CardFooter>

@@ -171,7 +171,9 @@ export default function PesanPage() {
                             Fitur Pesan Belum Aktif
                         </h2>
                         <p className="max-w-md">
-                            Anda belum memiliki Dosen Pembimbing yang ditugaskan. Fitur pesan akan otomatis aktif setelah admin menetapkan dosen pembimbing untuk Anda.
+                            Anda belum memiliki Dosen Pembimbing yang
+                            ditugaskan. Fitur pesan akan otomatis aktif setelah
+                            admin menetapkan dosen pembimbing untuk Anda.
                         </p>
                     </Card>
                 ) : (
@@ -179,7 +181,9 @@ export default function PesanPage() {
                         <CardHeader className="p-6 pb-4">
                             <div className="flex items-center gap-2">
                                 <CardTitle>{thread.name}</CardTitle>
-                                <Badge variant="secondary">Group Bimbingan</Badge>
+                                <Badge variant="secondary">
+                                    Group Bimbingan
+                                </Badge>
                             </div>
                             <CardDescription className="inline-flex items-center gap-1">
                                 <Users className="size-3.5" />
@@ -201,7 +205,8 @@ export default function PesanPage() {
 
                                     <div className="grid gap-3">
                                         {messages.map((message) => {
-                                            const isMe = message.author === myName;
+                                            const isMe =
+                                                message.author === myName;
                                             return (
                                                 <ChatBubble
                                                     key={message.id}
@@ -211,7 +216,10 @@ export default function PesanPage() {
                                             );
                                         })}
 
-                                        <div ref={messagesEndRef} className="h-1" />
+                                        <div
+                                            ref={messagesEndRef}
+                                            className="h-1"
+                                        />
                                     </div>
                                 </div>
                             </ScrollArea>
@@ -237,7 +245,10 @@ export default function PesanPage() {
                                 <Input
                                     value={form.data.message}
                                     onChange={(event) =>
-                                        form.setData('message', event.target.value)
+                                        form.setData(
+                                            'message',
+                                            event.target.value,
+                                        )
                                     }
                                     placeholder="Tulis pesan..."
                                     onKeyDown={(event) => {
