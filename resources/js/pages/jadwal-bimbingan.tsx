@@ -268,9 +268,9 @@ export default function JadwalBimbinganPage() {
                                             )}
                                         >
                                             {advisor.lecturerName} (
-                                            {advisor.advisorType === 'primary'
-                                                ? 'Pembimbing 1'
-                                                : 'Pembimbing 2'}
+                                            {advisor.advisorType === 'primary' && 'Pembimbing 1'}
+                                            {advisor.advisorType === 'co_advisor' && 'Pembimbing 2'}
+                                            {advisor.advisorType === 'penguji' && 'Penguji'}
                                             )
                                         </SelectItem>
                                     ))}

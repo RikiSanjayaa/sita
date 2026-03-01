@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Enums\AssignmentStatus;
+use App\Enums\SemproStatus;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
@@ -22,7 +23,8 @@ class UploadDokumenController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
@@ -34,7 +36,7 @@ class UploadDokumenController extends Controller
             ->where('uploaded_by_role', 'mahasiswa')
             ->latest('created_at')
             ->get()
-            ->groupBy(fn (MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
+            ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
             ->map(function ($versions): array {
                 /** @var MentorshipDocument $document */
                 $document = $versions->first();
@@ -99,17 +101,7 @@ class UploadDokumenController extends Controller
 
         $createdDocuments = collect();
 
-        DB::transaction(function () use (
-            $assignments,
-            $student,
-            $data,
-            $disk,
-            $storedPath,
-            $file,
-            $groupKey,
-            $nextVersion,
-            &$createdDocuments
-        ): void {
+        DB::transaction(function () use ($assignments, $student, $data, $disk, $storedPath, $file, $groupKey, $nextVersion, &$createdDocuments): void {
             foreach ($assignments as $assignment) {
                 $createdDocuments->push(MentorshipDocument::query()->create([
                     'student_user_id' => $student->id,
@@ -135,6 +127,7 @@ class UploadDokumenController extends Controller
 
             $thread = MentorshipChatThread::query()->firstOrCreate([
                 'student_user_id' => $student->id,
+                'type' => 'pembimbing',
             ]);
 
             $message = $thread->messages()->create([
@@ -156,10 +149,17 @@ class UploadDokumenController extends Controller
 
             $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
 
+            $notifiedUserIds = [];
+
             foreach ($assignments as $assignment) {
                 if ($assignment->lecturer === null) {
                     continue;
                 }
+
+                if (in_array($assignment->lecturer->id, $notifiedUserIds, true)) {
+                    continue;
+                }
+                $notifiedUserIds[] = $assignment->lecturer->id;
 
                 $this->realtimeNotificationService->notifyUser($assignment->lecturer, 'statusTugasAkhir', [
                     'title' => 'Dokumen bimbingan baru diunggah',
@@ -168,6 +168,31 @@ class UploadDokumenController extends Controller
                     'icon' => 'file-text',
                     'createdAt' => now()->toIso8601String(),
                 ]);
+            }
+
+            // Also notify active penguji threads
+            $activeSemproStatuses = [SemproStatus::Scheduled->value, SemproStatus::RevisionOpen->value];
+
+            $pengujiThreads = MentorshipChatThread::query()
+                ->where('student_user_id', $student->id)
+                ->where('type', 'sempro')
+                ->whereHas('sempro', fn($q) => $q->whereIn('status', $activeSemproStatuses))
+                ->get();
+
+            foreach ($pengujiThreads as $pengujiThread) {
+                $pengujiMessage = $pengujiThread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'related_document_id' => $createdDocuments->first()?->id,
+                    'message_type' => 'document_event',
+                    'message' => sprintf(
+                        'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread Sempro).',
+                        trim($data['category']),
+                        $nextVersion,
+                    ),
+                    'sent_at' => now(),
+                ]);
+
+                $this->broadcastChatMessage($pengujiThread->id, $this->mapMessagePayload($pengujiMessage));
             }
         });
 

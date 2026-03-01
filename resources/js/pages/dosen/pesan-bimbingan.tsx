@@ -33,11 +33,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-        | 'text'
-        | 'document_event'
-        | 'attachment'
-        | 'revision_suggestion'
-        | string;
+    | 'text'
+    | 'document_event'
+    | 'attachment'
+    | 'revision_suggestion'
+    | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -51,6 +51,8 @@ type ThreadItem = {
     latestActivityAt: string | null;
     isEscalated: boolean;
     isArchived: boolean;
+    threadType: string;
+    threadLabel: string;
     messages: ThreadMessage[];
 };
 
@@ -258,18 +260,26 @@ export default function DosenPesanBimbinganPage() {
         return () => {
             for (const [index, thread] of initialThreads.entries()) {
                 channels[index]?.stopListening('.chat.message.created');
-                window.Echo.leaveChannel(
-                    `private-mentorship.thread.${thread.id}`,
+                window.Echo.leave(
+                    `mentorship.thread.${thread.id}`,
                 );
             }
         };
     }, [auth.user?.id, initialThreads]);
 
     useEffect(() => {
+        // @ts-expect-error - injected globally for app-sidebar-header to read
+        window.activeMentorshipThreadId = activeThreadId;
+
         if (activeThreadId === null) {
             return;
         }
         void markThreadAsRead(activeThreadId);
+
+        return () => {
+            // @ts-expect-error - injected globally
+            window.activeMentorshipThreadId = null;
+        };
     }, [activeThreadId]);
 
     const visibleThreads = useMemo(() => {
@@ -419,7 +429,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'aktif' &&
-                                        'bg-background text-foreground shadow-sm',
+                                    'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Aktif
@@ -429,7 +439,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'arsip' &&
-                                        'bg-background text-foreground shadow-sm',
+                                    'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Arsip
@@ -466,8 +476,8 @@ export default function DosenPesanBimbinganPage() {
                                                 className={cn(
                                                     'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
                                                     activeThread?.id ===
-                                                        thread.id &&
-                                                        'border-primary/30 bg-muted/40',
+                                                    thread.id &&
+                                                    'border-primary/30 bg-muted/40',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
@@ -486,7 +496,13 @@ export default function DosenPesanBimbinganPage() {
                                                         latestMessage?.documentName ||
                                                         thread.preview}
                                                 </p>
-                                                <div className="mt-2 flex items-center justify-end">
+                                                <div className="mt-2 flex items-center justify-between gap-1">
+                                                    <Badge
+                                                        variant={thread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
+                                                        className={thread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                                    >
+                                                        {thread.threadLabel}
+                                                    </Badge>
                                                     {thread.unread > 0 && (
                                                         <Badge className="bg-primary text-primary-foreground">
                                                             {thread.unread} baru
@@ -538,6 +554,12 @@ export default function DosenPesanBimbinganPage() {
                                     <CardTitle className="truncate">
                                         {activeThread.student}
                                     </CardTitle>
+                                    <Badge
+                                        variant={activeThread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
+                                        className={activeThread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                    >
+                                        {activeThread.threadLabel}
+                                    </Badge>
                                 </div>
                                 <CardDescription className="inline-flex items-center gap-1">
                                     <Users className="size-3.5 shrink-0" />

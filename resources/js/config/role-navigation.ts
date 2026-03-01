@@ -1,6 +1,7 @@
 import {
     BookOpen,
     CalendarClock,
+    ClipboardCheck,
     FileStack,
     FileText,
     Gauge,
@@ -67,6 +68,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dashboard',
                 href: '/dosen/dashboard',
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Seminar Proposal',
+                href: '/dosen/seminar-proposal',
+                icon: ClipboardCheck,
             },
             {
                 title: 'Mahasiswa Bimbingan',

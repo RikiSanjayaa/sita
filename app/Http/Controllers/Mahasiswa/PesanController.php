@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipDocument;
 use App\Models\User;
 use App\Services\RealtimeNotificationService;
@@ -23,78 +24,123 @@ class PesanController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
         $student = $request->user();
         abort_if($student === null, 401);
 
-        $thread = MentorshipChatThread::query()
-            ->with([
-                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->orderBy('created_at')->limit(50),
-            ])
+        // Pembimbing thread (existing — single thread)
+        $pembimbingThread = MentorshipChatThread::query()
+            ->ofType('pembimbing')
             ->firstOrCreate([
                 'student_user_id' => $student->id,
+                'type' => 'pembimbing',
             ]);
 
+        // Penguji threads (from participant table)
+        $pengujiThreadIds = MentorshipChatThreadParticipant::query()
+            ->where('user_id', $student->id)
+            ->where('role', 'student')
+            ->pluck('thread_id')
+            ->all();
+
+        $allThreadIds = array_unique(array_merge([$pembimbingThread->id], $pengujiThreadIds));
+
+        $threads = MentorshipChatThread::query()
+            ->with([
+                'latestMessage.sender',
+                'latestMessage.relatedDocument',
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->orderBy('created_at')->limit(50),
+            ])
+            ->whereIn('id', $allThreadIds)
+            ->withMax('messages', 'created_at')
+            ->orderByDesc('messages_max_created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        // Get members for pembimbing thread
         $advisors = MentorshipAssignment::query()
             ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->where('status', AssignmentStatus::Active->value)
             ->get()
-            ->map(fn(MentorshipAssignment $assignment): string => $assignment->lecturer?->name ?? '-')
+            ->map(fn(MentorshipAssignment $a): string => $a->lecturer?->name ?? '-')
             ->unique()
             ->values()
             ->all();
 
-        $messages = $thread->messages
-            ->map(fn(MentorshipChatMessage $message): array => $this->mapMessagePayload($message))
+        $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($student, $advisors) {
+            $messages = $thread->messages
+                ->map(fn(MentorshipChatMessage $m): array => $this->mapMessagePayload($m))
+                ->values()
+                ->all();
+
+            // Determine members list
+            if ($thread->type === 'pembimbing') {
+                $members = array_values(array_filter([
+                    $student->name,
+                    ...$advisors,
+                ]));
+            } else {
+                // Load participants for penguji threads
+                $participantNames = MentorshipChatThreadParticipant::query()
+                    ->where('thread_id', $thread->id)
+                    ->with('user')
+                    ->get()
+                    ->map(fn(MentorshipChatThreadParticipant $p): string => $p->user?->name ?? '-')
+                    ->all();
+                $members = $participantNames;
+            }
+
+            return [
+                'id' => $thread->id,
+                'name' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Group Chat Bimbingan' : 'Group Chat Penguji'),
+                'threadType' => $thread->type,
+                'threadLabel' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji'),
+                'members' => $members,
+                'messages' => $messages,
+                'preview' => $thread->latestMessage?->message ?? 'Belum ada pesan',
+                'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
+            ];
+        })
             ->values()
             ->all();
 
         return Inertia::render('pesan', [
-            'hasDosbing' => ! empty($advisors),
-            'thread' => [
-                'id' => $thread->id,
-                'name' => 'Group Chat Bimbingan',
-                'members' => array_values(array_filter([
-                    $student->name,
-                    ...$advisors,
-                ])),
-                'messages' => $messages,
-            ],
+            'hasDosbing' => !empty($advisors),
+            'threads' => $threadsData,
             'flashMessage' => $request->session()->get('success'),
         ]);
     }
 
-    public function storeMessage(Request $request): RedirectResponse
+    public function storeMessage(Request $request, MentorshipChatThread $thread): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
+
+        // Validate student has access to thread
+        $canAccess = $thread->student_user_id === $student->id;
+        abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
         $data = $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
         ]);
 
-        $thread = MentorshipChatThread::query()->firstOrCreate([
-            'student_user_id' => $student->id,
-        ]);
-
         $attachment = $data['attachment'] ?? null;
         $trimmedMessage = trim((string) ($data['message'] ?? ''));
 
-        $message = DB::transaction(function () use ($attachment, $student, $thread, $trimmedMessage, ): MentorshipChatMessage {
+        $message = DB::transaction(function () use ($attachment, $student, $thread, $trimmedMessage): MentorshipChatMessage {
             if ($attachment === null) {
-                $textMessage = $thread->messages()->create([
+                return $thread->messages()->create([
                     'sender_user_id' => $student->id,
                     'message_type' => 'text',
                     'message' => $trimmedMessage,
                     'sent_at' => now(),
                 ]);
-
-                return $textMessage;
             }
 
             $assignments = MentorshipAssignment::query()
@@ -102,7 +148,7 @@ class PesanController extends Controller
                 ->where('status', AssignmentStatus::Active->value)
                 ->get();
 
-            if ($assignments->isEmpty()) {
+            if ($assignments->isEmpty() && $thread->type === 'pembimbing') {
                 abort(422, 'Belum ada dosen pembimbing aktif untuk menerima lampiran.');
             }
 
@@ -141,26 +187,54 @@ class PesanController extends Controller
                 ]));
             }
 
-            $systemMessage = sprintf(
-                'Mahasiswa mengunggah dokumen lampiran chat versi v%d.',
-                $nextVersion,
-            );
-
-            $documentMessage = $thread->messages()->create([
+            return $thread->messages()->create([
                 'sender_user_id' => $student->id,
                 'related_document_id' => $createdDocuments->first()?->id,
                 'message_type' => 'document_event',
-                'message' => $systemMessage,
+                'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d.', $nextVersion),
                 'sent_at' => now(),
             ]);
-
-            return $documentMessage;
         });
 
         $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
-        $this->notifyLecturers($student, $thread->id);
+        $this->notifyThreadMembers($student, $thread);
 
         return back()->with('success', 'Pesan berhasil dikirim.');
+    }
+
+    private function notifyThreadMembers(User $student, MentorshipChatThread $thread): void
+    {
+        if ($thread->type === 'pembimbing') {
+            $this->notifyLecturers($student, $thread->id);
+        } else {
+            // Notify all participants except self
+            $participants = MentorshipChatThreadParticipant::query()
+                ->where('thread_id', $thread->id)
+                ->where('user_id', '!=', $student->id)
+                ->with('user')
+                ->get();
+
+            $notifiedUserIds = [];
+
+            foreach ($participants as $participant) {
+                if ($participant->user === null) {
+                    continue;
+                }
+
+                if (in_array($participant->user->id, $notifiedUserIds, true)) {
+                    continue;
+                }
+                $notifiedUserIds[] = $participant->user->id;
+
+                $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
+                    'title' => 'Pesan sempro baru',
+                    'description' => sprintf('%s mengirim pesan di thread Sempro.', $student->name),
+                    'url' => '/dosen/pesan-bimbingan',
+                    'icon' => 'message-square',
+                    'createdAt' => now()->toIso8601String(),
+                ]);
+            }
+        }
     }
 
     private function notifyLecturers(User $student, int $threadId): void

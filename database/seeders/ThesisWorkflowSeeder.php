@@ -8,6 +8,8 @@ use App\Enums\SemproExaminerDecision;
 use App\Enums\SemproStatus;
 use App\Enums\ThesisSubmissionStatus;
 use App\Models\MentorshipAssignment;
+use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\Sempro;
 use App\Models\SemproExaminer;
 use App\Models\SemproRevision;
@@ -196,6 +198,9 @@ class ThesisWorkflowSeeder extends Seeder
                 'assigned_by' => $admin->id,
             ],
         );
+
+        // Create penguji thread for scheduled sempro
+        $this->createPengujiThread($sempro, $student, [$dosen1, $dosen2]);
     }
 
     private function seedSemproRevision(User $admin, User $dosen1, User $dosen2): void
@@ -262,6 +267,26 @@ class ThesisWorkflowSeeder extends Seeder
                 'requested_by_user_id' => $dosen1->id,
             ],
         );
+
+        // Create penguji thread for revision sempro
+        $thread = $this->createPengujiThread($sempro, $student, [$dosen1, $dosen2]);
+
+        if ($thread !== null) {
+            // Add sample conversation
+            $thread->messages()->create([
+                'sender_user_id' => $dosen1->id,
+                'message_type' => 'text',
+                'message' => 'Mohon perbaiki bagian metodologi, terutama teknik pengumpulan data.',
+                'sent_at' => now()->subDays(3),
+            ]);
+
+            $thread->messages()->create([
+                'sender_user_id' => $student->id,
+                'message_type' => 'text',
+                'message' => 'Baik pak, akan saya perbaiki segera. Terima kasih atas masukannya.',
+                'sent_at' => now()->subDays(2),
+            ]);
+        }
     }
 
     private function seedMenungguPersetujuan(): void
@@ -343,5 +368,52 @@ class ThesisWorkflowSeeder extends Seeder
                 'assigned_by' => $admin->id,
             ],
         );
+    }
+
+    /**
+     * @param  User[]  $examiners
+     */
+    private function createPengujiThread(Sempro $sempro, User $student, array $examiners): ?MentorshipChatThread
+    {
+        $thread = MentorshipChatThread::query()->firstOrCreate(
+            [
+                'student_user_id' => $student->id,
+                'type' => 'sempro',
+                'context_id' => $sempro->id,
+            ],
+            [
+                'label' => 'Sempro',
+            ],
+        );
+
+        // Add student participant
+        MentorshipChatThreadParticipant::query()->firstOrCreate([
+            'thread_id' => $thread->id,
+            'user_id' => $student->id,
+        ], [
+            'role' => 'student',
+        ]);
+
+        // Add examiner participants
+        foreach ($examiners as $examiner) {
+            MentorshipChatThreadParticipant::query()->firstOrCreate([
+                'thread_id' => $thread->id,
+                'user_id' => $examiner->id,
+            ], [
+                'role' => 'examiner',
+            ]);
+        }
+
+        // System welcome message (only once)
+        if ($thread->messages()->count() === 0) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
+                'sent_at' => $sempro->scheduled_for ?? now(),
+            ]);
+        }
+
+        return $thread;
     }
 }

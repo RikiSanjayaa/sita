@@ -19,18 +19,25 @@ Broadcast::channel('mentorship.thread.{threadId}', function ($user, int $threadI
         return true;
     }
 
-    if ($user->hasRole('mahasiswa')) {
-        return $thread->student_user_id === $user->id;
+    if ($thread->type === 'pembimbing') {
+        if ($user->hasRole('mahasiswa')) {
+            return $thread->student_user_id === $user->id;
+        }
+
+        if (!$user->hasRole('dosen')) {
+            return false;
+        }
+
+        return MentorshipAssignment::query()
+            ->where('student_user_id', $thread->student_user_id)
+            ->where('lecturer_user_id', $user->id)
+            ->where('status', AssignmentStatus::Active->value)
+            ->exists();
     }
 
-    if (! $user->hasRole('dosen')) {
-        return false;
-    }
-
-    return MentorshipAssignment::query()
-        ->where('student_user_id', $thread->student_user_id)
-        ->where('lecturer_user_id', $user->id)
-        ->where('status', AssignmentStatus::Active->value)
+    return App\Models\MentorshipChatThreadParticipant::query()
+        ->where('thread_id', $thread->id)
+        ->where('user_id', $user->id)
         ->exists();
 });
 

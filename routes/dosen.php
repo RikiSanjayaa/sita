@@ -5,10 +5,15 @@ use App\Http\Controllers\Dosen\DokumenRevisiController;
 use App\Http\Controllers\Dosen\JadwalBimbinganController;
 use App\Http\Controllers\Dosen\MahasiswaBimbinganController;
 use App\Http\Controllers\Dosen\PesanBimbinganController;
+use App\Http\Controllers\Dosen\SeminarProposalController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('dosen.')->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('seminar-proposal', [SeminarProposalController::class, 'index'])->name('seminar-proposal');
+    Route::post('seminar-proposal/{sempro}/decision', [SeminarProposalController::class, 'submitDecision'])
+        ->name('seminar-proposal.decision');
 
     Route::get('mahasiswa-bimbingan', MahasiswaBimbinganController::class)->name('mahasiswa-bimbingan');
 
@@ -26,3 +31,4 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::post('pesan-bimbingan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])
         ->name('pesan-bimbingan.read');
 });
+

@@ -6,7 +6,9 @@ use App\Enums\AssignmentStatus;
 use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
+use App\Models\User;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +21,8 @@ class JadwalBimbinganController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
@@ -43,6 +46,31 @@ class JadwalBimbinganController extends Controller
                 'lecturerName' => $assignment->lecturer?->name ?? '-',
                 'advisorType' => $assignment->advisor_type,
             ])
+            ->values()
+            ->all();
+
+        // Include penguji from active threads where student is a participant
+        $studentThreadIds = MentorshipChatThreadParticipant::query()
+            ->where('user_id', $student->id)
+            ->pluck('thread_id');
+
+        $examiners = MentorshipChatThreadParticipant::query()
+            ->with('user')
+            ->whereIn('thread_id', $studentThreadIds)
+            ->where('role', 'examiner')
+            ->get()
+            ->map(fn(MentorshipChatThreadParticipant $participant): array => [
+                'assignmentId' => null, // Examiners don't have mentorship assignment IDs
+                'lecturerUserId' => $participant->user_id,
+                'lecturerName' => $participant->user?->name ?? '-',
+                'advisorType' => 'penguji',
+            ])
+            ->unique('lecturerUserId')
+            ->values()
+            ->all();
+
+        $allLecturers = collect(array_merge($advisors, $examiners))
+            ->unique('lecturerUserId')
             ->values()
             ->all();
 
@@ -83,8 +111,8 @@ class JadwalBimbinganController extends Controller
             ->all();
 
         return Inertia::render('jadwal-bimbingan', [
-            'hasDosbing' => ! empty($advisors),
-            'advisors' => $advisors,
+            'hasDosbing' => !empty($allLecturers),
+            'advisors' => $allLecturers,
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
             'flashMessage' => $request->session()->get('success'),
@@ -105,30 +133,40 @@ class JadwalBimbinganController extends Controller
         ]);
 
         $assignments = MentorshipAssignment::query()
-            ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->where('status', AssignmentStatus::Active->value)
             ->get();
 
-        if ($assignments->isEmpty()) {
+        $studentThreadIds = MentorshipChatThreadParticipant::query()
+            ->where('user_id', $student->id)
+            ->pluck('thread_id');
+
+        $examinerUserIds = MentorshipChatThreadParticipant::query()
+            ->whereIn('thread_id', $studentThreadIds)
+            ->where('role', 'examiner')
+            ->pluck('user_id');
+
+        $isAssigned = $assignments->contains('lecturer_user_id', (int) $data['lecturer_user_id']);
+        $isExaminer = $examinerUserIds->contains((int) $data['lecturer_user_id']);
+
+        if ($assignments->isEmpty() && $examinerUserIds->isEmpty()) {
             return back()->withErrors([
-                'topic' => 'Belum ada dosen pembimbing aktif. Hubungi admin untuk assignment pembimbing.',
+                'topic' => 'Belum ada dosen pembimbing atau penguji aktif. Hubungi admin.',
             ]);
         }
 
-        $selectedAssignment = $assignments
-            ->firstWhere('lecturer_user_id', (int) $data['lecturer_user_id']);
-
-        if ($selectedAssignment === null) {
+        if (!$isAssigned && !$isExaminer) {
             return back()->withErrors([
-                'lecturer_user_id' => 'Pilih dosen pembimbing yang valid.',
+                'lecturer_user_id' => 'Pilih dosen pembimbing atau penguji yang valid.',
             ]);
         }
+
+        $selectedAssignment = $assignments->firstWhere('lecturer_user_id', (int) $data['lecturer_user_id']);
 
         MentorshipSchedule::query()->create([
             'student_user_id' => $student->id,
-            'lecturer_user_id' => $selectedAssignment->lecturer_user_id,
-            'mentorship_assignment_id' => $selectedAssignment->id,
+            'lecturer_user_id' => (int) $data['lecturer_user_id'],
+            'mentorship_assignment_id' => $selectedAssignment?->id,
             'topic' => trim($data['topic']),
             'status' => 'pending',
             'requested_for' => $data['requested_for'],
@@ -139,11 +177,13 @@ class JadwalBimbinganController extends Controller
             'created_by_user_id' => $student->id,
         ]);
 
-        $this->broadcastScheduleUpdated($selectedAssignment->lecturer_user_id);
+        $this->broadcastScheduleUpdated((int) $data['lecturer_user_id']);
         $this->broadcastScheduleUpdated($student->id);
 
-        if ($selectedAssignment->lecturer !== null) {
-            $this->realtimeNotificationService->notifyUser($selectedAssignment->lecturer, 'jadwalBimbingan', [
+        $lecturer = User::query()->find((int) $data['lecturer_user_id']);
+
+        if ($lecturer !== null) {
+            $this->realtimeNotificationService->notifyUser($lecturer, 'jadwalBimbingan', [
                 'title' => 'Permintaan jadwal bimbingan baru',
                 'description' => sprintf('%s mengajukan jadwal bimbingan baru.', $student->name),
                 'url' => '/dosen/jadwal-bimbingan',

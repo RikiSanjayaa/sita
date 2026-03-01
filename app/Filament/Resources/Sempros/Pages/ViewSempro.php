@@ -7,6 +7,8 @@ use App\Enums\SemproExaminerDecision;
 use App\Enums\SemproStatus;
 use App\Enums\ThesisSubmissionStatus;
 use App\Filament\Resources\Sempros\SemproResource;
+use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\Sempro;
 use App\Models\User;
 use App\Services\MentorshipAssignmentService;
@@ -40,6 +42,9 @@ class ViewSempro extends ViewRecord
                 ->action(function () use ($record): void {
                     try {
                         app(SemproWorkflowService::class)->scheduleSempro($record);
+
+                        // Auto-create penguji chat thread
+                        $this->createPengujiThread($record);
 
                         Notification::make()
                             ->title('Sempro berhasil dijadwalkan')
@@ -175,5 +180,55 @@ class ViewSempro extends ViewRecord
 
             EditAction::make(),
         ];
+    }
+
+    private function createPengujiThread(Sempro $sempro): void
+    {
+        $studentUserId = $sempro->submission?->student_user_id;
+
+        if ($studentUserId === null) {
+            return;
+        }
+
+        // Don't create if already exists
+        $exists = MentorshipChatThread::query()
+            ->where('type', 'sempro')
+            ->where('context_id', $sempro->id)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $thread = MentorshipChatThread::query()->create([
+            'student_user_id' => $studentUserId,
+            'type' => 'sempro',
+            'context_id' => $sempro->id,
+            'label' => 'Sempro',
+        ]);
+
+        // Add student as participant
+        MentorshipChatThreadParticipant::query()->create([
+            'thread_id' => $thread->id,
+            'user_id' => $studentUserId,
+            'role' => 'student',
+        ]);
+
+        // Add all examiners as participants
+        foreach ($sempro->examiners as $examiner) {
+            MentorshipChatThreadParticipant::query()->create([
+                'thread_id' => $thread->id,
+                'user_id' => $examiner->examiner_user_id,
+                'role' => 'examiner',
+            ]);
+        }
+
+        // System welcome message
+        $thread->messages()->create([
+            'sender_user_id' => null,
+            'message_type' => 'text',
+            'message' => 'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
+            'sent_at' => now(),
+        ]);
     }
 }
