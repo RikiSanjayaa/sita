@@ -8,12 +8,12 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewMentorshipAssignment extends ViewRecord
 {
-  protected static string $resource = MentorshipAssignmentResource::class;
+    protected static string $resource = MentorshipAssignmentResource::class;
 
-  protected function getHeaderActions(): array
-  {
-    return [
-      EditAction::make(),
-    ];
-  }
+    protected function getHeaderActions(): array
+    {
+        return [
+            EditAction::make(),
+        ];
+    }
 }

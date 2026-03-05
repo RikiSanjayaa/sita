@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\ThesisSubmissions\Schemas;
 
-use App\Models\ThesisSubmission;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -43,7 +42,7 @@ class ThesisSubmissionInfolist
                         TextEntry::make('proposal_file_path')
                             ->label('File Proposal')
                             ->formatStateUsing(fn(?string $state): string => $state === null ? '-' : 'Download Proposal')
-                            ->url(fn(?string $state): ?string => $state === null ? null : asset('storage/' . $state))
+                            ->url(fn(?string $state): ?string => $state === null ? null : asset('storage/'.$state))
                             ->openUrlInNewTab()
                             ->placeholder('-'),
                     ]),

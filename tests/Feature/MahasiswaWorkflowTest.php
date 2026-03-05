@@ -9,6 +9,7 @@ use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
+use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\Sempro;
 use App\Models\SemproExaminer;
@@ -256,9 +257,11 @@ test('tugas akhir page includes proposal file, dosen assignments, and sempro sch
     $proposalPath = 'proposal_files/proposal-awal.pdf';
     Storage::disk('public')->put($proposalPath, 'proposal-content');
 
+    $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+
     $submission = ThesisSubmission::query()->create([
         'student_user_id' => $student->id,
-        'program_studi' => 'Informatika',
+        'program_studi_id' => $prodi->id,
         'title_id' => 'Sistem Monitoring Skripsi',
         'title_en' => 'Thesis Monitoring System',
         'proposal_summary' => 'Ringkasan proposal.',
@@ -312,9 +315,10 @@ test('mahasiswa can update pending thesis submission and replace proposal file',
     Storage::fake('public');
 
     $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
-        'program_studi' => 'Sistem Informasi',
+        'program_studi_id' => $prodi->id,
         'is_active' => true,
     ]);
 
@@ -323,7 +327,7 @@ test('mahasiswa can update pending thesis submission and replace proposal file',
 
     $submission = ThesisSubmission::query()->create([
         'student_user_id' => $student->id,
-        'program_studi' => 'Informatika',
+        'program_studi_id' => $prodi->id,
         'title_id' => 'Judul Lama',
         'title_en' => 'Old Title',
         'proposal_summary' => 'Ringkasan lama.',
@@ -346,7 +350,7 @@ test('mahasiswa can update pending thesis submission and replace proposal file',
     $updated = $submission->fresh();
 
     expect($updated)->not()->toBeNull()
-        ->and($updated?->program_studi)->toBe('Sistem Informasi')
+        ->and($updated?->program_studi_id)->toBe($prodi->id)
         ->and($updated?->title_id)->toBe('Judul Revisi')
         ->and($updated?->title_en)->toBe('Revised Title')
         ->and($updated?->proposal_summary)->toBe('Ringkasan revisi.')
@@ -366,9 +370,11 @@ test('proposal file access is restricted to owning mahasiswa', function () {
     $path = 'proposal_files/proposal-owner.pdf';
     Storage::disk('public')->put($path, 'owner-content');
 
+    $prodi = ProgramStudi::factory()->create();
+
     $submission = ThesisSubmission::query()->create([
         'student_user_id' => $owner->id,
-        'program_studi' => 'Informatika',
+        'program_studi_id' => $prodi->id,
         'title_id' => 'Judul Owner',
         'title_en' => 'Owner Title',
         'proposal_summary' => 'Ringkasan owner.',

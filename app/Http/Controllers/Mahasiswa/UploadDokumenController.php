@@ -23,8 +23,7 @@ class UploadDokumenController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {

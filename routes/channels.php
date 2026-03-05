@@ -24,7 +24,7 @@ Broadcast::channel('mentorship.thread.{threadId}', function ($user, int $threadI
             return $thread->student_user_id === $user->id;
         }
 
-        if (!$user->hasRole('dosen')) {
+        if (! $user->hasRole('dosen')) {
             return false;
         }
 

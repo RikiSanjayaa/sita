@@ -86,7 +86,10 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'approved' || normalizedStatus === 'rescheduled') {
         return (
-            <Badge variant="soft" className="gap-1 rounded-full bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20">
+            <Badge
+                variant="soft"
+                className="gap-1 rounded-full bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20"
+            >
                 <CheckCircle2 className="size-3.5" />
                 Terjadwal
             </Badge>
@@ -95,7 +98,10 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'completed') {
         return (
-            <Badge variant="soft" className="gap-1 rounded-full bg-blue-600/10 text-blue-600 hover:bg-blue-600/20">
+            <Badge
+                variant="soft"
+                className="gap-1 rounded-full bg-blue-600/10 text-blue-600 hover:bg-blue-600/20"
+            >
                 <CheckCircle2 className="size-3.5" />
                 Selesai
             </Badge>
@@ -104,7 +110,10 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'pending') {
         return (
-            <Badge variant="soft" className="gap-1 rounded-full bg-amber-600/10 text-amber-600 hover:bg-amber-600/20">
+            <Badge
+                variant="soft"
+                className="gap-1 rounded-full bg-amber-600/10 text-amber-600 hover:bg-amber-600/20"
+            >
                 <Clock className="size-3.5" />
                 Menunggu Konfirmasi
             </Badge>
@@ -113,7 +122,10 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'rejected') {
         return (
-            <Badge variant="soft" className="gap-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20">
+            <Badge
+                variant="soft"
+                className="gap-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
+            >
                 <XCircle className="size-3.5" />
                 Ditolak
             </Badge>
@@ -121,7 +133,10 @@ function StatusBadge({ status }: { status: string }) {
     }
 
     return (
-        <Badge variant="outline" className="gap-1 rounded-full text-muted-foreground">
+        <Badge
+            variant="outline"
+            className="gap-1 rounded-full text-muted-foreground"
+        >
             <XCircle className="size-3.5" />
             Dibatalkan
         </Badge>
@@ -233,8 +248,8 @@ export default function DosenJadwalBimbinganPage() {
                 (decision === 'reject'
                     ? ''
                     : decision === 'reschedule'
-                        ? ''
-                        : 'Permintaan jadwal disetujui.'),
+                      ? ''
+                      : 'Permintaan jadwal disetujui.'),
         };
 
         form.transform(() => ({
@@ -318,9 +333,11 @@ export default function DosenJadwalBimbinganPage() {
             <Head title="Jadwal Bimbingan Dosen" />
 
             <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
-                <Card className="shadow-sm py-0">
+                <Card className="py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">Permintaan Menunggu Konfirmasi</CardTitle>
+                        <CardTitle className="text-lg font-semibold">
+                            Permintaan Menunggu Konfirmasi
+                        </CardTitle>
                         <CardDescription>
                             Konfirmasi, jadwalkan ulang, atau tolak permintaan
                         </CardDescription>
@@ -344,17 +361,22 @@ export default function DosenJadwalBimbinganPage() {
                                     <p className="text-base font-semibold">
                                         {item.mahasiswa}
                                     </p>
-                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                    <p className="mt-0.5 text-sm text-muted-foreground">
                                         {item.topic}
                                     </p>
                                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                        <Badge variant="soft" className="bg-muted text-muted-foreground hover:bg-muted">
+                                        <Badge
+                                            variant="soft"
+                                            className="bg-muted text-muted-foreground hover:bg-muted"
+                                        >
                                             {item.requestedAt}
                                         </Badge>
                                     </div>
                                     {item.studentNote && (
                                         <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                                            <span className="font-medium text-foreground">Catatan mahasiswa:</span>{' '}
+                                            <span className="font-medium text-foreground">
+                                                Catatan mahasiswa:
+                                            </span>{' '}
                                             {item.studentNote}
                                         </div>
                                     )}
@@ -404,7 +426,7 @@ export default function DosenJadwalBimbinganPage() {
                                                             ...current,
                                                             [item.id]: {
                                                                 ...current[
-                                                                item.id
+                                                                    item.id
                                                                 ],
                                                                 scheduled_for:
                                                                     undefined,
@@ -415,14 +437,14 @@ export default function DosenJadwalBimbinganPage() {
                                             />
                                             {decisionErrorsById[item.id]
                                                 ?.scheduled_for && (
-                                                    <p className="text-xs text-destructive">
-                                                        {
-                                                            decisionErrorsById[
-                                                                item.id
-                                                            ]?.scheduled_for
-                                                        }
-                                                    </p>
-                                                )}
+                                                <p className="text-xs text-destructive">
+                                                    {
+                                                        decisionErrorsById[
+                                                            item.id
+                                                        ]?.scheduled_for
+                                                    }
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="grid gap-1">
                                             <Label
@@ -505,7 +527,7 @@ export default function DosenJadwalBimbinganPage() {
                                                             ...current,
                                                             [item.id]: {
                                                                 ...current[
-                                                                item.id
+                                                                    item.id
                                                                 ],
                                                                 lecturer_note:
                                                                     undefined,
@@ -517,14 +539,14 @@ export default function DosenJadwalBimbinganPage() {
                                             />
                                             {decisionErrorsById[item.id]
                                                 ?.lecturer_note && (
-                                                    <p className="text-xs text-destructive">
-                                                        {
-                                                            decisionErrorsById[
-                                                                item.id
-                                                            ]?.lecturer_note
-                                                        }
-                                                    </p>
-                                                )}
+                                                <p className="text-xs text-destructive">
+                                                    {
+                                                        decisionErrorsById[
+                                                            item.id
+                                                        ]?.lecturer_note
+                                                    }
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="flex flex-wrap gap-2 pt-2">
                                             <Button
@@ -545,7 +567,7 @@ export default function DosenJadwalBimbinganPage() {
                                             <Button
                                                 size="sm"
                                                 variant="soft"
-                                                className="bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold"
+                                                className="bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20"
                                                 disabled={form.processing}
                                                 onClick={() =>
                                                     decide(
@@ -559,7 +581,7 @@ export default function DosenJadwalBimbinganPage() {
                                             </Button>
                                             <Button
                                                 size="sm"
-                                                className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                                                className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
                                                 disabled={form.processing}
                                                 onClick={() =>
                                                     decide(
@@ -592,9 +614,11 @@ export default function DosenJadwalBimbinganPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-sm py-0">
+                <Card className="py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">Jadwal Mendatang</CardTitle>
+                        <CardTitle className="text-lg font-semibold">
+                            Jadwal Mendatang
+                        </CardTitle>
                         <CardDescription>
                             Agenda bimbingan terkonfirmasi minggu ini
                         </CardDescription>
@@ -628,16 +652,18 @@ export default function DosenJadwalBimbinganPage() {
                                         </div>
                                         {item.lecturerNote && (
                                             <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                                                <span className="font-medium text-foreground">Catatan dosen:</span>{' '}
+                                                <span className="font-medium text-foreground">
+                                                    Catatan dosen:
+                                                </span>{' '}
                                                 {item.lecturerNote}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-dashed">
+                                    <div className="mt-4 flex flex-wrap gap-2 border-t border-dashed pt-2">
                                         <Button
                                             size="sm"
                                             variant="soft"
-                                            className="font-semibold bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                            className="bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20"
                                             disabled={form.processing}
                                             onClick={() =>
                                                 closeSchedule(
@@ -651,7 +677,7 @@ export default function DosenJadwalBimbinganPage() {
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                                            className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
                                             disabled={form.processing}
                                             onClick={() =>
                                                 closeSchedule(
@@ -683,15 +709,17 @@ export default function DosenJadwalBimbinganPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-2 shadow-sm py-0">
+                <Card className="py-0 shadow-sm lg:col-span-2">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">Riwayat Jadwal</CardTitle>
+                        <CardTitle className="text-lg font-semibold">
+                            Riwayat Jadwal
+                        </CardTitle>
                         <CardDescription>
                             Daftar jadwal yang ditolak, dibatalkan, atau telah
                             selesai
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="pb-6 grid sm:grid-cols-2 gap-4">
+                    <CardContent className="grid gap-4 pb-6 sm:grid-cols-2">
                         {historySchedules.length > 0 ? (
                             historySchedules.map((item) => (
                                 <div
@@ -720,7 +748,9 @@ export default function DosenJadwalBimbinganPage() {
                                         </div>
                                         {item.lecturerNote && (
                                             <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                                                <span className="font-medium text-foreground">Catatan dosen:</span>{' '}
+                                                <span className="font-medium text-foreground">
+                                                    Catatan dosen:
+                                                </span>{' '}
                                                 {item.lecturerNote}
                                             </div>
                                         )}

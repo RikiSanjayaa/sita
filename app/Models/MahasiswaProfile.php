@@ -35,7 +35,7 @@ class MahasiswaProfile extends Model
     protected static function booted(): void
     {
         static::updated(function (self $profile): void {
-            if (!$profile->wasChanged('is_active')) {
+            if (! $profile->wasChanged('is_active')) {
                 return;
             }
 

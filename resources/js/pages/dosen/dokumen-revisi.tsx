@@ -73,9 +73,11 @@ export default function DosenDokumenRevisiPage() {
             <Head title="Dokumen & Revisi Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <Card className="shadow-sm py-0">
+                <Card className="py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">Antrian Review Dokumen</CardTitle>
+                        <CardTitle className="text-lg font-semibold">
+                            Antrian Review Dokumen
+                        </CardTitle>
                         <CardDescription>
                             Data berasal dari dokumen unggahan mahasiswa
                             bimbingan
@@ -106,27 +108,30 @@ export default function DosenDokumenRevisiPage() {
                                                 <FileText className="size-4" />
                                                 {doc.file}
                                             </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 Upload: {doc.uploadedAt}
                                             </p>
                                             {doc.revisionNotes && (
                                                 <p className="text-xs text-muted-foreground">
                                                     Catatan terakhir:{' '}
-                                                    <span className="font-medium text-foreground">{doc.revisionNotes}</span>
+                                                    <span className="font-medium text-foreground">
+                                                        {doc.revisionNotes}
+                                                    </span>
                                                 </p>
                                             )}
                                         </div>
-                                        <div className="flex flex-col items-start lg:items-end gap-3">
+                                        <div className="flex flex-col items-start gap-3 lg:items-end">
                                             <div className="flex items-center gap-2">
                                                 <Badge
                                                     variant="soft"
                                                     className={
-                                                        doc.status === 'Disetujui'
+                                                        doc.status ===
+                                                        'Disetujui'
                                                             ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
                                                             : doc.status ===
                                                                 'Perlu Revisi'
-                                                                ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                                                : ''
+                                                              ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                                              : ''
                                                     }
                                                 >
                                                     {doc.status}
@@ -146,17 +151,20 @@ export default function DosenDokumenRevisiPage() {
                                                     }}
                                                     disabled={!doc.fileUrl}
                                                 >
-                                                    <Download className="size-4 mr-1.5" />
+                                                    <Download className="mr-1.5 size-4" />
                                                     Unduh
                                                 </Button>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {doc.status === 'Perlu Review' && (
+                                                {doc.status ===
+                                                    'Perlu Review' && (
                                                     <Button
                                                         size="sm"
                                                         variant="soft"
-                                                        className="bg-amber-600/10 text-amber-600 hover:bg-amber-600/20 font-semibold"
-                                                        disabled={form.processing}
+                                                        className="bg-amber-600/10 font-semibold text-amber-600 hover:bg-amber-600/20"
+                                                        disabled={
+                                                            form.processing
+                                                        }
                                                         onClick={() =>
                                                             submitReview(
                                                                 doc.id,
@@ -167,11 +175,14 @@ export default function DosenDokumenRevisiPage() {
                                                         Perlu Revisi
                                                     </Button>
                                                 )}
-                                                {doc.status === 'Perlu Review' && (
+                                                {doc.status ===
+                                                    'Perlu Review' && (
                                                     <Button
                                                         size="sm"
-                                                        className="bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
-                                                        disabled={form.processing}
+                                                        className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+                                                        disabled={
+                                                            form.processing
+                                                        }
                                                         onClick={() =>
                                                             submitReview(
                                                                 doc.id,
@@ -192,8 +203,13 @@ export default function DosenDokumenRevisiPage() {
                                 <span className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-muted">
                                     <FileText className="size-6 text-muted-foreground" />
                                 </span>
-                                <p className="text-base font-medium">Belum ada dokumen yang perlu direview</p>
-                                <p className="text-sm text-muted-foreground">Dokumen mahasiswa yang butuh persetujuan akan muncul di sini.</p>
+                                <p className="text-base font-medium">
+                                    Belum ada dokumen yang perlu direview
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Dokumen mahasiswa yang butuh persetujuan
+                                    akan muncul di sini.
+                                </p>
                             </div>
                         )}
                     </CardContent>

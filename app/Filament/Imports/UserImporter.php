@@ -26,9 +26,9 @@ class UserImporter extends Importer
                     AppRole::Dosen->value => 'Dosen',
                     AppRole::Admin->value => 'Admin',
                 ])->when(
-                        !auth()->user()?->hasRole(AppRole::SuperAdmin),
-                        fn($options) => $options->except(AppRole::Admin->value)
-                    )->toArray())
+                    ! auth()->user()?->hasRole(AppRole::SuperAdmin),
+                    fn($options) => $options->except(AppRole::Admin->value)
+                )->toArray())
                 ->required()
                 ->native(false),
             Select::make('program_studi_id')
@@ -37,7 +37,7 @@ class UserImporter extends Importer
                 ->required()
                 ->searchable()
                 ->default(fn() => auth()->user()?->adminProgramStudiId())
-                ->disabled(fn() => !auth()->user()?->hasRole(AppRole::SuperAdmin))
+                ->disabled(fn() => ! auth()->user()?->hasRole(AppRole::SuperAdmin))
                 ->dehydrated() // Ensure it's sent even if disabled
                 ->native(false),
         ];
@@ -148,10 +148,10 @@ class UserImporter extends Importer
 
     public static function getCompletedNotificationBody(Import $import): string
     {
-        $body = 'Your user import has completed and ' . Number::format($import->successful_rows) . ' ' . str('row')->plural($import->successful_rows) . ' imported.';
+        $body = 'Your user import has completed and '.Number::format($import->successful_rows).' '.str('row')->plural($import->successful_rows).' imported.';
 
         if ($failedRowsCount = $import->getFailedRowsCount()) {
-            $body .= ' ' . Number::format($failedRowsCount) . ' ' . str('row')->plural($failedRowsCount) . ' failed to import.';
+            $body .= ' '.Number::format($failedRowsCount).' '.str('row')->plural($failedRowsCount).' failed to import.';
         }
 
         return $body;

@@ -90,7 +90,7 @@ class SemproForm
                                         ->orderBy('name')
                                         ->get()
                                         ->mapWithKeys(fn(User $u) => [
-                                            $u->id => $u->name . ' (' . ($u->dosenProfile?->nik ?? '-') . ')',
+                                            $u->id => $u->name.' ('.($u->dosenProfile?->nik ?? '-').')',
                                         ])
                                         ->all())
                                     ->searchable()

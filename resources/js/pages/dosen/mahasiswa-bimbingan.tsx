@@ -46,12 +46,21 @@ export default function DosenMahasiswaBimbinganPage() {
             <Head title="Mahasiswa Bimbingan" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <Card className="shadow-sm py-0">
+                <Card className="py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">Mahasiswa Aktif</CardTitle>
+                        <CardTitle className="text-lg font-semibold">
+                            Mahasiswa Aktif
+                        </CardTitle>
                         <CardDescription>
-                            Kapasitas saat ini <span className="font-semibold text-foreground">{activeCount}</span> dari{' '}
-                            <span className="font-semibold text-foreground">{capacityLimit}</span> mahasiswa aktif
+                            Kapasitas saat ini{' '}
+                            <span className="font-semibold text-foreground">
+                                {activeCount}
+                            </span>{' '}
+                            dari{' '}
+                            <span className="font-semibold text-foreground">
+                                {capacityLimit}
+                            </span>{' '}
+                            mahasiswa aktif
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 pb-6">
@@ -65,33 +74,41 @@ export default function DosenMahasiswaBimbinganPage() {
                                         <p className="text-base font-semibold">
                                             {row.name}
                                         </p>
-                                        <p className="text-sm font-medium text-muted-foreground mt-0.5">
+                                        <p className="mt-0.5 text-sm font-medium text-muted-foreground">
                                             {row.nim} - {row.advisorType}
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="soft" className="bg-muted text-muted-foreground hover:bg-muted font-medium">
+                                        <Badge
+                                            variant="soft"
+                                            className="bg-muted font-medium text-muted-foreground hover:bg-muted"
+                                        >
                                             Progress {row.progress}%
                                         </Badge>
                                         <Badge
                                             variant="soft"
                                             className={
                                                 row.status === 'Siap Seminar'
-                                                    ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20 font-semibold'
-                                                    : 'bg-primary/10 text-primary hover:bg-primary/20 font-semibold'
+                                                    ? 'bg-emerald-600/10 font-semibold text-emerald-600 hover:bg-emerald-600/20'
+                                                    : 'bg-primary/10 font-semibold text-primary hover:bg-primary/20'
                                             }
                                         >
                                             {row.status}
                                         </Badge>
                                     </div>
                                 </div>
-                                <div className="mt-4 flex items-start gap-2 text-sm text-muted-foreground pt-3 border-t border-dashed">
+                                <div className="mt-4 flex items-start gap-2 border-t border-dashed pt-3 text-sm text-muted-foreground">
                                     {row.status === 'Siap Seminar' ? (
                                         <CircleCheckBig className="mt-0.5 size-4 text-emerald-600 dark:text-emerald-400" />
                                     ) : (
                                         <CircleAlert className="mt-0.5 size-4 text-amber-500" />
                                     )}
-                                    <span>Terakhir diupdate: <span className="font-medium text-foreground">{row.lastUpdate}</span></span>
+                                    <span>
+                                        Terakhir diupdate:{' '}
+                                        <span className="font-medium text-foreground">
+                                            {row.lastUpdate}
+                                        </span>
+                                    </span>
                                 </div>
                             </div>
                         ))}

@@ -8,7 +8,6 @@ use App\Http\Controllers\PortalController;
 use App\Http\Controllers\RoleSwitchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -51,6 +50,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
         ->name('admin.users.import-template');
 });
 
-require __DIR__ . '/mahasiswa.php';
-require __DIR__ . '/dosen.php';
-require __DIR__ . '/settings.php';
+require __DIR__.'/mahasiswa.php';
+require __DIR__.'/dosen.php';
+require __DIR__.'/settings.php';

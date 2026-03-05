@@ -71,8 +71,12 @@ function resolveInitialThreadId(threads: ThreadItem[]): number | null {
 }
 
 export default function PesanPage() {
-    const { threads: initialThreads, hasDosbing, flashMessage, auth } =
-        usePage<SharedData & PesanPageProps>().props;
+    const {
+        threads: initialThreads,
+        hasDosbing,
+        flashMessage,
+        auth,
+    } = usePage<SharedData & PesanPageProps>().props;
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
@@ -80,11 +84,7 @@ export default function PesanPage() {
     );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ChatMessage[]>
-    >(() =>
-        Object.fromEntries(
-            initialThreads.map((t) => [t.id, t.messages]),
-        ),
-    );
+    >(() => Object.fromEntries(initialThreads.map((t) => [t.id, t.messages])));
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -101,9 +101,7 @@ export default function PesanPage() {
     useEffect(() => {
         /* eslint-disable react-hooks/set-state-in-effect */
         setMessagesByThread(
-            Object.fromEntries(
-                initialThreads.map((t) => [t.id, t.messages]),
-            ),
+            Object.fromEntries(initialThreads.map((t) => [t.id, t.messages])),
         );
         /* eslint-enable react-hooks/set-state-in-effect */
     }, [initialThreads]);
@@ -160,9 +158,7 @@ export default function PesanPage() {
         return () => {
             for (const [index, thread] of initialThreads.entries()) {
                 channels[index]?.stopListening('.chat.message.created');
-                window.Echo.leave(
-                    `mentorship.thread.${thread.id}`,
-                );
+                window.Echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
     }, [auth.user?.id, initialThreads, activeThreadId]);
@@ -186,7 +182,12 @@ export default function PesanPage() {
             !form.processing &&
             activeThread !== null &&
             (form.data.message.trim() !== '' || form.data.attachment !== null),
-        [activeThread, form.data.attachment, form.data.message, form.processing],
+        [
+            activeThread,
+            form.data.attachment,
+            form.data.message,
+            form.processing,
+        ],
     );
 
     function selectThread(threadId: number) {
@@ -246,8 +247,10 @@ export default function PesanPage() {
                                 {initialThreads.length > 0 ? (
                                     initialThreads.map((thread) => {
                                         const threadMessages =
-                                            messagesByThread[thread.id] ?? thread.messages;
-                                        const latestMessage = threadMessages.at(-1);
+                                            messagesByThread[thread.id] ??
+                                            thread.messages;
+                                        const latestMessage =
+                                            threadMessages.at(-1);
 
                                         return (
                                             <button
@@ -255,10 +258,13 @@ export default function PesanPage() {
                                                 type="button"
                                                 className={cn(
                                                     'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
-                                                    activeThread?.id === thread.id &&
-                                                    'border-primary/30 bg-muted/40',
+                                                    activeThread?.id ===
+                                                        thread.id &&
+                                                        'border-primary/30 bg-muted/40',
                                                 )}
-                                                onClick={() => selectThread(thread.id)}
+                                                onClick={() =>
+                                                    selectThread(thread.id)
+                                                }
                                             >
                                                 <div className="flex items-center justify-between gap-2">
                                                     <p className="truncate text-sm font-semibold">
@@ -275,8 +281,18 @@ export default function PesanPage() {
                                                 </p>
                                                 <div className="mt-2 flex items-center gap-1">
                                                     <Badge
-                                                        variant={thread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
-                                                        className={thread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                                        variant={
+                                                            thread.threadType ===
+                                                            'pembimbing'
+                                                                ? 'secondary'
+                                                                : 'outline'
+                                                        }
+                                                        className={
+                                                            thread.threadType !==
+                                                            'pembimbing'
+                                                                ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+                                                                : ''
+                                                        }
                                                     >
                                                         {thread.threadLabel}
                                                     </Badge>
@@ -293,7 +309,8 @@ export default function PesanPage() {
                                             Belum ada thread
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Thread akan muncul setelah dosen pembimbing atau penguji ditetapkan.
+                                            Thread akan muncul setelah dosen
+                                            pembimbing atau penguji ditetapkan.
                                         </p>
                                     </div>
                                 )}
@@ -326,8 +343,18 @@ export default function PesanPage() {
                                         {activeThread.name}
                                     </CardTitle>
                                     <Badge
-                                        variant={activeThread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
-                                        className={activeThread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                        variant={
+                                            activeThread.threadType ===
+                                            'pembimbing'
+                                                ? 'secondary'
+                                                : 'outline'
+                                        }
+                                        className={
+                                            activeThread.threadType !==
+                                            'pembimbing'
+                                                ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+                                                : ''
+                                        }
                                     >
                                         {activeThread.threadLabel}
                                     </Badge>
@@ -354,7 +381,8 @@ export default function PesanPage() {
                                     <CardTitle>Pilih Thread</CardTitle>
                                 </div>
                                 <CardDescription>
-                                    Buka salah satu percakapan untuk melihat chat.
+                                    Buka salah satu percakapan untuk melihat
+                                    chat.
                                 </CardDescription>
                             </>
                         )}
@@ -373,21 +401,29 @@ export default function PesanPage() {
                                     </Alert>
                                 )}
 
-                                {activeThread && !hasDosbing && activeThread.threadType === 'pembimbing' && (
-                                    <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
-                                        <AlertTitle className="text-red-900 dark:text-red-200">Belum ada Dosen Pembimbing</AlertTitle>
-                                        <AlertDescription className="text-red-800 dark:text-red-300">
-                                            Anda belum memiliki dosen pembimbing aktif. Pesan akan
-                                            tersedia setelah dosen pembimbing ditetapkan.
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
+                                {activeThread &&
+                                    !hasDosbing &&
+                                    activeThread.threadType ===
+                                        'pembimbing' && (
+                                        <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
+                                            <AlertTitle className="text-red-900 dark:text-red-200">
+                                                Belum ada Dosen Pembimbing
+                                            </AlertTitle>
+                                            <AlertDescription className="text-red-800 dark:text-red-300">
+                                                Anda belum memiliki dosen
+                                                pembimbing aktif. Pesan akan
+                                                tersedia setelah dosen
+                                                pembimbing ditetapkan.
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
 
                                 {activeThread ? (
                                     <div className="grid gap-3">
                                         {activeMessages.map((message) => {
                                             const isMe =
-                                                message.senderUserId === auth.user?.id;
+                                                message.senderUserId ===
+                                                auth.user?.id;
                                             return (
                                                 <ChatBubble
                                                     key={message.id}
@@ -396,7 +432,10 @@ export default function PesanPage() {
                                                 />
                                             );
                                         })}
-                                        <div ref={messagesEndRef} className="h-1" />
+                                        <div
+                                            ref={messagesEndRef}
+                                            className="h-1"
+                                        />
                                     </div>
                                 ) : (
                                     <div className="mt-10 rounded-xl border border-dashed bg-muted/50 p-8 text-center shadow-sm">
@@ -407,7 +446,8 @@ export default function PesanPage() {
                                             Belum ada thread yang dipilih
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Pilih thread di panel kiri untuk mulai berdiskusi.
+                                            Pilih thread di panel kiri untuk
+                                            mulai berdiskusi.
                                         </p>
                                     </div>
                                 )}

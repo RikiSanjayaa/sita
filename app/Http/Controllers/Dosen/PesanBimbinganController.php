@@ -24,8 +24,7 @@ class PesanBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -235,7 +234,7 @@ class PesanBimbinganController extends Controller
     {
         $student = $thread->student;
 
-        if (!$student instanceof User) {
+        if (! $student instanceof User) {
             return;
         }
 
