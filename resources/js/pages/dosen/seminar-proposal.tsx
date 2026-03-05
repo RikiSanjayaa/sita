@@ -77,11 +77,11 @@ const statusLabel: Record<string, string> = {
   approved: 'Selesai',
 };
 
-const statusColor: Record<string, 'secondary' | 'default' | 'destructive' | 'outline'> = {
-  draft: 'secondary',
-  scheduled: 'default',
-  revision_open: 'destructive',
-  approved: 'outline',
+const statusColor: Record<string, string> = {
+  draft: 'bg-muted text-muted-foreground',
+  scheduled: 'bg-primary/10 text-primary hover:bg-primary/20',
+  revision_open: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
+  approved: 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20',
 };
 
 const decisionLabel: Record<string, string> = {
@@ -117,7 +117,7 @@ function DecisionForm({ semproId, onClose }: { semproId: number; onClose: () => 
   }
 
   return (
-    <div className="mt-4 space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+    <div className="mt-4 space-y-5 rounded-xl border bg-background p-5 shadow-sm">
       <h4 className="text-sm font-semibold">Input Keputusan</h4>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -213,7 +213,7 @@ function SemproCard({ item }: { item: SemproItem }) {
     (item.semproStatus === 'scheduled' || item.semproStatus === 'revision_open');
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -226,7 +226,7 @@ function SemproCard({ item }: { item: SemproItem }) {
               </CardDescription>
             )}
           </div>
-          <Badge variant={statusColor[item.semproStatus] ?? 'secondary'}>
+          <Badge variant="soft" className={`font-semibold ${statusColor[item.semproStatus] ?? 'bg-muted text-muted-foreground'}`}>
             {statusLabel[item.semproStatus] ?? item.semproStatus}
           </Badge>
         </div>
@@ -252,16 +252,21 @@ function SemproCard({ item }: { item: SemproItem }) {
 
         {/* My decision */}
         <div className="rounded-md border p-3">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Keputusan Saya (Penguji {item.myOrder})
           </p>
           {item.myDecision === 'pending' ? (
-            <Badge variant="secondary">Belum Diputuskan</Badge>
+            <Badge variant="soft" className="bg-muted text-muted-foreground hover:bg-muted font-medium">Belum Diputuskan</Badge>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <Badge
-                variant={item.myDecision === 'approved' ? 'default' : 'destructive'}
-                className={item.myDecision === 'approved' ? 'bg-emerald-600' : ''}
+                variant="soft"
+                className={`font-semibold ${item.myDecision === 'approved'
+                  ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
+                  : item.myDecision === 'needs_revision'
+                    ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                    : 'bg-muted text-muted-foreground'
+                  }`}
               >
                 {decisionLabel[item.myDecision ?? ''] ?? item.myDecision}
               </Badge>
@@ -291,14 +296,13 @@ function SemproCard({ item }: { item: SemproItem }) {
                 <div key={i} className="flex items-center gap-2 text-sm">
                   <span className="font-medium">{ex.name}</span>
                   <Badge
-                    variant={
-                      ex.decision === 'approved'
-                        ? 'default'
-                        : ex.decision === 'needs_revision'
-                          ? 'destructive'
-                          : 'secondary'
-                    }
-                    className={ex.decision === 'approved' ? 'bg-emerald-600' : ''}
+                    variant="soft"
+                    className={`font-medium ${ex.decision === 'approved'
+                      ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
+                      : ex.decision === 'needs_revision'
+                        ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                        : 'bg-muted text-muted-foreground hover:bg-muted'
+                      }`}
                   >
                     {decisionLabel[ex.decision ?? ''] ?? 'Pending'}
                   </Badge>
@@ -336,9 +340,11 @@ function SemproCard({ item }: { item: SemproItem }) {
 
         {/* Action */}
         {canDecide && !showForm && (
-          <Button size="sm" onClick={() => setShowForm(true)}>
-            Input Keputusan
-          </Button>
+          <div className="pt-2">
+            <Button size="sm" onClick={() => setShowForm(true)} className="font-semibold px-5">
+              Input Keputusan
+            </Button>
+          </div>
         )}
 
         {showForm && (
@@ -363,7 +369,7 @@ export default function DosenSeminarProposalPage() {
     >
       <Head title="Seminar Proposal — Dosen" />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
         {flashMessage && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
             {flashMessage}
@@ -371,13 +377,17 @@ export default function DosenSeminarProposalPage() {
         )}
 
         {sempros.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                Anda belum ditugaskan sebagai penguji untuk sempro manapun.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center mt-6">
+            <span className="mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <FileWarning className="size-6" />
+            </span>
+            <p className="text-sm font-semibold">
+              Belum ada tugas penguji
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Anda belum ditugaskan sebagai penguji untuk kelas seminar proposal manapun.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-4">
             {sempros.map((item) => (

@@ -86,8 +86,8 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'approved' || normalizedStatus === 'rescheduled') {
         return (
-            <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-                <CheckCircle2 className="size-3" />
+            <Badge variant="soft" className="gap-1 rounded-full bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20">
+                <CheckCircle2 className="size-3.5" />
                 Terjadwal
             </Badge>
         );
@@ -95,8 +95,8 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'completed') {
         return (
-            <Badge className="gap-1 rounded-full bg-blue-600 text-white hover:bg-blue-600/90 dark:bg-blue-500 dark:hover:bg-blue-500/90">
-                <CheckCircle2 className="size-3" />
+            <Badge variant="soft" className="gap-1 rounded-full bg-blue-600/10 text-blue-600 hover:bg-blue-600/20">
+                <CheckCircle2 className="size-3.5" />
                 Selesai
             </Badge>
         );
@@ -104,8 +104,8 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'pending') {
         return (
-            <Badge variant="secondary" className="gap-1 rounded-full">
-                <Clock className="size-3" />
+            <Badge variant="soft" className="gap-1 rounded-full bg-amber-600/10 text-amber-600 hover:bg-amber-600/20">
+                <Clock className="size-3.5" />
                 Menunggu Konfirmasi
             </Badge>
         );
@@ -113,16 +113,16 @@ function StatusBadge({ status }: { status: string }) {
 
     if (normalizedStatus === 'rejected') {
         return (
-            <Badge variant="destructive" className="gap-1 rounded-full">
-                <XCircle className="size-3" />
+            <Badge variant="soft" className="gap-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20">
+                <XCircle className="size-3.5" />
                 Ditolak
             </Badge>
         );
     }
 
     return (
-        <Badge variant="outline" className="gap-1 rounded-full">
-            <XCircle className="size-3" />
+        <Badge variant="outline" className="gap-1 rounded-full text-muted-foreground">
+            <XCircle className="size-3.5" />
             Dibatalkan
         </Badge>
     );
@@ -233,8 +233,8 @@ export default function DosenJadwalBimbinganPage() {
                 (decision === 'reject'
                     ? ''
                     : decision === 'reschedule'
-                      ? ''
-                      : 'Permintaan jadwal disetujui.'),
+                        ? ''
+                        : 'Permintaan jadwal disetujui.'),
         };
 
         form.transform(() => ({
@@ -317,15 +317,15 @@ export default function DosenJadwalBimbinganPage() {
         >
             <Head title="Jadwal Bimbingan Dosen" />
 
-            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Permintaan Menunggu Konfirmasi</CardTitle>
+            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
+                <Card className="shadow-sm py-0">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                        <CardTitle className="text-lg font-semibold">Permintaan Menunggu Konfirmasi</CardTitle>
                         <CardDescription>
                             Konfirmasi, jadwalkan ulang, atau tolak permintaan
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4 pb-6">
                         {flashMessage && (
                             <Alert>
                                 <AlertTitle>Berhasil</AlertTitle>
@@ -339,24 +339,24 @@ export default function DosenJadwalBimbinganPage() {
                             pendingRequests.map((item) => (
                                 <div
                                     key={`${item.id}-${item.mahasiswa}`}
-                                    className="rounded-lg border bg-background p-4"
+                                    className="rounded-xl border bg-background p-5 shadow-sm"
                                 >
-                                    <p className="text-sm font-semibold">
+                                    <p className="text-base font-semibold">
                                         {item.mahasiswa}
                                     </p>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-muted-foreground mt-0.5">
                                         {item.topic}
                                     </p>
-                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                                        <Badge variant="outline">
+                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                        <Badge variant="soft" className="bg-muted text-muted-foreground hover:bg-muted">
                                             {item.requestedAt}
                                         </Badge>
                                     </div>
                                     {item.studentNote && (
-                                        <p className="mt-2 rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
-                                            Catatan mahasiswa:{' '}
+                                        <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                            <span className="font-medium text-foreground">Catatan mahasiswa:</span>{' '}
                                             {item.studentNote}
-                                        </p>
+                                        </div>
                                     )}
                                     <div className="mt-3 grid gap-2">
                                         <div className="grid gap-1">
@@ -404,7 +404,7 @@ export default function DosenJadwalBimbinganPage() {
                                                             ...current,
                                                             [item.id]: {
                                                                 ...current[
-                                                                    item.id
+                                                                item.id
                                                                 ],
                                                                 scheduled_for:
                                                                     undefined,
@@ -415,14 +415,14 @@ export default function DosenJadwalBimbinganPage() {
                                             />
                                             {decisionErrorsById[item.id]
                                                 ?.scheduled_for && (
-                                                <p className="text-xs text-destructive">
-                                                    {
-                                                        decisionErrorsById[
-                                                            item.id
-                                                        ]?.scheduled_for
-                                                    }
-                                                </p>
-                                            )}
+                                                    <p className="text-xs text-destructive">
+                                                        {
+                                                            decisionErrorsById[
+                                                                item.id
+                                                            ]?.scheduled_for
+                                                        }
+                                                    </p>
+                                                )}
                                         </div>
                                         <div className="grid gap-1">
                                             <Label
@@ -505,7 +505,7 @@ export default function DosenJadwalBimbinganPage() {
                                                             ...current,
                                                             [item.id]: {
                                                                 ...current[
-                                                                    item.id
+                                                                item.id
                                                                 ],
                                                                 lecturer_note:
                                                                     undefined,
@@ -517,19 +517,20 @@ export default function DosenJadwalBimbinganPage() {
                                             />
                                             {decisionErrorsById[item.id]
                                                 ?.lecturer_note && (
-                                                <p className="text-xs text-destructive">
-                                                    {
-                                                        decisionErrorsById[
-                                                            item.id
-                                                        ]?.lecturer_note
-                                                    }
-                                                </p>
-                                            )}
+                                                    <p className="text-xs text-destructive">
+                                                        {
+                                                            decisionErrorsById[
+                                                                item.id
+                                                            ]?.lecturer_note
+                                                        }
+                                                    </p>
+                                                )}
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-2 pt-2">
                                             <Button
                                                 size="sm"
-                                                variant="outline"
+                                                variant="soft"
+                                                className="font-semibold"
                                                 disabled={form.processing}
                                                 onClick={() =>
                                                     decide(
@@ -543,7 +544,8 @@ export default function DosenJadwalBimbinganPage() {
                                             </Button>
                                             <Button
                                                 size="sm"
-                                                variant="outline"
+                                                variant="soft"
+                                                className="bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold"
                                                 disabled={form.processing}
                                                 onClick={() =>
                                                     decide(
@@ -557,7 +559,7 @@ export default function DosenJadwalBimbinganPage() {
                                             </Button>
                                             <Button
                                                 size="sm"
-                                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                                className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
                                                 disabled={form.processing}
                                                 onClick={() =>
                                                     decide(
@@ -590,22 +592,22 @@ export default function DosenJadwalBimbinganPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Jadwal Mendatang</CardTitle>
+                <Card className="shadow-sm py-0">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                        <CardTitle className="text-lg font-semibold">Jadwal Mendatang</CardTitle>
                         <CardDescription>
                             Agenda bimbingan terkonfirmasi minggu ini
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4 pb-6">
                         {upcomingSchedules.length > 0 ? (
                             upcomingSchedules.map((item) => (
                                 <div
                                     key={`${item.id}-${item.mahasiswa}`}
-                                    className="rounded-lg border bg-background p-4"
+                                    className="rounded-xl border bg-background p-5 shadow-sm"
                                 >
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-semibold">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <p className="text-base font-semibold">
                                             {item.mahasiswa}
                                         </p>
                                         <StatusBadge status={item.status} />
@@ -613,7 +615,7 @@ export default function DosenJadwalBimbinganPage() {
                                     <p className="text-sm text-muted-foreground">
                                         {item.topic}
                                     </p>
-                                    <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
+                                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
                                         <div className="inline-flex items-center gap-2">
                                             <CalendarClock className="size-4" />
                                             <span>
@@ -625,16 +627,17 @@ export default function DosenJadwalBimbinganPage() {
                                             <span>{item.location}</span>
                                         </div>
                                         {item.lecturerNote && (
-                                            <p className="rounded-md border bg-muted/30 p-2 text-xs">
-                                                Catatan dosen:{' '}
+                                            <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                                <span className="font-medium text-foreground">Catatan dosen:</span>{' '}
                                                 {item.lecturerNote}
-                                            </p>
+                                            </div>
                                         )}
                                     </div>
-                                    <div className="mt-3 flex flex-wrap gap-2">
+                                    <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-dashed">
                                         <Button
                                             size="sm"
-                                            variant="outline"
+                                            variant="soft"
+                                            className="font-semibold bg-destructive/10 text-destructive hover:bg-destructive/20"
                                             disabled={form.processing}
                                             onClick={() =>
                                                 closeSchedule(
@@ -648,7 +651,7 @@ export default function DosenJadwalBimbinganPage() {
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
                                             disabled={form.processing}
                                             onClick={() =>
                                                 closeSchedule(
@@ -680,23 +683,23 @@ export default function DosenJadwalBimbinganPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Riwayat Jadwal</CardTitle>
+                <Card className="lg:col-span-2 shadow-sm py-0">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                        <CardTitle className="text-lg font-semibold">Riwayat Jadwal</CardTitle>
                         <CardDescription>
                             Daftar jadwal yang ditolak, dibatalkan, atau telah
                             selesai
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="pb-6 grid sm:grid-cols-2 gap-4">
                         {historySchedules.length > 0 ? (
                             historySchedules.map((item) => (
                                 <div
                                     key={`${item.id}-${item.status}`}
-                                    className="rounded-lg border bg-background p-4"
+                                    className="rounded-xl border bg-background p-5 shadow-sm"
                                 >
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-semibold">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <p className="text-base font-semibold">
                                             {item.mahasiswa}
                                         </p>
                                         <StatusBadge status={item.status} />
@@ -704,7 +707,7 @@ export default function DosenJadwalBimbinganPage() {
                                     <p className="text-sm text-muted-foreground">
                                         {item.topic}
                                     </p>
-                                    <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
+                                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
                                         <div className="inline-flex items-center gap-2">
                                             <CalendarClock className="size-4" />
                                             <span>
@@ -716,10 +719,10 @@ export default function DosenJadwalBimbinganPage() {
                                             <span>{item.location}</span>
                                         </div>
                                         {item.lecturerNote && (
-                                            <p className="rounded-md border bg-muted/30 p-2 text-xs">
-                                                Catatan dosen:{' '}
+                                            <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                                <span className="font-medium text-foreground">Catatan dosen:</span>{' '}
                                                 {item.lecturerNote}
-                                            </p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
