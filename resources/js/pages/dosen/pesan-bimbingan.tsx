@@ -411,7 +411,7 @@ export default function DosenPesanBimbinganPage() {
                 {/* Thread List / Side Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
+                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 shadow-sm lg:h-full lg:w-[340px] lg:shrink-0',
                         mobileView === 'chat' && 'hidden lg:flex',
                         mobileView === 'threads' && 'flex-1 lg:flex-initial',
                     )}
@@ -474,10 +474,9 @@ export default function DosenPesanBimbinganPage() {
                                                 key={thread.id}
                                                 type="button"
                                                 className={cn(
-                                                    'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
-                                                    activeThread?.id ===
-                                                    thread.id &&
-                                                    'border-primary/30 bg-muted/40',
+                                                    'w-full shrink-0 rounded-xl border p-3.5 text-left transition-all hover:bg-muted/50',
+                                                    activeThread?.id === thread.id &&
+                                                    'border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
@@ -498,8 +497,13 @@ export default function DosenPesanBimbinganPage() {
                                                 </p>
                                                 <div className="mt-2 flex items-center justify-between gap-1">
                                                     <Badge
-                                                        variant={thread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
-                                                        className={thread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                                        variant="soft"
+                                                        className={cn(
+                                                            'font-medium text-[10px] px-2 py-0.5',
+                                                            thread.threadType === 'pembimbing'
+                                                                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                                        )}
                                                     >
                                                         {thread.threadLabel}
                                                     </Badge>
@@ -534,7 +538,7 @@ export default function DosenPesanBimbinganPage() {
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
+                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 shadow-sm lg:h-full',
                         mobileView === 'threads' && 'hidden lg:flex',
                     )}
                 >
@@ -555,8 +559,13 @@ export default function DosenPesanBimbinganPage() {
                                         {activeThread.student}
                                     </CardTitle>
                                     <Badge
-                                        variant={activeThread.threadType === 'pembimbing' ? 'secondary' : 'outline'}
-                                        className={activeThread.threadType !== 'pembimbing' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : ''}
+                                        variant="soft"
+                                        className={cn(
+                                            'font-medium',
+                                            activeThread.threadType === 'pembimbing'
+                                                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                        )}
                                     >
                                         {activeThread.threadLabel}
                                     </Badge>
@@ -659,11 +668,12 @@ export default function DosenPesanBimbinganPage() {
                                 className="hidden"
                                 onChange={pickAttachment}
                             />
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <Button
                                     type="button"
-                                    variant="outline"
+                                    variant="soft"
                                     size="icon"
+                                    className="bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground shrink-0 rounded-full size-10"
                                     onClick={() => fileRef.current?.click()}
                                     disabled={activeThread === null}
                                 >
@@ -690,8 +700,9 @@ export default function DosenPesanBimbinganPage() {
                                     type="button"
                                     onClick={sendMessage}
                                     disabled={!canSend}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 font-semibold rounded-full h-10"
                                 >
+                                    <span className="hidden sm:inline-block mr-2">Kirim</span>
                                     <Send className="size-4" />
                                 </Button>
                             </div>
