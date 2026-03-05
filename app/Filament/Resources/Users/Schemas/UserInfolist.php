@@ -34,7 +34,7 @@ class UserInfolist
                         TextEntry::make('mahasiswaProfile.nim')
                             ->label('NIM')
                             ->placeholder('-'),
-                        TextEntry::make('mahasiswaProfile.program_studi')
+                        TextEntry::make('mahasiswaProfile.programStudi.name')
                             ->label('Prodi')
                             ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.angkatan')
@@ -50,7 +50,7 @@ class UserInfolist
                         TextEntry::make('dosenProfile.nik')
                             ->label('NIK')
                             ->placeholder('-'),
-                        TextEntry::make('dosenProfile.homebase')
+                        TextEntry::make('dosenProfile.programStudi.name')
                             ->label('Prodi')
                             ->placeholder('-'),
                         TextEntry::make('dosenProfile.is_active')

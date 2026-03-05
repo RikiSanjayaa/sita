@@ -48,14 +48,26 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->with(['roles', 'mahasiswaProfile', 'dosenProfile'])
             ->withCount([
                 'thesisSubmissions as thesis_submission_count',
-                'mentorshipAssignmentsAsLecturer as active_bimbingan_count' => static fn (Builder $query): Builder => $query->where('status', AssignmentStatus::Active->value),
-                'mentorshipAssignmentsAsLecturer as finished_bimbingan_count' => static fn (Builder $query): Builder => $query->where('status', AssignmentStatus::Ended->value),
-                'semproExaminerAssignments as active_uji_count' => static fn (Builder $query): Builder => $query->whereHas('sempro', static fn (Builder $semproQuery): Builder => $semproQuery->whereIn('status', ['draft', 'scheduled', 'revision_open'])),
+                'mentorshipAssignmentsAsLecturer as active_bimbingan_count' => static fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Active->value),
+                'mentorshipAssignmentsAsLecturer as finished_bimbingan_count' => static fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Ended->value),
+                'semproExaminerAssignments as active_uji_count' => static fn(Builder $query): Builder => $query->whereHas('sempro', static fn(Builder $semproQuery): Builder => $semproQuery->whereIn('status', ['draft', 'scheduled', 'revision_open'])),
             ]);
+
+        $prodiId = auth()->user()?->adminProgramStudiId();
+
+        if ($prodiId !== null) {
+            $query->where(function (Builder $q) use ($prodiId): void {
+                $q->whereHas('mahasiswaProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
+                    ->orWhereHas('dosenProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
+                    ->orWhereHas('adminProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId));
+            });
+        }
+
+        return $query;
     }
 
     public static function getPages(): array

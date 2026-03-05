@@ -21,7 +21,7 @@ class PortalController extends Controller
         $role = AppRole::tryFrom($activeRole) ?? AppRole::Mahasiswa;
         $dashboardRouteName = $role->dashboardRouteName();
 
-        if ($role === AppRole::Admin) {
+        if ($role->isAdminRole()) {
             return \Inertia\Inertia::location(route($dashboardRouteName));
         }
 

@@ -11,7 +11,7 @@ function createUserWithRoles(array $roles, ?string $activeRole = null): User
     ]);
 
     $roleIds = collect($roles)
-        ->map(fn (string $name): int => Role::query()->firstOrCreate(['name' => $name])->id)
+        ->map(fn(string $name): int => Role::query()->firstOrCreate(['name' => $name])->id)
         ->all();
 
     $user->roles()->sync($roleIds);
@@ -49,10 +49,21 @@ test('admin can only access admin area', function () {
     $this->get('/dosen/dashboard')->assertForbidden();
 });
 
+test('super admin can access admin area', function () {
+    $user = createUserWithRoles([AppRole::SuperAdmin->value], AppRole::SuperAdmin->value);
+
+    $this->actingAs($user);
+
+    $this->get('/admin')->assertOk();
+    $this->get('/mahasiswa/dashboard')->assertForbidden();
+    $this->get('/dosen/dashboard')->assertForbidden();
+});
+
 test('dashboard resolver sends authenticated user to active role dashboard', function () {
     $mahasiswa = createUserWithRoles([AppRole::Mahasiswa->value], AppRole::Mahasiswa->value);
     $dosen = createUserWithRoles([AppRole::Dosen->value], AppRole::Dosen->value);
     $admin = createUserWithRoles([AppRole::Admin->value], AppRole::Admin->value);
+    $superAdmin = createUserWithRoles([AppRole::SuperAdmin->value], AppRole::SuperAdmin->value);
 
     $this->actingAs($mahasiswa)
         ->get('/dashboard')
@@ -65,10 +76,14 @@ test('dashboard resolver sends authenticated user to active role dashboard', fun
     $this->actingAs($admin)
         ->get('/dashboard')
         ->assertRedirect('/admin');
+
+    $this->actingAs($superAdmin)
+        ->get('/dashboard')
+        ->assertRedirect('/admin');
 });
 
-test('unauthenticated admin panel access redirects to default login', function () {
-    $this->get('/admin')->assertRedirect('/login');
+test('unauthenticated admin panel access redirects to admin login', function () {
+    $this->get('/admin')->assertRedirect('/admin/login');
 });
 
 test('authenticated admin opening default login gets redirected to panel', function () {
@@ -79,6 +94,15 @@ test('authenticated admin opening default login gets redirected to panel', funct
         ->assertRedirect('/admin');
 });
 
-test('panel-specific admin login page is disabled', function () {
-    $this->get('/admin/login')->assertNotFound();
+test('panel-specific admin login page is enabled', function () {
+    $this->get('/admin/login')->assertOk();
+});
+
+test('admin-only user cannot login via regular /login', function () {
+    $admin = createUserWithRoles([AppRole::Admin->value], AppRole::Admin->value);
+
+    $this->post('/login', [
+        'email' => $admin->email,
+        'password' => 'password',
+    ])->assertSessionHasErrors(['email' => 'Admin harus login melalui halaman /admin/login.']);
 });

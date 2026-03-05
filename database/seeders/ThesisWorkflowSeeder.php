@@ -37,6 +37,12 @@ class ThesisWorkflowSeeder extends Seeder
             return;
         }
 
+        $ilkom = \App\Models\ProgramStudi::where('slug', 'ilkom')->first();
+
+        if ($ilkom === null) {
+            return;
+        }
+
         $dosen1 = User::query()->where('email', 'dosen@sita.test')->first();
         $dosen2 = User::query()->where('email', 'dosen2@sita.test')->first();
         $dosen3 = User::query()->where('email', 'dosen3@sita.test')->first();
@@ -47,22 +53,22 @@ class ThesisWorkflowSeeder extends Seeder
         }
 
         // === 1. mahasiswa@sita.test: Full flow — Sempro approved, pembimbing ditetapkan ===
-        $this->seedFullyProgressed($admin, $dosen1, $dosen2, $dosen3, $dosen4);
+        $this->seedFullyProgressed($admin, $dosen1, $dosen2, $dosen3, $dosen4, $ilkom);
 
         // === 2. akbar@sita.test: Sempro dijadwalkan ===
-        $this->seedSemproScheduled($admin, $dosen1, $dosen2);
+        $this->seedSemproScheduled($admin, $dosen1, $dosen2, $ilkom);
 
         // === 3. nadia@sita.test: Sempro revisi ===
-        $this->seedSemproRevision($admin, $dosen1, $dosen2);
+        $this->seedSemproRevision($admin, $dosen1, $dosen2, $ilkom);
 
         // === 4. rizky@sita.test: Menunggu persetujuan ===
-        $this->seedMenungguPersetujuan();
+        $this->seedMenungguPersetujuan($ilkom);
 
         // === 5. siti@sita.test: Sempro approved, belum ada pembimbing ===
-        $this->seedSemproApproved($admin, $dosen1, $dosen2);
+        $this->seedSemproApproved($admin, $dosen1, $dosen2, $ilkom);
     }
 
-    private function seedFullyProgressed(User $admin, User $dosen1, User $dosen2, ?User $dosen3, ?User $dosen4): void
+    private function seedFullyProgressed(User $admin, User $dosen1, User $dosen2, ?User $dosen3, ?User $dosen4, \App\Models\ProgramStudi $prodi): void
     {
         $student = User::query()->where('email', 'mahasiswa@sita.test')->first();
 
@@ -73,7 +79,7 @@ class ThesisWorkflowSeeder extends Seeder
         $submission = ThesisSubmission::query()->updateOrCreate(
             ['student_user_id' => $student->id, 'title_id' => 'Sistem Rekomendasi Topik Bimbingan Berbasis Riwayat Interaksi'],
             [
-                'program_studi' => 'Informatika',
+                'program_studi_id' => $prodi->id,
                 'title_en' => 'Mentoring Topic Recommendation System Based on Interaction History',
                 'proposal_summary' => 'Sistem rekomendasi topik bimbingan untuk meningkatkan efektivitas konsultasi mahasiswa.',
                 'status' => ThesisSubmissionStatus::PembimbingDitetapkan->value,
@@ -150,7 +156,7 @@ class ThesisWorkflowSeeder extends Seeder
         });
     }
 
-    private function seedSemproScheduled(User $admin, User $dosen1, User $dosen2): void
+    private function seedSemproScheduled(User $admin, User $dosen1, User $dosen2, \App\Models\ProgramStudi $prodi): void
     {
         $student = User::query()->where('email', 'akbar@sita.test')->first();
 
@@ -161,7 +167,7 @@ class ThesisWorkflowSeeder extends Seeder
         $submission = ThesisSubmission::query()->updateOrCreate(
             ['student_user_id' => $student->id, 'title_id' => 'Analisis Sentimen Media Sosial Menggunakan Deep Learning'],
             [
-                'program_studi' => 'Informatika',
+                'program_studi_id' => $prodi->id,
                 'title_en' => 'Social Media Sentiment Analysis Using Deep Learning',
                 'proposal_summary' => 'Menganalisis sentimen publik di media sosial menggunakan teknik deep learning LSTM dan BERT.',
                 'status' => ThesisSubmissionStatus::SemproDijadwalkan->value,
@@ -203,7 +209,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->createPengujiThread($sempro, $student, [$dosen1, $dosen2]);
     }
 
-    private function seedSemproRevision(User $admin, User $dosen1, User $dosen2): void
+    private function seedSemproRevision(User $admin, User $dosen1, User $dosen2, \App\Models\ProgramStudi $prodi): void
     {
         $student = User::query()->where('email', 'nadia@sita.test')->first();
 
@@ -214,7 +220,7 @@ class ThesisWorkflowSeeder extends Seeder
         $submission = ThesisSubmission::query()->updateOrCreate(
             ['student_user_id' => $student->id, 'title_id' => 'Pengembangan Aplikasi E-Learning Berbasis Gamifikasi'],
             [
-                'program_studi' => 'Informatika',
+                'program_studi_id' => $prodi->id,
                 'title_en' => 'Development of Gamification-Based E-Learning Application',
                 'proposal_summary' => 'Membangun platform e-learning dengan elemen gamifikasi untuk meningkatkan motivasi belajar.',
                 'status' => ThesisSubmissionStatus::RevisiSempro->value,
@@ -289,7 +295,7 @@ class ThesisWorkflowSeeder extends Seeder
         }
     }
 
-    private function seedMenungguPersetujuan(): void
+    private function seedMenungguPersetujuan(\App\Models\ProgramStudi $prodi): void
     {
         $student = User::query()->where('email', 'rizky@sita.test')->first();
 
@@ -300,7 +306,7 @@ class ThesisWorkflowSeeder extends Seeder
         ThesisSubmission::query()->updateOrCreate(
             ['student_user_id' => $student->id, 'title_id' => 'Implementasi Blockchain untuk Sistem Voting Digital'],
             [
-                'program_studi' => 'Informatika',
+                'program_studi_id' => $prodi->id,
                 'title_en' => 'Blockchain Implementation for Digital Voting System',
                 'proposal_summary' => 'Membangun sistem voting digital berbasis blockchain untuk meningkatkan transparansi dan keamanan.',
                 'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
@@ -310,7 +316,7 @@ class ThesisWorkflowSeeder extends Seeder
         );
     }
 
-    private function seedSemproApproved(User $admin, User $dosen1, User $dosen2): void
+    private function seedSemproApproved(User $admin, User $dosen1, User $dosen2, \App\Models\ProgramStudi $prodi): void
     {
         $student = User::query()->where('email', 'siti@sita.test')->first();
 
@@ -321,7 +327,7 @@ class ThesisWorkflowSeeder extends Seeder
         $submission = ThesisSubmission::query()->updateOrCreate(
             ['student_user_id' => $student->id, 'title_id' => 'Sistem Deteksi Intrusi Jaringan Menggunakan Machine Learning'],
             [
-                'program_studi' => 'Informatika',
+                'program_studi_id' => $prodi->id,
                 'title_en' => 'Network Intrusion Detection System Using Machine Learning',
                 'proposal_summary' => 'Merancang sistem deteksi intrusi jaringan yang memanfaatkan algoritma machine learning.',
                 'status' => ThesisSubmissionStatus::SemproSelesai->value,

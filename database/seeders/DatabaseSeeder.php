@@ -36,9 +36,15 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
+        // Only seed mentorship data for Ilmu Komputer mahasiswa (known test accounts)
         $students = User::query()
             ->whereHas('roles', function ($query) {
                 $query->where('name', AppRole::Mahasiswa->value);
+            })
+            ->whereHas('mahasiswaProfile', function ($query) {
+                $query->whereHas('programStudi', function ($q) {
+                    $q->where('slug', 'ilkom');
+                });
             })
             ->get();
 

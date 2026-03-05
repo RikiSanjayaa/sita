@@ -12,8 +12,8 @@ class UserImportTemplateDownloadController extends Controller
     {
         $rows = [
             ['name', 'email', 'role', 'password', 'nim', 'prodi', 'angkatan', 'nik'],
-            ['Muhammad Akbar', 'akbar@sita.test', 'mahasiswa', '', '2210510001', 'Informatika', '2022', ''],
-            ['Dr. Budi Santoso', 'budi@sita.test', 'dosen', '', '', 'Informatika', '', '7301010101010001'],
+            ['Muhammad Akbar', 'akbar@sita.test', 'mahasiswa', '', '2210510001', '', '2022', ''],
+            ['Dr. Budi Santoso', 'budi@sita.test', 'dosen', '', '', '', '', '7301010101010001'],
             ['Admin SITA', 'admin2@sita.test', 'admin', '', '', '', '', ''],
         ];
 
@@ -150,7 +150,7 @@ XML;
 
             for ($columnIndex = 0; $columnIndex < $maxColumns; $columnIndex++) {
                 $columnName = $this->columnName($columnIndex + 1);
-                $cellReference = $columnName.$excelRow;
+                $cellReference = $columnName . $excelRow;
                 $cellValue = (string) ($row[$columnIndex] ?? '');
 
                 $cells .= sprintf(
@@ -165,10 +165,10 @@ XML;
 
         return sprintf(
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            .'<dimension ref="%s"/>'
-            .'<sheetData>%s</sheetData>'
-            .'</worksheet>',
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<dimension ref="%s"/>'
+            . '<sheetData>%s</sheetData>'
+            . '</worksheet>',
             $dimension,
             $sheetRows,
         );
@@ -180,10 +180,10 @@ XML;
         $requiresPreserve = $value !== trim($value);
 
         if ($requiresPreserve) {
-            return '<t xml:space="preserve">'.$escapedValue.'</t>';
+            return '<t xml:space="preserve">' . $escapedValue . '</t>';
         }
 
-        return '<t>'.$escapedValue.'</t>';
+        return '<t>' . $escapedValue . '</t>';
     }
 
     private function columnName(int $index): string
@@ -192,7 +192,7 @@ XML;
 
         while ($index > 0) {
             $mod = ($index - 1) % 26;
-            $name = chr(65 + $mod).$name;
+            $name = chr(65 + $mod) . $name;
             $index = intdiv($index - 1, 26);
         }
 

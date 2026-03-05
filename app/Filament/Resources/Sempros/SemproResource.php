@@ -62,7 +62,7 @@ class SemproResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->with([
                 'submission.student.mahasiswaProfile',
                 'examiners.examiner',
@@ -70,6 +70,14 @@ class SemproResource extends Resource
                 'approvedBy',
                 'createdBy',
             ]);
+
+        $prodiId = auth()->user()?->adminProgramStudiId();
+
+        if ($prodiId !== null) {
+            $query->whereHas('thesisSubmission', fn(Builder $q): Builder => $q->where('program_studi_id', $prodiId));
+        }
+
+        return $query;
     }
 
     public static function getRelations(): array

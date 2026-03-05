@@ -18,10 +18,15 @@ class MahasiswaProfile extends Model
     protected $fillable = [
         'user_id',
         'nim',
-        'program_studi',
+        'program_studi_id',
         'angkatan',
         'is_active',
     ];
+
+    public function programStudi(): BelongsTo
+    {
+        return $this->belongsTo(ProgramStudi::class, 'program_studi_id');
+    }
 
     protected $casts = [
         'is_active' => 'boolean',
@@ -30,7 +35,7 @@ class MahasiswaProfile extends Model
     protected static function booted(): void
     {
         static::updated(function (self $profile): void {
-            if (! $profile->wasChanged('is_active')) {
+            if (!$profile->wasChanged('is_active')) {
                 return;
             }
 

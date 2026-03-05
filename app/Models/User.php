@@ -110,6 +110,24 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(DosenProfile::class);
     }
 
+    public function adminProfile(): HasOne
+    {
+        return $this->hasOne(AdminProfile::class);
+    }
+
+    /**
+     * Returns the admin's program studi ID for scoping.
+     * Returns null for super_admin (sees all data).
+     */
+    public function adminProgramStudiId(): ?int
+    {
+        if ($this->hasRole(AppRole::SuperAdmin)) {
+            return null;
+        }
+
+        return $this->adminProfile?->program_studi_id;
+    }
+
     public function mentorshipAssignmentsAsStudent(): HasMany
     {
         return $this->hasMany(MentorshipAssignment::class, 'student_user_id');
@@ -254,6 +272,6 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasRole(AppRole::Admin);
+        return $this->hasRole(AppRole::Admin) || $this->hasRole(AppRole::SuperAdmin);
     }
 }

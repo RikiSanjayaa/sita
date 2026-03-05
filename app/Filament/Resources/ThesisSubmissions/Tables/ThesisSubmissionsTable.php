@@ -25,9 +25,10 @@ class ThesisSubmissionsTable
                     ->searchable()
                     ->sortable()
                     ->description(fn(?ThesisSubmission $record): string => $record?->student?->mahasiswaProfile?->nim ?? '-'),
-                TextColumn::make('program_studi')
+                TextColumn::make('programStudi.name')
                     ->label('Program Studi')
                     ->searchable()
+                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('title_id')
                     ->label('Judul')

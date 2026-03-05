@@ -3,6 +3,8 @@
 namespace App\Http\Responses;
 
 use App\Enums\AppRole;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Fortify;
 
@@ -16,14 +18,22 @@ class LoginResponse implements LoginResponseContract
 
         $user = $request->user();
 
-        if ($user !== null && $user->hasRole(AppRole::Admin->value)) {
-            $request->session()->put('active_role', AppRole::Admin->value);
+        if ($user !== null) {
+            $roles = $user->roleNames();
+            $isAdminOnly = collect($roles)->every(
+                fn(string $role): bool => in_array($role, [AppRole::Admin->value, AppRole::SuperAdmin->value], true),
+            );
 
-            if ($user->last_active_role !== AppRole::Admin->value) {
-                $user->forceFill(['last_active_role' => AppRole::Admin->value])->save();
+            if ($isAdminOnly) {
+                // Admin-only users must use /admin/login
+                Auth::guard('web')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                throw ValidationException::withMessages([
+                    Fortify::username() => ['Admin harus login melalui halaman /admin/login.'],
+                ]);
             }
-
-            return \Inertia\Inertia::location('/admin');
         }
 
         return redirect()->intended(Fortify::redirects('login'));

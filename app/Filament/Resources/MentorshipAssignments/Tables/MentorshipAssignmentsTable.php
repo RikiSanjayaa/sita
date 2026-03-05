@@ -25,6 +25,11 @@ class MentorshipAssignmentsTable
           ->searchable()
           ->sortable()
           ->description(fn(?MentorshipAssignment $record): string => $record?->student?->mahasiswaProfile?->nim ?? '-'),
+        TextColumn::make('student.mahasiswaProfile.programStudi.name')
+          ->label('Program Studi')
+          ->searchable()
+          ->sortable()
+          ->toggleable(isToggledHiddenByDefault: true),
         TextColumn::make('lecturer.name')
           ->label('Pembimbing 1')
           ->searchable()
