@@ -17,9 +17,14 @@ class DosenProfile extends Model
     protected $fillable = [
         'user_id',
         'nik',
-        'homebase',
+        'program_studi_id',
         'is_active',
     ];
+
+    public function programStudi(): BelongsTo
+    {
+        return $this->belongsTo(ProgramStudi::class, 'program_studi_id');
+    }
 
     /**
      * @return array<string, string>

@@ -13,7 +13,7 @@ class ThesisSubmission extends Model
 
     protected $fillable = [
         'student_user_id',
-        'program_studi',
+        'program_studi_id',
         'title_id',
         'title_en',
         'proposal_summary',
@@ -24,6 +24,11 @@ class ThesisSubmission extends Model
         'approved_at',
         'approved_by',
     ];
+
+    public function programStudi(): BelongsTo
+    {
+        return $this->belongsTo(ProgramStudi::class, 'program_studi_id');
+    }
 
     protected function casts(): array
     {

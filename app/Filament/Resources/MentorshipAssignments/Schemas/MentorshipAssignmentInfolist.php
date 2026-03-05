@@ -22,7 +22,7 @@ class MentorshipAssignmentInfolist
             TextEntry::make('student.mahasiswaProfile.nim')
               ->label('NIM')
               ->placeholder('-'),
-            TextEntry::make('student.mahasiswaProfile.program_studi')
+            TextEntry::make('student.mahasiswaProfile.programStudi.name')
               ->label('Program Studi')
               ->placeholder('-'),
           ]),

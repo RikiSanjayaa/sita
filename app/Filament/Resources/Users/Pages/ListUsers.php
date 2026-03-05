@@ -28,7 +28,7 @@ class ListUsers extends ListRecords
                 ->url(route('admin.users.import-template', ['format' => 'xlsx'])),
             ImportAction::make()
                 ->importer(UserImporter::class)
-                ->modalDescription('Gunakan template CSV atau Excel di atas. Jika edit via Excel, simpan sebagai CSV sebelum import.')
+                ->modalDescription('Gunakan template CSV atau Excel di atas. Pilih Tipe Import dan Program Studi di bawah. Kolom "prodi" di file bisa dikosongkan.')
                 ->fileRules('extensions:csv,txt'),
             CreateAction::make(),
         ];

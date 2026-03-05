@@ -23,6 +23,9 @@ class SemproInfolist
                         TextEntry::make('submission.student.mahasiswaProfile.nim')
                             ->label('NIM')
                             ->placeholder('-'),
+                        TextEntry::make('submission.programStudi.name')
+                            ->label('Program Studi')
+                            ->placeholder('-'),
                         TextEntry::make('submission.title_id')
                             ->label('Judul (ID)')
                             ->columnSpanFull(),

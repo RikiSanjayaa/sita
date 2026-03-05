@@ -62,11 +62,19 @@ class ThesisSubmissionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->with([
                 'student.mahasiswaProfile',
                 'approvedBy',
             ]);
+
+        $prodiId = auth()->user()?->adminProgramStudiId();
+
+        if ($prodiId !== null) {
+            $query->where('program_studi_id', $prodiId);
+        }
+
+        return $query;
     }
 
     public static function getRelations(): array

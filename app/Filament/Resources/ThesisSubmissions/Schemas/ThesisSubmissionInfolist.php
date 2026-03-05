@@ -22,7 +22,7 @@ class ThesisSubmissionInfolist
                         TextEntry::make('student.mahasiswaProfile.nim')
                             ->label('NIM')
                             ->placeholder('-'),
-                        TextEntry::make('program_studi')
+                        TextEntry::make('programStudi.name')
                             ->label('Program Studi')
                             ->placeholder('-'),
                     ]),

@@ -20,7 +20,19 @@ class UserForm
                     ->schema([
                         Select::make('role')
                             ->label('Role')
-                            ->options(array_combine(AppRole::uiValues(), AppRole::uiValues()))
+                            ->options(function () {
+                                $user = auth()->user();
+                                $allRoles = AppRole::uiValues();
+
+                                if ($user?->hasRole(AppRole::SuperAdmin)) {
+                                    return array_combine($allRoles, $allRoles);
+                                }
+
+                                // Non-super admins cannot create admins or super admins
+                                $restrictedRoles = array_filter($allRoles, fn(string $role) => !in_array($role, [AppRole::Admin->value, AppRole::SuperAdmin->value], true));
+
+                                return array_combine($restrictedRoles, $restrictedRoles);
+                            })
                             ->required()
                             ->live(),
                     ]),
@@ -42,11 +54,15 @@ class UserForm
                             ->required(fn(string $operation): bool => $operation === 'create')
                             ->dehydrated(fn(?string $state): bool => filled($state))
                             ->maxLength(255),
-                        TextInput::make('prodi')
+                        Select::make('prodi')
                             ->label('Prodi')
-                            ->maxLength(255)
-                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true))
-                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true)),
+                            ->relationship('mahasiswaProfile.programStudi', 'name')
+                            ->getOptionLabelFromRecordUsing(fn($record) => $record?->name)
+                            ->options(\App\Models\ProgramStudi::all()->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value, AppRole::Admin->value], true))
+                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value, AppRole::Admin->value], true)),
                     ]),
                 Section::make('Mahasiswa Profile')
                     ->visible(fn(Get $get): bool => $get('role') === AppRole::Mahasiswa->value)

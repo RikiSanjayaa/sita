@@ -62,12 +62,20 @@ class MentorshipAssignmentResource extends Resource
 
   public static function getEloquentQuery(): Builder
   {
-    return parent::getEloquentQuery()
+    $query = parent::getEloquentQuery()
       ->with([
         'student.mahasiswaProfile',
         'lecturer.dosenProfile',
         'assignedBy',
       ]);
+
+    $prodiId = auth()->user()?->adminProgramStudiId();
+
+    if ($prodiId !== null) {
+      $query->whereHas('student.mahasiswaProfile', fn(Builder $q): Builder => $q->where('program_studi_id', $prodiId));
+    }
+
+    return $query;
   }
 
   public static function getRelations(): array

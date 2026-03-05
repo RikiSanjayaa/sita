@@ -12,6 +12,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class UsersTable
 {
@@ -29,36 +30,33 @@ class UsersTable
                 TextColumn::make('role')
                     ->label('Role')
                     ->badge()
-                    ->state(fn (?User $record): string => $record?->roles->pluck('name')->first() ?? '-'),
+                    ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-'),
                 TextColumn::make('mahasiswaProfile.nim')
                     ->label('NIM')
                     ->searchable()
-                    ->visible(fn (HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa')),
                 TextColumn::make('dosenProfile.nik')
                     ->label('NIK')
                     ->searchable()
-                    ->visible(fn (HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
                 TextColumn::make('prodi')
                     ->label('Prodi')
-                    ->state(fn (?User $record): string => $record?->mahasiswaProfile?->program_studi ?? $record?->dosenProfile?->homebase ?? '-')
-                    ->visible(fn (HasTable $livewire): bool => ! self::isTab($livewire, 'admin'))
-                    ->searchable(),
-                TextColumn::make('thesis_submission_count')
-                    ->label('Submission')
-                    ->numeric()
-                    ->sortable(),
+                    ->state(fn(?User $record): string => $record?->mahasiswaProfile?->programStudi?->name ?? $record?->dosenProfile?->programStudi?->name ?? $record?->adminProfile?->programStudi?->name ?? '-')
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->whereHas('mahasiswaProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('dosenProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('adminProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                    }),
                 TextColumn::make('active_bimbingan_count')
                     ->label('Bimbingan Aktif')
                     ->numeric()
-                    ->sortable(),
-                TextColumn::make('active_uji_count')
-                    ->label('Uji Aktif')
-                    ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
                 TextColumn::make('finished_bimbingan_count')
                     ->label('Bimbingan Selesai')
                     ->numeric()
                     ->sortable()
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
@@ -75,7 +73,7 @@ class UsersTable
                             return $query;
                         }
 
-                        return $query->whereHas('roles', static fn ($roleQuery) => $roleQuery->where('name', $value));
+                        return $query->whereHas('roles', static fn($roleQuery) => $roleQuery->where('name', $value));
                     }),
             ])
             ->recordActions([
@@ -91,7 +89,7 @@ class UsersTable
 
     private static function isTab(HasTable $livewire, string $tab): bool
     {
-        $activeTab = property_exists($livewire, 'activeTab') ? $livewire->activeTab : null;
+        $activeTab = $livewire->activeTab ?? null;
 
         return $activeTab === $tab;
     }

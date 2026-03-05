@@ -22,6 +22,11 @@ class SemprosTable
                     ->searchable()
                     ->sortable()
                     ->description(fn(?Sempro $record): string => $record?->submission?->student?->mahasiswaProfile?->nim ?? '-'),
+                TextColumn::make('submission.programStudi.name')
+                    ->label('Program Studi')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('submission.title_id')
                     ->label('Judul Skripsi')
                     ->limit(45)
