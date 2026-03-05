@@ -2,12 +2,13 @@
 
 use App\Enums\AppRole;
 use App\Filament\Imports\UserImporter;
+use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Actions\Imports\Models\Import;
 use Illuminate\Support\Facades\Hash;
 
-function makeUserImporter(User $admin): UserImporter
+function makeUserImporter(User $admin, int $programStudiId): UserImporter
 {
     $import = Import::query()->create([
         'completed_at' => null,
@@ -33,7 +34,10 @@ function makeUserImporter(User $admin): UserImporter
             'nik' => 'nik',
             'is_active' => 'is_active',
         ],
-        options: ['import_type' => 'mahasiswa'],
+        options: [
+            'import_type' => 'mahasiswa',
+            'program_studi_id' => $programStudiId,
+        ],
     );
 }
 
@@ -42,7 +46,8 @@ test('importer creates mahasiswa and core profile fields with default password f
     $admin = User::factory()->asAdmin()->create();
     $admin->roles()->syncWithoutDetaching([$adminRole->id]);
 
-    $importer = makeUserImporter($admin);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+    $importer = makeUserImporter($admin, $prodi->id);
 
     $importer([
         'name' => 'Mahasiswa Import',
@@ -63,7 +68,7 @@ test('importer creates mahasiswa and core profile fields with default password f
     expect(Hash::check('secret123', $user->password))->toBeTrue();
     expect($user->mahasiswaProfile)->not->toBeNull();
     expect($user->mahasiswaProfile?->nim)->toBe('2210517777');
-    expect($user->mahasiswaProfile?->program_studi)->toBe('Informatika');
+    expect($user->mahasiswaProfile?->program_studi_id)->toBe($prodi->id);
     expect($user->mahasiswaProfile?->angkatan)->toBe(2022);
 });
 
@@ -77,6 +82,8 @@ test('importer updates existing dosen without overwriting password when blank', 
         'password' => 'keep-this-password',
         'last_active_role' => AppRole::Mahasiswa->value,
     ]);
+
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
 
     $importer = new UserImporter(
         import: Import::query()->create([
@@ -100,7 +107,10 @@ test('importer updates existing dosen without overwriting password when blank', 
             'nik' => 'nik',
             'is_active' => 'is_active',
         ],
-        options: ['import_type' => 'dosen'],
+        options: [
+            'import_type' => 'dosen',
+            'program_studi_id' => $prodi->id,
+        ],
     );
 
     $importer([
@@ -123,6 +133,6 @@ test('importer updates existing dosen without overwriting password when blank', 
     expect(Hash::check('newpassword123', $existing->password))->toBeTrue();
     expect($existing->dosenProfile)->not->toBeNull();
     expect($existing->dosenProfile?->nik)->toBe('7301010101010002');
-    expect($existing->dosenProfile?->homebase)->toBe('Teknik Informatika');
+    expect($existing->dosenProfile?->program_studi_id)->toBe($prodi->id);
     expect($existing->dosenProfile?->is_active)->toBeFalse();
 });

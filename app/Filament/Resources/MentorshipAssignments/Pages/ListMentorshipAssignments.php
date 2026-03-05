@@ -11,26 +11,26 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ListMentorshipAssignments extends ListRecords
 {
-  protected static string $resource = MentorshipAssignmentResource::class;
+    protected static string $resource = MentorshipAssignmentResource::class;
 
-  protected function getHeaderActions(): array
-  {
-    return [
-      CreateAction::make()
-        ->label('Tambah Pembimbingan'),
-    ];
-  }
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make()
+                ->label('Tambah Pembimbingan'),
+        ];
+    }
 
-  public function getTabs(): array
-  {
-    return [
-      'semua' => Tab::make('Semua'),
-      'aktif' => Tab::make('Aktif')
-        ->modifyQueryUsing(fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Active->value))
-        ->icon('heroicon-m-check-circle'),
-      'selesai' => Tab::make('Selesai')
-        ->modifyQueryUsing(fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Ended->value))
-        ->icon('heroicon-m-archive-box'),
-    ];
-  }
+    public function getTabs(): array
+    {
+        return [
+            'semua' => Tab::make('Semua'),
+            'aktif' => Tab::make('Aktif')
+                ->modifyQueryUsing(fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Active->value))
+                ->icon('heroicon-m-check-circle'),
+            'selesai' => Tab::make('Selesai')
+                ->modifyQueryUsing(fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Ended->value))
+                ->icon('heroicon-m-archive-box'),
+        ];
+    }
 }

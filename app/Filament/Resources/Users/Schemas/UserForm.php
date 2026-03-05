@@ -29,7 +29,7 @@ class UserForm
                                 }
 
                                 // Non-super admins cannot create admins or super admins
-                                $restrictedRoles = array_filter($allRoles, fn(string $role) => !in_array($role, [AppRole::Admin->value, AppRole::SuperAdmin->value], true));
+                                $restrictedRoles = array_filter($allRoles, fn(string $role) => ! in_array($role, [AppRole::Admin->value, AppRole::SuperAdmin->value], true));
 
                                 return array_combine($restrictedRoles, $restrictedRoles);
                             })

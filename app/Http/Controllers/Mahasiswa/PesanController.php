@@ -24,8 +24,7 @@ class PesanController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -110,7 +109,7 @@ class PesanController extends Controller
             ->all();
 
         return Inertia::render('pesan', [
-            'hasDosbing' => !empty($advisors),
+            'hasDosbing' => ! empty($advisors),
             'threads' => $threadsData,
             'flashMessage' => $request->session()->get('success'),
         ]);

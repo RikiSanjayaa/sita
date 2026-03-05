@@ -17,7 +17,7 @@ class UserProvisioningService
             $isAdminRole = in_array($role, [AppRole::Admin->value, AppRole::SuperAdmin->value], true);
             $isSuperAdmin = auth()->user()?->hasRole(AppRole::SuperAdmin);
 
-            if ($isAdminRole && !$isSuperAdmin) {
+            if ($isAdminRole && ! $isSuperAdmin) {
                 return; // Silently prevent non-super-admins from creating admins
             }
 

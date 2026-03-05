@@ -337,7 +337,7 @@ class UserSeeder extends Seeder
      * Seed a non-Ilkom prodi with admin, dosen, and mahasiswa.
      *
      * @param  array{name: string, slug: string}  $prodiData
-     * @param  array<string, Role>                $roles
+     * @param  array<string, Role>  $roles
      */
     private function seedProdi(array $prodiData, int $prodiIndex, array $roles, \App\Models\ProgramStudi $prodi): void
     {
@@ -362,7 +362,7 @@ class UserSeeder extends Seeder
         foreach ($dosenData as $dosenIndex => $d) {
             $fullName = trim("{$d['title_prefix']} {$d['name']}, {$d['title_suffix']}");
             $emailSlug = strtolower(str_replace(' ', '.', $d['name']));
-            $nik = '73010101' . str_pad((string) ($this->nikCounter++), 8, '0', STR_PAD_LEFT);
+            $nik = '73010101'.str_pad((string) ($this->nikCounter++), 8, '0', STR_PAD_LEFT);
 
             $dosen = User::query()->updateOrCreate([
                 'email' => "{$emailSlug}@sita.test",
@@ -392,7 +392,7 @@ class UserSeeder extends Seeder
             $lastName = self::LAST_NAMES[($prodiIndex * $count + $i) % count(self::LAST_NAMES)];
             $name = "{$firstName} {$lastName}";
             $emailSlug = strtolower("{$firstName}.{$lastName}");
-            $nim = '22' . str_pad((string) ($this->nimCounter++), 8, '0', STR_PAD_LEFT);
+            $nim = '22'.str_pad((string) ($this->nimCounter++), 8, '0', STR_PAD_LEFT);
 
             $mahasiswa = User::query()->updateOrCreate([
                 'email' => "{$emailSlug}@sita.test",

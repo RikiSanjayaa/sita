@@ -20,7 +20,7 @@ class MahasiswaProfileFactory extends Factory
         return [
             'user_id' => User::factory()->asMahasiswa(),
             'nim' => fake()->unique()->numerify('##########'),
-            'program_studi' => 'Teknik Informatika',
+            'program_studi_id' => \App\Models\ProgramStudi::factory(),
             'angkatan' => (int) now()->format('Y'),
             'is_active' => true,
         ];

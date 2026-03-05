@@ -133,7 +133,10 @@ function HeaderNotifications() {
             if (threadMatch) {
                 const threadId = parseInt(threadMatch[1], 10);
                 // @ts-expect-error - activeMentorshipThreadId is injected globally
-                if (window.activeMentorshipThreadId === threadId && document.visibilityState === 'visible') {
+                if (
+                    window.activeMentorshipThreadId === threadId &&
+                    document.visibilityState === 'visible'
+                ) {
                     isThreadCurrentlyOpen = true;
                 }
             }
@@ -253,9 +256,9 @@ function HeaderNotifications() {
                 current.map((item) =>
                     item.id === notification.id
                         ? {
-                            ...item,
-                            unread: false,
-                        }
+                              ...item,
+                              unread: false,
+                          }
                         : item,
                 ),
             );

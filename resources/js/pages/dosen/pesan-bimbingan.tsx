@@ -33,11 +33,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-    | 'text'
-    | 'document_event'
-    | 'attachment'
-    | 'revision_suggestion'
-    | string;
+        | 'text'
+        | 'document_event'
+        | 'attachment'
+        | 'revision_suggestion'
+        | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -260,9 +260,7 @@ export default function DosenPesanBimbinganPage() {
         return () => {
             for (const [index, thread] of initialThreads.entries()) {
                 channels[index]?.stopListening('.chat.message.created');
-                window.Echo.leave(
-                    `mentorship.thread.${thread.id}`,
-                );
+                window.Echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
     }, [auth.user?.id, initialThreads]);
@@ -429,7 +427,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'aktif' &&
-                                    'bg-background text-foreground shadow-sm',
+                                        'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Aktif
@@ -439,7 +437,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'arsip' &&
-                                    'bg-background text-foreground shadow-sm',
+                                        'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Arsip
@@ -475,8 +473,9 @@ export default function DosenPesanBimbinganPage() {
                                                 type="button"
                                                 className={cn(
                                                     'w-full shrink-0 rounded-xl border p-3.5 text-left transition-all hover:bg-muted/50',
-                                                    activeThread?.id === thread.id &&
-                                                    'border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20',
+                                                    activeThread?.id ===
+                                                        thread.id &&
+                                                        'border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
@@ -499,10 +498,11 @@ export default function DosenPesanBimbinganPage() {
                                                     <Badge
                                                         variant="soft"
                                                         className={cn(
-                                                            'font-medium text-[10px] px-2 py-0.5',
-                                                            thread.threadType === 'pembimbing'
+                                                            'px-2 py-0.5 text-[10px] font-medium',
+                                                            thread.threadType ===
+                                                                'pembimbing'
                                                                 ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
                                                         )}
                                                     >
                                                         {thread.threadLabel}
@@ -562,9 +562,10 @@ export default function DosenPesanBimbinganPage() {
                                         variant="soft"
                                         className={cn(
                                             'font-medium',
-                                            activeThread.threadType === 'pembimbing'
+                                            activeThread.threadType ===
+                                                'pembimbing'
                                                 ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
                                         )}
                                     >
                                         {activeThread.threadLabel}
@@ -673,7 +674,7 @@ export default function DosenPesanBimbinganPage() {
                                     type="button"
                                     variant="soft"
                                     size="icon"
-                                    className="bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground shrink-0 rounded-full size-10"
+                                    className="size-10 shrink-0 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                                     onClick={() => fileRef.current?.click()}
                                     disabled={activeThread === null}
                                 >
@@ -700,9 +701,11 @@ export default function DosenPesanBimbinganPage() {
                                     type="button"
                                     onClick={sendMessage}
                                     disabled={!canSend}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 font-semibold rounded-full h-10"
+                                    className="h-10 rounded-full bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90"
                                 >
-                                    <span className="hidden sm:inline-block mr-2">Kirim</span>
+                                    <span className="mr-2 hidden sm:inline-block">
+                                        Kirim
+                                    </span>
                                     <Send className="size-4" />
                                 </Button>
                             </div>

@@ -70,8 +70,8 @@ class ViewSempro extends ViewRecord
                     SemproStatus::Scheduled->value,
                     SemproStatus::RevisionOpen->value,
                 ], true) && $record->examiners()
-                        ->where('decision', SemproExaminerDecision::Approved->value)
-                        ->count() >= $record->examiners()->count()
+                    ->where('decision', SemproExaminerDecision::Approved->value)
+                    ->count() >= $record->examiners()->count()
                     && $record->examiners()->count() >= 2)
                 ->requiresConfirmation()
                 ->modalHeading('Approve Seminar Proposal')
@@ -110,7 +110,7 @@ class ViewSempro extends ViewRecord
                             ->orderBy('name')
                             ->get()
                             ->mapWithKeys(fn(User $u) => [
-                                $u->id => $u->name . ' (' . ($u->dosenProfile?->nik ?? '-') . ')',
+                                $u->id => $u->name.' ('.($u->dosenProfile?->nik ?? '-').')',
                             ])
                             ->all())
                         ->searchable()
@@ -124,7 +124,7 @@ class ViewSempro extends ViewRecord
                             ->orderBy('name')
                             ->get()
                             ->mapWithKeys(fn(User $u) => [
-                                $u->id => $u->name . ' (' . ($u->dosenProfile?->nik ?? '-') . ')',
+                                $u->id => $u->name.' ('.($u->dosenProfile?->nik ?? '-').')',
                             ])
                             ->all())
                         ->searchable()

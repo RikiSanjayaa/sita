@@ -29,7 +29,7 @@ class ThesisSubmissionForm
                                 ->orderBy('name')
                                 ->get()
                                 ->mapWithKeys(fn(User $user) => [
-                                    $user->id => $user->name . ' (' . ($user->mahasiswaProfile?->nim ?? '-') . ')',
+                                    $user->id => $user->name.' ('.($user->mahasiswaProfile?->nim ?? '-').')',
                                 ])
                                 ->all())
                             ->searchable()

@@ -31,4 +31,3 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::post('pesan-bimbingan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])
         ->name('pesan-bimbingan.read');
 });
-

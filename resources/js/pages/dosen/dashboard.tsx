@@ -66,7 +66,7 @@ export default function DosenDashboardPage() {
                     {queueCards.map((card) => {
                         const Icon =
                             queueCardIcons[
-                            card.title as keyof typeof queueCardIcons
+                                card.title as keyof typeof queueCardIcons
                             ] ?? CalendarClock;
 
                         return (
@@ -83,7 +83,7 @@ export default function DosenDashboardPage() {
                                     <span className="inline-flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                         <Icon className="size-5" />
                                     </span>
-                                    <p className="text-sm text-muted-foreground leading-snug">
+                                    <p className="text-sm leading-snug text-muted-foreground">
                                         {card.description}
                                     </p>
                                 </CardContent>
@@ -94,7 +94,9 @@ export default function DosenDashboardPage() {
 
                 <Card className="shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">Antrian Hari Ini</CardTitle>
+                        <CardTitle className="text-lg font-semibold">
+                            Antrian Hari Ini
+                        </CardTitle>
                         <CardDescription>
                             Tugas prioritas yang perlu ditindaklanjuti
                         </CardDescription>
@@ -115,7 +117,10 @@ export default function DosenDashboardPage() {
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                                        <Badge variant="soft" className="text-muted-foreground bg-muted hover:bg-muted">
+                                        <Badge
+                                            variant="soft"
+                                            className="bg-muted text-muted-foreground hover:bg-muted"
+                                        >
                                             {item.time}
                                         </Badge>
                                         <Badge
@@ -132,7 +137,11 @@ export default function DosenDashboardPage() {
                                         >
                                             {item.priority}
                                         </Badge>
-                                        <Button variant="soft" size="sm" className="ml-2 font-semibold">
+                                        <Button
+                                            variant="soft"
+                                            size="sm"
+                                            className="ml-2 font-semibold"
+                                        >
                                             Buka
                                         </Button>
                                     </div>
@@ -143,8 +152,12 @@ export default function DosenDashboardPage() {
                                 <span className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-muted">
                                     <CalendarClock className="size-6 text-muted-foreground" />
                                 </span>
-                                <p className="text-base font-medium">Bagus! Tidak ada antrian</p>
-                                <p className="text-sm text-muted-foreground">Semua tugas hari ini sudah diselesaikan.</p>
+                                <p className="text-base font-medium">
+                                    Bagus! Tidak ada antrian
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Semua tugas hari ini sudah diselesaikan.
+                                </p>
                             </div>
                         )}
                     </CardContent>
