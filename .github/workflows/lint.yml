@@ -38,6 +38,12 @@ jobs:
       - name: Lint Frontend
         run: npm run lint
 
+      - name: Generate Types
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan wayfinder:generate --with-form
+
       - name: Run Type Check
         run: npm run types
 
