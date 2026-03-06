@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { EmptyState } from '@/components/empty-state';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -248,8 +249,8 @@ export default function DosenJadwalBimbinganPage() {
                 (decision === 'reject'
                     ? ''
                     : decision === 'reschedule'
-                      ? ''
-                      : 'Permintaan jadwal disetujui.'),
+                        ? ''
+                        : 'Permintaan jadwal disetujui.'),
         };
 
         form.transform(() => ({
@@ -332,7 +333,7 @@ export default function DosenJadwalBimbinganPage() {
         >
             <Head title="Jadwal Bimbingan Dosen" />
 
-            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
+            <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
                 <Card className="py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <CardTitle className="text-lg font-semibold">
@@ -426,7 +427,7 @@ export default function DosenJadwalBimbinganPage() {
                                                             ...current,
                                                             [item.id]: {
                                                                 ...current[
-                                                                    item.id
+                                                                item.id
                                                                 ],
                                                                 scheduled_for:
                                                                     undefined,
@@ -437,14 +438,14 @@ export default function DosenJadwalBimbinganPage() {
                                             />
                                             {decisionErrorsById[item.id]
                                                 ?.scheduled_for && (
-                                                <p className="text-xs text-destructive">
-                                                    {
-                                                        decisionErrorsById[
-                                                            item.id
-                                                        ]?.scheduled_for
-                                                    }
-                                                </p>
-                                            )}
+                                                    <p className="text-xs text-destructive">
+                                                        {
+                                                            decisionErrorsById[
+                                                                item.id
+                                                            ]?.scheduled_for
+                                                        }
+                                                    </p>
+                                                )}
                                         </div>
                                         <div className="grid gap-1">
                                             <Label
@@ -527,7 +528,7 @@ export default function DosenJadwalBimbinganPage() {
                                                             ...current,
                                                             [item.id]: {
                                                                 ...current[
-                                                                    item.id
+                                                                item.id
                                                                 ],
                                                                 lecturer_note:
                                                                     undefined,
@@ -539,14 +540,14 @@ export default function DosenJadwalBimbinganPage() {
                                             />
                                             {decisionErrorsById[item.id]
                                                 ?.lecturer_note && (
-                                                <p className="text-xs text-destructive">
-                                                    {
-                                                        decisionErrorsById[
-                                                            item.id
-                                                        ]?.lecturer_note
-                                                    }
-                                                </p>
-                                            )}
+                                                    <p className="text-xs text-destructive">
+                                                        {
+                                                            decisionErrorsById[
+                                                                item.id
+                                                            ]?.lecturer_note
+                                                        }
+                                                    </p>
+                                                )}
                                         </div>
                                         <div className="flex flex-wrap gap-2 pt-2">
                                             <Button
@@ -598,18 +599,11 @@ export default function DosenJadwalBimbinganPage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
-                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                    <Inbox className="size-5" />
-                                </span>
-                                <p className="text-sm font-medium">
-                                    Belum ada permintaan baru
-                                </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Permintaan bimbingan dari mahasiswa akan
-                                    tampil di sini.
-                                </p>
-                            </div>
+                            <EmptyState
+                                icon={Inbox}
+                                title="Belum ada permintaan baru"
+                                description="Permintaan bimbingan dari mahasiswa akan tampil di sini."
+                            />
                         )}
                     </CardContent>
                 </Card>
@@ -693,18 +687,11 @@ export default function DosenJadwalBimbinganPage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
-                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                    <CalendarClock className="size-5" />
-                                </span>
-                                <p className="text-sm font-medium">
-                                    Belum ada jadwal mendatang
-                                </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Agenda yang sudah dikonfirmasi akan muncul
-                                    di bagian ini.
-                                </p>
-                            </div>
+                            <EmptyState
+                                icon={CalendarClock}
+                                title="Belum ada jadwal mendatang"
+                                description="Agenda yang sudah dikonfirmasi akan muncul di bagian ini."
+                            />
                         )}
                     </CardContent>
                 </Card>
@@ -758,18 +745,11 @@ export default function DosenJadwalBimbinganPage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
-                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                    <CalendarClock className="size-5" />
-                                </span>
-                                <p className="text-sm font-medium">
-                                    Belum ada riwayat jadwal
-                                </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Riwayat sesi selesai, ditolak, atau
-                                    dibatalkan akan muncul di sini.
-                                </p>
-                            </div>
+                            <EmptyState
+                                icon={CalendarClock}
+                                title="Belum ada riwayat jadwal"
+                                description="Riwayat sesi selesai, ditolak, atau dibatalkan akan muncul di sini."
+                            />
                         )}
                     </CardContent>
                 </Card>

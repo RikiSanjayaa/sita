@@ -271,7 +271,7 @@ export default function JadwalBimbinganPage() {
                                             {advisor.advisorType ===
                                                 'primary' && 'Pembimbing 1'}
                                             {advisor.advisorType ===
-                                                'co_advisor' && 'Pembimbing 2'}
+                                                'secondary' && 'Pembimbing 2'}
                                             {advisor.advisorType ===
                                                 'penguji' && 'Penguji'}
                                             )
@@ -379,8 +379,8 @@ export default function JadwalBimbinganPage() {
                 </DialogContent>
             </Dialog>
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             Jadwal Bimbingan
@@ -393,7 +393,7 @@ export default function JadwalBimbinganPage() {
                     {page.props.hasDosbing && (
                         <Button
                             type="button"
-                            className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
+                            className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
                             onClick={() => setIsAjukanOpen(true)}
                         >
                             <Plus className="size-4" />
@@ -403,7 +403,7 @@ export default function JadwalBimbinganPage() {
                 </div>
 
                 {!page.props.auth.activeRole || !page.props.hasDosbing ? (
-                    <Card className="mt-4 flex min-h-[400px] flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                    <Card className="mt-4 flex flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
                         <Users className="mb-4 size-12 opacity-20" />
                         <h2 className="mb-2 text-xl font-semibold text-foreground">
                             Fitur Bimbingan Belum Aktif
@@ -426,15 +426,17 @@ export default function JadwalBimbinganPage() {
                             </Alert>
                         )}
 
-                        <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Bimbingan Akan Datang</CardTitle>
+                        <Card className="py-0 shadow-sm">
+                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                                <CardTitle className="text-lg font-semibold">
+                                    Bimbingan Akan Datang
+                                </CardTitle>
                                 <CardDescription>
                                     Jadwal bimbingan yang diajukan atau telah
                                     dikonfirmasi
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-4 pb-6">
                                 <div className="grid gap-3">
                                     {hasUpcomingMeetings ? (
                                         page.props.upcomingMeetings.map(
@@ -517,15 +519,17 @@ export default function JadwalBimbinganPage() {
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="gap-1">
-                                <CardTitle>Riwayat Bimbingan</CardTitle>
+                        <Card className="py-0 shadow-sm">
+                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                                <CardTitle className="text-lg font-semibold">
+                                    Riwayat Bimbingan
+                                </CardTitle>
                                 <CardDescription>
                                     Riwayat bimbingan yang sudah selesai /
                                     ditutup
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-4 pb-6">
                                 <div className="grid gap-3">
                                     {hasHistoryMeetings ? (
                                         page.props.historyMeetings.map(

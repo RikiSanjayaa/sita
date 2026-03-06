@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { EmptyState } from '@/components/empty-state';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -260,7 +261,7 @@ export default function UploadDokumenPage() {
             </Dialog>
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             Upload Dokumen
@@ -270,6 +271,7 @@ export default function UploadDokumenPage() {
                         </p>
                     </div>
                     <Button
+                        type="button"
                         className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
                         onClick={() => setIsUploadOpen(true)}
                     >
@@ -292,7 +294,7 @@ export default function UploadDokumenPage() {
                         <CardTitle>Panduan Upload</CardTitle>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="pt-6">
+                    <CardContent>
                         <div className="grid gap-3">
                             {panduanItems.map((item) => (
                                 <div
@@ -319,7 +321,7 @@ export default function UploadDokumenPage() {
                         </CardDescription>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="pt-6">
+                    <CardContent>
                         {hasUploadedDocuments ? (
                             <div className="overflow-hidden rounded-lg border">
                                 <table className="w-full text-left text-sm">
@@ -437,18 +439,11 @@ export default function UploadDokumenPage() {
                                 </table>
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center">
-                                <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                    <Inbox className="size-5" />
-                                </span>
-                                <p className="text-sm font-medium">
-                                    Belum ada dokumen yang diupload
-                                </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Mulai unggah dokumen pertama Anda untuk
-                                    memulai proses review.
-                                </p>
-                            </div>
+                            <EmptyState
+                                icon={Inbox}
+                                title="Belum ada dokumen yang diupload"
+                                description="Mulai unggah dokumen pertama Anda untuk memulai proses review."
+                            />
                         )}
                     </CardContent>
                 </Card>

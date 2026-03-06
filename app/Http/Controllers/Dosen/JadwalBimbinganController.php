@@ -19,7 +19,8 @@ class JadwalBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
@@ -152,7 +153,7 @@ class JadwalBimbinganController extends Controller
         if ($schedule->student !== null) {
             $this->realtimeNotificationService->notifyUser($schedule->student, 'konfirmasiBimbingan', [
                 'title' => 'Status jadwal bimbingan diperbarui',
-                'description' => sprintf('Jadwal "%s" telah %s.', $schedule->topic, $status),
+                'description' => sprintf('Jadwal "%s" %s.', $schedule->topic, $status),
                 'url' => '/mahasiswa/jadwal-bimbingan',
                 'icon' => 'calendar-clock',
                 'createdAt' => now()->toIso8601String(),

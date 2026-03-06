@@ -1,6 +1,11 @@
 import { Head, usePage } from '@inertiajs/react';
 import { CircleAlert, CircleCheckBig } from 'lucide-react';
 
+import {
+    CardListItem,
+    CardListItemFooter,
+    CardListItemHeader,
+} from '@/components/card-list-item';
 import { Badge } from '@/components/ui/badge';
 import {
     Card,
@@ -65,39 +70,33 @@ export default function DosenMahasiswaBimbinganPage() {
                     </CardHeader>
                     <CardContent className="space-y-4 pb-6">
                         {mahasiswaRows.map((row) => (
-                            <div
-                                key={`${row.nim}-${row.advisorType}`}
-                                className="rounded-xl border bg-background p-5 shadow-sm transition-shadow hover:shadow-md"
-                            >
-                                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                                    <div>
-                                        <p className="text-base font-semibold">
-                                            {row.name}
-                                        </p>
-                                        <p className="mt-0.5 text-sm font-medium text-muted-foreground">
-                                            {row.nim} - {row.advisorType}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge
-                                            variant="soft"
-                                            className="bg-muted font-medium text-muted-foreground hover:bg-muted"
-                                        >
-                                            Progress {row.progress}%
-                                        </Badge>
-                                        <Badge
-                                            variant="soft"
-                                            className={
-                                                row.status === 'Siap Seminar'
-                                                    ? 'bg-emerald-600/10 font-semibold text-emerald-600 hover:bg-emerald-600/20'
-                                                    : 'bg-primary/10 font-semibold text-primary hover:bg-primary/20'
-                                            }
-                                        >
-                                            {row.status}
-                                        </Badge>
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-start gap-2 border-t border-dashed pt-3 text-sm text-muted-foreground">
+                            <CardListItem key={`${row.nim}-${row.advisorType}`}>
+                                <CardListItemHeader
+                                    title={row.name}
+                                    subtitle={`${row.nim} - ${row.advisorType}`}
+                                    endContent={
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge
+                                                variant="soft"
+                                                className="bg-muted font-medium text-muted-foreground hover:bg-muted"
+                                            >
+                                                Progress {row.progress}%
+                                            </Badge>
+                                            <Badge
+                                                variant="soft"
+                                                className={
+                                                    row.status ===
+                                                    'Siap Seminar'
+                                                        ? 'bg-emerald-600/10 font-semibold text-emerald-600 hover:bg-emerald-600/20'
+                                                        : 'bg-primary/10 font-semibold text-primary hover:bg-primary/20'
+                                                }
+                                            >
+                                                {row.status}
+                                            </Badge>
+                                        </div>
+                                    }
+                                />
+                                <CardListItemFooter>
                                     {row.status === 'Siap Seminar' ? (
                                         <CircleCheckBig className="mt-0.5 size-4 text-emerald-600 dark:text-emerald-400" />
                                     ) : (
@@ -109,8 +108,8 @@ export default function DosenMahasiswaBimbinganPage() {
                                             {row.lastUpdate}
                                         </span>
                                     </span>
-                                </div>
-                            </div>
+                                </CardListItemFooter>
+                            </CardListItem>
                         ))}
                     </CardContent>
                 </Card>

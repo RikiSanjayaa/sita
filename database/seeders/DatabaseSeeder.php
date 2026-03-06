@@ -49,6 +49,15 @@ class DatabaseSeeder extends Seeder
             ->get();
 
         foreach ($students as $index => $student) {
+            // Skip students who already have mentorship assignments (seeded by ThesisWorkflowSeeder)
+            $existingAssignment = MentorshipAssignment::query()
+                ->where('student_user_id', $student->id)
+                ->first();
+
+            if ($existingAssignment !== null) {
+                continue;
+            }
+
             // Set students at index 1 to 3 as 'ended' to test the archive feature, leaving index 0 (mahasiswa@sita.test) active
             $status = ($index >= 1 && $index <= 3) ? AssignmentStatus::Ended->value : AssignmentStatus::Active->value;
 

@@ -6,6 +6,8 @@ import {
     UserRound,
 } from 'lucide-react';
 
+import { EmptyState } from '@/components/empty-state';
+import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,33 +63,22 @@ export default function DosenDashboardPage() {
         >
             <Head title="Dashboard Dosen" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
                 <div className="grid gap-4 md:grid-cols-2 lg:gap-6 xl:grid-cols-4">
                     {queueCards.map((card) => {
                         const Icon =
                             queueCardIcons[
-                                card.title as keyof typeof queueCardIcons
+                            card.title as keyof typeof queueCardIcons
                             ] ?? CalendarClock;
 
                         return (
-                            <Card key={card.title} className="shadow-sm">
-                                <CardHeader className="p-6 pb-2">
-                                    <CardDescription className="font-medium text-muted-foreground">
-                                        {card.title}
-                                    </CardDescription>
-                                    <CardTitle className="text-3xl font-bold tracking-tight">
-                                        {card.value}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex items-start gap-4 p-6 pt-0">
-                                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                        <Icon className="size-5" />
-                                    </span>
-                                    <p className="text-sm leading-snug text-muted-foreground">
-                                        {card.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
+                            <StatCard
+                                key={card.title}
+                                title={card.title}
+                                value={card.value}
+                                description={card.description}
+                                icon={Icon}
+                            />
                         );
                     })}
                 </div>
@@ -148,17 +139,12 @@ export default function DosenDashboardPage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <span className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-muted">
-                                    <CalendarClock className="size-6 text-muted-foreground" />
-                                </span>
-                                <p className="text-base font-medium">
-                                    Bagus! Tidak ada antrian
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Semua tugas hari ini sudah diselesaikan.
-                                </p>
-                            </div>
+                            <EmptyState
+                                icon={CalendarClock}
+                                title="Bagus! Tidak ada antrian"
+                                description="Semua tugas hari ini sudah diselesaikan."
+                                className="flex flex-col items-center justify-center py-12"
+                            />
                         )}
                     </CardContent>
                 </Card>

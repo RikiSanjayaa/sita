@@ -7,6 +7,7 @@ Compact operating guide for coding agents in this repository.
 - Stack: Laravel 12, PHP 8.4, Inertia v2, React 19, Tailwind v4, Reverb, Pest 4.
 - Main areas: backend (`app/`, `routes/`, `database/`), frontend (`resources/js/`).
 - Real-time features use Echo + Reverb and depend on Reverb env vars.
+- UI: Uses Radix UI primitives, Lucide icons, class-variance-authority (cva), clsx, tailwind-merge.
 
 ## Core Rules
 
@@ -18,48 +19,117 @@ Compact operating guide for coding agents in this repository.
 - Never revert unrelated user changes in a dirty worktree.
 - Use ASCII by default in code/docs.
 
+## Key Commands
+
+### Installation & Development
+
+- Install deps: `composer install` and `npm install`
+- Dev stack: `composer run dev` (runs Vite, Artisan serve, queue, Reverb)
+- Dev with SSR: `composer run dev:ssr`
+- Build: `npm run build`
+
+### Linting & Formatting
+
+- Lint PHP: `composer run lint` (runs Pint in parallel)
+- Format JS: `npm run format` (runs Prettier)
+- Check JS format: `npm run format:check`
+
+### Type Checking
+
+- TypeScript: `npm run types`
+- Lint JS/TS: `npm run lint` (runs ESLint --fix)
+
+### Testing
+
+- Run all tests: `php artisan test` or `composer run test` (includes lint first)
+- Run all tests (compact): `php artisan test --compact`
+- Run specific test file: `php artisan test --compact tests/Feature/ExampleTest.php`
+- Run tests matching filter: `php artisan test --compact --filter=testName`
+- CI verify hook: `composer run ci:verify`
+
 ## Laravel / PHP Rules
 
 - Prefer Laravel conventions over custom patterns.
 - Use `php artisan make:* --no-interaction` for scaffolding.
 - Use Form Requests for validation (avoid inline validation for complex inputs).
 - Prefer Eloquent relationships and eager loading (`with`) to avoid N+1.
-- Add explicit parameter and return types.
+- Add explicit parameter and return types on all methods.
 - Use constructor property promotion when suitable.
-- Use `casts()` in models when following existing model style.
+- Use `casts()` method in models rather than `$casts` property.
+- Use curly braces for all control structures, even single-line.
+- Run `vendor/bin/pint --dirty` after PHP changes.
+
+### Imports
+
+- Use alphabetical import ordering.
+- Group imports: PHP built-ins, then vendor, then app namespaces.
+- Example:
+
+```php
+use App\Enums\AppRole;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+```
+
+### Naming Conventions
+
+- Models: `PascalCase` (e.g., `User`, `MahasiswaProfile`)
+- Controllers: `PascalCase` with `Controller` suffix (e.g., `DashboardController`)
+- Methods: `camelCase`
+- Relationships: `camelCase` (e.g., `mahasiswaProfile()`, `mentorshipAssignmentsAsStudent()`)
+- Database columns: `snake_case`
+- Enums: TitleCase keys (e.g., `Mahasiswa`, `Dosen`)
+
+### Error Handling
+
+- Use Laravel exceptions for domain errors.
+- Return appropriate HTTP status codes.
+- Use `abort()` or throw exceptions for invalid states.
 
 ## Inertia / React Rules
 
 - Use Inertia navigation (`router.visit`, `<Link>`) over plain anchors.
 - Keep pages in existing project structure (`resources/js/pages/...`).
-- Keep TS strict; avoid `any` where possible.
+- Use Wayfinder for type-safe route generation (import from `@/actions/...`).
+- Keep TS strict; avoid `any`.
 - Reuse existing UI primitives/components before creating new ones.
+- Use `<Form>` component for forms with method/action props.
+
+### React Component Structure
+
+- Import icons from `lucide-react`.
+- Use `cva` for variant components.
+- Use `clsx` and `tailwind-merge` for conditional classes.
+- Extract reusable components to `resources/js/components/`.
+
+### Imports Order
+
+1. External (react, @inertiajs/react)
+2. Internal (@/components, @/layouts, @/routes, @/types)
+3. Relative imports
 
 ## Tailwind Rules
 
 - Use Tailwind v4 utilities only.
 - Keep classes readable and consistent with existing UI patterns.
 - Prefer `gap-*` for list spacing instead of margin stacking.
+- Use `@import "tailwindcss"` (not `@tailwind` directives).
+- Configure theme using `@theme` directive in CSS.
+- Don't use deprecated v3 utilities (e.g., use `bg-black/50` instead of `bg-opacity-50`).
 
 ## Testing & Quality Gates
 
 - All functional changes require tests (Pest).
-- Run minimum targeted tests first:
-    - `php artisan test --compact tests/Feature/...`
-    - or `php artisan test --compact --filter=...`
-- If PHP files changed, run formatter: `vendor/bin/pint --dirty`.
-- If TS/React files changed, run: `npm run types`.
+- Tests live in `tests/Feature/` and `tests/Unit/`.
+- Use Pest syntax: `it('description', function () { ... });`
+- Run targeted tests first, then full suite if requested.
+- Use datasets for parameterized tests.
 
-## Key Commands
+### Test Conventions
 
-- Install deps: `composer install` and `npm install`
-- Dev stack: `composer run dev`
-- Build: `npm run build`
-- Lint PHP: `composer run lint`
-- Lint JS: `npm run lint`
-- Format JS: `npm run format`
-- Full test script: `composer run test`
-- CI verify hook target: `composer run ci:verify`
+- Use `actingAs()` for authentication.
+- Use factories for model creation.
+- Assert with specific methods (`assertOk`, `assertForbidden`) over `assertStatus(200)`.
 
 ## Realtime Checklist
 
@@ -70,5 +140,5 @@ Compact operating guide for coding agents in this repository.
 ## Agent Workflow
 
 - Prefer specialized tools for file edits/search over ad-hoc shell commands.
-- Search Laravel docs first for Laravel ecosystem work (`search-docs`).
+- Search Laravel docs first for Laravel ecosystem work (`search-docs` tool).
 - Summarize changes with touched file paths and what was validated.

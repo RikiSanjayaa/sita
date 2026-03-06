@@ -104,7 +104,7 @@ export default function Dashboard() {
             subtitle={`Selamat datang kembali, ${auth.user.name}`}
         >
             <Head title="Dashboard" />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 md:px-6">
+            <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-6 md:px-6">
                 <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
                     <div className="grid gap-6">
                         <Card>
@@ -288,8 +288,8 @@ export default function Dashboard() {
                                                         isDone
                                                             ? 'mt-0.5 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground'
                                                             : isCurrent
-                                                              ? 'mt-0.5 flex size-8 items-center justify-center rounded-full border-2 border-primary bg-background'
-                                                              : 'mt-0.5 flex size-8 items-center justify-center rounded-full border bg-background'
+                                                                ? 'mt-0.5 flex size-8 items-center justify-center rounded-full border-2 border-primary bg-background'
+                                                                : 'mt-0.5 flex size-8 items-center justify-center rounded-full border bg-background'
                                                     }
                                                 >
                                                     {isDone ? (
