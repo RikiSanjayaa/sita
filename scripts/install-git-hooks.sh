@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-mkdir -p .git/hooks
-cp .githooks/pre-push .git/hooks/pre-push
-chmod +x .git/hooks/pre-push
+# Configure git to use the .githooks directory
+git config core.hooksPath .githooks
 
-echo "Installed pre-push hook: .git/hooks/pre-push"
+echo "Git hooks configured to use the .githooks directory."

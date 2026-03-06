@@ -4,3 +4,5 @@ set -euo pipefail
 
 echo "Running CI verification before push..."
 composer run ci:verify
+npm run types
+npm run lint
