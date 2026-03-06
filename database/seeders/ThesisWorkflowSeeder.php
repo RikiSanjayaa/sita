@@ -154,6 +154,9 @@ class ThesisWorkflowSeeder extends Seeder
                 'notes' => 'Pembimbing kedua.',
             ]);
         });
+
+        // Create penguji thread for sempro with examiners (Budi & Ratna)
+        $this->createPengujiThread($sempro, $student, [$dosen1, $dosen2]);
     }
 
     private function seedSemproScheduled(User $admin, User $dosen1, User $dosen2, \App\Models\ProgramStudi $prodi): void

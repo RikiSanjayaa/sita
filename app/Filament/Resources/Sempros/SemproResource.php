@@ -74,7 +74,7 @@ class SemproResource extends Resource
         $prodiId = auth()->user()?->adminProgramStudiId();
 
         if ($prodiId !== null) {
-            $query->whereHas('thesisSubmission', fn(Builder $q): Builder => $q->where('program_studi_id', $prodiId));
+            $query->whereHas('submission', fn(Builder $q): Builder => $q->where('program_studi_id', $prodiId));
         }
 
         return $query;
