@@ -38,6 +38,12 @@ import {
     type SharedData,
 } from '@/types';
 
+declare global {
+    interface Window {
+        activeMentorshipThreadId?: number;
+    }
+}
+
 const notificationIconMap: Record<string, LucideIcon> = {
     bell: Bell,
     'calendar-clock': CalendarClock,
@@ -133,7 +139,7 @@ function HeaderNotifications() {
             if (threadMatch) {
                 const threadId = parseInt(threadMatch[1], 10);
                 if (
-                    (window as any).activeMentorshipThreadId === threadId &&
+                    window.activeMentorshipThreadId === threadId &&
                     document.visibilityState === 'visible'
                 ) {
                     isThreadCurrentlyOpen = true;

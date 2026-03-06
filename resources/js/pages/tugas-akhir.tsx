@@ -296,7 +296,7 @@ export default function TugasAkhirSaya() {
 
     useEffect(() => {
         form.setData(submissionDefaults(submission));
-    }, [submission]);
+    }, [submission, form]);
 
     const canEditSubmission = submission?.status === 'menunggu_persetujuan';
     const label = submission
@@ -304,7 +304,7 @@ export default function TugasAkhirSaya() {
         : '';
     const description = submission
         ? (statusDescription[submission.status] ??
-          'Pengajuan sedang diproses admin.')
+            'Pengajuan sedang diproses admin.')
         : '';
 
     const createSubmission: FormEventHandler = (event) => {
@@ -407,7 +407,7 @@ export default function TugasAkhirSaya() {
                             <CardContent>
                                 <Alert>
                                     {submission.status ===
-                                    'menunggu_persetujuan' ? (
+                                        'menunggu_persetujuan' ? (
                                         <Clock className="size-4" />
                                     ) : (
                                         <CheckCircle2 className="size-4" />
