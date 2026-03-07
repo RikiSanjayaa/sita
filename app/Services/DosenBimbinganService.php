@@ -2,34 +2,35 @@
 
 namespace App\Services;
 
-use App\Enums\AssignmentStatus;
-use App\Models\MentorshipAssignment;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 
 class DosenBimbinganService
 {
+    public const MAX_ACTIVE_STUDENTS_PER_LECTURER = 14;
+
     /**
-     * @return Collection<int, \App\Models\MentorshipAssignment>
+     * @return Collection<int, ThesisSupervisorAssignment>
      */
     public function activeAssignmentsWithStudent(User $lecturer): Collection
     {
-        return MentorshipAssignment::query()
-            ->with(['student.mahasiswaProfile'])
+        return ThesisSupervisorAssignment::query()
+            ->with(['project.student.mahasiswaProfile'])
             ->where('lecturer_user_id', $lecturer->id)
-            ->where('status', AssignmentStatus::Active->value)
+            ->where('status', 'active')
             ->get();
     }
 
     /**
-     * @return Collection<int, \App\Models\MentorshipAssignment>
+     * @return Collection<int, ThesisSupervisorAssignment>
      */
     public function archivedAssignmentsWithStudent(User $lecturer): Collection
     {
-        return MentorshipAssignment::query()
-            ->with(['student.mahasiswaProfile'])
+        return ThesisSupervisorAssignment::query()
+            ->with(['project.student.mahasiswaProfile'])
             ->where('lecturer_user_id', $lecturer->id)
-            ->where('status', AssignmentStatus::Ended->value)
+            ->where('status', 'ended')
             ->get();
     }
 
@@ -39,7 +40,7 @@ class DosenBimbinganService
     public function activeStudentIds(User $lecturer): array
     {
         return $this->activeAssignmentsWithStudent($lecturer)
-            ->pluck('student_user_id')
+            ->pluck('project.student_user_id')
             ->unique()
             ->values()
             ->all();
@@ -51,7 +52,7 @@ class DosenBimbinganService
     public function archivedStudentIds(User $lecturer): array
     {
         return $this->archivedAssignmentsWithStudent($lecturer)
-            ->pluck('student_user_id')
+            ->pluck('project.student_user_id')
             ->unique()
             ->values()
             ->all();

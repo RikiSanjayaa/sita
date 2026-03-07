@@ -33,7 +33,12 @@ type Submission = {
     title_id: string;
     title_en: string;
     proposal_summary: string;
-    status: string;
+    workflow: {
+        key: string;
+        label: string;
+        description: string;
+        can_edit: boolean;
+    };
     proposal_file_name: string | null;
     proposal_file_view_url: string | null;
     proposal_file_download_url: string | null;
@@ -70,36 +75,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
     { title: 'Judul dan Proposal', href: tugasAkhir().url },
 ];
-
-const statusLabel: Record<string, string> = {
-    menunggu_persetujuan: 'Menunggu Persetujuan',
-    pembimbing_ditetapkan: 'Pembimbing Ditetapkan',
-    sempro_dijadwalkan: 'Sempro Dijadwalkan',
-    revisi_sempro: 'Revisi Sempro',
-    sempro_selesai: 'Sempro Selesai',
-    sidang_dijadwalkan: 'Sidang Dijadwalkan',
-    revisi_sidang: 'Revisi Sidang',
-    sidang_selesai: 'Sidang Selesai',
-    sidang_gagal: 'Sidang Tidak Lulus',
-};
-
-const statusDescription: Record<string, string> = {
-    menunggu_persetujuan:
-        'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
-    pembimbing_ditetapkan:
-        'Dosen pembimbing sudah ditetapkan. Pantau pembaruan dari admin.',
-    sempro_dijadwalkan:
-        'Sempro sudah dijadwalkan. Cek informasi dosen dan tanggal di halaman ini.',
-    revisi_sempro: 'Pengajuan berada pada tahap revisi Sempro.',
-    sempro_selesai: 'Tahap Sempro telah selesai.',
-    sidang_dijadwalkan:
-        'Sidang skripsi sudah dijadwalkan. Pastikan Anda menyiapkan dokumen akhir dengan baik.',
-    revisi_sidang:
-        'Sidang selesai dengan revisi. Periksa catatan revisi dari tim sidang.',
-    sidang_selesai: 'Tahap sidang skripsi telah selesai.',
-    sidang_gagal:
-        'Sidang belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
-};
 
 function normalizeTitleEn(value: string | null | undefined): string {
     if (value === null || value === '-' || value === undefined) {
@@ -314,14 +289,9 @@ export default function TugasAkhirSaya() {
         form.setData(submissionDefaults(submission));
     }, [submission, form]);
 
-    const canEditSubmission = submission?.status === 'menunggu_persetujuan';
-    const label = submission
-        ? (statusLabel[submission.status] ?? 'Dalam Proses')
-        : '';
-    const description = submission
-        ? (statusDescription[submission.status] ??
-          'Pengajuan sedang diproses admin.')
-        : '';
+    const canEditSubmission = submission?.workflow.can_edit ?? false;
+    const label = submission?.workflow.label ?? '';
+    const description = submission?.workflow.description ?? '';
 
     const createSubmission: FormEventHandler = (event) => {
         event.preventDefault();
@@ -422,8 +392,8 @@ export default function TugasAkhirSaya() {
                             </CardHeader>
                             <CardContent>
                                 <Alert>
-                                    {submission.status ===
-                                    'menunggu_persetujuan' ? (
+                                    {submission.workflow.key ===
+                                    'title_review_pending' ? (
                                         <Clock className="size-4" />
                                     ) : (
                                         <CheckCircle2 className="size-4" />

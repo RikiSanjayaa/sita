@@ -2,12 +2,10 @@
 
 namespace App\Services;
 
-use App\Enums\ThesisSubmissionStatus;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
-use App\Models\ThesisSubmission;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -30,37 +28,26 @@ class ThesisProjectStudentService
         $path = $proposalFile->store('proposal_files', 'public');
 
         return DB::transaction(function () use ($data, $path, $programStudiId, $proposalFile, $student): ThesisProject {
-            $submission = ThesisSubmission::query()->create([
-                'student_user_id' => $student->id,
-                'program_studi_id' => $programStudiId,
-                'title_id' => (string) $data['title_id'],
-                'title_en' => (string) ($data['title_en'] ?? '-'),
-                'proposal_summary' => (string) $data['proposal_summary'],
-                'proposal_file_path' => $path,
-                'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
-                'is_active' => true,
-                'submitted_at' => now(),
-            ]);
+            $submittedAt = now();
 
             $project = ThesisProject::query()->create([
                 'student_user_id' => $student->id,
                 'program_studi_id' => $programStudiId,
-                'legacy_thesis_submission_id' => $submission->id,
                 'phase' => 'title_review',
                 'state' => 'active',
-                'started_at' => $submission->submitted_at,
+                'started_at' => $submittedAt,
                 'created_by' => $student->id,
             ]);
 
             $title = ThesisProjectTitle::query()->create([
                 'project_id' => $project->id,
                 'version_no' => 1,
-                'title_id' => $submission->title_id,
-                'title_en' => $submission->title_en,
-                'proposal_summary' => $submission->proposal_summary,
+                'title_id' => (string) $data['title_id'],
+                'title_en' => (string) ($data['title_en'] ?? '-'),
+                'proposal_summary' => (string) $data['proposal_summary'],
                 'status' => 'submitted',
                 'submitted_by_user_id' => $student->id,
-                'submitted_at' => $submission->submitted_at,
+                'submitted_at' => $submittedAt,
             ]);
 
             ThesisDocument::query()->create([
@@ -76,7 +63,7 @@ class ThesisProjectStudentService
                 'file_name' => basename($path),
                 'mime_type' => $proposalFile->getMimeType() ?? 'application/pdf',
                 'file_size_kb' => $this->toKilobytes($proposalFile->getSize()),
-                'uploaded_at' => $submission->submitted_at,
+                'uploaded_at' => $submittedAt,
             ]);
 
             $this->recordEvent(
@@ -102,7 +89,7 @@ class ThesisProjectStudentService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function updatePendingSubmission(User $student, ThesisSubmission $submission, array $data, ?UploadedFile $proposalFile): ThesisProject
+    public function updatePendingSubmission(User $student, ThesisProject $project, array $data, ?UploadedFile $proposalFile): ThesisProject
     {
         $programStudiId = $student->mahasiswaProfile?->program_studi_id;
 
@@ -110,36 +97,17 @@ class ThesisProjectStudentService
             throw new RuntimeException('Program studi Anda belum diatur. Hubungi admin terlebih dahulu.');
         }
 
-        return DB::transaction(function () use ($data, $programStudiId, $proposalFile, $student, $submission): ThesisProject {
-            $project = ThesisProject::query()
-                ->where('legacy_thesis_submission_id', $submission->id)
+        return DB::transaction(function () use ($data, $programStudiId, $proposalFile, $student, $project): ThesisProject {
+            $updatedFileMeta = null;
+            $proposalDocument = ThesisDocument::query()
+                ->where('project_id', $project->id)
+                ->where('kind', 'proposal')
+                ->latest('id')
                 ->first();
 
-            if (! $project instanceof ThesisProject) {
-                app(LegacyThesisProjectBackfillService::class)->backfill($student->id);
-
-                $project = ThesisProject::query()
-                    ->where('legacy_thesis_submission_id', $submission->id)
-                    ->first();
-            }
-
-            if (! $project instanceof ThesisProject) {
-                throw new RuntimeException('Project snapshot untuk pengajuan ini tidak ditemukan.');
-            }
-
-            $payload = [
-                'program_studi_id' => $programStudiId,
-                'title_id' => (string) $data['title_id'],
-                'title_en' => (string) ($data['title_en'] ?? '-'),
-                'proposal_summary' => (string) $data['proposal_summary'],
-            ];
-
-            $updatedFileMeta = null;
-
             if ($proposalFile instanceof UploadedFile) {
-                $oldPath = $submission->proposal_file_path;
+                $oldPath = $proposalDocument?->storage_path;
                 $newPath = $proposalFile->store('proposal_files', 'public');
-                $payload['proposal_file_path'] = $newPath;
 
                 if ($oldPath !== null && Storage::disk('public')->exists($oldPath)) {
                     Storage::disk('public')->delete($oldPath);
@@ -153,31 +121,35 @@ class ThesisProjectStudentService
                 ];
             }
 
-            $submission->update($payload);
-
             $project->forceFill([
                 'program_studi_id' => $programStudiId,
                 'phase' => 'title_review',
                 'state' => 'active',
             ])->save();
 
+            $submittedAt = now();
+
             $title = $project->latestTitle ?? ThesisProjectTitle::query()->create([
                 'project_id' => $project->id,
                 'version_no' => 1,
-                'title_id' => $submission->title_id,
-                'title_en' => $submission->title_en,
-                'proposal_summary' => $submission->proposal_summary,
+                'title_id' => (string) $data['title_id'],
+                'title_en' => (string) ($data['title_en'] ?? '-'),
+                'proposal_summary' => (string) $data['proposal_summary'],
                 'status' => 'submitted',
                 'submitted_by_user_id' => $student->id,
-                'submitted_at' => $submission->submitted_at ?? now(),
+                'submitted_at' => $submittedAt,
             ]);
 
             $title->forceFill([
-                'title_id' => $submission->title_id,
-                'title_en' => $submission->title_en,
-                'proposal_summary' => $submission->proposal_summary,
+                'title_id' => (string) $data['title_id'],
+                'title_en' => (string) ($data['title_en'] ?? '-'),
+                'proposal_summary' => (string) $data['proposal_summary'],
                 'status' => 'submitted',
                 'submitted_by_user_id' => $student->id,
+                'submitted_at' => $submittedAt,
+                'decided_by_user_id' => null,
+                'decided_at' => null,
+                'decision_notes' => null,
             ])->save();
 
             $document = ThesisDocument::query()->updateOrCreate(
@@ -192,18 +164,18 @@ class ThesisProjectStudentService
                     'version_no' => $title->version_no,
                     'title' => 'Proposal Skripsi',
                     'storage_disk' => 'public',
-                    'storage_path' => $updatedFileMeta['path'] ?? $submission->proposal_file_path,
-                    'file_name' => $updatedFileMeta['name'] ?? basename((string) $submission->proposal_file_path),
-                    'mime_type' => $updatedFileMeta['mime_type'] ?? 'application/pdf',
-                    'file_size_kb' => $updatedFileMeta['file_size_kb'] ?? null,
+                    'storage_path' => $updatedFileMeta['path'] ?? $proposalDocument?->storage_path,
+                    'file_name' => $updatedFileMeta['name'] ?? $proposalDocument?->file_name,
+                    'mime_type' => $updatedFileMeta['mime_type'] ?? $proposalDocument?->mime_type ?? 'application/pdf',
+                    'file_size_kb' => $updatedFileMeta['file_size_kb'] ?? $proposalDocument?->file_size_kb,
                     'uploaded_at' => now(),
                 ],
             );
 
-            if ($updatedFileMeta === null) {
+            if ($updatedFileMeta === null && $proposalDocument instanceof ThesisDocument) {
                 $document->forceFill([
-                    'storage_path' => $submission->proposal_file_path,
-                    'file_name' => basename((string) $submission->proposal_file_path),
+                    'storage_path' => $proposalDocument->storage_path,
+                    'file_name' => $proposalDocument->file_name,
                 ])->save();
             }
 

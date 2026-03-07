@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
-use App\Enums\AssignmentStatus;
-use App\Enums\SemproStatus;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
+use App\Models\ThesisDefense;
+use App\Models\ThesisSupervisorAssignment;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,10 +75,12 @@ class UploadDokumenController extends Controller
             'document' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
         ]);
 
-        $assignments = MentorshipAssignment::query()
+        $assignments = ThesisSupervisorAssignment::query()
             ->with('lecturer')
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->get();
 
         if ($assignments->isEmpty()) {
@@ -105,7 +106,7 @@ class UploadDokumenController extends Controller
                 $createdDocuments->push(MentorshipDocument::query()->create([
                     'student_user_id' => $student->id,
                     'lecturer_user_id' => $assignment->lecturer_user_id,
-                    'mentorship_assignment_id' => $assignment->id,
+                    'mentorship_assignment_id' => null,
                     'title' => trim($data['title']),
                     'category' => trim($data['category']),
                     'document_group' => $groupKey,
@@ -169,13 +170,33 @@ class UploadDokumenController extends Controller
                 ]);
             }
 
-            // Also notify active penguji threads
-            $activeSemproStatuses = [SemproStatus::Scheduled->value, SemproStatus::RevisionOpen->value];
+            $activeSemproContextIds = ThesisDefense::query()
+                ->whereHas('project', fn($query) => $query->where('student_user_id', $student->id))
+                ->where('type', 'sempro')
+                ->where(function ($query): void {
+                    $query->where('status', 'scheduled')
+                        ->orWhere(function ($nestedQuery): void {
+                            $nestedQuery->where('status', 'completed')
+                                ->where('result', 'pass_with_revision');
+                        });
+                })
+                ->get(['id', 'legacy_sempro_id'])
+                ->flatMap(static fn(ThesisDefense $defense): array => array_values(array_filter([
+                    $defense->getKey(),
+                    $defense->legacy_sempro_id,
+                ])))
+                ->unique()
+                ->values()
+                ->all();
 
             $pengujiThreads = MentorshipChatThread::query()
                 ->where('student_user_id', $student->id)
                 ->where('type', 'sempro')
-                ->whereHas('sempro', fn($q) => $q->whereIn('status', $activeSemproStatuses))
+                ->when(
+                    $activeSemproContextIds !== [],
+                    fn($query) => $query->whereIn('context_id', $activeSemproContextIds),
+                    fn($query) => $query->whereRaw('1 = 0'),
+                )
                 ->get();
 
             foreach ($pengujiThreads as $pengujiThread) {

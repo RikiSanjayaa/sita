@@ -57,8 +57,10 @@ class JadwalBimbinganController extends Controller
         $pendingRequests = $schedules
             ->where('status', 'pending')
             ->take(50)
-            ->map(function (MentorshipSchedule $item): array {
-                $relationType = $item->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+            ->map(function (MentorshipSchedule $item) use ($activeStudentIds): array {
+                $relationType = in_array($item->student_user_id, $activeStudentIds, true)
+                    ? 'pembimbing'
+                    : 'penguji';
 
                 return [
                     'id' => $item->id,
@@ -83,8 +85,10 @@ class JadwalBimbinganController extends Controller
             ->whereIn('status', ['approved', 'rescheduled'])
             ->sortBy('scheduled_for')
             ->take(50)
-            ->map(function (MentorshipSchedule $item): array {
-                $relationType = $item->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+            ->map(function (MentorshipSchedule $item) use ($activeStudentIds): array {
+                $relationType = in_array($item->student_user_id, $activeStudentIds, true)
+                    ? 'pembimbing'
+                    : 'penguji';
 
                 return [
                     'id' => $item->id,
@@ -104,8 +108,10 @@ class JadwalBimbinganController extends Controller
         $historySchedules = $schedules
             ->whereIn('status', ['rejected', 'completed', 'cancelled'])
             ->take(50)
-            ->map(function (MentorshipSchedule $item): array {
-                $relationType = $item->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+            ->map(function (MentorshipSchedule $item) use ($activeStudentIds): array {
+                $relationType = in_array($item->student_user_id, $activeStudentIds, true)
+                    ? 'pembimbing'
+                    : 'penguji';
 
                 return [
                     'id' => $item->id,

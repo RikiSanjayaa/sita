@@ -8,6 +8,11 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
+use App\Models\ThesisDefense;
+use App\Models\ThesisDefenseExaminer;
+use App\Models\ThesisProject;
+use App\Models\ThesisProjectTitle;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -31,12 +36,80 @@ function createMahasiswaUser(string $nim): User
 
 function assignStudentToLecturer(User $student, User $lecturer, User $admin): MentorshipAssignment
 {
-    return MentorshipAssignment::query()->create([
+    $assignment = MentorshipAssignment::query()->create([
         'student_user_id' => $student->id,
         'lecturer_user_id' => $lecturer->id,
         'advisor_type' => AdvisorType::Primary->value,
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
+    ]);
+
+    $project = ThesisProject::query()
+        ->where('student_user_id', $student->id)
+        ->where('state', 'active')
+        ->latest('id')
+        ->first();
+
+    if (! $project instanceof ThesisProject) {
+        $project = createThesisProjectForStudent($student);
+    }
+
+    ThesisSupervisorAssignment::query()->updateOrCreate(
+        [
+            'project_id' => $project->id,
+            'role' => AdvisorType::Primary->value,
+            'status' => 'active',
+        ],
+        [
+            'lecturer_user_id' => $lecturer->id,
+            'assigned_by' => $admin->id,
+            'started_at' => now(),
+        ],
+    );
+
+    return $assignment;
+}
+
+function createThesisProjectForStudent(User $student): ThesisProject
+{
+    $profile = $student->mahasiswaProfile;
+
+    if ($profile === null) {
+        throw new RuntimeException('Mahasiswa profile is required for thesis project test setup.');
+    }
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $profile->program_studi_id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subWeek(),
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Sistem Informasi Akademik Adaptif',
+        'title_en' => 'Adaptive Academic Information System',
+        'proposal_summary' => 'Ringkasan pengajuan tugas akhir untuk pengujian dosen.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(6),
+        'decided_at' => now()->subDays(5),
+    ]);
+
+    return $project;
+}
+
+function assignDefenseExaminer(ThesisDefense $defense, User $lecturer, string $role, int $order): ThesisDefenseExaminer
+{
+    return ThesisDefenseExaminer::query()->create([
+        'defense_id' => $defense->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => $role,
+        'order_no' => $order,
+        'decision' => 'pending',
+        'assigned_by' => $lecturer->id,
     ]);
 }
 
@@ -333,4 +406,138 @@ test('dosen can review document and send message to own thread', function () {
             'message' => 'Tidak boleh kirim.',
         ])
         ->assertForbidden();
+});
+
+test('dosen seminar proposal page shows only assigned sempro and sidang defenses', function () {
+    $dosen = createDosenUser();
+    $otherDosen = createDosenUser();
+
+    $assignedStudent = createMahasiswaUser('2210519001');
+    $otherStudent = createMahasiswaUser('2210519002');
+
+    $assignedProject = createThesisProjectForStudent($assignedStudent);
+    $otherProject = createThesisProjectForStudent($otherStudent);
+
+    $assignedSempro = ThesisDefense::query()->create([
+        'project_id' => $assignedProject->id,
+        'title_version_id' => $assignedProject->latestTitle?->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(2),
+        'location' => 'Ruang Sidang A',
+        'mode' => 'offline',
+    ]);
+
+    $assignedSidang = ThesisDefense::query()->create([
+        'project_id' => $assignedProject->id,
+        'title_version_id' => $assignedProject->latestTitle?->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(7),
+        'location' => 'Ruang Sidang B',
+        'mode' => 'hybrid',
+    ]);
+
+    $foreignDefense = ThesisDefense::query()->create([
+        'project_id' => $otherProject->id,
+        'title_version_id' => $otherProject->latestTitle?->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(3),
+        'location' => 'Ruang Sidang C',
+        'mode' => 'offline',
+    ]);
+
+    assignDefenseExaminer($assignedSempro, $dosen, 'examiner', 1);
+    assignDefenseExaminer($assignedSidang, $dosen, 'chair', 1);
+    assignDefenseExaminer($foreignDefense, $otherDosen, 'examiner', 1);
+
+    $this->actingAs($dosen)
+        ->get(route('dosen.seminar-proposal'))
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('dosen/seminar-proposal')
+            ->has('defenses', 2)
+            ->where('defenses.0.studentName', $assignedStudent->name)
+            ->where('defenses.0.type', 'sidang')
+            ->where('defenses.1.type', 'sempro'));
+});
+
+test('dosen defense decision keeps defense open until all examiners decide and then completes it', function () {
+    $dosen = createDosenUser();
+    $otherDosen = createDosenUser();
+    $student = createMahasiswaUser('2210519003');
+    $project = createThesisProjectForStudent($student);
+
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle?->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(5),
+        'location' => 'Ruang Sidang Utama',
+        'mode' => 'offline',
+    ]);
+
+    $ownExaminer = assignDefenseExaminer($defense, $dosen, 'examiner', 1);
+    assignDefenseExaminer($defense, $otherDosen, 'examiner', 2);
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.seminar-proposal'))
+        ->post(route('dosen.seminar-proposal.decision', $defense), [
+            'decision' => 'pass_with_revision',
+            'score' => 86,
+            'decision_notes' => 'Perlu perbaikan minor pada metodologi.',
+            'revision_notes' => 'Lengkapi pembahasan evaluasi dan simpulan.',
+        ])
+        ->assertRedirect(route('dosen.seminar-proposal'));
+
+    $this->assertDatabaseHas('thesis_defense_examiners', [
+        'id' => $ownExaminer->id,
+        'decision' => 'pass_with_revision',
+    ]);
+
+    $this->assertDatabaseHas('thesis_defenses', [
+        'id' => $defense->id,
+        'status' => 'scheduled',
+        'result' => 'pending',
+    ]);
+
+    $this->assertDatabaseHas('thesis_revisions', [
+        'project_id' => $project->id,
+        'defense_id' => $defense->id,
+        'requested_by_user_id' => $dosen->id,
+        'status' => 'open',
+    ]);
+
+    $this->actingAs($otherDosen)
+        ->post(route('dosen.seminar-proposal.decision', $defense), [
+            'decision' => 'pass',
+            'score' => 90,
+            'decision_notes' => 'Disetujui setelah perbaikan minor dicatat.',
+        ])
+        ->assertRedirect(route('dosen.seminar-proposal'));
+
+    $this->assertDatabaseHas('thesis_defenses', [
+        'id' => $defense->id,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+    ]);
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.seminar-proposal'))
+        ->post(route('dosen.seminar-proposal.decision', $defense), [
+            'decision' => 'pass',
+            'score' => 88,
+            'decision_notes' => 'Tidak boleh menimpa keputusan lama.',
+        ])
+        ->assertRedirect(route('dosen.seminar-proposal'))
+        ->assertSessionHasErrors('decision');
 });

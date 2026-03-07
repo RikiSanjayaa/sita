@@ -3,13 +3,10 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Enums\AdvisorType;
-use App\Enums\ThesisSubmissionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
-use App\Models\ThesisSubmission;
 use App\Models\User;
-use App\Services\LegacyThesisProjectBackfillService;
 use App\Services\ThesisProjectStudentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,8 +40,6 @@ class TugasAkhirController extends Controller
             ->sortByDesc(fn($document): int => $document->updated_at?->getTimestamp() ?? 0)
             ->first();
 
-        $legacySubmission = $project?->legacySubmission;
-
         $primaryAdvisor = $project?->activeSupervisorAssignments->firstWhere('role', AdvisorType::Primary->value);
         $secondaryAdvisor = $project?->activeSupervisorAssignments->firstWhere('role', AdvisorType::Secondary->value);
         $examinerOne = $latestSempro?->examiners->sortBy('order_no')->firstWhere('order_no', 1);
@@ -52,39 +47,29 @@ class TugasAkhirController extends Controller
         $sidangChair = $latestSidang?->examiners->firstWhere('role', 'chair');
         $sidangSecretary = $latestSidang?->examiners->firstWhere('role', 'secretary');
         $sidangExaminer = $latestSidang?->examiners->firstWhere('role', 'examiner');
+        $workflow = $project === null ? null : $this->resolveProjectWorkflow($project);
 
         return Inertia::render('tugas-akhir', [
             'submission' => $project === null ? null : [
-                'id' => $legacySubmission?->id ?? $project->id,
+                'id' => $project->id,
                 'program_studi' => $project->programStudi?->name
                     ?? $this->resolveProgramStudiForStudent($student),
                 'title_id' => $currentTitle?->title_id ?? '-',
                 'title_en' => $currentTitle?->title_en ?? '-',
                 'proposal_summary' => $currentTitle?->proposal_summary ?? '-',
-                'status' => $this->resolveProjectStatus($project),
-                'proposal_file_name' => $proposalDocument?->file_name ?? ($legacySubmission?->proposal_file_path === null
-                    ? null
-                    : basename($legacySubmission->proposal_file_path)),
+                'workflow' => $workflow,
+                'proposal_file_name' => $proposalDocument?->file_name,
                 'proposal_file_view_url' => $proposalDocument?->id !== null
                     ? route('files.thesis-documents.download', [
                         'document' => $proposalDocument->id,
                         'inline' => 1,
                     ])
-                    : ($legacySubmission?->proposal_file_path === null
-                        ? null
-                        : route('files.thesis-proposals', [
-                            'submission' => $legacySubmission->id,
-                            'inline' => 1,
-                        ])),
+                    : null,
                 'proposal_file_download_url' => $proposalDocument?->id !== null
                     ? route('files.thesis-documents.download', [
                         'document' => $proposalDocument->id,
                     ])
-                    : ($legacySubmission?->proposal_file_path === null
-                        ? null
-                        : route('files.thesis-proposals', [
-                            'submission' => $legacySubmission->id,
-                        ])),
+                    : null,
             ],
             'assignedLecturers' => [
                 'pembimbing1' => $primaryAdvisor?->lecturer?->name,
@@ -139,13 +124,13 @@ class TugasAkhirController extends Controller
         return back()->with('success', 'Judul & Proposal berhasil diajukan dan sedang menunggu review Admin.');
     }
 
-    public function update(Request $request, ThesisSubmission $submission): RedirectResponse
+    public function update(Request $request, ThesisProject $project): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
-        abort_unless($submission->student_user_id === $student->id, 403);
+        abort_unless($project->student_user_id === $student->id, 403);
 
-        if ($submission->status !== ThesisSubmissionStatus::MenungguPersetujuan->value) {
+        if (! $this->canEditProjectSubmission($project)) {
             return back()->with('error', 'Pengajuan hanya dapat diedit sebelum diproses admin.');
         }
 
@@ -164,7 +149,7 @@ class TugasAkhirController extends Controller
 
         app(ThesisProjectStudentService::class)->updatePendingSubmission(
             student: $student,
-            submission: $submission,
+            project: $project,
             data: $validated,
             proposalFile: $request->file('proposal_file'),
         );
@@ -185,40 +170,18 @@ class TugasAkhirController extends Controller
 
     private function resolveProjectForStudent(User $student): ?ThesisProject
     {
-        $project = $this->projectQueryForStudent($student->id)
+        $activeProject = $this->projectQueryForStudent($student->id)
             ->where('state', 'active')
             ->latest('started_at')
             ->first();
 
-        if ($project instanceof ThesisProject) {
-            return $project;
+        if ($activeProject instanceof ThesisProject) {
+            return $activeProject;
         }
-
-        $project = $this->projectQueryForStudent($student->id)
-            ->latest('started_at')
-            ->first();
-
-        if ($project instanceof ThesisProject) {
-            return $project;
-        }
-
-        $hasLegacySubmission = ThesisSubmission::query()
-            ->where('student_user_id', $student->id)
-            ->exists();
-
-        if (! $hasLegacySubmission) {
-            return null;
-        }
-
-        app(LegacyThesisProjectBackfillService::class)->backfill($student->id);
 
         return $this->projectQueryForStudent($student->id)
-            ->where('state', 'active')
             ->latest('started_at')
-            ->first()
-            ?? $this->projectQueryForStudent($student->id)
-                ->latest('started_at')
-                ->first();
+            ->first();
     }
 
     private function projectQueryForStudent(int $studentUserId)
@@ -227,7 +190,6 @@ class TugasAkhirController extends Controller
             ->where('student_user_id', $studentUserId)
             ->with([
                 'programStudi',
-                'legacySubmission',
                 'latestTitle',
                 'titles',
                 'documents',
@@ -240,7 +202,7 @@ class TugasAkhirController extends Controller
             ]);
     }
 
-    private function resolveProjectStatus(ThesisProject $project): string
+    private function resolveProjectWorkflow(ThesisProject $project): array
     {
         /** @var ThesisDefense|null $latestSidang */
         $latestSidang = $project->defenses
@@ -248,21 +210,27 @@ class TugasAkhirController extends Controller
             ->sortByDesc('attempt_no')
             ->first();
 
+        $hasOpenRevisions = $project->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty();
+        $key = 'title_review_pending';
+
         if ($latestSidang instanceof ThesisDefense) {
             if ($latestSidang->status === 'scheduled') {
-                return 'sidang_dijadwalkan';
-            }
-
-            if ($latestSidang->status === 'completed') {
-                return match ($latestSidang->result) {
-                    'pass' => 'sidang_selesai',
-                    'pass_with_revision' => $project->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty()
-                        ? 'revisi_sidang'
-                        : 'sidang_selesai',
-                    'fail' => 'sidang_gagal',
-                    default => 'sidang_dijadwalkan',
+                $key = 'sidang_scheduled';
+            } elseif ($latestSidang->status === 'completed') {
+                $key = match ($latestSidang->result) {
+                    'pass' => 'completed',
+                    'pass_with_revision' => $hasOpenRevisions ? 'sidang_revision' : 'completed',
+                    'fail' => 'sidang_failed',
+                    default => 'sidang_scheduled',
                 };
             }
+
+            return [
+                'key' => $key,
+                'label' => $this->workflowLabel($key),
+                'description' => $this->workflowDescription($key),
+                'can_edit' => $this->canEditProjectSubmission($project),
+            ];
         }
 
         /** @var ThesisDefense|null $latestSempro */
@@ -271,30 +239,78 @@ class TugasAkhirController extends Controller
             ->sortByDesc('attempt_no')
             ->first();
 
-        if ($project->phase === 'title_review') {
-            return ThesisSubmissionStatus::MenungguPersetujuan->value;
-        }
-
         if ($latestSempro instanceof ThesisDefense) {
             if ($latestSempro->status === 'scheduled') {
-                return ThesisSubmissionStatus::SemproDijadwalkan->value;
+                $key = 'sempro_scheduled';
+            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass_with_revision') {
+                $key = $hasOpenRevisions ? 'sempro_revision' : 'research_in_progress';
+            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass') {
+                $key = $project->activeSupervisorAssignments->isNotEmpty()
+                    ? 'research_in_progress'
+                    : 'sempro_passed';
             }
-
-            if ($latestSempro->status === 'completed' && $latestSempro->result === 'pass_with_revision') {
-                return $project->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty()
-                    ? ThesisSubmissionStatus::RevisiSempro->value
-                    : ThesisSubmissionStatus::SemproSelesai->value;
-            }
+        } elseif ($project->phase === 'title_review') {
+            $key = 'title_review_pending';
+        } elseif ($project->activeSupervisorAssignments->isNotEmpty()) {
+            $key = 'research_in_progress';
         }
 
-        if ($project->activeSupervisorAssignments->isNotEmpty()) {
-            return ThesisSubmissionStatus::PembimbingDitetapkan->value;
+        return [
+            'key' => $key,
+            'label' => $this->workflowLabel($key),
+            'description' => $this->workflowDescription($key),
+            'can_edit' => $this->canEditProjectSubmission($project),
+        ];
+    }
+
+    private function workflowLabel(string $key): string
+    {
+        return match ($key) {
+            'title_review_pending' => 'Menunggu Persetujuan',
+            'sempro_scheduled' => 'Sempro Dijadwalkan',
+            'sempro_revision' => 'Revisi Sempro',
+            'sempro_passed' => 'Sempro Selesai',
+            'research_in_progress' => 'Pembimbing Ditetapkan',
+            'sidang_scheduled' => 'Sidang Dijadwalkan',
+            'sidang_revision' => 'Revisi Sidang',
+            'completed' => 'Sidang Selesai',
+            'sidang_failed' => 'Sidang Tidak Lulus',
+            default => 'Dalam Proses',
+        };
+    }
+
+    private function workflowDescription(string $key): string
+    {
+        return match ($key) {
+            'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
+            'sempro_scheduled' => 'Sempro sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
+            'sempro_revision' => 'Sempro selesai dengan revisi. Periksa catatan revisi dari penguji.',
+            'sempro_passed' => 'Tahap Sempro telah selesai. Menunggu pembimbing aktif atau progres penelitian berikutnya.',
+            'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan proses penelitian dan bimbingan.',
+            'sidang_scheduled' => 'Sidang skripsi sudah dijadwalkan. Siapkan dokumen akhir Anda dengan baik.',
+            'sidang_revision' => 'Sidang selesai dengan revisi. Periksa catatan revisi dari tim sidang.',
+            'completed' => 'Tahap sidang skripsi telah selesai.',
+            'sidang_failed' => 'Sidang belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
+            default => 'Pengajuan sedang diproses admin.',
+        };
+    }
+
+    private function canEditProjectSubmission(?ThesisProject $project): bool
+    {
+        if (! $project instanceof ThesisProject) {
+            return false;
         }
 
-        if ($latestSempro instanceof ThesisDefense && $latestSempro->result === 'pass') {
-            return ThesisSubmissionStatus::SemproSelesai->value;
+        if ($project->phase !== 'title_review') {
+            return false;
         }
 
-        return $project->legacySubmission?->status ?? ThesisSubmissionStatus::MenungguPersetujuan->value;
+        $project->loadMissing(['latestTitle', 'defenses', 'activeSupervisorAssignments']);
+
+        if ($project->defenses->isNotEmpty() || $project->activeSupervisorAssignments->isNotEmpty()) {
+            return false;
+        }
+
+        return $project->latestTitle?->status === 'submitted';
     }
 }

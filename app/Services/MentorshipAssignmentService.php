@@ -9,7 +9,6 @@ use App\Models\MentorshipAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class MentorshipAssignmentService
 {
@@ -42,7 +41,6 @@ class MentorshipAssignmentService
             );
         });
 
-        $this->syncProjectSnapshotForStudent($studentUserId);
     }
 
     public function activeStudentCountForLecturer(int $lecturerUserId): int
@@ -209,14 +207,5 @@ class MentorshipAssignmentService
             'started_at' => now(),
             'notes' => $notes,
         ]);
-    }
-
-    private function syncProjectSnapshotForStudent(int $studentUserId): void
-    {
-        try {
-            app(LegacyThesisProjectBackfillService::class)->backfill($studentUserId);
-        } catch (RuntimeException) {
-            return;
-        }
     }
 }

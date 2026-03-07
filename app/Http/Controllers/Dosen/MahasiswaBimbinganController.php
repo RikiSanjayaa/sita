@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Dosen;
 
+use App\Enums\AdvisorType;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
 use App\Services\DosenBimbinganService;
-use App\Services\MentorshipAssignmentService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,7 +23,7 @@ class MahasiswaBimbinganController extends Controller
         abort_if($lecturer === null, 401);
 
         $assignments = $this->dosenBimbinganService->activeAssignmentsWithStudent($lecturer);
-        $studentIds = $assignments->pluck('student_user_id')->unique()->values();
+        $studentIds = $assignments->pluck('project.student_user_id')->filter()->unique()->values();
 
         $latestScheduleByStudent = MentorshipSchedule::query()
             ->where('lecturer_user_id', $lecturer->id)
@@ -40,10 +40,11 @@ class MahasiswaBimbinganController extends Controller
             ->keyBy('student_user_id');
 
         $rows = $assignments->map(function ($assignment) use ($latestScheduleByStudent, $latestDocumentByStudent): array {
-            $student = $assignment->student;
+            $student = $assignment->project?->student;
             $profile = $student?->mahasiswaProfile;
-            $latestSchedule = $latestScheduleByStudent->get($assignment->student_user_id);
-            $latestDocument = $latestDocumentByStudent->get($assignment->student_user_id);
+            $studentUserId = $assignment->project?->student_user_id;
+            $latestSchedule = $studentUserId === null ? null : $latestScheduleByStudent->get($studentUserId);
+            $latestDocument = $studentUserId === null ? null : $latestDocumentByStudent->get($studentUserId);
 
             $isActive = $profile?->is_active ?? true;
 
@@ -55,7 +56,7 @@ class MahasiswaBimbinganController extends Controller
             return [
                 'nim' => $profile?->nim ?? '-',
                 'name' => $student?->name ?? '-',
-                'advisorType' => $assignment->advisor_type === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
+                'advisorType' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
                 'progress' => $progress,
                 'status' => $statusLabel,
                 'lastUpdate' => $latestDocument?->updated_at?->diffForHumans()
@@ -67,7 +68,7 @@ class MahasiswaBimbinganController extends Controller
         return Inertia::render('dosen/mahasiswa-bimbingan', [
             'mahasiswaRows' => $rows,
             'activeCount' => count($rows),
-            'capacityLimit' => MentorshipAssignmentService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
+            'capacityLimit' => DosenBimbinganService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
         ]);
     }
 }

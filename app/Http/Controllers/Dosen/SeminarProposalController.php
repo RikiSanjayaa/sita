@@ -2,147 +2,130 @@
 
 namespace App\Http\Controllers\Dosen;
 
-use App\Enums\SemproExaminerDecision;
-use App\Enums\SemproStatus;
 use App\Http\Controllers\Controller;
-use App\Models\Sempro;
-use App\Models\SemproExaminer;
-use App\Models\SemproRevision;
+use App\Models\ThesisDefense;
+use App\Models\ThesisDefenseExaminer;
+use App\Models\ThesisRevision;
+use App\Services\DosenThesisWorkspaceService;
+use App\Services\ThesisDefenseExaminerDecisionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class SeminarProposalController extends Controller
 {
+    public function __construct(
+        private readonly DosenThesisWorkspaceService $dosenThesisWorkspaceService,
+        private readonly ThesisDefenseExaminerDecisionService $decisionService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $examinerRecords = SemproExaminer::query()
-            ->where('examiner_user_id', $lecturer->id)
-            ->with([
-                'sempro.submission.student.mahasiswaProfile',
-                'sempro.examiners.examiner',
-                'sempro.revisions.requestedBy',
-            ])
-            ->orderByDesc('id')
-            ->get();
+        $examinerRecords = $this->dosenThesisWorkspaceService
+            ->defenseExaminerAssignments($lecturer)
+            ->filter(fn(ThesisDefenseExaminer $examiner): bool => in_array($examiner->defense?->type, ['sempro', 'sidang'], true))
+            ->values();
 
-        $sempros = $examinerRecords->map(function (SemproExaminer $examiner) use ($lecturer) {
-            $sempro = $examiner->sempro;
-            $submission = $sempro?->submission;
-            $student = $submission?->student;
+        $defenses = $examinerRecords->map(function (ThesisDefenseExaminer $examiner) use ($lecturer): array {
+            $defense = $examiner->defense;
+            $project = $defense?->project;
+            $student = $project?->student;
+            $title = $project?->latestTitle;
 
-            // Other examiners' decisions (excluding self)
-            $otherExaminers = $sempro?->examiners
-                ?->filter(fn(SemproExaminer $e) => $e->examiner_user_id !== $lecturer->id)
-                ->map(fn(SemproExaminer $e) => [
-                    'name' => $e->examiner?->name ?? '-',
-                    'order' => $e->examiner_order,
-                    'decision' => $e->decision,
-                    'score' => $e->score,
+            $otherExaminers = $defense?->examiners
+                ?->filter(fn(ThesisDefenseExaminer $item) => $item->lecturer_user_id !== $lecturer->id)
+                ->map(fn(ThesisDefenseExaminer $item): array => [
+                    'name' => $item->lecturer?->name ?? '-',
+                    'role' => $item->role,
+                    'order' => $item->order_no,
+                    'decision' => $item->decision,
+                    'score' => $item->score,
                 ])
                 ->values()
                 ->all() ?? [];
 
-            // Revisions
-            $revisions = $sempro?->revisions
-                ?->map(fn(SemproRevision $r) => [
-                    'id' => $r->id,
-                    'notes' => $r->notes,
-                    'status' => $r->status,
-                    'dueAt' => $r->due_at?->format('d M Y'),
-                    'resolvedAt' => $r->resolved_at?->format('d M Y'),
-                    'requestedBy' => $r->requestedBy?->name ?? '-',
+            $revisions = $defense?->revisions
+                ?->map(fn(ThesisRevision $revision): array => [
+                    'id' => $revision->id,
+                    'notes' => $revision->notes,
+                    'status' => $revision->status,
+                    'dueAt' => $revision->due_at?->format('d M Y'),
+                    'resolvedAt' => $revision->resolved_at?->format('d M Y'),
+                    'requestedBy' => $revision->requestedBy?->name ?? '-',
                 ])
+                ->values()
                 ->all() ?? [];
 
             return [
-                'semproId' => $sempro?->id,
+                'defenseId' => $defense?->id,
+                'type' => $defense?->type,
+                'typeLabel' => $defense?->type === 'sidang' ? 'Sidang' : 'Sempro',
+                'attemptNo' => $defense?->attempt_no,
                 'studentName' => $student?->name ?? '-',
                 'studentNim' => $student?->mahasiswaProfile?->nim ?? '-',
-                'titleId' => $submission?->title_id ?? '-',
-                'titleEn' => $submission?->title_en ?? '-',
-                'semproStatus' => $sempro?->status,
-                'scheduledFor' => $sempro?->scheduled_for?->format('d M Y H:i'),
-                'location' => $sempro?->location ?? '-',
-                'mode' => $sempro?->mode ?? '-',
+                'titleId' => $title?->title_id ?? '-',
+                'titleEn' => $title?->title_en ?? '-',
+                'defenseStatus' => $defense?->status,
+                'defenseResult' => $defense?->result,
+                'scheduledFor' => $defense?->scheduled_for?->format('d M Y H:i'),
+                'location' => $defense?->location ?? '-',
+                'mode' => $defense?->mode ?? '-',
                 'myExaminerId' => $examiner->id,
-                'myOrder' => $examiner->examiner_order,
+                'myRole' => $examiner->role,
+                'myOrder' => $examiner->order_no,
                 'myDecision' => $examiner->decision,
                 'myScore' => $examiner->score,
-                'myDecisionNotes' => $examiner->decision_notes,
+                'myDecisionNotes' => $examiner->notes,
                 'otherExaminers' => $otherExaminers,
                 'revisions' => $revisions,
             ];
         })->all();
 
         return Inertia::render('dosen/seminar-proposal', [
-            'sempros' => $sempros,
+            'defenses' => $defenses,
         ]);
     }
 
-    public function submitDecision(Request $request, Sempro $sempro): RedirectResponse
+    public function submitDecision(Request $request, ThesisDefense $defense): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
-
-        $examiner = SemproExaminer::query()
-            ->where('sempro_id', $sempro->id)
-            ->where('examiner_user_id', $lecturer->id)
-            ->first();
-
-        abort_if($examiner === null, 403, 'Anda bukan penguji untuk sempro ini.');
-
-        // Only allow decisions on scheduled or revision_open sempros
-        abort_if(
-            ! in_array($sempro->status, [SemproStatus::Scheduled->value, SemproStatus::RevisionOpen->value], true),
-            422,
-            'Sempro tidak dalam status yang dapat dinilai.'
-        );
 
         $validated = $request->validate([
             'decision' => [
                 'required',
                 Rule::in([
-                    SemproExaminerDecision::Approved->value,
-                    SemproExaminerDecision::NeedsRevision->value,
+                    'pass',
+                    'pass_with_revision',
+                    'fail',
                 ]),
             ],
             'score' => ['required', 'numeric', 'min:0', 'max:100'],
             'decision_notes' => ['nullable', 'string', 'max:2000'],
-            'revision_notes' => ['nullable', 'required_if:decision,'.SemproExaminerDecision::NeedsRevision->value, 'string', 'max:2000'],
+            'revision_notes' => ['nullable', 'required_if:decision,pass_with_revision', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($examiner, $sempro, $validated, $lecturer): void {
-            $examiner->update([
-                'decision' => $validated['decision'],
-                'score' => $validated['score'],
-                'decision_notes' => $validated['decision_notes'] ?? null,
-                'decided_at' => now(),
+        if ($defense->type === 'sempro' && $validated['decision'] === 'fail') {
+            return back()->withErrors([
+                'decision' => 'Sempro hanya dapat dinilai lulus atau lulus dengan revisi.',
             ]);
+        }
 
-            // If needs revision, create a SemproRevision record and set sempro status
-            if ($validated['decision'] === SemproExaminerDecision::NeedsRevision->value) {
-                SemproRevision::query()->create([
-                    'sempro_id' => $sempro->id,
-                    'notes' => $validated['revision_notes'],
-                    'status' => 'open',
-                    'due_at' => now()->addDays(14),
-                    'requested_by_user_id' => $lecturer->id,
-                ]);
-
-                if ($sempro->status !== SemproStatus::RevisionOpen->value) {
-                    $sempro->forceFill(['status' => SemproStatus::RevisionOpen->value])->save();
-                }
-            }
-        });
+        try {
+            $this->decisionService->submit($lecturer, $defense, $validated);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors([
+                'decision' => $exception->getMessage(),
+            ]);
+        }
 
         return redirect()->route('dosen.seminar-proposal')
-            ->with('flashMessage', 'Keputusan berhasil disimpan.');
+            ->with('success', 'Keputusan berhasil disimpan.');
     }
 }

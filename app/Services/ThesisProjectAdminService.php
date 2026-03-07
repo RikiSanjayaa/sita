@@ -2,18 +2,16 @@
 
 namespace App\Services;
 
-use App\Enums\SemproExaminerDecision;
-use App\Enums\SemproStatus;
-use App\Enums\ThesisSubmissionStatus;
-use App\Models\Sempro;
-use App\Models\SemproRevision;
+use App\Enums\AdvisorType;
+use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
-use App\Models\ThesisSubmission;
+use App\Models\ThesisSupervisorAssignment;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -30,37 +28,62 @@ class ThesisProjectAdminService
         string $mode,
         array $examinerUserIds,
     ): ThesisProject {
-        $submission = $this->resolveLegacySubmission($project);
+        return DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $location, $mode, $examinerUserIds): ThesisProject {
+            $defense = $project->semproDefenses()
+                ->whereIn('status', ['draft', 'scheduled'])
+                ->latest('attempt_no')
+                ->first();
 
-        DB::transaction(function () use ($submission, $scheduledBy, $scheduledFor, $location, $mode, $examinerUserIds): void {
-            $sempro = app(SemproWorkflowService::class)->ensureSemproForSubmission($submission, $scheduledBy);
+            $attemptNo = (int) $project->semproDefenses()->max('attempt_no');
 
-            $sempro->forceFill([
+            if (! $defense instanceof ThesisDefense) {
+                $defense = ThesisDefense::query()->create([
+                    'project_id' => $project->getKey(),
+                    'title_version_id' => $this->resolveCurrentTitleVersion($project)?->getKey(),
+                    'type' => 'sempro',
+                    'attempt_no' => $attemptNo + 1,
+                    'status' => 'draft',
+                    'result' => 'pending',
+                    'mode' => 'offline',
+                    'created_by' => $scheduledBy,
+                ]);
+            }
+
+            $defense->forceFill([
+                'title_version_id' => $this->resolveCurrentTitleVersion($project)?->getKey(),
+                'status' => 'scheduled',
+                'result' => 'pending',
                 'scheduled_for' => $scheduledFor,
                 'location' => $location,
                 'mode' => $mode,
                 'created_by' => $scheduledBy,
+                'decided_by' => null,
+                'decision_at' => null,
+                'notes' => null,
             ])->save();
 
-            $workflow = app(SemproWorkflowService::class);
-            $workflow->assignExaminers($sempro->fresh(), $examinerUserIds, $scheduledBy);
-            $workflow->scheduleSempro($sempro->fresh());
+            $this->syncDefenseExaminers($defense, $examinerUserIds, $scheduledBy);
+
+            $project->forceFill([
+                'phase' => 'sempro',
+                'state' => 'active',
+                'completed_at' => null,
+                'closed_by' => null,
+            ])->save();
+
+            $this->createOrRefreshSemproThread($defense->fresh(['examiners']), $project->student_user_id);
+
+            $this->recordEvent(
+                $project->fresh(),
+                actorUserId: $scheduledBy,
+                eventType: 'sempro_scheduled',
+                label: 'Sempro dijadwalkan',
+                description: sprintf('Sempro dijadwalkan di %s.', $location),
+                occurredAt: $scheduledFor,
+            );
+
+            return $project->fresh();
         });
-
-        app(LegacyThesisProjectBackfillService::class)->backfill($project->student_user_id);
-
-        $freshProject = $this->freshProject($project);
-
-        $this->recordEvent(
-            $freshProject,
-            actorUserId: $scheduledBy,
-            eventType: 'sempro_scheduled',
-            label: 'Sempro dijadwalkan',
-            description: sprintf('Sempro dijadwalkan di %s.', $location),
-            occurredAt: $scheduledFor,
-        );
-
-        return $this->freshProject($project);
     }
 
     public function finalizeSempro(
@@ -70,31 +93,38 @@ class ThesisProjectAdminService
         string $notes,
         ?string $revisionDueAt = null,
     ): ThesisProject {
-        $submission = $this->resolveLegacySubmission($project);
-        $sempro = Sempro::query()
-            ->where('thesis_submission_id', $submission->getKey())
-            ->latest('id')
+        $defense = $project->semproDefenses()
+            ->latest('attempt_no')
             ->with(['examiners', 'revisions'])
             ->first();
 
-        if (! $sempro instanceof Sempro) {
+        if (! $defense instanceof ThesisDefense) {
             throw new RuntimeException('Sempro belum tersedia untuk proyek ini.');
         }
 
-        DB::transaction(function () use ($submission, $sempro, $decidedBy, $result, $notes, $revisionDueAt): void {
+        return DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt): ThesisProject {
+            $defense->forceFill([
+                'status' => 'completed',
+                'result' => $result,
+                'decided_by' => $decidedBy,
+                'decision_at' => now(),
+                'notes' => $notes,
+            ])->save();
+
+            $defense->examiners->each(function (ThesisDefenseExaminer $examiner) use ($decidedBy, $result, $notes): void {
+                $examiner->forceFill([
+                    'decision' => $result,
+                    'score' => $examiner->score,
+                    'notes' => $notes,
+                    'decided_at' => now(),
+                    'assigned_by' => $decidedBy,
+                ])->save();
+            });
+
             if ($result === 'pass') {
-                $sempro->examiners->each(function ($examiner) use ($decidedBy, $notes): void {
-                    $examiner->forceFill([
-                        'decision' => SemproExaminerDecision::Approved->value,
-                        'decision_notes' => $notes,
-                        'decided_at' => now(),
-                        'assigned_by' => $decidedBy,
-                    ])->save();
-                });
-
-                app(SemproWorkflowService::class)->approveSempro($sempro->fresh(), $decidedBy);
-
-                $sempro->revisions()
+                ThesisRevision::query()
+                    ->where('project_id', $project->getKey())
+                    ->where('defense_id', $defense->getKey())
                     ->whereIn('status', ['open', 'submitted'])
                     ->update([
                         'status' => 'resolved',
@@ -103,57 +133,53 @@ class ThesisProjectAdminService
                         'resolution_notes' => $notes,
                     ]);
 
-                return;
+                $project->forceFill([
+                    'phase' => 'research',
+                    'state' => 'active',
+                    'completed_at' => null,
+                    'closed_by' => null,
+                ])->save();
             }
 
-            $sempro->forceFill([
-                'status' => SemproStatus::RevisionOpen->value,
-                'revision_due_at' => $revisionDueAt,
-            ])->save();
+            if ($result === 'pass_with_revision') {
+                ThesisRevision::query()->updateOrCreate(
+                    [
+                        'project_id' => $project->getKey(),
+                        'defense_id' => $defense->getKey(),
+                        'status' => 'open',
+                    ],
+                    [
+                        'requested_by_user_id' => $decidedBy,
+                        'notes' => $notes,
+                        'due_at' => $revisionDueAt,
+                        'submitted_at' => null,
+                        'resolved_at' => null,
+                        'resolved_by_user_id' => null,
+                        'resolution_notes' => null,
+                    ],
+                );
 
-            $submission->forceFill([
-                'status' => ThesisSubmissionStatus::RevisiSempro->value,
-            ])->save();
-
-            $sempro->examiners->each(function ($examiner) use ($decidedBy, $notes): void {
-                $examiner->forceFill([
-                    'decision' => SemproExaminerDecision::NeedsRevision->value,
-                    'decision_notes' => $notes,
-                    'decided_at' => now(),
-                    'assigned_by' => $decidedBy,
+                $project->forceFill([
+                    'phase' => 'sempro',
+                    'state' => 'active',
+                    'completed_at' => null,
+                    'closed_by' => null,
                 ])->save();
-            });
+            }
 
-            SemproRevision::query()->updateOrCreate(
-                [
-                    'sempro_id' => $sempro->getKey(),
-                    'notes' => $notes,
-                ],
-                [
-                    'status' => 'open',
-                    'due_at' => $revisionDueAt,
-                    'requested_by_user_id' => $decidedBy,
-                    'resolved_at' => null,
-                    'resolved_by_user_id' => null,
-                    'resolution_notes' => null,
-                ],
+            $freshProject = $project->fresh();
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $decidedBy,
+                eventType: $result === 'pass' ? 'sempro_completed' : 'revision_opened',
+                label: $result === 'pass' ? 'Sempro selesai' : 'Revisi sempro dibuka',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
             );
+
+            return $freshProject;
         });
-
-        app(LegacyThesisProjectBackfillService::class)->backfill($project->student_user_id);
-
-        $freshProject = $this->freshProject($project);
-
-        $this->recordEvent(
-            $freshProject,
-            actorUserId: $decidedBy,
-            eventType: $result === 'pass' ? 'sempro_completed' : 'revision_opened',
-            label: $result === 'pass' ? 'Sempro selesai' : 'Revisi sempro dibuka',
-            description: $notes,
-            occurredAt: now()->toDateTimeString(),
-        );
-
-        return $this->freshProject($project);
     }
 
     public function assignSupervisors(
@@ -163,37 +189,47 @@ class ThesisProjectAdminService
         ?int $secondaryLecturerUserId,
         ?string $notes,
     ): ThesisProject {
-        $submission = $this->resolveLegacySubmission($project);
-
-        if (in_array($submission->status, [
-            ThesisSubmissionStatus::SemproSelesai->value,
-            ThesisSubmissionStatus::PembimbingDitetapkan->value,
-        ], true)) {
-            $submission->forceFill([
-                'status' => ThesisSubmissionStatus::PembimbingDitetapkan->value,
-            ])->save();
+        if ($secondaryLecturerUserId !== null && $primaryLecturerUserId === $secondaryLecturerUserId) {
+            throw new RuntimeException('Pembimbing 1 dan Pembimbing 2 harus berbeda.');
         }
 
-        app(MentorshipAssignmentService::class)->syncStudentAdvisors(
-            studentUserId: $project->student_user_id,
-            assignedBy: $assignedBy,
-            primaryLecturerUserId: $primaryLecturerUserId,
-            secondaryLecturerUserId: $secondaryLecturerUserId,
-            notes: $notes,
-        );
+        return DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): ThesisProject {
+            $this->syncSupervisorAssignment(
+                project: $project,
+                assignedBy: $assignedBy,
+                role: AdvisorType::Primary->value,
+                lecturerUserId: $primaryLecturerUserId,
+                notes: $notes,
+            );
 
-        $freshProject = $this->freshProject($project);
+            $this->syncSupervisorAssignment(
+                project: $project,
+                assignedBy: $assignedBy,
+                role: AdvisorType::Secondary->value,
+                lecturerUserId: $secondaryLecturerUserId,
+                notes: $notes,
+            );
 
-        $this->recordEvent(
-            $freshProject,
-            actorUserId: $assignedBy,
-            eventType: 'supervisor_assigned',
-            label: 'Pembimbing diperbarui',
-            description: $notes,
-            occurredAt: now()->toDateTimeString(),
-        );
+            $project->forceFill([
+                'phase' => 'research',
+                'state' => 'active',
+                'completed_at' => null,
+                'closed_by' => null,
+            ])->save();
 
-        return $this->freshProject($project);
+            $freshProject = $project->fresh();
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $assignedBy,
+                eventType: 'supervisor_assigned',
+                label: 'Pembimbing diperbarui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
     }
 
     /**
@@ -312,6 +348,13 @@ class ThesisProjectAdminService
             });
 
             if ($result === 'pass') {
+                $project->supervisorAssignments()
+                    ->where('status', 'active')
+                    ->update([
+                        'status' => 'ended',
+                        'ended_at' => now(),
+                    ]);
+
                 $project->forceFill([
                     'phase' => 'completed',
                     'state' => 'completed',
@@ -371,17 +414,6 @@ class ThesisProjectAdminService
         });
     }
 
-    private function resolveLegacySubmission(ThesisProject $project): ThesisSubmission
-    {
-        $submission = ThesisSubmission::query()->find($project->legacy_thesis_submission_id);
-
-        if ($submission instanceof ThesisSubmission) {
-            return $submission;
-        }
-
-        throw new RuntimeException('Proyek ini belum memiliki relasi ke data legacy pengajuan judul.');
-    }
-
     private function resolveCurrentTitleVersion(ThesisProject $project): ?ThesisProjectTitle
     {
         $project->loadMissing(['latestTitle', 'titles']);
@@ -395,9 +427,162 @@ class ThesisProjectAdminService
         return $approvedTitle ?? $project->latestTitle;
     }
 
-    private function freshProject(ThesisProject $project): ThesisProject
+    /**
+     * @param  array<int, int>  $examinerUserIds
+     */
+    private function syncDefenseExaminers(ThesisDefense $defense, array $examinerUserIds, int $assignedBy): void
     {
-        return ThesisProject::query()->findOrFail($project->getKey());
+        $normalizedExaminerIds = collect($examinerUserIds)
+            ->map(static fn($id): int => (int) $id)
+            ->filter(static fn(int $id): bool => $id > 0)
+            ->values();
+
+        if ($normalizedExaminerIds->count() !== 2 || $normalizedExaminerIds->unique()->count() !== 2) {
+            throw new RuntimeException('Sempro harus memiliki tepat dua penguji yang berbeda.');
+        }
+
+        $defense->examiners()->delete();
+
+        foreach ($normalizedExaminerIds as $index => $examinerUserId) {
+            ThesisDefenseExaminer::query()->create([
+                'defense_id' => $defense->getKey(),
+                'lecturer_user_id' => $examinerUserId,
+                'role' => 'examiner',
+                'order_no' => $index + 1,
+                'decision' => 'pending',
+                'assigned_by' => $assignedBy,
+            ]);
+        }
+    }
+
+    private function syncSupervisorAssignment(
+        ThesisProject $project,
+        int $assignedBy,
+        string $role,
+        ?int $lecturerUserId,
+        ?string $notes,
+    ): void {
+        $currentAssignment = $project->supervisorAssignments()
+            ->where('role', $role)
+            ->where('status', 'active')
+            ->latest('id')
+            ->first();
+
+        if ($lecturerUserId === null) {
+            if (! $currentAssignment instanceof ThesisSupervisorAssignment) {
+                return;
+            }
+
+            $currentAssignment->forceFill([
+                'status' => 'ended',
+                'ended_at' => now(),
+                'notes' => $notes,
+            ])->save();
+
+            return;
+        }
+
+        if ($currentAssignment instanceof ThesisSupervisorAssignment && $currentAssignment->lecturer_user_id === $lecturerUserId) {
+            $currentAssignment->forceFill([
+                'notes' => $notes,
+            ])->save();
+
+            return;
+        }
+
+        if ($currentAssignment instanceof ThesisSupervisorAssignment) {
+            $currentAssignment->forceFill([
+                'status' => 'ended',
+                'ended_at' => now(),
+                'notes' => $notes,
+            ])->save();
+        }
+
+        ThesisSupervisorAssignment::query()->create([
+            'project_id' => $project->getKey(),
+            'lecturer_user_id' => $lecturerUserId,
+            'role' => $role,
+            'status' => 'active',
+            'assigned_by' => $assignedBy,
+            'started_at' => now(),
+            'notes' => $notes,
+        ]);
+    }
+
+    private function createOrRefreshSemproThread(ThesisDefense $defense, int $studentUserId): void
+    {
+        $thread = MentorshipChatThread::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('type', 'sempro')
+            ->when(
+                $defense->legacy_sempro_id !== null,
+                fn($query) => $query->whereIn('context_id', [$defense->getKey(), $defense->legacy_sempro_id]),
+                fn($query) => $query->where('context_id', $defense->getKey()),
+            )
+            ->first();
+
+        if (! $thread instanceof MentorshipChatThread) {
+            $thread = MentorshipChatThread::query()->create([
+                'student_user_id' => $studentUserId,
+                'type' => 'sempro',
+                'context_id' => $defense->getKey(),
+                'label' => 'Sempro',
+            ]);
+        } elseif ($thread->context_id !== $defense->getKey() || $thread->label !== 'Sempro') {
+            $thread->forceFill([
+                'context_id' => $defense->getKey(),
+                'label' => 'Sempro',
+            ])->save();
+        }
+
+        $wasRecentlyCreated = $thread->wasRecentlyCreated;
+
+        MentorshipChatThreadParticipant::query()->updateOrCreate(
+            [
+                'thread_id' => $thread->getKey(),
+                'user_id' => $studentUserId,
+            ],
+            [
+                'role' => 'student',
+            ],
+        );
+
+        $examinerIds = $defense->examiners
+            ->pluck('lecturer_user_id')
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->values();
+
+        MentorshipChatThreadParticipant::query()
+            ->where('thread_id', $thread->getKey())
+            ->where('role', 'examiner')
+            ->when(
+                $examinerIds->isNotEmpty(),
+                static fn($query) => $query->whereNotIn('user_id', $examinerIds->all()),
+                static fn($query) => $query,
+            )
+            ->delete();
+
+        foreach ($examinerIds as $examinerId) {
+            MentorshipChatThreadParticipant::query()->updateOrCreate(
+                [
+                    'thread_id' => $thread->getKey(),
+                    'user_id' => $examinerId,
+                ],
+                [
+                    'role' => 'examiner',
+                ],
+            );
+        }
+
+        if ($wasRecentlyCreated) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
+                'sent_at' => now(),
+            ]);
+        }
     }
 
     private function recordEvent(
