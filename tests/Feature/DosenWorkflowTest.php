@@ -2,12 +2,14 @@
 
 use App\Enums\AdvisorType;
 use App\Enums\AssignmentStatus;
+use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
+use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
@@ -18,16 +20,41 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 function createDosenUser(): User
 {
-    return User::factory()->asDosen()->create();
+    $programStudi = ProgramStudi::query()->firstOrCreate([
+        'slug' => 'ilmu-komputer-test',
+    ], [
+        'name' => 'Ilmu Komputer Test',
+        'concentrations' => [ProgramStudi::DEFAULT_GENERAL_CONCENTRATION],
+    ]);
+
+    $lecturer = User::factory()->asDosen()->create();
+
+    DosenProfile::factory()->create([
+        'user_id' => $lecturer->id,
+        'program_studi_id' => $programStudi->id,
+        'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
+        'is_active' => true,
+    ]);
+
+    return $lecturer;
 }
 
 function createMahasiswaUser(string $nim): User
 {
+    $programStudi = ProgramStudi::query()->firstOrCreate([
+        'slug' => 'ilmu-komputer-test',
+    ], [
+        'name' => 'Ilmu Komputer Test',
+        'concentrations' => [ProgramStudi::DEFAULT_GENERAL_CONCENTRATION],
+    ]);
+
     $student = User::factory()->asMahasiswa()->create();
 
     MahasiswaProfile::factory()->create([
         'user_id' => $student->id,
         'nim' => $nim,
+        'program_studi_id' => $programStudi->id,
+        'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
         'is_active' => true,
     ]);
 

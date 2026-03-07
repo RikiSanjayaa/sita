@@ -130,8 +130,8 @@ class TugasAkhirController extends Controller
         abort_if($student === null, 401);
         abort_unless($project->student_user_id === $student->id, 403);
 
-        if (! $this->canEditProjectSubmission($project)) {
-            return back()->with('error', 'Pengajuan hanya dapat diedit sebelum diproses admin.');
+        if (! app(ThesisProjectStudentService::class)->canEditSubmission($project)) {
+            return back()->with('error', 'Pengajuan hanya dapat diedit saat masih ditinjau admin, sempro terjadwal, atau revisi sempro masih aktif.');
         }
 
         $validated = $request->validate([
@@ -297,20 +297,6 @@ class TugasAkhirController extends Controller
 
     private function canEditProjectSubmission(?ThesisProject $project): bool
     {
-        if (! $project instanceof ThesisProject) {
-            return false;
-        }
-
-        if ($project->phase !== 'title_review') {
-            return false;
-        }
-
-        $project->loadMissing(['latestTitle', 'defenses', 'activeSupervisorAssignments']);
-
-        if ($project->defenses->isNotEmpty() || $project->activeSupervisorAssignments->isNotEmpty()) {
-            return false;
-        }
-
-        return $project->latestTitle?->status === 'submitted';
+        return app(ThesisProjectStudentService::class)->canEditSubmission($project);
     }
 }

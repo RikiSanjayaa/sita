@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
+use App\Models\ThesisRevision;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,11 @@ use RuntimeException;
 
 class ThesisProjectStudentService
 {
+    public function canEditSubmission(?ThesisProject $project): bool
+    {
+        return $this->editableSubmissionMode($project) !== null;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -98,7 +105,13 @@ class ThesisProjectStudentService
             throw new RuntimeException('Program studi Anda belum diatur. Hubungi admin terlebih dahulu.');
         }
 
-        return DB::transaction(function () use ($data, $programStudiId, $proposalFile, $student, $project): ThesisProject {
+        $mode = $this->editableSubmissionMode($project);
+
+        if ($mode === null) {
+            throw new RuntimeException('Pengajuan tidak dapat diedit pada tahap ini.');
+        }
+
+        return DB::transaction(function () use ($data, $mode, $programStudiId, $proposalFile, $student, $project): ThesisProject {
             $updatedFileMeta = null;
             $proposalDocument = ThesisDocument::query()
                 ->where('project_id', $project->id)
@@ -123,9 +136,17 @@ class ThesisProjectStudentService
                 ];
             }
 
+            $phase = $mode === 'title_review'
+                ? 'title_review'
+                : ($project->phase === 'sempro' ? 'sempro' : 'sempro');
+
+            $titleStatus = $mode === 'title_review'
+                ? 'submitted'
+                : ($project->latestTitle?->status ?? 'approved');
+
             $project->forceFill([
                 'program_studi_id' => $programStudiId,
-                'phase' => 'title_review',
+                'phase' => $phase,
                 'state' => 'active',
             ])->save();
 
@@ -137,22 +158,27 @@ class ThesisProjectStudentService
                 'title_id' => (string) $data['title_id'],
                 'title_en' => (string) ($data['title_en'] ?? '-'),
                 'proposal_summary' => (string) $data['proposal_summary'],
-                'status' => 'submitted',
+                'status' => $titleStatus,
                 'submitted_by_user_id' => $student->id,
                 'submitted_at' => $submittedAt,
             ]);
 
-            $title->forceFill([
+            $titlePayload = [
                 'title_id' => (string) $data['title_id'],
                 'title_en' => (string) ($data['title_en'] ?? '-'),
                 'proposal_summary' => (string) $data['proposal_summary'],
-                'status' => 'submitted',
-                'submitted_by_user_id' => $student->id,
-                'submitted_at' => $submittedAt,
-                'decided_by_user_id' => null,
-                'decided_at' => null,
-                'decision_notes' => null,
-            ])->save();
+                'status' => $titleStatus,
+            ];
+
+            if ($mode === 'title_review') {
+                $titlePayload['submitted_by_user_id'] = $student->id;
+                $titlePayload['submitted_at'] = $submittedAt;
+                $titlePayload['decided_by_user_id'] = null;
+                $titlePayload['decided_at'] = null;
+                $titlePayload['decision_notes'] = null;
+            }
+
+            $title->forceFill($titlePayload)->save();
 
             $document = ThesisDocument::query()->updateOrCreate(
                 [
@@ -171,7 +197,7 @@ class ThesisProjectStudentService
                     'file_name' => $updatedFileMeta['name'] ?? $proposalDocument?->file_name,
                     'mime_type' => $updatedFileMeta['mime_type'] ?? $proposalDocument?->mime_type ?? 'application/pdf',
                     'file_size_kb' => $updatedFileMeta['file_size_kb'] ?? $proposalDocument?->file_size_kb,
-                    'uploaded_at' => now(),
+                    'uploaded_at' => $submittedAt,
                 ],
             );
 
@@ -183,16 +209,90 @@ class ThesisProjectStudentService
                 ])->save();
             }
 
+            if ($mode === 'sempro_revision') {
+                ThesisRevision::query()
+                    ->where('project_id', $project->id)
+                    ->whereHas('defense', fn($query) => $query
+                        ->where('type', 'sempro')
+                        ->where('status', 'completed')
+                        ->where('result', 'pass_with_revision'))
+                    ->whereIn('status', ['open', 'submitted'])
+                    ->update([
+                        'status' => 'submitted',
+                        'submitted_at' => $submittedAt,
+                    ]);
+            }
+
+            $eventDescription = match ($mode) {
+                'sempro_scheduled' => 'Mahasiswa memperbarui judul atau proposal untuk kebutuhan sempro yang sudah dijadwalkan.',
+                'sempro_revision' => 'Mahasiswa memperbarui judul atau proposal untuk menindaklanjuti revisi sempro.',
+                default => 'Mahasiswa memperbarui judul atau proposal sebelum direview admin.',
+            };
+
             $this->recordEvent(
                 $project,
                 actorUserId: $student->id,
                 eventType: 'title_updated',
                 label: 'Pengajuan diperbarui',
-                description: 'Mahasiswa memperbarui judul atau proposal sebelum direview admin.',
+                description: $eventDescription,
             );
 
             return $project;
         });
+    }
+
+    private function editableSubmissionMode(?ThesisProject $project): ?string
+    {
+        if (! $project instanceof ThesisProject) {
+            return null;
+        }
+
+        $project->loadMissing(['latestTitle', 'defenses', 'revisions', 'activeSupervisorAssignments']);
+
+        $latestSidang = $project->defenses
+            ->where('type', 'sidang')
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if ($latestSidang instanceof ThesisDefense) {
+            return null;
+        }
+
+        $latestSempro = $project->defenses
+            ->where('type', 'sempro')
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if ($latestSempro instanceof ThesisDefense) {
+            if ($latestSempro->status === 'scheduled') {
+                return 'sempro_scheduled';
+            }
+
+            $hasOpenSemproRevision = $project->revisions
+                ->where('defense_id', $latestSempro->getKey())
+                ->whereIn('status', ['open', 'submitted'])
+                ->isNotEmpty();
+
+            if ($latestSempro->status === 'completed'
+                && $latestSempro->result === 'pass_with_revision'
+                && $hasOpenSemproRevision) {
+                return 'sempro_revision';
+            }
+
+            return null;
+        }
+
+        if ($project->phase !== 'title_review') {
+            return null;
+        }
+
+        if ($project->defenses->isNotEmpty() || $project->activeSupervisorAssignments->isNotEmpty()) {
+            return null;
+        }
+
+        return $project->latestTitle?->status === 'submitted'
+            ? 'title_review'
+            : null;
     }
 
     private function recordEvent(
