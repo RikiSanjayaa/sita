@@ -44,7 +44,7 @@ class JadwalBimbinganController extends Controller
                     'id' => $item->id,
                     'mahasiswa' => $item->student?->name ?? '-',
                     'topic' => $item->topic,
-                    'requestedAt' => $item->requested_for?->format('d F Y H:i') ?? '-',
+                    'requestedAt' => $item->requested_for?->toIso8601String(),
                     'requestedForInput' => $item->requested_for?->format('Y-m-d\TH:i'),
                     'studentNote' => $item->student_note,
                     'location' => $item->location,
@@ -81,12 +81,10 @@ class JadwalBimbinganController extends Controller
                     'id' => $item->id,
                     'mahasiswa' => $item->student?->name ?? '-',
                     'topic' => $item->topic,
-                    'date' => $item->scheduled_for?->format('d F Y')
-                        ?? $item->requested_for?->format('d F Y')
-                        ?? '-',
-                    'time' => $item->scheduled_for?->format('H:i')
-                        ?? $item->requested_for?->format('H:i')
-                        ?? '-',
+                    'date' => $item->scheduled_for?->toIso8601String()
+                        ?? $item->requested_for?->toIso8601String(),
+                    'time' => $item->scheduled_for?->toIso8601String()
+                        ?? $item->requested_for?->toIso8601String(),
                     'location' => $item->location ?? '-',
                     'status' => $item->status,
                     'lecturerNote' => $item->lecturer_note,

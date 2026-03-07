@@ -12,6 +12,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import {
+    BimbinganCalendar,
+    type BimbinganEvent,
+} from '@/components/bimbingan-calendar';
+import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -203,6 +208,128 @@ export default function JadwalBimbinganPage() {
 
     const hasUpcomingMeetings = page.props.upcomingMeetings.length > 0;
     const hasHistoryMeetings = page.props.historyMeetings.length > 0;
+
+    const [selectedEvent, setSelectedEvent] = useState<{
+        id: number;
+        topic: string;
+        person: string;
+        personRole: 'lecturer' | 'student';
+        start: string;
+        end: string;
+        location: string;
+        status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+        notes?: string | null;
+    } | null>(null);
+
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    function formatDateForCalendar(dateInput: string | Date): string {
+        // If it's already a string with timezone info, use it directly
+        if (typeof dateInput === 'string') {
+            // Backend returns ISO 8601 with timezone (e.g., "2026-03-09T07:00:00+07:00")
+            // FullCalendar can handle this directly
+            return dateInput;
+        }
+
+        // If it's a Date object, format it properly
+        const date = dateInput;
+        if (isNaN(date.getTime())) return '';
+
+        // Format as ISO string with timezone
+        return date.toISOString();
+    }
+
+    const calendarEvents: BimbinganEvent[] = [
+        ...page.props.upcomingMeetings.flatMap((meeting) => {
+            const startDate = meeting.scheduledAt || meeting.requestedAt;
+            if (!startDate) return [];
+
+            const start = formatDateForCalendar(startDate);
+            if (!start) return [];
+
+            const endDate = new Date(
+                new Date(startDate).getTime() + 60 * 60 * 1000,
+            );
+            const end = formatDateForCalendar(endDate);
+
+            return [
+                {
+                    id: String(meeting.id) as any,
+                    title: meeting.topic,
+                    topic: meeting.topic,
+                    person: meeting.lecturer,
+                    start,
+                    end,
+                    location: meeting.location,
+                    status: meeting.status as BimbinganEvent['status'],
+                    personRole: 'lecturer' as const,
+                },
+            ];
+        }),
+        ...page.props.historyMeetings.flatMap((meeting) => {
+            if (!meeting.scheduledAt) return [];
+
+            const start = formatDateForCalendar(meeting.scheduledAt);
+            if (!start) return [];
+
+            const endDate = new Date(
+                new Date(meeting.scheduledAt).getTime() + 60 * 60 * 1000,
+            );
+            const end = formatDateForCalendar(endDate);
+
+            return [
+                {
+                    id: String(meeting.id) as any,
+                    title: meeting.topic,
+                    topic: meeting.topic,
+                    person: meeting.lecturer,
+                    start,
+                    end,
+                    location: meeting.location,
+                    status: meeting.status as BimbinganEvent['status'],
+                    personRole: 'lecturer' as const,
+                },
+            ];
+        }),
+    ];
+
+    function handleEventClick(event: BimbinganEvent) {
+        const fullMeeting = [
+            ...page.props.upcomingMeetings,
+            ...page.props.historyMeetings,
+        ].find((m) => m.id === event.id);
+
+        if (fullMeeting) {
+            setSelectedEvent({
+                id: fullMeeting.id,
+                topic: fullMeeting.topic,
+                person: fullMeeting.lecturer,
+                personRole: 'lecturer',
+                start: event.start,
+                end: event.end,
+                location: fullMeeting.location,
+                status: fullMeeting.status as
+                    | 'pending'
+                    | 'approved'
+                    | 'rejected'
+                    | 'completed'
+                    | 'cancelled',
+                notes: fullMeeting.lecturerNote,
+            });
+            setIsDetailModalOpen(true);
+        }
+    }
 
     return (
         <AppLayout
@@ -426,6 +553,12 @@ export default function JadwalBimbinganPage() {
                             </Alert>
                         )}
 
+                        <BimbinganCalendar
+                            events={calendarEvents}
+                            onEventClick={handleEventClick}
+                            defaultView="calendar"
+                        />
+
                         <Card className="py-0 shadow-sm">
                             <CardHeader className="border-b bg-muted/20 px-6 py-4">
                                 <CardTitle className="text-lg font-semibold">
@@ -468,17 +601,20 @@ export default function JadwalBimbinganPage() {
                                                             <Calendar className="size-4" />
                                                             <span>
                                                                 Preferensi:{' '}
-                                                                {
-                                                                    meeting.requestedAt
-                                                                }
+                                                                {formatDate(
+                                                                    meeting.requestedAt,
+                                                                )}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <Clock className="size-4" />
                                                             <span>
                                                                 Terkonfirmasi:{' '}
-                                                                {meeting.scheduledAt ??
-                                                                    'Menunggu konfirmasi dosen'}
+                                                                {meeting.scheduledAt
+                                                                    ? formatDate(
+                                                                          meeting.scheduledAt,
+                                                                      )
+                                                                    : 'Menunggu konfirmasi dosen'}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -558,9 +694,9 @@ export default function JadwalBimbinganPage() {
                                                         <div className="flex items-center gap-2">
                                                             <Calendar className="size-4" />
                                                             <span>
-                                                                {
-                                                                    row.scheduledAt
-                                                                }
+                                                                {formatDate(
+                                                                    row.scheduledAt,
+                                                                )}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -598,6 +734,13 @@ export default function JadwalBimbinganPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        <ScheduleDetailModal
+                            open={isDetailModalOpen}
+                            onOpenChange={setIsDetailModalOpen}
+                            schedule={selectedEvent}
+                            currentUserRole="mahasiswa"
+                        />
                     </>
                 )}
             </div>
