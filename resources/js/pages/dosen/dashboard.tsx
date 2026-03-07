@@ -68,7 +68,7 @@ export default function DosenDashboardPage() {
                     {queueCards.map((card) => {
                         const Icon =
                             queueCardIcons[
-                            card.title as keyof typeof queueCardIcons
+                                card.title as keyof typeof queueCardIcons
                             ] ?? CalendarClock;
 
                         return (

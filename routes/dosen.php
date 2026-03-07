@@ -20,6 +20,8 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::get('jadwal-bimbingan', [JadwalBimbinganController::class, 'index'])->name('jadwal-bimbingan');
     Route::post('jadwal-bimbingan/{schedule}/decision', [JadwalBimbinganController::class, 'decide'])
         ->name('jadwal-bimbingan.decision');
+    Route::post('jadwal-bimbingan/recurring/{groupId}/decision', [JadwalBimbinganController::class, 'decideRecurringGroup'])
+        ->name('jadwal-bimbingan.recurring.decision');
 
     Route::get('dokumen-revisi', [DokumenRevisiController::class, 'index'])->name('dokumen-revisi');
     Route::post('dokumen-revisi/{document}/review', [DokumenRevisiController::class, 'review'])
