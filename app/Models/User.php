@@ -173,6 +173,21 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(ThesisSubmission::class, 'student_user_id');
     }
 
+    public function thesisProjects(): HasMany
+    {
+        return $this->hasMany(ThesisProject::class, 'student_user_id');
+    }
+
+    public function createdThesisProjects(): HasMany
+    {
+        return $this->hasMany(ThesisProject::class, 'created_by');
+    }
+
+    public function closedThesisProjects(): HasMany
+    {
+        return $this->hasMany(ThesisProject::class, 'closed_by');
+    }
+
     public function approvedThesisSubmissions(): HasMany
     {
         return $this->hasMany(ThesisSubmission::class, 'approved_by');

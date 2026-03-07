@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class SemproResource extends Resource
 {
@@ -24,6 +25,11 @@ class SemproResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
     protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function getNavigationLabel(): string
     {
@@ -71,7 +77,9 @@ class SemproResource extends Resource
                 'createdBy',
             ]);
 
-        $prodiId = auth()->user()?->adminProgramStudiId();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $prodiId = $user?->adminProgramStudiId();
 
         if ($prodiId !== null) {
             $query->whereHas('submission', fn(Builder $q): Builder => $q->where('program_studi_id', $prodiId));

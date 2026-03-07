@@ -44,12 +44,16 @@ type AssignedLecturers = {
     pembimbing2: string | null;
     penguji1: string | null;
     penguji2: string | null;
+    ketuaSidang: string | null;
+    sekretarisSidang: string | null;
+    pengujiSidang: string | null;
 };
 
 type TugasAkhirPageProps = {
     submission: Submission | null;
     assignedLecturers: AssignedLecturers;
     semproDate: string | null;
+    sidangDate: string | null;
     profileProgramStudi: string;
     flashMessage?: string | null;
     errorMessage?: string | null;
@@ -73,6 +77,10 @@ const statusLabel: Record<string, string> = {
     sempro_dijadwalkan: 'Sempro Dijadwalkan',
     revisi_sempro: 'Revisi Sempro',
     sempro_selesai: 'Sempro Selesai',
+    sidang_dijadwalkan: 'Sidang Dijadwalkan',
+    revisi_sidang: 'Revisi Sidang',
+    sidang_selesai: 'Sidang Selesai',
+    sidang_gagal: 'Sidang Tidak Lulus',
 };
 
 const statusDescription: Record<string, string> = {
@@ -84,6 +92,13 @@ const statusDescription: Record<string, string> = {
         'Sempro sudah dijadwalkan. Cek informasi dosen dan tanggal di halaman ini.',
     revisi_sempro: 'Pengajuan berada pada tahap revisi Sempro.',
     sempro_selesai: 'Tahap Sempro telah selesai.',
+    sidang_dijadwalkan:
+        'Sidang skripsi sudah dijadwalkan. Pastikan Anda menyiapkan dokumen akhir dengan baik.',
+    revisi_sidang:
+        'Sidang selesai dengan revisi. Periksa catatan revisi dari tim sidang.',
+    sidang_selesai: 'Tahap sidang skripsi telah selesai.',
+    sidang_gagal:
+        'Sidang belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
 };
 
 function normalizeTitleEn(value: string | null | undefined): string {
@@ -288,6 +303,7 @@ export default function TugasAkhirSaya() {
         submission,
         assignedLecturers,
         semproDate,
+        sidangDate,
         flashMessage,
         errorMessage,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
@@ -522,11 +538,12 @@ export default function TugasAkhirSaya() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>
-                                    Dosen Pembimbing, Penguji, dan Jadwal Sempro
+                                    Dosen Pembimbing, Penguji, dan Jadwal Ujian
                                 </CardTitle>
                                 <CardDescription>
                                     Penetapan dosen pembimbing, dosen penguji,
-                                    dan jadwal Sempro dikelola admin.
+                                    dan jadwal Sempro maupun sidang dikelola
+                                    admin.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
@@ -571,15 +588,59 @@ export default function TugasAkhirSaya() {
                                             placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
                                         />
                                     </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">
+                                            Ketua Sidang
+                                        </p>
+                                        <AssignmentValue
+                                            value={
+                                                assignedLecturers.ketuaSidang
+                                            }
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan ketua sidang."
+                                        />
+                                    </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">
+                                            Sekretaris Sidang
+                                        </p>
+                                        <AssignmentValue
+                                            value={
+                                                assignedLecturers.sekretarisSidang
+                                            }
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan sekretaris sidang."
+                                        />
+                                    </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">
+                                            Penguji Sidang
+                                        </p>
+                                        <AssignmentValue
+                                            value={
+                                                assignedLecturers.pengujiSidang
+                                            }
+                                            placeholder="Belum ditetapkan. Admin akan menetapkan penguji sidang."
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2 rounded-lg border p-4">
-                                    <p className="text-sm font-semibold">
-                                        Tanggal Sempro
-                                    </p>
-                                    <AssignmentValue
-                                        value={semproDate}
-                                        placeholder="Belum dijadwalkan. Admin akan menetapkan jadwal Sempro."
-                                    />
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">
+                                            Tanggal Sempro
+                                        </p>
+                                        <AssignmentValue
+                                            value={semproDate}
+                                            placeholder="Belum dijadwalkan. Admin akan menetapkan jadwal Sempro."
+                                        />
+                                    </div>
+                                    <div className="space-y-2 rounded-lg border p-4">
+                                        <p className="text-sm font-semibold">
+                                            Tanggal Sidang
+                                        </p>
+                                        <AssignmentValue
+                                            value={sidangDate}
+                                            placeholder="Belum dijadwalkan. Admin akan menetapkan jadwal sidang."
+                                        />
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

@@ -12,6 +12,7 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class SemproWorkflowService
 {
@@ -23,15 +24,21 @@ class SemproWorkflowService
             ->first();
 
         if ($existingSempro instanceof Sempro) {
+            $this->syncProjectSnapshotForStudent($submission->student_user_id);
+
             return $existingSempro;
         }
 
-        return Sempro::query()->create([
+        $sempro = Sempro::query()->create([
             'thesis_submission_id' => $submission->getKey(),
             'status' => SemproStatus::Draft->value,
             'mode' => 'offline',
             'created_by' => $createdBy,
         ]);
+
+        $this->syncProjectSnapshotForStudent($submission->student_user_id);
+
+        return $sempro;
     }
 
     public function assignExaminers(Sempro $sempro, array $examinerUserIds, int $assignedBy): void
@@ -88,6 +95,8 @@ class SemproWorkflowService
                 'createdAt' => now()->toIso8601String(),
             ]);
         }
+
+        $this->syncProjectSnapshotForStudent($sempro->submission?->student_user_id);
     }
 
     public function scheduleSempro(Sempro $sempro): void
@@ -119,6 +128,8 @@ class SemproWorkflowService
                 'createdAt' => now()->toIso8601String(),
             ]);
         }
+
+        $this->syncProjectSnapshotForStudent($sempro->submission?->student_user_id);
     }
 
     public function approveSempro(Sempro $sempro, int $approvedBy): void
@@ -147,6 +158,21 @@ class SemproWorkflowService
                 'approved_at' => now(),
             ])->save();
         });
+
+        $this->syncProjectSnapshotForStudent($sempro->submission?->student_user_id);
+    }
+
+    private function syncProjectSnapshotForStudent(?int $studentUserId): void
+    {
+        if ($studentUserId === null) {
+            return;
+        }
+
+        try {
+            app(LegacyThesisProjectBackfillService::class)->backfill($studentUserId);
+        } catch (RuntimeException) {
+            return;
+        }
     }
 
     private function formatSchedule(CarbonInterface|string|null $scheduledFor): string
