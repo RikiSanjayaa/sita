@@ -32,6 +32,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type OtherExaminer = {
     name: string;
+    role: string;
     order: number;
     decision: string | null;
     score: number | null;
@@ -46,17 +47,22 @@ type Revision = {
     requestedBy: string;
 };
 
-type SemproItem = {
-    semproId: number;
+type DefenseItem = {
+    defenseId: number;
+    type: 'sempro' | 'sidang';
+    typeLabel: string;
+    attemptNo: number;
     studentName: string;
     studentNim: string;
     titleId: string;
     titleEn: string;
-    semproStatus: string;
+    defenseStatus: string;
+    defenseResult: string;
     scheduledFor: string | null;
     location: string;
     mode: string;
     myExaminerId: number;
+    myRole: string;
     myOrder: number;
     myDecision: string | null;
     myScore: number | null;
@@ -66,35 +72,43 @@ type SemproItem = {
 };
 
 type PageProps = {
-    sempros: SemproItem[];
+    defenses: DefenseItem[];
     flashMessage?: string | null;
 };
 
 const statusLabel: Record<string, string> = {
-    draft: 'Draft',
     scheduled: 'Dijadwalkan',
-    revision_open: 'Revisi',
-    approved: 'Selesai',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
 };
 
 const statusColor: Record<string, string> = {
-    draft: 'bg-muted text-muted-foreground',
     scheduled: 'bg-primary/10 text-primary hover:bg-primary/20',
-    revision_open: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
-    approved: 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20',
+    completed: 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20',
+    cancelled: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
 };
 
 const decisionLabel: Record<string, string> = {
     pending: 'Pending',
-    needs_revision: 'Perlu Revisi',
-    approved: 'Disetujui',
+    pass_with_revision: 'Perlu Revisi',
+    pass: 'Disetujui',
+    fail: 'Tidak Lulus',
+};
+
+const resultLabel: Record<string, string> = {
+    pending: 'Menunggu Hasil',
+    pass: 'Lulus',
+    pass_with_revision: 'Lulus Revisi',
+    fail: 'Tidak Lulus',
 };
 
 function DecisionForm({
-    semproId,
+    defenseId,
+    defenseType,
     onClose,
 }: {
-    semproId: number;
+    defenseId: number;
+    defenseType: 'sempro' | 'sidang';
     onClose: () => void;
 }) {
     const [decision, setDecision] = useState<string>('');
@@ -108,13 +122,13 @@ function DecisionForm({
 
         setSubmitting(true);
         router.post(
-            `/dosen/seminar-proposal/${semproId}/decision`,
+            `/dosen/seminar-proposal/${defenseId}/decision`,
             {
                 decision,
                 score: parseFloat(score),
                 decision_notes: decisionNotes || null,
                 revision_notes:
-                    decision === 'needs_revision' ? revisionNotes : null,
+                    decision === 'pass_with_revision' ? revisionNotes : null,
             },
             {
                 onFinish: () => setSubmitting(false),
@@ -135,11 +149,11 @@ function DecisionForm({
                             type="button"
                             size="sm"
                             variant={
-                                decision === 'approved' ? 'default' : 'outline'
+                                decision === 'pass' ? 'default' : 'outline'
                             }
-                            onClick={() => setDecision('approved')}
+                            onClick={() => setDecision('pass')}
                             className={
-                                decision === 'approved'
+                                decision === 'pass'
                                     ? 'bg-emerald-600 hover:bg-emerald-700'
                                     : ''
                             }
@@ -151,13 +165,13 @@ function DecisionForm({
                             type="button"
                             size="sm"
                             variant={
-                                decision === 'needs_revision'
+                                decision === 'pass_with_revision'
                                     ? 'default'
                                     : 'outline'
                             }
-                            onClick={() => setDecision('needs_revision')}
+                            onClick={() => setDecision('pass_with_revision')}
                             className={
-                                decision === 'needs_revision'
+                                decision === 'pass_with_revision'
                                     ? 'bg-amber-600 hover:bg-amber-700'
                                     : ''
                             }
@@ -165,6 +179,24 @@ function DecisionForm({
                             <FileWarning className="mr-1.5 size-3.5" />
                             Perlu Revisi
                         </Button>
+                        {defenseType === 'sidang' && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    decision === 'fail' ? 'default' : 'outline'
+                                }
+                                onClick={() => setDecision('fail')}
+                                className={
+                                    decision === 'fail'
+                                        ? 'bg-destructive hover:bg-destructive/90'
+                                        : ''
+                                }
+                            >
+                                <FileWarning className="mr-1.5 size-3.5" />
+                                Tidak Lulus
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -196,7 +228,7 @@ function DecisionForm({
                 />
             </div>
 
-            {decision === 'needs_revision' && (
+            {decision === 'pass_with_revision' && (
                 <div>
                     <Label htmlFor="revision-notes">Catatan Revisi *</Label>
                     <Textarea
@@ -227,12 +259,10 @@ function DecisionForm({
     );
 }
 
-function SemproCard({ item }: { item: SemproItem }) {
+function DefenseCard({ item }: { item: DefenseItem }) {
     const [showForm, setShowForm] = useState(false);
     const canDecide =
-        item.myDecision === 'pending' &&
-        (item.semproStatus === 'scheduled' ||
-            item.semproStatus === 'revision_open');
+        item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
 
     return (
         <Card className="shadow-sm">
@@ -250,10 +280,18 @@ function SemproCard({ item }: { item: SemproItem }) {
                     </div>
                     <Badge
                         variant="soft"
-                        className={`font-semibold ${statusColor[item.semproStatus] ?? 'bg-muted text-muted-foreground'}`}
+                        className={`font-semibold ${statusColor[item.defenseStatus] ?? 'bg-muted text-muted-foreground'}`}
                     >
-                        {statusLabel[item.semproStatus] ?? item.semproStatus}
+                        {statusLabel[item.defenseStatus] ?? item.defenseStatus}
                     </Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">{item.typeLabel}</Badge>
+                    <span>Attempt #{item.attemptNo}</span>
+                    <span>
+                        Hasil:{' '}
+                        {resultLabel[item.defenseResult] ?? item.defenseResult}
+                    </span>
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -278,7 +316,7 @@ function SemproCard({ item }: { item: SemproItem }) {
                 {/* My decision */}
                 <div className="rounded-md border p-3">
                     <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Keputusan Saya (Penguji {item.myOrder})
+                        Keputusan Saya ({item.myRole} {item.myOrder})
                     </p>
                     {item.myDecision === 'pending' ? (
                         <Badge
@@ -292,11 +330,12 @@ function SemproCard({ item }: { item: SemproItem }) {
                             <Badge
                                 variant="soft"
                                 className={`font-semibold ${
-                                    item.myDecision === 'approved'
+                                    item.myDecision === 'pass'
                                         ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
-                                        : item.myDecision === 'needs_revision'
+                                        : item.myDecision ===
+                                            'pass_with_revision'
                                           ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                          : 'bg-muted text-muted-foreground'
+                                          : 'bg-destructive/10 text-destructive'
                                 }`}
                             >
                                 {decisionLabel[item.myDecision ?? ''] ??
@@ -335,12 +374,14 @@ function SemproCard({ item }: { item: SemproItem }) {
                                     <Badge
                                         variant="soft"
                                         className={`font-medium ${
-                                            ex.decision === 'approved'
+                                            ex.decision === 'pass'
                                                 ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
                                                 : ex.decision ===
-                                                    'needs_revision'
+                                                    'pass_with_revision'
                                                   ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                                  : 'bg-muted text-muted-foreground hover:bg-muted'
+                                                  : ex.decision === 'fail'
+                                                    ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted'
                                         }`}
                                     >
                                         {decisionLabel[ex.decision ?? ''] ??
@@ -396,7 +437,8 @@ function SemproCard({ item }: { item: SemproItem }) {
 
                 {showForm && (
                     <DecisionForm
-                        semproId={item.semproId}
+                        defenseId={item.defenseId}
+                        defenseType={item.type}
                         onClose={() => setShowForm(false)}
                     />
                 )}
@@ -406,15 +448,17 @@ function SemproCard({ item }: { item: SemproItem }) {
 }
 
 export default function DosenSeminarProposalPage() {
-    const { sempros, flashMessage } = usePage<SharedData & PageProps>().props;
+    const { defenses, flashMessage } = usePage<SharedData & PageProps>().props;
+    const semproItems = defenses.filter((item) => item.type === 'sempro');
+    const sidangItems = defenses.filter((item) => item.type === 'sidang');
 
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
-            title="Seminar Proposal"
-            subtitle="Kelola sempro yang Anda menjadi dosen penguji"
+            title="Sempro & Sidang"
+            subtitle="Kelola tugas penguji seminar proposal dan sidang skripsi"
         >
-            <Head title="Seminar Proposal — Dosen" />
+            <Head title="Sempro & Sidang — Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
                 {flashMessage && (
@@ -423,24 +467,70 @@ export default function DosenSeminarProposalPage() {
                     </div>
                 )}
 
-                {sempros.length === 0 ? (
+                {defenses.length === 0 ? (
                     <div className="mt-6 rounded-xl border border-dashed bg-muted/20 p-8 text-center">
                         <span className="mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                             <FileWarning className="size-6" />
                         </span>
                         <p className="text-sm font-semibold">
-                            Belum ada tugas penguji
+                            Belum ada tugas penguji ujian
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Anda belum ditugaskan sebagai penguji untuk kelas
-                            seminar proposal manapun.
+                            Anda belum ditugaskan sebagai penguji sempro atau
+                            sidang manapun.
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-4">
-                        {sempros.map((item) => (
-                            <SemproCard key={item.semproId} item={item} />
-                        ))}
+                    <div className="grid gap-8">
+                        <section className="grid gap-4">
+                            <div>
+                                <h2 className="text-lg font-semibold">
+                                    Sempro
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Daftar seminar proposal yang menunggu
+                                    penilaian atau tindak lanjut Anda.
+                                </p>
+                            </div>
+                            {semproItems.length > 0 ? (
+                                semproItems.map((item) => (
+                                    <DefenseCard
+                                        key={item.defenseId}
+                                        item={item}
+                                    />
+                                ))
+                            ) : (
+                                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
+                                    Belum ada sempro yang menjadi tanggung jawab
+                                    Anda.
+                                </div>
+                            )}
+                        </section>
+
+                        <section className="grid gap-4">
+                            <div>
+                                <h2 className="text-lg font-semibold">
+                                    Sidang
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Daftar sidang skripsi yang perlu Anda nilai
+                                    sebagai ketua, sekretaris, atau penguji.
+                                </p>
+                            </div>
+                            {sidangItems.length > 0 ? (
+                                sidangItems.map((item) => (
+                                    <DefenseCard
+                                        key={item.defenseId}
+                                        item={item}
+                                    />
+                                ))
+                            ) : (
+                                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
+                                    Belum ada sidang yang menjadi tanggung jawab
+                                    Anda.
+                                </div>
+                            )}
+                        </section>
                     </div>
                 )}
             </div>

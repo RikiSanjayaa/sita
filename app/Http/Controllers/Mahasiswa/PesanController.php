@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
-use App\Enums\AssignmentStatus;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipDocument;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
@@ -61,12 +60,14 @@ class PesanController extends Controller
             ->get();
 
         // Get members for pembimbing thread
-        $advisors = MentorshipAssignment::query()
+        $advisors = ThesisSupervisorAssignment::query()
             ->with('lecturer')
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->get()
-            ->map(fn(MentorshipAssignment $a): string => $a->lecturer?->name ?? '-')
+            ->map(fn(ThesisSupervisorAssignment $assignment): string => $assignment->lecturer?->name ?? '-')
             ->unique()
             ->values()
             ->all();
@@ -142,9 +143,11 @@ class PesanController extends Controller
                 ]);
             }
 
-            $assignments = MentorshipAssignment::query()
-                ->where('student_user_id', $student->id)
-                ->where('status', AssignmentStatus::Active->value)
+            $assignments = ThesisSupervisorAssignment::query()
+                ->whereHas('project', fn($query) => $query
+                    ->where('student_user_id', $student->id)
+                    ->where('state', 'active'))
+                ->where('status', 'active')
                 ->get();
 
             if ($assignments->isEmpty() && $thread->type === 'pembimbing') {
@@ -165,7 +168,7 @@ class PesanController extends Controller
                 $createdDocuments->push(MentorshipDocument::query()->create([
                     'student_user_id' => $student->id,
                     'lecturer_user_id' => $assignment->lecturer_user_id,
-                    'mentorship_assignment_id' => $assignment->id,
+                    'mentorship_assignment_id' => null,
                     'title' => $trimmedMessage !== ''
                         ? $trimmedMessage
                         : sprintf('Lampiran chat v%d', $nextVersion),
@@ -238,9 +241,11 @@ class PesanController extends Controller
 
     private function notifyLecturers(User $student, int $threadId): void
     {
-        $lecturers = MentorshipAssignment::query()
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+        $lecturers = ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->with('lecturer')
             ->get()
             ->pluck('lecturer')

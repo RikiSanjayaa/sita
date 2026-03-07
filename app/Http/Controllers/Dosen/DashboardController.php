@@ -8,7 +8,6 @@ use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
 use App\Services\DosenBimbinganService;
-use App\Services\MentorshipAssignmentService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -90,7 +89,7 @@ class DashboardController extends Controller
                     'value' => sprintf(
                         '%d/%d',
                         $activeStudentCount,
-                        MentorshipAssignmentService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
+                        DosenBimbinganService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
                     ),
                     'description' => 'Kapasitas bimbingan aktif saat ini',
                 ],
