@@ -2,39 +2,18 @@
 
 set -euo pipefail
 
-if [[ -z "${APP_IMAGE:-}" ]]; then
-    echo "APP_IMAGE is required"
-    exit 1
-fi
-
-if [[ -z "${WEB_IMAGE:-}" ]]; then
-    echo "WEB_IMAGE is required"
-    exit 1
-fi
-
 compose_files=(-f docker-compose.yml -f docker-compose.deploy.yml)
 
-echo "Pulling deployment images with retry logic to prevent network timeouts..."
-pull_with_retry() {
-    local image=$1
-    local retries=3
-    local count=0
-    until docker pull "$image"; do
-        exit_code=$?
-        count=$((count + 1))
-        if [ $count -lt $retries ]; then
-            echo "Pull failed with exit code $exit_code. Retrying in 10 seconds... ($count/$retries)"
-            sleep 10
-        else
-            echo "Failed to pull image after $retries attempts."
-            return $exit_code
-        fi
-    done
-    return 0
-}
+build_args=(
+    --build-arg VITE_REVERB_APP_KEY="${VITE_REVERB_APP_KEY:-}"
+    --build-arg VITE_REVERB_HOST="${VITE_REVERB_HOST:-}"
+    --build-arg VITE_REVERB_PORT="${VITE_REVERB_PORT:-443}"
+    --build-arg VITE_REVERB_SCHEME="${VITE_REVERB_SCHEME:-https}"
+)
 
-pull_with_retry "${APP_IMAGE}"
-pull_with_retry "${WEB_IMAGE}"
+echo "Building images locally..."
+docker compose "${compose_files[@]}" build "${build_args[@]}" --no-cache app web
+
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
 
