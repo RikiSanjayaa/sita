@@ -19,9 +19,13 @@ class EditUser extends EditRecord
     {
         $data['role'] = $this->record->roles->pluck('name')->first() ?? $this->record->last_active_role ?? AppRole::Mahasiswa->value;
         $data['nim'] = $this->record->mahasiswaProfile?->nim;
-        $data['prodi'] = $this->record->mahasiswaProfile?->program_studi ?? $this->record->dosenProfile?->homebase;
+        $data['prodi'] = $this->record->mahasiswaProfile?->program_studi_id
+            ?? $this->record->dosenProfile?->program_studi_id
+            ?? $this->record->adminProfile?->program_studi_id;
+        $data['concentration'] = $this->record->mahasiswaProfile?->concentration ?? $this->record->dosenProfile?->concentration;
         $data['angkatan'] = $this->record->mahasiswaProfile?->angkatan;
         $data['nik'] = $this->record->dosenProfile?->nik;
+        $data['supervision_quota'] = $this->record->dosenProfile?->supervision_quota;
         $data['is_active'] = $this->record->mahasiswaProfile?->is_active ?? $this->record->dosenProfile?->is_active ?? true;
 
         return $data;
@@ -33,8 +37,10 @@ class EditUser extends EditRecord
             'role' => $data['role'] ?? null,
             'nim' => $data['nim'] ?? null,
             'prodi' => $data['prodi'] ?? null,
+            'concentration' => $data['concentration'] ?? null,
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
+            'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
         ];
 
@@ -42,8 +48,10 @@ class EditUser extends EditRecord
             $data['role'],
             $data['nim'],
             $data['prodi'],
+            $data['concentration'],
             $data['angkatan'],
             $data['nik'],
+            $data['supervision_quota'],
             $data['is_active'],
         );
 

@@ -23,6 +23,7 @@ class ThesisDocument extends Model
         'notes',
         'storage_disk',
         'storage_path',
+        'stored_file_name',
         'file_name',
         'mime_type',
         'file_size_kb',

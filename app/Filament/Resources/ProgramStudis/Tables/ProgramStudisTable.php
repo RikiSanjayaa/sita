@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProgramStudis\Tables;
 
+use App\Models\ProgramStudi;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -20,6 +21,11 @@ class ProgramStudisTable
                 TextColumn::make('slug')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('concentrations')
+                    ->label('Konsentrasi')
+                    ->state(fn(ProgramStudi $record): string => implode(', ', $record->concentrationList()))
+                    ->searchable()
+                    ->wrap(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

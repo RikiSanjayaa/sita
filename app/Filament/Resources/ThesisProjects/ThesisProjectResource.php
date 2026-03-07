@@ -58,11 +58,21 @@ class ThesisProjectResource extends Resource
         $query = parent::getEloquentQuery()
             ->with([
                 'student.mahasiswaProfile',
+                'student.mentorshipDocumentsAsStudent.lecturer',
                 'programStudi',
                 'latestTitle',
                 'titles.decidedBy',
                 'activeSupervisorAssignments.lecturer.dosenProfile',
                 'supervisorAssignments.lecturer.dosenProfile',
+                'documents' => fn($builder) => $builder
+                    ->with([
+                        'titleVersion',
+                        'defense',
+                        'revision',
+                        'uploadedBy',
+                    ])
+                    ->orderByDesc('uploaded_at')
+                    ->orderByDesc('version_no'),
                 'defenses' => fn($builder) => $builder
                     ->with([
                         'titleVersion',

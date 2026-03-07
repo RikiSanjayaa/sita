@@ -19,6 +19,7 @@ class MahasiswaProfile extends Model
         'user_id',
         'nim',
         'program_studi_id',
+        'concentration',
         'angkatan',
         'is_active',
     ];
@@ -28,9 +29,12 @@ class MahasiswaProfile extends Model
         return $this->belongsTo(ProgramStudi::class, 'program_studi_id');
     }
 
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
 
     protected static function booted(): void
     {

@@ -60,7 +60,8 @@ class ThesisProjectStudentService
                 'title' => 'Proposal Skripsi',
                 'storage_disk' => 'public',
                 'storage_path' => $path,
-                'file_name' => basename($path),
+                'stored_file_name' => basename($path),
+                'file_name' => $proposalFile->getClientOriginalName(),
                 'mime_type' => $proposalFile->getMimeType() ?? 'application/pdf',
                 'file_size_kb' => $this->toKilobytes($proposalFile->getSize()),
                 'uploaded_at' => $submittedAt,
@@ -115,7 +116,8 @@ class ThesisProjectStudentService
 
                 $updatedFileMeta = [
                     'path' => $newPath,
-                    'name' => basename($newPath),
+                    'stored_file_name' => basename($newPath),
+                    'name' => $proposalFile->getClientOriginalName(),
                     'mime_type' => $proposalFile->getMimeType() ?? 'application/pdf',
                     'file_size_kb' => $this->toKilobytes($proposalFile->getSize()),
                 ];
@@ -165,6 +167,7 @@ class ThesisProjectStudentService
                     'title' => 'Proposal Skripsi',
                     'storage_disk' => 'public',
                     'storage_path' => $updatedFileMeta['path'] ?? $proposalDocument?->storage_path,
+                    'stored_file_name' => $updatedFileMeta['stored_file_name'] ?? $proposalDocument?->stored_file_name,
                     'file_name' => $updatedFileMeta['name'] ?? $proposalDocument?->file_name,
                     'mime_type' => $updatedFileMeta['mime_type'] ?? $proposalDocument?->mime_type ?? 'application/pdf',
                     'file_size_kb' => $updatedFileMeta['file_size_kb'] ?? $proposalDocument?->file_size_kb,
@@ -175,6 +178,7 @@ class ThesisProjectStudentService
             if ($updatedFileMeta === null && $proposalDocument instanceof ThesisDocument) {
                 $document->forceFill([
                     'storage_path' => $proposalDocument->storage_path,
+                    'stored_file_name' => $proposalDocument->stored_file_name,
                     'file_name' => $proposalDocument->file_name,
                 ])->save();
             }

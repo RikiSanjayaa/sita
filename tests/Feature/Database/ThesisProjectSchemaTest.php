@@ -20,6 +20,16 @@ it('creates the expected key columns for thesis project tables', function () {
         'phase',
         'state',
     ]))->toBeTrue()
+        ->and(Schema::hasColumns('program_studis', [
+            'concentrations',
+        ]))->toBeTrue()
+        ->and(Schema::hasColumns('mahasiswa_profiles', [
+            'concentration',
+        ]))->toBeTrue()
+        ->and(Schema::hasColumns('dosen_profiles', [
+            'concentration',
+            'supervision_quota',
+        ]))->toBeTrue()
         ->and(Schema::hasColumns('thesis_project_titles', [
             'project_id',
             'version_no',
@@ -57,6 +67,7 @@ it('creates the expected key columns for thesis project tables', function () {
             'kind',
             'status',
             'storage_path',
+            'stored_file_name',
         ]))->toBeTrue()
         ->and(Schema::hasColumns('thesis_project_events', [
             'project_id',

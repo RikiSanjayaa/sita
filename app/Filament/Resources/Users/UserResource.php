@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Users;
 
-use App\Enums\AssignmentStatus;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
@@ -17,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
@@ -49,15 +49,36 @@ class UserResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
-            ->with(['roles', 'mahasiswaProfile', 'dosenProfile'])
+            ->with([
+                'roles',
+                'mahasiswaProfile.programStudi',
+                'dosenProfile.programStudi',
+                'adminProfile.programStudi',
+            ])
             ->withCount([
-                'thesisSubmissions as thesis_submission_count',
-                'mentorshipAssignmentsAsLecturer as active_bimbingan_count' => static fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Active->value),
-                'mentorshipAssignmentsAsLecturer as finished_bimbingan_count' => static fn(Builder $query): Builder => $query->where('status', AssignmentStatus::Ended->value),
-                'semproExaminerAssignments as active_uji_count' => static fn(Builder $query): Builder => $query->whereHas('sempro', static fn(Builder $semproQuery): Builder => $semproQuery->whereIn('status', ['draft', 'scheduled', 'revision_open'])),
+                'thesisSupervisorAssignments as active_primary_supervision_count' => static fn(Builder $query): Builder => $query
+                    ->where('role', 'primary')
+                    ->where('status', 'active')
+                    ->whereHas('project', static fn(Builder $projectQuery): Builder => $projectQuery->where('state', 'active')),
+                'thesisSupervisorAssignments as active_secondary_supervision_count' => static fn(Builder $query): Builder => $query
+                    ->where('role', 'secondary')
+                    ->where('status', 'active')
+                    ->whereHas('project', static fn(Builder $projectQuery): Builder => $projectQuery->where('state', 'active')),
+                'thesisDefenseExaminerAssignments as scheduled_sempro_examiner_count' => static fn(Builder $query): Builder => $query
+                    ->whereHas('defense', static fn(Builder $defenseQuery): Builder => $defenseQuery
+                        ->where('type', 'sempro')
+                        ->where('status', 'scheduled')
+                        ->whereHas('project', static fn(Builder $projectQuery): Builder => $projectQuery->where('state', 'active'))),
+                'thesisDefenseExaminerAssignments as scheduled_sidang_examiner_count' => static fn(Builder $query): Builder => $query
+                    ->whereHas('defense', static fn(Builder $defenseQuery): Builder => $defenseQuery
+                        ->where('type', 'sidang')
+                        ->where('status', 'scheduled')
+                        ->whereHas('project', static fn(Builder $projectQuery): Builder => $projectQuery->where('state', 'active'))),
             ]);
 
-        $prodiId = auth()->user()?->adminProgramStudiId();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $prodiId = $user?->adminProgramStudiId();
 
         if ($prodiId !== null) {
             $query->where(function (Builder $q) use ($prodiId): void {

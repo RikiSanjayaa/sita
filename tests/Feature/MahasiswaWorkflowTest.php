@@ -3,6 +3,7 @@
 use App\Enums\AdvisorType;
 use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
+use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
@@ -25,6 +26,13 @@ function createUserWithRole(string $role): User
     $user = User::factory()->create(['last_active_role' => $role]);
     $roleModel = Role::query()->firstOrCreate(['name' => $role]);
     $user->roles()->sync([$roleModel->id]);
+
+    if ($role === AppRole::Dosen->value) {
+        DosenProfile::factory()->create([
+            'user_id' => $user->id,
+            'is_active' => true,
+        ]);
+    }
 
     return $user;
 }
@@ -565,7 +573,8 @@ test('mahasiswa can update pending thesis project and replace proposal file', fu
         ->and($updatedTitle->title_en)->toBe('Revised Title')
         ->and($updatedTitle->proposal_summary)->toBe('Ringkasan revisi.')
         ->and($document->storage_path)->not()->toBeNull()
-        ->and($document->file_name)->toBe(basename((string) $document->storage_path));
+        ->and($document->file_name)->toBe('proposal-revisi.pdf')
+        ->and($document->stored_file_name)->toBe(basename((string) $document->storage_path));
 
     Storage::disk('public')->assertMissing($oldPath);
     Storage::disk('public')->assertExists((string) $document->storage_path);

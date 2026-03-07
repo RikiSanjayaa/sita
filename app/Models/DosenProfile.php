@@ -18,6 +18,8 @@ class DosenProfile extends Model
         'user_id',
         'nik',
         'program_studi_id',
+        'concentration',
+        'supervision_quota',
         'is_active',
     ];
 
@@ -33,6 +35,7 @@ class DosenProfile extends Model
     {
         return [
             'is_active' => 'boolean',
+            'supervision_quota' => 'integer',
         ];
     }
 

@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\ThesisProjects\Schemas;
 
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
+use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
+use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
@@ -204,6 +206,108 @@ class ThesisProjectInfolist
                             ->contained(false),
                     ])
                     ->visible(fn(ThesisProject $record): bool => $record->defenses->contains(fn(ThesisDefense $defense): bool => $defense->type === 'sidang')),
+                Section::make('Dokumen Tugas Akhir')
+                    ->schema([
+                        RepeatableEntry::make('thesis_documents')
+                            ->label('')
+                            ->state(fn(ThesisProject $record): array => $record->documents
+                                ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
+                                ->map(fn(ThesisDocument $document): array => [
+                                    'kind' => self::documentKindLabel($document->kind),
+                                    'title' => $document->title,
+                                    'version' => 'V'.$document->version_no,
+                                    'title_version' => $document->titleVersion?->title_id ?? '-',
+                                    'context' => self::documentContextLabel($document),
+                                    'uploaded_by' => $document->uploadedBy?->name ?? '-',
+                                    'uploaded_at' => $document->uploaded_at?->format('d M Y H:i') ?? '-',
+                                    'file_name' => $document->file_name,
+                                    'stored_file_name' => $document->stored_file_name ?? '-',
+                                    'download_url' => route('files.thesis-documents.download', ['document' => $document]),
+                                ])
+                                ->values()
+                                ->all())
+                            ->table([
+                                TableColumn::make('Jenis'),
+                                TableColumn::make('Judul Dokumen'),
+                                TableColumn::make('Versi'),
+                                TableColumn::make('Versi Judul'),
+                                TableColumn::make('Konteks'),
+                                TableColumn::make('Diunggah Oleh'),
+                                TableColumn::make('Waktu Unggah'),
+                                TableColumn::make('Nama Upload'),
+                                TableColumn::make('Nama Storage'),
+                                TableColumn::make('Unduh'),
+                            ])
+                            ->schema([
+                                TextEntry::make('kind'),
+                                TextEntry::make('title')->placeholder('-'),
+                                TextEntry::make('version'),
+                                TextEntry::make('title_version')->placeholder('-'),
+                                TextEntry::make('context')->placeholder('-'),
+                                TextEntry::make('uploaded_by'),
+                                TextEntry::make('uploaded_at'),
+                                TextEntry::make('file_name')->placeholder('-'),
+                                TextEntry::make('stored_file_name')->placeholder('-'),
+                                TextEntry::make('download_url')
+                                    ->label('Unduh')
+                                    ->formatStateUsing(fn(): string => 'Unduh')
+                                    ->url(fn(?string $state): ?string => $state)
+                                    ->openUrlInNewTab(),
+                            ])
+                            ->contained(false),
+                    ])
+                    ->visible(fn(ThesisProject $record): bool => $record->documents->isNotEmpty()),
+                Section::make('Dokumen Bimbingan Proyek')
+                    ->schema([
+                        RepeatableEntry::make('mentorship_documents')
+                            ->label('')
+                            ->state(fn(ThesisProject $record): array => self::projectMentorshipDocuments($record)
+                                ->sortByDesc(fn(MentorshipDocument $document): int => $document->created_at?->getTimestamp() ?? 0)
+                                ->map(fn(MentorshipDocument $document): array => [
+                                    'title' => $document->title,
+                                    'category' => $document->category ?? '-',
+                                    'version' => 'V'.$document->version_number,
+                                    'lecturer' => $document->lecturer?->name ?? '-',
+                                    'status' => self::mentorshipDocumentStatusLabel($document->status),
+                                    'review_notes' => $document->revision_notes ?? '-',
+                                    'uploaded_at' => $document->created_at?->format('d M Y H:i') ?? '-',
+                                    'file_name' => $document->file_name,
+                                    'stored_file_name' => $document->stored_file_name ?? '-',
+                                    'download_url' => route('files.documents.download', ['document' => $document, 'escalated' => 1]),
+                                ])
+                                ->values()
+                                ->all() ?? [])
+                            ->table([
+                                TableColumn::make('Judul'),
+                                TableColumn::make('Kategori'),
+                                TableColumn::make('Versi'),
+                                TableColumn::make('Tujuan'),
+                                TableColumn::make('Status'),
+                                TableColumn::make('Catatan Revisi'),
+                                TableColumn::make('Waktu Unggah'),
+                                TableColumn::make('Nama Upload'),
+                                TableColumn::make('Nama Storage'),
+                                TableColumn::make('Unduh'),
+                            ])
+                            ->schema([
+                                TextEntry::make('title')->placeholder('-'),
+                                TextEntry::make('category')->placeholder('-'),
+                                TextEntry::make('version'),
+                                TextEntry::make('lecturer')->label('Tujuan'),
+                                TextEntry::make('status')->badge(),
+                                TextEntry::make('review_notes')->placeholder('-'),
+                                TextEntry::make('uploaded_at'),
+                                TextEntry::make('file_name')->placeholder('-'),
+                                TextEntry::make('stored_file_name')->placeholder('-'),
+                                TextEntry::make('download_url')
+                                    ->label('Unduh')
+                                    ->formatStateUsing(fn(): string => 'Unduh')
+                                    ->url(fn(?string $state): ?string => $state)
+                                    ->openUrlInNewTab(),
+                            ])
+                            ->contained(false),
+                    ])
+                    ->visible(fn(ThesisProject $record): bool => self::projectMentorshipDocuments($record)->isNotEmpty()),
                 Section::make('Timeline')
                     ->schema([
                         RepeatableEntry::make('timeline')
@@ -343,5 +447,75 @@ class ThesisProjectInfolist
             'cancelled' => 'Dibatalkan',
             default => ucwords(str_replace('_', ' ', $status)),
         };
+    }
+
+    private static function documentKindLabel(string $kind): string
+    {
+        return match ($kind) {
+            'proposal' => 'Proposal',
+            'revision_submission' => 'Dokumen Revisi',
+            'final_manuscript' => 'Naskah Akhir',
+            'supporting_document' => 'Lampiran',
+            default => ucwords(str_replace('_', ' ', $kind)),
+        };
+    }
+
+    private static function documentContextLabel(ThesisDocument $document): string
+    {
+        if ($document->defense instanceof ThesisDefense) {
+            return sprintf(
+                '%s #%d',
+                $document->defense->type === 'sidang' ? 'Sidang' : 'Sempro',
+                $document->defense->attempt_no,
+            );
+        }
+
+        if ($document->revision instanceof ThesisRevision) {
+            return 'Revisi';
+        }
+
+        return 'Proyek';
+    }
+
+    private static function mentorshipDocumentStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'approved' => 'Disetujui',
+            'needs_revision' => 'Perlu Revisi',
+            'submitted' => 'Dikirim',
+            default => ucwords(str_replace('_', ' ', $status)),
+        };
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, MentorshipDocument>
+     */
+    private static function projectMentorshipDocuments(ThesisProject $record)
+    {
+        $documents = $record->student?->mentorshipDocumentsAsStudent;
+
+        if ($documents === null) {
+            return collect();
+        }
+
+        $endedAt = $record->completed_at ?? $record->cancelled_at;
+
+        return $documents->filter(function (MentorshipDocument $document) use ($record, $endedAt): bool {
+            $createdAt = $document->created_at;
+
+            if ($createdAt === null) {
+                return false;
+            }
+
+            if ($record->started_at !== null && $createdAt->lt($record->started_at)) {
+                return false;
+            }
+
+            if ($endedAt !== null && $createdAt->gt($endedAt)) {
+                return false;
+            }
+
+            return true;
+        });
     }
 }
