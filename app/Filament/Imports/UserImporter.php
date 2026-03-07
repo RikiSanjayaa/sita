@@ -57,6 +57,12 @@ class UserImporter extends Importer
                 ->examples(['mahasiswa@sita.test'])
                 ->requiredMapping()
                 ->rules(['required', 'email', 'max:255']),
+            ImportColumn::make('phone_number')
+                ->exampleHeader('phone_number')
+                ->examples(['081234567890'])
+                ->guess(['phone_number', 'phone', 'no_hp', 'nomor_hp', 'whatsapp'])
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'string', 'max:30']),
             ImportColumn::make('role')
                 ->exampleHeader('role')
                 ->examples(['mahasiswa'])

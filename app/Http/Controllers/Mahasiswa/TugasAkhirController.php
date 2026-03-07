@@ -8,6 +8,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\User;
 use App\Services\ThesisProjectStudentService;
+use App\Services\UserProfilePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,6 +16,10 @@ use Inertia\Response;
 
 class TugasAkhirController extends Controller
 {
+    public function __construct(
+        private readonly UserProfilePresenter $userProfilePresenter,
+    ) {}
+
     public function index(Request $request): Response
     {
         $student = $request->user();
@@ -80,6 +85,16 @@ class TugasAkhirController extends Controller
                 'sekretarisSidang' => $sidangSecretary?->lecturer?->name,
                 'pengujiSidang' => $sidangExaminer?->lecturer?->name,
             ],
+            'advisorProfiles' => array_values(array_filter([
+                $this->userProfilePresenter->summary($primaryAdvisor?->lecturer),
+                $this->userProfilePresenter->summary($secondaryAdvisor?->lecturer),
+            ])),
+            'examinerProfiles' => array_values(array_filter(
+                (($latestSidang?->examiners ?? $latestSempro?->examiners) ?? collect())
+                    ->sortBy('order_no')
+                    ->map(fn($examiner): ?array => $this->userProfilePresenter->summary($examiner->lecturer))
+                    ->all(),
+            )),
             'semproDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
             'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
             'profileProgramStudi' => $this->resolveProgramStudiForStudent($student),

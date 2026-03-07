@@ -1,11 +1,14 @@
+import { Link } from '@inertiajs/react';
 import { Download } from 'lucide-react';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
 export type ChatMessagePayload = {
     id: number | string;
     author: string;
+    authorAvatar?: string | null;
+    authorProfileUrl?: string | null;
     message: string;
     time: string;
     type: string;
@@ -27,6 +30,36 @@ function initials(name: string) {
         .toUpperCase();
 }
 
+function AuthorIdentity({ message }: { message: ChatMessagePayload }) {
+    const content = (
+        <>
+            <Avatar className="size-8 border">
+                <AvatarImage
+                    src={message.authorAvatar ?? undefined}
+                    alt={message.author}
+                />
+                <AvatarFallback>{initials(message.author)}</AvatarFallback>
+            </Avatar>
+            <span className="text-xs font-medium text-muted-foreground">
+                {message.author}
+            </span>
+        </>
+    );
+
+    if (message.authorProfileUrl) {
+        return (
+            <Link
+                href={message.authorProfileUrl}
+                className="inline-flex items-center gap-2 transition hover:text-primary"
+            >
+                {content}
+            </Link>
+        );
+    }
+
+    return <div className="inline-flex items-center gap-2">{content}</div>;
+}
+
 export function ChatBubble({ message, isMe }: ChatBubbleProps) {
     if (
         message.type === 'document_event' ||
@@ -38,6 +71,9 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
             <div className="animate-pop relative overflow-hidden rounded-lg border border-primary/25 bg-background p-3">
                 <div className="pointer-events-none absolute inset-0 bg-primary/10" />
                 <div className="relative z-10">
+                    <div className="mb-3">
+                        <AuthorIdentity message={message} />
+                    </div>
                     <div className="text-sm font-medium text-primary">
                         {isRevision
                             ? 'File revisi dari dosen'
@@ -82,9 +118,31 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
     return (
         <div className={`animate-pop flex ${isMe ? 'justify-end' : ''}`}>
             {!isMe && (
-                <Avatar className="mt-0.5 mr-2 size-7 shrink-0">
-                    <AvatarFallback>{initials(message.author)}</AvatarFallback>
-                </Avatar>
+                <div className="mt-0.5 mr-2 shrink-0">
+                    {message.authorProfileUrl ? (
+                        <Link href={message.authorProfileUrl}>
+                            <Avatar className="size-7">
+                                <AvatarImage
+                                    src={message.authorAvatar ?? undefined}
+                                    alt={message.author}
+                                />
+                                <AvatarFallback>
+                                    {initials(message.author)}
+                                </AvatarFallback>
+                            </Avatar>
+                        </Link>
+                    ) : (
+                        <Avatar className="size-7">
+                            <AvatarImage
+                                src={message.authorAvatar ?? undefined}
+                                alt={message.author}
+                            />
+                            <AvatarFallback>
+                                {initials(message.author)}
+                            </AvatarFallback>
+                        </Avatar>
+                    )}
+                </div>
             )}
             <div
                 className={`max-w-[85%] rounded-2xl border px-3 py-2 text-sm sm:max-w-[78%] ${
@@ -114,7 +172,17 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                             : 'text-muted-foreground'
                     }`}
                 >
-                    {message.author} - {message.time}
+                    {message.authorProfileUrl && !isMe ? (
+                        <Link
+                            href={message.authorProfileUrl}
+                            className="font-medium transition hover:text-primary"
+                        >
+                            {message.author}
+                        </Link>
+                    ) : (
+                        message.author
+                    )}{' '}
+                    - {message.time}
                 </div>
             </div>
         </div>

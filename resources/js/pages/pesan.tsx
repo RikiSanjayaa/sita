@@ -1,9 +1,10 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Inbox, Paperclip, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,10 +18,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard, pesan } from '@/routes';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import {
+    type BreadcrumbItem,
+    type SharedData,
+    type UserProfileSummary,
+} from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
@@ -31,6 +37,8 @@ type ChatMessage = {
     id: number;
     senderUserId: number | null;
     author: string;
+    authorAvatar: string | null;
+    authorProfileUrl: string | null;
     message: string;
     time: string;
     type: string;
@@ -44,6 +52,7 @@ type ThreadItem = {
     threadType: string;
     threadLabel: string;
     members: string[];
+    memberProfiles: UserProfileSummary[];
     messages: ChatMessage[];
     preview: string;
     lastTime: string;
@@ -77,6 +86,7 @@ export default function PesanPage() {
         flashMessage,
         auth,
     } = usePage<SharedData & PesanPageProps>().props;
+    const getInitials = useInitials();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
@@ -365,6 +375,37 @@ export default function PesanPage() {
                                         {activeThread.members.join(', ')}
                                     </span>
                                 </CardDescription>
+                                {activeThread.memberProfiles.length > 0 ? (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {activeThread.memberProfiles.map(
+                                            (member) => (
+                                                <Link
+                                                    key={member.id}
+                                                    href={member.profileUrl}
+                                                    className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-foreground transition hover:border-primary/30 hover:bg-muted/40"
+                                                >
+                                                    <Avatar className="size-7 border">
+                                                        <AvatarImage
+                                                            src={
+                                                                member.avatar ??
+                                                                undefined
+                                                            }
+                                                            alt={member.name}
+                                                        />
+                                                        <AvatarFallback className="bg-primary/10 text-primary">
+                                                            {getInitials(
+                                                                member.name,
+                                                            )}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="max-w-40 truncate font-medium">
+                                                        {member.name}
+                                                    </span>
+                                                </Link>
+                                            ),
+                                        )}
+                                    </div>
+                                ) : null}
                             </>
                         ) : (
                             <>
