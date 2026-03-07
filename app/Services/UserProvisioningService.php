@@ -13,6 +13,14 @@ class UserProvisioningService
 {
     public function syncRoleAndProfiles(User $user, array $data): void
     {
+        $phoneNumber = $this->nullableString($data['phone_number'] ?? ($data['phone'] ?? null));
+
+        if ($phoneNumber !== null || array_key_exists('phone_number', $data) || array_key_exists('phone', $data)) {
+            $user->forceFill([
+                'phone_number' => $phoneNumber,
+            ])->save();
+        }
+
         $role = AppRole::tryFrom((string) ($data['role'] ?? ''))?->value;
 
         if ($role !== null) {

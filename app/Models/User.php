@@ -27,10 +27,19 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'name',
         'email',
+        'phone_number',
         'password',
+        'avatar_path',
         'last_active_role',
         'browser_notifications_enabled',
         'notification_preferences',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar',
     ];
 
     public const NOTIFICATION_PREFERENCE_KEYS = [
@@ -50,6 +59,7 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $hidden = [
         'password',
+        'avatar_path',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
@@ -98,6 +108,15 @@ class User extends Authenticatable implements FilamentUser
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class)->withTimestamps();
+    }
+
+    public function getAvatarAttribute(): ?string
+    {
+        if (! is_string($this->avatar_path) || trim($this->avatar_path) === '') {
+            return null;
+        }
+
+        return asset('storage/'.$this->avatar_path);
     }
 
     public function mahasiswaProfile(): HasOne

@@ -53,6 +53,11 @@ class UserForm
                             ->email()
                             ->required()
                             ->maxLength(255),
+                        TextInput::make('phone_number')
+                            ->label('Nomor HP')
+                            ->tel()
+                            ->maxLength(30)
+                            ->placeholder('08xxxxxxxxxx'),
                         TextInput::make('password')
                             ->password()
                             ->revealable()

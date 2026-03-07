@@ -9,6 +9,7 @@ use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Services\RealtimeNotificationService;
+use App\Services\UserProfilePresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class UploadDokumenController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
     public function index(Request $request): Response
@@ -272,10 +274,14 @@ class UploadDokumenController extends Controller
      */
     private function mapMessagePayload($message): array
     {
+        $author = $this->userProfilePresenter->summary($message->sender);
+
         return [
             'id' => $message->id,
             'senderUserId' => $message->sender_user_id,
             'author' => $message->sender?->name ?? 'Sistem',
+            'authorAvatar' => $author['avatar'] ?? null,
+            'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => $message->message_type,

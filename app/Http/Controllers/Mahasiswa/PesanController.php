@@ -12,6 +12,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\RealtimeNotificationService;
+use App\Services\UserProfilePresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class PesanController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
     public function index(Request $request): Response
@@ -103,6 +105,27 @@ class PesanController extends Controller
                 'threadType' => $thread->type,
                 'threadLabel' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji'),
                 'members' => $members,
+                'memberProfiles' => $thread->type === 'pembimbing'
+                    ? array_values(array_filter([
+                        $this->userProfilePresenter->summary($student),
+                        ...ThesisSupervisorAssignment::query()
+                            ->with(['lecturer.roles', 'lecturer.dosenProfile.programStudi'])
+                            ->whereHas('project', fn($query) => $query
+                                ->where('student_user_id', $student->id)
+                                ->where('state', 'active'))
+                            ->where('status', 'active')
+                            ->get()
+                            ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->userProfilePresenter->summary($assignment->lecturer))
+                            ->all(),
+                    ]))
+                    : MentorshipChatThreadParticipant::query()
+                        ->where('thread_id', $thread->id)
+                        ->with(['user.roles', 'user.mahasiswaProfile.programStudi', 'user.dosenProfile.programStudi'])
+                        ->get()
+                        ->map(fn(MentorshipChatThreadParticipant $participant): ?array => $this->userProfilePresenter->summary($participant->user))
+                        ->filter()
+                        ->values()
+                        ->all(),
                 'messages' => $messages,
                 'preview' => $thread->latestMessage?->message ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
@@ -381,10 +404,14 @@ class PesanController extends Controller
      */
     private function mapMessagePayload(MentorshipChatMessage $message): array
     {
+        $author = $this->userProfilePresenter->summary($message->sender);
+
         return [
             'id' => $message->id,
             'senderUserId' => $message->sender_user_id,
             'author' => $message->sender?->name ?? 'Sistem',
+            'authorAvatar' => $author['avatar'] ?? null,
+            'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => $message->message_type,

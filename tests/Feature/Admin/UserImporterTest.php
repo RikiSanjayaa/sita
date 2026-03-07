@@ -26,6 +26,7 @@ function makeUserImporter(User $admin, int $programStudiId): UserImporter
         columnMap: [
             'name' => 'name',
             'email' => 'email',
+            'phone_number' => 'phone_number',
             'role' => 'role',
             'password' => 'password',
             'nim' => 'nim',
@@ -58,6 +59,7 @@ test('importer creates mahasiswa and core profile fields with default password f
     $importer([
         'name' => 'Mahasiswa Import',
         'email' => 'mahasiswa-import@sita.test',
+        'phone_number' => '081234567890',
         'role' => AppRole::Mahasiswa->value,
         'password' => 'secret123',
         'nim' => '2210517777',
@@ -74,6 +76,7 @@ test('importer creates mahasiswa and core profile fields with default password f
     expect($user->last_active_role)->toBe(AppRole::Mahasiswa->value);
     expect($user->hasRole(AppRole::Mahasiswa))->toBeTrue();
     expect(Hash::check('secret123', $user->password))->toBeTrue();
+    expect($user->phone_number)->toBe('081234567890');
     expect($user->mahasiswaProfile)->not->toBeNull();
     expect($user->mahasiswaProfile?->nim)->toBe('2210517777');
     expect($user->mahasiswaProfile?->program_studi_id)->toBe($prodi->id);
@@ -108,6 +111,7 @@ test('importer updates existing dosen without overwriting password when blank', 
         columnMap: [
             'name' => 'name',
             'email' => 'email',
+            'phone_number' => 'phone_number',
             'role' => 'role',
             'password' => 'password',
             'nim' => 'nim',
@@ -127,6 +131,7 @@ test('importer updates existing dosen without overwriting password when blank', 
     $importer([
         'name' => 'Dosen Import Updated',
         'email' => 'dosen-import@sita.test',
+        'phone_number' => '',
         'role' => AppRole::Dosen->value,
         'password' => 'newpassword123',
         'nim' => '',
@@ -144,6 +149,7 @@ test('importer updates existing dosen without overwriting password when blank', 
     expect($existing->last_active_role)->toBe(AppRole::Dosen->value);
     expect($existing->hasRole(AppRole::Dosen))->toBeTrue();
     expect(Hash::check('newpassword123', $existing->password))->toBeTrue();
+    expect($existing->phone_number)->toBeNull();
     expect($existing->dosenProfile)->not->toBeNull();
     expect($existing->dosenProfile?->nik)->toBe('7301010101010002');
     expect($existing->dosenProfile?->program_studi_id)->toBe($prodi->id);

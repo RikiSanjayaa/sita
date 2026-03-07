@@ -11,6 +11,7 @@ use App\Models\MentorshipChatThreadParticipant;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
+use App\Services\UserProfilePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class PesanBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
     public function index(Request $request): Response
@@ -88,6 +90,7 @@ class PesanBimbinganController extends Controller
                 return [
                     'id' => $thread->id,
                     'student' => $thread->student?->name ?? '-',
+                    'studentProfile' => $this->userProfilePresenter->summary($thread->student),
                     'unread' => $unreadCount,
                     'preview' => $latestMessage?->message ?? 'Belum ada pesan',
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
@@ -100,10 +103,14 @@ class PesanBimbinganController extends Controller
                         ->sortBy('created_at')
                         ->values()
                         ->map(function (MentorshipChatMessage $message): array {
+                            $author = $this->userProfilePresenter->summary($message->sender);
+
                             return [
                                 'id' => $message->id,
                                 'senderUserId' => $message->sender_user_id,
                                 'author' => $message->sender?->name ?? 'Sistem',
+                                'authorAvatar' => $author['avatar'] ?? null,
+                                'authorProfileUrl' => $author['profileUrl'] ?? null,
                                 'message' => $message->message,
                                 'time' => $message->created_at->format('d M Y H:i'),
                                 'type' => $message->message_type,
@@ -195,10 +202,14 @@ class PesanBimbinganController extends Controller
             'sent_at' => now(),
         ]);
 
+        $author = $this->userProfilePresenter->summary($lecturer);
+
         $this->broadcastChatMessage($thread->id, [
             'id' => $message->id,
             'senderUserId' => $message->sender_user_id,
             'author' => $lecturer->name,
+            'authorAvatar' => $author['avatar'] ?? null,
+            'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => $message->message_type,

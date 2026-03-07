@@ -272,6 +272,7 @@ class UserSeeder extends Seeder
             'email' => 'superadmin@sita.test',
         ], [
             'name' => 'Super Admin SiTA',
+            'phone_number' => $this->generatedPhoneNumber('superadmin@sita.test'),
             'password' => Hash::make('password'),
             'last_active_role' => AppRole::SuperAdmin->value,
         ]);
@@ -295,6 +296,7 @@ class UserSeeder extends Seeder
             'email' => 'admin@sita.test',
         ], [
             'name' => 'Admin Ilmu Komputer',
+            'phone_number' => $this->generatedPhoneNumber('admin@sita.test'),
             'password' => Hash::make('password'),
             'last_active_role' => AppRole::Admin->value,
         ]);
@@ -310,6 +312,7 @@ class UserSeeder extends Seeder
                 'email' => $account['email'],
             ], [
                 'name' => $account['name'],
+                'phone_number' => $this->generatedPhoneNumber((string) $account['email']),
                 'password' => Hash::make('password'),
                 'last_active_role' => AppRole::Dosen->value,
             ]);
@@ -332,6 +335,7 @@ class UserSeeder extends Seeder
                 'email' => (string) $account['email'],
             ], [
                 'name' => (string) $account['name'],
+                'phone_number' => $this->generatedPhoneNumber((string) $account['email']),
                 'password' => Hash::make('password'),
                 'last_active_role' => AppRole::Mahasiswa->value,
             ]);
@@ -367,6 +371,7 @@ class UserSeeder extends Seeder
             'email' => "admin.{$slug}@sita.test",
         ], [
             'name' => "Admin {$prodiData['name']}",
+            'phone_number' => $this->generatedPhoneNumber("admin.{$slug}@sita.test"),
             'password' => Hash::make('password'),
             'last_active_role' => AppRole::Admin->value,
         ]);
@@ -387,6 +392,7 @@ class UserSeeder extends Seeder
                 'email' => "{$emailSlug}@sita.test",
             ], [
                 'name' => $fullName,
+                'phone_number' => $this->generatedPhoneNumber("{$emailSlug}@sita.test"),
                 'password' => Hash::make('password'),
                 'last_active_role' => AppRole::Dosen->value,
             ]);
@@ -423,6 +429,7 @@ class UserSeeder extends Seeder
                 'email' => "{$emailSlug}@sita.test",
             ], [
                 'name' => $name,
+                'phone_number' => $this->generatedPhoneNumber("{$emailSlug}@sita.test"),
                 'password' => Hash::make('password'),
                 'last_active_role' => AppRole::Mahasiswa->value,
             ]);
@@ -438,5 +445,12 @@ class UserSeeder extends Seeder
                 ],
             );
         }
+    }
+
+    private function generatedPhoneNumber(string $key): string
+    {
+        $hash = sprintf('%u', crc32($key));
+
+        return '08'.str_pad(substr($hash, -10), 10, '0', STR_PAD_LEFT);
     }
 }
