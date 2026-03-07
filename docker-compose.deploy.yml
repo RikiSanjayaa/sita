@@ -1,24 +1,36 @@
 services:
   init:
-    build: null
-    image: ${APP_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
 
   app:
-    build: null
-    image: ${APP_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
 
   web:
-    build: null
-    image: ${WEB_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
 
   queue:
-    build: null
-    image: ${APP_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
 
   scheduler:
-    build: null
-    image: ${APP_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
 
   reverb:
-    build: null
-    image: ${APP_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
