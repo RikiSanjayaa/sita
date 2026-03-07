@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class DosenBimbinganService
 {
-    public const MAX_ACTIVE_STUDENTS_PER_LECTURER = 14;
+    public const DEFAULT_MAX_ACTIVE_STUDENTS_PER_LECTURER = 14;
 
     /**
      * @return Collection<int, ThesisSupervisorAssignment>
@@ -56,5 +56,10 @@ class DosenBimbinganService
             ->unique()
             ->values()
             ->all();
+    }
+
+    public function lecturerQuota(User $lecturer): int
+    {
+        return max(1, (int) ($lecturer->dosenProfile?->supervision_quota ?? self::DEFAULT_MAX_ACTIVE_STUDENTS_PER_LECTURER));
     }
 }

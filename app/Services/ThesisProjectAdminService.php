@@ -12,6 +12,7 @@ use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -191,6 +192,12 @@ class ThesisProjectAdminService
     ): ThesisProject {
         if ($secondaryLecturerUserId !== null && $primaryLecturerUserId === $secondaryLecturerUserId) {
             throw new RuntimeException('Pembimbing 1 dan Pembimbing 2 harus berbeda.');
+        }
+
+        $this->assertSupervisorEligible($project, $primaryLecturerUserId, 'Pembimbing 1');
+
+        if ($secondaryLecturerUserId !== null) {
+            $this->assertSupervisorEligible($project, $secondaryLecturerUserId, 'Pembimbing 2');
         }
 
         return DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): ThesisProject {
@@ -583,6 +590,71 @@ class ThesisProjectAdminService
                 'sent_at' => now(),
             ]);
         }
+    }
+
+    private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label): void
+    {
+        $project->loadMissing('student.mahasiswaProfile');
+
+        $studentConcentration = $project->student?->mahasiswaProfile?->concentration;
+
+        if (! is_string($studentConcentration) || trim($studentConcentration) === '') {
+            throw new RuntimeException('Konsentrasi mahasiswa belum diatur. Perbarui profil mahasiswa terlebih dahulu.');
+        }
+
+        $lecturer = User::query()
+            ->with('dosenProfile')
+            ->find($lecturerUserId);
+
+        if (! $lecturer instanceof User || ! $lecturer->hasRole('dosen')) {
+            throw new RuntimeException(sprintf('%s harus merupakan dosen yang valid.', $label));
+        }
+
+        $lecturerProfile = $lecturer->dosenProfile;
+
+        if ($lecturerProfile === null || ! $lecturerProfile->is_active) {
+            throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
+        }
+
+        if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
+            throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
+        }
+
+        if ($lecturerProfile->concentration !== $studentConcentration) {
+            throw new RuntimeException(sprintf(
+                '%s harus memiliki konsentrasi yang sama dengan mahasiswa (%s).',
+                $label,
+                $studentConcentration,
+            ));
+        }
+
+        $quota = max(1, (int) ($lecturerProfile->supervision_quota ?? 14));
+        $activeStudentIds = $this->activeStudentIdsForLecturer($lecturerUserId);
+
+        if ($activeStudentIds->contains($project->student_user_id)) {
+            return;
+        }
+
+        if ($activeStudentIds->count() >= $quota) {
+            throw new RuntimeException(sprintf('%s sudah mencapai kuota bimbingan (%d mahasiswa aktif).', $label, $quota));
+        }
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function activeStudentIdsForLecturer(int $lecturerUserId)
+    {
+        return ThesisSupervisorAssignment::query()
+            ->with('project')
+            ->where('lecturer_user_id', $lecturerUserId)
+            ->where('status', 'active')
+            ->whereHas('project', static fn($query) => $query->where('state', 'active'))
+            ->get()
+            ->map(static fn(ThesisSupervisorAssignment $assignment): ?int => $assignment->project?->student_user_id)
+            ->filter()
+            ->unique()
+            ->values();
     }
 
     private function recordEvent(

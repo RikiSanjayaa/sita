@@ -68,7 +68,7 @@ class MahasiswaBimbinganController extends Controller
         return Inertia::render('dosen/mahasiswa-bimbingan', [
             'mahasiswaRows' => $rows,
             'activeCount' => count($rows),
-            'capacityLimit' => DosenBimbinganService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
+            'capacityLimit' => $this->dosenBimbinganService->lecturerQuota($lecturer),
         ]);
     }
 }

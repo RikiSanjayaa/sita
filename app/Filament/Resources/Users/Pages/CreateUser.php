@@ -18,8 +18,10 @@ class CreateUser extends CreateRecord
             'role' => $data['role'] ?? null,
             'nim' => $data['nim'] ?? null,
             'prodi' => $data['prodi'] ?? null,
+            'concentration' => $data['concentration'] ?? null,
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
+            'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
         ];
 
@@ -27,8 +29,10 @@ class CreateUser extends CreateRecord
             $data['role'],
             $data['nim'],
             $data['prodi'],
+            $data['concentration'],
             $data['angkatan'],
             $data['nik'],
+            $data['supervision_quota'],
             $data['is_active'],
         );
 

@@ -46,6 +46,7 @@ class DashboardController extends Controller
             ->count();
 
         $activeStudentCount = count($studentIds);
+        $capacityLimit = $this->dosenBimbinganService->lecturerQuota($lecturer);
 
         $todayQueue = MentorshipSchedule::query()
             ->with('student')
@@ -89,7 +90,7 @@ class DashboardController extends Controller
                     'value' => sprintf(
                         '%d/%d',
                         $activeStudentCount,
-                        DosenBimbinganService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
+                        $capacityLimit,
                     ),
                     'description' => 'Kapasitas bimbingan aktif saat ini',
                 ],

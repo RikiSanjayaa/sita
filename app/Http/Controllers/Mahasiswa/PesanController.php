@@ -179,6 +179,7 @@ class PesanController extends Controller
                     'file_url' => null,
                     'storage_disk' => $disk,
                     'storage_path' => $storedPath,
+                    'stored_file_name' => basename($storedPath),
                     'mime_type' => $attachment->getClientMimeType(),
                     'file_size_kb' => (int) ceil($attachment->getSize() / 1024),
                     'status' => 'submitted',

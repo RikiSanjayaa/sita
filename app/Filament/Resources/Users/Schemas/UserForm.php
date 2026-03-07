@@ -3,12 +3,16 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AppRole;
+use App\Models\ProgramStudi;
+use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class UserForm
 {
@@ -21,7 +25,8 @@ class UserForm
                         Select::make('role')
                             ->label('Role')
                             ->options(function () {
-                                $user = auth()->user();
+                                /** @var User|null $user */
+                                $user = Auth::user();
                                 $allRoles = AppRole::uiValues();
 
                                 if ($user?->hasRole(AppRole::SuperAdmin)) {
@@ -56,13 +61,23 @@ class UserForm
                             ->maxLength(255),
                         Select::make('prodi')
                             ->label('Prodi')
-                            ->relationship('mahasiswaProfile.programStudi', 'name')
-                            ->getOptionLabelFromRecordUsing(fn($record) => $record?->name)
-                            ->options(\App\Models\ProgramStudi::all()->pluck('name', 'id'))
+                            ->options(ProgramStudi::query()->orderBy('name')->pluck('name', 'id'))
                             ->searchable()
                             ->preload()
+                            ->live()
+                            ->afterStateUpdated(fn(Set $set): mixed => $set('concentration', null))
                             ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value, AppRole::Admin->value], true))
                             ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value, AppRole::Admin->value], true)),
+                        Select::make('concentration')
+                            ->label('Konsentrasi')
+                            ->options(fn(Get $get): array => self::concentrationOptions($get))
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true))
+                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true))
+                            ->disabled(fn(Get $get): bool => blank($get('prodi')))
+                            ->helperText('Konsentrasi mengikuti daftar yang diatur pada Program Studi.'),
                     ]),
                 Section::make('Mahasiswa Profile')
                     ->visible(fn(Get $get): bool => $get('role') === AppRole::Mahasiswa->value)
@@ -90,10 +105,41 @@ class UserForm
                             ->label('NIK')
                             ->required()
                             ->maxLength(255),
+                        TextInput::make('supervision_quota')
+                            ->label('Kuota Bimbingan')
+                            ->numeric()
+                            ->default(14)
+                            ->minValue(1)
+                            ->required(fn(): bool => self::isSuperAdminUser())
+                            ->visible(fn(): bool => self::isSuperAdminUser()),
                         Toggle::make('is_active')
                             ->default(true)
                             ->required(),
                     ]),
             ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function concentrationOptions(Get $get): array
+    {
+        $programStudiId = $get('prodi');
+
+        if (blank($programStudiId)) {
+            return [];
+        }
+
+        return ProgramStudi::query()
+            ->find((int) $programStudiId)
+            ?->concentrationOptions() ?? [];
+    }
+
+    private static function isSuperAdminUser(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user?->hasRole(AppRole::SuperAdmin) ?? false;
     }
 }

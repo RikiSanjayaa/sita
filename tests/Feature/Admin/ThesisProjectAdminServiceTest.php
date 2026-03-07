@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AdvisorType;
+use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
@@ -83,7 +84,26 @@ test('admin service assigns supervisors through thesis supervisor assignments on
         'user_id' => $student->id,
         'nim' => '2210510309',
         'program_studi_id' => $prodi->id,
+        'concentration' => 'Computer Vision',
         'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    DosenProfile::query()->create([
+        'user_id' => $primary->id,
+        'nik' => '7301010101011111',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Computer Vision',
+        'supervision_quota' => 10,
+        'is_active' => true,
+    ]);
+
+    DosenProfile::query()->create([
+        'user_id' => $secondary->id,
+        'nik' => '7301010101012222',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Computer Vision',
+        'supervision_quota' => 10,
         'is_active' => true,
     ]);
 
@@ -109,6 +129,118 @@ test('admin service assigns supervisors through thesis supervisor assignments on
         ->and(MentorshipAssignment::query()->count())->toBe(0)
         ->and(ThesisProjectEvent::query()->where('event_type', 'supervisor_assigned')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('research');
+});
+
+test('admin service rejects supervisor assignment when concentration does not match', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $lecturer = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer', 'slug' => 'ilkom', 'concentrations' => ['Jaringan', 'Computer Vision']]);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510400',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Jaringan',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    DosenProfile::query()->create([
+        'user_id' => $lecturer->id,
+        'nik' => '7301010101013333',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Computer Vision',
+        'supervision_quota' => 10,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subDays(7),
+        'created_by' => $student->id,
+    ]);
+
+    expect(fn() => app(ThesisProjectAdminService::class)->assignSupervisors(
+        project: $project,
+        assignedBy: $admin->id,
+        primaryLecturerUserId: $lecturer->id,
+        secondaryLecturerUserId: null,
+        notes: 'Harus ditolak karena beda konsentrasi.',
+    ))->toThrow(\RuntimeException::class);
+});
+
+test('admin service respects configurable lecturer quota when assigning supervisors', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer', 'slug' => 'ilkom', 'concentrations' => ['Jaringan']]);
+    $lecturer = User::factory()->asDosen()->create();
+
+    DosenProfile::query()->create([
+        'user_id' => $lecturer->id,
+        'nik' => '7301010101014444',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Jaringan',
+        'supervision_quota' => 1,
+        'is_active' => true,
+    ]);
+
+    $existingStudent = User::factory()->asMahasiswa()->create();
+    MahasiswaProfile::query()->create([
+        'user_id' => $existingStudent->id,
+        'nim' => '2210510401',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Jaringan',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $existingProject = ThesisProject::query()->create([
+        'student_user_id' => $existingStudent->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subDays(14),
+        'created_by' => $existingStudent->id,
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $existingProject->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(13),
+    ]);
+
+    $newStudent = User::factory()->asMahasiswa()->create();
+    MahasiswaProfile::query()->create([
+        'user_id' => $newStudent->id,
+        'nim' => '2210510402',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Jaringan',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $newProject = ThesisProject::query()->create([
+        'student_user_id' => $newStudent->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subDays(3),
+        'created_by' => $newStudent->id,
+    ]);
+
+    expect(fn() => app(ThesisProjectAdminService::class)->assignSupervisors(
+        project: $newProject,
+        assignedBy: $admin->id,
+        primaryLecturerUserId: $lecturer->id,
+        secondaryLecturerUserId: null,
+        notes: 'Harus ditolak karena kuota penuh.',
+    ))->toThrow(\RuntimeException::class);
 });
 
 test('admin service schedules and completes sidang with revision', function (): void {

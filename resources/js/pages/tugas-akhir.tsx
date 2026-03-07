@@ -286,8 +286,10 @@ export default function TugasAkhirSaya() {
     const form = useForm<FormData>(submissionDefaults(submission));
 
     useEffect(() => {
-        form.setData(submissionDefaults(submission));
-    }, [submission, form]);
+        if (submission) {
+            form.setData(submissionDefaults(submission));
+        }
+    }, [submission]);
 
     const canEditSubmission = submission?.workflow.can_edit ?? false;
     const label = submission?.workflow.label ?? '';

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ThesisProjects\Pages;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ThesisProjectAdminService;
 use Filament\Actions\Action;
@@ -51,14 +52,14 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('examiner_1')
                         ->label('Penguji 1')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
                         ->native(false),
                     Select::make('examiner_2')
                         ->label('Penguji 2')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
@@ -155,14 +156,14 @@ class ViewThesisProject extends ViewRecord
                 ->form([
                     Select::make('pembimbing_1')
                         ->label('Pembimbing 1')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->supervisorOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
                         ->native(false),
                     Select::make('pembimbing_2')
                         ->label('Pembimbing 2')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->supervisorOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
@@ -227,14 +228,14 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('chair_user_id')
                         ->label('Ketua Sidang')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
                         ->native(false),
                     Select::make('secretary_user_id')
                         ->label('Sekretaris Sidang')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
@@ -242,7 +243,7 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('examiner_user_id')
                         ->label('Penguji Sidang')
-                        ->options($this->dosenOptions())
+                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
                         ->preload()
                         ->required()
@@ -351,16 +352,65 @@ class ViewThesisProject extends ViewRecord
     /**
      * @return array<int, string>
      */
-    private function dosenOptions(): array
+    private function dosenOptions(ThesisProject $project): array
     {
         return User::query()
             ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
+            ->whereHas('dosenProfile', function ($query) use ($project): void {
+                $query->where('program_studi_id', $project->program_studi_id)
+                    ->where('is_active', true);
+            })
+            ->with('dosenProfile')
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
-                $user->id => $user->name.' ('.($user->dosenProfile?->nik ?? '-').')',
+                $user->id => sprintf('%s (%s) - %s', $user->name, $user->dosenProfile?->nik ?? '-', $user->dosenProfile?->concentration ?? '-'),
             ])
             ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function supervisorOptions(ThesisProject $project): array
+    {
+        $studentConcentration = $project->student?->mahasiswaProfile?->concentration;
+
+        return User::query()
+            ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
+            ->whereHas('dosenProfile', function ($query) use ($project, $studentConcentration): void {
+                $query->where('program_studi_id', $project->program_studi_id)
+                    ->where('is_active', true)
+                    ->where('concentration', $studentConcentration);
+            })
+            ->with('dosenProfile')
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn(User $user): array => [
+                $user->id => sprintf(
+                    '%s (%s) - %s - %d/%d aktif',
+                    $user->name,
+                    $user->dosenProfile?->nik ?? '-',
+                    $user->dosenProfile?->concentration ?? '-',
+                    $this->activeThesisStudentCountForLecturer($user->id),
+                    max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14)),
+                ),
+            ])
+            ->all();
+    }
+
+    private function activeThesisStudentCountForLecturer(int $lecturerUserId): int
+    {
+        return ThesisSupervisorAssignment::query()
+            ->with('project')
+            ->where('lecturer_user_id', $lecturerUserId)
+            ->where('status', 'active')
+            ->whereHas('project', static fn($query) => $query->where('state', 'active'))
+            ->get()
+            ->map(static fn(ThesisSupervisorAssignment $assignment): ?int => $assignment->project?->student_user_id)
+            ->filter()
+            ->unique()
+            ->count();
     }
 
     private function latestSempro(ThesisProject $project): ?ThesisDefense

@@ -6,6 +6,7 @@ use App\Enums\AppRole;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
+use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -44,15 +45,15 @@ class UserSeeder extends Seeder
      * @var array<int, array{name: string, email: string, nim: string, angkatan: int}>
      */
     private const ILKOM_MAHASISWA = [
-        ['name' => 'Mahasiswa SiTA', 'email' => 'mahasiswa@sita.test', 'nim' => '2210510999', 'angkatan' => 2022],
-        ['name' => 'Muhammad Akbar', 'email' => 'akbar@sita.test', 'nim' => '2210510001', 'angkatan' => 2022],
-        ['name' => 'Nadia Putri', 'email' => 'nadia@sita.test', 'nim' => '2210510020', 'angkatan' => 2022],
-        ['name' => 'Rizky Pratama', 'email' => 'rizky@sita.test', 'nim' => '2210510011', 'angkatan' => 2022],
-        ['name' => 'Siti Aminah', 'email' => 'siti@sita.test', 'nim' => '2210510030', 'angkatan' => 2022],
-        ['name' => 'Farhan Maulana', 'email' => 'farhan@sita.test', 'nim' => '2210510041', 'angkatan' => 2022],
-        ['name' => 'Bagas Saputra', 'email' => 'bagas@sita.test', 'nim' => '2210510052', 'angkatan' => 2022],
-        ['name' => 'Laila Rahma', 'email' => 'laila@sita.test', 'nim' => '2210510063', 'angkatan' => 2022],
-        ['name' => 'Putra Mahendra', 'email' => 'putra@sita.test', 'nim' => '2210510074', 'angkatan' => 2022],
+        ['name' => 'Mahasiswa SiTA', 'email' => 'mahasiswa@sita.test', 'nim' => '2210510999', 'angkatan' => 2022, 'concentration' => 'Computer Vision'],
+        ['name' => 'Muhammad Akbar', 'email' => 'akbar@sita.test', 'nim' => '2210510001', 'angkatan' => 2022, 'concentration' => 'Jaringan'],
+        ['name' => 'Nadia Putri', 'email' => 'nadia@sita.test', 'nim' => '2210510020', 'angkatan' => 2022, 'concentration' => 'Sistem Cerdas'],
+        ['name' => 'Rizky Pratama', 'email' => 'rizky@sita.test', 'nim' => '2210510011', 'angkatan' => 2022, 'concentration' => 'Jaringan'],
+        ['name' => 'Siti Aminah', 'email' => 'siti@sita.test', 'nim' => '2210510030', 'angkatan' => 2022, 'concentration' => 'Sistem Cerdas'],
+        ['name' => 'Farhan Maulana', 'email' => 'farhan@sita.test', 'nim' => '2210510041', 'angkatan' => 2022, 'concentration' => 'Jaringan'],
+        ['name' => 'Bagas Saputra', 'email' => 'bagas@sita.test', 'nim' => '2210510052', 'angkatan' => 2022, 'concentration' => 'Jaringan'],
+        ['name' => 'Laila Rahma', 'email' => 'laila@sita.test', 'nim' => '2210510063', 'angkatan' => 2022, 'concentration' => 'Computer Vision'],
+        ['name' => 'Putra Mahendra', 'email' => 'putra@sita.test', 'nim' => '2210510074', 'angkatan' => 2022, 'concentration' => 'Computer Vision'],
     ];
 
     /**
@@ -61,10 +62,10 @@ class UserSeeder extends Seeder
      * @var array<int, array{name: string, email: string, nik: string}>
      */
     private const ILKOM_DOSEN = [
-        ['name' => 'Dr. Budi Santoso, M.Kom.', 'email' => 'dosen@sita.test', 'nik' => '7301010101010001'],
-        ['name' => 'Dr. Ratna Kusuma, M.Kom.', 'email' => 'dosen2@sita.test', 'nik' => '7301010101010002'],
-        ['name' => 'Prof. Ahmad Hidayat, Ph.D.', 'email' => 'dosen3@sita.test', 'nik' => '7301010101010003'],
-        ['name' => 'Dr. Dewi Lestari, M.T.', 'email' => 'dosen4@sita.test', 'nik' => '7301010101010004'],
+        ['name' => 'Dr. Budi Santoso, M.Kom.', 'email' => 'dosen@sita.test', 'nik' => '7301010101010001', 'concentration' => 'Jaringan'],
+        ['name' => 'Dr. Ratna Kusuma, M.Kom.', 'email' => 'dosen2@sita.test', 'nik' => '7301010101010002', 'concentration' => 'Sistem Cerdas'],
+        ['name' => 'Prof. Ahmad Hidayat, Ph.D.', 'email' => 'dosen3@sita.test', 'nik' => '7301010101010003', 'concentration' => 'Computer Vision'],
+        ['name' => 'Dr. Dewi Lestari, M.T.', 'email' => 'dosen4@sita.test', 'nik' => '7301010101010004', 'concentration' => 'Computer Vision'],
     ];
 
     /**
@@ -252,7 +253,10 @@ class UserSeeder extends Seeder
         foreach (self::PRODI_LIST as $prodi) {
             $models[$prodi['slug']] = \App\Models\ProgramStudi::query()->updateOrCreate(
                 ['slug' => $prodi['slug']],
-                ['name' => $prodi['name']],
+                [
+                    'name' => $prodi['name'],
+                    'concentrations' => ProgramStudi::defaultConcentrationsForSlug($prodi['slug']),
+                ],
             );
         }
 
@@ -312,7 +316,13 @@ class UserSeeder extends Seeder
             $dosen->roles()->syncWithoutDetaching([$dosenRole->id]);
             DosenProfile::query()->updateOrCreate(
                 ['user_id' => $dosen->id],
-                ['nik' => $account['nik'], 'program_studi_id' => $prodi->id, 'is_active' => true],
+                [
+                    'nik' => $account['nik'],
+                    'program_studi_id' => $prodi->id,
+                    'concentration' => $account['concentration'],
+                    'supervision_quota' => 14,
+                    'is_active' => true,
+                ],
             );
         }
 
@@ -328,7 +338,13 @@ class UserSeeder extends Seeder
             $mahasiswa->roles()->syncWithoutDetaching([$mahasiswaRole->id]);
             MahasiswaProfile::query()->updateOrCreate(
                 ['user_id' => $mahasiswa->id],
-                ['nim' => (string) $account['nim'], 'program_studi_id' => $prodi->id, 'angkatan' => (int) $account['angkatan'], 'is_active' => true],
+                [
+                    'nim' => (string) $account['nim'],
+                    'program_studi_id' => $prodi->id,
+                    'concentration' => (string) $account['concentration'],
+                    'angkatan' => (int) $account['angkatan'],
+                    'is_active' => true,
+                ],
             );
         }
 
@@ -377,7 +393,13 @@ class UserSeeder extends Seeder
             $dosen->roles()->syncWithoutDetaching([$roles[AppRole::Dosen->value]->id]);
             DosenProfile::query()->updateOrCreate(
                 ['user_id' => $dosen->id],
-                ['nik' => $nik, 'program_studi_id' => $prodi->id, 'is_active' => true],
+                [
+                    'nik' => $nik,
+                    'program_studi_id' => $prodi->id,
+                    'concentration' => ProgramStudi::defaultConcentrationsForSlug($prodi->slug)[0],
+                    'supervision_quota' => 14,
+                    'is_active' => true,
+                ],
             );
         }
 
@@ -407,7 +429,13 @@ class UserSeeder extends Seeder
             $mahasiswa->roles()->syncWithoutDetaching([$mahasiswaRole->id]);
             MahasiswaProfile::query()->updateOrCreate(
                 ['user_id' => $mahasiswa->id],
-                ['nim' => $nim, 'program_studi_id' => $prodi->id, 'angkatan' => 2022, 'is_active' => true],
+                [
+                    'nim' => $nim,
+                    'program_studi_id' => $prodi->id,
+                    'concentration' => ProgramStudi::defaultConcentrationsForSlug($prodi->slug)[0],
+                    'angkatan' => 2022,
+                    'is_active' => true,
+                ],
             );
         }
     }
