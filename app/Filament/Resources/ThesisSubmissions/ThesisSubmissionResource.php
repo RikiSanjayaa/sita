@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class ThesisSubmissionResource extends Resource
 {
@@ -24,6 +25,11 @@ class ThesisSubmissionResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
     protected static ?int $navigationSort = 1;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function getNavigationLabel(): string
     {
@@ -68,7 +74,9 @@ class ThesisSubmissionResource extends Resource
                 'approvedBy',
             ]);
 
-        $prodiId = auth()->user()?->adminProgramStudiId();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $prodiId = $user?->adminProgramStudiId();
 
         if ($prodiId !== null) {
             $query->where('program_studi_id', $prodiId);

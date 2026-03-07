@@ -50,6 +50,9 @@ class UserSeeder extends Seeder
         ['name' => 'Rizky Pratama', 'email' => 'rizky@sita.test', 'nim' => '2210510011', 'angkatan' => 2022],
         ['name' => 'Siti Aminah', 'email' => 'siti@sita.test', 'nim' => '2210510030', 'angkatan' => 2022],
         ['name' => 'Farhan Maulana', 'email' => 'farhan@sita.test', 'nim' => '2210510041', 'angkatan' => 2022],
+        ['name' => 'Bagas Saputra', 'email' => 'bagas@sita.test', 'nim' => '2210510052', 'angkatan' => 2022],
+        ['name' => 'Laila Rahma', 'email' => 'laila@sita.test', 'nim' => '2210510063', 'angkatan' => 2022],
+        ['name' => 'Putra Mahendra', 'email' => 'putra@sita.test', 'nim' => '2210510074', 'angkatan' => 2022],
     ];
 
     /**

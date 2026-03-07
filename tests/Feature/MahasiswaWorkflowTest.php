@@ -13,8 +13,12 @@ use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\Sempro;
 use App\Models\SemproExaminer;
+use App\Models\ThesisDocument;
+use App\Models\ThesisProject;
+use App\Models\ThesisProjectTitle;
 use App\Models\ThesisSubmission;
 use App\Models\User;
+use App\Services\LegacyThesisProjectBackfillService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -298,17 +302,109 @@ test('tugas akhir page includes proposal file, dosen assignments, and sempro sch
             ->where('submission.proposal_file_name', 'proposal-awal.pdf')
             ->where(
                 'submission.proposal_file_view_url',
-                route('files.thesis-proposals', ['submission' => $submission->id, 'inline' => 1]),
+                route('files.thesis-documents.download', [
+                    'document' => ThesisDocument::query()->firstOrFail()->id,
+                    'inline' => 1,
+                ]),
             )
             ->where(
                 'submission.proposal_file_download_url',
-                route('files.thesis-proposals', ['submission' => $submission->id]),
+                route('files.thesis-documents.download', [
+                    'document' => ThesisDocument::query()->firstOrFail()->id,
+                ]),
             )
             ->where('assignedLecturers.pembimbing1', $pembimbing1->name)
             ->where('assignedLecturers.pembimbing2', $pembimbing2->name)
             ->where('assignedLecturers.penguji1', $penguji1->name)
             ->where('assignedLecturers.penguji2', $penguji2->name)
-            ->where('semproDate', $scheduledAt->locale('id')->translatedFormat('d F Y, H:i')));
+            ->where('semproDate', $scheduledAt->locale('id')->translatedFormat('d F Y, H:i'))
+            ->where('sidangDate', null));
+});
+
+test('mahasiswa can submit thesis proposal and sync project snapshot', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/tugas-akhir', [
+            'title_id' => 'Pengajuan Sinkron Snapshot',
+            'title_en' => 'Snapshot Sync Submission',
+            'proposal_summary' => 'Ringkasan proposal sinkron.',
+            'proposal_file' => UploadedFile::fake()->create('proposal-snapshot.pdf', 700, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    expect(ThesisSubmission::query()->count())->toBe(1)
+        ->and(ThesisProject::query()->count())->toBe(1)
+        ->and(ThesisProjectTitle::query()->count())->toBe(1)
+        ->and(ThesisDocument::query()->count())->toBe(1)
+        ->and(ThesisProjectTitle::query()->firstOrFail()->title_id)->toBe('Pengajuan Sinkron Snapshot')
+        ->and(ThesisProject::query()->firstOrFail()->phase)->toBe('title_review');
+});
+
+test('tugas akhir page prefers thesis project snapshot over legacy submission fields', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $path = 'proposal_files/proposal-project-view.pdf';
+    Storage::disk('public')->put($path, 'proposal-content');
+
+    $submission = ThesisSubmission::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'title_id' => 'Judul Legacy',
+        'title_en' => 'Legacy Title',
+        'proposal_summary' => 'Ringkasan legacy.',
+        'proposal_file_path' => $path,
+        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+        'is_active' => true,
+        'submitted_at' => now(),
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'legacy_thesis_submission_id' => $submission->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subHour(),
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul dari Project Snapshot',
+        'title_en' => 'Project Snapshot Title',
+        'proposal_summary' => 'Ringkasan dari project snapshot.',
+        'status' => 'submitted',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('submission.title_id', 'Judul dari Project Snapshot')
+            ->where('submission.title_en', 'Project Snapshot Title')
+            ->where('submission.proposal_summary', 'Ringkasan dari project snapshot.')
+            ->where('submission.proposal_file_name', 'proposal-project-view.pdf'));
 });
 
 test('mahasiswa can update pending thesis submission and replace proposal file', function () {
@@ -348,13 +444,19 @@ test('mahasiswa can update pending thesis submission and replace proposal file',
         ->assertRedirect('/mahasiswa/tugas-akhir');
 
     $updated = $submission->fresh();
+    $project = ThesisProject::query()->firstOrFail();
+    $title = ThesisProjectTitle::query()->where('project_id', $project->id)->firstOrFail();
+    $document = ThesisDocument::query()->where('project_id', $project->id)->firstOrFail();
 
     expect($updated)->not()->toBeNull()
         ->and($updated?->program_studi_id)->toBe($prodi->id)
         ->and($updated?->title_id)->toBe('Judul Revisi')
         ->and($updated?->title_en)->toBe('Revised Title')
         ->and($updated?->proposal_summary)->toBe('Ringkasan revisi.')
-        ->and($updated?->proposal_file_path)->not()->toBeNull();
+        ->and($updated?->proposal_file_path)->not()->toBeNull()
+        ->and($title->title_id)->toBe('Judul Revisi')
+        ->and($title->title_en)->toBe('Revised Title')
+        ->and($document->file_name)->toBe(basename((string) $updated?->proposal_file_path));
 
     Storage::disk('public')->assertMissing($oldPath);
     Storage::disk('public')->assertExists((string) $updated?->proposal_file_path);
@@ -395,6 +497,74 @@ test('proposal file access is restricted to owning mahasiswa', function () {
     $this->actingAs($admin)
         ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
         ->assertOk();
+});
+
+test('project proposal document download is restricted by thesis project access', function () {
+    Storage::fake('public');
+
+    $owner = createUserWithRole(AppRole::Mahasiswa->value);
+    $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $otherAdmin = createUserWithRole(AppRole::Admin->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $otherProdi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $owner->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $otherStudent->id,
+        'program_studi_id' => $otherProdi->id,
+        'is_active' => true,
+    ]);
+
+    \App\Models\AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    \App\Models\AdminProfile::query()->create([
+        'user_id' => $otherAdmin->id,
+        'program_studi_id' => $otherProdi->id,
+    ]);
+
+    $path = 'proposal_files/proposal-project-native.pdf';
+    Storage::disk('public')->put($path, 'proposal-content');
+
+    ThesisSubmission::query()->create([
+        'student_user_id' => $owner->id,
+        'program_studi_id' => $prodi->id,
+        'title_id' => 'Judul Project Native',
+        'title_en' => 'Project Native Title',
+        'proposal_summary' => 'Ringkasan native.',
+        'proposal_file_path' => $path,
+        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+        'is_active' => true,
+        'submitted_at' => now(),
+    ]);
+
+    app(LegacyThesisProjectBackfillService::class)->backfill($owner->id);
+
+    $document = ThesisDocument::query()->firstOrFail();
+
+    $this->actingAs($owner)
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
+        ->assertOk();
+
+    $this->actingAs($otherStudent)
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
+        ->assertOk();
+
+    $this->actingAs($otherAdmin)
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
+        ->assertForbidden();
 });
 
 test('download permissions enforce ownership and escalation rules', function () {

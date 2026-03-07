@@ -3,8 +3,13 @@
 use App\Enums\SemproExaminerDecision;
 use App\Enums\SemproStatus;
 use App\Enums\ThesisSubmissionStatus;
+use App\Models\MahasiswaProfile;
+use App\Models\ProgramStudi;
 use App\Models\Sempro;
 use App\Models\SemproExaminer;
+use App\Models\ThesisDefense;
+use App\Models\ThesisDefenseExaminer;
+use App\Models\ThesisProject;
 use App\Models\ThesisSubmission;
 use App\Models\User;
 use App\Services\SemproWorkflowService;
@@ -178,4 +183,45 @@ it('reuses existing sempro when assigning sempro from thesis submission again', 
 
     expect($resolvedSempro->id)->toBe($existingSempro->id)
         ->and(Sempro::query()->where('thesis_submission_id', $submission->id)->count())->toBe(1);
+});
+
+it('syncs the thesis project aggregate when sempro workflow changes', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $dosenA = User::factory()->asDosen()->create();
+    $dosenB = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create();
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510200',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $submission = ThesisSubmission::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'title_id' => 'Sinkronisasi Snapshot Sempro',
+        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
+        'is_active' => true,
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $service = app(SemproWorkflowService::class);
+    $sempro = $service->ensureSemproForSubmission($submission, $admin->id);
+
+    $sempro->forceFill([
+        'scheduled_for' => now()->addDays(4),
+        'location' => 'Ruang Seminar Sinkron',
+    ])->save();
+
+    $service->assignExaminers($sempro, [$dosenA->id, $dosenB->id], $admin->id);
+    $service->scheduleSempro($sempro->fresh());
+
+    expect(ThesisProject::query()->count())->toBe(1)
+        ->and(ThesisDefense::query()->count())->toBe(1)
+        ->and(ThesisDefenseExaminer::query()->count())->toBe(2)
+        ->and(ThesisProject::query()->firstOrFail()->phase)->toBe('sempro');
 });

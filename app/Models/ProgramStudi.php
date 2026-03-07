@@ -37,4 +37,9 @@ class ProgramStudi extends Model
     {
         return $this->hasMany(ThesisSubmission::class, 'program_studi_id');
     }
+
+    public function thesisProjects(): HasMany
+    {
+        return $this->hasMany(ThesisProject::class, 'program_studi_id');
+    }
 }
