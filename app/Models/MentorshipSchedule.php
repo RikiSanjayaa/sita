@@ -26,6 +26,11 @@ class MentorshipSchedule extends Model
         'student_note',
         'lecturer_note',
         'created_by_user_id',
+        'is_recurring',
+        'recurring_pattern',
+        'recurring_count',
+        'recurring_group_id',
+        'recurring_index',
     ];
 
     /**
@@ -36,6 +41,7 @@ class MentorshipSchedule extends Model
         return [
             'requested_for' => 'datetime',
             'scheduled_for' => 'datetime',
+            'is_recurring' => 'boolean',
         ];
     }
 

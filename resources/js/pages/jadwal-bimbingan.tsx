@@ -6,6 +6,7 @@ import {
     Inbox,
     MapPin,
     Plus,
+    Repeat,
     Send,
     Users,
     XCircle,
@@ -61,6 +62,7 @@ type UpcomingMeeting = {
     id: number;
     topic: string;
     lecturer: string;
+    relationType: 'pembimbing' | 'penguji';
     requestedAt: string;
     scheduledAt: string | null;
     location: string;
@@ -72,6 +74,7 @@ type HistoryMeeting = {
     id: number;
     topic: string;
     lecturer: string;
+    relationType: 'pembimbing' | 'penguji';
     scheduledAt: string;
     location: string;
     status: ScheduleStatus;
@@ -147,6 +150,32 @@ function StatusBadge({ status }: { status: ScheduleStatus }) {
     );
 }
 
+function RelationTypeBadge({
+    relationType,
+}: {
+    relationType: 'pembimbing' | 'penguji';
+}) {
+    if (relationType === 'penguji') {
+        return (
+            <Badge
+                variant="outline"
+                className="gap-1 rounded-full border-purple-500/50 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-400"
+            >
+                Penguji
+            </Badge>
+        );
+    }
+
+    return (
+        <Badge
+            variant="outline"
+            className="gap-1 rounded-full border-cyan-500/50 bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 dark:text-cyan-400"
+        >
+            Pembimbing
+        </Badge>
+    );
+}
+
 export default function JadwalBimbinganPage() {
     const page = usePage<SharedData & JadwalPageProps>();
     const query = page.url.split('?')[1] ?? '';
@@ -160,6 +189,9 @@ export default function JadwalBimbinganPage() {
         requested_for: '',
         meeting_type: 'offline',
         student_note: '',
+        is_recurring: false,
+        recurring_pattern: 'weekly',
+        recurring_count: 4,
     });
 
     useEffect(() => {
@@ -265,7 +297,7 @@ export default function JadwalBimbinganPage() {
 
             return [
                 {
-                    id: String(meeting.id) as any,
+                    id: meeting.id,
                     title: meeting.topic,
                     topic: meeting.topic,
                     person: meeting.lecturer,
@@ -290,7 +322,7 @@ export default function JadwalBimbinganPage() {
 
             return [
                 {
-                    id: String(meeting.id) as any,
+                    id: meeting.id,
                     title: meeting.topic,
                     topic: meeting.topic,
                     person: meeting.lecturer,
@@ -463,6 +495,109 @@ export default function JadwalBimbinganPage() {
                             )}
                         </div>
 
+                        <div className="grid gap-3 rounded-lg border p-4">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="is_recurring"
+                                    checked={form.data.is_recurring}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'is_recurring',
+                                            event.target.checked,
+                                        )
+                                    }
+                                    className="size-4 rounded border-input"
+                                />
+                                <Label
+                                    htmlFor="is_recurring"
+                                    className="flex items-center gap-2 font-medium"
+                                >
+                                    <Repeat className="size-4" />
+                                    Jadwalkan Berulang
+                                </Label>
+                            </div>
+
+                            {form.data.is_recurring && (
+                                <div className="grid gap-3 pl-6">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="recurring_pattern">
+                                            Pola Pengulangan
+                                        </Label>
+                                        <Select
+                                            value={form.data.recurring_pattern}
+                                            onValueChange={(value) =>
+                                                form.setData(
+                                                    'recurring_pattern',
+                                                    value,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="recurring_pattern">
+                                                <SelectValue placeholder="Pilih pola" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="weekly">
+                                                    Mingguan (setiap minggu)
+                                                </SelectItem>
+                                                <SelectItem value="biweekly">
+                                                    2 Mingguan (setiap 2 minggu)
+                                                </SelectItem>
+                                                <SelectItem value="monthly">
+                                                    Bulanan (setiap bulan)
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="recurring_count">
+                                            Jumlah Pertemuan
+                                        </Label>
+                                        <Select
+                                            value={String(
+                                                form.data.recurring_count,
+                                            )}
+                                            onValueChange={(value) =>
+                                                form.setData(
+                                                    'recurring_count',
+                                                    parseInt(value, 10),
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="recurring_count">
+                                                <SelectValue placeholder="Pilih jumlah" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {[2, 3, 4, 5, 6, 7, 8].map(
+                                                    (num) => (
+                                                        <SelectItem
+                                                            key={num}
+                                                            value={String(num)}
+                                                        >
+                                                            {num} pertemuan
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <p className="text-xs text-muted-foreground">
+                                        Akan dibuat {form.data.recurring_count}{' '}
+                                        jadwal dengan pola{' '}
+                                        {form.data.recurring_pattern ===
+                                            'weekly' && 'mingguan'}
+                                        {form.data.recurring_pattern ===
+                                            'biweekly' && '2 mingguan'}
+                                        {form.data.recurring_pattern ===
+                                            'monthly' && 'bulanan'}
+                                        .
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="grid gap-2">
                             <Label htmlFor="student_note">
                                 Catatan Tambahan (Opsional)
@@ -583,10 +718,16 @@ export default function JadwalBimbinganPage() {
                                                             <div className="truncate text-sm font-semibold">
                                                                 {meeting.topic}
                                                             </div>
-                                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                            <div className="mt-1 flex items-start gap-2 text-sm text-muted-foreground">
                                                                 {
                                                                     meeting.lecturer
                                                                 }
+
+                                                                <RelationTypeBadge
+                                                                    relationType={
+                                                                        meeting.relationType
+                                                                    }
+                                                                />
                                                             </div>
                                                         </div>
                                                         <StatusBadge
@@ -681,6 +822,13 @@ export default function JadwalBimbinganPage() {
                                                             </div>
                                                             <div className="mt-1 text-sm text-muted-foreground">
                                                                 {row.lecturer}
+                                                            </div>
+                                                            <div className="mt-1">
+                                                                <RelationTypeBadge
+                                                                    relationType={
+                                                                        row.relationType
+                                                                    }
+                                                                />
                                                             </div>
                                                         </div>
                                                         <StatusBadge

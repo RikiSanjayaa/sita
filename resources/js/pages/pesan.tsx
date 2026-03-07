@@ -259,8 +259,8 @@ export default function PesanPage() {
                                                 className={cn(
                                                     'w-full shrink-0 rounded-lg border p-3 text-left transition hover:bg-muted/30',
                                                     activeThread?.id ===
-                                                    thread.id &&
-                                                    'border-primary/30 bg-muted/40',
+                                                        thread.id &&
+                                                        'border-primary/30 bg-muted/40',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
@@ -283,13 +283,13 @@ export default function PesanPage() {
                                                     <Badge
                                                         variant={
                                                             thread.threadType ===
-                                                                'pembimbing'
+                                                            'pembimbing'
                                                                 ? 'secondary'
                                                                 : 'outline'
                                                         }
                                                         className={
                                                             thread.threadType !==
-                                                                'pembimbing'
+                                                            'pembimbing'
                                                                 ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
                                                                 : ''
                                                         }
@@ -345,13 +345,13 @@ export default function PesanPage() {
                                     <Badge
                                         variant={
                                             activeThread.threadType ===
-                                                'pembimbing'
+                                            'pembimbing'
                                                 ? 'secondary'
                                                 : 'outline'
                                         }
                                         className={
                                             activeThread.threadType !==
-                                                'pembimbing'
+                                            'pembimbing'
                                                 ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
                                                 : ''
                                         }
@@ -404,7 +404,7 @@ export default function PesanPage() {
                                 {activeThread &&
                                     !hasDosbing &&
                                     activeThread.threadType ===
-                                    'pembimbing' && (
+                                        'pembimbing' && (
                                         <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
                                             <AlertTitle className="text-red-900 dark:text-red-200">
                                                 Belum ada Dosen Pembimbing

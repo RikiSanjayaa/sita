@@ -1,17 +1,15 @@
-import { useMemo, useState } from 'react';
-
 import idLocale from '@fullcalendar/core/locales/id';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-
-import { ErrorBoundary } from './error-boundary';
-
 import { Calendar as CalendarIcon, List } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import { ErrorBoundary } from './error-boundary';
 
 export type BimbinganEvent = {
     id: number | string;
@@ -21,7 +19,13 @@ export type BimbinganEvent = {
     start: string;
     end: string;
     location: string;
-    status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+    status:
+        | 'pending'
+        | 'approved'
+        | 'rescheduled'
+        | 'rejected'
+        | 'completed'
+        | 'cancelled';
     personRole: 'lecturer' | 'student';
 };
 
@@ -29,15 +33,26 @@ export type BimbinganCalendarProps = {
     events: BimbinganEvent[];
     onEventClick?: (event: BimbinganEvent) => void;
     defaultView?: 'calendar' | 'list';
+    showLegend?: boolean;
     className?: string;
 };
 
 const statusColors: Record<BimbinganEvent['status'], string> = {
-    pending: '#f97316',
+    pending: '#f59e0b',
     approved: '#22c55e',
+    rescheduled: '#3b82f6',
     rejected: '#ef4444',
     completed: '#6b7280',
     cancelled: '#9ca3af',
+};
+
+const statusLabels: Record<BimbinganEvent['status'], string> = {
+    pending: 'Menunggu',
+    approved: 'Disetujui',
+    rescheduled: 'Diubah',
+    rejected: 'Ditolak',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
 };
 
 function getEventColor(status: BimbinganEvent['status']): string {
@@ -47,9 +62,11 @@ function getEventColor(status: BimbinganEvent['status']): string {
 function CalendarWrapper({
     events,
     onEventClick,
+    showLegend = true,
 }: {
     events: BimbinganEvent[];
     onEventClick?: (event: BimbinganEvent) => void;
+    showLegend?: boolean;
 }) {
     const calendarEvents = useMemo(() => {
         return events.map((event) => ({
@@ -66,58 +83,105 @@ function CalendarWrapper({
 
     return (
         <ErrorBoundary>
-            <div className="rounded-lg border bg-card p-4 shadow-sm">
-                <FullCalendar
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="dayGridMonth"
-                    locale={idLocale}
-                    headerToolbar={{
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,timeGridWeek,timeGridDay',
-                    }}
-                    buttonText={{
-                        today: 'Hari Ini',
-                        month: 'Bulan',
-                        week: 'Minggu',
-                        day: 'Hari',
-                    }}
-                    events={calendarEvents}
-                    eventClick={(info) => {
-                        if (onEventClick) {
-                            onEventClick(
-                                info.event.extendedProps as BimbinganEvent,
-                            );
-                        }
-                    }}
-                    height="auto"
-                    eventTimeFormat={{
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false,
-                    }}
-                    slotLabelFormat={{
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false,
-                    }}
-                    eventContent={(arg) => {
-                        const event = arg.event.extendedProps as BimbinganEvent;
-                        return (
-                            <div className="overflow-hidden px-1.5 py-0.5">
-                                <div className="text-xs font-semibold">
-                                    {arg.timeText}
-                                </div>
-                                <div className="truncate text-xs">
-                                    {event.topic}
-                                </div>
-                                <div className="truncate text-xs opacity-80">
-                                    {event.person}
-                                </div>
+            <div className="space-y-3">
+                {showLegend && (
+                    <div className="flex flex-wrap items-center gap-3 text-xs">
+                        <span className="font-medium text-muted-foreground">
+                            Keterangan:
+                        </span>
+                        {(
+                            [
+                                'pending',
+                                'approved',
+                                'rescheduled',
+                                'completed',
+                                'rejected',
+                                'cancelled',
+                            ] as const
+                        ).map((status) => (
+                            <div
+                                key={status}
+                                className="flex items-center gap-1.5"
+                            >
+                                <div
+                                    className="size-3 rounded-sm"
+                                    style={{
+                                        backgroundColor: statusColors[status],
+                                    }}
+                                />
+                                <span className="text-muted-foreground">
+                                    {statusLabels[status]}
+                                </span>
                             </div>
-                        );
-                    }}
-                />
+                        ))}
+                    </div>
+                )}
+                <div className="rounded-lg border bg-card p-4 shadow-sm">
+                    <FullCalendar
+                        plugins={[
+                            dayGridPlugin,
+                            timeGridPlugin,
+                            interactionPlugin,
+                        ]}
+                        initialView="dayGridMonth"
+                        locale={idLocale}
+                        headerToolbar={{
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,timeGridDay',
+                        }}
+                        buttonText={{
+                            today: 'Hari Ini',
+                            month: 'Bulan',
+                            week: 'Minggu',
+                            day: 'Hari',
+                        }}
+                        events={calendarEvents}
+                        eventClick={(info) => {
+                            if (onEventClick) {
+                                onEventClick(
+                                    info.event.extendedProps as BimbinganEvent,
+                                );
+                            }
+                        }}
+                        height="auto"
+                        eventTimeFormat={{
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                        }}
+                        slotLabelFormat={{
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                        }}
+                        eventContent={(arg) => {
+                            const event = arg.event
+                                .extendedProps as BimbinganEvent;
+                            return (
+                                <div
+                                    className="overflow-hidden px-1.5 py-0.5"
+                                    style={{
+                                        backgroundColor: getEventColor(
+                                            event.status,
+                                        ),
+                                        height: '100%',
+                                    }}
+                                >
+                                    <div className="text-xs font-semibold">
+                                        {arg.timeText}
+                                    </div>
+                                    <div className="truncate text-xs">
+                                        {event.topic}
+                                    </div>
+                                    <div className="truncate text-xs opacity-80">
+                                        {event.person}
+                                    </div>
+                                </div>
+                            );
+                        }}
+                    />
+                </div>
             </div>
         </ErrorBoundary>
     );
@@ -127,6 +191,7 @@ export function BimbinganCalendar({
     events,
     onEventClick,
     defaultView = 'calendar',
+    showLegend = true,
     className,
 }: BimbinganCalendarProps) {
     const [view, setView] = useState<'calendar' | 'list'>(defaultView);
@@ -157,7 +222,11 @@ export function BimbinganCalendar({
             </div>
 
             {view === 'calendar' ? (
-                <CalendarWrapper events={events} onEventClick={onEventClick} />
+                <CalendarWrapper
+                    events={events}
+                    onEventClick={onEventClick}
+                    showLegend={showLegend}
+                />
             ) : (
                 <div className="rounded-lg border p-4">
                     {events.length === 0 ? (

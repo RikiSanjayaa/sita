@@ -13,6 +13,7 @@ use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -21,8 +22,7 @@ class JadwalBimbinganController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -76,12 +76,15 @@ class JadwalBimbinganController extends Controller
 
         $upcomingMeetings = $schedules
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
-            ->sortBy(fn(MentorshipSchedule $schedule) => $schedule->scheduled_for ?? $schedule->requested_for)
+            ->sortBy(fn (MentorshipSchedule $schedule) => $schedule->scheduled_for ?? $schedule->requested_for)
             ->map(function (MentorshipSchedule $schedule): array {
+                $relationType = $schedule->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+
                 return [
                     'id' => $schedule->id,
                     'topic' => $schedule->topic,
                     'lecturer' => $schedule->lecturer?->name ?? '-',
+                    'relationType' => $relationType,
                     'requestedAt' => $schedule->requested_for?->toIso8601String(),
                     'scheduledAt' => $schedule->scheduled_for?->toIso8601String(),
                     'location' => $schedule->location ?? '-',
@@ -95,10 +98,13 @@ class JadwalBimbinganController extends Controller
         $historyMeetings = $schedules
             ->whereIn('status', ['rejected', 'completed', 'cancelled'])
             ->map(function (MentorshipSchedule $schedule): array {
+                $relationType = $schedule->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+
                 return [
                     'id' => $schedule->id,
                     'topic' => $schedule->topic,
                     'lecturer' => $schedule->lecturer?->name ?? '-',
+                    'relationType' => $relationType,
                     'scheduledAt' => $schedule->scheduled_for?->toIso8601String()
                         ?? $schedule->requested_for?->toIso8601String(),
                     'location' => $schedule->location ?? '-',
@@ -110,7 +116,7 @@ class JadwalBimbinganController extends Controller
             ->all();
 
         return Inertia::render('jadwal-bimbingan', [
-            'hasDosbing' => !empty($allLecturers),
+            'hasDosbing' => ! empty($allLecturers),
             'advisors' => $allLecturers,
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
@@ -129,6 +135,9 @@ class JadwalBimbinganController extends Controller
             'requested_for' => ['required', 'date'],
             'meeting_type' => ['required', 'in:online,offline'],
             'student_note' => ['nullable', 'string', 'max:2000'],
+            'is_recurring' => ['nullable', 'boolean'],
+            'recurring_pattern' => ['nullable', 'required_if:is_recurring,true', 'in:weekly,biweekly,monthly'],
+            'recurring_count' => ['nullable', 'required_if:is_recurring,true', 'integer', 'min:2', 'max:12'],
         ]);
 
         $assignments = MentorshipAssignment::query()
@@ -154,7 +163,7 @@ class JadwalBimbinganController extends Controller
             ]);
         }
 
-        if (!$isAssigned && !$isExaminer) {
+        if (! $isAssigned && ! $isExaminer) {
             return back()->withErrors([
                 'lecturer_user_id' => 'Pilih dosen pembimbing atau penguji yang valid.',
             ]);
@@ -162,19 +171,39 @@ class JadwalBimbinganController extends Controller
 
         $selectedAssignment = $assignments->firstWhere('lecturer_user_id', (int) $data['lecturer_user_id']);
 
-        MentorshipSchedule::query()->create([
-            'student_user_id' => $student->id,
-            'lecturer_user_id' => (int) $data['lecturer_user_id'],
-            'mentorship_assignment_id' => $selectedAssignment?->id,
-            'topic' => trim($data['topic']),
-            'status' => 'pending',
-            'requested_for' => $data['requested_for'],
-            'scheduled_for' => null,
-            'location' => $data['meeting_type'] === 'online' ? 'Online (akan ditentukan dosen)' : 'Offline (akan ditentukan dosen)',
-            'student_note' => $data['student_note'] ?? null,
-            'lecturer_note' => null,
-            'created_by_user_id' => $student->id,
-        ]);
+        $isRecurring = ! empty($data['is_recurring']);
+        $recurringCount = $isRecurring ? (int) $data['recurring_count'] : 1;
+        $recurringPattern = $isRecurring ? $data['recurring_pattern'] : null;
+        $recurringGroupId = $isRecurring ? Str::uuid()->toString() : null;
+
+        $baseDate = new \DateTime($data['requested_for']);
+
+        for ($i = 0; $i < $recurringCount; $i++) {
+            $scheduleDate = clone $baseDate;
+
+            if ($i > 0 && $recurringPattern !== null) {
+                $scheduleDate = $this->calculateNextDate($baseDate, $recurringPattern, $i);
+            }
+
+            MentorshipSchedule::query()->create([
+                'student_user_id' => $student->id,
+                'lecturer_user_id' => (int) $data['lecturer_user_id'],
+                'mentorship_assignment_id' => $selectedAssignment?->id,
+                'topic' => trim($data['topic']),
+                'status' => 'pending',
+                'requested_for' => $scheduleDate->format('Y-m-d H:i:s'),
+                'scheduled_for' => null,
+                'location' => $data['meeting_type'] === 'online' ? 'Online (akan ditentukan dosen)' : 'Offline (akan ditentukan dosen)',
+                'student_note' => $data['student_note'] ?? null,
+                'lecturer_note' => null,
+                'created_by_user_id' => $student->id,
+                'is_recurring' => $isRecurring,
+                'recurring_pattern' => $recurringPattern,
+                'recurring_count' => $recurringCount,
+                'recurring_group_id' => $recurringGroupId,
+                'recurring_index' => $isRecurring ? $i + 1 : null,
+            ]);
+        }
 
         $this->broadcastScheduleUpdated((int) $data['lecturer_user_id']);
         $this->broadcastScheduleUpdated($student->id);
@@ -182,18 +211,38 @@ class JadwalBimbinganController extends Controller
         $lecturer = User::query()->find((int) $data['lecturer_user_id']);
 
         if ($lecturer !== null) {
+            $message = $isRecurring
+                ? sprintf('%s mengajukan %d jadwal bimbingan berulang.', $student->name, $recurringCount)
+                : sprintf('%s mengajukan jadwal bimbingan baru.', $student->name);
+
             $this->realtimeNotificationService->notifyUser($lecturer, 'jadwalBimbingan', [
                 'title' => 'Permintaan jadwal bimbingan baru',
-                'description' => sprintf('%s mengajukan jadwal bimbingan baru.', $student->name),
+                'description' => $message,
                 'url' => '/dosen/jadwal-bimbingan',
                 'icon' => 'calendar-clock',
                 'createdAt' => now()->toIso8601String(),
             ]);
         }
 
+        $successMessage = $isRecurring
+            ? sprintf('%d permintaan jadwal bimbingan berulang berhasil dikirim.', $recurringCount)
+            : 'Permintaan jadwal bimbingan berhasil dikirim.';
+
         return redirect()
             ->route('mahasiswa.jadwal-bimbingan')
-            ->with('success', 'Permintaan jadwal bimbingan berhasil dikirim.');
+            ->with('success', $successMessage);
+    }
+
+    private function calculateNextDate(\DateTime $baseDate, string $pattern, int $occurrence): \DateTime
+    {
+        $nextDate = clone $baseDate;
+
+        return match ($pattern) {
+            'weekly' => $nextDate->modify("+{$occurrence} weeks"),
+            'biweekly' => $nextDate->modify('+'.($occurrence * 2).' weeks'),
+            'monthly' => $nextDate->modify("+{$occurrence} months"),
+            default => $nextDate,
+        };
     }
 
     private function broadcastScheduleUpdated(int $userId): void

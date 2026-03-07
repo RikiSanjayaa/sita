@@ -33,11 +33,11 @@ type ThreadMessage = {
     message: string;
     time: string;
     type:
-    | 'text'
-    | 'document_event'
-    | 'attachment'
-    | 'revision_suggestion'
-    | string;
+        | 'text'
+        | 'document_event'
+        | 'attachment'
+        | 'revision_suggestion'
+        | string;
     documentName: string | null;
     documentUrl: string | null;
 };
@@ -427,7 +427,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'aktif' &&
-                                    'bg-background text-foreground shadow-sm',
+                                        'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Aktif
@@ -437,7 +437,7 @@ export default function DosenPesanBimbinganPage() {
                                 className={cn(
                                     'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
                                     tab === 'arsip' &&
-                                    'bg-background text-foreground shadow-sm',
+                                        'bg-background text-foreground shadow-sm',
                                 )}
                             >
                                 Arsip
@@ -474,8 +474,8 @@ export default function DosenPesanBimbinganPage() {
                                                 className={cn(
                                                     'w-full shrink-0 rounded-xl border p-3.5 text-left transition-all hover:bg-muted/50',
                                                     activeThread?.id ===
-                                                    thread.id &&
-                                                    'border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20',
+                                                        thread.id &&
+                                                        'border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
