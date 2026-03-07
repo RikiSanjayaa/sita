@@ -209,14 +209,9 @@ jobs:
           VITE_REVERB_PORT: ${{ vars.FRONTEND_REVERB_PORT || '443' }}
           VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME || 'https' }}
         run: |
+          export DEPLOY_PATH HEALTHCHECK_URL VITE_REVERB_APP_KEY VITE_REVERB_HOST VITE_REVERB_PORT VITE_REVERB_SCHEME
           ssh -p "${DEPLOY_PORT}" -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF'
           set -euo pipefail
-          export DEPLOY_PATH="$DEPLOY_PATH"
-          export VITE_REVERB_APP_KEY="$VITE_REVERB_APP_KEY"
-          export VITE_REVERB_HOST="$VITE_REVERB_HOST"
-          export VITE_REVERB_PORT="$VITE_REVERB_PORT"
-          export VITE_REVERB_SCHEME="$VITE_REVERB_SCHEME"
-          export HEALTHCHECK_URL="$HEALTHCHECK_URL"
           cd "${DEPLOY_PATH}"
           git fetch --all --prune
           git checkout main
