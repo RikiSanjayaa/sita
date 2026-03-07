@@ -21,7 +21,8 @@ class JadwalBimbinganController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): Response
     {
@@ -81,8 +82,8 @@ class JadwalBimbinganController extends Controller
                     'id' => $schedule->id,
                     'topic' => $schedule->topic,
                     'lecturer' => $schedule->lecturer?->name ?? '-',
-                    'requestedAt' => $schedule->requested_for?->format('d M Y H:i') ?? '-',
-                    'scheduledAt' => $schedule->scheduled_for?->format('d M Y H:i'),
+                    'requestedAt' => $schedule->requested_for?->toIso8601String(),
+                    'scheduledAt' => $schedule->scheduled_for?->toIso8601String(),
                     'location' => $schedule->location ?? '-',
                     'status' => $schedule->status,
                     'lecturerNote' => $schedule->lecturer_note,
@@ -98,9 +99,8 @@ class JadwalBimbinganController extends Controller
                     'id' => $schedule->id,
                     'topic' => $schedule->topic,
                     'lecturer' => $schedule->lecturer?->name ?? '-',
-                    'scheduledAt' => $schedule->scheduled_for?->format('d M Y H:i')
-                        ?? $schedule->requested_for?->format('d M Y H:i')
-                        ?? '-',
+                    'scheduledAt' => $schedule->scheduled_for?->toIso8601String()
+                        ?? $schedule->requested_for?->toIso8601String(),
                     'location' => $schedule->location ?? '-',
                     'status' => $schedule->status,
                     'lecturerNote' => $schedule->lecturer_note,
@@ -110,7 +110,7 @@ class JadwalBimbinganController extends Controller
             ->all();
 
         return Inertia::render('jadwal-bimbingan', [
-            'hasDosbing' => ! empty($allLecturers),
+            'hasDosbing' => !empty($allLecturers),
             'advisors' => $allLecturers,
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
@@ -154,7 +154,7 @@ class JadwalBimbinganController extends Controller
             ]);
         }
 
-        if (! $isAssigned && ! $isExaminer) {
+        if (!$isAssigned && !$isExaminer) {
             return back()->withErrors([
                 'lecturer_user_id' => 'Pilih dosen pembimbing atau penguji yang valid.',
             ]);
