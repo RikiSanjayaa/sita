@@ -7,12 +7,14 @@ use App\Http\Controllers\File\ThesisDocumentDownloadController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\ProfileShowController;
 use App\Http\Controllers\RoleSwitchController;
+use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+Route::get('/', [WelcomeController::class, 'index'])->name('home');
+Route::get('/jadwal', [WelcomeController::class, 'schedules'])->name('public.schedules');
+Route::get('/pembimbing', [WelcomeController::class, 'advisors'])->name('public.advisors');
+Route::get('/topik', [WelcomeController::class, 'topics'])->name('public.topics');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', PortalController::class)->name('dashboard');
