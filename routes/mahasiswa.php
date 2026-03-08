@@ -1,16 +1,14 @@
 <?php
 
+use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
 use App\Http\Controllers\Mahasiswa\PesanController;
 use App\Http\Controllers\Mahasiswa\TugasAkhirController;
 use App\Http\Controllers\Mahasiswa\UploadDokumenController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->name('mahasiswa.')->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('tugas-akhir', [TugasAkhirController::class, 'index'])->name('tugas-akhir');
     Route::post('tugas-akhir', [TugasAkhirController::class, 'store'])->name('tugas-akhir.store');
@@ -33,6 +31,6 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
     Route::post('pesan/{thread}/messages', [PesanController::class, 'storeMessage'])->name('pesan.messages.store');
 
     Route::get('panduan', function () {
-        return Inertia::render('panduan');
+        return \Inertia\Inertia::render('panduan');
     })->name('panduan');
 });

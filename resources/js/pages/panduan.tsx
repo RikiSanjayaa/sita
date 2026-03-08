@@ -329,7 +329,7 @@ export default function Panduan() {
                 </div>
 
                 <section id="alur" className="space-y-3">
-                    <div className="flex items-end justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div className="text-sm font-semibold">
                                 Panduan utama
@@ -355,8 +355,8 @@ export default function Panduan() {
                                     )}
                                 >
                                     <CardHeader className="gap-2">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="min-w-0">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                                                         <Icon className="size-4" />
@@ -371,7 +371,7 @@ export default function Panduan() {
                                             </div>
                                             <Badge
                                                 variant="secondary"
-                                                className="shrink-0 rounded-full"
+                                                className="w-fit shrink-0 rounded-full"
                                             >
                                                 {card.badge}
                                             </Badge>
@@ -394,7 +394,7 @@ export default function Panduan() {
 
                                         <Separator />
 
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                                             {card.id === 'jadwal' && (
                                                 <Button
                                                     type="button"
@@ -406,6 +406,7 @@ export default function Panduan() {
                                                             jadwalBimbinganCreate()
                                                                 .url
                                                         }
+                                                        className="w-full sm:w-auto"
                                                     >
                                                         <CalendarClock className="size-4" />
                                                         Ajukan Bimbingan
@@ -423,6 +424,7 @@ export default function Panduan() {
                                                         href={
                                                             uploadDokumen().url
                                                         }
+                                                        className="w-full sm:w-auto"
                                                     >
                                                         <UploadCloud className="size-4" />
                                                         Buka Upload Dokumen
@@ -436,7 +438,10 @@ export default function Panduan() {
                                                     className="h-9"
                                                     asChild
                                                 >
-                                                    <Link href={pesan().url}>
+                                                    <Link
+                                                        href={pesan().url}
+                                                        className="w-full sm:w-auto"
+                                                    >
                                                         <MessageSquareText className="size-4" />
                                                         Kirim Pesan
                                                     </Link>
@@ -449,7 +454,10 @@ export default function Panduan() {
                                                     className="h-9"
                                                     asChild
                                                 >
-                                                    <a href="#template">
+                                                    <a
+                                                        href="#template"
+                                                        className="w-full sm:w-auto"
+                                                    >
                                                         <FileText className="size-4" />
                                                         Lihat Template
                                                     </a>
@@ -517,12 +525,12 @@ export default function Panduan() {
                                     <div className="grid gap-3">
                                         {templateDocs.map((doc, idx) => (
                                             <div key={doc.id}>
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                    <div className="min-w-0 flex-1">
                                                         <div className="flex items-center gap-2">
                                                             <FileText className="mt-0.5 size-4 text-muted-foreground" />
                                                             <div className="min-w-0">
-                                                                <div className="truncate text-sm font-medium">
+                                                                <div className="text-sm font-medium break-words">
                                                                     {doc.title}
                                                                 </div>
                                                                 <div className="text-xs text-muted-foreground">
@@ -532,7 +540,7 @@ export default function Panduan() {
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-2 flex items-center gap-2">
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
                                                             <Badge
                                                                 variant="outline"
                                                                 className="rounded-full"
@@ -550,7 +558,7 @@ export default function Panduan() {
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-8"
+                                                        className="h-8 w-full sm:w-auto"
                                                         disabled
                                                     >
                                                         <FileDown className="size-4" />
@@ -606,7 +614,10 @@ export default function Panduan() {
                                             className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
                                             asChild
                                         >
-                                            <Link href={pesan().url}>
+                                            <Link
+                                                href={pesan().url}
+                                                className="w-full"
+                                            >
                                                 <MessageSquareText className="size-4" />
                                                 Hubungi Pembimbing/Admin
                                             </Link>
@@ -617,7 +628,10 @@ export default function Panduan() {
                                             className="h-9"
                                             asChild
                                         >
-                                            <Link href={uploadDokumen().url}>
+                                            <Link
+                                                href={uploadDokumen().url}
+                                                className="w-full"
+                                            >
                                                 <UploadCloud className="size-4" />
                                                 Lihat Status Dokumen
                                             </Link>

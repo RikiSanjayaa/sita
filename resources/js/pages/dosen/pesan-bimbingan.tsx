@@ -1,5 +1,13 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    Inbox,
+    Paperclip,
+    Search,
+    Send,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -15,6 +23,12 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -604,38 +618,59 @@ export default function DosenPesanBimbinganPage() {
                                     </span>
                                 </CardDescription>
                                 {activeThread.studentProfile ? (
-                                    <div className="mt-3">
-                                        <Link
-                                            href={
-                                                activeThread.studentProfile
-                                                    .profileUrl
-                                            }
-                                            className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-foreground transition hover:border-primary/30 hover:bg-muted/40"
-                                        >
-                                            <Avatar className="size-7 border">
-                                                <AvatarImage
-                                                    src={
-                                                        activeThread
-                                                            .studentProfile
-                                                            .avatar ?? undefined
-                                                    }
-                                                    alt={
-                                                        activeThread
-                                                            .studentProfile.name
-                                                    }
-                                                />
-                                                <AvatarFallback className="bg-primary/10 text-primary">
-                                                    {getInitials(
-                                                        activeThread
-                                                            .studentProfile
-                                                            .name,
-                                                    )}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium">
-                                                Buka profil mahasiswa
-                                            </span>
-                                        </Link>
+                                    <div className="mt-3 hidden sm:flex">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                >
+                                                    Profil
+                                                    <ChevronDown className="size-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                                <DropdownMenuItem asChild>
+                                                    <Link
+                                                        href={
+                                                            activeThread
+                                                                .studentProfile
+                                                                .profileUrl
+                                                        }
+                                                        className="flex items-center gap-2"
+                                                    >
+                                                        <Avatar className="size-7 border">
+                                                            <AvatarImage
+                                                                src={
+                                                                    activeThread
+                                                                        .studentProfile
+                                                                        .avatar ??
+                                                                    undefined
+                                                                }
+                                                                alt={
+                                                                    activeThread
+                                                                        .studentProfile
+                                                                        .name
+                                                                }
+                                                            />
+                                                            <AvatarFallback className="bg-primary/10 text-primary">
+                                                                {getInitials(
+                                                                    activeThread
+                                                                        .studentProfile
+                                                                        .name,
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <span>
+                                                            Lihat profil
+                                                            mahasiswa
+                                                        </span>
+                                                    </Link>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 ) : null}
                             </>
