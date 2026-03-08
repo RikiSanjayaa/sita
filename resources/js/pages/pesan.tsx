@@ -1,5 +1,12 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Inbox, Paperclip, Send, Users } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    Inbox,
+    Paperclip,
+    Send,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -15,6 +22,12 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -376,34 +389,59 @@ export default function PesanPage() {
                                     </span>
                                 </CardDescription>
                                 {activeThread.memberProfiles.length > 0 ? (
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {activeThread.memberProfiles.map(
-                                            (member) => (
-                                                <Link
-                                                    key={member.id}
-                                                    href={member.profileUrl}
-                                                    className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-foreground transition hover:border-primary/30 hover:bg-muted/40"
+                                    <div className="mt-3 hidden sm:flex">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
                                                 >
-                                                    <Avatar className="size-7 border">
-                                                        <AvatarImage
-                                                            src={
-                                                                member.avatar ??
-                                                                undefined
-                                                            }
-                                                            alt={member.name}
-                                                        />
-                                                        <AvatarFallback className="bg-primary/10 text-primary">
-                                                            {getInitials(
-                                                                member.name,
-                                                            )}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="max-w-40 truncate font-medium">
-                                                        {member.name}
-                                                    </span>
-                                                </Link>
-                                            ),
-                                        )}
+                                                    Lihat Peserta
+                                                    <ChevronDown className="size-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                                {activeThread.memberProfiles.map(
+                                                    (member) => (
+                                                        <DropdownMenuItem
+                                                            key={member.id}
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={
+                                                                    member.profileUrl
+                                                                }
+                                                                className="flex min-w-0 items-center gap-2"
+                                                            >
+                                                                <Avatar className="size-7 border">
+                                                                    <AvatarImage
+                                                                        src={
+                                                                            member.avatar ??
+                                                                            undefined
+                                                                        }
+                                                                        alt={
+                                                                            member.name
+                                                                        }
+                                                                    />
+                                                                    <AvatarFallback className="bg-primary/10 text-primary">
+                                                                        {getInitials(
+                                                                            member.name,
+                                                                        )}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="truncate">
+                                                                    {
+                                                                        member.name
+                                                                    }
+                                                                </span>
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                    ),
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 ) : null}
                             </>
