@@ -37,6 +37,9 @@ class UserInfolist
                         TextEntry::make('mahasiswaProfile.programStudi.name')
                             ->label('Prodi')
                             ->placeholder('-'),
+                        TextEntry::make('mahasiswaProfile.concentration')
+                            ->label('Konsentrasi')
+                            ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.angkatan')
                             ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.is_active')
@@ -53,10 +56,37 @@ class UserInfolist
                         TextEntry::make('dosenProfile.programStudi.name')
                             ->label('Prodi')
                             ->placeholder('-'),
+                        TextEntry::make('dosenProfile.concentration')
+                            ->label('Konsentrasi')
+                            ->placeholder('-'),
+                        TextEntry::make('dosenProfile.supervision_quota')
+                            ->label('Kuota Bimbingan')
+                            ->placeholder('-'),
                         TextEntry::make('dosenProfile.is_active')
                             ->label('Status')
                             ->badge()
                             ->formatStateUsing(fn(?bool $state): string => $state ? 'active' : 'inactive'),
+                    ]),
+                Section::make('Beban Tugas Akhir')
+                    ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('active_primary_supervision_count')
+                            ->label('Pembimbing 1 Aktif')
+                            ->placeholder('0'),
+                        TextEntry::make('active_secondary_supervision_count')
+                            ->label('Pembimbing 2 Aktif')
+                            ->placeholder('0'),
+                        TextEntry::make('scheduled_sempro_examiner_count')
+                            ->label('Sempro Terjadwal')
+                            ->placeholder('0'),
+                        TextEntry::make('scheduled_sidang_examiner_count')
+                            ->label('Sidang Terjadwal')
+                            ->placeholder('0'),
+                        TextEntry::make('thesis_load_note')
+                            ->label('Catatan')
+                            ->state('Kuota pembimbing dapat diatur oleh superadmin. Penetapan pembimbing hanya dapat dilakukan jika konsentrasi dosen dan mahasiswa sama.')
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

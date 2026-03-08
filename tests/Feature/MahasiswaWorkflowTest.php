@@ -3,17 +3,19 @@
 use App\Enums\AdvisorType;
 use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
-use App\Enums\SemproStatus;
-use App\Enums\ThesisSubmissionStatus;
+use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\ProgramStudi;
 use App\Models\Role;
-use App\Models\Sempro;
-use App\Models\SemproExaminer;
-use App\Models\ThesisSubmission;
+use App\Models\ThesisDefense;
+use App\Models\ThesisDefenseExaminer;
+use App\Models\ThesisDocument;
+use App\Models\ThesisProject;
+use App\Models\ThesisProjectTitle;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -25,7 +27,51 @@ function createUserWithRole(string $role): User
     $roleModel = Role::query()->firstOrCreate(['name' => $role]);
     $user->roles()->sync([$roleModel->id]);
 
+    if ($role === AppRole::Dosen->value) {
+        DosenProfile::factory()->create([
+            'user_id' => $user->id,
+            'is_active' => true,
+        ]);
+    }
+
     return $user;
+}
+
+function ensureActiveThesisProject(User $student): ThesisProject
+{
+    $profile = $student->mahasiswaProfile;
+    $programStudiId = $profile?->program_studi_id ?? ProgramStudi::factory()->create()->id;
+
+    return ThesisProject::query()->firstOrCreate(
+        [
+            'student_user_id' => $student->id,
+            'state' => 'active',
+        ],
+        [
+            'program_studi_id' => $programStudiId,
+            'phase' => 'research',
+            'started_at' => now()->subWeek(),
+            'created_by' => $student->id,
+        ],
+    );
+}
+
+function syncThesisSupervisor(User $student, User $lecturer, User $admin, string $role): void
+{
+    $project = ensureActiveThesisProject($student);
+
+    ThesisSupervisorAssignment::query()->updateOrCreate(
+        [
+            'project_id' => $project->id,
+            'role' => $role,
+            'status' => 'active',
+        ],
+        [
+            'lecturer_user_id' => $lecturer->id,
+            'assigned_by' => $admin->id,
+            'started_at' => now(),
+        ],
+    );
 }
 
 test('mahasiswa can request schedule to selected active advisor', function () {
@@ -46,6 +92,8 @@ test('mahasiswa can request schedule to selected active advisor', function () {
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+    syncThesisSupervisor($student, $dosen1, $admin, AdvisorType::Primary->value);
+
     MentorshipAssignment::query()->create([
         'student_user_id' => $student->id,
         'lecturer_user_id' => $dosen2->id,
@@ -53,6 +101,7 @@ test('mahasiswa can request schedule to selected active advisor', function () {
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+    syncThesisSupervisor($student, $dosen2, $admin, AdvisorType::Secondary->value);
 
     $this->actingAs($student)
         ->post('/mahasiswa/jadwal-bimbingan', [
@@ -89,6 +138,7 @@ test('mahasiswa cannot request schedule to lecturer outside active advisors', fu
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+    syncThesisSupervisor($student, $activeDosen, $admin, AdvisorType::Primary->value);
 
     $this->actingAs($student)
         ->from('/mahasiswa/jadwal-bimbingan')
@@ -125,6 +175,8 @@ test('mahasiswa upload creates document version rows and chat event', function (
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+    syncThesisSupervisor($student, $dosen1, $admin, AdvisorType::Primary->value);
+
     MentorshipAssignment::query()->create([
         'student_user_id' => $student->id,
         'lecturer_user_id' => $dosen2->id,
@@ -132,6 +184,7 @@ test('mahasiswa upload creates document version rows and chat event', function (
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+    syncThesisSupervisor($student, $dosen2, $admin, AdvisorType::Secondary->value);
 
     $file = UploadedFile::fake()->create('draft-bab3.pdf', 600, 'application/pdf');
 
@@ -174,6 +227,7 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+    syncThesisSupervisor($student, $dosen, $admin, AdvisorType::Primary->value);
 
     // Create the pembimbing thread first
     $thread = MentorshipChatThread::query()->create([
@@ -239,79 +293,217 @@ test('tugas akhir page includes proposal file, dosen assignments, and sempro sch
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $pembimbing1->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $pembimbing2->id,
-        'advisor_type' => AdvisorType::Secondary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
-
     $proposalPath = 'proposal_files/proposal-awal.pdf';
     Storage::disk('public')->put($proposalPath, 'proposal-content');
 
     $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
 
-    $submission = ThesisSubmission::query()->create([
+    $project = ThesisProject::query()->create([
         'student_user_id' => $student->id,
         'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(3),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
         'title_id' => 'Sistem Monitoring Skripsi',
         'title_en' => 'Thesis Monitoring System',
         'proposal_summary' => 'Ringkasan proposal.',
-        'proposal_file_path' => $proposalPath,
-        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
-        'is_active' => true,
-        'submitted_at' => now(),
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(3),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(2),
+    ]);
+
+    ThesisDocument::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'uploaded_by_user_id' => $student->id,
+        'kind' => 'proposal',
+        'status' => 'active',
+        'version_no' => 1,
+        'title' => 'Proposal Skripsi',
+        'storage_disk' => 'public',
+        'storage_path' => $proposalPath,
+        'file_name' => 'proposal-awal.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'uploaded_at' => now()->subDays(3),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $pembimbing1->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(2),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $pembimbing2->id,
+        'role' => AdvisorType::Secondary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(2),
     ]);
 
     $scheduledAt = now()->addDays(7)->setSecond(0);
-    $sempro = Sempro::query()->create([
-        'thesis_submission_id' => $submission->id,
-        'status' => SemproStatus::Scheduled->value,
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
         'scheduled_for' => $scheduledAt,
         'location' => 'Ruang Sidang A',
         'mode' => 'offline',
     ]);
 
-    SemproExaminer::query()->create([
-        'sempro_id' => $sempro->id,
-        'examiner_user_id' => $penguji1->id,
-        'examiner_order' => 1,
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $penguji1->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'pending',
     ]);
-    SemproExaminer::query()->create([
-        'sempro_id' => $sempro->id,
-        'examiner_user_id' => $penguji2->id,
-        'examiner_order' => 2,
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $penguji2->id,
+        'role' => 'examiner',
+        'order_no' => 2,
+        'decision' => 'pending',
     ]);
 
     $this->actingAs($student)
         ->get('/mahasiswa/tugas-akhir')
         ->assertInertia(fn(Assert $page) => $page
             ->component('tugas-akhir')
+            ->where('submission.workflow.key', 'sempro_scheduled')
+            ->where('submission.workflow.can_edit', true)
             ->where('submission.proposal_file_name', 'proposal-awal.pdf')
             ->where(
                 'submission.proposal_file_view_url',
-                route('files.thesis-proposals', ['submission' => $submission->id, 'inline' => 1]),
+                route('files.thesis-documents.download', [
+                    'document' => ThesisDocument::query()->firstOrFail()->id,
+                    'inline' => 1,
+                ]),
             )
             ->where(
                 'submission.proposal_file_download_url',
-                route('files.thesis-proposals', ['submission' => $submission->id]),
+                route('files.thesis-documents.download', [
+                    'document' => ThesisDocument::query()->firstOrFail()->id,
+                ]),
             )
             ->where('assignedLecturers.pembimbing1', $pembimbing1->name)
             ->where('assignedLecturers.pembimbing2', $pembimbing2->name)
             ->where('assignedLecturers.penguji1', $penguji1->name)
             ->where('assignedLecturers.penguji2', $penguji2->name)
-            ->where('semproDate', $scheduledAt->locale('id')->translatedFormat('d F Y, H:i')));
+            ->where('semproDate', $scheduledAt->locale('id')->translatedFormat('d F Y, H:i'))
+            ->where('sidangDate', null));
 });
 
-test('mahasiswa can update pending thesis submission and replace proposal file', function () {
+test('mahasiswa can submit thesis proposal into thesis project aggregate', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/tugas-akhir', [
+            'title_id' => 'Pengajuan Sinkron Snapshot',
+            'title_en' => 'Snapshot Sync Submission',
+            'proposal_summary' => 'Ringkasan proposal sinkron.',
+            'proposal_file' => UploadedFile::fake()->create('proposal-snapshot.pdf', 700, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $project = ThesisProject::query()->firstOrFail();
+
+    expect(ThesisProject::query()->count())->toBe(1)
+        ->and(ThesisProjectTitle::query()->count())->toBe(1)
+        ->and(ThesisDocument::query()->count())->toBe(1)
+        ->and(ThesisProjectTitle::query()->firstOrFail()->title_id)->toBe('Pengajuan Sinkron Snapshot')
+        ->and($project->phase)->toBe('title_review')
+        ->and($project->legacy_thesis_submission_id)->toBeNull();
+});
+
+test('tugas akhir page renders thesis project snapshot data', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $path = 'proposal_files/proposal-project-view.pdf';
+    Storage::disk('public')->put($path, 'proposal-content');
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subHour(),
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul dari Project Snapshot',
+        'title_en' => 'Project Snapshot Title',
+        'proposal_summary' => 'Ringkasan dari project snapshot.',
+        'status' => 'submitted',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subHour(),
+    ]);
+
+    ThesisDocument::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'uploaded_by_user_id' => $student->id,
+        'kind' => 'proposal',
+        'status' => 'active',
+        'version_no' => 1,
+        'title' => 'Proposal Skripsi',
+        'storage_disk' => 'public',
+        'storage_path' => $path,
+        'file_name' => 'proposal-project-view.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'uploaded_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('submission.workflow.key', 'title_review_pending')
+            ->where('submission.workflow.can_edit', true)
+            ->where('submission.title_id', 'Judul dari Project Snapshot')
+            ->where('submission.title_en', 'Project Snapshot Title')
+            ->where('submission.proposal_summary', 'Ringkasan dari project snapshot.')
+            ->where('submission.proposal_file_name', 'proposal-project-view.pdf'));
+});
+
+test('mahasiswa can update pending thesis project and replace proposal file', function () {
     Storage::fake('public');
 
     $student = createUserWithRole(AppRole::Mahasiswa->value);
@@ -325,21 +517,45 @@ test('mahasiswa can update pending thesis submission and replace proposal file',
     $oldPath = 'proposal_files/proposal-lama.pdf';
     Storage::disk('public')->put($oldPath, 'old-content');
 
-    $submission = ThesisSubmission::query()->create([
+    $project = ThesisProject::query()->create([
         'student_user_id' => $student->id,
         'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subDay(),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
         'title_id' => 'Judul Lama',
         'title_en' => 'Old Title',
         'proposal_summary' => 'Ringkasan lama.',
-        'proposal_file_path' => $oldPath,
-        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
-        'is_active' => true,
-        'submitted_at' => now(),
+        'status' => 'submitted',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    ThesisDocument::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'uploaded_by_user_id' => $student->id,
+        'kind' => 'proposal',
+        'status' => 'active',
+        'version_no' => 1,
+        'title' => 'Proposal Skripsi',
+        'storage_disk' => 'public',
+        'storage_path' => $oldPath,
+        'file_name' => 'proposal-lama.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'uploaded_at' => now()->subDay(),
     ]);
 
     $this->actingAs($student)
         ->from('/mahasiswa/tugas-akhir')
-        ->patch("/mahasiswa/tugas-akhir/{$submission->id}", [
+        ->patch("/mahasiswa/tugas-akhir/{$project->id}", [
             'title_id' => 'Judul Revisi',
             'title_en' => 'Revised Title',
             'proposal_summary' => 'Ringkasan revisi.',
@@ -347,54 +563,445 @@ test('mahasiswa can update pending thesis submission and replace proposal file',
         ])
         ->assertRedirect('/mahasiswa/tugas-akhir');
 
-    $updated = $submission->fresh();
+    $updatedProject = $project->fresh();
+    $updatedTitle = ThesisProjectTitle::query()->where('project_id', $project->id)->firstOrFail();
+    $document = ThesisDocument::query()->where('project_id', $project->id)->firstOrFail();
 
-    expect($updated)->not()->toBeNull()
-        ->and($updated?->program_studi_id)->toBe($prodi->id)
-        ->and($updated?->title_id)->toBe('Judul Revisi')
-        ->and($updated?->title_en)->toBe('Revised Title')
-        ->and($updated?->proposal_summary)->toBe('Ringkasan revisi.')
-        ->and($updated?->proposal_file_path)->not()->toBeNull();
+    expect($updatedProject)->not()->toBeNull()
+        ->and($updatedProject?->program_studi_id)->toBe($prodi->id)
+        ->and($updatedTitle->title_id)->toBe('Judul Revisi')
+        ->and($updatedTitle->title_en)->toBe('Revised Title')
+        ->and($updatedTitle->proposal_summary)->toBe('Ringkasan revisi.')
+        ->and($document->storage_path)->not()->toBeNull()
+        ->and($document->file_name)->toBe('proposal-revisi.pdf')
+        ->and($document->stored_file_name)->toBe(basename((string) $document->storage_path));
 
     Storage::disk('public')->assertMissing($oldPath);
-    Storage::disk('public')->assertExists((string) $updated?->proposal_file_path);
+    Storage::disk('public')->assertExists((string) $document->storage_path);
 });
 
-test('proposal file access is restricted to owning mahasiswa', function () {
+test('mahasiswa can update sempro revision proposal without resetting thesis project workflow', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $examiner = createUserWithRole(AppRole::Dosen->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $oldPath = 'proposal_files/proposal-sempro-revisi.pdf';
+    Storage::disk('public')->put($oldPath, 'old-sempro-content');
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(5),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Sebelum Revisi Sempro',
+        'title_en' => 'Before Sempro Revision',
+        'proposal_summary' => 'Ringkasan sebelum revisi sempro.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(5),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(4),
+    ]);
+
+    ThesisDocument::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'uploaded_by_user_id' => $student->id,
+        'kind' => 'proposal',
+        'status' => 'active',
+        'version_no' => 1,
+        'title' => 'Proposal Skripsi',
+        'storage_disk' => 'public',
+        'storage_path' => $oldPath,
+        'file_name' => 'proposal-sempro-revisi.pdf',
+        'stored_file_name' => basename($oldPath),
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'uploaded_at' => now()->subDays(5),
+    ]);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(2),
+        'location' => 'Ruang Seminar B',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(2),
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $examiner->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'pass_with_revision',
+    ]);
+
+    \App\Models\ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $sempro->id,
+        'requested_by_user_id' => $examiner->id,
+        'status' => 'open',
+        'notes' => 'Perbaiki judul dan proposal.',
+        'due_at' => now()->addWeek(),
+    ]);
+
+    $this->actingAs($student)
+        ->from('/mahasiswa/tugas-akhir')
+        ->patch("/mahasiswa/tugas-akhir/{$project->id}", [
+            'title_id' => 'Judul Sesudah Revisi Sempro',
+            'title_en' => 'After Sempro Revision',
+            'proposal_summary' => 'Ringkasan setelah revisi sempro.',
+            'proposal_file' => UploadedFile::fake()->create('proposal-sempro-final.pdf', 700, 'application/pdf'),
+        ])
+        ->assertRedirect('/mahasiswa/tugas-akhir');
+
+    $updatedProject = $project->fresh();
+    $updatedTitle = $title->fresh();
+    $updatedDocument = ThesisDocument::query()->where('project_id', $project->id)->firstOrFail();
+
+    expect($updatedProject)->not()->toBeNull()
+        ->and($updatedProject?->phase)->toBe('sempro')
+        ->and($updatedTitle?->title_id)->toBe('Judul Sesudah Revisi Sempro')
+        ->and($updatedTitle?->status)->toBe('approved')
+        ->and($updatedDocument->file_name)->toBe('proposal-sempro-final.pdf');
+
+    $this->assertDatabaseHas('thesis_revisions', [
+        'project_id' => $project->id,
+        'defense_id' => $sempro->id,
+        'status' => 'submitted',
+    ]);
+
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists((string) $updatedDocument->storage_path);
+});
+
+test('mahasiswa upload dokumen works without dosbing and notifies sempro thread', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $examinerOne = createUserWithRole(AppRole::Dosen->value);
+    $examinerTwo = createUserWithRole(AppRole::Dosen->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(4),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Sempro Aktif',
+        'title_en' => 'Active Sempro Title',
+        'proposal_summary' => 'Proposal untuk sempro aktif.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(4),
+    ]);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(2),
+        'location' => 'Ruang Seminar C',
+        'mode' => 'offline',
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $examinerOne->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'pending',
+    ]);
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $examinerTwo->id,
+        'role' => 'examiner',
+        'order_no' => 2,
+        'decision' => 'pending',
+    ]);
+
+    $semproThread = MentorshipChatThread::query()->create([
+        'student_user_id' => $student->id,
+        'type' => 'sempro',
+        'context_id' => $sempro->id,
+        'label' => 'Sempro',
+    ]);
+
+    \App\Models\MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $semproThread->id,
+        'user_id' => $student->id,
+        'role' => 'student',
+    ]);
+    \App\Models\MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $semproThread->id,
+        'user_id' => $examinerOne->id,
+        'role' => 'examiner',
+    ]);
+    \App\Models\MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $semproThread->id,
+        'user_id' => $examinerTwo->id,
+        'role' => 'examiner',
+    ]);
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/upload-dokumen', [
+            'title' => 'Proposal Revisi Sempro',
+            'category' => 'revisi-sempro',
+            'document' => UploadedFile::fake()->create('proposal-revisi-sempro.pdf', 500, 'application/pdf'),
+        ])
+        ->assertRedirect('/mahasiswa/upload-dokumen');
+
+    $this->assertDatabaseCount('mentorship_documents', 2);
+    $this->assertDatabaseHas('mentorship_documents', [
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $examinerOne->id,
+        'category' => 'revisi-sempro',
+    ]);
+    $this->assertDatabaseHas('mentorship_documents', [
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $examinerTwo->id,
+        'category' => 'revisi-sempro',
+    ]);
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'mentorship_chat_thread_id' => $semproThread->id,
+        'message_type' => 'document_event',
+        'attachment_name' => 'proposal-revisi-sempro.pdf',
+    ]);
+});
+
+test('mahasiswa chat attachment is mirrored into active sempro thread', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $advisor = createUserWithRole(AppRole::Dosen->value);
+    $examiner = createUserWithRole(AppRole::Dosen->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(4),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Dengan Sempro Aktif',
+        'title_en' => 'Title With Active Sempro',
+        'proposal_summary' => 'Proposal untuk chat lampiran.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(4),
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $advisor->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+    syncThesisSupervisor($student, $advisor, $admin, AdvisorType::Primary->value);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(3),
+        'location' => 'Ruang Seminar D',
+        'mode' => 'offline',
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $examiner->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'pending',
+    ]);
+
+    $pembimbingThread = MentorshipChatThread::query()->create([
+        'student_user_id' => $student->id,
+        'type' => 'pembimbing',
+    ]);
+
+    $semproThread = MentorshipChatThread::query()->create([
+        'student_user_id' => $student->id,
+        'type' => 'sempro',
+        'context_id' => $sempro->id,
+        'label' => 'Sempro',
+    ]);
+
+    \App\Models\MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $semproThread->id,
+        'user_id' => $student->id,
+        'role' => 'student',
+    ]);
+    \App\Models\MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $semproThread->id,
+        'user_id' => $examiner->id,
+        'role' => 'examiner',
+    ]);
+
+    $this->actingAs($student)
+        ->post("/mahasiswa/pesan/{$pembimbingThread->id}/messages", [
+            'message' => 'Proposal terbaru untuk sempro',
+            'attachment' => UploadedFile::fake()->create('proposal-chat-sempro.pdf', 350, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'mentorship_chat_thread_id' => $pembimbingThread->id,
+        'message_type' => 'document_event',
+        'attachment_name' => 'proposal-chat-sempro.pdf',
+    ]);
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'mentorship_chat_thread_id' => $semproThread->id,
+        'message_type' => 'document_event',
+        'attachment_name' => 'proposal-chat-sempro.pdf',
+    ]);
+});
+
+test('project proposal document download is restricted by thesis project access', function () {
     Storage::fake('public');
 
     $owner = createUserWithRole(AppRole::Mahasiswa->value);
     $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
     $admin = createUserWithRole(AppRole::Admin->value);
+    $otherAdmin = createUserWithRole(AppRole::Admin->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $otherProdi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
 
-    $path = 'proposal_files/proposal-owner.pdf';
-    Storage::disk('public')->put($path, 'owner-content');
+    MahasiswaProfile::factory()->create([
+        'user_id' => $owner->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
 
-    $prodi = ProgramStudi::factory()->create();
+    MahasiswaProfile::factory()->create([
+        'user_id' => $otherStudent->id,
+        'program_studi_id' => $otherProdi->id,
+        'is_active' => true,
+    ]);
 
-    $submission = ThesisSubmission::query()->create([
+    \App\Models\AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    \App\Models\AdminProfile::query()->create([
+        'user_id' => $otherAdmin->id,
+        'program_studi_id' => $otherProdi->id,
+    ]);
+
+    $path = 'proposal_files/proposal-project-native.pdf';
+    Storage::disk('public')->put($path, 'proposal-content');
+
+    $project = ThesisProject::query()->create([
         'student_user_id' => $owner->id,
         'program_studi_id' => $prodi->id,
-        'title_id' => 'Judul Owner',
-        'title_en' => 'Owner Title',
-        'proposal_summary' => 'Ringkasan owner.',
-        'proposal_file_path' => $path,
-        'status' => ThesisSubmissionStatus::MenungguPersetujuan->value,
-        'is_active' => true,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now(),
+        'created_by' => $owner->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Project Native',
+        'title_en' => 'Project Native Title',
+        'proposal_summary' => 'Ringkasan native.',
+        'status' => 'submitted',
+        'submitted_by_user_id' => $owner->id,
         'submitted_at' => now(),
     ]);
 
+    ThesisDocument::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'uploaded_by_user_id' => $owner->id,
+        'kind' => 'proposal',
+        'status' => 'active',
+        'version_no' => 1,
+        'title' => 'Proposal Skripsi',
+        'storage_disk' => 'public',
+        'storage_path' => $path,
+        'file_name' => 'proposal-project-native.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'uploaded_at' => now(),
+    ]);
+
+    $document = ThesisDocument::query()->firstOrFail();
+
     $this->actingAs($owner)
-        ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
         ->assertOk();
 
     $this->actingAs($otherStudent)
-        ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
         ->assertForbidden();
 
     $this->actingAs($admin)
-        ->get(route('files.thesis-proposals', ['submission' => $submission->id]))
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
         ->assertOk();
+
+    $this->actingAs($otherAdmin)
+        ->get(route('files.thesis-documents.download', ['document' => $document->id]))
+        ->assertForbidden();
 });
 
 test('download permissions enforce ownership and escalation rules', function () {

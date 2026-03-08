@@ -5,22 +5,32 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Services\UserProfilePresenter;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private readonly UserProfilePresenter $userProfilePresenter,
+    ) {}
+
     /**
      * Show the user's profile settings page.
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        abort_if($user === null, 401);
+
         return Inertia::render('settings/profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+            'profile' => $this->userProfilePresenter->detail($user),
             'status' => $request->session()->get('status'),
         ]);
     }
@@ -30,13 +40,29 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        abort_if($user === null, 401);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $validated = $request->validated();
+        $avatar = $request->file('avatar');
+
+        unset($validated['avatar']);
+
+        $user->fill($validated);
+
+        if ($avatar !== null) {
+            if (is_string($user->avatar_path) && trim($user->avatar_path) !== '') {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+
+            $user->avatar_path = $avatar->store(sprintf('avatars/%d', $user->getKey()), 'public');
         }
 
-        $request->user()->save();
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
 
         return to_route('profile.edit');
     }

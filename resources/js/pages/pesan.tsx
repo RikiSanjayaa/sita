@@ -1,9 +1,17 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Inbox, Paperclip, Send, Users } from 'lucide-react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    Inbox,
+    Paperclip,
+    Send,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,13 +22,24 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard, pesan } from '@/routes';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import {
+    type BreadcrumbItem,
+    type SharedData,
+    type UserProfileSummary,
+} from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
@@ -31,6 +50,8 @@ type ChatMessage = {
     id: number;
     senderUserId: number | null;
     author: string;
+    authorAvatar: string | null;
+    authorProfileUrl: string | null;
     message: string;
     time: string;
     type: string;
@@ -44,6 +65,7 @@ type ThreadItem = {
     threadType: string;
     threadLabel: string;
     members: string[];
+    memberProfiles: UserProfileSummary[];
     messages: ChatMessage[];
     preview: string;
     lastTime: string;
@@ -77,6 +99,7 @@ export default function PesanPage() {
         flashMessage,
         auth,
     } = usePage<SharedData & PesanPageProps>().props;
+    const getInitials = useInitials();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
@@ -365,6 +388,62 @@ export default function PesanPage() {
                                         {activeThread.members.join(', ')}
                                     </span>
                                 </CardDescription>
+                                {activeThread.memberProfiles.length > 0 ? (
+                                    <div className="mt-3 hidden sm:flex">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                >
+                                                    Lihat Peserta
+                                                    <ChevronDown className="size-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                                {activeThread.memberProfiles.map(
+                                                    (member) => (
+                                                        <DropdownMenuItem
+                                                            key={member.id}
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={
+                                                                    member.profileUrl
+                                                                }
+                                                                className="flex min-w-0 items-center gap-2"
+                                                            >
+                                                                <Avatar className="size-7 border">
+                                                                    <AvatarImage
+                                                                        src={
+                                                                            member.avatar ??
+                                                                            undefined
+                                                                        }
+                                                                        alt={
+                                                                            member.name
+                                                                        }
+                                                                    />
+                                                                    <AvatarFallback className="bg-primary/10 text-primary">
+                                                                        {getInitials(
+                                                                            member.name,
+                                                                        )}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="truncate">
+                                                                    {
+                                                                        member.name
+                                                                    }
+                                                                </span>
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                    ),
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                ) : null}
                             </>
                         ) : (
                             <>

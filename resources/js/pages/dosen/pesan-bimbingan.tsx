@@ -1,9 +1,18 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    Inbox,
+    Paperclip,
+    Search,
+    Send,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,12 +23,23 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useInitials } from '@/hooks/use-initials';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import {
+    type BreadcrumbItem,
+    type SharedData,
+    type UserProfileSummary,
+} from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
@@ -30,6 +50,8 @@ type ThreadMessage = {
     id: number;
     senderUserId: number | null;
     author: string;
+    authorAvatar: string | null;
+    authorProfileUrl: string | null;
     message: string;
     time: string;
     type:
@@ -45,6 +67,7 @@ type ThreadMessage = {
 type ThreadItem = {
     id: number;
     student: string;
+    studentProfile: UserProfileSummary | null;
     unread: number;
     preview: string;
     lastTime: string;
@@ -90,6 +113,7 @@ export default function DosenPesanBimbinganPage() {
         flashMessage,
         auth,
     } = usePage<SharedData & PesanBimbinganProps>().props;
+    const getInitials = useInitials();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
     const [search, setSearch] = useState('');
@@ -556,7 +580,22 @@ export default function DosenPesanBimbinganPage() {
                                         <ArrowLeft className="size-5" />
                                     </Button>
                                     <CardTitle className="truncate">
-                                        {activeThread.student}
+                                        {activeThread.studentProfile ? (
+                                            <Link
+                                                href={
+                                                    activeThread.studentProfile
+                                                        .profileUrl
+                                                }
+                                                className="transition hover:text-primary"
+                                            >
+                                                {
+                                                    activeThread.studentProfile
+                                                        .name
+                                                }
+                                            </Link>
+                                        ) : (
+                                            activeThread.student
+                                        )}
                                     </CardTitle>
                                     <Badge
                                         variant="soft"
@@ -578,6 +617,62 @@ export default function DosenPesanBimbinganPage() {
                                         {auth.user?.name}
                                     </span>
                                 </CardDescription>
+                                {activeThread.studentProfile ? (
+                                    <div className="mt-3 hidden sm:flex">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                >
+                                                    Profil
+                                                    <ChevronDown className="size-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                                <DropdownMenuItem asChild>
+                                                    <Link
+                                                        href={
+                                                            activeThread
+                                                                .studentProfile
+                                                                .profileUrl
+                                                        }
+                                                        className="flex items-center gap-2"
+                                                    >
+                                                        <Avatar className="size-7 border">
+                                                            <AvatarImage
+                                                                src={
+                                                                    activeThread
+                                                                        .studentProfile
+                                                                        .avatar ??
+                                                                    undefined
+                                                                }
+                                                                alt={
+                                                                    activeThread
+                                                                        .studentProfile
+                                                                        .name
+                                                                }
+                                                            />
+                                                            <AvatarFallback className="bg-primary/10 text-primary">
+                                                                {getInitials(
+                                                                    activeThread
+                                                                        .studentProfile
+                                                                        .name,
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <span>
+                                                            Lihat profil
+                                                            mahasiswa
+                                                        </span>
+                                                    </Link>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                ) : null}
                             </>
                         ) : (
                             <>
@@ -618,8 +713,8 @@ export default function DosenPesanBimbinganPage() {
                                     <div className="grid gap-3">
                                         {activeMessages.map((message) => {
                                             const isMe =
-                                                message.author ===
-                                                auth.user?.name;
+                                                message.senderUserId ===
+                                                auth.user?.id;
                                             return (
                                                 <ChatBubble
                                                     key={message.id}

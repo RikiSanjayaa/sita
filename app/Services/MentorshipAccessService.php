@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Enums\AssignmentStatus;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 
 class MentorshipAccessService
@@ -23,10 +23,17 @@ class MentorshipAccessService
             return false;
         }
 
-        return MentorshipAssignment::query()
-            ->where('student_user_id', $thread->student_user_id)
-            ->where('lecturer_user_id', $user->id)
-            ->where('status', AssignmentStatus::Active->value)
+        if ($thread->type === 'pembimbing') {
+            return ThesisSupervisorAssignment::query()
+                ->where('lecturer_user_id', $user->id)
+                ->where('status', 'active')
+                ->whereHas('project', fn($query) => $query->where('student_user_id', $thread->student_user_id))
+                ->exists();
+        }
+
+        return MentorshipChatThreadParticipant::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', $user->id)
             ->exists();
     }
 }

@@ -10,6 +10,7 @@ use Filament\Actions\Imports\ImportColumn;
 use Filament\Actions\Imports\Importer;
 use Filament\Actions\Imports\Models\Import;
 use Filament\Forms\Components\Select;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Number;
 
 class UserImporter extends Importer
@@ -26,7 +27,7 @@ class UserImporter extends Importer
                     AppRole::Dosen->value => 'Dosen',
                     AppRole::Admin->value => 'Admin',
                 ])->when(
-                    ! auth()->user()?->hasRole(AppRole::SuperAdmin),
+                    ! self::isSuperAdminUser(),
                     fn($options) => $options->except(AppRole::Admin->value)
                 )->toArray())
                 ->required()
@@ -36,8 +37,8 @@ class UserImporter extends Importer
                 ->options(ProgramStudi::all()->pluck('name', 'id'))
                 ->required()
                 ->searchable()
-                ->default(fn() => auth()->user()?->adminProgramStudiId())
-                ->disabled(fn() => ! auth()->user()?->hasRole(AppRole::SuperAdmin))
+                ->default(fn() => self::currentUserAdminProgramStudiId())
+                ->disabled(fn() => ! self::isSuperAdminUser())
                 ->dehydrated() // Ensure it's sent even if disabled
                 ->native(false),
         ];
@@ -56,6 +57,12 @@ class UserImporter extends Importer
                 ->examples(['mahasiswa@sita.test'])
                 ->requiredMapping()
                 ->rules(['required', 'email', 'max:255']),
+            ImportColumn::make('phone_number')
+                ->exampleHeader('phone_number')
+                ->examples(['081234567890'])
+                ->guess(['phone_number', 'phone', 'no_hp', 'nomor_hp', 'whatsapp'])
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'string', 'max:30']),
             ImportColumn::make('role')
                 ->exampleHeader('role')
                 ->examples(['mahasiswa'])
@@ -92,6 +99,12 @@ class UserImporter extends Importer
                 ->integer()
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'required_if:role,mahasiswa', 'integer', 'between:1990,2100']),
+            ImportColumn::make('concentration')
+                ->exampleHeader('concentration')
+                ->examples(['Jaringan'])
+                ->guess(['concentration', 'konsentrasi'])
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'required_if:role,mahasiswa', 'required_if:role,dosen', 'string', 'max:255']),
 
             ImportColumn::make('nik')
                 ->exampleHeader('nik')
@@ -99,6 +112,13 @@ class UserImporter extends Importer
                 ->guess(['nik', 'no_ktp', 'nidn'])
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'required_if:role,dosen', 'string', 'max:255']),
+            ImportColumn::make('supervision_quota')
+                ->exampleHeader('supervision_quota')
+                ->examples(['12'])
+                ->guess(['supervision_quota', 'quota', 'kuota'])
+                ->integer()
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'integer', 'min:1']),
 
         ];
     }
@@ -155,5 +175,21 @@ class UserImporter extends Importer
         }
 
         return $body;
+    }
+
+    private static function isSuperAdminUser(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user?->hasRole(AppRole::SuperAdmin) ?? false;
+    }
+
+    private static function currentUserAdminProgramStudiId(): ?int
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user?->adminProgramStudiId();
     }
 }

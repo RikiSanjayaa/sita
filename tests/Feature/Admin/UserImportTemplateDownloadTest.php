@@ -26,7 +26,7 @@ test('admin can download csv import template', function (): void {
         ->assertOk()
         ->assertHeader('content-type', 'text/csv; charset=UTF-8')
         ->assertHeader('content-disposition', 'attachment; filename="user-import-template.csv"')
-        ->assertSee('name,email,role,password,nim,prodi,angkatan,nik');
+        ->assertSee('name,email,phone_number,role,password,nim,prodi,angkatan,concentration,nik,supervision_quota');
 });
 
 test('non-admin cannot download excel import template', function (): void {

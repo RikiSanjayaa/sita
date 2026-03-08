@@ -27,6 +27,7 @@ class MentorshipDocument extends Model
         'file_url',
         'storage_disk',
         'storage_path',
+        'stored_file_name',
         'mime_type',
         'file_size_kb',
         'status',

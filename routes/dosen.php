@@ -12,7 +12,7 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('seminar-proposal', [SeminarProposalController::class, 'index'])->name('seminar-proposal');
-    Route::post('seminar-proposal/{sempro}/decision', [SeminarProposalController::class, 'submitDecision'])
+    Route::post('seminar-proposal/{defense}/decision', [SeminarProposalController::class, 'submitDecision'])
         ->name('seminar-proposal.decision');
 
     Route::get('mahasiswa-bimbingan', MahasiswaBimbinganController::class)->name('mahasiswa-bimbingan');

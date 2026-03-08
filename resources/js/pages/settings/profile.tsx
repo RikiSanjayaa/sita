@@ -1,11 +1,10 @@
-import { Transition } from '@headlessui/react';
-import { Form, Head, usePage } from '@inertiajs/react';
-import { Camera } from 'lucide-react';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { Camera, MessageCircle, Save } from 'lucide-react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import InputError from '@/components/input-error';
+import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -16,381 +15,290 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
-import { edit } from '@/routes/profile';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import { dashboard } from '@/routes';
+import {
+    type BreadcrumbItem,
+    type SharedData,
+    type UserProfileDetail,
+} from '@/types';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Edit Profil',
-        href: edit().url,
-    },
-];
-
-type Pembimbing = {
-    nama: string;
-    email: string;
+type ProfilePageProps = {
+    profile: UserProfileDetail;
+    status?: string | null;
 };
 
-export default function Profile() {
-    const { auth } = usePage<SharedData>().props;
+type ProfileFormData = {
+    name: string;
+    email: string;
+    phone_number: string;
+    avatar: File | null;
+    _method?: 'patch';
+};
+
+export default function ProfilePage() {
+    const { auth, profile } = usePage<SharedData & ProfilePageProps>().props;
     const getInitials = useInitials();
-
-    const userAny = auth.user as unknown as Record<string, unknown>;
-    const nim =
-        typeof userAny.nim === 'string'
-            ? userAny.nim
-            : typeof userAny.nim === 'number'
-              ? String(userAny.nim)
-              : String(auth.user.id).padStart(9, '0');
-
-    const akademik = {
-        nim,
-        programStudi:
-            typeof userAny.program_studi === 'string'
-                ? userAny.program_studi
-                : 'Ilmu Komputer',
-        fakultas:
-            typeof userAny.fakultas === 'string'
-                ? userAny.fakultas
-                : 'Fakultas Teknik',
-        status:
-            typeof userAny.status_mahasiswa === 'string'
-                ? userAny.status_mahasiswa
-                : 'Aktif',
-        tahunAngkatan:
-            typeof userAny.tahun_angkatan === 'string'
-                ? userAny.tahun_angkatan
-                : '2023',
-    };
-    const statusIsPositive = /aktif|disetujui|selesai|terjadwal/i.test(
-        akademik.status,
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const objectUrlRef = useRef<string | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(
+        auth.user.avatar ?? null,
     );
 
-    const pembimbing1: Pembimbing = {
-        nama: 'Dr. Budi Santoso, M.Kom.',
-        email: 'budi.santoso@univ.ac.id',
-    };
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Dashboard', href: dashboard().url },
+        { title: 'Profil Saya', href: '/settings/profile' },
+    ];
 
-    const pembimbing2: Pembimbing = {
-        nama: 'Dr. Siti Aminah, M.T.',
-        email: 'siti.aminah@univ.ac.id',
-    };
+    const form = useForm<ProfileFormData>({
+        name: auth.user.name,
+        email: auth.user.email,
+        phone_number:
+            typeof auth.user.phone_number === 'string'
+                ? auth.user.phone_number
+                : '',
+        avatar: null,
+    });
 
-    const tugasAkhir = {
-        judul: 'Implementasi Machine Learning untuk Prediksi Kelulusan Mahasiswa Menggunakan Algoritma Random Forest',
-        pembimbing1,
-        pembimbing2,
-    };
+    useEffect(() => {
+        return () => {
+            if (objectUrlRef.current !== null) {
+                URL.revokeObjectURL(objectUrlRef.current);
+            }
+        };
+    }, []);
+
+    function pickAvatar(event: ChangeEvent<HTMLInputElement>) {
+        const nextFile = event.target.files?.[0] ?? null;
+
+        form.setData('avatar', nextFile);
+
+        if (objectUrlRef.current !== null) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
+        }
+
+        if (nextFile === null) {
+            setAvatarPreview(auth.user.avatar ?? null);
+            return;
+        }
+
+        const nextUrl = URL.createObjectURL(nextFile);
+        objectUrlRef.current = nextUrl;
+        setAvatarPreview(nextUrl);
+    }
+
+    function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        form.transform((data) => ({
+            ...data,
+            _method: 'patch',
+        }));
+
+        form.post('/settings/profile', {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset('avatar');
+
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+
+                if (objectUrlRef.current !== null) {
+                    URL.revokeObjectURL(objectUrlRef.current);
+                    objectUrlRef.current = null;
+                }
+            },
+        });
+    }
 
     return (
         <AppLayout
+            role={auth.activeRole === 'dosen' ? 'dosen' : auth.activeRole}
             breadcrumbs={breadcrumbs}
-            subtitle={`Selamat datang kembali, ${auth.user.name}`}
+            title="Profil Saya"
+            subtitle={profile.subtitle ?? profile.description}
         >
-            <Head title="Edit Profil" />
+            <Head title="Profil Saya" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div>
-                    <h1 className="text-xl font-semibold">Edit Profil</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Kelola informasi profil Anda
-                    </p>
-                </div>
-
                 <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Informasi Pribadi</CardTitle>
+                    <CardHeader>
+                        <CardTitle>Perbarui Profil</CardTitle>
                         <CardDescription>
-                            Data yang dapat Anda perbarui
+                            Ubah nama, email, dan foto profil agar tampil
+                            konsisten di chat dan halaman akademik.
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
-                        <Form
-                            {...ProfileController.update.form()}
-                            options={{
-                                preserveScroll: true,
-                            }}
-                            id="edit-profile-form"
-                            className="grid gap-6"
+                    <CardContent>
+                        <form
+                            onSubmit={submit}
+                            className="grid gap-6 lg:grid-cols-[220px_1fr]"
                         >
-                            {({ errors, processing, recentlySuccessful }) => (
-                                <>
-                                    <div className="grid gap-4 md:items-center">
-                                        <div className="flex items-start gap-4">
-                                            <div className="relative">
-                                                <Avatar className="h-20 w-20">
-                                                    <AvatarImage
-                                                        src={auth.user.avatar}
-                                                        alt={auth.user.name}
-                                                    />
-                                                    <AvatarFallback>
-                                                        {getInitials(
-                                                            auth.user.name,
-                                                        )}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="absolute -right-2 -bottom-2 h-9 w-9 rounded-full bg-background"
-                                                    aria-label="Ubah foto profil"
-                                                >
-                                                    <Camera className="size-4" />
-                                                </Button>
-                                            </div>
-
-                                            <div className="min-w-0">
-                                                <div className="text-sm font-medium">
-                                                    Foto Profil
-                                                </div>
-                                                <div className="mt-1 text-xs text-muted-foreground">
-                                                    Klik ikon kamera untuk
-                                                    mengubah foto profil
-                                                </div>
-                                                <div className="mt-2 text-xs text-muted-foreground">
-                                                    Rekomendasi: JPG/PNG,
-                                                    maksimal 2 MB
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-4">
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="name">
-                                                Nama Lengkap
-                                            </Label>
-                                            <Input
-                                                id="name"
-                                                name="name"
-                                                autoComplete="name"
-                                                defaultValue={auth.user.name}
-                                                placeholder="Nama sesuai identitas"
-                                                required
-                                            />
-                                            <InputError
-                                                message={errors.name}
-                                                className="text-xs"
-                                            />
-                                            <p className="text-xs text-muted-foreground">
-                                                Nama ini akan tampil di profil
-                                                dan beberapa dokumen.
-                                            </p>
-                                        </div>
-
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="email">
-                                                    Email Personal
-                                                </Label>
-                                                <Input
-                                                    id="email"
-                                                    name="email"
-                                                    type="email"
-                                                    autoComplete="email"
-                                                    defaultValue={
-                                                        auth.user.email
-                                                    }
-                                                    placeholder="nama@email.com"
-                                                    required
-                                                />
-                                                <InputError
-                                                    message={errors.email}
-                                                    className="text-xs"
-                                                />
-                                                <p className="text-xs text-muted-foreground">
-                                                    Digunakan untuk pengingat
-                                                    dan notifikasi.
-                                                </p>
-                                            </div>
-
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="telp">
-                                                    Nomor Telepon
-                                                </Label>
-                                                <Input
-                                                    id="telp"
-                                                    name="telp"
-                                                    inputMode="tel"
-                                                    autoComplete="tel"
-                                                    placeholder="08xxxxxxxxxx"
-                                                />
-                                                <p className="text-xs text-muted-foreground">
-                                                    Pastikan nomor aktif untuk
-                                                    verifikasi cepat.
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="alamat">
-                                                Alamat
-                                            </Label>
-                                            <Input
-                                                id="alamat"
-                                                name="alamat"
-                                                placeholder="Jl. Contoh No. 123, Jakarta Selatan"
-                                            />
-                                            <p className="text-xs text-muted-foreground">
-                                                Gunakan alamat domisili saat
-                                                ini.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <Transition
-                                            show={recentlySuccessful}
-                                            enter="transition ease-in-out"
-                                            enterFrom="opacity-0"
-                                            leave="transition ease-in-out"
-                                            leaveTo="opacity-0"
-                                        >
-                                            <p className="text-sm text-neutral-600">
-                                                Tersimpan
-                                            </p>
-                                        </Transition>
-                                        <div className="ml-auto flex gap-2">
-                                            <Button
-                                                type="reset"
-                                                variant="outline"
-                                                disabled={processing}
-                                            >
-                                                Batalkan
-                                            </Button>
-                                            <Button
-                                                type="submit"
-                                                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                                disabled={processing}
-                                            >
-                                                Simpan Perubahan
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </Form>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Informasi Akademik</CardTitle>
-                        <CardDescription>
-                            Data dari sistem akademik (tidak dapat diubah)
-                        </CardDescription>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <div className="grid gap-1">
-                                <div className="text-xs text-muted-foreground">
-                                    NIM
-                                </div>
-                                <div className="text-sm font-medium">
-                                    {akademik.nim}
-                                </div>
-                            </div>
-
-                            <div className="grid gap-1">
-                                <div className="text-xs text-muted-foreground">
-                                    Status
-                                </div>
-                                <div>
-                                    <Badge
-                                        className={
-                                            statusIsPositive
-                                                ? 'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90'
-                                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            <div className="flex flex-col items-center gap-4 rounded-xl border bg-muted/20 p-5 text-center">
+                                <Avatar className="size-24 border">
+                                    <AvatarImage
+                                        src={
+                                            avatarPreview ??
+                                            auth.user.avatar ??
+                                            undefined
                                         }
+                                        alt={auth.user.name}
+                                    />
+                                    <AvatarFallback className="bg-primary/10 text-lg text-primary">
+                                        {getInitials(auth.user.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.webp"
+                                    className="hidden"
+                                    onChange={pickAvatar}
+                                />
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        fileInputRef.current?.click()
+                                    }
+                                >
+                                    <Camera className="mr-2 size-4" />
+                                    Ganti Foto
+                                </Button>
+
+                                <div className="space-y-1 text-xs text-muted-foreground">
+                                    <p>JPG, PNG, atau WebP.</p>
+                                    <p>Maksimal 2 MB.</p>
+                                </div>
+
+                                {profile.whatsappUrl ? (
+                                    <Button asChild variant="secondary">
+                                        <a
+                                            href={profile.whatsappUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <MessageCircle className="mr-2 size-4" />
+                                            Chat WhatsApp
+                                        </a>
+                                    </Button>
+                                ) : null}
+
+                                <InputError
+                                    message={form.errors.avatar}
+                                    className="text-center text-xs"
+                                />
+                            </div>
+
+                            <div className="grid gap-5">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="name">Nama Lengkap</Label>
+                                    <Input
+                                        id="name"
+                                        value={form.data.name}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'name',
+                                                event.target.value,
+                                            )
+                                        }
+                                        autoComplete="name"
+                                        required
+                                    />
+                                    <InputError
+                                        message={form.errors.name}
+                                        className="text-xs"
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        value={form.data.email}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'email',
+                                                event.target.value,
+                                            )
+                                        }
+                                        autoComplete="email"
+                                        required
+                                    />
+                                    <InputError
+                                        message={form.errors.email}
+                                        className="text-xs"
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="phone_number">
+                                        Nomor HP
+                                    </Label>
+                                    <Input
+                                        id="phone_number"
+                                        value={form.data.phone_number}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'phone_number',
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder="08xxxxxxxxxx"
+                                        inputMode="tel"
+                                    />
+                                    <InputError
+                                        message={form.errors.phone_number}
+                                        className="text-xs"
+                                    />
+                                </div>
+
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={form.processing}
+                                        onClick={() => {
+                                            form.reset();
+                                            setAvatarPreview(
+                                                auth.user.avatar ?? null,
+                                            );
+
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.value = '';
+                                            }
+
+                                            if (objectUrlRef.current !== null) {
+                                                URL.revokeObjectURL(
+                                                    objectUrlRef.current,
+                                                );
+                                                objectUrlRef.current = null;
+                                            }
+                                        }}
                                     >
-                                        {akademik.status}
-                                    </Badge>
+                                        Reset
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={form.processing}
+                                    >
+                                        <Save className="mr-2 size-4" />
+                                        Simpan Perubahan
+                                    </Button>
                                 </div>
                             </div>
-
-                            <div className="grid gap-1">
-                                <div className="text-xs text-muted-foreground">
-                                    Program Studi
-                                </div>
-                                <div className="text-sm font-medium">
-                                    {akademik.programStudi}
-                                </div>
-                            </div>
-
-                            <div className="grid gap-1">
-                                <div className="text-xs text-muted-foreground">
-                                    Tahun Angkatan
-                                </div>
-                                <div className="text-sm font-medium">
-                                    {akademik.tahunAngkatan}
-                                </div>
-                            </div>
-
-                            <div className="grid gap-1">
-                                <div className="text-xs text-muted-foreground">
-                                    Fakultas
-                                </div>
-                                <div className="text-sm font-medium">
-                                    {akademik.fakultas}
-                                </div>
-                            </div>
-                        </div>
+                        </form>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Informasi Skripsi</CardTitle>
-                        <CardDescription>
-                            Detail pembimbingan skripsi Anda
-                        </CardDescription>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
-                        <div className="grid gap-6">
-                            <div className="grid gap-1">
-                                <div className="text-xs text-muted-foreground">
-                                    Judul Skripsi
-                                </div>
-                                <div className="text-sm font-medium">
-                                    {tugasAkhir.judul}
-                                </div>
-                            </div>
-
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="rounded-lg border bg-background p-4">
-                                    <div className="text-xs text-muted-foreground">
-                                        Dosen Pembimbing 1
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium">
-                                        {tugasAkhir.pembimbing1.nama}
-                                    </div>
-                                    <div className="mt-1 text-sm text-muted-foreground">
-                                        {tugasAkhir.pembimbing1.email}
-                                    </div>
-                                </div>
-
-                                <div className="rounded-lg border bg-background p-4">
-                                    <div className="text-xs text-muted-foreground">
-                                        Dosen Pembimbing 2
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium">
-                                        {tugasAkhir.pembimbing2.nama}
-                                    </div>
-                                    <div className="mt-1 text-sm text-muted-foreground">
-                                        {tugasAkhir.pembimbing2.email}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <ProfileDetailsSections profile={profile} />
             </div>
         </AppLayout>
     );

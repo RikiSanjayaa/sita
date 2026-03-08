@@ -11,10 +11,10 @@ class UserImportTemplateDownloadController extends Controller
     public function __invoke(string $format): Response
     {
         $rows = [
-            ['name', 'email', 'role', 'password', 'nim', 'prodi', 'angkatan', 'nik'],
-            ['Muhammad Akbar', 'akbar@sita.test', 'mahasiswa', '', '2210510001', '', '2022', ''],
-            ['Dr. Budi Santoso', 'budi@sita.test', 'dosen', '', '', '', '', '7301010101010001'],
-            ['Admin SITA', 'admin2@sita.test', 'admin', '', '', '', '', ''],
+            ['name', 'email', 'phone_number', 'role', 'password', 'nim', 'prodi', 'angkatan', 'concentration', 'nik', 'supervision_quota'],
+            ['Muhammad Akbar', 'akbar@sita.test', '081234567890', 'mahasiswa', '', '2210510001', '', '2022', 'Jaringan', '', ''],
+            ['Dr. Budi Santoso', 'budi@sita.test', '081298765432', 'dosen', '', '', '', '', 'Sistem Cerdas', '7301010101010001', '12'],
+            ['Admin SITA', 'admin2@sita.test', '', 'admin', '', '', '', '', '', '', ''],
         ];
 
         if ($format === 'xlsx') {

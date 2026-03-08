@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
-use App\Enums\AssignmentStatus;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipDocument;
+use App\Models\ThesisDefense;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\RealtimeNotificationService;
+use App\Services\UserProfilePresenter;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,7 @@ class PesanController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
     public function index(Request $request): Response
@@ -61,12 +64,14 @@ class PesanController extends Controller
             ->get();
 
         // Get members for pembimbing thread
-        $advisors = MentorshipAssignment::query()
+        $advisors = ThesisSupervisorAssignment::query()
             ->with('lecturer')
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->get()
-            ->map(fn(MentorshipAssignment $a): string => $a->lecturer?->name ?? '-')
+            ->map(fn(ThesisSupervisorAssignment $assignment): string => $assignment->lecturer?->name ?? '-')
             ->unique()
             ->values()
             ->all();
@@ -100,6 +105,27 @@ class PesanController extends Controller
                 'threadType' => $thread->type,
                 'threadLabel' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji'),
                 'members' => $members,
+                'memberProfiles' => $thread->type === 'pembimbing'
+                    ? array_values(array_filter([
+                        $this->userProfilePresenter->summary($student),
+                        ...ThesisSupervisorAssignment::query()
+                            ->with(['lecturer.roles', 'lecturer.dosenProfile.programStudi'])
+                            ->whereHas('project', fn($query) => $query
+                                ->where('student_user_id', $student->id)
+                                ->where('state', 'active'))
+                            ->where('status', 'active')
+                            ->get()
+                            ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->userProfilePresenter->summary($assignment->lecturer))
+                            ->all(),
+                    ]))
+                    : MentorshipChatThreadParticipant::query()
+                        ->where('thread_id', $thread->id)
+                        ->with(['user.roles', 'user.mahasiswaProfile.programStudi', 'user.dosenProfile.programStudi'])
+                        ->get()
+                        ->map(fn(MentorshipChatThreadParticipant $participant): ?array => $this->userProfilePresenter->summary($participant->user))
+                        ->filter()
+                        ->values()
+                        ->all(),
                 'messages' => $messages,
                 'preview' => $thread->latestMessage?->message ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
@@ -131,24 +157,46 @@ class PesanController extends Controller
 
         $attachment = $data['attachment'] ?? null;
         $trimmedMessage = trim((string) ($data['message'] ?? ''));
+        $activeSemproDefenses = $this->activeSemproDefenses($student->id);
+        $semproThreads = $this->activeSemproThreads($student->id, $activeSemproDefenses);
 
-        $message = DB::transaction(function () use ($attachment, $student, $thread, $trimmedMessage): MentorshipChatMessage {
+        $result = DB::transaction(function () use ($activeSemproDefenses, $attachment, $semproThreads, $student, $thread, $trimmedMessage): array {
             if ($attachment === null) {
-                return $thread->messages()->create([
-                    'sender_user_id' => $student->id,
-                    'message_type' => 'text',
-                    'message' => $trimmedMessage,
-                    'sent_at' => now(),
-                ]);
+                return [
+                    'primary' => $thread->messages()->create([
+                        'sender_user_id' => $student->id,
+                        'message_type' => 'text',
+                        'message' => $trimmedMessage,
+                        'sent_at' => now(),
+                    ]),
+                    'mirrored' => collect(),
+                ];
             }
 
-            $assignments = MentorshipAssignment::query()
-                ->where('student_user_id', $student->id)
-                ->where('status', AssignmentStatus::Active->value)
+            $assignments = ThesisSupervisorAssignment::query()
+                ->whereHas('project', fn($query) => $query
+                    ->where('student_user_id', $student->id)
+                    ->where('state', 'active'))
+                ->where('status', 'active')
                 ->get();
 
-            if ($assignments->isEmpty() && $thread->type === 'pembimbing') {
-                abort(422, 'Belum ada dosen pembimbing aktif untuk menerima lampiran.');
+            $semproExaminerIds = $activeSemproDefenses
+                ->flatMap(fn(ThesisDefense $defense) => $defense->examiners->pluck('lecturer_user_id'))
+                ->filter()
+                ->map(static fn($id): int => (int) $id)
+                ->unique()
+                ->values();
+
+            $recipientLecturerIds = $assignments
+                ->pluck('lecturer_user_id')
+                ->merge($semproExaminerIds)
+                ->filter()
+                ->map(static fn($id): int => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($recipientLecturerIds->isEmpty()) {
+                abort(422, 'Belum ada dosen pembimbing atau penguji sempro aktif untuk menerima lampiran.');
             }
 
             $disk = 'public';
@@ -160,12 +208,16 @@ class PesanController extends Controller
                 ->max('version_number')) + 1;
 
             $createdDocuments = collect();
+            $assignmentIdsByLecturer = $assignments
+                ->mapWithKeys(fn(ThesisSupervisorAssignment $assignment): array => [
+                    (int) $assignment->lecturer_user_id => $assignment->getKey(),
+                ]);
 
-            foreach ($assignments as $assignment) {
+            foreach ($recipientLecturerIds as $lecturerUserId) {
                 $createdDocuments->push(MentorshipDocument::query()->create([
                     'student_user_id' => $student->id,
-                    'lecturer_user_id' => $assignment->lecturer_user_id,
-                    'mentorship_assignment_id' => $assignment->id,
+                    'lecturer_user_id' => $lecturerUserId,
+                    'mentorship_assignment_id' => $assignmentIdsByLecturer->get($lecturerUserId),
                     'title' => $trimmedMessage !== ''
                         ? $trimmedMessage
                         : sprintf('Lampiran chat v%d', $nextVersion),
@@ -176,6 +228,7 @@ class PesanController extends Controller
                     'file_url' => null,
                     'storage_disk' => $disk,
                     'storage_path' => $storedPath,
+                    'stored_file_name' => basename($storedPath),
                     'mime_type' => $attachment->getClientMimeType(),
                     'file_size_kb' => (int) ceil($attachment->getSize() / 1024),
                     'status' => 'submitted',
@@ -186,19 +239,105 @@ class PesanController extends Controller
                 ]));
             }
 
-            return $thread->messages()->create([
+            $message = $thread->messages()->create([
                 'sender_user_id' => $student->id,
                 'related_document_id' => $createdDocuments->first()?->id,
+                'attachment_disk' => $disk,
+                'attachment_path' => $storedPath,
+                'attachment_name' => $attachment->getClientOriginalName(),
+                'attachment_mime' => $attachment->getClientMimeType(),
+                'attachment_size_kb' => (int) ceil($attachment->getSize() / 1024),
                 'message_type' => 'document_event',
                 'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d.', $nextVersion),
                 'sent_at' => now(),
             ]);
+
+            $mirroredMessages = collect();
+
+            foreach ($semproThreads as $semproThread) {
+                if ($semproThread->getKey() === $thread->getKey()) {
+                    continue;
+                }
+
+                $mirroredMessages->push($semproThread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'related_document_id' => $createdDocuments->first()?->id,
+                    'attachment_disk' => $disk,
+                    'attachment_path' => $storedPath,
+                    'attachment_name' => $attachment->getClientOriginalName(),
+                    'attachment_mime' => $attachment->getClientMimeType(),
+                    'attachment_size_kb' => (int) ceil($attachment->getSize() / 1024),
+                    'message_type' => 'document_event',
+                    'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d (notifikasi ke thread Sempro).', $nextVersion),
+                    'sent_at' => now(),
+                ]));
+            }
+
+            return [
+                'primary' => $message,
+                'mirrored' => $mirroredMessages,
+            ];
         });
 
+        /** @var MentorshipChatMessage $message */
+        $message = $result['primary'];
+        /** @var Collection<int, MentorshipChatMessage> $mirroredMessages */
+        $mirroredMessages = $result['mirrored'];
+
         $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+
+        foreach ($mirroredMessages as $mirroredMessage) {
+            $this->broadcastChatMessage($mirroredMessage->mentorship_chat_thread_id, $this->mapMessagePayload($mirroredMessage));
+        }
+
         $this->notifyThreadMembers($student, $thread);
 
         return back()->with('success', 'Pesan berhasil dikirim.');
+    }
+
+    /**
+     * @return Collection<int, ThesisDefense>
+     */
+    private function activeSemproDefenses(int $studentUserId): Collection
+    {
+        return ThesisDefense::query()
+            ->with(['examiners' => fn($query) => $query->select(['id', 'defense_id', 'lecturer_user_id'])])
+            ->whereHas('project', fn($query) => $query->where('student_user_id', $studentUserId))
+            ->where('type', 'sempro')
+            ->where(function ($query): void {
+                $query->where('status', 'scheduled')
+                    ->orWhere(function ($nestedQuery): void {
+                        $nestedQuery->where('status', 'completed')
+                            ->where('result', 'pass_with_revision');
+                    });
+            })
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, ThesisDefense>  $defenses
+     * @return Collection<int, MentorshipChatThread>
+     */
+    private function activeSemproThreads(int $studentUserId, Collection $defenses): Collection
+    {
+        $contextIds = $defenses
+            ->flatMap(static fn(ThesisDefense $defense): array => array_values(array_filter([
+                $defense->getKey(),
+                $defense->legacy_sempro_id,
+            ])))
+            ->unique()
+            ->values()
+            ->all();
+
+        return MentorshipChatThread::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('type', 'sempro')
+            ->when(
+                $contextIds !== [],
+                fn($query) => $query->whereIn('context_id', $contextIds),
+                fn($query) => $query->whereRaw('1 = 0'),
+            )
+            ->get();
     }
 
     private function notifyThreadMembers(User $student, MentorshipChatThread $thread): void
@@ -238,9 +377,11 @@ class PesanController extends Controller
 
     private function notifyLecturers(User $student, int $threadId): void
     {
-        $lecturers = MentorshipAssignment::query()
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+        $lecturers = ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->with('lecturer')
             ->get()
             ->pluck('lecturer')
@@ -263,10 +404,14 @@ class PesanController extends Controller
      */
     private function mapMessagePayload(MentorshipChatMessage $message): array
     {
+        $author = $this->userProfilePresenter->summary($message->sender);
+
         return [
             'id' => $message->id,
             'senderUserId' => $message->sender_user_id,
             'author' => $message->sender?->name ?? 'Sistem',
+            'authorAvatar' => $author['avatar'] ?? null,
+            'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => $message->message_type,
