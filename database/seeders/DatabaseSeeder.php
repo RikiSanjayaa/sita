@@ -36,7 +36,10 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        // Only seed mentorship data for Ilmu Komputer mahasiswa (known test accounts)
+        // Only seed generic mentorship data for Ilmu Komputer mahasiswa who do not
+        // already participate in the thesis workflow seeder. Thesis-driven students
+        // should rely on thesis supervisor assignments so seeded advisor data stays
+        // consistent across dashboards and profile pages.
         $students = User::query()
             ->whereHas('roles', function ($query) {
                 $query->where('name', AppRole::Mahasiswa->value);
@@ -45,6 +48,9 @@ class DatabaseSeeder extends Seeder
                 $query->whereHas('programStudi', function ($q) {
                     $q->where('slug', 'ilkom');
                 });
+            })
+            ->whereDoesntHave('thesisProjects', function ($query) {
+                $query->whereIn('state', ['active', 'completed']);
             })
             ->get();
 
@@ -154,8 +160,13 @@ class DatabaseSeeder extends Seeder
     private function seedThread(int $studentId): MentorshipChatThread
     {
         return MentorshipChatThread::query()->updateOrCreate(
-            ['student_user_id' => $studentId],
             [
+                'student_user_id' => $studentId,
+                'type' => 'pembimbing',
+                'context_id' => null,
+            ],
+            [
+                'label' => 'Bimbingan',
                 'is_escalated' => false,
                 'escalated_at' => null,
             ],

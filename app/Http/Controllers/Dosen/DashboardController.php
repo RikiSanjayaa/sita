@@ -7,8 +7,12 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
+use App\Models\ThesisDefenseExaminer;
 use App\Services\DosenBimbinganService;
+use App\Services\DosenScheduleWorkspaceService;
+use App\Services\UserProfilePresenter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,6 +20,8 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
+        private readonly DosenScheduleWorkspaceService $dosenScheduleWorkspaceService,
+        private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -39,6 +45,13 @@ class DashboardController extends Controller
             ->whereIn('status', ['submitted', 'needs_revision'])
             ->count();
 
+        $upcomingDefenseCount = ThesisDefenseExaminer::query()
+            ->where('lecturer_user_id', $lecturer->id)
+            ->whereHas('defense', fn($query) => $query
+                ->where('status', 'scheduled')
+                ->whereNotNull('scheduled_for'))
+            ->count();
+
         $unreadMessages = MentorshipChatMessage::query()
             ->whereIn('mentorship_chat_thread_id', $threadIds)
             ->where('sender_user_id', '!=', $lecturer->id)
@@ -48,54 +61,89 @@ class DashboardController extends Controller
         $activeStudentCount = count($studentIds);
         $capacityLimit = $this->dosenBimbinganService->lecturerQuota($lecturer);
 
-        $todayQueue = MentorshipSchedule::query()
-            ->with('student')
-            ->where('lecturer_user_id', $lecturer->id)
-            ->whereIn('status', ['pending', 'approved', 'rescheduled'])
-            ->orderBy('scheduled_for')
-            ->orderBy('requested_for')
-            ->limit(5)
-            ->get()
-            ->map(function (MentorshipSchedule $schedule): array {
+        $summaryKey = 'monitoring_stable';
+
+        if ($pendingSchedules > 0 || $pendingDocuments > 0) {
+            $summaryKey = 'needs_attention';
+        } elseif ($upcomingDefenseCount > 0) {
+            $summaryKey = 'defense_preparation';
+        } elseif ($activeStudentCount === 0) {
+            $summaryKey = 'no_active_students';
+        }
+
+        $activeStudents = $this->dosenBimbinganService
+            ->activeAssignmentsWithStudent($lecturer)
+            ->map(fn($assignment) => $assignment->project?->student)
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        $workspaceEvents = collect($this->dosenScheduleWorkspaceService->workspaceEvents($lecturer));
+
+        $upcomingActivities = $workspaceEvents
+            ->filter(function (array $event): bool {
+                $start = isset($event['start']) && is_string($event['start'])
+                    ? Carbon::parse($event['start'])
+                    : null;
+
+                return $start?->greaterThanOrEqualTo(now()->startOfDay()) ?? false;
+            })
+            ->sortBy('start')
+            ->take(6)
+            ->map(function (array $event): array {
+                $start = Carbon::parse((string) $event['start']);
+
                 return [
-                    'id' => $schedule->id,
-                    'mahasiswa' => $schedule->student?->name ?? '-',
-                    'task' => $schedule->topic,
-                    'time' => optional($schedule->scheduled_for ?? $schedule->requested_for)?->format('d M Y H:i') ?? '-',
-                    'priority' => $schedule->status === 'pending' ? 'Tinggi' : 'Normal',
-                    'status' => $schedule->status,
+                    'id' => (string) $event['id'],
+                    'badge' => $event['category'] === 'ujian' ? 'Sempro / Sidang' : 'Bimbingan',
+                    'title' => (string) $event['topic'],
+                    'subtitle' => collect([
+                        $event['person'] ?? null,
+                        $event['location'] ?? null,
+                    ])->filter()->implode(' · '),
+                    'date' => $start->locale('id')->translatedFormat('d M Y, H:i'),
+                    'href' => $event['category'] === 'ujian'
+                        ? '/dosen/seminar-proposal'
+                        : '/dosen/jadwal-bimbingan',
                 ];
             })
+            ->values()
             ->all();
 
         return Inertia::render('dosen/dashboard', [
-            'queueCards' => [
-                [
-                    'title' => 'Jadwal Pending',
-                    'value' => (string) $pendingSchedules,
-                    'description' => 'Permintaan jadwal menunggu konfirmasi',
+            'summary' => [
+                'lecturerName' => $lecturer->name,
+                'programStudi' => $lecturer->dosenProfile?->programStudi?->name,
+                'concentration' => $lecturer->dosenProfile?->concentration,
+                'quotaLabel' => sprintf('%d/%d mahasiswa', $activeStudentCount, $capacityLimit),
+                'status' => [
+                    'label' => match ($summaryKey) {
+                        'needs_attention' => 'Perlu Tindak Lanjut',
+                        'defense_preparation' => 'Fokus Persiapan Ujian',
+                        'no_active_students' => 'Belum Ada Mahasiswa Aktif',
+                        default => 'Monitoring Bimbingan',
+                    },
+                    'description' => match ($summaryKey) {
+                        'needs_attention' => 'Masih ada jadwal, dokumen, atau pesan yang menunggu respons Anda.',
+                        'defense_preparation' => 'Agenda ujian sudah dekat. Pastikan penilaian dan kesiapan sempro terpantau.',
+                        'no_active_students' => 'Saat ini belum ada mahasiswa aktif dalam kuota bimbingan Anda.',
+                        default => 'Ritme bimbingan berjalan stabil. Pantau agenda dan kebutuhan mahasiswa secara berkala.',
+                    },
                 ],
-                [
-                    'title' => 'Revisi Belum Dicek',
-                    'value' => (string) $pendingDocuments,
-                    'description' => 'Dokumen mahasiswa menunggu review',
-                ],
-                [
-                    'title' => 'Pesan Belum Dibaca',
-                    'value' => (string) $unreadMessages,
-                    'description' => 'Aktivitas terbaru di grup bimbingan',
-                ],
-                [
-                    'title' => 'Mahasiswa Aktif',
-                    'value' => sprintf(
-                        '%d/%d',
-                        $activeStudentCount,
-                        $capacityLimit,
-                    ),
-                    'description' => 'Kapasitas bimbingan aktif saat ini',
+                'metrics' => [
+                    ['label' => 'Jadwal Pending', 'value' => (string) $pendingSchedules],
+                    ['label' => 'Dokumen Review', 'value' => (string) $pendingDocuments],
+                    ['label' => 'Pesan Belum Dibaca', 'value' => (string) $unreadMessages],
+                    ['label' => 'Ujian Terjadwal', 'value' => (string) $upcomingDefenseCount],
                 ],
             ],
-            'todayQueue' => $todayQueue,
+            'upcomingActivities' => $upcomingActivities,
+            'activeStudents' => $activeStudents
+                ->take(4)
+                ->map(fn($student) => $this->userProfilePresenter->summary($student))
+                ->filter()
+                ->values()
+                ->all(),
         ]);
     }
 }

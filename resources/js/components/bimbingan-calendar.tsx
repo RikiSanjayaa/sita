@@ -16,10 +16,12 @@ export type BimbinganEvent = {
     title: string;
     topic: string;
     person: string;
+    category?: 'bimbingan' | 'ujian';
     start: string;
     end: string;
     location: string;
     status:
+        | 'scheduled'
         | 'pending'
         | 'approved'
         | 'rescheduled'
@@ -38,6 +40,7 @@ export type BimbinganCalendarProps = {
 };
 
 const statusColors: Record<BimbinganEvent['status'], string> = {
+    scheduled: '#2563eb',
     pending: '#f59e0b',
     approved: '#22c55e',
     rescheduled: '#3b82f6',
@@ -47,6 +50,7 @@ const statusColors: Record<BimbinganEvent['status'], string> = {
 };
 
 const statusLabels: Record<BimbinganEvent['status'], string> = {
+    scheduled: 'Terjadwal',
     pending: 'Menunggu',
     approved: 'Disetujui',
     rescheduled: 'Diubah',
@@ -92,6 +96,7 @@ function CalendarWrapper({
                         {(
                             [
                                 'pending',
+                                'scheduled',
                                 'approved',
                                 'rescheduled',
                                 'completed',

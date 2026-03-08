@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import {
+    CalendarClock,
     CheckCircle2,
     Clock,
     FileWarning,
@@ -10,6 +11,10 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import {
+    BimbinganCalendar,
+    type BimbinganEvent,
+} from '@/components/bimbingan-calendar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,6 +78,7 @@ type DefenseItem = {
 
 type PageProps = {
     defenses: DefenseItem[];
+    workspaceEvents: BimbinganEvent[];
     flashMessage?: string | null;
 };
 
@@ -329,14 +335,13 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge
                                 variant="soft"
-                                className={`font-semibold ${
-                                    item.myDecision === 'pass'
+                                className={`font-semibold ${item.myDecision === 'pass'
                                         ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
                                         : item.myDecision ===
                                             'pass_with_revision'
-                                          ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                          : 'bg-destructive/10 text-destructive'
-                                }`}
+                                            ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                            : 'bg-destructive/10 text-destructive'
+                                    }`}
                             >
                                 {decisionLabel[item.myDecision ?? ''] ??
                                     item.myDecision}
@@ -373,16 +378,15 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                                     </span>
                                     <Badge
                                         variant="soft"
-                                        className={`font-medium ${
-                                            ex.decision === 'pass'
+                                        className={`font-medium ${ex.decision === 'pass'
                                                 ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
                                                 : ex.decision ===
                                                     'pass_with_revision'
-                                                  ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                                  : ex.decision === 'fail'
-                                                    ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted'
-                                        }`}
+                                                    ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                                    : ex.decision === 'fail'
+                                                        ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                                                        : 'bg-muted text-muted-foreground hover:bg-muted'
+                                            }`}
                                     >
                                         {decisionLabel[ex.decision ?? ''] ??
                                             'Pending'}
@@ -448,9 +452,80 @@ function DefenseCard({ item }: { item: DefenseItem }) {
 }
 
 export default function DosenSeminarProposalPage() {
-    const { defenses, flashMessage } = usePage<SharedData & PageProps>().props;
-    const semproItems = defenses.filter((item) => item.type === 'sempro');
-    const sidangItems = defenses.filter((item) => item.type === 'sidang');
+    const { defenses, workspaceEvents, flashMessage } = usePage<
+        SharedData & PageProps
+    >().props;
+    const sortByScheduledForDesc = (items: DefenseItem[]) =>
+        [...items].sort((a, b) => {
+            const aTime = a.scheduledFor
+                ? new Date(a.scheduledFor).getTime()
+                : 0;
+            const bTime = b.scheduledFor
+                ? new Date(b.scheduledFor).getTime()
+                : 0;
+
+            return bTime - aTime;
+        });
+
+    const semproPendingItems = sortByScheduledForDesc(
+        defenses.filter(
+            (item) =>
+                item.type === 'sempro' &&
+                item.defenseStatus === 'scheduled' &&
+                item.myDecision === 'pending',
+        ),
+    );
+    const semproReviewedItems = sortByScheduledForDesc(
+        defenses.filter(
+            (item) =>
+                item.type === 'sempro' &&
+                !(
+                    item.defenseStatus === 'scheduled' &&
+                    item.myDecision === 'pending'
+                ),
+        ),
+    );
+    const sidangPendingItems = sortByScheduledForDesc(
+        defenses.filter(
+            (item) =>
+                item.type === 'sidang' &&
+                item.defenseStatus === 'scheduled' &&
+                item.myDecision === 'pending',
+        ),
+    );
+    const sidangReviewedItems = sortByScheduledForDesc(
+        defenses.filter(
+            (item) =>
+                item.type === 'sidang' &&
+                !(
+                    item.defenseStatus === 'scheduled' &&
+                    item.myDecision === 'pending'
+                ),
+        ),
+    );
+    const [workspaceFilter, setWorkspaceFilter] = useState<
+        'ujian' | 'bimbingan' | 'semua'
+    >('ujian');
+    const [visibleSemproReviewedCount, setVisibleSemproReviewedCount] =
+        useState(5);
+    const [visibleSidangReviewedCount, setVisibleSidangReviewedCount] =
+        useState(5);
+
+    const filteredWorkspaceEvents = workspaceEvents.filter((event) => {
+        if (workspaceFilter === 'semua') {
+            return true;
+        }
+
+        return event.category === workspaceFilter;
+    });
+    const visibleSemproReviewedItems = semproReviewedItems.slice(
+        0,
+        visibleSemproReviewedCount,
+    );
+    const visibleSidangReviewedItems = sidangReviewedItems.slice(
+        0,
+        visibleSidangReviewedCount,
+    );
 
     return (
         <DosenLayout
@@ -467,10 +542,73 @@ export default function DosenSeminarProposalPage() {
                     </div>
                 )}
 
+                <Card className="shadow-sm">
+                    <CardHeader className="gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>Workspace Jadwal</CardTitle>
+                                <CardDescription>
+                                    Fokus default halaman ini adalah
+                                    sempro/sidang, tetapi Anda tetap bisa
+                                    menampilkan agenda bimbingan pada kalender
+                                    yang sama.
+                                </CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        workspaceFilter === 'ujian'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => setWorkspaceFilter('ujian')}
+                                >
+                                    Sempro / Sidang
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        workspaceFilter === 'bimbingan'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        setWorkspaceFilter('bimbingan')
+                                    }
+                                >
+                                    Bimbingan
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        workspaceFilter === 'semua'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => setWorkspaceFilter('semua')}
+                                >
+                                    Semua
+                                </Button>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <BimbinganCalendar
+                            events={filteredWorkspaceEvents}
+                            defaultView="calendar"
+                            showLegend={false}
+                        />
+                    </CardContent>
+                </Card>
+
                 {defenses.length === 0 ? (
                     <div className="mt-6 rounded-xl border border-dashed bg-muted/20 p-8 text-center">
                         <span className="mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                            <FileWarning className="size-6" />
+                            <CalendarClock className="size-6" />
                         </span>
                         <p className="text-sm font-semibold">
                             Belum ada tugas penguji ujian
@@ -492,8 +630,8 @@ export default function DosenSeminarProposalPage() {
                                     penilaian atau tindak lanjut Anda.
                                 </p>
                             </div>
-                            {semproItems.length > 0 ? (
-                                semproItems.map((item) => (
+                            {semproPendingItems.length > 0 ? (
+                                semproPendingItems.map((item) => (
                                     <DefenseCard
                                         key={item.defenseId}
                                         item={item}
@@ -501,8 +639,8 @@ export default function DosenSeminarProposalPage() {
                                 ))
                             ) : (
                                 <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-                                    Belum ada sempro yang menjadi tanggung jawab
-                                    Anda.
+                                    Tidak ada sempro yang sedang menunggu
+                                    penilaian Anda.
                                 </div>
                             )}
                         </section>
@@ -517,8 +655,8 @@ export default function DosenSeminarProposalPage() {
                                     sebagai ketua, sekretaris, atau penguji.
                                 </p>
                             </div>
-                            {sidangItems.length > 0 ? (
-                                sidangItems.map((item) => (
+                            {sidangPendingItems.length > 0 ? (
+                                sidangPendingItems.map((item) => (
                                     <DefenseCard
                                         key={item.defenseId}
                                         item={item}
@@ -526,10 +664,120 @@ export default function DosenSeminarProposalPage() {
                                 ))
                             ) : (
                                 <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-                                    Belum ada sidang yang menjadi tanggung jawab
-                                    Anda.
+                                    Tidak ada sidang yang sedang menunggu
+                                    penilaian Anda.
                                 </div>
                             )}
+                        </section>
+
+                        <section className="grid gap-4 border-t pt-2">
+                            <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+                                <section className="grid gap-4">
+                                    <div>
+                                        <h3 className="text-base font-semibold">
+                                            Riwayat Sempro
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Seminar proposal yang sudah Anda
+                                            respons atau sudah selesai.
+                                        </p>
+                                    </div>
+                                    {visibleSemproReviewedItems.length > 0 ? (
+                                        visibleSemproReviewedItems.map(
+                                            (item) => (
+                                                <DefenseCard
+                                                    key={`reviewed-sempro-${item.defenseId}`}
+                                                    item={item}
+                                                />
+                                            ),
+                                        )
+                                    ) : (
+                                        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
+                                            Belum ada riwayat penilaian sempro.
+                                        </div>
+                                    )}
+                                    {semproReviewedItems.length >
+                                        visibleSemproReviewedItems.length ? (
+                                        <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
+                                            <p className="text-sm text-muted-foreground">
+                                                Menampilkan{' '}
+                                                {
+                                                    visibleSemproReviewedItems.length
+                                                }{' '}
+                                                dari{' '}
+                                                {semproReviewedItems.length}{' '}
+                                                riwayat sempro.
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    setVisibleSemproReviewedCount(
+                                                        (current) =>
+                                                            current + 5,
+                                                    )
+                                                }
+                                            >
+                                                Muat Lebih Banyak
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                </section>
+
+                                <section className="grid gap-4">
+                                    <div>
+                                        <h3 className="text-base font-semibold">
+                                            Riwayat Sidang
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Sidang yang sudah Anda nilai atau
+                                            sudah berpindah ke arsip hasil.
+                                        </p>
+                                    </div>
+                                    {visibleSidangReviewedItems.length > 0 ? (
+                                        visibleSidangReviewedItems.map(
+                                            (item) => (
+                                                <DefenseCard
+                                                    key={`reviewed-sidang-${item.defenseId}`}
+                                                    item={item}
+                                                />
+                                            ),
+                                        )
+                                    ) : (
+                                        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
+                                            Belum ada riwayat penilaian sidang.
+                                        </div>
+                                    )}
+                                    {sidangReviewedItems.length >
+                                        visibleSidangReviewedItems.length ? (
+                                        <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
+                                            <p className="text-sm text-muted-foreground">
+                                                Menampilkan{' '}
+                                                {
+                                                    visibleSidangReviewedItems.length
+                                                }{' '}
+                                                dari{' '}
+                                                {sidangReviewedItems.length}{' '}
+                                                riwayat sidang.
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    setVisibleSidangReviewedCount(
+                                                        (current) =>
+                                                            current + 5,
+                                                    )
+                                                }
+                                            >
+                                                Muat Lebih Banyak
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                </section>
+                            </div>
                         </section>
                     </div>
                 )}

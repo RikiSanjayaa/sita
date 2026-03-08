@@ -71,6 +71,7 @@ class DashboardController extends Controller
                 'studentName' => $student->name,
                 'programStudi' => $student->mahasiswaProfile?->programStudi?->name,
                 'projectTitle' => $project?->latestTitle?->title_id,
+                'projectTitleEn' => $project?->latestTitle?->title_en,
                 'workflow' => $workflow,
                 'progress' => $this->workflowProgress($workflow['key']),
                 'startedAt' => $project?->started_at?->locale('id')->translatedFormat('d F Y'),
@@ -220,7 +221,7 @@ class DashboardController extends Controller
                     : 'Konsultasi Penguji';
 
                 return [
-                    'id' => 'schedule-' . $schedule->id,
+                    'id' => 'schedule-'.$schedule->id,
                     'type' => 'meeting',
                     'sortAt' => $at,
                     'badge' => $relationType,
@@ -254,7 +255,7 @@ class DashboardController extends Controller
                 ])->filter()->implode(' · ');
 
                 return [
-                    'id' => 'defense-' . $defense->id,
+                    'id' => 'defense-'.$defense->id,
                     'type' => $defense->type,
                     'sortAt' => $defense->scheduled_for,
                     'badge' => $badge,

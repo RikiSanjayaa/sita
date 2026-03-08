@@ -1,12 +1,10 @@
-import { Head, usePage } from '@inertiajs/react';
-import { CircleAlert, CircleCheckBig } from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { MessageCircle, MessageSquareText, UserRound } from 'lucide-react';
 
-import {
-    CardListItem,
-    CardListItemFooter,
-    CardListItemHeader,
-} from '@/components/card-list-item';
+import { EmptyState } from '@/components/empty-state';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -14,6 +12,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useInitials } from '@/hooks/use-initials';
 import DosenLayout from '@/layouts/dosen-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -25,10 +24,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 type MahasiswaRow = {
     nim: string;
     name: string;
+    avatar: string | null;
     advisorType: string;
-    progress: number;
+    stageLabel: string;
+    stageDescription: string;
     status: string;
     lastUpdate: string;
+    chatUrl: string | null;
+    whatsappUrl: string | null;
 };
 
 type MahasiswaBimbinganProps = {
@@ -41,23 +44,22 @@ export default function DosenMahasiswaBimbinganPage() {
     const { mahasiswaRows, activeCount, capacityLimit } = usePage<
         SharedData & MahasiswaBimbinganProps
     >().props;
+    const getInitials = useInitials();
 
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
             title="Mahasiswa Bimbingan"
-            subtitle="Daftar mahasiswa yang saat ini dibimbing"
+            subtitle="Daftar kontak mahasiswa aktif dengan tahap akademik dan akses chat cepat"
         >
             <Head title="Mahasiswa Bimbingan" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <Card className="py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">
-                            Mahasiswa Aktif
-                        </CardTitle>
+                <Card className="shadow-sm">
+                    <CardHeader>
+                        <CardTitle>Kontak Mahasiswa Aktif</CardTitle>
                         <CardDescription>
-                            Kapasitas saat ini{' '}
+                            Saat ini Anda menangani{' '}
                             <span className="font-semibold text-foreground">
                                 {activeCount}
                             </span>{' '}
@@ -65,52 +67,119 @@ export default function DosenMahasiswaBimbinganPage() {
                             <span className="font-semibold text-foreground">
                                 {capacityLimit}
                             </span>{' '}
-                            mahasiswa aktif
+                            kuota mahasiswa aktif.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4 pb-6">
-                        {mahasiswaRows.map((row) => (
-                            <CardListItem key={`${row.nim}-${row.advisorType}`}>
-                                <CardListItemHeader
-                                    title={row.name}
-                                    subtitle={`${row.nim} - ${row.advisorType}`}
-                                    endContent={
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Badge
-                                                variant="soft"
-                                                className="bg-muted font-medium text-muted-foreground hover:bg-muted"
-                                            >
-                                                Progress {row.progress}%
-                                            </Badge>
-                                            <Badge
-                                                variant="soft"
-                                                className={
-                                                    row.status ===
-                                                    'Siap Seminar'
-                                                        ? 'bg-emerald-600/10 font-semibold text-emerald-600 hover:bg-emerald-600/20'
-                                                        : 'bg-primary/10 font-semibold text-primary hover:bg-primary/20'
-                                                }
-                                            >
-                                                {row.status}
-                                            </Badge>
+                    <CardContent>
+                        {mahasiswaRows.length > 0 ? (
+                            <div className="grid gap-3">
+                                {mahasiswaRows.map((row) => (
+                                    <div
+                                        key={`${row.nim}-${row.advisorType}`}
+                                        className="rounded-2xl border bg-background p-4 shadow-sm"
+                                    >
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="min-w-0 space-y-3">
+                                                <div className="flex items-start gap-3">
+                                                    <Avatar className="size-12 border">
+                                                        <AvatarImage
+                                                            src={
+                                                                row.avatar ??
+                                                                undefined
+                                                            }
+                                                            alt={row.name}
+                                                        />
+                                                        <AvatarFallback className="bg-primary/10 text-primary">
+                                                            {getInitials(
+                                                                row.name,
+                                                            )}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+
+                                                    <div className="min-w-0 space-y-1">
+                                                        <p className="text-base font-semibold text-foreground">
+                                                            {row.name}
+                                                        </p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {row.nim} ·{' '}
+                                                            {row.advisorType}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Badge variant="outline">
+                                                        {row.stageLabel}
+                                                    </Badge>
+                                                    <Badge
+                                                        variant={
+                                                            row.status ===
+                                                            'Aktif'
+                                                                ? 'secondary'
+                                                                : 'outline'
+                                                        }
+                                                    >
+                                                        {row.status}
+                                                    </Badge>
+                                                </div>
+
+                                                <div className="grid gap-1 text-sm text-muted-foreground">
+                                                    <p>
+                                                        {row.stageDescription}
+                                                    </p>
+                                                    <p>
+                                                        Aktivitas terbaru:{' '}
+                                                        {row.lastUpdate}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex shrink-0 flex-col gap-2 lg:items-end">
+                                                {row.chatUrl ? (
+                                                    <Button asChild>
+                                                        <Link
+                                                            href={row.chatUrl}
+                                                        >
+                                                            <MessageSquareText className="size-4" />
+                                                            Buka Chat
+                                                        </Link>
+                                                    </Button>
+                                                ) : (
+                                                    <Button disabled>
+                                                        <MessageSquareText className="size-4" />
+                                                        Chat Belum Tersedia
+                                                    </Button>
+                                                )}
+
+                                                {row.whatsappUrl ? (
+                                                    <Button
+                                                        asChild
+                                                        variant="outline"
+                                                    >
+                                                        <a
+                                                            href={
+                                                                row.whatsappUrl
+                                                            }
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                        >
+                                                            <MessageCircle className="size-4" />
+                                                            Chat WA
+                                                        </a>
+                                                    </Button>
+                                                ) : null}
+                                            </div>
                                         </div>
-                                    }
-                                />
-                                <CardListItemFooter>
-                                    {row.status === 'Siap Seminar' ? (
-                                        <CircleCheckBig className="mt-0.5 size-4 text-emerald-600 dark:text-emerald-400" />
-                                    ) : (
-                                        <CircleAlert className="mt-0.5 size-4 text-amber-500" />
-                                    )}
-                                    <span>
-                                        Terakhir diupdate:{' '}
-                                        <span className="font-medium text-foreground">
-                                            {row.lastUpdate}
-                                        </span>
-                                    </span>
-                                </CardListItemFooter>
-                            </CardListItem>
-                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <EmptyState
+                                icon={UserRound}
+                                title="Belum ada mahasiswa aktif"
+                                description="Mahasiswa aktif akan muncul di sini setelah penugasan pembimbing berjalan."
+                            />
+                        )}
                     </CardContent>
                 </Card>
             </div>

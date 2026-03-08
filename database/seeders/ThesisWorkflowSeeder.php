@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Enums\AdvisorType;
+use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipDocument;
+use App\Models\MentorshipSchedule;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
@@ -35,7 +37,7 @@ class ThesisWorkflowSeeder extends Seeder
             return;
         }
 
-        $this->seedFullyProgressed($admin, $ilkom, $dosen1, $dosen2, $dosen3 ?? $dosen1, $dosen4 ?? $dosen2);
+        $this->seedFullyProgressed($admin, $ilkom, $dosen1, $dosen2, $dosen1, $dosen2);
         $this->seedSemproScheduled($admin, $ilkom, $dosen1, $dosen2);
         $this->seedSemproRevision($admin, $ilkom, $dosen1, $dosen2);
         $this->seedTitleReviewPending($ilkom);
@@ -82,7 +84,14 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertSupervisorAssignment($project, $supervisorOne, AdvisorType::Primary->value, 'active', $admin, CarbonImmutable::parse('2026-01-30 10:00:00'), null, 'Pembimbing utama untuk skripsi sistem rekomendasi.');
         $this->upsertSupervisorAssignment($project, $supervisorTwo, AdvisorType::Secondary->value, 'active', $admin, CarbonImmutable::parse('2026-01-30 10:05:00'), null, 'Pembimbing kedua.');
 
-        $this->upsertMentorshipDocument($student, $supervisorOne, 'Draft Bab 1', 'draft-tugas-akhir', 1, 'mentorship/mahasiswa/draft-bab1-v1.pdf', 'approved', CarbonImmutable::parse('2026-02-05 15:00:00'), 'Dokumen awal yang sudah disetujui.');
+        $mentorshipDocument = $this->upsertMentorshipDocument($student, $supervisorOne, 'Draft Bab 1', 'draft-tugas-akhir', 1, 'mentorship/mahasiswa/draft-bab1-v1.pdf', 'approved', CarbonImmutable::parse('2026-02-05 15:00:00'), 'Dokumen awal yang sudah disetujui.');
+        $this->seedPembimbingWorkspace(
+            student: $student,
+            lecturer: $supervisorOne,
+            document: $mentorshipDocument,
+            pendingRequestedAt: CarbonImmutable::parse('2026-02-11 09:00:00'),
+            approvedScheduledAt: CarbonImmutable::parse('2026-02-14 10:00:00'),
+        );
 
         $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Mahasiswa membuat pengajuan judul dan proposal baru.', $startedAt);
         $this->recordEvent($project, $student, 'title_submitted', 'Judul diajukan', $title->title_id, $submittedAt);
@@ -684,6 +693,107 @@ class ThesisWorkflowSeeder extends Seeder
                 'uploaded_by_role' => 'mahasiswa',
                 'created_at' => $uploadedAt,
                 'updated_at' => $uploadedAt,
+            ],
+        );
+    }
+
+    private function seedPembimbingWorkspace(
+        User $student,
+        User $lecturer,
+        MentorshipDocument $document,
+        CarbonImmutable $pendingRequestedAt,
+        CarbonImmutable $approvedScheduledAt,
+    ): void {
+        MentorshipSchedule::query()->updateOrCreate(
+            [
+                'student_user_id' => $student->id,
+                'lecturer_user_id' => $lecturer->id,
+                'topic' => 'Review Bab II dan kesiapan implementasi',
+                'status' => 'pending',
+            ],
+            [
+                'mentorship_assignment_id' => null,
+                'requested_for' => $pendingRequestedAt,
+                'scheduled_for' => null,
+                'location' => null,
+                'student_note' => 'Mohon masukan untuk penyempurnaan landasan teori.',
+                'lecturer_note' => null,
+                'created_by_user_id' => $student->id,
+            ],
+        );
+
+        MentorshipSchedule::query()->updateOrCreate(
+            [
+                'student_user_id' => $student->id,
+                'lecturer_user_id' => $lecturer->id,
+                'topic' => 'Diskusi hasil revisi Bab I',
+                'status' => 'approved',
+            ],
+            [
+                'mentorship_assignment_id' => null,
+                'requested_for' => $approvedScheduledAt,
+                'scheduled_for' => $approvedScheduledAt,
+                'location' => 'Google Meet',
+                'student_note' => 'Siap membahas revisi dan rencana eksperimen berikutnya.',
+                'lecturer_note' => 'Fokus pada konsistensi rumusan masalah dan alur eksperimen.',
+                'created_by_user_id' => $student->id,
+            ],
+        );
+
+        $thread = MentorshipChatThread::query()->updateOrCreate(
+            [
+                'student_user_id' => $student->id,
+                'type' => 'pembimbing',
+                'context_id' => null,
+            ],
+            [
+                'label' => 'Bimbingan',
+                'is_escalated' => false,
+                'escalated_at' => null,
+            ],
+        );
+
+        MentorshipChatMessage::query()->updateOrCreate(
+            [
+                'mentorship_chat_thread_id' => $thread->id,
+                'message_type' => 'document_event',
+                'related_document_id' => $document->id,
+            ],
+            [
+                'sender_user_id' => null,
+                'message' => 'Mahasiswa mengunggah draft Bab 1 untuk direview pada thread bimbingan.',
+                'attachment_disk' => null,
+                'attachment_path' => null,
+                'attachment_name' => $document->file_name,
+                'attachment_mime' => 'application/pdf',
+                'attachment_size_kb' => $document->file_size_kb,
+                'sent_at' => $document->created_at,
+            ],
+        );
+
+        MentorshipChatMessage::query()->updateOrCreate(
+            [
+                'mentorship_chat_thread_id' => $thread->id,
+                'sender_user_id' => $student->id,
+                'message' => 'Pak, saya sudah unggah draft terbaru. Mohon review sebelum bimbingan berikutnya.',
+            ],
+            [
+                'related_document_id' => $document->id,
+                'message_type' => 'text',
+                'sent_at' => $document->created_at->addHour(),
+            ],
+        );
+
+        MentorshipChatMessage::query()->updateOrCreate(
+            [
+                'mentorship_chat_thread_id' => $thread->id,
+                'sender_user_id' => $lecturer->id,
+                'message' => 'Baik, saya cek dulu. Kita bahas saat sesi bimbingan terjadwal.',
+            ],
+            [
+                'related_document_id' => null,
+                'message_type' => 'text',
+                'sent_at' => $document->created_at->addHours(2),
             ],
         );
     }

@@ -45,6 +45,7 @@ type DashboardSummary = {
     studentName: string;
     programStudi: string | null;
     projectTitle: string | null;
+    projectTitleEn: string | null;
     workflow: {
         key: string;
         label: string;
@@ -173,9 +174,11 @@ export default function DashboardPage() {
                                         {summary.projectTitle ??
                                             'Siapkan pengajuan judul dan mulai perjalanan tugas akhir Anda.'}
                                     </h1>
-                                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground lg:text-base">
-                                        {summary.workflow.description}
-                                    </p>
+                                    {summary.projectTitleEn ? (
+                                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground italic lg:text-base">
+                                            {summary.projectTitleEn}
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
 
