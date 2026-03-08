@@ -133,8 +133,6 @@ class DashboardController extends Controller
                 'metrics' => [
                     ['label' => 'Jadwal Pending', 'value' => (string) $pendingSchedules],
                     ['label' => 'Dokumen Review', 'value' => (string) $pendingDocuments],
-                    ['label' => 'Pesan Belum Dibaca', 'value' => (string) $unreadMessages],
-                    ['label' => 'Ujian Terjadwal', 'value' => (string) $upcomingDefenseCount],
                 ],
             ],
             'upcomingActivities' => $upcomingActivities,

@@ -5,11 +5,12 @@ import {
     Clock,
     FileWarning,
     MapPin,
+    Search,
     Send,
     Star,
     User,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import {
     BimbinganCalendar,
@@ -28,6 +29,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import DosenLayout from '@/layouts/dosen-layout';
+import {
+    academicGradeClassName,
+    calculateAverageAcademicScore,
+    resolveAcademicGrade,
+} from '@/lib/academic-grade';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -269,6 +275,11 @@ function DefenseCard({ item }: { item: DefenseItem }) {
     const [showForm, setShowForm] = useState(false);
     const canDecide =
         item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
+    const averageScore = calculateAverageAcademicScore([
+        item.myScore,
+        ...item.otherExaminers.map((examiner) => examiner.score),
+    ]);
+    const finalGrade = resolveAcademicGrade(averageScore);
 
     return (
         <Card className="shadow-sm">
@@ -335,13 +346,14 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge
                                 variant="soft"
-                                className={`font-semibold ${item.myDecision === 'pass'
+                                className={`font-semibold ${
+                                    item.myDecision === 'pass'
                                         ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
                                         : item.myDecision ===
                                             'pass_with_revision'
-                                            ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                            : 'bg-destructive/10 text-destructive'
-                                    }`}
+                                          ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                          : 'bg-destructive/10 text-destructive'
+                                }`}
                             >
                                 {decisionLabel[item.myDecision ?? ''] ??
                                     item.myDecision}
@@ -378,15 +390,16 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                                     </span>
                                     <Badge
                                         variant="soft"
-                                        className={`font-medium ${ex.decision === 'pass'
+                                        className={`font-medium ${
+                                            ex.decision === 'pass'
                                                 ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
                                                 : ex.decision ===
                                                     'pass_with_revision'
-                                                    ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                                    : ex.decision === 'fail'
-                                                        ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                                                        : 'bg-muted text-muted-foreground hover:bg-muted'
-                                            }`}
+                                                  ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
+                                                  : ex.decision === 'fail'
+                                                    ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted'
+                                        }`}
                                     >
                                         {decisionLabel[ex.decision ?? ''] ??
                                             'Pending'}
@@ -401,6 +414,29 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                         </div>
                     </div>
                 )}
+
+                {averageScore !== null ? (
+                    <div className="rounded-md border bg-muted/15 p-3">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">
+                            Nilai Akhir Gabungan
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">
+                                Rata-rata: {averageScore.toFixed(2)}
+                            </Badge>
+                            {finalGrade ? (
+                                <Badge
+                                    variant="soft"
+                                    className={academicGradeClassName(
+                                        finalGrade,
+                                    )}
+                                >
+                                    Grade Akhir {finalGrade}
+                                </Badge>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
 
                 {/* Revisions */}
                 {item.revisions.length > 0 && (
@@ -455,6 +491,7 @@ export default function DosenSeminarProposalPage() {
     const { defenses, workspaceEvents, flashMessage } = usePage<
         SharedData & PageProps
     >().props;
+    const [search, setSearch] = useState('');
     const sortByScheduledForDesc = (items: DefenseItem[]) =>
         [...items].sort((a, b) => {
             const aTime = a.scheduledFor
@@ -467,17 +504,32 @@ export default function DosenSeminarProposalPage() {
             return bTime - aTime;
         });
 
+    const normalizedSearch = search.trim().toLowerCase();
+    const visibleDefenses = useMemo(() => {
+        if (normalizedSearch === '') {
+            return defenses;
+        }
+
+        return defenses.filter((item: DefenseItem) => {
+            return [item.studentName, item.titleId, item.titleEn]
+                .filter(Boolean)
+                .some((value) =>
+                    value.toLowerCase().includes(normalizedSearch),
+                );
+        });
+    }, [defenses, normalizedSearch]);
+
     const semproPendingItems = sortByScheduledForDesc(
-        defenses.filter(
-            (item) =>
+        visibleDefenses.filter(
+            (item: DefenseItem) =>
                 item.type === 'sempro' &&
                 item.defenseStatus === 'scheduled' &&
                 item.myDecision === 'pending',
         ),
     );
     const semproReviewedItems = sortByScheduledForDesc(
-        defenses.filter(
-            (item) =>
+        visibleDefenses.filter(
+            (item: DefenseItem) =>
                 item.type === 'sempro' &&
                 !(
                     item.defenseStatus === 'scheduled' &&
@@ -486,16 +538,16 @@ export default function DosenSeminarProposalPage() {
         ),
     );
     const sidangPendingItems = sortByScheduledForDesc(
-        defenses.filter(
-            (item) =>
+        visibleDefenses.filter(
+            (item: DefenseItem) =>
                 item.type === 'sidang' &&
                 item.defenseStatus === 'scheduled' &&
                 item.myDecision === 'pending',
         ),
     );
     const sidangReviewedItems = sortByScheduledForDesc(
-        defenses.filter(
-            (item) =>
+        visibleDefenses.filter(
+            (item: DefenseItem) =>
                 item.type === 'sidang' &&
                 !(
                     item.defenseStatus === 'scheduled' &&
@@ -541,6 +593,29 @@ export default function DosenSeminarProposalPage() {
                         {flashMessage}
                     </div>
                 )}
+
+                <Card className="shadow-sm">
+                    <CardHeader>
+                        <CardTitle>Pencarian</CardTitle>
+                        <CardDescription>
+                            Cari berdasarkan nama mahasiswa atau judul tugas
+                            akhir.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative max-w-xl">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Cari nama mahasiswa atau judul..."
+                                className="pl-9"
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <Card className="shadow-sm">
                     <CardHeader className="gap-3">
@@ -605,17 +680,20 @@ export default function DosenSeminarProposalPage() {
                     </CardContent>
                 </Card>
 
-                {defenses.length === 0 ? (
+                {visibleDefenses.length === 0 ? (
                     <div className="mt-6 rounded-xl border border-dashed bg-muted/20 p-8 text-center">
                         <span className="mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                             <CalendarClock className="size-6" />
                         </span>
                         <p className="text-sm font-semibold">
-                            Belum ada tugas penguji ujian
+                            {search.trim() === ''
+                                ? 'Belum ada tugas penguji ujian'
+                                : 'Tidak ada hasil yang cocok'}
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Anda belum ditugaskan sebagai penguji sempro atau
-                            sidang manapun.
+                            {search.trim() === ''
+                                ? 'Anda belum ditugaskan sebagai penguji sempro atau sidang manapun.'
+                                : 'Coba kata kunci lain untuk nama mahasiswa atau judul.'}
                         </p>
                     </div>
                 ) : (
@@ -697,7 +775,7 @@ export default function DosenSeminarProposalPage() {
                                         </div>
                                     )}
                                     {semproReviewedItems.length >
-                                        visibleSemproReviewedItems.length ? (
+                                    visibleSemproReviewedItems.length ? (
                                         <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
                                             <p className="text-sm text-muted-foreground">
                                                 Menampilkan{' '}
@@ -750,7 +828,7 @@ export default function DosenSeminarProposalPage() {
                                         </div>
                                     )}
                                     {sidangReviewedItems.length >
-                                        visibleSidangReviewedItems.length ? (
+                                    visibleSidangReviewedItems.length ? (
                                         <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
                                             <p className="text-sm text-muted-foreground">
                                                 Menampilkan{' '}

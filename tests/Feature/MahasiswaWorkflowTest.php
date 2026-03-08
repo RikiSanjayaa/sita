@@ -503,6 +503,99 @@ test('tugas akhir page renders thesis project snapshot data', function () {
             ->where('submission.proposal_file_name', 'proposal-project-view.pdf'));
 });
 
+test('tugas akhir page shows completed sempro and sidang results', function () {
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+    $pengujiSempro = createUserWithRole(AppRole::Dosen->value);
+    $ketuaSidang = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'completed',
+        'state' => 'active',
+        'started_at' => now()->subMonth(),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Prediksi Kelulusan Berbasis Machine Learning',
+        'title_en' => 'Graduation Prediction Based on Machine Learning',
+        'proposal_summary' => 'Ringkasan proposal akhir.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subMonth(),
+    ]);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subWeeks(2),
+        'location' => 'Ruang Sempro 1',
+        'mode' => 'offline',
+    ]);
+
+    $sidang = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass',
+        'scheduled_for' => now()->subWeek(),
+        'location' => 'Ruang Sidang Utama',
+        'mode' => 'offline',
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $pengujiSempro->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'pass_with_revision',
+        'score' => 78,
+        'notes' => 'Perbaiki penjelasan metodologi.',
+        'assigned_by' => $admin->id,
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sidang->id,
+        'lecturer_user_id' => $ketuaSidang->id,
+        'role' => 'chair',
+        'order_no' => 1,
+        'decision' => 'pass',
+        'score' => 85,
+        'notes' => 'Presentasi baik dan argumentasi kuat.',
+        'assigned_by' => $admin->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('semproResult.label', 'Seminar Proposal')
+            ->where('semproResult.resultLabel', 'Lulus dengan Revisi')
+            ->where('semproResult.examiners.0.name', $pengujiSempro->name)
+            ->where('semproResult.examiners.0.score', '78.00')
+            ->where('sidangResult.label', 'Sidang Skripsi')
+            ->where('sidangResult.resultLabel', 'Lulus')
+            ->where('sidangResult.examiners.0.name', $ketuaSidang->name)
+            ->where('sidangResult.examiners.0.score', '85.00'));
+});
+
 test('mahasiswa can update pending thesis project and replace proposal file', function () {
     Storage::fake('public');
 

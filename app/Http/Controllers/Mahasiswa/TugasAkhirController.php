@@ -97,6 +97,8 @@ class TugasAkhirController extends Controller
             )),
             'semproDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
             'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+            'semproResult' => $this->mapDefenseResult($latestSempro, 'Seminar Proposal'),
+            'sidangResult' => $this->mapDefenseResult($latestSidang, 'Sidang Skripsi'),
             'profileProgramStudi' => $this->resolveProgramStudiForStudent($student),
             'flashMessage' => $request->session()->get('success'),
             'errorMessage' => $request->session()->get('error'),
@@ -313,5 +315,45 @@ class TugasAkhirController extends Controller
     private function canEditProjectSubmission(?ThesisProject $project): bool
     {
         return app(ThesisProjectStudentService::class)->canEditSubmission($project);
+    }
+
+    private function mapDefenseResult(?ThesisDefense $defense, string $label): ?array
+    {
+        if (! $defense instanceof ThesisDefense || $defense->status !== 'completed') {
+            return null;
+        }
+
+        return [
+            'label' => $label,
+            'resultLabel' => match ($defense->result) {
+                'pass' => 'Lulus',
+                'pass_with_revision' => 'Lulus dengan Revisi',
+                'fail' => 'Tidak Lulus',
+                default => 'Menunggu Hasil',
+            },
+            'scheduledFor' => $defense->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+            'location' => $defense->location,
+            'examiners' => $defense->examiners
+                ->sortBy('order_no')
+                ->map(fn($examiner): array => [
+                    'id' => $examiner->id,
+                    'name' => $examiner->lecturer?->name ?? '-',
+                    'roleLabel' => match ($examiner->role) {
+                        'chair' => 'Ketua Sidang',
+                        'secretary' => 'Sekretaris Sidang',
+                        default => sprintf('Penguji %d', $examiner->order_no),
+                    },
+                    'decisionLabel' => match ($examiner->decision) {
+                        'pass' => 'Disetujui',
+                        'pass_with_revision' => 'Perlu Revisi',
+                        'fail' => 'Tidak Lulus',
+                        default => 'Belum Ada Keputusan',
+                    },
+                    'score' => $examiner->score,
+                    'decisionNotes' => $examiner->notes,
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 }
