@@ -61,7 +61,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     autoFocus
                                     tabIndex={1}
                                     autoComplete="email"
-                                    placeholder="nama@kampus.ac.id"
+                                    placeholder="alamat-email@ubg.ac.id"
                                 />
                                 <InputError message={errors.email} />
                             </div>

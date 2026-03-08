@@ -28,7 +28,7 @@ class DokumenRevisiController extends Controller
             ->where('lecturer_user_id', $lecturer->id)
             ->whereIn('student_user_id', $studentIds)
             ->latest('created_at')
-            ->limit(20)
+            ->limit(100)
             ->get()
             ->map(function (MentorshipDocument $document): array {
                 return [

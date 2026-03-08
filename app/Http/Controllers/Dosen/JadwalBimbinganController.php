@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
 use App\Services\DosenBimbinganService;
+use App\Services\DosenScheduleWorkspaceService;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class JadwalBimbinganController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
+        private readonly DosenScheduleWorkspaceService $dosenScheduleWorkspaceService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
@@ -134,6 +136,7 @@ class JadwalBimbinganController extends Controller
             'pendingRequests' => $pendingRequests,
             'upcomingSchedules' => $upcomingSchedules,
             'historySchedules' => $historySchedules,
+            'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
             'flashMessage' => $request->session()->get('success'),
         ]);
     }

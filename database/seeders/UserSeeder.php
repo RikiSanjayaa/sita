@@ -45,7 +45,7 @@ class UserSeeder extends Seeder
      * @var array<int, array{name: string, email: string, nim: string, angkatan: int}>
      */
     private const ILKOM_MAHASISWA = [
-        ['name' => 'Mahasiswa SiTA', 'email' => 'mahasiswa@sita.test', 'nim' => '2210510999', 'angkatan' => 2022, 'concentration' => 'Computer Vision'],
+        ['name' => 'Mahasiswa SiTA', 'email' => 'mahasiswa@sita.test', 'nim' => '2210510999', 'angkatan' => 2022, 'concentration' => 'Jaringan'],
         ['name' => 'Muhammad Akbar', 'email' => 'akbar@sita.test', 'nim' => '2210510001', 'angkatan' => 2022, 'concentration' => 'Jaringan'],
         ['name' => 'Nadia Putri', 'email' => 'nadia@sita.test', 'nim' => '2210510020', 'angkatan' => 2022, 'concentration' => 'Sistem Cerdas'],
         ['name' => 'Rizky Pratama', 'email' => 'rizky@sita.test', 'nim' => '2210510011', 'angkatan' => 2022, 'concentration' => 'Jaringan'],

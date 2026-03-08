@@ -1,5 +1,6 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { Download, FileText } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,10 @@ export default function DosenDokumenRevisiPage() {
     const { documentQueue, flashMessage } = usePage<
         SharedData & DokumenRevisiProps
     >().props;
+    const [statusFilter, setStatusFilter] = useState<
+        'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui'
+    >('semua');
+    const [visibleDocumentCount, setVisibleDocumentCount] = useState(10);
 
     const form = useForm({
         status: 'needs_revision' as 'needs_revision' | 'approved',
@@ -64,6 +69,18 @@ export default function DosenDokumenRevisiPage() {
         });
     }
 
+    const filteredDocuments = useMemo(() => {
+        return documentQueue.filter((doc) => {
+            if (statusFilter === 'semua') {
+                return true;
+            }
+
+            return doc.status === statusFilter;
+        });
+    }, [documentQueue, statusFilter]);
+
+    const visibleDocuments = filteredDocuments.slice(0, visibleDocumentCount);
+
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
@@ -75,13 +92,79 @@ export default function DosenDokumenRevisiPage() {
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
                 <Card className="py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">
-                            Antrian Review Dokumen
-                        </CardTitle>
-                        <CardDescription>
-                            Data berasal dari dokumen unggahan mahasiswa
-                            bimbingan
-                        </CardDescription>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <CardTitle className="text-lg font-semibold">
+                                    Antrian Review Dokumen
+                                </CardTitle>
+                                <CardDescription>
+                                    Filter status dan batasi ke 10 data terbaru
+                                    agar antrian tetap ringkas.
+                                </CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        statusFilter === 'semua'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setStatusFilter('semua');
+                                        setVisibleDocumentCount(10);
+                                    }}
+                                >
+                                    Semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        statusFilter === 'Perlu Review'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setStatusFilter('Perlu Review');
+                                        setVisibleDocumentCount(10);
+                                    }}
+                                >
+                                    Perlu Review
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        statusFilter === 'Perlu Revisi'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setStatusFilter('Perlu Revisi');
+                                        setVisibleDocumentCount(10);
+                                    }}
+                                >
+                                    Perlu Revisi
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        statusFilter === 'Disetujui'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setStatusFilter('Disetujui');
+                                        setVisibleDocumentCount(10);
+                                    }}
+                                >
+                                    Disetujui
+                                </Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4 pb-6">
                         {flashMessage && (
@@ -93,8 +176,8 @@ export default function DosenDokumenRevisiPage() {
                             </Alert>
                         )}
 
-                        {documentQueue.length > 0 ? (
-                            documentQueue.map((doc) => (
+                        {visibleDocuments.length > 0 ? (
+                            visibleDocuments.map((doc) => (
                                 <div
                                     key={`${doc.id}-${doc.file}`}
                                     className="rounded-xl border bg-background p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -212,6 +295,28 @@ export default function DosenDokumenRevisiPage() {
                                 </p>
                             </div>
                         )}
+
+                        {filteredDocuments.length > visibleDocuments.length ? (
+                            <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Menampilkan {visibleDocuments.length} dari{' '}
+                                    {filteredDocuments.length} dokumen pada
+                                    filter ini.
+                                </p>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        setVisibleDocumentCount(
+                                            (current) => current + 10,
+                                        )
+                                    }
+                                >
+                                    Muat Lebih Banyak
+                                </Button>
+                            </div>
+                        ) : null}
                     </CardContent>
                 </Card>
             </div>

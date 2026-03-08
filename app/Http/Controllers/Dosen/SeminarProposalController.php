@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisRevision;
+use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,7 @@ use RuntimeException;
 class SeminarProposalController extends Controller
 {
     public function __construct(
+        private readonly DosenScheduleWorkspaceService $dosenScheduleWorkspaceService,
         private readonly DosenThesisWorkspaceService $dosenThesisWorkspaceService,
         private readonly ThesisDefenseExaminerDecisionService $decisionService,
     ) {}
@@ -89,6 +91,7 @@ class SeminarProposalController extends Controller
 
         return Inertia::render('dosen/seminar-proposal', [
             'defenses' => $defenses,
+            'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
         ]);
     }
 

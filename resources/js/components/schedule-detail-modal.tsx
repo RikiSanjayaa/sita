@@ -27,7 +27,14 @@ type ScheduleDetail = {
     start: string;
     end: string;
     location: string;
-    status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+    status:
+        | 'scheduled'
+        | 'pending'
+        | 'approved'
+        | 'rescheduled'
+        | 'rejected'
+        | 'completed'
+        | 'cancelled';
     notes?: string | null;
     requestedBy?: string;
 };
@@ -45,6 +52,11 @@ const statusConfig: Record<
     ScheduleDetail['status'],
     { label: string; color: string; icon: typeof CheckCircle2 }
 > = {
+    scheduled: {
+        label: 'Terjadwal',
+        color: 'bg-blue-500 text-white',
+        icon: Calendar,
+    },
     pending: {
         label: 'Menunggu Konfirmasi',
         color: 'bg-orange-500 text-white',
@@ -54,6 +66,11 @@ const statusConfig: Record<
         label: 'Disetujui',
         color: 'bg-green-500 text-white',
         icon: CheckCircle2,
+    },
+    rescheduled: {
+        label: 'Dijadwalkan Ulang',
+        color: 'bg-sky-500 text-white',
+        icon: Calendar,
     },
     rejected: {
         label: 'Ditolak',

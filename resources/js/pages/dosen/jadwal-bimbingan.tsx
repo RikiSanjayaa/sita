@@ -81,6 +81,7 @@ type JadwalBimbinganProps = {
     pendingRequests: PendingRequest[];
     upcomingSchedules: UpcomingSchedule[];
     historySchedules: HistorySchedule[];
+    workspaceEvents: BimbinganEvent[];
     flashMessage?: string | null;
 };
 
@@ -94,6 +95,15 @@ type DecisionFormErrors = {
     scheduled_for?: string;
     lecturer_note?: string;
 };
+
+type ScheduleModalStatus =
+    | 'scheduled'
+    | 'pending'
+    | 'approved'
+    | 'rescheduled'
+    | 'rejected'
+    | 'completed'
+    | 'cancelled';
 
 function StatusBadge({ status }: { status: string }) {
     const normalizedStatus = status.toLowerCase();
@@ -189,8 +199,16 @@ export default function DosenJadwalBimbinganPage() {
         upcomingSchedules,
         historySchedules,
         flashMessage,
+        workspaceEvents,
         auth,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
+    const [workspaceFilter, setWorkspaceFilter] = useState<
+        'bimbingan' | 'ujian' | 'semua'
+    >('bimbingan');
+    const [historyFilter, setHistoryFilter] = useState<
+        'semua' | 'completed' | 'rejected' | 'cancelled'
+    >('semua');
+    const [visibleHistoryCount, setVisibleHistoryCount] = useState(10);
 
     const form = useForm({
         decision: 'approve' as
@@ -225,7 +243,7 @@ export default function DosenJadwalBimbinganPage() {
         start: string;
         end: string;
         location: string;
-        status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+        status: ScheduleModalStatus;
         notes?: string | null;
     } | null>(null);
 
@@ -246,6 +264,7 @@ export default function DosenJadwalBimbinganPage() {
                         'pendingRequests',
                         'upcomingSchedules',
                         'historySchedules',
+                        'workspaceEvents',
                     ],
                 });
             },
@@ -440,17 +459,6 @@ export default function DosenJadwalBimbinganPage() {
         return groups;
     }, [pendingRequests]);
 
-    function formatDateForCalendar(dateInput: string | Date): string {
-        if (typeof dateInput === 'string') {
-            return dateInput;
-        }
-
-        const date = dateInput;
-        if (isNaN(date.getTime())) return '';
-
-        return date.toISOString();
-    }
-
     function formatDateInIndonesian(dateInput: string | Date): string {
         const date =
             typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
@@ -467,6 +475,20 @@ export default function DosenJadwalBimbinganPage() {
     }
 
     function formatDateTime(date: string, time: string): string {
+        if (date === time) {
+            const parsedDateTime = new Date(date);
+
+            if (!isNaN(parsedDateTime.getTime())) {
+                return parsedDateTime.toLocaleString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+            }
+        }
+
         const parsedDate = new Date(`${date} ${time}`);
         if (isNaN(parsedDate.getTime())) return `${date} pukul ${time}`;
 
@@ -479,59 +501,50 @@ export default function DosenJadwalBimbinganPage() {
         );
     }
 
-    function parseDateTime(dateStr: string, timeStr: string): string {
-        const combined = `${dateStr} ${timeStr}`;
-        const date = new Date(combined);
-        return formatDateForCalendar(date);
-    }
+    const filteredWorkspaceEvents = workspaceEvents.filter((event) => {
+        if (workspaceFilter === 'semua') {
+            return true;
+        }
 
-    const calendarEvents: BimbinganEvent[] = [
-        ...upcomingSchedules.map((schedule) => {
-            const start = parseDateTime(schedule.date, schedule.time);
-            const endDate = new Date(
-                new Date(`${schedule.date} ${schedule.time}`).getTime() +
-                    60 * 60 * 1000,
-            );
-            const end = formatDateForCalendar(endDate);
+        return event.category === workspaceFilter;
+    });
 
-            return {
-                id: schedule.id,
-                title: schedule.topic,
-                topic: schedule.topic,
-                person: schedule.mahasiswa,
-                start,
-                end,
-                location: schedule.location,
-                status: schedule.status.toLowerCase() as BimbinganEvent['status'],
-                personRole: 'student' as const,
-            };
-        }),
-        ...historySchedules.map((schedule) => {
-            const start = parseDateTime(schedule.date, schedule.time);
-            const endDate = new Date(
-                new Date(`${schedule.date} ${schedule.time}`).getTime() +
-                    60 * 60 * 1000,
-            );
-            const end = formatDateForCalendar(endDate);
+    const filteredHistorySchedules = historySchedules.filter((item) => {
+        if (historyFilter === 'semua') {
+            return true;
+        }
 
-            return {
-                id: schedule.id,
-                title: schedule.topic,
-                topic: schedule.topic,
-                person: schedule.mahasiswa,
-                start,
-                end,
-                location: schedule.location,
-                status: schedule.status.toLowerCase() as BimbinganEvent['status'],
-                personRole: 'student' as const,
-            };
-        }),
-    ];
+        return item.status === historyFilter;
+    });
+
+    const visibleHistorySchedules = filteredHistorySchedules.slice(
+        0,
+        visibleHistoryCount,
+    );
 
     function handleEventClick(event: BimbinganEvent) {
+        if (event.category === 'ujian') {
+            router.visit('/dosen/seminar-proposal');
+
+            return;
+        }
+
+        const scheduleId =
+            typeof event.id === 'string' && event.id.startsWith('schedule-')
+                ? Number(event.id.replace('schedule-', ''))
+                : Number(event.id);
+
+        if (Number.isNaN(scheduleId)) {
+            return;
+        }
+
         const fullSchedule = [...upcomingSchedules, ...historySchedules].find(
-            (s) => s.id === event.id,
+            (s) => s.id === scheduleId,
         );
+
+        const scheduleStatus = (
+            event.status === 'scheduled' ? 'approved' : event.status
+        ) as ScheduleModalStatus;
 
         if (fullSchedule) {
             setSelectedEvent({
@@ -542,16 +555,26 @@ export default function DosenJadwalBimbinganPage() {
                 start: event.start,
                 end: event.end,
                 location: fullSchedule.location,
-                status: fullSchedule.status.toLowerCase() as
-                    | 'pending'
-                    | 'approved'
-                    | 'rejected'
-                    | 'completed'
-                    | 'cancelled',
+                status: fullSchedule.status.toLowerCase() as ScheduleModalStatus,
                 notes: fullSchedule.lecturerNote,
             });
             setIsDetailModalOpen(true);
+
+            return;
         }
+
+        setSelectedEvent({
+            id: scheduleId,
+            topic: event.topic,
+            person: event.person,
+            personRole: 'student',
+            start: event.start,
+            end: event.end,
+            location: event.location,
+            status: scheduleStatus,
+            notes: null,
+        });
+        setIsDetailModalOpen(true);
     }
 
     return (
@@ -573,12 +596,68 @@ export default function DosenJadwalBimbinganPage() {
                         </p>
                     </div>
                 </div>
-                <BimbinganCalendar
-                    events={calendarEvents}
-                    onEventClick={handleEventClick}
-                    defaultView="calendar"
-                    showLegend={false}
-                />
+                <Card className="shadow-sm">
+                    <CardHeader className="gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>Workspace Jadwal</CardTitle>
+                                <CardDescription>
+                                    Gunakan satu kalender yang sama, lalu
+                                    fokuskan tampilan pada bimbingan,
+                                    sempro/sidang, atau keduanya.
+                                </CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        workspaceFilter === 'bimbingan'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        setWorkspaceFilter('bimbingan')
+                                    }
+                                >
+                                    Bimbingan
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        workspaceFilter === 'ujian'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => setWorkspaceFilter('ujian')}
+                                >
+                                    Sempro / Sidang
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        workspaceFilter === 'semua'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => setWorkspaceFilter('semua')}
+                                >
+                                    Semua
+                                </Button>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <BimbinganCalendar
+                            events={filteredWorkspaceEvents}
+                            onEventClick={handleEventClick}
+                            defaultView="calendar"
+                            showLegend={false}
+                        />
+                    </CardContent>
+                </Card>
             </div>
 
             <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
@@ -1203,17 +1282,83 @@ export default function DosenJadwalBimbinganPage() {
 
                 <Card className="py-0 shadow-sm lg:col-span-2">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">
-                            Riwayat Jadwal
-                        </CardTitle>
-                        <CardDescription>
-                            Daftar jadwal yang ditolak, dibatalkan, atau telah
-                            selesai
-                        </CardDescription>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <CardTitle className="text-lg font-semibold">
+                                    Riwayat Jadwal
+                                </CardTitle>
+                                <CardDescription>
+                                    Tampilkan ringkas riwayat terbaru agar
+                                    halaman tetap mudah discroll.
+                                </CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        historyFilter === 'semua'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setHistoryFilter('semua');
+                                        setVisibleHistoryCount(10);
+                                    }}
+                                >
+                                    Semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        historyFilter === 'completed'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setHistoryFilter('completed');
+                                        setVisibleHistoryCount(10);
+                                    }}
+                                >
+                                    Selesai
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        historyFilter === 'rejected'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setHistoryFilter('rejected');
+                                        setVisibleHistoryCount(10);
+                                    }}
+                                >
+                                    Ditolak
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        historyFilter === 'cancelled'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setHistoryFilter('cancelled');
+                                        setVisibleHistoryCount(10);
+                                    }}
+                                >
+                                    Dibatalkan
+                                </Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="grid gap-4 pb-6 sm:grid-cols-2">
-                        {historySchedules.length > 0 ? (
-                            historySchedules.map((item) => (
+                        {visibleHistorySchedules.length > 0 ? (
+                            visibleHistorySchedules.map((item) => (
                                 <div
                                     key={`${item.id}-${item.status}`}
                                     className="rounded-xl border bg-background p-5 shadow-sm"
@@ -1268,6 +1413,28 @@ export default function DosenJadwalBimbinganPage() {
                                 description="Riwayat sesi selesai, ditolak, atau dibatalkan akan muncul di sini."
                             />
                         )}
+                        {filteredHistorySchedules.length >
+                        visibleHistorySchedules.length ? (
+                            <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3 sm:col-span-2">
+                                <p className="text-sm text-muted-foreground">
+                                    Menampilkan {visibleHistorySchedules.length}{' '}
+                                    dari {filteredHistorySchedules.length}{' '}
+                                    riwayat.
+                                </p>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        setVisibleHistoryCount(
+                                            (current) => current + 10,
+                                        )
+                                    }
+                                >
+                                    Muat Lebih Banyak
+                                </Button>
+                            </div>
+                        ) : null}
                     </CardContent>
                 </Card>
 
