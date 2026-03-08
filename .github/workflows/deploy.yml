@@ -209,9 +209,16 @@ jobs:
           VITE_REVERB_PORT: ${{ vars.FRONTEND_REVERB_PORT || '443' }}
           VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME || 'https' }}
         run: |
-          export DEPLOY_PATH HEALTHCHECK_URL VITE_REVERB_APP_KEY VITE_REVERB_HOST VITE_REVERB_PORT VITE_REVERB_SCHEME
-          ssh -p "${DEPLOY_PORT}" -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF'
           set -euo pipefail
+          printf -v deploy_path_q '%q' "${DEPLOY_PATH}"
+          printf -v healthcheck_url_q '%q' "${HEALTHCHECK_URL:-}"
+          printf -v vite_reverb_app_key_q '%q' "${VITE_REVERB_APP_KEY:-}"
+          printf -v vite_reverb_host_q '%q' "${VITE_REVERB_HOST:-}"
+          printf -v vite_reverb_port_q '%q' "${VITE_REVERB_PORT:-443}"
+          printf -v vite_reverb_scheme_q '%q' "${VITE_REVERB_SCHEME:-https}"
+          ssh -p "${DEPLOY_PORT}" -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "DEPLOY_PATH=${deploy_path_q} HEALTHCHECK_URL=${healthcheck_url_q} VITE_REVERB_APP_KEY=${vite_reverb_app_key_q} VITE_REVERB_HOST=${vite_reverb_host_q} VITE_REVERB_PORT=${vite_reverb_port_q} VITE_REVERB_SCHEME=${vite_reverb_scheme_q} bash -se" <<'EOF'
+          set -euo pipefail
+          export DEPLOY_PATH HEALTHCHECK_URL VITE_REVERB_APP_KEY VITE_REVERB_HOST VITE_REVERB_PORT VITE_REVERB_SCHEME
           cd "${DEPLOY_PATH}"
           git fetch --all --prune
           git checkout main
