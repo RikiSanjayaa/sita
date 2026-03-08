@@ -8,7 +8,7 @@ import {
     FileText,
     Pencil,
 } from 'lucide-react';
-import { FormEventHandler, useEffect, useState } from 'react';
+import { FormEventHandler, useState } from 'react';
 
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -25,6 +25,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import {
+    academicGradeClassName,
+    calculateAverageAcademicScore,
+    resolveAcademicGrade,
+} from '@/lib/academic-grade';
 import { dashboard, tugasAkhir } from '@/routes';
 import {
     type BreadcrumbItem,
@@ -66,6 +71,34 @@ type TugasAkhirPageProps = {
     examinerProfiles: UserProfileSummary[];
     semproDate: string | null;
     sidangDate: string | null;
+    semproResult: {
+        label: string;
+        resultLabel: string;
+        scheduledFor: string | null;
+        location: string | null;
+        examiners: Array<{
+            id: number;
+            name: string;
+            roleLabel: string;
+            decisionLabel: string;
+            score: number | string | null;
+            decisionNotes: string | null;
+        }>;
+    } | null;
+    sidangResult: {
+        label: string;
+        resultLabel: string;
+        scheduledFor: string | null;
+        location: string | null;
+        examiners: Array<{
+            id: number;
+            name: string;
+            roleLabel: string;
+            decisionLabel: string;
+            score: number | string | null;
+            decisionNotes: string | null;
+        }>;
+    } | null;
     profileProgramStudi: string;
     flashMessage?: string | null;
     errorMessage?: string | null;
@@ -266,22 +299,121 @@ function SubmissionFields({
     );
 }
 
+function SemproResultCard({
+    title,
+    result,
+}: {
+    title: string;
+    result: NonNullable<TugasAkhirPageProps['semproResult']>;
+}) {
+    const averageScore = calculateAverageAcademicScore(
+        result.examiners.map((examiner) => examiner.score),
+    );
+    const finalGrade = resolveAcademicGrade(averageScore);
+
+    return (
+        <Card>
+            <CardHeader className="gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <CardTitle>{title}</CardTitle>
+                        <CardDescription>
+                            Ringkasan keputusan, nilai, dan catatan dari dosen
+                            penguji setelah ujian selesai.
+                        </CardDescription>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <Badge className="w-fit bg-primary text-primary-foreground hover:bg-primary/90">
+                            {result.resultLabel}
+                        </Badge>
+                        {averageScore !== null ? (
+                            <Badge variant="secondary">
+                                Nilai {averageScore.toFixed(2)}
+                            </Badge>
+                        ) : null}
+                        {finalGrade ? (
+                            <Badge
+                                variant="soft"
+                                className={academicGradeClassName(finalGrade)}
+                            >
+                                Grade {finalGrade}
+                            </Badge>
+                        ) : null}
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="rounded-xl border bg-muted/15 p-4">
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                            {result.label}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            {result.scheduledFor ?? '-'}
+                            {result.location ? ` · ${result.location}` : ''}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    {result.examiners.map((examiner) => {
+                        return (
+                            <div
+                                key={examiner.id}
+                                className="rounded-xl border bg-background p-4"
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-foreground">
+                                            {examiner.name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {examiner.roleLabel}
+                                        </p>
+                                    </div>
+                                    <Badge variant="outline">
+                                        {examiner.decisionLabel}
+                                    </Badge>
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    <Badge variant="secondary">
+                                        Nilai:{' '}
+                                        {examiner.score !== null
+                                            ? examiner.score
+                                            : '-'}
+                                    </Badge>
+                                </div>
+
+                                <div className="mt-4 rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">
+                                        Catatan keputusan:
+                                    </span>{' '}
+                                    {examiner.decisionNotes ??
+                                        'Belum ada catatan dari penguji.'}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function TugasAkhirSaya() {
     const {
         submission,
         advisorProfiles,
         examinerProfiles,
+        semproResult,
+        sidangResult,
         flashMessage,
         errorMessage,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
     const [isEditing, setIsEditing] = useState(false);
     const form = useForm<FormData>(submissionDefaults(submission));
-
-    useEffect(() => {
-        if (submission) {
-            form.setData(submissionDefaults(submission));
-        }
-    }, [form, submission]);
 
     const canEditSubmission = submission?.workflow.can_edit ?? false;
     const label = submission?.workflow.label ?? '';
@@ -573,6 +705,20 @@ export default function TugasAkhirSaya() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {semproResult ? (
+                            <SemproResultCard
+                                title="Hasil Seminar Proposal"
+                                result={semproResult}
+                            />
+                        ) : null}
+
+                        {sidangResult ? (
+                            <SemproResultCard
+                                title="Hasil Sidang Skripsi"
+                                result={sidangResult}
+                            />
+                        ) : null}
                     </div>
                 )}
             </div>

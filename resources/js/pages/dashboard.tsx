@@ -148,7 +148,7 @@ export default function DashboardPage() {
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
                 <Card className="overflow-hidden border-border/70 p-0 shadow-sm">
                     <CardContent className="bg-gradient-to-br from-white/8 via-background to-accent/20 p-6 lg:p-8">
-                        <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-start">
+                        <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
                             <div className="space-y-5">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
