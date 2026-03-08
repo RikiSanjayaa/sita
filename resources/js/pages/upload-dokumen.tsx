@@ -236,10 +236,11 @@ export default function UploadDokumenPage() {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={() => setIsUploadOpen(false)}
                             >
                                 Batal
@@ -272,7 +273,7 @@ export default function UploadDokumenPage() {
                     </div>
                     <Button
                         type="button"
-                        className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="h-10 w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                         onClick={() => setIsUploadOpen(true)}
                     >
                         <Upload className="size-4" />
@@ -323,121 +324,212 @@ export default function UploadDokumenPage() {
                     <Separator />
                     <CardContent>
                         {hasUploadedDocuments ? (
-                            <div className="overflow-hidden rounded-lg border">
-                                <table className="w-full text-left text-sm">
-                                    <thead className="bg-background">
-                                        <tr className="border-b">
-                                            <th className="px-4 py-3 font-medium">
-                                                Nama Dokumen
-                                            </th>
-                                            <th className="px-4 py-3 font-medium">
-                                                Kategori
-                                            </th>
-                                            <th className="px-4 py-3 font-medium">
-                                                Tanggal Upload
-                                            </th>
-                                            <th className="px-4 py-3 font-medium">
-                                                Ukuran
-                                            </th>
-                                            <th className="px-4 py-3 font-medium">
-                                                Status
-                                            </th>
-                                            <th className="px-4 py-3 text-right font-medium">
-                                                Aksi
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {page.props.uploadedDocuments.map(
-                                            (row) => (
-                                                <tr
-                                                    key={`${row.id}-${row.version}`}
-                                                    className="group border-b transition-colors last:border-b-0 hover:bg-muted/30"
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-start gap-3">
-                                                            <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                                                <FileText className="size-4" />
-                                                            </span>
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-medium">
-                                                                    {row.title}
-                                                                </div>
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    {
-                                                                        row.fileName
-                                                                    }{' '}
-                                                                    -{' '}
-                                                                    {
-                                                                        row.version
-                                                                    }
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
+                            <>
+                                <div className="grid gap-3 md:hidden">
+                                    {page.props.uploadedDocuments.map((row) => (
+                                        <div
+                                            key={`${row.id}-${row.version}-mobile`}
+                                            className="rounded-xl border bg-background p-4"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                                    <FileText className="size-4" />
+                                                </span>
+                                                <div className="min-w-0 flex-1 space-y-3">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-medium break-words">
+                                                            {row.title}
+                                                        </p>
+                                                        <p className="text-xs break-words text-muted-foreground">
+                                                            {row.fileName} -{' '}
+                                                            {row.version}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap gap-2">
                                                         <Badge
                                                             variant="outline"
                                                             className="rounded-full bg-background text-foreground"
                                                         >
                                                             {row.category}
                                                         </Badge>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">
-                                                        {row.uploadedAt}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">
-                                                        {row.size}
-                                                    </td>
-                                                    <td className="px-4 py-3">
                                                         <StatusBadge
                                                             status={row.status}
                                                         />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-end gap-1">
-                                                            <Button
-                                                                asChild
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                            >
-                                                                <Link
-                                                                    href={
-                                                                        row.downloadUrl
-                                                                    }
-                                                                >
-                                                                    <Download className="size-4" />
-                                                                </Link>
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                disabled={
-                                                                    deleteForm.processing
+                                                    </div>
+
+                                                    <div className="grid gap-1 text-xs text-muted-foreground">
+                                                        <p>
+                                                            Upload:{' '}
+                                                            {row.uploadedAt}
+                                                        </p>
+                                                        <p>
+                                                            Ukuran: {row.size}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <Button
+                                                            asChild
+                                                            type="button"
+                                                            variant="outline"
+                                                            className="w-full justify-center sm:w-auto"
+                                                        >
+                                                            <Link
+                                                                href={
+                                                                    row.downloadUrl
                                                                 }
-                                                                onClick={() => {
-                                                                    deleteForm.delete(
-                                                                        `/mahasiswa/upload-dokumen/${row.id}`,
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    );
-                                                                }}
                                                             >
-                                                                <Trash2 className="size-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ),
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                                <Download className="size-4" />
+                                                                Unduh
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            className="w-full justify-center text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
+                                                            disabled={
+                                                                deleteForm.processing
+                                                            }
+                                                            onClick={() => {
+                                                                deleteForm.delete(
+                                                                    `/mahasiswa/upload-dokumen/${row.id}`,
+                                                                    {
+                                                                        preserveScroll: true,
+                                                                    },
+                                                                );
+                                                            }}
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                            Hapus
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="hidden overflow-x-auto rounded-lg border md:block">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-background">
+                                            <tr className="border-b">
+                                                <th className="px-4 py-3 font-medium">
+                                                    Nama Dokumen
+                                                </th>
+                                                <th className="px-4 py-3 font-medium">
+                                                    Kategori
+                                                </th>
+                                                <th className="px-4 py-3 font-medium">
+                                                    Tanggal Upload
+                                                </th>
+                                                <th className="px-4 py-3 font-medium">
+                                                    Ukuran
+                                                </th>
+                                                <th className="px-4 py-3 font-medium">
+                                                    Status
+                                                </th>
+                                                <th className="px-4 py-3 text-right font-medium">
+                                                    Aksi
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {page.props.uploadedDocuments.map(
+                                                (row) => (
+                                                    <tr
+                                                        key={`${row.id}-${row.version}`}
+                                                        className="group border-b transition-colors last:border-b-0 hover:bg-muted/30"
+                                                    >
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-start gap-3">
+                                                                <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                                                    <FileText className="size-4" />
+                                                                </span>
+                                                                <div className="min-w-0">
+                                                                    <div className="text-sm font-medium">
+                                                                        {
+                                                                            row.title
+                                                                        }
+                                                                    </div>
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {
+                                                                            row.fileName
+                                                                        }{' '}
+                                                                        -{' '}
+                                                                        {
+                                                                            row.version
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="rounded-full bg-background text-foreground"
+                                                            >
+                                                                {row.category}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-muted-foreground">
+                                                            {row.uploadedAt}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-muted-foreground">
+                                                            {row.size}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <StatusBadge
+                                                                status={
+                                                                    row.status
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-end gap-1">
+                                                                <Button
+                                                                    asChild
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                >
+                                                                    <Link
+                                                                        href={
+                                                                            row.downloadUrl
+                                                                        }
+                                                                    >
+                                                                        <Download className="size-4" />
+                                                                    </Link>
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                    disabled={
+                                                                        deleteForm.processing
+                                                                    }
+                                                                    onClick={() => {
+                                                                        deleteForm.delete(
+                                                                            `/mahasiswa/upload-dokumen/${row.id}`,
+                                                                            {
+                                                                                preserveScroll: true,
+                                                                            },
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="size-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         ) : (
                             <EmptyState
                                 icon={Inbox}

@@ -8,7 +8,6 @@ use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
 use App\Services\DosenBimbinganService;
-use App\Services\MentorshipAssignmentService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,6 +46,7 @@ class DashboardController extends Controller
             ->count();
 
         $activeStudentCount = count($studentIds);
+        $capacityLimit = $this->dosenBimbinganService->lecturerQuota($lecturer);
 
         $todayQueue = MentorshipSchedule::query()
             ->with('student')
@@ -90,7 +90,7 @@ class DashboardController extends Controller
                     'value' => sprintf(
                         '%d/%d',
                         $activeStudentCount,
-                        MentorshipAssignmentService::MAX_ACTIVE_STUDENTS_PER_LECTURER,
+                        $capacityLimit,
                     ),
                     'description' => 'Kapasitas bimbingan aktif saat ini',
                 ],

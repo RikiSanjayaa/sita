@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\ProgramStudi;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -20,7 +21,8 @@ class MahasiswaProfileFactory extends Factory
         return [
             'user_id' => User::factory()->asMahasiswa(),
             'nim' => fake()->unique()->numerify('##########'),
-            'program_studi_id' => \App\Models\ProgramStudi::factory(),
+            'program_studi_id' => ProgramStudi::factory(),
+            'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
             'angkatan' => (int) now()->format('Y'),
             'is_active' => true,
         ];

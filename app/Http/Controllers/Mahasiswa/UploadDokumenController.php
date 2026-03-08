@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
-use App\Enums\AssignmentStatus;
-use App\Enums\SemproStatus;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
+use App\Models\ThesisDefense;
+use App\Models\ThesisSupervisorAssignment;
 use App\Services\RealtimeNotificationService;
+use App\Services\UserProfilePresenter;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class UploadDokumenController extends Controller
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
     public function index(Request $request): Response
@@ -76,15 +78,34 @@ class UploadDokumenController extends Controller
             'document' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
         ]);
 
-        $assignments = MentorshipAssignment::query()
+        $assignments = ThesisSupervisorAssignment::query()
             ->with('lecturer')
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->get();
 
-        if ($assignments->isEmpty()) {
+        $activeSemproDefenses = $this->activeSemproDefenses($student->id);
+        $pengujiThreads = $this->activeSemproThreads($student->id, $activeSemproDefenses);
+        $semproExaminerIds = $activeSemproDefenses
+            ->flatMap(fn(ThesisDefense $defense) => $defense->examiners->pluck('lecturer_user_id'))
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $recipientLecturerIds = $assignments
+            ->pluck('lecturer_user_id')
+            ->merge($semproExaminerIds)
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($recipientLecturerIds->isEmpty()) {
             return back()->withErrors([
-                'document' => 'Belum ada dosen pembimbing aktif untuk menerima dokumen.',
+                'document' => 'Belum ada dosen pembimbing atau penguji sempro aktif untuk menerima dokumen.',
             ]);
         }
 
@@ -99,13 +120,17 @@ class UploadDokumenController extends Controller
             ->max('version_number')) + 1;
 
         $createdDocuments = collect();
+        $assignmentIdsByLecturer = $assignments
+            ->mapWithKeys(fn(ThesisSupervisorAssignment $assignment): array => [
+                (int) $assignment->lecturer_user_id => $assignment->getKey(),
+            ]);
 
-        DB::transaction(function () use ($assignments, $student, $data, $disk, $storedPath, $file, $groupKey, $nextVersion, &$createdDocuments): void {
-            foreach ($assignments as $assignment) {
+        DB::transaction(function () use ($assignmentIdsByLecturer, $assignments, $createdDocuments, $data, $disk, $file, $groupKey, $nextVersion, $pengujiThreads, $recipientLecturerIds, $storedPath, $student): void {
+            foreach ($recipientLecturerIds as $lecturerUserId) {
                 $createdDocuments->push(MentorshipDocument::query()->create([
                     'student_user_id' => $student->id,
-                    'lecturer_user_id' => $assignment->lecturer_user_id,
-                    'mentorship_assignment_id' => $assignment->id,
+                    'lecturer_user_id' => $lecturerUserId,
+                    'mentorship_assignment_id' => $assignmentIdsByLecturer->get($lecturerUserId),
                     'title' => trim($data['title']),
                     'category' => trim($data['category']),
                     'document_group' => $groupKey,
@@ -114,6 +139,7 @@ class UploadDokumenController extends Controller
                     'file_url' => null,
                     'storage_disk' => $disk,
                     'storage_path' => $storedPath,
+                    'stored_file_name' => basename($storedPath),
                     'mime_type' => $file->getClientMimeType(),
                     'file_size_kb' => (int) ceil($file->getSize() / 1024),
                     'status' => 'submitted',
@@ -124,29 +150,31 @@ class UploadDokumenController extends Controller
                 ]));
             }
 
-            $thread = MentorshipChatThread::query()->firstOrCreate([
-                'student_user_id' => $student->id,
-                'type' => 'pembimbing',
-            ]);
+            if ($assignments->isNotEmpty()) {
+                $thread = MentorshipChatThread::query()->firstOrCreate([
+                    'student_user_id' => $student->id,
+                    'type' => 'pembimbing',
+                ]);
 
-            $message = $thread->messages()->create([
-                'sender_user_id' => $student->id,
-                'related_document_id' => $createdDocuments->first()?->id,
-                'attachment_disk' => $disk,
-                'attachment_path' => $storedPath,
-                'attachment_name' => $file->getClientOriginalName(),
-                'attachment_mime' => $file->getClientMimeType(),
-                'attachment_size_kb' => (int) ceil($file->getSize() / 1024),
-                'message_type' => 'document_event',
-                'message' => sprintf(
-                    'Mahasiswa mengunggah dokumen %s versi v%d.',
-                    trim($data['category']),
-                    $nextVersion,
-                ),
-                'sent_at' => now(),
-            ]);
+                $message = $thread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'related_document_id' => $createdDocuments->first()?->id,
+                    'attachment_disk' => $disk,
+                    'attachment_path' => $storedPath,
+                    'attachment_name' => $file->getClientOriginalName(),
+                    'attachment_mime' => $file->getClientMimeType(),
+                    'attachment_size_kb' => (int) ceil($file->getSize() / 1024),
+                    'message_type' => 'document_event',
+                    'message' => sprintf(
+                        'Mahasiswa mengunggah dokumen %s versi v%d.',
+                        trim($data['category']),
+                        $nextVersion,
+                    ),
+                    'sent_at' => now(),
+                ]);
 
-            $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+                $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+            }
 
             $notifiedUserIds = [];
 
@@ -169,19 +197,15 @@ class UploadDokumenController extends Controller
                 ]);
             }
 
-            // Also notify active penguji threads
-            $activeSemproStatuses = [SemproStatus::Scheduled->value, SemproStatus::RevisionOpen->value];
-
-            $pengujiThreads = MentorshipChatThread::query()
-                ->where('student_user_id', $student->id)
-                ->where('type', 'sempro')
-                ->whereHas('sempro', fn($q) => $q->whereIn('status', $activeSemproStatuses))
-                ->get();
-
             foreach ($pengujiThreads as $pengujiThread) {
                 $pengujiMessage = $pengujiThread->messages()->create([
                     'sender_user_id' => $student->id,
                     'related_document_id' => $createdDocuments->first()?->id,
+                    'attachment_disk' => $disk,
+                    'attachment_path' => $storedPath,
+                    'attachment_name' => $file->getClientOriginalName(),
+                    'attachment_mime' => $file->getClientMimeType(),
+                    'attachment_size_kb' => (int) ceil($file->getSize() / 1024),
                     'message_type' => 'document_event',
                     'message' => sprintf(
                         'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread Sempro).',
@@ -197,7 +221,52 @@ class UploadDokumenController extends Controller
 
         return redirect()
             ->route('mahasiswa.upload-dokumen')
-            ->with('success', 'Dokumen berhasil diunggah dan notifikasi terkirim ke grup bimbingan.');
+            ->with('success', 'Dokumen berhasil diunggah dan notifikasi terkirim ke thread terkait.');
+    }
+
+    /**
+     * @return Collection<int, ThesisDefense>
+     */
+    private function activeSemproDefenses(int $studentUserId): Collection
+    {
+        return ThesisDefense::query()
+            ->with(['examiners' => fn($query) => $query->select(['id', 'defense_id', 'lecturer_user_id'])])
+            ->whereHas('project', fn($query) => $query->where('student_user_id', $studentUserId))
+            ->where('type', 'sempro')
+            ->where(function ($query): void {
+                $query->where('status', 'scheduled')
+                    ->orWhere(function ($nestedQuery): void {
+                        $nestedQuery->where('status', 'completed')
+                            ->where('result', 'pass_with_revision');
+                    });
+            })
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, ThesisDefense>  $defenses
+     * @return Collection<int, MentorshipChatThread>
+     */
+    private function activeSemproThreads(int $studentUserId, Collection $defenses): Collection
+    {
+        $contextIds = $defenses
+            ->flatMap(static fn(ThesisDefense $defense): array => array_values(array_filter([
+                $defense->getKey(),
+                $defense->legacy_sempro_id,
+            ])))
+            ->unique()
+            ->values()
+            ->all();
+
+        return MentorshipChatThread::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('type', 'sempro')
+            ->when(
+                $contextIds !== [],
+                fn($query) => $query->whereIn('context_id', $contextIds),
+                fn($query) => $query->whereRaw('1 = 0'),
+            )
+            ->get();
     }
 
     /**
@@ -205,10 +274,14 @@ class UploadDokumenController extends Controller
      */
     private function mapMessagePayload($message): array
     {
+        $author = $this->userProfilePresenter->summary($message->sender);
+
         return [
             'id' => $message->id,
             'senderUserId' => $message->sender_user_id,
             'author' => $message->sender?->name ?? 'Sistem',
+            'authorAvatar' => $author['avatar'] ?? null,
+            'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => $message->message_type,

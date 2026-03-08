@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
+import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard, tugasAkhir } from '@/routes';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import {
+    type BreadcrumbItem,
+    type SharedData,
+    type UserProfileSummary,
+} from '@/types';
 
 type Submission = {
     id: number;
@@ -33,7 +38,12 @@ type Submission = {
     title_id: string;
     title_en: string;
     proposal_summary: string;
-    status: string;
+    workflow: {
+        key: string;
+        label: string;
+        description: string;
+        can_edit: boolean;
+    };
     proposal_file_name: string | null;
     proposal_file_view_url: string | null;
     proposal_file_download_url: string | null;
@@ -44,12 +54,18 @@ type AssignedLecturers = {
     pembimbing2: string | null;
     penguji1: string | null;
     penguji2: string | null;
+    ketuaSidang: string | null;
+    sekretarisSidang: string | null;
+    pengujiSidang: string | null;
 };
 
 type TugasAkhirPageProps = {
     submission: Submission | null;
     assignedLecturers: AssignedLecturers;
+    advisorProfiles: UserProfileSummary[];
+    examinerProfiles: UserProfileSummary[];
     semproDate: string | null;
+    sidangDate: string | null;
     profileProgramStudi: string;
     flashMessage?: string | null;
     errorMessage?: string | null;
@@ -67,25 +83,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Judul dan Proposal', href: tugasAkhir().url },
 ];
 
-const statusLabel: Record<string, string> = {
-    menunggu_persetujuan: 'Menunggu Persetujuan',
-    pembimbing_ditetapkan: 'Pembimbing Ditetapkan',
-    sempro_dijadwalkan: 'Sempro Dijadwalkan',
-    revisi_sempro: 'Revisi Sempro',
-    sempro_selesai: 'Sempro Selesai',
-};
-
-const statusDescription: Record<string, string> = {
-    menunggu_persetujuan:
-        'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
-    pembimbing_ditetapkan:
-        'Dosen pembimbing sudah ditetapkan. Pantau pembaruan dari admin.',
-    sempro_dijadwalkan:
-        'Sempro sudah dijadwalkan. Cek informasi dosen dan tanggal di halaman ini.',
-    revisi_sempro: 'Pengajuan berada pada tahap revisi Sempro.',
-    sempro_selesai: 'Tahap Sempro telah selesai.',
-};
-
 function normalizeTitleEn(value: string | null | undefined): string {
     if (value === null || value === '-' || value === undefined) {
         return '';
@@ -101,20 +98,6 @@ function submissionDefaults(submission: Submission | null): FormData {
         proposal_summary: submission?.proposal_summary ?? '',
         proposal_file: null,
     };
-}
-
-function AssignmentValue({
-    value,
-    placeholder,
-}: {
-    value: string | null;
-    placeholder: string;
-}) {
-    if (value !== null && value.trim() !== '') {
-        return <p className="text-sm font-medium">{value}</p>;
-    }
-
-    return <p className="text-sm text-muted-foreground">{placeholder}</p>;
 }
 
 function ProposalFileCard({ submission }: { submission: Submission }) {
@@ -286,8 +269,8 @@ function SubmissionFields({
 export default function TugasAkhirSaya() {
     const {
         submission,
-        assignedLecturers,
-        semproDate,
+        advisorProfiles,
+        examinerProfiles,
         flashMessage,
         errorMessage,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
@@ -295,17 +278,14 @@ export default function TugasAkhirSaya() {
     const form = useForm<FormData>(submissionDefaults(submission));
 
     useEffect(() => {
-        form.setData(submissionDefaults(submission));
-    }, [submission, form]);
+        if (submission) {
+            form.setData(submissionDefaults(submission));
+        }
+    }, [form, submission]);
 
-    const canEditSubmission = submission?.status === 'menunggu_persetujuan';
-    const label = submission
-        ? (statusLabel[submission.status] ?? 'Dalam Proses')
-        : '';
-    const description = submission
-        ? (statusDescription[submission.status] ??
-          'Pengajuan sedang diproses admin.')
-        : '';
+    const canEditSubmission = submission?.workflow.can_edit ?? false;
+    const label = submission?.workflow.label ?? '';
+    const description = submission?.workflow.description ?? '';
 
     const createSubmission: FormEventHandler = (event) => {
         event.preventDefault();
@@ -406,8 +386,8 @@ export default function TugasAkhirSaya() {
                             </CardHeader>
                             <CardContent>
                                 <Alert>
-                                    {submission.status ===
-                                    'menunggu_persetujuan' ? (
+                                    {submission.workflow.key ===
+                                    'title_review_pending' ? (
                                         <Clock className="size-4" />
                                     ) : (
                                         <CheckCircle2 className="size-4" />
@@ -522,64 +502,74 @@ export default function TugasAkhirSaya() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>
-                                    Dosen Pembimbing, Penguji, dan Jadwal Sempro
+                                    Dosen Pembimbing dan Penguji
                                 </CardTitle>
                                 <CardDescription>
-                                    Penetapan dosen pembimbing, dosen penguji,
-                                    dan jadwal Sempro dikelola admin.
+                                    Profil dosen yang sedang terhubung dengan
+                                    proses tugas akhir Anda.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">
-                                            Dosen Pembimbing 1
-                                        </p>
-                                        <AssignmentValue
-                                            value={
-                                                assignedLecturers.pembimbing1
-                                            }
-                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen pembimbing."
-                                        />
+                                <div className="grid gap-6 lg:grid-cols-2">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-sm font-semibold">
+                                                Dosen Pembimbing
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Klik kartu untuk membuka profil
+                                                dosen pembimbing.
+                                            </p>
+                                        </div>
+                                        {advisorProfiles.length > 0 ? (
+                                            <div className="grid gap-3">
+                                                {advisorProfiles.map(
+                                                    (person, index) => (
+                                                        <PersonCardLink
+                                                            key={person.id}
+                                                            person={person}
+                                                            label={`Pembimbing ${index + 1}`}
+                                                        />
+                                                    ),
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                                                Belum ada dosen pembimbing
+                                                aktif.
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">
-                                            Dosen Pembimbing 2
-                                        </p>
-                                        <AssignmentValue
-                                            value={
-                                                assignedLecturers.pembimbing2
-                                            }
-                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen pembimbing."
-                                        />
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-sm font-semibold">
+                                                Dosen Penguji
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Data penguji diambil dari tahap
+                                                ujian yang sedang aktif atau
+                                                paling baru.
+                                            </p>
+                                        </div>
+                                        {examinerProfiles.length > 0 ? (
+                                            <div className="grid gap-3">
+                                                {examinerProfiles.map(
+                                                    (person, index) => (
+                                                        <PersonCardLink
+                                                            key={`${person.id}-${index}`}
+                                                            person={person}
+                                                            label={`Penguji ${index + 1}`}
+                                                        />
+                                                    ),
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                                                Belum ada dosen penguji aktif.
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">
-                                            Dosen Penguji 1
-                                        </p>
-                                        <AssignmentValue
-                                            value={assignedLecturers.penguji1}
-                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
-                                        />
-                                    </div>
-                                    <div className="space-y-2 rounded-lg border p-4">
-                                        <p className="text-sm font-semibold">
-                                            Dosen Penguji 2
-                                        </p>
-                                        <AssignmentValue
-                                            value={assignedLecturers.penguji2}
-                                            placeholder="Belum ditetapkan. Admin akan menetapkan dosen penguji."
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2 rounded-lg border p-4">
-                                    <p className="text-sm font-semibold">
-                                        Tanggal Sempro
-                                    </p>
-                                    <AssignmentValue
-                                        value={semproDate}
-                                        placeholder="Belum dijadwalkan. Admin akan menetapkan jadwal Sempro."
-                                    />
                                 </div>
                             </CardContent>
                         </Card>

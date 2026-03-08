@@ -267,33 +267,34 @@ export default function JadwalBimbinganPage() {
     };
 
     function formatDateForCalendar(dateInput: string | Date): string {
-        // If it's already a string with timezone info, use it directly
         if (typeof dateInput === 'string') {
-            // Backend returns ISO 8601 with timezone (e.g., "2026-03-09T07:00:00+07:00")
-            // FullCalendar can handle this directly
             return dateInput;
         }
 
-        // If it's a Date object, format it properly
-        const date = dateInput;
-        if (isNaN(date.getTime())) return '';
+        if (isNaN(dateInput.getTime())) {
+            return '';
+        }
 
-        // Format as ISO string with timezone
-        return date.toISOString();
+        return dateInput.toISOString();
     }
 
     const calendarEvents: BimbinganEvent[] = [
         ...page.props.upcomingMeetings.flatMap((meeting) => {
             const startDate = meeting.scheduledAt || meeting.requestedAt;
-            if (!startDate) return [];
+
+            if (!startDate) {
+                return [];
+            }
 
             const start = formatDateForCalendar(startDate);
-            if (!start) return [];
+
+            if (!start) {
+                return [];
+            }
 
             const endDate = new Date(
                 new Date(startDate).getTime() + 60 * 60 * 1000,
             );
-            const end = formatDateForCalendar(endDate);
 
             return [
                 {
@@ -302,7 +303,7 @@ export default function JadwalBimbinganPage() {
                     topic: meeting.topic,
                     person: meeting.lecturer,
                     start,
-                    end,
+                    end: formatDateForCalendar(endDate),
                     location: meeting.location,
                     status: meeting.status as BimbinganEvent['status'],
                     personRole: 'lecturer' as const,
@@ -310,15 +311,19 @@ export default function JadwalBimbinganPage() {
             ];
         }),
         ...page.props.historyMeetings.flatMap((meeting) => {
-            if (!meeting.scheduledAt) return [];
+            if (!meeting.scheduledAt) {
+                return [];
+            }
 
             const start = formatDateForCalendar(meeting.scheduledAt);
-            if (!start) return [];
+
+            if (!start) {
+                return [];
+            }
 
             const endDate = new Date(
                 new Date(meeting.scheduledAt).getTime() + 60 * 60 * 1000,
             );
-            const end = formatDateForCalendar(endDate);
 
             return [
                 {
@@ -327,7 +332,7 @@ export default function JadwalBimbinganPage() {
                     topic: meeting.topic,
                     person: meeting.lecturer,
                     start,
-                    end,
+                    end: formatDateForCalendar(endDate),
                     location: meeting.location,
                     status: meeting.status as BimbinganEvent['status'],
                     personRole: 'lecturer' as const,
@@ -340,27 +345,29 @@ export default function JadwalBimbinganPage() {
         const fullMeeting = [
             ...page.props.upcomingMeetings,
             ...page.props.historyMeetings,
-        ].find((m) => m.id === event.id);
+        ].find((meeting) => meeting.id === event.id);
 
-        if (fullMeeting) {
-            setSelectedEvent({
-                id: fullMeeting.id,
-                topic: fullMeeting.topic,
-                person: fullMeeting.lecturer,
-                personRole: 'lecturer',
-                start: event.start,
-                end: event.end,
-                location: fullMeeting.location,
-                status: fullMeeting.status as
-                    | 'pending'
-                    | 'approved'
-                    | 'rejected'
-                    | 'completed'
-                    | 'cancelled',
-                notes: fullMeeting.lecturerNote,
-            });
-            setIsDetailModalOpen(true);
+        if (!fullMeeting) {
+            return;
         }
+
+        setSelectedEvent({
+            id: fullMeeting.id,
+            topic: fullMeeting.topic,
+            person: fullMeeting.lecturer,
+            personRole: 'lecturer',
+            start: event.start,
+            end: event.end,
+            location: fullMeeting.location,
+            status: fullMeeting.status as
+                | 'pending'
+                | 'approved'
+                | 'rejected'
+                | 'completed'
+                | 'cancelled',
+            notes: fullMeeting.lecturerNote,
+        });
+        setIsDetailModalOpen(true);
     }
 
     return (
@@ -620,10 +627,11 @@ export default function JadwalBimbinganPage() {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={() => setIsAjukanOpen(false)}
                             >
                                 Batal
@@ -655,7 +663,7 @@ export default function JadwalBimbinganPage() {
                     {page.props.hasDosbing && (
                         <Button
                             type="button"
-                            className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                            className="h-10 w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                             onClick={() => setIsAjukanOpen(true)}
                         >
                             <Plus className="size-4" />
@@ -688,11 +696,23 @@ export default function JadwalBimbinganPage() {
                             </Alert>
                         )}
 
-                        <BimbinganCalendar
-                            events={calendarEvents}
-                            onEventClick={handleEventClick}
-                            defaultView="calendar"
-                        />
+                        <Card className="shadow-sm">
+                            <CardHeader className="gap-1">
+                                <CardTitle>Tampilan Jadwal</CardTitle>
+                                <CardDescription>
+                                    Pilih tampilan daftar untuk layar kecil,
+                                    atau kalender jika ingin melihat sebaran
+                                    jadwal secara menyeluruh.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <BimbinganCalendar
+                                    events={calendarEvents}
+                                    onEventClick={handleEventClick}
+                                    defaultView="list"
+                                />
+                            </CardContent>
+                        </Card>
 
                         <Card className="py-0 shadow-sm">
                             <CardHeader className="border-b bg-muted/20 px-6 py-4">
@@ -713,16 +733,17 @@ export default function JadwalBimbinganPage() {
                                                     key={meeting.id}
                                                     className="rounded-xl border bg-background p-4"
                                                 >
-                                                    <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                         <div className="min-w-0">
-                                                            <div className="truncate text-sm font-semibold">
+                                                            <div className="text-sm font-semibold break-words">
                                                                 {meeting.topic}
                                                             </div>
-                                                            <div className="mt-1 flex items-start gap-2 text-sm text-muted-foreground">
-                                                                {
-                                                                    meeting.lecturer
-                                                                }
-
+                                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                                                <span className="break-words">
+                                                                    {
+                                                                        meeting.lecturer
+                                                                    }
+                                                                </span>
                                                                 <RelationTypeBadge
                                                                     relationType={
                                                                         meeting.relationType
@@ -730,26 +751,28 @@ export default function JadwalBimbinganPage() {
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <StatusBadge
-                                                            status={
-                                                                meeting.status
-                                                            }
-                                                        />
+                                                        <div className="sm:shrink-0">
+                                                            <StatusBadge
+                                                                status={
+                                                                    meeting.status
+                                                                }
+                                                            />
+                                                        </div>
                                                     </div>
 
                                                     <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
-                                                        <div className="flex items-center gap-2">
-                                                            <Calendar className="size-4" />
-                                                            <span>
+                                                        <div className="flex items-start gap-2">
+                                                            <Calendar className="mt-0.5 size-4 shrink-0" />
+                                                            <span className="break-words">
                                                                 Preferensi:{' '}
                                                                 {formatDate(
                                                                     meeting.requestedAt,
                                                                 )}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <Clock className="size-4" />
-                                                            <span>
+                                                        <div className="flex items-start gap-2">
+                                                            <Clock className="mt-0.5 size-4 shrink-0" />
+                                                            <span className="break-words">
                                                                 Terkonfirmasi:{' '}
                                                                 {meeting.scheduledAt
                                                                     ? formatDate(
@@ -758,9 +781,9 @@ export default function JadwalBimbinganPage() {
                                                                     : 'Menunggu konfirmasi dosen'}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <MapPin className="size-4" />
-                                                            <span>
+                                                        <div className="flex items-start gap-2">
+                                                            <MapPin className="mt-0.5 size-4 shrink-0" />
+                                                            <span className="break-words">
                                                                 {
                                                                     meeting.location
                                                                 }
@@ -815,12 +838,12 @@ export default function JadwalBimbinganPage() {
                                                     key={row.id}
                                                     className="rounded-xl border bg-background p-4"
                                                 >
-                                                    <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                         <div className="min-w-0">
-                                                            <div className="text-sm font-semibold">
+                                                            <div className="text-sm font-semibold break-words">
                                                                 {row.topic}
                                                             </div>
-                                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                            <div className="mt-1 text-sm break-words text-muted-foreground">
                                                                 {row.lecturer}
                                                             </div>
                                                             <div className="mt-1">
@@ -831,25 +854,29 @@ export default function JadwalBimbinganPage() {
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <StatusBadge
-                                                            status={row.status}
-                                                        />
+                                                        <div className="sm:shrink-0">
+                                                            <StatusBadge
+                                                                status={
+                                                                    row.status
+                                                                }
+                                                            />
+                                                        </div>
                                                     </div>
 
                                                     <Separator className="my-3" />
 
                                                     <div className="grid gap-2 text-sm text-muted-foreground">
-                                                        <div className="flex items-center gap-2">
-                                                            <Calendar className="size-4" />
-                                                            <span>
+                                                        <div className="flex items-start gap-2">
+                                                            <Calendar className="mt-0.5 size-4 shrink-0" />
+                                                            <span className="break-words">
                                                                 {formatDate(
                                                                     row.scheduledAt,
                                                                 )}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <MapPin className="size-4" />
-                                                            <span>
+                                                        <div className="flex items-start gap-2">
+                                                            <MapPin className="mt-0.5 size-4 shrink-0" />
+                                                            <span className="break-words">
                                                                 {row.location}
                                                             </span>
                                                         </div>
@@ -882,15 +909,15 @@ export default function JadwalBimbinganPage() {
                                 </div>
                             </CardContent>
                         </Card>
-
-                        <ScheduleDetailModal
-                            open={isDetailModalOpen}
-                            onOpenChange={setIsDetailModalOpen}
-                            schedule={selectedEvent}
-                            currentUserRole="mahasiswa"
-                        />
                     </>
                 )}
+
+                <ScheduleDetailModal
+                    open={isDetailModalOpen}
+                    onOpenChange={setIsDetailModalOpen}
+                    schedule={selectedEvent}
+                    currentUserRole="mahasiswa"
+                />
             </div>
         </AppLayout>
     );

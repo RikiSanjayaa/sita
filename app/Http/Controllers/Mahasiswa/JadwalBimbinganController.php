@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
-use App\Enums\AssignmentStatus;
 use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
@@ -35,17 +34,28 @@ class JadwalBimbinganController extends Controller
             ->latest('created_at')
             ->get();
 
-        $advisors = MentorshipAssignment::query()
+        $advisorAssignments = ThesisSupervisorAssignment::query()
             ->with('lecturer')
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
-            ->get()
-            ->map(fn(MentorshipAssignment $assignment): array => [
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
+            ->get();
+
+        $advisors = $advisorAssignments
+            ->map(fn(ThesisSupervisorAssignment $assignment): array => [
                 'assignmentId' => $assignment->id,
                 'lecturerUserId' => $assignment->lecturer_user_id,
                 'lecturerName' => $assignment->lecturer?->name ?? '-',
-                'advisorType' => $assignment->advisor_type,
+                'advisorType' => $assignment->role,
             ])
+            ->values()
+            ->all();
+
+        $advisorLecturerIds = $advisorAssignments
+            ->pluck('lecturer_user_id')
+            ->map(static fn($id): int => (int) $id)
+            ->unique()
             ->values()
             ->all();
 
@@ -77,8 +87,10 @@ class JadwalBimbinganController extends Controller
         $upcomingMeetings = $schedules
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
             ->sortBy(fn (MentorshipSchedule $schedule) => $schedule->scheduled_for ?? $schedule->requested_for)
-            ->map(function (MentorshipSchedule $schedule): array {
-                $relationType = $schedule->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+            ->map(function (MentorshipSchedule $schedule) use ($advisorLecturerIds): array {
+                $relationType = in_array($schedule->lecturer_user_id, $advisorLecturerIds, true)
+                    ? 'pembimbing'
+                    : 'penguji';
 
                 return [
                     'id' => $schedule->id,
@@ -97,8 +109,10 @@ class JadwalBimbinganController extends Controller
 
         $historyMeetings = $schedules
             ->whereIn('status', ['rejected', 'completed', 'cancelled'])
-            ->map(function (MentorshipSchedule $schedule): array {
-                $relationType = $schedule->mentorship_assignment_id === null ? 'penguji' : 'pembimbing';
+            ->map(function (MentorshipSchedule $schedule) use ($advisorLecturerIds): array {
+                $relationType = in_array($schedule->lecturer_user_id, $advisorLecturerIds, true)
+                    ? 'pembimbing'
+                    : 'penguji';
 
                 return [
                     'id' => $schedule->id,
@@ -140,9 +154,11 @@ class JadwalBimbinganController extends Controller
             'recurring_count' => ['nullable', 'required_if:is_recurring,true', 'integer', 'min:2', 'max:12'],
         ]);
 
-        $assignments = MentorshipAssignment::query()
-            ->where('student_user_id', $student->id)
-            ->where('status', AssignmentStatus::Active->value)
+        $assignments = ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
             ->get();
 
         $studentThreadIds = MentorshipChatThreadParticipant::query()
@@ -169,8 +185,6 @@ class JadwalBimbinganController extends Controller
             ]);
         }
 
-        $selectedAssignment = $assignments->firstWhere('lecturer_user_id', (int) $data['lecturer_user_id']);
-
         $isRecurring = ! empty($data['is_recurring']);
         $recurringCount = $isRecurring ? (int) $data['recurring_count'] : 1;
         $recurringPattern = $isRecurring ? $data['recurring_pattern'] : null;
@@ -188,7 +202,7 @@ class JadwalBimbinganController extends Controller
             MentorshipSchedule::query()->create([
                 'student_user_id' => $student->id,
                 'lecturer_user_id' => (int) $data['lecturer_user_id'],
-                'mentorship_assignment_id' => $selectedAssignment?->id,
+                'mentorship_assignment_id' => null,
                 'topic' => trim($data['topic']),
                 'status' => 'pending',
                 'requested_for' => $scheduleDate->format('Y-m-d H:i:s'),

@@ -14,8 +14,6 @@ class MentorshipAssignmentService
 {
     public const MAX_ACTIVE_ADVISORS_PER_STUDENT = 2;
 
-    public const MAX_ACTIVE_STUDENTS_PER_LECTURER = 14;
-
     public function syncStudentAdvisors(
         int $studentUserId,
         int $assignedBy,
@@ -40,6 +38,7 @@ class MentorshipAssignmentService
                 notes: $notes,
             );
         });
+
     }
 
     public function activeStudentCountForLecturer(int $lecturerUserId): int
@@ -74,6 +73,7 @@ class MentorshipAssignmentService
         $this->ensureUserRole($assignment->lecturer_user_id, AppRole::Dosen->value, 'lecturer_user_id');
         $this->ensureAdvisorTypeIsUnique($assignment);
         $this->ensureStudentHasMaximumTwoAdvisors($assignment);
+        $this->ensureMatchingConcentration($assignment);
         $this->ensureLecturerHasCapacity($assignment);
     }
 
@@ -136,6 +136,11 @@ class MentorshipAssignmentService
 
     private function ensureLecturerHasCapacity(MentorshipAssignment $assignment): void
     {
+        $lecturer = User::query()
+            ->with('dosenProfile')
+            ->find($assignment->lecturer_user_id);
+
+        $quota = max(1, (int) ($lecturer?->dosenProfile?->supervision_quota ?? 14));
         $activeStudentCount = $this->activeStudentCountForLecturer(
             $assignment->lecturer_user_id,
         );
@@ -150,12 +155,46 @@ class MentorshipAssignmentService
             )
             ->exists();
 
-        if ($isExistingStudentAlreadyCounted || $activeStudentCount < self::MAX_ACTIVE_STUDENTS_PER_LECTURER) {
+        if ($isExistingStudentAlreadyCounted || $activeStudentCount < $quota) {
             return;
         }
 
         throw ValidationException::withMessages([
-            'lecturer_user_id' => ['Dosen quota reached the maximum of 14 active mahasiswa.'],
+            'lecturer_user_id' => [sprintf('Dosen quota reached the maximum of %d active mahasiswa.', $quota)],
+        ]);
+    }
+
+    private function ensureMatchingConcentration(MentorshipAssignment $assignment): void
+    {
+        $student = User::query()
+            ->with('mahasiswaProfile')
+            ->find($assignment->student_user_id);
+
+        $lecturer = User::query()
+            ->with('dosenProfile')
+            ->find($assignment->lecturer_user_id);
+
+        $studentConcentration = $student?->mahasiswaProfile?->concentration;
+        $lecturerConcentration = $lecturer?->dosenProfile?->concentration;
+
+        if (! filled($studentConcentration)) {
+            throw ValidationException::withMessages([
+                'student_user_id' => ['Mahasiswa concentration must be configured before assigning advisors.'],
+            ]);
+        }
+
+        if (! filled($lecturerConcentration)) {
+            throw ValidationException::withMessages([
+                'lecturer_user_id' => ['Dosen concentration must be configured before assigning advisors.'],
+            ]);
+        }
+
+        if ($studentConcentration === $lecturerConcentration) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'lecturer_user_id' => ['Dosen concentration must match the mahasiswa concentration.'],
         ]);
     }
 

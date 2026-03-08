@@ -56,6 +56,48 @@ export interface SharedData {
     [key: string]: unknown;
 }
 
+export interface UserProfileSummary {
+    id: number;
+    name: string;
+    email: string;
+    phoneNumber?: string | null;
+    whatsappUrl?: string | null;
+    avatar?: string | null;
+    profileUrl: string;
+    roleKey: string;
+    roleLabel: string;
+    programStudi?: string | null;
+    concentration?: string | null;
+    subtitle?: string | null;
+}
+
+export interface ProfileFieldItem {
+    label: string;
+    value: string;
+}
+
+export interface ThesisProfileSection {
+    title: string | null;
+    statusLabel: string;
+    advisors: UserProfileSummary[];
+    examiners: UserProfileSummary[];
+}
+
+export interface RelatedUserGroup {
+    title: string;
+    emptyMessage: string;
+    users: UserProfileSummary[];
+}
+
+export interface UserProfileDetail extends UserProfileSummary {
+    headline: string;
+    description: string;
+    meta: ProfileFieldItem[];
+    stats: ProfileFieldItem[];
+    thesis: ThesisProfileSection | null;
+    relatedUsers: RelatedUserGroup[];
+}
+
 export interface NotificationSettings {
     browserNotifications: boolean;
     pesanBaru: boolean;
@@ -81,6 +123,7 @@ export interface User {
     id: number;
     name: string;
     email: string;
+    phone_number?: string | null;
     avatar?: string;
     roles?: AppRole[];
     last_active_role?: AppRole | null;
