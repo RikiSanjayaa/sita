@@ -12,7 +12,7 @@ RUN if [ "$INSTALL_DEV_DEPENDENCIES" = "true" ]; then \
     fi
 
 
-FROM php:8.4-cli-alpine AS assets
+FROM node:22-alpine AS assets
 
 WORKDIR /var/www/html
 
@@ -26,8 +26,6 @@ ENV VITE_REVERB_HOST=${VITE_REVERB_HOST}
 ENV VITE_REVERB_PORT=${VITE_REVERB_PORT}
 ENV VITE_REVERB_SCHEME=${VITE_REVERB_SCHEME}
 
-RUN apk add --no-cache nodejs npm
-
 COPY . .
 COPY --from=vendor /var/www/html/vendor ./vendor
 
@@ -38,10 +36,20 @@ FROM php:8.4-fpm-alpine AS app
 
 WORKDIR /var/www/html
 
-RUN apk add --no-cache fcgi postgresql-client postgresql-dev icu-dev \
-    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
-    && docker-php-ext-install pdo_mysql pdo_pgsql bcmath pcntl intl \
-    && apk del .build-deps
+RUN set -eux; \
+    apk_add_retry() { \
+        for attempt in 1 2 3 4 5; do \
+            if apk add --no-cache "$@"; then \
+                return 0; \
+            fi; \
+            sleep $((attempt * 2)); \
+        done; \
+        return 1; \
+    }; \
+    apk_add_retry fcgi postgresql-client postgresql-dev icu-dev; \
+    apk_add_retry --virtual .build-deps $PHPIZE_DEPS; \
+    docker-php-ext-install pdo_mysql pdo_pgsql bcmath pcntl intl; \
+    apk del .build-deps
 
 COPY . .
 COPY --from=vendor /var/www/html/vendor ./vendor
