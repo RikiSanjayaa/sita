@@ -206,10 +206,6 @@ export default function DashboardPage() {
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <CardTitle>Aksi Cepat</CardTitle>
-                                <CardDescription>
-                                    Semua tombol langsung menuju halaman kerja
-                                    yang relevan untuk tahap Anda sekarang.
-                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid gap-3 md:grid-cols-2">
@@ -285,11 +281,6 @@ export default function DashboardPage() {
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <CardTitle>Kegiatan Mendatang</CardTitle>
-                                <CardDescription>
-                                    Daftar terdekat lebih hemat ruang daripada
-                                    kalender penuh, dan lebih cepat dibaca di
-                                    dashboard.
-                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {upcomingActivities.length > 0 ? (
@@ -350,10 +341,6 @@ export default function DashboardPage() {
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <CardTitle>Dosen Pembimbing</CardTitle>
-                                <CardDescription>
-                                    Klik kartu untuk membuka profil dosen yang
-                                    sedang terhubung dengan proyek Anda.
-                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {summary.advisors.length > 0 ? (

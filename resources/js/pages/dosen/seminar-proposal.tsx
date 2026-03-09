@@ -595,29 +595,6 @@ export default function DosenSeminarProposalPage() {
                 )}
 
                 <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Pencarian</CardTitle>
-                        <CardDescription>
-                            Cari berdasarkan nama mahasiswa atau judul tugas
-                            akhir.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="relative max-w-xl">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                placeholder="Cari nama mahasiswa atau judul..."
-                                className="pl-9"
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="shadow-sm">
                     <CardHeader className="gap-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -677,6 +654,29 @@ export default function DosenSeminarProposalPage() {
                             defaultView="calendar"
                             showLegend={false}
                         />
+                    </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                    <CardHeader>
+                        <CardTitle>Pencarian</CardTitle>
+                        <CardDescription>
+                            Cari berdasarkan nama mahasiswa atau judul tugas
+                            akhir.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative max-w-xl">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Cari nama mahasiswa atau judul..."
+                                className="pl-9"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 

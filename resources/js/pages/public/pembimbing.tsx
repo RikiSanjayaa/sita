@@ -32,12 +32,12 @@ type AdvisorProgram = {
 type PageProps = {
     advisorDirectory: AdvisorDirectoryItem[];
     advisorPrograms: AdvisorProgram[];
+    concentrationStudentTotals: Record<string, Record<string, number>>;
 };
 
 export default function PublicAdvisorsPage() {
-    const { advisorDirectory, advisorPrograms } = usePage<
-        SharedData & PageProps
-    >().props;
+    const { advisorDirectory, advisorPrograms, concentrationStudentTotals } =
+        usePage<SharedData & PageProps>().props;
     const [programFilter, setProgramFilter] = useState<string>(
         advisorPrograms[0]?.slug ?? 'semua',
     );
@@ -72,8 +72,9 @@ export default function PublicAdvisorsPage() {
     return (
         <PublicLayout
             active="pembimbing"
-            title="Direktori Pembimbing"
-            description="Daftar ini hanya menampilkan dosen pembimbing aktif. Gunakan filter program studi, lalu lihat tabel pembimbing yang dikelompokkan per konsentrasi."
+            headTitle="Direktori Pembimbing"
+            pageTitle="Direktori Pembimbing"
+            description="Daftar dosen pembimbing aktif yang dikelompokkan per konsentrasi dan dapat difilter berdasarkan program studi."
         >
             <div className="space-y-6">
                 <Card className="shadow-sm">
@@ -109,11 +110,17 @@ export default function PublicAdvisorsPage() {
 
                 {advisorGroups.length > 0 ? (
                     advisorGroups.map(([concentration, advisors]) => {
-                        const totalActiveStudents = advisors.reduce(
-                            (total, advisor) =>
-                                total + advisor.totalActiveCount,
-                            0,
-                        );
+                        const totalActiveStudents =
+                            concentrationStudentTotals[programFilter]?.[
+                                concentration
+                            ] ??
+                            (programFilter === 'semua'
+                                ? advisors.reduce(
+                                      (total, advisor) =>
+                                          total + advisor.totalActiveCount,
+                                      0,
+                                  )
+                                : 0);
 
                         return (
                             <Card key={concentration} className="shadow-sm">
@@ -133,14 +140,11 @@ export default function PublicAdvisorsPage() {
                                                     <th className="px-4 py-3 font-semibold">
                                                         Dosen Pembimbing
                                                     </th>
-                                                    <th className="px-4 py-3 font-semibold">
+                                                    <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
                                                         Pembimbing 1
                                                     </th>
-                                                    <th className="px-4 py-3 font-semibold">
+                                                    <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
                                                         Pembimbing 2
-                                                    </th>
-                                                    <th className="px-4 py-3 font-semibold">
-                                                        Total Aktif
                                                     </th>
                                                 </tr>
                                             </thead>
@@ -153,19 +157,14 @@ export default function PublicAdvisorsPage() {
                                                         <td className="px-4 py-3 font-medium text-foreground">
                                                             {advisor.name}
                                                         </td>
-                                                        <td className="px-4 py-3 text-muted-foreground">
+                                                        <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
                                                             {
                                                                 advisor.primaryCount
                                                             }
                                                         </td>
-                                                        <td className="px-4 py-3 text-muted-foreground">
+                                                        <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
                                                             {
                                                                 advisor.secondaryCount
-                                                            }
-                                                        </td>
-                                                        <td className="px-4 py-3 font-medium text-foreground">
-                                                            {
-                                                                advisor.totalActiveCount
                                                             }
                                                         </td>
                                                     </tr>

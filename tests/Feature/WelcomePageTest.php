@@ -10,6 +10,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+
 function attachRole(User $user, string $role): void
 {
     $roleModel = Role::query()->firstOrCreate(['name' => $role]);
@@ -46,7 +47,7 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
     DosenProfile::factory()->create([
         'user_id' => $secondaryAdvisor->id,
         'program_studi_id' => $programStudi->id,
-        'concentration' => 'Sistem Cerdas',
+        'concentration' => 'Jaringan',
         'supervision_quota' => 12,
         'is_active' => true,
     ]);
@@ -107,8 +108,8 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
         'title_version_id' => $title->id,
         'type' => 'sempro',
         'attempt_no' => 1,
-        'status' => 'scheduled',
-        'result' => 'pending',
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
         'scheduled_for' => now()->addDays(3),
         'location' => 'Ruang A1',
         'mode' => 'offline',
@@ -140,8 +141,10 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
     $schedulePage = $scheduleResponse->viewData('page');
 
     expect($schedulePage['component'])->toBe('public/jadwal')
-        ->and(data_get($schedulePage, 'props.upcomingSchedules'))->toHaveCount(2)
-        ->and(data_get($schedulePage, 'props.upcomingSchedules.0.type'))->toBe('sempro');
+        ->and(data_get($schedulePage, 'props.upcomingSchedules'))->toHaveCount(1)
+        ->and(data_get($schedulePage, 'props.upcomingSchedules.0.type'))->toBe('sidang')
+        ->and(data_get($schedulePage, 'props.followUpSchedules'))->toHaveCount(1)
+        ->and(data_get($schedulePage, 'props.followUpSchedules.0.statusLabel'))->toBe('Perlu Tindak Lanjut');
 
     $advisorResponse = $this->get('/pembimbing')
         ->assertOk();
@@ -152,7 +155,8 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
         ->and(data_get($advisorPage, 'props.advisorPrograms.0.slug'))->toBe('ilkom')
         ->and(data_get($advisorPage, 'props.advisorDirectory.0.name'))->toBe('Dr. Bagas Pranata')
         ->and(data_get($advisorPage, 'props.advisorDirectory.1.primaryCount'))->toBe(1)
-        ->and(data_get($advisorPage, 'props.advisorDirectory.1.secondaryCount'))->toBe(0);
+        ->and(data_get($advisorPage, 'props.advisorDirectory.1.secondaryCount'))->toBe(0)
+        ->and(data_get($advisorPage, 'props.concentrationStudentTotals.ilkom.Jaringan'))->toBe(1);
 
     $topicsResponse = $this->get('/topik')
         ->assertOk();
@@ -160,6 +164,11 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
     $topicsPage = $topicsResponse->viewData('page');
 
     expect($topicsPage['component'])->toBe('public/topik')
+        ->and(data_get($topicsPage, 'props.topicPrograms.0.slug'))->toBe('ilkom')
         ->and(data_get($topicsPage, 'props.semproTitles.0.title'))->toBe('Optimasi Penjadwalan Seminar Berbasis Sistem Informasi')
+        ->and(data_get($topicsPage, 'props.semproTitles.0.studentName'))->toBe('Mahasiswa Publik')
+        ->and(data_get($topicsPage, 'props.semproTitles.0.studentNim'))->toBe('2023123456')
+        ->and(data_get($topicsPage, 'props.semproTitles.0.titleEn'))->toBe('Seminar Scheduling Optimization Based on Information Systems')
+        ->and(data_get($topicsPage, 'props.semproTitles.0.year'))->toBe((string) now()->addDays(3)->format('Y'))
         ->and(data_get($topicsPage, 'props.semproTitles.0.advisors.0.name'))->toBe('Dr. Laila Utami');
 });

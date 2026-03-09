@@ -1,10 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
 import { BookOpenText, CalendarClock, Users } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { dashboard, login } from '@/routes';
 import { type SharedData } from '@/types';
 
@@ -36,7 +37,7 @@ const featureLinks = [
         href: '/topik',
         title: 'Topik',
         description:
-            'Jelajahi daftar topik sempro, ringkasan, dan pasangan dosen pembimbingnya.',
+            'Telusuri topik tugas akhir yang sudah dipublikasikan beserta pembimbing aktifnya.',
         icon: BookOpenText,
     },
 ];
@@ -44,109 +45,131 @@ const featureLinks = [
 export default function Welcome() {
     const { auth, highlights } = usePage<SharedData & WelcomePageProps>().props;
     const isAuthenticated = Boolean(auth.user);
+    const chartHeights = useMemo(() => {
+        const values = highlights.map((item) => Number(item.value) || 0);
+        const maxValue = Math.max(...values, 1);
+
+        return highlights.map((item) => {
+            const value = Number(item.value) || 0;
+
+            return Math.max(22, Math.round((value / maxValue) * 100));
+        });
+    }, [highlights]);
 
     return (
-        <PublicLayout
-            active="home"
-            title="Portal Publik SiTA"
-            description="SiTA adalah Sistem Informasi Tugas Akhir Universitas Bumigora yang membantu pengelolaan proses bimbingan, seminar proposal, dan sidang skripsi secara lebih terstruktur. Halaman publik ini menampilkan informasi umum yang dapat diakses tanpa login."
-        >
+        <PublicLayout active="home" headTitle="Beranda">
             <div className="space-y-8">
-                <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-                    <Card className="shadow-sm">
-                        <CardContent className="space-y-6 p-6 lg:p-8">
-                            <div className="flex flex-wrap gap-2">
-                                <Badge variant="outline">
-                                    Informasi Publik
-                                </Badge>
-                                <Badge variant="outline">
-                                    Sempro, Sidang, dan Pembimbing
-                                </Badge>
-                            </div>
+                <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+                    <div className="space-y-6">
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">
+                                Universitas Bumigora
+                            </Badge>
+                        </div>
 
-                            <div className="space-y-4">
-                                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                                    Satu pintu untuk melihat gambaran umum
-                                    proses tugas akhir.
-                                </h2>
-                                <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                                    Gunakan menu di navigasi atas untuk membuka
-                                    halaman jadwal, daftar pembimbing, dan topik
-                                    sempro. Tampilan publik ini disusun agar
-                                    bersih, mudah dibaca, dan tetap relevan
-                                    untuk mahasiswa maupun dosen.
-                                </p>
-                            </div>
+                        <div className="space-y-4">
+                            <h2 className="max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.8rem]">
+                                Akses cepat ke ritme tugas akhir yang sedang
+                                berjalan.
+                            </h2>
+                            <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                                Beranda publik ini merangkum tiga hal utama:
+                                jadwal seminar, direktori pembimbing aktif, dan
+                                topik tugas akhir yang sudah bisa ditelusuri.
+                            </p>
+                        </div>
 
-                            <div className="flex flex-wrap gap-3">
-                                {isAuthenticated ? (
-                                    <Button asChild>
-                                        <Link href={dashboard().url}>
-                                            Buka Dashboard
-                                        </Link>
-                                    </Button>
-                                ) : (
-                                    <Button asChild>
-                                        <Link href={login().url}>
-                                            Masuk ke SiTA
-                                        </Link>
-                                    </Button>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <div className="flex flex-wrap gap-3">
+                            {isAuthenticated ? (
+                                <Button asChild>
+                                    <Link href={dashboard().url}>
+                                        Buka Dashboard
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button asChild>
+                                    <Link href={login().url}>
+                                        Masuk ke SiTA
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+                    </div>
 
-                    <Card className="shadow-sm">
-                        <CardHeader>
-                            <CardTitle>Ringkasan Cepat</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-3">
-                            {highlights.map((item) => (
-                                <div
-                                    key={item.label}
-                                    className="rounded-xl border bg-muted/15 p-4"
-                                >
-                                    <p className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
-                                        {item.label}
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold tracking-tight">
-                                        {item.value}
-                                    </p>
+                    <div className="grid gap-4 rounded-3xl border bg-muted/15 p-5 sm:grid-cols-[0.78fr_1.22fr] sm:items-end">
+                        <div className="h-full flex flex-col align-center justify-center">
+                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                Snapshot Publik
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                Sinyal cepat untuk melihat sebaran data publik
+                                yang saat ini tersedia di SiTA.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-3 items-end gap-4">
+                            {highlights.map((item, index) => (
+                                <div key={item.label} className="space-y-3">
+                                    <div className="flex h-32 items-end rounded-2xl border bg-background/80 p-2">
+                                        <div
+                                            className={cn(
+                                                'w-full rounded-xl bg-primary/80 transition-all',
+                                                index === 1 &&
+                                                'bg-emerald-500/80',
+                                                index === 2 &&
+                                                'bg-amber-500/80',
+                                            )}
+                                            style={{
+                                                height: `${chartHeights[index]}%`,
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <p className="text-xl font-semibold tracking-tight">
+                                            {item.value}
+                                        </p>
+                                        <p className="text-xs leading-5 text-muted-foreground">
+                                            {item.label}
+                                        </p>
+                                    </div>
                                 </div>
                             ))}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </section>
 
-                <section className="grid gap-4 md:grid-cols-3">
+                <section className="grid gap-4 border-b md:grid-cols-3 md:gap-0 md:divide-x md:rounded-3xl md:border">
                     {featureLinks.map((item) => {
                         const Icon = item.icon;
 
                         return (
-                            <Card key={item.href} className="shadow-sm">
-                                <CardHeader className="gap-3">
-                                    <span className="inline-flex size-10 items-center justify-center rounded-xl bg-muted text-primary">
-                                        <Icon className="size-5" />
-                                    </span>
-                                    <CardTitle className="text-lg">
+                            <div
+                                key={item.href}
+                                className="flex flex-col gap-4 p-6"
+                            >
+                                <span className="inline-flex size-10 items-center justify-center rounded-xl bg-muted text-primary">
+                                    <Icon className="size-5" />
+                                </span>
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-semibold">
                                         {item.title}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
+                                    </h3>
                                     <p className="text-sm leading-6 text-muted-foreground">
                                         {item.description}
                                     </p>
+                                </div>
+                                <div className="mt-auto pt-2">
                                     <Button
                                         asChild
-                                        variant="outline"
-                                        className="w-full"
+                                        variant="ghost"
+                                        className="px-0"
                                     >
                                         <Link href={item.href}>
                                             Buka {item.title}
                                         </Link>
                                     </Button>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
                         );
                     })}
                 </section>
