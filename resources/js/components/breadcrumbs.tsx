@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 
 import {
     Breadcrumb,
@@ -8,34 +8,21 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ROLE_DASHBOARD_PATHS, ROLE_PORTAL_LABELS } from '@/lib/roles';
-import {
-    AppRole,
-    type BreadcrumbItem as BreadcrumbItemType,
-    type SharedData,
-} from '@/types';
+import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function Breadcrumbs({
     breadcrumbs,
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
-    const { auth } = usePage<SharedData>().props;
-    const activeRole = (auth.activeRole ?? 'mahasiswa') as AppRole;
     const currentPage = breadcrumbs[breadcrumbs.length - 1]?.title ?? '-';
-    const portalLabel = ROLE_PORTAL_LABELS[activeRole];
-    const portalHref = ROLE_DASHBOARD_PATHS[activeRole];
 
     return (
         <Breadcrumb>
             <BreadcrumbList>
                 <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                        {portalHref.startsWith('/admin') ? (
-                            <a href={portalHref}>{portalLabel}</a>
-                        ) : (
-                            <Link href={portalHref}>{portalLabel}</Link>
-                        )}
+                        <Link href="/">Portal SiTA</Link>
                     </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />

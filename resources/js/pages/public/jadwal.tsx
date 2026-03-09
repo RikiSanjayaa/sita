@@ -17,11 +17,21 @@ type ScheduleItem = {
     location: string;
     mode: string;
     statusLabel: string;
+    statusTone: 'default' | 'warning' | 'danger' | 'muted';
+    statusDetail: string | null;
 };
 
 type PageProps = {
     upcomingSchedules: ScheduleItem[];
-    pastSchedules: ScheduleItem[];
+    followUpSchedules: ScheduleItem[];
+};
+
+const statusClassName: Record<ScheduleItem['statusTone'], string> = {
+    default: 'bg-primary/10 text-primary hover:bg-primary/20',
+    warning:
+        'bg-amber-600/10 text-amber-700 hover:bg-amber-600/20 dark:text-amber-400',
+    danger: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
+    muted: 'bg-muted text-muted-foreground hover:bg-muted',
 };
 
 function ScheduleTable({
@@ -79,7 +89,14 @@ function ScheduleTable({
                                                 >
                                                     {item.typeLabel}
                                                 </Badge>
-                                                <Badge variant="outline">
+                                                <Badge
+                                                    variant="soft"
+                                                    className={
+                                                        statusClassName[
+                                                            item.statusTone
+                                                        ]
+                                                    }
+                                                >
                                                     {item.statusLabel}
                                                 </Badge>
                                             </div>
@@ -94,6 +111,11 @@ function ScheduleTable({
                                             <div className="text-muted-foreground">
                                                 {item.studentNim}
                                             </div>
+                                            {item.statusDetail ? (
+                                                <div className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
+                                                    {item.statusDetail}
+                                                </div>
+                                            ) : null}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
                                             {item.programStudi}
@@ -122,22 +144,26 @@ function ScheduleTable({
 }
 
 export default function PublicSchedulesPage() {
-    const { upcomingSchedules, pastSchedules } = usePage<
+    const { upcomingSchedules, followUpSchedules } = usePage<
         SharedData & PageProps
     >().props;
 
     return (
         <PublicLayout
             active="jadwal"
-            title="Jadwal Sempro dan Sidang"
-            description="Halaman ini menampilkan agenda seminar proposal dan sidang skripsi dalam dua kelompok utama: jadwal yang akan datang dan jadwal yang sudah berlalu."
+            headTitle="Jadwal Sempro dan Sidang"
+            pageTitle="Jadwal Sempro dan Sidang"
+            description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
             <div className="grid gap-6">
                 <ScheduleTable
                     title="Jadwal Akan Datang"
                     items={upcomingSchedules}
                 />
-                <ScheduleTable title="Jadwal Berlalu" items={pastSchedules} />
+                <ScheduleTable
+                    title="Tindak Lanjut Terbaru"
+                    items={followUpSchedules}
+                />
             </div>
         </PublicLayout>
     );

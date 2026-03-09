@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/sidebar';
 import { roleNavigationConfig } from '@/config/role-navigation';
 import { useActiveUrl } from '@/hooks/use-active-url';
-import { ROLE_DASHBOARD_PATHS } from '@/lib/roles';
 import { AppRole, SharedData, type NavItem } from '@/types';
 
 import AppLogo from './app-logo';
@@ -32,7 +31,6 @@ export function AppSidebar({ role }: AppSidebarProps) {
     const { currentUrl } = useActiveUrl();
     const activeRole = role ?? auth.activeRole ?? 'mahasiswa';
     const navigation = roleNavigationConfig[activeRole];
-    const dashboardHref = ROLE_DASHBOARD_PATHS[activeRole];
     const settingsIsActive =
         currentUrl === '/settings' || currentUrl.startsWith('/settings/');
 
@@ -42,15 +40,9 @@ export function AppSidebar({ role }: AppSidebarProps) {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            {dashboardHref.startsWith('/admin') ? (
-                                <a href={dashboardHref}>
-                                    <AppLogo />
-                                </a>
-                            ) : (
-                                <Link href={dashboardHref} prefetch>
-                                    <AppLogo />
-                                </Link>
-                            )}
+                            <Link href="/" prefetch>
+                                <AppLogo />
+                            </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
