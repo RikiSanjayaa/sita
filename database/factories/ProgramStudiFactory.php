@@ -22,7 +22,9 @@ class ProgramStudiFactory extends Factory
 
         return [
             'name' => $name,
-            'slug' => Str::slug($name),
+            'slug' => function (array $attributes): string {
+                return Str::slug((string) ($attributes['name'] ?? 'program-studi'));
+            },
             'concentrations' => [ProgramStudi::DEFAULT_GENERAL_CONCENTRATION],
         ];
     }

@@ -15,6 +15,7 @@ Route::get('/', [WelcomeController::class, 'index'])->name('home');
 Route::get('/jadwal', [WelcomeController::class, 'schedules'])->name('public.schedules');
 Route::get('/pembimbing', [WelcomeController::class, 'advisors'])->name('public.advisors');
 Route::get('/topik', [WelcomeController::class, 'topics'])->name('public.topics');
+Route::get('/mahasiswa-aktif', [WelcomeController::class, 'students'])->name('public.students');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', PortalController::class)->name('dashboard');

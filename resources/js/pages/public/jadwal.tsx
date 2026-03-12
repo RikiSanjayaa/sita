@@ -217,11 +217,27 @@ export default function PublicSchedulesPage() {
         followUpSchedules,
         followUpPagination,
     } = usePage<SharedData & PageProps>().props;
-    const [search, setSearch] = useState(filters.search);
 
-    useEffect(() => {
-        setSearch(filters.search);
-    }, [filters.search]);
+    return (
+        <PublicSchedulesContent
+            key={filters.search}
+            filters={filters}
+            upcomingSchedules={upcomingSchedules}
+            upcomingPagination={upcomingPagination}
+            followUpSchedules={followUpSchedules}
+            followUpPagination={followUpPagination}
+        />
+    );
+}
+
+function PublicSchedulesContent({
+    filters,
+    upcomingSchedules,
+    upcomingPagination,
+    followUpSchedules,
+    followUpPagination,
+}: PageProps) {
+    const [search, setSearch] = useState(filters.search);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {

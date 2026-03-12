@@ -1,5 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpenText, CalendarClock, Users } from 'lucide-react';
+import {
+    BookOpenText,
+    CalendarClock,
+    GraduationCap,
+    Users,
+} from 'lucide-react';
 import { useMemo } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
@@ -25,6 +30,13 @@ const featureLinks = [
         description:
             'Lihat jadwal sempro dan sidang yang akan datang maupun yang sudah berlalu.',
         icon: CalendarClock,
+    },
+    {
+        href: '/mahasiswa-aktif',
+        title: 'Mahasiswa Aktif',
+        description:
+            'Lihat mahasiswa yang masih aktif mengambil tugas akhir, dari yang baru terdaftar sampai tahap sempro, bimbingan, dan sidang.',
+        icon: GraduationCap,
     },
     {
         href: '/pembimbing',
@@ -97,7 +109,7 @@ export default function Welcome() {
                     </div>
 
                     <div className="grid gap-4 rounded-3xl border bg-muted/15 p-5 sm:grid-cols-[0.78fr_1.22fr] sm:items-end">
-                        <div className="h-full flex flex-col align-center justify-center">
+                        <div className="align-center flex h-full flex-col justify-center">
                             <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
                                 Snapshot Publik
                             </p>
@@ -115,9 +127,9 @@ export default function Welcome() {
                                             className={cn(
                                                 'w-full rounded-xl bg-primary/80 transition-all',
                                                 index === 1 &&
-                                                'bg-emerald-500/80',
+                                                    'bg-emerald-500/80',
                                                 index === 2 &&
-                                                'bg-amber-500/80',
+                                                    'bg-amber-500/80',
                                             )}
                                             style={{
                                                 height: `${chartHeights[index]}%`,
@@ -138,7 +150,7 @@ export default function Welcome() {
                     </div>
                 </section>
 
-                <section className="grid gap-4 border-b md:grid-cols-3 md:gap-0 md:divide-x md:rounded-3xl md:border">
+                <section className="grid gap-4 border-b md:grid-cols-2 md:gap-0 md:divide-x md:rounded-3xl md:border xl:grid-cols-4">
                     {featureLinks.map((item) => {
                         const Icon = item.icon;
 

@@ -384,3 +384,162 @@ test('public topic and schedule pages support query filters and pagination props
         ->and(data_get($followUpPage, 'props.followUpPagination.currentPage'))->toBe(2)
         ->and(data_get($followUpPage, 'props.followUpPagination.previousPage'))->toBe(1);
 });
+
+test('public active students page excludes graduates and nonactive students', function (): void {
+    $programStudi = ProgramStudi::query()->create([
+        'name' => 'Teknik Informatika',
+        'slug' => 'ti',
+        'concentrations' => ['Software'],
+    ]);
+
+    $advisor = User::factory()->create([
+        'name' => 'Dr. Sinta Wijaya',
+        'last_active_role' => AppRole::Dosen->value,
+    ]);
+    attachRole($advisor, AppRole::Dosen->value);
+
+    DosenProfile::factory()->create([
+        'user_id' => $advisor->id,
+        'program_studi_id' => $programStudi->id,
+        'concentration' => 'Software',
+        'supervision_quota' => 16,
+        'is_active' => true,
+    ]);
+
+    $newStudent = User::factory()->create([
+        'name' => 'Mahasiswa Baru',
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($newStudent, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $newStudent->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => '2024555001',
+        'is_active' => true,
+    ]);
+
+    $researchStudent = User::factory()->create([
+        'name' => 'Mahasiswa Riset Aktif',
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($researchStudent, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $researchStudent->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => '2024555002',
+        'is_active' => true,
+    ]);
+
+    $researchProject = ThesisProject::query()->create([
+        'student_user_id' => $researchStudent->id,
+        'program_studi_id' => $programStudi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subWeeks(6),
+        'created_by' => $researchStudent->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $researchProject->id,
+        'version_no' => 1,
+        'title_id' => 'Analisis Sistem Publik Mahasiswa Aktif',
+        'title_en' => 'Public Active Student Analysis',
+        'proposal_summary' => 'Ringkasan untuk mahasiswa aktif.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $researchStudent->id,
+        'submitted_at' => now()->subWeeks(5),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $researchProject->id,
+        'lecturer_user_id' => $advisor->id,
+        'role' => 'primary',
+        'status' => 'active',
+        'assigned_by' => $researchStudent->id,
+        'started_at' => now()->subWeeks(5),
+    ]);
+
+    $graduate = User::factory()->create([
+        'name' => 'Mahasiswa Lulus',
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($graduate, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $graduate->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => '2024555003',
+        'is_active' => true,
+    ]);
+
+    $graduateProject = ThesisProject::query()->create([
+        'student_user_id' => $graduate->id,
+        'program_studi_id' => $programStudi->id,
+        'phase' => 'completed',
+        'state' => 'completed',
+        'started_at' => now()->subMonths(8),
+        'completed_at' => now()->subDays(2),
+        'created_by' => $graduate->id,
+    ]);
+
+    $graduateTitle = ThesisProjectTitle::query()->create([
+        'project_id' => $graduateProject->id,
+        'version_no' => 1,
+        'title_id' => 'Topik Mahasiswa Lulus',
+        'title_en' => 'Graduated Topic',
+        'proposal_summary' => 'Ringkasan lulus',
+        'status' => 'approved',
+        'submitted_by_user_id' => $graduate->id,
+        'submitted_at' => now()->subMonths(7),
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $graduateProject->id,
+        'title_version_id' => $graduateTitle->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass',
+        'scheduled_for' => now()->subDays(4),
+        'location' => 'Ruang Sidang',
+        'mode' => 'offline',
+    ]);
+
+    $inactiveStudent = User::factory()->create([
+        'name' => 'Mahasiswa Nonaktif',
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($inactiveStudent, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $inactiveStudent->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => '2024555004',
+        'is_active' => false,
+    ]);
+
+    $response = $this->get('/mahasiswa-aktif?search=Aktif&program=ti')
+        ->assertOk();
+
+    $page = $response->viewData('page');
+
+    expect($page['component'])->toBe('public/mahasiswa')
+        ->and(data_get($page, 'props.filters.search'))->toBe('Aktif')
+        ->and(data_get($page, 'props.filters.program'))->toBe('ti')
+        ->and(data_get($page, 'props.activeStudents'))->toHaveCount(1)
+        ->and(data_get($page, 'props.activeStudents.0.name'))->toBe('Mahasiswa Riset Aktif')
+        ->and(data_get($page, 'props.activeStudents.0.stageLabel'))->toBe('Bimbingan Aktif')
+        ->and(data_get($page, 'props.activeStudents.0.advisors.0.name'))->toBe('Dr. Sinta Wijaya')
+        ->and(data_get($page, 'props.studentPrograms.0.slug'))->toBe('ti');
+
+    $allResponse = $this->get('/mahasiswa-aktif')
+        ->assertOk();
+
+    $allPage = $allResponse->viewData('page');
+
+    expect(data_get($allPage, 'props.activeStudents'))->toHaveCount(2)
+        ->and(collect(data_get($allPage, 'props.activeStudents'))->pluck('name')->all())
+        ->toBe(['Mahasiswa Baru', 'Mahasiswa Riset Aktif']);
+});
