@@ -172,3 +172,215 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
         ->and(data_get($topicsPage, 'props.semproTitles.0.year'))->toBe((string) now()->addDays(3)->format('Y'))
         ->and(data_get($topicsPage, 'props.semproTitles.0.advisors.0.name'))->toBe('Dr. Laila Utami');
 });
+
+test('public topic and schedule pages support query filters and pagination props', function (): void {
+    $programStudi = ProgramStudi::query()->create([
+        'name' => 'Sistem Informasi',
+        'slug' => 'si',
+        'concentrations' => ['Data'],
+    ]);
+
+    $advisor = User::factory()->create([
+        'name' => 'Dr. Nanda Putri',
+        'last_active_role' => AppRole::Dosen->value,
+    ]);
+    attachRole($advisor, AppRole::Dosen->value);
+
+    DosenProfile::factory()->create([
+        'user_id' => $advisor->id,
+        'program_studi_id' => $programStudi->id,
+        'concentration' => 'Data',
+        'supervision_quota' => 20,
+        'is_active' => true,
+    ]);
+
+    foreach (range(1, 11) as $index) {
+        $student = User::factory()->create([
+            'name' => "Mahasiswa Topik {$index}",
+            'last_active_role' => AppRole::Mahasiswa->value,
+        ]);
+        attachRole($student, AppRole::Mahasiswa->value);
+
+        MahasiswaProfile::factory()->create([
+            'user_id' => $student->id,
+            'program_studi_id' => $programStudi->id,
+            'nim' => sprintf('202400%04d', $index),
+            'is_active' => true,
+        ]);
+
+        $project = ThesisProject::query()->create([
+            'student_user_id' => $student->id,
+            'program_studi_id' => $programStudi->id,
+            'phase' => 'sempro',
+            'state' => 'active',
+            'started_at' => now()->subWeeks(8),
+            'created_by' => $student->id,
+        ]);
+
+        $title = ThesisProjectTitle::query()->create([
+            'project_id' => $project->id,
+            'version_no' => 1,
+            'title_id' => $index === 11 ? 'Topik Spesifik Alpha' : "Topik Umum {$index}",
+            'title_en' => "Topic {$index}",
+            'proposal_summary' => $index === 11 ? 'Ringkasan alpha untuk pencarian publik.' : "Ringkasan {$index}",
+            'status' => 'approved',
+            'submitted_by_user_id' => $student->id,
+            'submitted_at' => now()->subWeeks(7),
+        ]);
+
+        ThesisSupervisorAssignment::query()->create([
+            'project_id' => $project->id,
+            'lecturer_user_id' => $advisor->id,
+            'role' => 'primary',
+            'status' => 'active',
+            'assigned_by' => $student->id,
+            'started_at' => now()->subWeeks(7),
+        ]);
+
+        ThesisDefense::query()->create([
+            'project_id' => $project->id,
+            'title_version_id' => $title->id,
+            'type' => 'sempro',
+            'attempt_no' => 1,
+            'status' => 'completed',
+            'result' => 'pass',
+            'scheduled_for' => now()->subDays($index),
+            'location' => "Ruang Topik {$index}",
+            'mode' => 'offline',
+        ]);
+    }
+
+    foreach (range(1, 11) as $index) {
+        $student = User::factory()->create([
+            'name' => "Mahasiswa Jadwal {$index}",
+            'last_active_role' => AppRole::Mahasiswa->value,
+        ]);
+        attachRole($student, AppRole::Mahasiswa->value);
+
+        MahasiswaProfile::factory()->create([
+            'user_id' => $student->id,
+            'program_studi_id' => $programStudi->id,
+            'nim' => sprintf('202401%04d', $index),
+            'is_active' => true,
+        ]);
+
+        $project = ThesisProject::query()->create([
+            'student_user_id' => $student->id,
+            'program_studi_id' => $programStudi->id,
+            'phase' => 'sidang',
+            'state' => 'active',
+            'started_at' => now()->subWeeks(6),
+            'created_by' => $student->id,
+        ]);
+
+        $title = ThesisProjectTitle::query()->create([
+            'project_id' => $project->id,
+            'version_no' => 1,
+            'title_id' => $index === 11 ? 'Jadwal Spesifik Bravo' : "Jadwal Umum {$index}",
+            'title_en' => "Schedule {$index}",
+            'proposal_summary' => "Jadwal ringkasan {$index}",
+            'status' => 'approved',
+            'submitted_by_user_id' => $student->id,
+            'submitted_at' => now()->subWeeks(5),
+        ]);
+
+        ThesisDefense::query()->create([
+            'project_id' => $project->id,
+            'title_version_id' => $title->id,
+            'type' => 'sidang',
+            'attempt_no' => 1,
+            'status' => 'scheduled',
+            'result' => 'pending',
+            'scheduled_for' => now()->addDays($index),
+            'location' => $index === 11 ? 'Ruang Bravo' : "Ruang Jadwal {$index}",
+            'mode' => 'offline',
+        ]);
+    }
+
+    foreach (range(1, 9) as $index) {
+        $student = User::factory()->create([
+            'name' => "Mahasiswa Tindak {$index}",
+            'last_active_role' => AppRole::Mahasiswa->value,
+        ]);
+        attachRole($student, AppRole::Mahasiswa->value);
+
+        MahasiswaProfile::factory()->create([
+            'user_id' => $student->id,
+            'program_studi_id' => $programStudi->id,
+            'nim' => sprintf('202402%04d', $index),
+            'is_active' => true,
+        ]);
+
+        $project = ThesisProject::query()->create([
+            'student_user_id' => $student->id,
+            'program_studi_id' => $programStudi->id,
+            'phase' => 'sempro',
+            'state' => 'active',
+            'started_at' => now()->subWeeks(5),
+            'created_by' => $student->id,
+        ]);
+
+        $title = ThesisProjectTitle::query()->create([
+            'project_id' => $project->id,
+            'version_no' => 1,
+            'title_id' => $index === 9 ? 'Follow Up Charlie' : "Follow Up {$index}",
+            'title_en' => "Follow Up {$index}",
+            'proposal_summary' => "Tindak lanjut {$index}",
+            'status' => 'approved',
+            'submitted_by_user_id' => $student->id,
+            'submitted_at' => now()->subWeeks(4),
+        ]);
+
+        ThesisDefense::query()->create([
+            'project_id' => $project->id,
+            'title_version_id' => $title->id,
+            'type' => 'sempro',
+            'attempt_no' => 1,
+            'status' => 'completed',
+            'result' => 'pass_with_revision',
+            'scheduled_for' => now()->subDays($index),
+            'location' => $index === 9 ? 'Ruang Charlie' : "Ruang Tindak {$index}",
+            'mode' => 'offline',
+        ]);
+    }
+
+    $topicsResponse = $this->get('/topik?search=Alpha&program=si')
+        ->assertOk();
+
+    $topicsPage = $topicsResponse->viewData('page');
+
+    expect(data_get($topicsPage, 'props.filters.search'))->toBe('Alpha')
+        ->and(data_get($topicsPage, 'props.filters.program'))->toBe('si')
+        ->and(data_get($topicsPage, 'props.semproTitles'))->toHaveCount(1)
+        ->and(data_get($topicsPage, 'props.semproTitles.0.title'))->toBe('Topik Spesifik Alpha')
+        ->and(data_get($topicsPage, 'props.topicPagination.currentPage'))->toBe(1)
+        ->and(data_get($topicsPage, 'props.topicPagination.hasMorePages'))->toBeFalse();
+
+    $topicsSecondPageResponse = $this->get('/topik?page=2')
+        ->assertOk();
+
+    $topicsSecondPage = $topicsSecondPageResponse->viewData('page');
+
+    expect(data_get($topicsSecondPage, 'props.semproTitles'))->toHaveCount(1)
+        ->and(data_get($topicsSecondPage, 'props.topicPagination.currentPage'))->toBe(2)
+        ->and(data_get($topicsSecondPage, 'props.topicPagination.previousPage'))->toBe(1);
+
+    $scheduleResponse = $this->get('/jadwal?search=Bravo')
+        ->assertOk();
+
+    $schedulePage = $scheduleResponse->viewData('page');
+
+    expect(data_get($schedulePage, 'props.filters.search'))->toBe('Bravo')
+        ->and(data_get($schedulePage, 'props.upcomingSchedules'))->toHaveCount(1)
+        ->and(data_get($schedulePage, 'props.upcomingSchedules.0.title'))->toBe('Jadwal Spesifik Bravo')
+        ->and(data_get($schedulePage, 'props.upcomingPagination.currentPage'))->toBe(1);
+
+    $followUpPageResponse = $this->get('/jadwal?follow_up_page=2')
+        ->assertOk();
+
+    $followUpPage = $followUpPageResponse->viewData('page');
+
+    expect(data_get($followUpPage, 'props.followUpSchedules'))->toHaveCount(1)
+        ->and(data_get($followUpPage, 'props.followUpPagination.currentPage'))->toBe(2)
+        ->and(data_get($followUpPage, 'props.followUpPagination.previousPage'))->toBe(1);
+});

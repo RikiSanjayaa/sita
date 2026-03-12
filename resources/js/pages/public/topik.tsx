@@ -1,6 +1,6 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { ChevronDown, ChevronRight, Search } from 'lucide-react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
@@ -33,62 +33,97 @@ type SemproTitleItem = {
     }>;
 };
 
+type PaginationData = {
+    currentPage: number;
+    perPage: number;
+    hasMorePages: boolean;
+    nextPage: number | null;
+    previousPage: number | null;
+};
+
 type PageProps = {
+    filters: {
+        search: string;
+        program: string;
+    };
     semproTitles: SemproTitleItem[];
+    topicPagination: PaginationData;
     topicPrograms: Array<{
         slug: string;
         name: string;
     }>;
 };
 
-const pageSize = 10;
-
 export default function PublicTopicsPage() {
-    const { semproTitles, topicPrograms } = usePage<SharedData & PageProps>()
-        .props;
-    const [search, setSearch] = useState('');
-    const [programFilter, setProgramFilter] = useState('semua');
-    const [currentPage, setCurrentPage] = useState(1);
+    const { filters, semproTitles, topicPagination, topicPrograms } = usePage<
+        SharedData & PageProps
+    >().props;
+    const [search, setSearch] = useState(filters.search);
+    const [programFilter, setProgramFilter] = useState(
+        filters.program || 'semua',
+    );
     const [openRowId, setOpenRowId] = useState<number | null>(null);
 
-    const normalizedSearch = search.trim().toLowerCase();
-    const filteredTitles = useMemo(() => {
-        return semproTitles.filter((item) => {
-            const matchesProgram =
-                programFilter === 'semua' || item.programSlug === programFilter;
+    useEffect(() => {
+        setSearch(filters.search);
+        setProgramFilter(filters.program || 'semua');
+    }, [filters.program, filters.search]);
 
-            if (!matchesProgram) {
-                return false;
+    useEffect(() => {
+        const normalizedProgram =
+            programFilter === 'semua' ? '' : programFilter;
+        const timeoutId = window.setTimeout(() => {
+            if (
+                search === filters.search &&
+                normalizedProgram === filters.program
+            ) {
+                return;
             }
 
-            if (normalizedSearch === '') {
-                return true;
-            }
+            router.get(
+                '/topik',
+                {
+                    search: search || undefined,
+                    program: normalizedProgram || undefined,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                },
+            );
+        }, 250);
 
-            return [
-                item.studentName,
-                item.studentNim,
-                item.title,
-                item.titleEn,
-                item.programStudi,
-                item.summary,
-            ].some((value) => value.toLowerCase().includes(normalizedSearch));
-        });
-    }, [normalizedSearch, programFilter, semproTitles]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredTitles.length / pageSize));
-    const paginatedTitles = useMemo(() => {
-        const startIndex = (currentPage - 1) * pageSize;
-
-        return filteredTitles.slice(startIndex, startIndex + pageSize);
-    }, [currentPage, filteredTitles]);
+        return () => window.clearTimeout(timeoutId);
+    }, [filters.program, filters.search, programFilter, search]);
 
     const rangeStart =
-        filteredTitles.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-    const rangeEnd = Math.min(currentPage * pageSize, filteredTitles.length);
+        semproTitles.length === 0
+            ? 0
+            : (topicPagination.currentPage - 1) * topicPagination.perPage + 1;
+    const rangeEnd =
+        semproTitles.length === 0 ? 0 : rangeStart + semproTitles.length - 1;
+    const hasActiveFilter =
+        filters.search.trim() !== '' || filters.program.trim() !== '';
 
     function toggleRow(rowId: number) {
         setOpenRowId((current) => (current === rowId ? null : rowId));
+    }
+
+    function visitPage(page: number) {
+        router.get(
+            '/topik',
+            {
+                page,
+                search: filters.search || undefined,
+                program: filters.program || undefined,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
     }
 
     return (
@@ -107,7 +142,6 @@ export default function PublicTopicsPage() {
                                     value={programFilter}
                                     onValueChange={(value) => {
                                         setProgramFilter(value);
-                                        setCurrentPage(1);
                                         setOpenRowId(null);
                                     }}
                                 >
@@ -136,7 +170,6 @@ export default function PublicTopicsPage() {
                                     value={search}
                                     onChange={(event) => {
                                         setSearch(event.target.value);
-                                        setCurrentPage(1);
                                         setOpenRowId(null);
                                     }}
                                     placeholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
@@ -147,7 +180,7 @@ export default function PublicTopicsPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {filteredTitles.length > 0 ? (
+                    {semproTitles.length > 0 ? (
                         <>
                             <div className="overflow-x-auto rounded-xl border">
                                 <table className="w-full min-w-[980px] text-sm">
@@ -168,7 +201,7 @@ export default function PublicTopicsPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {paginatedTitles.map((item) => {
+                                        {semproTitles.map((item) => {
                                             const isOpen =
                                                 openRowId === item.id;
 
@@ -319,8 +352,8 @@ export default function PublicTopicsPage() {
 
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-muted-foreground">
-                                    Menampilkan {rangeStart}-{rangeEnd} dari{' '}
-                                    {filteredTitles.length} topik.
+                                    Menampilkan {rangeStart}-{rangeEnd} dari
+                                    halaman ini.
                                 </p>
 
                                 <div className="flex items-center gap-2">
@@ -328,24 +361,41 @@ export default function PublicTopicsPage() {
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        disabled={currentPage === 1}
-                                        onClick={() =>
-                                            setCurrentPage((page) => page - 1)
+                                        disabled={
+                                            topicPagination.previousPage ===
+                                            null
                                         }
+                                        onClick={() => {
+                                            if (
+                                                topicPagination.previousPage !==
+                                                null
+                                            ) {
+                                                visitPage(
+                                                    topicPagination.previousPage,
+                                                );
+                                            }
+                                        }}
                                     >
                                         Sebelumnya
                                     </Button>
                                     <Badge variant="outline">
-                                        Halaman {currentPage} / {totalPages}
+                                        Halaman {topicPagination.currentPage}
                                     </Badge>
                                     <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        disabled={currentPage === totalPages}
-                                        onClick={() =>
-                                            setCurrentPage((page) => page + 1)
-                                        }
+                                        disabled={!topicPagination.hasMorePages}
+                                        onClick={() => {
+                                            if (
+                                                topicPagination.nextPage !==
+                                                null
+                                            ) {
+                                                visitPage(
+                                                    topicPagination.nextPage,
+                                                );
+                                            }
+                                        }}
                                     >
                                         Berikutnya
                                     </Button>
@@ -354,9 +404,9 @@ export default function PublicTopicsPage() {
                         </>
                     ) : (
                         <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                            {search.trim() === ''
-                                ? 'Belum ada topik yang dapat ditampilkan.'
-                                : 'Tidak ada topik yang cocok dengan pencarian ini.'}
+                            {hasActiveFilter
+                                ? 'Tidak ada topik yang cocok dengan pencarian ini.'
+                                : 'Belum ada topik yang dapat ditampilkan.'}
                         </div>
                     )}
                 </CardContent>

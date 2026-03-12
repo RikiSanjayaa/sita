@@ -1,8 +1,12 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
+import { Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { type SharedData } from '@/types';
 
 type ScheduleItem = {
@@ -21,9 +25,22 @@ type ScheduleItem = {
     statusDetail: string | null;
 };
 
+type PaginationData = {
+    currentPage: number;
+    perPage: number;
+    hasMorePages: boolean;
+    nextPage: number | null;
+    previousPage: number | null;
+};
+
 type PageProps = {
+    filters: {
+        search: string;
+    };
     upcomingSchedules: ScheduleItem[];
+    upcomingPagination: PaginationData;
     followUpSchedules: ScheduleItem[];
+    followUpPagination: PaginationData;
 };
 
 const statusClassName: Record<ScheduleItem['statusTone'], string> = {
@@ -35,18 +52,38 @@ const statusClassName: Record<ScheduleItem['statusTone'], string> = {
 };
 
 function ScheduleTable({
+    emptyMessage,
     items,
+    pagination,
     title,
+    onPageChange,
 }: {
+    emptyMessage: string;
     items: ScheduleItem[];
+    pagination: PaginationData;
     title: string;
+    onPageChange: (page: number) => void;
 }) {
+    const rangeStart =
+        items.length === 0
+            ? 0
+            : (pagination.currentPage - 1) * pagination.perPage + 1;
+    const rangeEnd = items.length === 0 ? 0 : rangeStart + items.length - 1;
+
     return (
         <Card className="shadow-sm">
-            <CardHeader>
+            <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>{title}</CardTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>
+                        Menampilkan {rangeStart}-{rangeEnd}
+                    </span>
+                    <Badge variant="outline">
+                        Halaman {pagination.currentPage}
+                    </Badge>
+                </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
                 {items.length > 0 ? (
                     <div className="overflow-x-auto rounded-xl border">
                         <table className="w-full min-w-[760px] text-sm">
@@ -135,18 +172,98 @@ function ScheduleTable({
                     </div>
                 ) : (
                     <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                        Belum ada data pada bagian ini.
+                        {emptyMessage}
                     </div>
                 )}
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={pagination.previousPage === null}
+                        onClick={() => {
+                            if (pagination.previousPage !== null) {
+                                onPageChange(pagination.previousPage);
+                            }
+                        }}
+                    >
+                        Sebelumnya
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={pagination.nextPage === null}
+                        onClick={() => {
+                            if (pagination.nextPage !== null) {
+                                onPageChange(pagination.nextPage);
+                            }
+                        }}
+                    >
+                        Berikutnya
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );
 }
 
 export default function PublicSchedulesPage() {
-    const { upcomingSchedules, followUpSchedules } = usePage<
-        SharedData & PageProps
-    >().props;
+    const {
+        filters,
+        upcomingSchedules,
+        upcomingPagination,
+        followUpSchedules,
+        followUpPagination,
+    } = usePage<SharedData & PageProps>().props;
+    const [search, setSearch] = useState(filters.search);
+
+    useEffect(() => {
+        setSearch(filters.search);
+    }, [filters.search]);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            if (search === filters.search) {
+                return;
+            }
+
+            router.get(
+                '/jadwal',
+                {
+                    search: search || undefined,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                },
+            );
+        }, 250);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [filters.search, search]);
+
+    function visitPage(key: 'upcoming_page' | 'follow_up_page', page: number) {
+        router.get(
+            '/jadwal',
+            {
+                search: filters.search || undefined,
+                [key]: page,
+                ...(key === 'upcoming_page'
+                    ? { follow_up_page: followUpPagination.currentPage }
+                    : { upcoming_page: upcomingPagination.currentPage }),
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
+
+    const hasActiveSearch = filters.search.trim() !== '';
 
     return (
         <PublicLayout
@@ -156,13 +273,46 @@ export default function PublicSchedulesPage() {
             description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
             <div className="grid gap-6">
+                <Card className="shadow-sm">
+                    <CardHeader className="gap-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <CardTitle>Cari jadwal publik</CardTitle>
+                            <div className="relative w-full max-w-md">
+                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Cari mahasiswa, NIM, judul, prodi, atau lokasi..."
+                                    className="pl-9"
+                                />
+                            </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+
                 <ScheduleTable
                     title="Jadwal Akan Datang"
                     items={upcomingSchedules}
+                    pagination={upcomingPagination}
+                    emptyMessage={
+                        hasActiveSearch
+                            ? 'Tidak ada jadwal mendatang yang cocok dengan pencarian ini.'
+                            : 'Belum ada jadwal mendatang pada bagian ini.'
+                    }
+                    onPageChange={(page) => visitPage('upcoming_page', page)}
                 />
                 <ScheduleTable
                     title="Tindak Lanjut Terbaru"
                     items={followUpSchedules}
+                    pagination={followUpPagination}
+                    emptyMessage={
+                        hasActiveSearch
+                            ? 'Tidak ada tindak lanjut yang cocok dengan pencarian ini.'
+                            : 'Belum ada data pada bagian ini.'
+                    }
+                    onPageChange={(page) => visitPage('follow_up_page', page)}
                 />
             </div>
         </PublicLayout>
