@@ -10,6 +10,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -85,6 +86,28 @@ class WelcomeController extends Controller
                 ->sortBy('name')
                 ->values()
                 ->all(),
+        ]);
+    }
+
+    public function students(Request $request): Response
+    {
+        $search = trim((string) $request->string('search'));
+        $program = trim((string) $request->string('program'));
+        $studentPrograms = $this->activeStudentPrograms();
+        $studentData = $this->activeStudents(
+            search: $search,
+            program: $program,
+            page: (int) $request->integer('page', 1),
+        );
+
+        return Inertia::render('public/mahasiswa', [
+            'filters' => [
+                'search' => $search,
+                'program' => $program,
+            ],
+            'activeStudents' => $studentData['items'],
+            'studentPagination' => $studentData['pagination'],
+            'studentPrograms' => $studentPrograms,
         ]);
     }
 
@@ -509,11 +532,248 @@ class WelcomeController extends Controller
             ->values();
     }
 
+    private function activeStudents(string $search = '', string $program = '', int $page = 1): array
+    {
+        $students = User::query()
+            ->whereHas('roles', function ($query): void {
+                $query->where('name', AppRole::Mahasiswa->value);
+            })
+            ->whereHas('mahasiswaProfile', function ($query) use ($program): void {
+                $query->where('is_active', true)
+                    ->when($program !== '', function ($profileQuery) use ($program): void {
+                        $profileQuery->whereHas('programStudi', function ($programQuery) use ($program): void {
+                            $programQuery->where('slug', $program);
+                        });
+                    });
+            })
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($innerQuery) use ($search): void {
+                    $innerQuery->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
+                            $profileQuery->where('nim', 'like', "%{$search}%")
+                                ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
+                                    $programQuery->where('name', 'like', "%{$search}%");
+                                });
+                        })
+                        ->orWhereHas('thesisProjects.latestTitle', function ($titleQuery) use ($search): void {
+                            $titleQuery->where('title_id', 'like', "%{$search}%")
+                                ->orWhere('title_en', 'like', "%{$search}%")
+                                ->orWhere('proposal_summary', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->with([
+                'mahasiswaProfile.programStudi',
+                'thesisProjects' => function ($query): void {
+                    $query->orderByDesc('started_at')
+                        ->orderByDesc('id');
+                },
+                'thesisProjects.latestTitle',
+                'thesisProjects.activeSupervisorAssignments.lecturer',
+                'thesisProjects.defenses' => function ($query): void {
+                    $query->orderByDesc('attempt_no')
+                        ->orderByDesc('scheduled_for');
+                },
+            ])
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $student): ?array {
+                $profile = $student->mahasiswaProfile;
+                $project = $student->thesisProjects->first();
+
+                if (! $this->shouldShowPublicStudent($project)) {
+                    return null;
+                }
+
+                $stage = $this->publicStudentStage($project);
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'nim' => $profile?->nim ?? '-',
+                    'programStudi' => $profile?->programStudi?->name ?? '-',
+                    'programSlug' => $profile?->programStudi?->slug ?? 'umum',
+                    'stageLabel' => $stage['label'],
+                    'stageDescription' => $stage['description'],
+                    'title' => $project?->latestTitle?->title_id ?? null,
+                    'advisors' => $project?->activeSupervisorAssignments
+                        ->map(fn($assignment): array => [
+                            'name' => $assignment->lecturer?->name ?? '-',
+                            'label' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
+                        ])
+                        ->values()
+                        ->all() ?? [],
+                ];
+            })
+            ->filter()
+            ->values();
+
+        $paginator = new LengthAwarePaginator(
+            items: $students->forPage($page, 10)->values()->all(),
+            total: $students->count(),
+            perPage: 10,
+            currentPage: max($page, 1),
+            options: [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ],
+        );
+
+        return [
+            'items' => $paginator->items(),
+            'pagination' => $this->lengthAwarePaginationData($paginator),
+        ];
+    }
+
+    /**
+     * @return array<int, array{slug: string, name: string}>
+     */
+    private function activeStudentPrograms(): array
+    {
+        return User::query()
+            ->whereHas('roles', function ($query): void {
+                $query->where('name', AppRole::Mahasiswa->value);
+            })
+            ->whereHas('mahasiswaProfile', function ($query): void {
+                $query->where('is_active', true);
+            })
+            ->with('mahasiswaProfile.programStudi')
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $student): ?array {
+                $program = $student->mahasiswaProfile?->programStudi;
+
+                if ($program === null) {
+                    return null;
+                }
+
+                return [
+                    'slug' => $program->slug,
+                    'name' => $program->name,
+                ];
+            })
+            ->filter()
+            ->unique('slug')
+            ->sortBy('name')
+            ->values()
+            ->all();
+    }
+
+    private function shouldShowPublicStudent(?ThesisProject $project): bool
+    {
+        if (! $project instanceof ThesisProject) {
+            return true;
+        }
+
+        $latestSidang = $project->defenses
+            ->where('type', 'sidang')
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if ($latestSidang instanceof ThesisDefense
+            && $latestSidang->status === 'completed'
+            && $latestSidang->result === 'pass'
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array{label: string, description: string}
+     */
+    private function publicStudentStage(?ThesisProject $project): array
+    {
+        if (! $project instanceof ThesisProject) {
+            return [
+                'label' => 'Baru Terdaftar',
+                'description' => 'Mahasiswa aktif dan siap memulai proses tugas akhir.',
+            ];
+        }
+
+        $latestSidang = $project->defenses
+            ->where('type', 'sidang')
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if ($latestSidang instanceof ThesisDefense) {
+            return match ($latestSidang->status) {
+                'scheduled' => [
+                    'label' => 'Sidang Terjadwal',
+                    'description' => 'Mahasiswa sedang bersiap menuju sidang akhir.',
+                ],
+                'completed' => [
+                    'label' => $latestSidang->result === 'pass_with_revision' ? 'Revisi Sidang' : 'Tahap Sidang',
+                    'description' => $latestSidang->result === 'pass_with_revision'
+                        ? 'Sidang selesai dan masih ada revisi yang berjalan.'
+                        : 'Status sidang mahasiswa masih dalam proses tindak lanjut.',
+                ],
+                default => [
+                    'label' => 'Tahap Sidang',
+                    'description' => 'Mahasiswa sedang berada pada fase sidang.',
+                ],
+            };
+        }
+
+        $latestSempro = $project->defenses
+            ->where('type', 'sempro')
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if ($latestSempro instanceof ThesisDefense) {
+            return match ($latestSempro->status) {
+                'scheduled' => [
+                    'label' => 'Sempro Terjadwal',
+                    'description' => 'Mahasiswa sedang menuju pelaksanaan seminar proposal.',
+                ],
+                'completed' => [
+                    'label' => $latestSempro->result === 'pass_with_revision' ? 'Revisi Sempro' : 'Penelitian Berjalan',
+                    'description' => $latestSempro->result === 'pass_with_revision'
+                        ? 'Sempro selesai dan perlu menindaklanjuti revisi.'
+                        : 'Sempro selesai, mahasiswa lanjut ke fase penelitian aktif.',
+                ],
+                default => [
+                    'label' => 'Tahap Sempro',
+                    'description' => 'Proposal dan kesiapan seminar masih diproses.',
+                ],
+            };
+        }
+
+        return match ($project->phase) {
+            'title_review' => [
+                'label' => 'Review Judul',
+                'description' => 'Judul atau proposal awal sedang ditinjau.',
+            ],
+            'research' => [
+                'label' => 'Bimbingan Aktif',
+                'description' => 'Mahasiswa aktif bimbingan dan menjalankan penelitian.',
+            ],
+            default => [
+                'label' => 'Dalam Proses',
+                'description' => 'Tugas akhir mahasiswa sedang berjalan.',
+            ],
+        };
+    }
+
     private function simplePaginationData($paginator): array
     {
         return [
             'currentPage' => $paginator->currentPage(),
             'perPage' => $paginator->perPage(),
+            'hasMorePages' => $paginator->hasMorePages(),
+            'nextPage' => $paginator->hasMorePages() ? $paginator->currentPage() + 1 : null,
+            'previousPage' => $paginator->onFirstPage() ? null : $paginator->currentPage() - 1,
+        ];
+    }
+
+    private function lengthAwarePaginationData(LengthAwarePaginator $paginator): array
+    {
+        return [
+            'currentPage' => $paginator->currentPage(),
+            'perPage' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'lastPage' => $paginator->lastPage(),
             'hasMorePages' => $paginator->hasMorePages(),
             'nextPage' => $paginator->hasMorePages() ? $paginator->currentPage() + 1 : null,
             'previousPage' => $paginator->onFirstPage() ? null : $paginator->currentPage() - 1,

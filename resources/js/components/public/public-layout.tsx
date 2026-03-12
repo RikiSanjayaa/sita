@@ -13,12 +13,13 @@ type PublicLayoutProps = PropsWithChildren<{
     headTitle: string;
     pageTitle?: string;
     description?: string;
-    active: 'home' | 'jadwal' | 'pembimbing' | 'topik';
+    active: 'home' | 'jadwal' | 'pembimbing' | 'topik' | 'mahasiswa';
 }>;
 
 const navItems = [
     { id: 'home', label: 'Beranda', href: '/' },
     { id: 'jadwal', label: 'Jadwal', href: '/jadwal' },
+    { id: 'mahasiswa', label: 'Mahasiswa', href: '/mahasiswa-aktif' },
     { id: 'pembimbing', label: 'Pembimbing', href: '/pembimbing' },
     { id: 'topik', label: 'Topik', href: '/topik' },
 ] as const;

@@ -58,16 +58,29 @@ export default function PublicTopicsPage() {
     const { filters, semproTitles, topicPagination, topicPrograms } = usePage<
         SharedData & PageProps
     >().props;
+
+    return (
+        <PublicTopicsContent
+            key={`${filters.search}:${filters.program}`}
+            filters={filters}
+            semproTitles={semproTitles}
+            topicPagination={topicPagination}
+            topicPrograms={topicPrograms}
+        />
+    );
+}
+
+function PublicTopicsContent({
+    filters,
+    semproTitles,
+    topicPagination,
+    topicPrograms,
+}: PageProps) {
     const [search, setSearch] = useState(filters.search);
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
     const [openRowId, setOpenRowId] = useState<number | null>(null);
-
-    useEffect(() => {
-        setSearch(filters.search);
-        setProgramFilter(filters.program || 'semua');
-    }, [filters.program, filters.search]);
 
     useEffect(() => {
         const normalizedProgram =
