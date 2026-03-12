@@ -9,6 +9,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,11 +23,20 @@ class WelcomeController extends Controller
         ]);
     }
 
-    public function schedules(): Response
+    public function schedules(Request $request): Response
     {
+        $search = trim((string) $request->string('search'));
+        $upcomingSchedules = $this->upcomingScheduleItems($search, (int) $request->integer('upcoming_page', 1));
+        $followUpSchedules = $this->followUpScheduleItems($search, (int) $request->integer('follow_up_page', 1));
+
         return Inertia::render('public/jadwal', [
-            'upcomingSchedules' => $this->upcomingScheduleItems()->all(),
-            'followUpSchedules' => $this->followUpScheduleItems()->all(),
+            'filters' => [
+                'search' => $search,
+            ],
+            'upcomingSchedules' => $upcomingSchedules['items'],
+            'upcomingPagination' => $upcomingSchedules['pagination'],
+            'followUpSchedules' => $followUpSchedules['items'],
+            'followUpPagination' => $followUpSchedules['pagination'],
         ]);
     }
 
@@ -49,13 +59,24 @@ class WelcomeController extends Controller
         ]);
     }
 
-    public function topics(): Response
+    public function topics(Request $request): Response
     {
-        $semproTitles = $this->semproTitles();
+        $search = trim((string) $request->string('search'));
+        $program = trim((string) $request->string('program'));
+        $topicData = $this->semproTitles(
+            search: $search,
+            program: $program,
+            page: (int) $request->integer('page', 1),
+        );
 
         return Inertia::render('public/topik', [
-            'semproTitles' => $semproTitles->all(),
-            'topicPrograms' => $semproTitles
+            'filters' => [
+                'search' => $search,
+                'program' => $program,
+            ],
+            'semproTitles' => $topicData['items'],
+            'topicPagination' => $topicData['pagination'],
+            'topicPrograms' => $this->topicPrograms()
                 ->map(fn(array $item): array => [
                     'slug' => $item['programSlug'],
                     'name' => $item['programStudi'],
@@ -114,9 +135,9 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function upcomingScheduleItems(): Collection
+    private function upcomingScheduleItems(string $search = '', int $page = 1): array
     {
-        return ThesisDefense::query()
+        $paginator = ThesisDefense::query()
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.programStudi',
@@ -127,9 +148,29 @@ class WelcomeController extends Controller
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '>=', now())
             ->orderBy('scheduled_for')
-            ->limit(24)
-            ->get()
-            ->map(function (ThesisDefense $defense): array {
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($innerQuery) use ($search): void {
+                    $innerQuery
+                        ->whereHas('project.student', function ($studentQuery) use ($search): void {
+                            $studentQuery->where('name', 'like', "%{$search}%")
+                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
+                                    $profileQuery->where('nim', 'like', "%{$search}%");
+                                });
+                        })
+                        ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
+                            $programQuery->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('titleVersion', function ($titleQuery) use ($search): void {
+                            $titleQuery->where('title_id', 'like', "%{$search}%")
+                                ->orWhere('title_en', 'like', "%{$search}%")
+                                ->orWhere('proposal_summary', 'like', "%{$search}%");
+                        })
+                        ->orWhere('location', 'like', "%{$search}%")
+                        ->orWhere('mode', 'like', "%{$search}%");
+                });
+            })
+            ->simplePaginate(perPage: 10, pageName: 'upcoming_page', page: $page)
+            ->through(function (ThesisDefense $defense): array {
                 $project = $defense->project;
 
                 return [
@@ -149,17 +190,22 @@ class WelcomeController extends Controller
                     'statusDetail' => null,
                 ];
             })
-            ->values();
+            ->withQueryString();
+
+        return [
+            'items' => $paginator->items(),
+            'pagination' => $this->simplePaginationData($paginator),
+        ];
     }
 
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function followUpScheduleItems(): Collection
+    private function followUpScheduleItems(string $search = '', int $page = 1): array
     {
         $now = now();
 
-        return ThesisDefense::query()
+        $paginator = ThesisDefense::query()
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.programStudi',
@@ -172,21 +218,41 @@ class WelcomeController extends Controller
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '>=', $now->copy()->subDays(45))
             ->orderByDesc('scheduled_for')
-            ->get()
-            ->filter(function (ThesisDefense $defense): bool {
-                $hasOpenRevision = $defense->revisions
-                    ->whereIn('status', ['open', 'submitted'])
-                    ->isNotEmpty();
-
-                $hasPendingGrades = $defense->examiners->isNotEmpty()
-                    && $defense->examiners->contains(function ($examiner): bool {
-                        return $examiner->decision === null || $examiner->score === null;
-                    });
-
-                return $hasOpenRevision || $hasPendingGrades || $defense->result === 'pass_with_revision';
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($innerQuery) use ($search): void {
+                    $innerQuery
+                        ->whereHas('project.student', function ($studentQuery) use ($search): void {
+                            $studentQuery->where('name', 'like', "%{$search}%")
+                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
+                                    $profileQuery->where('nim', 'like', "%{$search}%");
+                                });
+                        })
+                        ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
+                            $programQuery->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('titleVersion', function ($titleQuery) use ($search): void {
+                            $titleQuery->where('title_id', 'like', "%{$search}%")
+                                ->orWhere('title_en', 'like', "%{$search}%")
+                                ->orWhere('proposal_summary', 'like', "%{$search}%");
+                        })
+                        ->orWhere('location', 'like', "%{$search}%")
+                        ->orWhere('mode', 'like', "%{$search}%");
+                });
             })
-            ->take(12)
-            ->map(function (ThesisDefense $defense) use ($now): array {
+            ->where(function ($query): void {
+                $query->where('result', 'pass_with_revision')
+                    ->orWhereHas('revisions', function ($revisionQuery): void {
+                        $revisionQuery->whereIn('status', ['open', 'submitted']);
+                    })
+                    ->orWhereHas('examiners', function ($examinerQuery): void {
+                        $examinerQuery->where(function ($pendingQuery): void {
+                            $pendingQuery->whereNull('decision')
+                                ->orWhereNull('score');
+                        });
+                    });
+            })
+            ->simplePaginate(perPage: 8, pageName: 'follow_up_page', page: $page)
+            ->through(function (ThesisDefense $defense) use ($now): array {
                 $project = $defense->project;
                 $openRevisions = $defense->revisions->whereIn('status', ['open', 'submitted']);
                 $hasOverdueRevision = $openRevisions->contains(function ($revision) use ($now): bool {
@@ -233,7 +299,12 @@ class WelcomeController extends Controller
                     'statusDetail' => $statusDetail,
                 ];
             })
-            ->values();
+            ->withQueryString();
+
+        return [
+            'items' => $paginator->items(),
+            'pagination' => $this->simplePaginationData($paginator),
+        ];
     }
 
     /**
@@ -331,9 +402,9 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function semproTitles(): Collection
+    private function semproTitles(string $search = '', string $program = '', int $page = 1): array
     {
-        return ThesisProject::query()
+        $paginator = ThesisProject::query()
             ->with([
                 'latestTitle',
                 'programStudi',
@@ -358,10 +429,33 @@ class WelcomeController extends Controller
             ->whereHas('semproDefenses', function ($query): void {
                 $query->where('status', 'completed');
             })
+            ->when($program !== '', function ($query) use ($program): void {
+                $query->whereHas('programStudi', function ($programQuery) use ($program): void {
+                    $programQuery->where('slug', $program);
+                });
+            })
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($innerQuery) use ($search): void {
+                    $innerQuery
+                        ->whereHas('student', function ($studentQuery) use ($search): void {
+                            $studentQuery->where('name', 'like', "%{$search}%")
+                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
+                                    $profileQuery->where('nim', 'like', "%{$search}%");
+                                });
+                        })
+                        ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
+                            $programQuery->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('latestTitle', function ($titleQuery) use ($search): void {
+                            $titleQuery->where('title_id', 'like', "%{$search}%")
+                                ->orWhere('title_en', 'like', "%{$search}%")
+                                ->orWhere('proposal_summary', 'like', "%{$search}%");
+                        });
+                });
+            })
             ->orderByDesc('latest_sempro_at')
-            ->limit(30)
-            ->get()
-            ->map(function (ThesisProject $project): array {
+            ->simplePaginate(perPage: 10, pageName: 'page', page: $page)
+            ->through(function (ThesisProject $project): array {
                 $latestSempro = $project->semproDefenses->first();
 
                 return [
@@ -384,6 +478,45 @@ class WelcomeController extends Controller
                         ->all(),
                 ];
             })
+            ->withQueryString();
+
+        return [
+            'items' => $paginator->items(),
+            'pagination' => $this->simplePaginationData($paginator),
+        ];
+    }
+
+    /**
+     * @return Collection<int, array<string, string>>
+     */
+    private function topicPrograms(): Collection
+    {
+        return ThesisProject::query()
+            ->with('programStudi')
+            ->whereHas('activeSupervisorAssignments', function ($query): void {
+                $query->where('status', 'active');
+            })
+            ->whereHas('semproDefenses', function ($query): void {
+                $query->where('status', 'completed');
+            })
+            ->get()
+            ->map(fn(ThesisProject $project): array => [
+                'programSlug' => $project->programStudi?->slug ?? 'umum',
+                'programStudi' => $project->programStudi?->name ?? '-',
+            ])
+            ->unique('programSlug')
+            ->sortBy('programStudi')
             ->values();
+    }
+
+    private function simplePaginationData($paginator): array
+    {
+        return [
+            'currentPage' => $paginator->currentPage(),
+            'perPage' => $paginator->perPage(),
+            'hasMorePages' => $paginator->hasMorePages(),
+            'nextPage' => $paginator->hasMorePages() ? $paginator->currentPage() + 1 : null,
+            'previousPage' => $paginator->onFirstPage() ? null : $paginator->currentPage() - 1,
+        ];
     }
 }
