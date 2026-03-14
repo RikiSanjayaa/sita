@@ -74,7 +74,7 @@ function ScheduleTable({
         <Card className="shadow-sm">
             <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>{title}</CardTitle>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span>
                         Menampilkan {rangeStart}-{rangeEnd}
                     </span>
@@ -85,38 +85,16 @@ function ScheduleTable({
             </CardHeader>
             <CardContent className="space-y-4">
                 {items.length > 0 ? (
-                    <div className="overflow-x-auto rounded-xl border">
-                        <table className="w-full min-w-[760px] text-sm">
-                            <thead className="bg-muted/30 text-left">
-                                <tr>
-                                    <th className="px-4 py-3 font-semibold">
-                                        Jenis
-                                    </th>
-                                    <th className="px-4 py-3 font-semibold">
-                                        Waktu
-                                    </th>
-                                    <th className="px-4 py-3 font-semibold">
-                                        Mahasiswa
-                                    </th>
-                                    <th className="px-4 py-3 font-semibold">
-                                        Prodi
-                                    </th>
-                                    <th className="px-4 py-3 font-semibold">
-                                        Judul
-                                    </th>
-                                    <th className="px-4 py-3 font-semibold">
-                                        Lokasi
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {items.map((item) => (
-                                    <tr
-                                        key={`${title}-${item.id}`}
-                                        className="border-t align-top"
-                                    >
-                                        <td className="px-4 py-3">
-                                            <div className="flex flex-col gap-2">
+                    <div className="space-y-3">
+                        <div className="grid gap-3 md:hidden">
+                            {items.map((item) => (
+                                <div
+                                    key={`${title}-${item.id}`}
+                                    className="rounded-xl border bg-background p-4"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="space-y-2">
+                                            <div className="flex flex-wrap gap-2">
                                                 <Badge
                                                     className={
                                                         item.type === 'sempro'
@@ -137,38 +115,146 @@ function ScheduleTable({
                                                     {item.statusLabel}
                                                 </Badge>
                                             </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-muted-foreground">
+                                            <div>
+                                                <p className="font-medium text-foreground">
+                                                    {item.studentName}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {item.studentNim}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right text-sm text-muted-foreground">
                                             {item.scheduledFor ?? '-'}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-foreground">
-                                                {item.studentName}
-                                            </div>
-                                            <div className="text-muted-foreground">
-                                                {item.studentNim}
-                                            </div>
-                                            {item.statusDetail ? (
-                                                <div className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
-                                                    {item.statusDetail}
-                                                </div>
-                                            ) : null}
-                                        </td>
-                                        <td className="px-4 py-3 text-muted-foreground">
-                                            {item.programStudi}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="max-w-md leading-6 font-medium text-foreground">
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 space-y-3 text-sm">
+                                        <div>
+                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                Prodi
+                                            </p>
+                                            <p className="mt-1 text-foreground">
+                                                {item.programStudi}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                Judul
+                                            </p>
+                                            <p className="mt-1 leading-6 font-medium text-foreground">
                                                 {item.title}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                Lokasi
+                                            </p>
+                                            <p className="mt-1 text-muted-foreground">
+                                                {item.location} ({item.mode})
+                                            </p>
+                                        </div>
+                                        {item.statusDetail ? (
+                                            <div>
+                                                <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                    Detail
+                                                </p>
+                                                <p className="mt-1 leading-5 text-muted-foreground">
+                                                    {item.statusDetail}
+                                                </p>
                                             </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-muted-foreground">
-                                            {item.location} ({item.mode})
-                                        </td>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="hidden overflow-x-auto rounded-xl border md:block">
+                            <table className="w-full min-w-[760px] text-sm">
+                                <thead className="bg-muted/30 text-left">
+                                    <tr>
+                                        <th className="px-4 py-3 font-semibold">
+                                            Jenis
+                                        </th>
+                                        <th className="px-4 py-3 font-semibold">
+                                            Waktu
+                                        </th>
+                                        <th className="px-4 py-3 font-semibold">
+                                            Mahasiswa
+                                        </th>
+                                        <th className="px-4 py-3 font-semibold">
+                                            Prodi
+                                        </th>
+                                        <th className="px-4 py-3 font-semibold">
+                                            Judul
+                                        </th>
+                                        <th className="px-4 py-3 font-semibold">
+                                            Lokasi
+                                        </th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {items.map((item) => (
+                                        <tr
+                                            key={`${title}-${item.id}`}
+                                            className="border-t align-top"
+                                        >
+                                            <td className="px-4 py-3">
+                                                <div className="flex flex-col gap-2">
+                                                    <Badge
+                                                        className={
+                                                            item.type ===
+                                                            'sempro'
+                                                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                                : 'bg-emerald-600 text-white hover:bg-emerald-600/90'
+                                                        }
+                                                    >
+                                                        {item.typeLabel}
+                                                    </Badge>
+                                                    <Badge
+                                                        variant="soft"
+                                                        className={
+                                                            statusClassName[
+                                                                item.statusTone
+                                                            ]
+                                                        }
+                                                    >
+                                                        {item.statusLabel}
+                                                    </Badge>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                {item.scheduledFor ?? '-'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="font-medium text-foreground">
+                                                    {item.studentName}
+                                                </div>
+                                                <div className="text-muted-foreground">
+                                                    {item.studentNim}
+                                                </div>
+                                                {item.statusDetail ? (
+                                                    <div className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
+                                                        {item.statusDetail}
+                                                    </div>
+                                                ) : null}
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                {item.programStudi}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="max-w-md leading-6 font-medium text-foreground">
+                                                    {item.title}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                {item.location} ({item.mode})
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 ) : (
                     <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
@@ -176,7 +262,7 @@ function ScheduleTable({
                     </div>
                 )}
 
-                <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                     <Button
                         type="button"
                         variant="outline"
