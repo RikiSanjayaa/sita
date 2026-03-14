@@ -130,6 +130,27 @@ class WelcomeController extends Controller
             })
             ->count();
 
+        $activeStudentCount = User::query()
+            ->whereHas('roles', function ($query): void {
+                $query->where('name', AppRole::Mahasiswa->value);
+            })
+            ->whereHas('mahasiswaProfile', function ($query): void {
+                $query->where('is_active', true);
+            })
+            ->where(function ($query): void {
+                $query->whereDoesntHave('thesisProjects')
+                    ->orWhereHas('thesisProjects', function ($projectQuery): void {
+                        $projectQuery->where(function ($visibleProjectQuery): void {
+                            $visibleProjectQuery->whereDoesntHave('defenses', function ($defenseQuery): void {
+                                $defenseQuery->where('type', 'sidang')
+                                    ->where('status', 'completed')
+                                    ->where('result', 'pass');
+                            });
+                        });
+                    });
+            })
+            ->count();
+
         $topicCount = ThesisProject::query()
             ->whereHas('activeSupervisorAssignments', function ($query): void {
                 $query->where('status', 'active');
@@ -147,6 +168,10 @@ class WelcomeController extends Controller
             [
                 'label' => 'Dosen',
                 'value' => (string) $advisorCount,
+            ],
+            [
+                'label' => 'Mahasiswa Aktif',
+                'value' => (string) $activeStudentCount,
             ],
             [
                 'label' => 'Topik',

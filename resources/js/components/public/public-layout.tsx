@@ -43,16 +43,16 @@ export function PublicLayout({
                     <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between px-5 py-4 lg:px-6">
                         <Link
                             href={home().url}
-                            className="flex items-center gap-3"
+                            className="flex min-w-0 items-center gap-3"
                         >
-                            <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                                 <AppLogoIcon className="size-5" />
                             </span>
-                            <div className="grid leading-tight">
-                                <span className="text-sm font-semibold">
+                            <div className="grid min-w-0 leading-tight">
+                                <span className="truncate text-[15px] font-semibold sm:text-sm">
                                     SiTA Universitas Bumigora
                                 </span>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
                                     Sistem Informasi Tugas Akhir
                                 </span>
                             </div>
@@ -77,14 +77,23 @@ export function PublicLayout({
 
                         <div className="flex items-center gap-2">
                             {isAuthenticated ? (
-                                <Button asChild>
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    className="h-10 rounded-lg px-4"
+                                >
                                     <Link href={dashboard().url}>
                                         Dashboard
                                         <ArrowRight className="size-4" />
                                     </Link>
                                 </Button>
                             ) : (
-                                <Button asChild>
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-10 rounded-lg px-4"
+                                >
                                     <Link href={login().url}>Masuk</Link>
                                 </Button>
                             )}
@@ -97,7 +106,7 @@ export function PublicLayout({
                                 key={item.id}
                                 href={item.href}
                                 className={cn(
-                                    'rounded-full border px-3 py-2 text-sm transition-colors',
+                                    'rounded-full border px-3 py-2 text-[13px] transition-colors sm:text-sm',
                                     active === item.id
                                         ? 'border-primary bg-primary text-primary-foreground'
                                         : 'text-muted-foreground hover:bg-muted hover:text-foreground',
