@@ -15,11 +15,14 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Support\Enums\Alignment;
 use Illuminate\Support\Facades\Auth;
 
 class ViewThesisProject extends ViewRecord
 {
     protected static string $resource = ThesisProjectResource::class;
+
+    protected ?Alignment $headerActionsAlignment = Alignment::End;
 
     protected function getHeaderActions(): array
     {
