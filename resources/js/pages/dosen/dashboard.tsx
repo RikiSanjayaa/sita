@@ -112,25 +112,25 @@ export default function DosenDashboardPage() {
         description: string;
         icon: LucideIcon;
     }> = [
-            {
-                title: 'Mahasiswa tetap terpantau',
-                description:
-                    'Pantau progres, dokumen, dan komunikasi tanpa berpindah konteks terlalu jauh.',
-                icon: Users,
-            },
-            {
-                title: 'Agenda lebih terstruktur',
-                description:
-                    'Kalender bimbingan, sempro, dan sidang tetap berada dalam workspace yang sama.',
-                icon: Layers3,
-            },
-            {
-                title: 'Respons lebih terjaga',
-                description:
-                    'Gunakan ringkasan status untuk menangkap hal yang perlu segera ditindaklanjuti.',
-                icon: ShieldCheck,
-            },
-        ];
+        {
+            title: 'Mahasiswa tetap terpantau',
+            description:
+                'Pantau progres, dokumen, dan komunikasi tanpa berpindah konteks terlalu jauh.',
+            icon: Users,
+        },
+        {
+            title: 'Agenda lebih terstruktur',
+            description:
+                'Kalender bimbingan, sempro, dan sidang tetap berada dalam workspace yang sama.',
+            icon: Layers3,
+        },
+        {
+            title: 'Respons lebih terjaga',
+            description:
+                'Gunakan ringkasan status untuk menangkap hal yang perlu segera ditindaklanjuti.',
+            icon: ShieldCheck,
+        },
+    ];
 
     return (
         <DosenLayout
@@ -203,7 +203,7 @@ export default function DosenDashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="rounded-3xl border bg-white/90 dark:bg-black/90 p-5 shadow-sm backdrop-blur">
+                            <div className="rounded-3xl border bg-white/90 p-5 shadow-sm backdrop-blur dark:bg-black/90">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
                                         <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">

@@ -22,7 +22,7 @@ class PortalController extends Controller
         $dashboardRouteName = $role->dashboardRouteName();
 
         if ($role->isAdminRole()) {
-            return \Inertia\Inertia::location(route($dashboardRouteName));
+            return \Inertia\Inertia::location(filament()->getPanel('admin')?->getUrl() ?? url('/admin'));
         }
 
         return redirect()->route($dashboardRouteName);

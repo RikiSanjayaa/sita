@@ -28,7 +28,7 @@ class RoleSwitchController extends Controller
         $dashboardRouteName = AppRole::from($role)->dashboardRouteName();
 
         if ($role === AppRole::Admin->value) {
-            return \Inertia\Inertia::location(route($dashboardRouteName));
+            return \Inertia\Inertia::location(filament()->getPanel('admin')?->getUrl() ?? url('/admin'));
         }
 
         return redirect()->route($dashboardRouteName);
