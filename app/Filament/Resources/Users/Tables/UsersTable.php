@@ -5,12 +5,17 @@ namespace App\Filament\Resources\Users\Tables;
 use App\Enums\AppRole;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\ColumnManagerResetActionPosition;
+use Filament\Tables\Enums\FiltersResetActionPosition;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,23 +28,28 @@ class UsersTable
             ->columns([
                 TextColumn::make('name')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('email')
                     ->label('Email address')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('role')
                     ->label('Role')
                     ->badge()
-                    ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-'),
+                    ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-')
+                    ->toggleable(),
                 TextColumn::make('mahasiswaProfile.nim')
                     ->label('NIM')
                     ->searchable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa'))
+                    ->toggleable(),
                 TextColumn::make('dosenProfile.nik')
                     ->label('NIK')
                     ->searchable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
+                    ->toggleable(),
                 TextColumn::make('prodi')
                     ->label('Prodi')
                     ->state(fn(?User $record): string => $record?->mahasiswaProfile?->programStudi?->name ?? $record?->dosenProfile?->programStudi?->name ?? $record?->adminProfile?->programStudi?->name ?? '-')
@@ -47,7 +57,8 @@ class UsersTable
                         return $query->whereHas('mahasiswaProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
                             ->orWhereHas('dosenProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
                             ->orWhereHas('adminProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"));
-                    }),
+                    })
+                    ->toggleable(),
                 TextColumn::make('concentration')
                     ->label('Konsentrasi')
                     ->state(fn(?User $record): string => $record?->mahasiswaProfile?->concentration ?? $record?->dosenProfile?->concentration ?? '-')
@@ -55,36 +66,42 @@ class UsersTable
                         return $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', 'like', "%{$search}%"))
                             ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', 'like', "%{$search}%"));
                     })
-                    ->visible(fn(HasTable $livewire): bool => in_array($livewire->activeTab ?? null, ['mahasiswa', 'dosen'], true)),
+                    ->visible(fn(HasTable $livewire): bool => in_array($livewire->activeTab ?? null, ['mahasiswa', 'dosen'], true))
+                    ->toggleable(),
                 TextColumn::make('active_primary_supervision_count')
                     ->label('B1 Aktif')
                     ->numeric()
                     ->sortable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
+                    ->toggleable(),
                 TextColumn::make('active_secondary_supervision_count')
                     ->label('B2 Aktif')
                     ->numeric()
                     ->sortable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
+                    ->toggleable(),
                 TextColumn::make('scheduled_sempro_examiner_count')
                     ->label('Sempro')
                     ->numeric()
                     ->sortable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
+                    ->toggleable(),
                 TextColumn::make('scheduled_sidang_examiner_count')
                     ->label('Sidang')
                     ->numeric()
                     ->sortable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
+                    ->toggleable(),
                 TextColumn::make('dosenProfile.supervision_quota')
                     ->label('Kuota')
                     ->numeric()
                     ->sortable()
-                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen')),
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('role')
@@ -97,6 +114,24 @@ class UsersTable
                         }
 
                         return $query->whereHas('roles', static fn($roleQuery) => $roleQuery->where('name', $value));
+                    }),
+                SelectFilter::make('program_studi_id')
+                    ->label('Program Studi')
+                    ->options(fn(): array => ProgramStudi::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->preload()
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->where(function (Builder $subQuery) use ($value): void {
+                            $subQuery->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('program_studi_id', $value))
+                                ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('program_studi_id', $value))
+                                ->orWhereHas('adminProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('program_studi_id', $value));
+                        });
                     }),
                 SelectFilter::make('concentration')
                     ->label('Konsentrasi')
@@ -115,7 +150,23 @@ class UsersTable
                                 ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', $value));
                         });
                     }),
+                Filter::make('active_profiles')
+                    ->label('Hanya profil aktif')
+                    ->toggle()
+                    ->query(function (Builder $query): Builder {
+                        return $query->where(function (Builder $subQuery): void {
+                            $subQuery->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('is_active', true))
+                                ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('is_active', true));
+                        });
+                    }),
             ])
+            ->filtersFormColumns(2)
+            ->filtersFormWidth(Width::FiveExtraLarge)
+            ->filtersTriggerAction(fn(Action $action): Action => $action->button()->label('Filter Pengguna'))
+            ->filtersApplyAction(fn(Action $action): Action => $action->label('Terapkan Filter'))
+            ->filtersResetActionPosition(FiltersResetActionPosition::Footer)
+            ->columnManagerColumns(2)
+            ->columnManagerResetActionPosition(ColumnManagerResetActionPosition::Footer)
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),

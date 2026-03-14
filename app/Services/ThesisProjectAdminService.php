@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AdvisorType;
+use App\Enums\AppRole;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\ThesisDefense;
@@ -13,6 +14,7 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -674,5 +676,50 @@ class ThesisProjectAdminService
             'payload' => null,
             'occurred_at' => $occurredAt,
         ]);
+
+        $this->notifyAdminsAboutEvent(
+            project: $project,
+            actorUserId: $actorUserId,
+            title: $label,
+            body: $description,
+        );
+    }
+
+    private function notifyAdminsAboutEvent(
+        ThesisProject $project,
+        ?int $actorUserId,
+        string $title,
+        ?string $body,
+    ): void {
+        $project->loadMissing([
+            'student',
+            'programStudi',
+        ]);
+
+        $recipients = User::query()
+            ->where(function ($query) use ($project): void {
+                $query->whereHas('roles', function ($roleQuery): void {
+                    $roleQuery->where('name', AppRole::SuperAdmin->value);
+                })->orWhere(function ($adminQuery) use ($project): void {
+                    $adminQuery->whereHas('roles', function ($roleQuery): void {
+                        $roleQuery->where('name', AppRole::Admin->value);
+                    })->whereHas('adminProfile', function ($profileQuery) use ($project): void {
+                        $profileQuery->where('program_studi_id', $project->program_studi_id);
+                    });
+                });
+            })
+            ->get();
+
+        foreach ($recipients as $recipient) {
+            Notification::make()
+                ->title($title)
+                ->body(trim(implode(' - ', array_filter([
+                    $project->student?->name,
+                    $project->programStudi?->name,
+                    $body,
+                ]))))
+                ->icon('heroicon-o-bell-alert')
+                ->sendToDatabase($recipient, isEventDispatched: true);
+        }
     }
 }

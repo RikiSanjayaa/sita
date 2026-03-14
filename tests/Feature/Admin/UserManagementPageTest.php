@@ -80,6 +80,38 @@ test('super admin can see all users from all prodi', function (): void {
         ->assertCanSeeTableRecords([$studentB]);
 });
 
+test('super admin can filter users by program studi in filament users page', function (): void {
+    $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $prodiB = ProgramStudi::factory()->create(['name' => 'Teknologi Informasi']);
+
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+
+    $studentA = User::factory()->asMahasiswa()->create(['name' => 'Student A']);
+    MahasiswaProfile::create([
+        'user_id' => $studentA->id,
+        'nim' => '111',
+        'program_studi_id' => $prodiA->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $studentB = User::factory()->asMahasiswa()->create(['name' => 'Student B']);
+    MahasiswaProfile::create([
+        'user_id' => $studentB->id,
+        'nim' => '222',
+        'program_studi_id' => $prodiB->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($superAdmin);
+
+    Livewire::test(ListUsers::class)
+        ->filterTable('program_studi_id', $prodiA->id)
+        ->assertCanSeeTableRecords([$studentA])
+        ->assertCanNotSeeTableRecords([$studentB]);
+});
+
 test('mahasiswa cannot open filament users management page', function (): void {
     $mahasiswa = User::factory()->asMahasiswa()->create();
 

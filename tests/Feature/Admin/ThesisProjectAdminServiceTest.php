@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AdvisorType;
+use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
@@ -18,10 +19,16 @@ use App\Services\ThesisProjectAdminService;
 
 test('admin service schedules sempro from thesis project aggregate without creating legacy sempro rows', function (): void {
     $admin = User::factory()->asAdmin()->create();
+    $superAdmin = User::factory()->asSuperAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
     $dosenA = User::factory()->asDosen()->create();
     $dosenB = User::factory()->asDosen()->create();
     $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
 
     MahasiswaProfile::query()->create([
         'user_id' => $student->id,
@@ -70,6 +77,8 @@ test('admin service schedules sempro from thesis project aggregate without creat
         ->and(MentorshipChatThreadParticipant::query()->where('role', 'student')->count())->toBe(1)
         ->and(MentorshipChatThreadParticipant::query()->where('role', 'examiner')->count())->toBe(2)
         ->and(ThesisProjectEvent::query()->where('event_type', 'sempro_scheduled')->count())->toBe(1)
+        ->and($admin->notifications()->count())->toBe(1)
+        ->and($superAdmin->notifications()->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sempro');
 });
 
