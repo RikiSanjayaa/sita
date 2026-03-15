@@ -1,8 +1,13 @@
 <?php
 
 use App\Enums\AppRole;
+use App\Http\Responses\LoginResponse;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use Laravel\Fortify\Fortify;
 
 function createUserWithRoles(array $roles, ?string $activeRole = null): User
 {
@@ -44,7 +49,7 @@ test('admin can only access admin area', function () {
 
     $this->actingAs($user);
 
-    $this->get('/admin')->assertOk();
+    $this->followingRedirects()->get('/admin')->assertOk();
     $this->get('/mahasiswa/dashboard')->assertForbidden();
     $this->get('/dosen/dashboard')->assertForbidden();
 });
@@ -54,7 +59,7 @@ test('super admin can access admin area', function () {
 
     $this->actingAs($user);
 
-    $this->get('/admin')->assertOk();
+    $this->followingRedirects()->get('/admin')->assertOk();
     $this->get('/mahasiswa/dashboard')->assertForbidden();
     $this->get('/dosen/dashboard')->assertForbidden();
 });
@@ -100,9 +105,24 @@ test('panel-specific admin login page is enabled', function () {
 
 test('admin-only user cannot login via regular /login', function () {
     $admin = createUserWithRoles([AppRole::Admin->value], AppRole::Admin->value);
+    $session = app('session.store');
+    $session->start();
 
-    $this->post('/login', [
-        'email' => $admin->email,
-        'password' => 'password',
-    ])->assertSessionHasErrors(['email' => 'Admin harus login melalui halaman /admin/login.']);
+    $request = Request::create('/login', 'POST');
+    $request->setLaravelSession($session);
+    $request->setUserResolver(fn (): User => $admin);
+
+    Auth::guard('web')->login($admin);
+
+    try {
+        app(LoginResponse::class)->toResponse($request);
+
+        $this->fail('Expected admin-only login through /login to be rejected.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toBe([
+            Fortify::username() => ['Admin harus login melalui halaman /admin/login.'],
+        ]);
+    }
+
+    $this->assertGuest();
 });
