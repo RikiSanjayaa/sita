@@ -16,6 +16,7 @@ import {
     BimbinganCalendar,
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
+import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -492,6 +493,25 @@ export default function DosenSeminarProposalPage() {
         SharedData & PageProps
     >().props;
     const [search, setSearch] = useState('');
+    const [selectedEvent, setSelectedEvent] = useState<{
+        id: number;
+        topic: string;
+        person: string;
+        personRole: 'lecturer' | 'student';
+        start: string;
+        end: string;
+        location: string;
+        status:
+            | 'scheduled'
+            | 'pending'
+            | 'approved'
+            | 'rescheduled'
+            | 'rejected'
+            | 'completed'
+            | 'cancelled';
+        notes?: string | null;
+    } | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const sortByScheduledForDesc = (items: DefenseItem[]) =>
         [...items].sort((a, b) => {
             const aTime = a.scheduledFor
@@ -579,6 +599,28 @@ export default function DosenSeminarProposalPage() {
         visibleSidangReviewedCount,
     );
 
+    function handleEventClick(event: BimbinganEvent) {
+        const scheduleId = Number(
+            String(event.id).replace('defense-', '').replace('schedule-', ''),
+        );
+
+        setSelectedEvent({
+            id: Number.isNaN(scheduleId) ? 0 : scheduleId,
+            topic:
+                event.title === event.topic
+                    ? event.topic
+                    : `${event.title} - ${event.topic}`,
+            person: event.person,
+            personRole: event.personRole,
+            start: event.start,
+            end: event.end,
+            location: event.location,
+            status: event.status,
+            notes: null,
+        });
+        setIsDetailModalOpen(true);
+    }
+
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
@@ -651,6 +693,7 @@ export default function DosenSeminarProposalPage() {
                     <CardContent>
                         <BimbinganCalendar
                             events={filteredWorkspaceEvents}
+                            onEventClick={handleEventClick}
                             defaultView="calendar"
                             showLegend={false}
                         />
@@ -860,6 +903,13 @@ export default function DosenSeminarProposalPage() {
                     </div>
                 )}
             </div>
+
+            <ScheduleDetailModal
+                open={isDetailModalOpen}
+                onOpenChange={setIsDetailModalOpen}
+                schedule={selectedEvent}
+                currentUserRole="dosen"
+            />
         </DosenLayout>
     );
 }
