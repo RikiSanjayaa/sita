@@ -9,8 +9,6 @@ use Illuminate\Contracts\Support\Htmlable;
 
 class Login extends BaseLogin
 {
-    protected string $view = 'filament.pages.auth.login';
-
     public function getTitle(): string|Htmlable
     {
         return 'Login Admin';
