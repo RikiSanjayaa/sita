@@ -9,6 +9,7 @@ use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
+use App\Models\ThesisSupervisorAssignment;
 use App\Services\DosenBimbinganService;
 use App\Services\UserProfilePresenter;
 use Illuminate\Http\Request;
@@ -66,6 +67,16 @@ class MahasiswaBimbinganController extends Controller
                 'name' => $student?->name ?? '-',
                 'avatar' => $studentSummary['avatar'] ?? null,
                 'advisorType' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
+                'otherAdvisors' => $project?->activeSupervisorAssignments
+                    ->filter(fn(ThesisSupervisorAssignment $activeAssignment): bool => $activeAssignment->lecturer_user_id !== $assignment->lecturer_user_id)
+                    ->sortBy('role')
+                    ->map(fn(ThesisSupervisorAssignment $activeAssignment): string => sprintf(
+                        '%s: %s',
+                        $activeAssignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
+                        $activeAssignment->lecturer?->name ?? '-',
+                    ))
+                    ->values()
+                    ->all() ?? [],
                 'stageLabel' => $stage['label'],
                 'stageDescription' => $stage['description'],
                 'status' => $isActive ? 'Aktif' : 'Nonaktif',

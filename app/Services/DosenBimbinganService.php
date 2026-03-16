@@ -16,7 +16,12 @@ class DosenBimbinganService
     public function activeAssignmentsWithStudent(User $lecturer): Collection
     {
         return ThesisSupervisorAssignment::query()
-            ->with(['project.student.mahasiswaProfile', 'project.defenses'])
+            ->with([
+                'project.student.mahasiswaProfile',
+                'project.defenses',
+                'project.activeSupervisorAssignments.lecturer.dosenProfile.programStudi',
+                'project.activeSupervisorAssignments.lecturer.roles',
+            ])
             ->where('lecturer_user_id', $lecturer->id)
             ->where('status', 'active')
             ->get();

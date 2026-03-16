@@ -26,6 +26,7 @@ type MahasiswaRow = {
     name: string;
     avatar: string | null;
     advisorType: string;
+    otherAdvisors: string[];
     stageLabel: string;
     stageDescription: string;
     status: string;
@@ -126,6 +127,15 @@ export default function DosenMahasiswaBimbinganPage() {
                                                 <div className="grid gap-1 text-sm text-muted-foreground">
                                                     <p>
                                                         {row.stageDescription}
+                                                    </p>
+                                                    <p>
+                                                        Pembimbing lain:{' '}
+                                                        {row.otherAdvisors
+                                                            .length > 0
+                                                            ? row.otherAdvisors.join(
+                                                                  ', ',
+                                                              )
+                                                            : 'Belum ada'}
                                                     </p>
                                                     <p>
                                                         Aktivitas terbaru:{' '}
