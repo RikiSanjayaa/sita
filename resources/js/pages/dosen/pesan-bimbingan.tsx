@@ -68,6 +68,8 @@ type ThreadItem = {
     id: number;
     student: string;
     studentProfile: UserProfileSummary | null;
+    members: string[];
+    memberProfiles: UserProfileSummary[];
     unread: number;
     preview: string;
     lastTime: string;
@@ -613,11 +615,10 @@ export default function DosenPesanBimbinganPage() {
                                 <CardDescription className="inline-flex items-center gap-1">
                                     <Users className="size-3.5 shrink-0" />
                                     <span className="truncate">
-                                        {activeThread.student} -{' '}
-                                        {auth.user?.name}
+                                        {activeThread.members.join(', ')}
                                     </span>
                                 </CardDescription>
-                                {activeThread.studentProfile ? (
+                                {activeThread.memberProfiles.length > 0 ? (
                                     <div className="mt-3 hidden sm:flex">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -627,48 +628,55 @@ export default function DosenPesanBimbinganPage() {
                                                     size="sm"
                                                     className="gap-2"
                                                 >
-                                                    Profil
+                                                    Lihat Peserta
                                                     <ChevronDown className="size-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="start">
-                                                <DropdownMenuItem asChild>
-                                                    <Link
-                                                        href={
-                                                            activeThread
-                                                                .studentProfile
-                                                                .profileUrl
-                                                        }
-                                                        className="flex items-center gap-2"
-                                                    >
-                                                        <Avatar className="size-7 border">
-                                                            <AvatarImage
-                                                                src={
-                                                                    activeThread
-                                                                        .studentProfile
-                                                                        .avatar ??
-                                                                    undefined
+                                                {activeThread.memberProfiles.map(
+                                                    (member) => (
+                                                        <DropdownMenuItem
+                                                            key={member.id}
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={
+                                                                    member.profileUrl
                                                                 }
-                                                                alt={
-                                                                    activeThread
-                                                                        .studentProfile
-                                                                        .name
-                                                                }
-                                                            />
-                                                            <AvatarFallback className="bg-primary/10 text-primary">
-                                                                {getInitials(
-                                                                    activeThread
-                                                                        .studentProfile
-                                                                        .name,
-                                                                )}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <span>
-                                                            Lihat profil
-                                                            mahasiswa
-                                                        </span>
-                                                    </Link>
-                                                </DropdownMenuItem>
+                                                                className="flex min-w-0 items-center gap-2"
+                                                            >
+                                                                <Avatar className="size-7 border">
+                                                                    <AvatarImage
+                                                                        src={
+                                                                            member.avatar ??
+                                                                            undefined
+                                                                        }
+                                                                        alt={
+                                                                            member.name
+                                                                        }
+                                                                    />
+                                                                    <AvatarFallback className="bg-primary/10 text-primary">
+                                                                        {getInitials(
+                                                                            member.name,
+                                                                        )}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <div className="min-w-0">
+                                                                    <span className="block truncate">
+                                                                        {
+                                                                            member.name
+                                                                        }
+                                                                    </span>
+                                                                    <span className="block truncate text-xs text-muted-foreground">
+                                                                        {
+                                                                            member.subtitle
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                    ),
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
@@ -764,12 +772,11 @@ export default function DosenPesanBimbinganPage() {
                                 className="hidden"
                                 onChange={pickAttachment}
                             />
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <Button
                                     type="button"
-                                    variant="soft"
+                                    variant="outline"
                                     size="icon"
-                                    className="size-10 shrink-0 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                                     onClick={() => fileRef.current?.click()}
                                     disabled={activeThread === null}
                                 >
@@ -796,11 +803,8 @@ export default function DosenPesanBimbinganPage() {
                                     type="button"
                                     onClick={sendMessage}
                                     disabled={!canSend}
-                                    className="h-10 rounded-full bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90"
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                                 >
-                                    <span className="mr-2 hidden sm:inline-block">
-                                        Kirim
-                                    </span>
                                     <Send className="size-4" />
                                 </Button>
                             </div>

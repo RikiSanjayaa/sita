@@ -8,6 +8,7 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
@@ -58,6 +59,9 @@ class PesanBimbinganController extends Controller
         $threads = MentorshipChatThread::query()
             ->with([
                 'student',
+                'participants.user.roles',
+                'participants.user.mahasiswaProfile.programStudi',
+                'participants.user.dosenProfile.programStudi',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
                 'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
@@ -87,10 +91,37 @@ class PesanBimbinganController extends Controller
                     })
                     ->count();
 
+                $memberProfiles = $thread->type === 'pembimbing'
+                    ? array_values(array_filter([
+                        $this->userProfilePresenter->summary($thread->student),
+                        ...ThesisSupervisorAssignment::query()
+                            ->with(['lecturer.roles', 'lecturer.dosenProfile.programStudi'])
+                            ->whereHas('project', fn($query) => $query
+                                ->where('student_user_id', $thread->student_user_id)
+                                ->where('state', 'active'))
+                            ->where('status', 'active')
+                            ->get()
+                            ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->userProfilePresenter->summary($assignment->lecturer))
+                            ->all(),
+                    ]))
+                    : $thread->participants
+                        ->map(fn(MentorshipChatThreadParticipant $participant): ?array => $this->userProfilePresenter->summary($participant->user))
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                $members = collect($memberProfiles)
+                    ->pluck('name')
+                    ->filter()
+                    ->values()
+                    ->all();
+
                 return [
                     'id' => $thread->id,
                     'student' => $thread->student?->name ?? '-',
                     'studentProfile' => $this->userProfilePresenter->summary($thread->student),
+                    'members' => $members,
+                    'memberProfiles' => $memberProfiles,
                     'unread' => $unreadCount,
                     'preview' => $latestMessage?->message ?? 'Belum ada pesan',
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
