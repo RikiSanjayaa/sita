@@ -16,8 +16,8 @@ export default function AuthSimpleLayout({
     description,
 }: PropsWithChildren<AuthLayoutProps>) {
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
-            <div className="w-full max-w-sm">
+        <div className="flex min-h-dvh flex-col items-center justify-start overflow-y-auto bg-background px-4 py-8 sm:px-6 md:justify-center md:p-10">
+            <div className="w-full max-w-sm pb-6 md:pb-0">
                 <div className="flex flex-col gap-8">
                     <div className="flex flex-col items-center gap-4">
                         <Link

@@ -9,7 +9,8 @@
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",
         "hooks:install": "bash scripts/install-git-hooks.sh",
-        "lint": "eslint . --fix",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
         "types": "tsc --noEmit"
     },
     "devDependencies": {
