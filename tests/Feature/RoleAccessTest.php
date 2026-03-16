@@ -100,7 +100,10 @@ test('authenticated admin opening default login gets redirected to panel', funct
 });
 
 test('panel-specific admin login page is enabled', function () {
-    $this->get('/admin/login')->assertOk();
+    $this->get('/admin/login')
+        ->assertOk()
+        ->assertSee('Masuk ke panel admin')
+        ->assertSee('SiTA Universitas Bumigora');
 });
 
 test('admin-only user cannot login via regular /login', function () {

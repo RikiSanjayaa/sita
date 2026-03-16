@@ -42,7 +42,14 @@ export default [
             'import/order': [
                 'error',
                 {
-                    groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+                    groups: [
+                        'builtin',
+                        'external',
+                        'internal',
+                        'parent',
+                        'sibling',
+                        'index',
+                    ],
                     'newlines-between': 'always',
                     alphabetize: {
                         order: 'asc',
@@ -63,6 +70,8 @@ export default [
             'public',
             'bootstrap/ssr',
             'tailwind.config.js',
+            'resources/js/actions',
+            'resources/js/routes',
             'resources/js/pages/dosen/pesan-bimbingan.tsx',
             'tmp-filament',
             '.*',
