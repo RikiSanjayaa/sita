@@ -144,6 +144,7 @@ test('dosen pages only show data from assigned mahasiswa', function () {
     $admin = User::factory()->asAdmin()->create();
     $dosen = createDosenUser();
     $otherDosen = createDosenUser();
+    $coAdvisor = createDosenUser();
 
     $assignedStudent = createMahasiswaUser('2210519991');
     $otherStudent = createMahasiswaUser('2210519992');
@@ -194,6 +195,21 @@ test('dosen pages only show data from assigned mahasiswa', function () {
         'message' => 'Pesan assigned',
     ]);
 
+    $assignedProject = ThesisProject::query()
+        ->where('student_user_id', $assignedStudent->id)
+        ->where('state', 'active')
+        ->latest('id')
+        ->firstOrFail();
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $assignedProject->id,
+        'lecturer_user_id' => $coAdvisor->id,
+        'role' => AdvisorType::Secondary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now(),
+    ]);
+
     $this->actingAs($dosen)
         ->get(route('dosen.jadwal-bimbingan'))
         ->assertInertia(
@@ -219,6 +235,20 @@ test('dosen pages only show data from assigned mahasiswa', function () {
                 ->component('dosen/pesan-bimbingan')
                 ->has('threads', 1)
                 ->where('threads.0.student', $assignedStudent->name)
+                ->where('threads.0.members.0', $assignedStudent->name)
+                ->where('threads.0.members.1', $dosen->name)
+                ->where('threads.0.members.2', $coAdvisor->name)
+                ->has('threads.0.memberProfiles', 3)
+        );
+
+    $this->actingAs($dosen)
+        ->get(route('dosen.mahasiswa-bimbingan'))
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('dosen/mahasiswa-bimbingan')
+                ->has('mahasiswaRows', 1)
+                ->where('mahasiswaRows.0.name', $assignedStudent->name)
+                ->where('mahasiswaRows.0.otherAdvisors.0', 'Pembimbing 2: '.$coAdvisor->name)
         );
 });
 
