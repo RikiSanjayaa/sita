@@ -91,7 +91,6 @@ export function PublicLayout({
                                 <Button
                                     asChild
                                     size="sm"
-                                    variant="outline"
                                     className="h-10 rounded-lg px-4"
                                 >
                                     <Link href={login().url}>Masuk</Link>

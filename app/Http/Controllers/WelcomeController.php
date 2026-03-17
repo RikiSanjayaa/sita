@@ -152,12 +152,7 @@ class WelcomeController extends Controller
             ->count();
 
         $topicCount = ThesisProject::query()
-            ->whereHas('activeSupervisorAssignments', function ($query): void {
-                $query->where('status', 'active');
-            })
-            ->whereHas('semproDefenses', function ($query): void {
-                $query->where('status', 'completed');
-            })
+            ->where('state', 'completed')
             ->count();
 
         return [
@@ -189,7 +184,6 @@ class WelcomeController extends Controller
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.programStudi',
-                'titleVersion',
             ])
             ->whereIn('type', ['sempro', 'sidang'])
             ->where('status', 'scheduled')
@@ -208,11 +202,6 @@ class WelcomeController extends Controller
                         ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
                             $programQuery->where('name', 'like', "%{$search}%");
                         })
-                        ->orWhereHas('titleVersion', function ($titleQuery) use ($search): void {
-                            $titleQuery->where('title_id', 'like', "%{$search}%")
-                                ->orWhere('title_en', 'like', "%{$search}%")
-                                ->orWhere('proposal_summary', 'like', "%{$search}%");
-                        })
                         ->orWhere('location', 'like', "%{$search}%")
                         ->orWhere('mode', 'like', "%{$search}%");
                 });
@@ -228,7 +217,6 @@ class WelcomeController extends Controller
                     'studentName' => $project?->student?->name ?? '-',
                     'studentNim' => $project?->student?->mahasiswaProfile?->nim ?? '-',
                     'programStudi' => $project?->programStudi?->name ?? '-',
-                    'title' => $defense->titleVersion?->title_id ?? '-',
                     'scheduledAt' => $defense->scheduled_for?->toIso8601String(),
                     'scheduledFor' => $defense->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
                     'location' => $defense->location ?? '-',
@@ -257,7 +245,6 @@ class WelcomeController extends Controller
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.programStudi',
-                'titleVersion',
                 'examiners',
                 'revisions',
             ])
@@ -277,11 +264,6 @@ class WelcomeController extends Controller
                         })
                         ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
                             $programQuery->where('name', 'like', "%{$search}%");
-                        })
-                        ->orWhereHas('titleVersion', function ($titleQuery) use ($search): void {
-                            $titleQuery->where('title_id', 'like', "%{$search}%")
-                                ->orWhere('title_en', 'like', "%{$search}%")
-                                ->orWhere('proposal_summary', 'like', "%{$search}%");
                         })
                         ->orWhere('location', 'like', "%{$search}%")
                         ->orWhere('mode', 'like', "%{$search}%");
@@ -337,7 +319,6 @@ class WelcomeController extends Controller
                     'studentName' => $project?->student?->name ?? '-',
                     'studentNim' => $project?->student?->mahasiswaProfile?->nim ?? '-',
                     'programStudi' => $project?->programStudi?->name ?? '-',
-                    'title' => $defense->titleVersion?->title_id ?? '-',
                     'scheduledAt' => $defense->scheduled_for?->toIso8601String(),
                     'scheduledFor' => $defense->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
                     'location' => $defense->location ?? '-',
@@ -457,26 +438,21 @@ class WelcomeController extends Controller
                 'latestTitle',
                 'programStudi',
                 'student.mahasiswaProfile',
-                'activeSupervisorAssignments' => function ($query): void {
+                'supervisorAssignments' => function ($query): void {
                     $query->orderBy('role');
                 },
-                'activeSupervisorAssignments.lecturer',
-                'semproDefenses' => function ($query): void {
+                'supervisorAssignments.lecturer',
+                'sidangDefenses' => function ($query): void {
                     $query->where('status', 'completed')
                         ->orderByDesc('scheduled_for');
                 },
             ])
             ->withMax([
-                'semproDefenses as latest_sempro_at' => function ($query): void {
+                'sidangDefenses as latest_sidang_at' => function ($query): void {
                     $query->where('status', 'completed');
                 },
             ], 'scheduled_for')
-            ->whereHas('activeSupervisorAssignments', function ($query): void {
-                $query->where('status', 'active');
-            })
-            ->whereHas('semproDefenses', function ($query): void {
-                $query->where('status', 'completed');
-            })
+            ->where('state', 'completed')
             ->when($program !== '', function ($query) use ($program): void {
                 $query->whereHas('programStudi', function ($programQuery) use ($program): void {
                     $programQuery->where('slug', $program);
@@ -501,10 +477,15 @@ class WelcomeController extends Controller
                         });
                 });
             })
-            ->orderByDesc('latest_sempro_at')
+            ->orderByDesc('latest_sidang_at')
             ->simplePaginate(perPage: 10, pageName: 'page', page: $page)
             ->through(function (ThesisProject $project): array {
-                $latestSempro = $project->semproDefenses->first();
+                $latestSidang = $project->sidangDefenses->first();
+                $displayAdvisors = $project->supervisorAssignments
+                    ->sortByDesc(fn($assignment): int => $assignment->started_at?->getTimestamp() ?? 0)
+                    ->unique('role')
+                    ->sortBy('role')
+                    ->values();
 
                 return [
                     'id' => $project->id,
@@ -515,9 +496,9 @@ class WelcomeController extends Controller
                     'title' => $project->latestTitle?->title_id ?? '-',
                     'titleEn' => $project->latestTitle?->title_en ?? '-',
                     'summary' => $project->latestTitle?->proposal_summary ?? '-',
-                    'year' => $latestSempro?->scheduled_for?->format('Y') ?? '-',
-                    'seminarDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
-                    'advisors' => $project->activeSupervisorAssignments
+                    'year' => $latestSidang?->scheduled_for?->format('Y') ?? '-',
+                    'seminarDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+                    'advisors' => $displayAdvisors
                         ->map(fn($assignment): array => [
                             'name' => $assignment->lecturer?->name ?? '-',
                             'label' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
@@ -541,12 +522,7 @@ class WelcomeController extends Controller
     {
         return ThesisProject::query()
             ->with('programStudi')
-            ->whereHas('activeSupervisorAssignments', function ($query): void {
-                $query->where('status', 'active');
-            })
-            ->whereHas('semproDefenses', function ($query): void {
-                $query->where('status', 'completed');
-            })
+            ->where('state', 'completed')
             ->get()
             ->map(fn(ThesisProject $project): array => [
                 'programSlug' => $project->programStudi?->slug ?? 'umum',
@@ -579,11 +555,6 @@ class WelcomeController extends Controller
                                 ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
                                     $programQuery->where('name', 'like', "%{$search}%");
                                 });
-                        })
-                        ->orWhereHas('thesisProjects.latestTitle', function ($titleQuery) use ($search): void {
-                            $titleQuery->where('title_id', 'like', "%{$search}%")
-                                ->orWhere('title_en', 'like', "%{$search}%")
-                                ->orWhere('proposal_summary', 'like', "%{$search}%");
                         });
                 });
             })
@@ -593,7 +564,6 @@ class WelcomeController extends Controller
                     $query->orderByDesc('started_at')
                         ->orderByDesc('id');
                 },
-                'thesisProjects.latestTitle',
                 'thesisProjects.activeSupervisorAssignments.lecturer',
                 'thesisProjects.defenses' => function ($query): void {
                     $query->orderByDesc('attempt_no')
@@ -620,7 +590,6 @@ class WelcomeController extends Controller
                     'programSlug' => $profile?->programStudi?->slug ?? 'umum',
                     'stageLabel' => $stage['label'],
                     'stageDescription' => $stage['description'],
-                    'title' => $project?->latestTitle?->title_id ?? null,
                     'advisors' => $project?->activeSupervisorAssignments
                         ->map(fn($assignment): array => [
                             'name' => $assignment->lecturer?->name ?? '-',

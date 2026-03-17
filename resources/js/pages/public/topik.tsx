@@ -312,7 +312,6 @@ function PublicTopicsContent({
                                                                     <div className="space-y-3 rounded-xl border bg-background p-4">
                                                                         <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
                                                                             Pembimbing
-                                                                            Aktif
                                                                         </p>
                                                                         <div className="flex flex-wrap gap-2">
                                                                             {item.advisors.map(

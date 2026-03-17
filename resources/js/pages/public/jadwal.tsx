@@ -16,7 +16,6 @@ type ScheduleItem = {
     studentName: string;
     studentNim: string;
     programStudi: string;
-    title: string;
     scheduledFor: string | null;
     location: string;
     mode: string;
@@ -140,14 +139,6 @@ function ScheduleTable({
                                         </div>
                                         <div>
                                             <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                Judul
-                                            </p>
-                                            <p className="mt-1 leading-6 font-medium text-foreground">
-                                                {item.title}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
                                                 Lokasi
                                             </p>
                                             <p className="mt-1 text-muted-foreground">
@@ -184,9 +175,6 @@ function ScheduleTable({
                                         </th>
                                         <th className="px-4 py-3 font-semibold">
                                             Prodi
-                                        </th>
-                                        <th className="px-4 py-3 font-semibold">
-                                            Judul
                                         </th>
                                         <th className="px-4 py-3 font-semibold">
                                             Lokasi
@@ -241,11 +229,6 @@ function ScheduleTable({
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 {item.programStudi}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="max-w-md leading-6 font-medium text-foreground">
-                                                    {item.title}
-                                                </div>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 {item.location} ({item.mode})
@@ -386,7 +369,7 @@ function PublicSchedulesContent({
                                     onChange={(event) =>
                                         setSearch(event.target.value)
                                     }
-                                    placeholder="Cari mahasiswa, NIM, judul, prodi, atau lokasi..."
+                                    placeholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
                                     className="pl-9"
                                 />
                             </div>
