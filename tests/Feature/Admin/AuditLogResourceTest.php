@@ -104,7 +104,7 @@ test('admin audit log page is scoped by program studi', function (): void {
 
     $this->get(ThesisProjectEventResource::getUrl('index'))
         ->assertOk()
-        ->assertSee('Audit Logs');
+        ->assertSee('Audit Tugas Akhir');
 });
 
 test('super admin can see audit logs across all program studi', function (): void {

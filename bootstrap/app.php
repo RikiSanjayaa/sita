@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return url('/dashboard');
         });
     })
+    ->withEvents()
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
