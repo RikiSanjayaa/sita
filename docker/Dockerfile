@@ -78,8 +78,8 @@ RUN retry() { \
             sleep 5; \
         done; \
     }; \
-    retry 3 sh -c 'apk add --no-cache fcgi postgresql-client postgresql-dev icu-dev && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS' \
-    && docker-php-ext-install pdo_mysql pdo_pgsql bcmath pcntl intl \
+    retry 3 sh -c 'apk add --no-cache fcgi postgresql-client postgresql-dev icu-dev libzip-dev && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS' \
+    && docker-php-ext-install pdo_mysql pdo_pgsql bcmath pcntl intl zip \
     && apk del .build-deps
 
 COPY . .
