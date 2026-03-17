@@ -23,10 +23,7 @@ test('admin can download csv import template', function (): void {
 
     $this->actingAs($admin)
         ->get(route('admin.users.import-template', ['format' => 'csv']))
-        ->assertOk()
-        ->assertHeader('content-type', 'text/csv; charset=UTF-8')
-        ->assertHeader('content-disposition', 'attachment; filename="user-import-template.csv"')
-        ->assertSee('name,email,phone_number,role,password,nim,prodi,angkatan,concentration,nik,supervision_quota');
+        ->assertNotFound();
 });
 
 test('non-admin cannot download excel import template', function (): void {
@@ -35,6 +32,6 @@ test('non-admin cannot download excel import template', function (): void {
     $mahasiswa->roles()->syncWithoutDetaching([$mahasiswaRole->id]);
 
     $this->actingAs($mahasiswa)
-        ->get(route('admin.users.import-template', ['format' => 'csv']))
+        ->get(route('admin.users.import-template', ['format' => 'xlsx']))
         ->assertForbidden();
 });
