@@ -28,17 +28,17 @@ class ThesisProjectEventResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'Audit Logs';
+        return 'Audit Tugas Akhir';
     }
 
     public static function getModelLabel(): string
     {
-        return 'Audit Log';
+        return 'Audit Tugas Akhir';
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Audit Logs';
+        return 'Audit Tugas Akhir';
     }
 
     public static function table(Table $table): Table
