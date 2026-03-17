@@ -49,7 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('panduan', '/mahasiswa/panduan')->name('panduan');
 });
 
-Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'verified', 'role:admin|super_admin'])->group(function () {
     Route::get('admin/import-template.{format}', UserImportTemplateDownloadController::class)
         ->whereIn('format', ['csv', 'xlsx'])
         ->name('admin.users.import-template');

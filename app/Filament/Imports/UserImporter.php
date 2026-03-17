@@ -48,19 +48,21 @@ class UserImporter extends Importer
     {
         return [
             ImportColumn::make('name')
-                ->exampleHeader('name')
+                ->exampleHeader('nama')
                 ->examples(['Muhammad Akbar'])
+                ->guess(['name', 'nama', 'nama_lengkap'])
                 ->requiredMapping()
                 ->rules(['required', 'string', 'max:255']),
             ImportColumn::make('email')
                 ->exampleHeader('email')
                 ->examples(['mahasiswa@sita.test'])
+                ->guess(['email', 'email_utama'])
                 ->requiredMapping()
                 ->rules(['required', 'email', 'max:255']),
             ImportColumn::make('phone_number')
-                ->exampleHeader('phone_number')
+                ->exampleHeader('no_hp')
                 ->examples(['081234567890'])
-                ->guess(['phone_number', 'phone', 'no_hp', 'nomor_hp', 'whatsapp'])
+                ->guess(['phone_number', 'phone', 'no_hp', 'nomor_hp', 'whatsapp', 'telepon'])
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'string', 'max:30']),
             ImportColumn::make('role')
@@ -86,12 +88,6 @@ class UserImporter extends Importer
                 ->guess(['nim'])
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'required_if:role,mahasiswa', 'string', 'max:255']),
-            ImportColumn::make('prodi')
-                ->exampleHeader('prodi')
-                ->examples(['Informatika'])
-                ->guess(['prodi', 'program_studi', 'homebase'])
-                ->fillRecordUsing(fn(): null => null)
-                ->rules(['nullable', 'string', 'max:255']),
             ImportColumn::make('angkatan')
                 ->exampleHeader('angkatan')
                 ->examples(['2022'])
@@ -100,7 +96,7 @@ class UserImporter extends Importer
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'required_if:role,mahasiswa', 'integer', 'between:1990,2100']),
             ImportColumn::make('concentration')
-                ->exampleHeader('concentration')
+                ->exampleHeader('konsentrasi')
                 ->examples(['Jaringan'])
                 ->guess(['concentration', 'konsentrasi'])
                 ->fillRecordUsing(fn(): null => null)
@@ -113,9 +109,9 @@ class UserImporter extends Importer
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'required_if:role,dosen', 'string', 'max:255']),
             ImportColumn::make('supervision_quota')
-                ->exampleHeader('supervision_quota')
+                ->exampleHeader('kuota_bimbingan')
                 ->examples(['12'])
-                ->guess(['supervision_quota', 'quota', 'kuota'])
+                ->guess(['supervision_quota', 'quota', 'kuota', 'kuota_bimbingan'])
                 ->integer()
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'integer', 'min:1']),
@@ -155,10 +151,7 @@ class UserImporter extends Importer
         $user = $this->record;
 
         $data = $this->data;
-        // Override prodi from options
-        if (filled($this->options['program_studi_id'] ?? null)) {
-            $data['prodi'] = $this->options['program_studi_id'];
-        }
+        $data['prodi'] = $this->options['program_studi_id'] ?? null;
 
         app(UserProvisioningService::class)->syncRoleAndProfiles(
             $user,
