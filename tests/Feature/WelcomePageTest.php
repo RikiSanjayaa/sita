@@ -17,7 +17,7 @@ function attachRole(User $user, string $role): void
     $user->roles()->syncWithoutDetaching([$roleModel->id]);
 }
 
-test('public landing pages show schedules, advisors, and sempro topics', function (): void {
+test('public landing pages show schedules, advisors, and finalized thesis topics', function (): void {
     $programStudi = ProgramStudi::query()->create([
         'name' => 'Ilmu Komputer',
         'slug' => 'ilkom',
@@ -115,6 +115,84 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
         'mode' => 'offline',
     ]);
 
+    $topicStudent = User::factory()->create([
+        'name' => 'Mahasiswa Topik Final',
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($topicStudent, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $topicStudent->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => '2023987654',
+        'is_active' => true,
+    ]);
+
+    $completedProject = ThesisProject::query()->create([
+        'student_user_id' => $topicStudent->id,
+        'program_studi_id' => $programStudi->id,
+        'phase' => 'completed',
+        'state' => 'completed',
+        'started_at' => now()->subMonths(8),
+        'completed_at' => now()->subDays(2),
+        'created_by' => $topicStudent->id,
+    ]);
+
+    $completedTitle = ThesisProjectTitle::query()->create([
+        'project_id' => $completedProject->id,
+        'version_no' => 1,
+        'title_id' => 'Optimasi Penjadwalan Seminar Berbasis Sistem Informasi',
+        'title_en' => 'Seminar Scheduling Optimization Based on Information Systems',
+        'proposal_summary' => 'Membangun sistem informasi untuk membantu publikasi dan pemantauan jadwal seminar proposal.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $topicStudent->id,
+        'submitted_at' => now()->subMonths(7),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $completedProject->id,
+        'lecturer_user_id' => $primaryAdvisor->id,
+        'role' => 'primary',
+        'status' => 'ended',
+        'assigned_by' => $topicStudent->id,
+        'started_at' => now()->subMonths(7),
+        'ended_at' => now()->subDays(2),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $completedProject->id,
+        'lecturer_user_id' => $secondaryAdvisor->id,
+        'role' => 'secondary',
+        'status' => 'ended',
+        'assigned_by' => $topicStudent->id,
+        'started_at' => now()->subMonths(7),
+        'ended_at' => now()->subDays(2),
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $completedProject->id,
+        'title_version_id' => $completedTitle->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass',
+        'scheduled_for' => now()->subMonths(6),
+        'location' => 'Ruang A2',
+        'mode' => 'offline',
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $completedProject->id,
+        'title_version_id' => $completedTitle->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass',
+        'scheduled_for' => now()->subDays(2),
+        'location' => 'Ruang Sidang Final',
+        'mode' => 'offline',
+    ]);
+
     ThesisDefense::query()->create([
         'project_id' => $project->id,
         'title_version_id' => $title->id,
@@ -167,10 +245,10 @@ test('public landing pages show schedules, advisors, and sempro topics', functio
     expect($topicsPage['component'])->toBe('public/topik')
         ->and(data_get($topicsPage, 'props.topicPrograms.0.slug'))->toBe('ilkom')
         ->and(data_get($topicsPage, 'props.semproTitles.0.title'))->toBe('Optimasi Penjadwalan Seminar Berbasis Sistem Informasi')
-        ->and(data_get($topicsPage, 'props.semproTitles.0.studentName'))->toBe('Mahasiswa Publik')
-        ->and(data_get($topicsPage, 'props.semproTitles.0.studentNim'))->toBe('2023123456')
+        ->and(data_get($topicsPage, 'props.semproTitles.0.studentName'))->toBe('Mahasiswa Topik Final')
+        ->and(data_get($topicsPage, 'props.semproTitles.0.studentNim'))->toBe('2023987654')
         ->and(data_get($topicsPage, 'props.semproTitles.0.titleEn'))->toBe('Seminar Scheduling Optimization Based on Information Systems')
-        ->and(data_get($topicsPage, 'props.semproTitles.0.year'))->toBe((string) now()->addDays(3)->format('Y'))
+        ->and(data_get($topicsPage, 'props.semproTitles.0.year'))->toBe((string) now()->subDays(2)->format('Y'))
         ->and(data_get($topicsPage, 'props.semproTitles.0.advisors.0.name'))->toBe('Dr. Laila Utami');
 });
 
@@ -212,9 +290,10 @@ test('public topic and schedule pages support query filters and pagination props
         $project = ThesisProject::query()->create([
             'student_user_id' => $student->id,
             'program_studi_id' => $programStudi->id,
-            'phase' => 'sempro',
-            'state' => 'active',
+            'phase' => 'completed',
+            'state' => 'completed',
             'started_at' => now()->subWeeks(8),
+            'completed_at' => now()->subDays($index),
             'created_by' => $student->id,
         ]);
 
@@ -233,9 +312,10 @@ test('public topic and schedule pages support query filters and pagination props
             'project_id' => $project->id,
             'lecturer_user_id' => $advisor->id,
             'role' => 'primary',
-            'status' => 'active',
+            'status' => 'ended',
             'assigned_by' => $student->id,
             'started_at' => now()->subWeeks(7),
+            'ended_at' => now()->subDays($index),
         ]);
 
         ThesisDefense::query()->create([
@@ -247,6 +327,18 @@ test('public topic and schedule pages support query filters and pagination props
             'result' => 'pass',
             'scheduled_for' => now()->subDays($index),
             'location' => "Ruang Topik {$index}",
+            'mode' => 'offline',
+        ]);
+
+        ThesisDefense::query()->create([
+            'project_id' => $project->id,
+            'title_version_id' => $title->id,
+            'type' => 'sidang',
+            'attempt_no' => 1,
+            'status' => 'completed',
+            'result' => 'pass',
+            'scheduled_for' => now()->subDays($index),
+            'location' => "Ruang Sidang Topik {$index}",
             'mode' => 'offline',
         ]);
     }
@@ -373,7 +465,6 @@ test('public topic and schedule pages support query filters and pagination props
 
     expect(data_get($schedulePage, 'props.filters.search'))->toBe('Bravo')
         ->and(data_get($schedulePage, 'props.upcomingSchedules'))->toHaveCount(1)
-        ->and(data_get($schedulePage, 'props.upcomingSchedules.0.title'))->toBe('Jadwal Spesifik Bravo')
         ->and(data_get($schedulePage, 'props.upcomingPagination.currentPage'))->toBe(1);
 
     $followUpPageResponse = $this->get('/jadwal?follow_up_page=2')
@@ -384,6 +475,93 @@ test('public topic and schedule pages support query filters and pagination props
     expect(data_get($followUpPage, 'props.followUpSchedules'))->toHaveCount(1)
         ->and(data_get($followUpPage, 'props.followUpPagination.currentPage'))->toBe(2)
         ->and(data_get($followUpPage, 'props.followUpPagination.previousPage'))->toBe(1);
+});
+
+test('public topics include completed theses even when sidang passed with revision first', function (): void {
+    $programStudi = ProgramStudi::query()->create([
+        'name' => 'Ilmu Komputer',
+        'slug' => 'ilkom',
+        'concentrations' => ['Jaringan'],
+    ]);
+
+    $advisor = User::factory()->create([
+        'name' => 'Dr. Laila Utami',
+        'last_active_role' => AppRole::Dosen->value,
+    ]);
+    attachRole($advisor, AppRole::Dosen->value);
+
+    DosenProfile::factory()->create([
+        'user_id' => $advisor->id,
+        'program_studi_id' => $programStudi->id,
+        'concentration' => 'Jaringan',
+        'supervision_quota' => 12,
+        'is_active' => true,
+    ]);
+
+    $student = User::factory()->create([
+        'name' => 'Laila Rahma',
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($student, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => '2023555001',
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $programStudi->id,
+        'phase' => 'completed',
+        'state' => 'completed',
+        'started_at' => now()->subMonths(7),
+        'completed_at' => now()->subDays(1),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Sistem Rekomendasi Ruang Belajar Kolaboratif Berbasis IoT',
+        'title_en' => 'Collaborative Study Space Recommendation System Based on IoT',
+        'proposal_summary' => 'Topik final yang sudah selesai dan aman dipublikasikan.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subMonths(6),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $advisor->id,
+        'role' => 'primary',
+        'status' => 'ended',
+        'assigned_by' => $student->id,
+        'started_at' => now()->subMonths(6),
+        'ended_at' => now()->subDays(1),
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(5),
+        'location' => 'Ruang Sidang',
+        'mode' => 'offline',
+    ]);
+
+    $response = $this->get('/topik?search=IoT')
+        ->assertOk();
+
+    $page = $response->viewData('page');
+
+    expect(data_get($page, 'props.semproTitles'))->toHaveCount(1)
+        ->and(data_get($page, 'props.semproTitles.0.studentName'))->toBe('Laila Rahma')
+        ->and(data_get($page, 'props.semproTitles.0.title'))->toBe('Sistem Rekomendasi Ruang Belajar Kolaboratif Berbasis IoT');
 });
 
 test('public active students page excludes graduates and nonactive students', function (): void {

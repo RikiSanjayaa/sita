@@ -50,7 +50,7 @@ const featureLinks = [
         href: '/topik',
         title: 'Topik',
         description:
-            'Telusuri topik tugas akhir yang sudah dipublikasikan beserta pembimbing aktifnya.',
+            'Telusuri topik skripsi yang benar-benar sudah final setelah sidang selesai dan dinyatakan lulus.',
         icon: BookOpenText,
     },
 ];
@@ -78,7 +78,7 @@ const highlightMeta = {
     Topik: {
         accentClassName: 'bg-amber-500/12 text-amber-700 dark:text-amber-400',
         valueClassName: 'text-amber-600 dark:text-amber-400',
-        helper: 'Topik yang sudah dipublikasikan sebagai referensi awal.',
+        helper: 'Topik skripsi final yang aman dijadikan referensi publik.',
         icon: BookOpenText,
     },
 } as const;

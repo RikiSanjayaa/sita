@@ -24,7 +24,6 @@ type StudentRow = {
     programSlug: string;
     stageLabel: string;
     stageDescription: string;
-    title: string | null;
     advisors: Array<{
         name: string;
         label: string;
@@ -178,7 +177,7 @@ function PublicStudentsContent({
                                         onChange={(event) =>
                                             setSearch(event.target.value)
                                         }
-                                        placeholder="Cari nama, NIM, prodi, atau judul..."
+                                        placeholder="Cari nama, NIM, atau prodi..."
                                         className="pl-9"
                                     />
                                 </div>
@@ -217,9 +216,6 @@ function PublicStudentsContent({
                                                 Tahap
                                             </th>
                                             <th className="px-4 py-3 font-semibold">
-                                                Judul / Topik
-                                            </th>
-                                            <th className="px-4 py-3 font-semibold">
                                                 Pembimbing Aktif
                                             </th>
                                         </tr>
@@ -253,12 +249,6 @@ function PublicStudentsContent({
                                                                 student.stageDescription
                                                             }
                                                         </p>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="max-w-md leading-6 font-medium text-foreground">
-                                                        {student.title ??
-                                                            'Belum ada judul yang dipublikasikan'}
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3">
