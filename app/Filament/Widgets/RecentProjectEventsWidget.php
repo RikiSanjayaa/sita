@@ -20,55 +20,52 @@ class RecentProjectEventsWidget extends TableWidget
         'xl' => 5,
     ];
 
-    protected ?string $pollingInterval = null;
-
     public function table(Table $table): Table
     {
+        /** @var User|null $user */
+        $user = Auth::user();
+
         return $table
             ->heading('Aktivitas Admin Terkini')
-            ->query($this->buildTableQuery())
-            ->paginated([5, 10])
+            ->description('Jejak aktivitas terbaru untuk membantu admin membaca konteks tanpa membuka log penuh.')
+            ->query($this->query($user))
             ->defaultPaginationPageOption(5)
+            ->paginated([5, 10])
             ->defaultSort('occurred_at', 'desc')
             ->columns([
+                TextColumn::make('label')
+                    ->label('Aktivitas')
+                    ->description(fn(ThesisProjectEvent $record): string => ($record->project?->student?->name ?? '-').' - '.($record->actor?->name ?? 'Sistem'))
+                    ->wrap(),
                 TextColumn::make('occurred_at')
                     ->label('Waktu')
                     ->since(),
-                TextColumn::make('label')
-                    ->label('Aktivitas')
-                    ->description(fn(ThesisProjectEvent $record): string => $record->project?->student?->name ?? '-')
-                    ->wrap(),
-                TextColumn::make('actor.name')
-                    ->label('Aktor')
-                    ->placeholder('Sistem'),
-                TextColumn::make('project.programStudi.name')
-                    ->label('Prodi')
+                TextColumn::make('description')
+                    ->label('Catatan')
                     ->placeholder('-')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->limit(80)
+                    ->wrap(),
             ])
             ->recordActions([
                 Action::make('openProject')
-                    ->label('Buka Proyek')
+                    ->label('Buka')
                     ->url(fn(ThesisProjectEvent $record): string => ThesisProjectResource::getUrl('view', ['record' => $record->project]))
                     ->icon('heroicon-m-arrow-top-right-on-square'),
             ]);
     }
 
-    private function buildTableQuery(): Builder
+    private function query(?User $user): Builder
     {
         $query = ThesisProjectEvent::query()
             ->with([
                 'actor',
                 'project.student',
-                'project.programStudi',
             ]);
 
-        /** @var User|null $user */
-        $user = Auth::user();
-        $prodiId = $user?->adminProgramStudiId();
-
-        if ($prodiId !== null) {
-            $query->whereHas('project', fn(Builder $projectQuery): Builder => $projectQuery->where('program_studi_id', $prodiId));
+        if ($user?->adminProgramStudiId() !== null) {
+            $query->whereHas('project', function (Builder $projectQuery) use ($user): void {
+                $projectQuery->where('program_studi_id', $user->adminProgramStudiId());
+            });
         }
 
         return $query;
