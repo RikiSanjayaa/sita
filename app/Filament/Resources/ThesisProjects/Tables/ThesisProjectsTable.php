@@ -176,6 +176,10 @@ class ThesisProjectsTable
             ->columnManagerColumns(2)
             ->columnManagerResetActionPosition(ColumnManagerResetActionPosition::Footer)
             ->recordActions([
+                Action::make('edit')
+                    ->label('Edit')
+                    ->icon('heroicon-m-pencil-square')
+                    ->url(fn(ThesisProject $record): string => \App\Filament\Resources\ThesisProjects\ThesisProjectResource::getUrl('edit', ['record' => $record])),
                 ViewAction::make(),
             ]);
     }

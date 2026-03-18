@@ -30,6 +30,10 @@ class ViewThesisProject extends ViewRecord
         $record = $this->record;
 
         return [
+            Action::make('edit')
+                ->label('Edit Proyek')
+                ->icon('heroicon-m-pencil-square')
+                ->url(fn(): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
             Action::make('schedule_sempro')
                 ->label('Jadwalkan Sempro')
                 ->icon('heroicon-m-calendar')

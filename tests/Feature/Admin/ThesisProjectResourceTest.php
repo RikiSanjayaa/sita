@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\ThesisProjects\Pages\EditThesisProject;
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
@@ -87,6 +88,74 @@ test('admin can only see thesis projects from their prodi', function (): void {
 
     $this->get(ThesisProjectResource::getUrl('view', ['record' => $projectA]))
         ->assertOk();
+});
+
+test('admin can edit thesis project metadata from a dedicated edit page', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = User::factory()->asMahasiswa()->create(['name' => 'Mahasiswa Edit']);
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510301',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subDays(10),
+        'created_by' => $student->id,
+        'notes' => 'Catatan lama',
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Edit Proyek',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(9),
+    ]);
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($admin)
+        ->get(ThesisProjectResource::getUrl('edit', ['record' => $project]))
+        ->assertOk()
+        ->assertSee('Koreksi Administratif');
+
+    $completedAt = now()->subDay()->startOfMinute()->format('Y-m-d H:i:s');
+    $startedAt = now()->subDays(12)->startOfMinute()->format('Y-m-d H:i:s');
+
+    Livewire::test(EditThesisProject::class, ['record' => $project->getRouteKey()])
+        ->fillForm([
+            'phase' => 'completed',
+            'state' => 'completed',
+            'started_at' => $startedAt,
+            'completed_at' => $completedAt,
+            'notes' => 'Diselesaikan setelah verifikasi administrasi.',
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertRedirect(ThesisProjectResource::getUrl('view', ['record' => $project]));
+
+    $project->refresh();
+
+    expect($project->phase)->toBe('completed')
+        ->and($project->state)->toBe('completed')
+        ->and($project->notes)->toBe('Diselesaikan setelah verifikasi administrasi.')
+        ->and($project->started_at?->format('Y-m-d H:i:s'))->toBe($startedAt)
+        ->and($project->completed_at?->format('Y-m-d H:i:s'))->toBe($completedAt)
+        ->and($project->cancelled_at)->toBeNull();
 });
 
 test('admin can use workflow tabs and filters in thesis projects list', function (): void {
