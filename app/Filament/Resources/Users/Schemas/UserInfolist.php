@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AppRole;
 use App\Models\User;
+use App\Support\Filament\BadgeStyles;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -22,7 +23,10 @@ class UserInfolist
                         TextEntry::make('role')
                             ->label('Role')
                             ->badge()
-                            ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-'),
+                            ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-')
+                            ->formatStateUsing(fn(string $state): string => BadgeStyles::roleLabel($state))
+                            ->color(fn(string $state): string => BadgeStyles::roleColor($state))
+                            ->icon(fn(string $state): string => BadgeStyles::roleIcon($state)),
                         TextEntry::make('created_at')
                             ->dateTime(),
                         TextEntry::make('updated_at')
@@ -36,7 +40,10 @@ class UserInfolist
                             ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.programStudi.name')
                             ->label('Prodi')
-                            ->placeholder('-'),
+                            ->placeholder('-')
+                            ->badge()
+                            ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
+                            ->icon(BadgeStyles::programStudiIcon()),
                         TextEntry::make('mahasiswaProfile.concentration')
                             ->label('Konsentrasi')
                             ->placeholder('-'),
@@ -45,7 +52,9 @@ class UserInfolist
                         TextEntry::make('mahasiswaProfile.is_active')
                             ->label('Status')
                             ->badge()
-                            ->formatStateUsing(fn(?bool $state): string => $state ? 'active' : 'inactive'),
+                            ->formatStateUsing(fn(?bool $state): string => BadgeStyles::activeStateLabel($state))
+                            ->color(fn(?bool $state): string => BadgeStyles::activeStateColor($state))
+                            ->icon(fn(?bool $state): string => BadgeStyles::activeStateIcon($state)),
                     ]),
                 Section::make('Dosen Profile')
                     ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)
@@ -55,7 +64,10 @@ class UserInfolist
                             ->placeholder('-'),
                         TextEntry::make('dosenProfile.programStudi.name')
                             ->label('Prodi')
-                            ->placeholder('-'),
+                            ->placeholder('-')
+                            ->badge()
+                            ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
+                            ->icon(BadgeStyles::programStudiIcon()),
                         TextEntry::make('dosenProfile.concentration')
                             ->label('Konsentrasi')
                             ->placeholder('-'),
@@ -65,7 +77,9 @@ class UserInfolist
                         TextEntry::make('dosenProfile.is_active')
                             ->label('Status')
                             ->badge()
-                            ->formatStateUsing(fn(?bool $state): string => $state ? 'active' : 'inactive'),
+                            ->formatStateUsing(fn(?bool $state): string => BadgeStyles::activeStateLabel($state))
+                            ->color(fn(?bool $state): string => BadgeStyles::activeStateColor($state))
+                            ->icon(fn(?bool $state): string => BadgeStyles::activeStateIcon($state)),
                     ]),
                 Section::make('Beban Tugas Akhir')
                     ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)

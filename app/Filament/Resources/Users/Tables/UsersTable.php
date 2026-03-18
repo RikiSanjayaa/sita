@@ -5,11 +5,13 @@ namespace App\Filament\Resources\Users\Tables;
 use App\Enums\AppRole;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
@@ -39,6 +41,9 @@ class UsersTable
                     ->label('Role')
                     ->badge()
                     ->state(fn(?User $record): string => $record?->roles->pluck('name')->first() ?? '-')
+                    ->formatStateUsing(fn(string $state): string => BadgeStyles::roleLabel($state))
+                    ->color(fn(string $state): string => BadgeStyles::roleColor($state))
+                    ->icon(fn(string $state): string => BadgeStyles::roleIcon($state))
                     ->toggleable(),
                 TextColumn::make('mahasiswaProfile.nim')
                     ->label('NIM')
@@ -53,6 +58,9 @@ class UsersTable
                 TextColumn::make('prodi')
                     ->label('Prodi')
                     ->state(fn(?User $record): string => $record?->mahasiswaProfile?->programStudi?->name ?? $record?->dosenProfile?->programStudi?->name ?? $record?->adminProfile?->programStudi?->name ?? '-')
+                    ->badge()
+                    ->icon(BadgeStyles::programStudiIcon())
+                    ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('mahasiswaProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
                             ->orWhereHas('dosenProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
@@ -104,9 +112,17 @@ class UsersTable
                     ->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('role')
-                    ->options(array_combine(AppRole::uiValues(), AppRole::uiValues()))
-                    ->query(function ($query, array $data) {
+                Filter::make('role')
+                    ->label('Role')
+                    ->schema([
+                        ToggleButtons::make('value')
+                            ->label('Role')
+                            ->inline()
+                            ->options(self::roleOptions())
+                            ->colors(self::roleFilterColors())
+                            ->icons(self::roleFilterIcons()),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
                         $value = $data['value'] ?? null;
 
                         if (blank($value)) {
@@ -114,10 +130,20 @@ class UsersTable
                         }
 
                         return $query->whereHas('roles', static fn($roleQuery) => $roleQuery->where('name', $value));
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return [];
+                        }
+
+                        return ['Role: '.BadgeStyles::roleLabel($value)];
                     }),
                 SelectFilter::make('program_studi_id')
                     ->label('Program Studi')
                     ->options(fn(): array => ProgramStudi::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->native(false)
                     ->searchable()
                     ->preload()
                     ->query(function (Builder $query, array $data): Builder {
@@ -136,6 +162,7 @@ class UsersTable
                 SelectFilter::make('concentration')
                     ->label('Konsentrasi')
                     ->options(fn(): array => self::concentrationOptions())
+                    ->native(false)
                     ->searchable()
                     ->preload()
                     ->query(function (Builder $query, array $data): Builder {
@@ -183,6 +210,36 @@ class UsersTable
         $activeTab = $livewire->activeTab ?? null;
 
         return $activeTab === $tab;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function roleOptions(): array
+    {
+        return collect(AppRole::uiValues())
+            ->mapWithKeys(fn(string $role): array => [$role => BadgeStyles::roleLabel($role)])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function roleFilterColors(): array
+    {
+        return collect(AppRole::uiValues())
+            ->mapWithKeys(fn(string $role): array => [$role => BadgeStyles::roleColor($role)])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function roleFilterIcons(): array
+    {
+        return collect(AppRole::uiValues())
+            ->mapWithKeys(fn(string $role): array => [$role => BadgeStyles::roleIcon($role)])
+            ->all();
     }
 
     /**

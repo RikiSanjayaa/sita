@@ -6,6 +6,7 @@ use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ProgramStudi;
 use App\Models\ThesisProjectEvent;
 use App\Models\User;
+use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
@@ -47,6 +48,9 @@ class ThesisProjectEventsTable
                     ->toggleable(),
                 TextColumn::make('project.programStudi.name')
                     ->label('Prodi')
+                    ->badge()
+                    ->icon(BadgeStyles::programStudiIcon())
+                    ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
                     ->searchable()
                     ->toggleable(),
                 TextColumn::make('project.latestTitle.title_id')
@@ -62,7 +66,9 @@ class ThesisProjectEventsTable
                 TextColumn::make('event_type')
                     ->label('Tipe Event')
                     ->badge()
-                    ->formatStateUsing(fn(string $state): string => str($state)->replace('_', ' ')->headline()->toString())
+                    ->formatStateUsing(fn(string $state): string => BadgeStyles::thesisEventLabel($state))
+                    ->color(fn(string $state): string => BadgeStyles::thesisEventColor($state))
+                    ->icon(fn(string $state): string => BadgeStyles::thesisEventIcon($state))
                     ->toggleable(),
             ])
             ->filters([
@@ -72,8 +78,9 @@ class ThesisProjectEventsTable
                         ->distinct()
                         ->orderBy('event_type')
                         ->pluck('event_type', 'event_type')
-                        ->mapWithKeys(fn(string $eventType): array => [$eventType => str($eventType)->replace('_', ' ')->headline()->toString()])
-                        ->all()),
+                        ->mapWithKeys(fn(string $eventType): array => [$eventType => BadgeStyles::thesisEventLabel($eventType)])
+                        ->all())
+                    ->native(false),
                 SelectFilter::make('program_studi_id')
                     ->label('Program Studi')
                     ->visible(function (): bool {
@@ -83,6 +90,7 @@ class ThesisProjectEventsTable
                         return $user?->adminProgramStudiId() === null;
                     })
                     ->options(fn(): array => ProgramStudi::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->native(false)
                     ->searchable()
                     ->preload()
                     ->query(function (Builder $query, array $data): Builder {
@@ -97,6 +105,7 @@ class ThesisProjectEventsTable
                 SelectFilter::make('actor_user_id')
                     ->label('Aktor')
                     ->relationship('actor', 'name')
+                    ->native(false)
                     ->searchable()
                     ->preload(),
             ])
