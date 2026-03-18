@@ -6,10 +6,11 @@ use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
+use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Support\Enums\Width;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\ColumnManagerResetActionPosition;
 use Filament\Tables\Enums\FiltersResetActionPosition;
@@ -33,6 +34,9 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('programStudi.name')
                     ->label('Program Studi')
+                    ->badge()
+                    ->icon(BadgeStyles::programStudiIcon())
+                    ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
@@ -47,27 +51,18 @@ class ThesisProjectsTable
                     ->wrap()
                     ->limit(60)
                     ->toggleable(),
-                BadgeColumn::make('phase')
+                TextColumn::make('phase')
                     ->label('Fase')
-                    ->colors([
-                        'gray' => 'title_review',
-                        'info' => 'sempro',
-                        'warning' => 'research',
-                        'primary' => 'sidang',
-                        'success' => 'completed',
-                        'danger' => 'cancelled',
-                    ])
+                    ->badge()
                     ->formatStateUsing(fn(string $state): string => self::phaseLabel($state))
+                    ->color(fn(string $state): string => BadgeStyles::phaseColor($state))
+                    ->icon(fn(string $state): string => BadgeStyles::phaseIcon($state))
                     ->toggleable(),
-                BadgeColumn::make('state')
+                TextColumn::make('state')
                     ->label('State')
-                    ->colors([
-                        'success' => 'active',
-                        'warning' => 'on_hold',
-                        'gray' => 'completed',
-                        'danger' => 'cancelled',
-                    ])
+                    ->badge()
                     ->formatStateUsing(fn(string $state): string => self::stateLabel($state))
+                    ->color(fn(string $state): string => BadgeStyles::stateColor($state))
                     ->toggleable(),
                 TextColumn::make('active_supervisors')
                     ->label('Pembimbing Aktif')
@@ -82,22 +77,22 @@ class ThesisProjectsTable
                         ->all())
                     ->listWithLineBreaks()
                     ->placeholder('-')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sempro_attempts_count')
                     ->label('Sempro')
                     ->numeric()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sidang_attempts_count')
                     ->label('Sidang')
                     ->numeric()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('open_revisions_count')
                     ->label('Revisi Terbuka')
                     ->numeric()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('next_agenda')
                     ->label('Agenda Terdekat')
                     ->state(fn(ThesisProject $record): string => self::formatNextAgenda($record))
@@ -106,19 +101,37 @@ class ThesisProjectsTable
                     ->label('Mulai')
                     ->dateTime('d M Y')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('phase')
+                Filter::make('phase')
                     ->label('Fase')
-                    ->options([
-                        'title_review' => self::phaseLabel('title_review'),
-                        'sempro' => self::phaseLabel('sempro'),
-                        'research' => self::phaseLabel('research'),
-                        'sidang' => self::phaseLabel('sidang'),
-                        'completed' => self::phaseLabel('completed'),
-                        'cancelled' => self::phaseLabel('cancelled'),
-                    ]),
+                    ->schema([
+                        ToggleButtons::make('value')
+                            ->label('Fase')
+                            ->inline()
+                            ->options(self::phaseOptions())
+                            ->colors(self::phaseFilterColors())
+                            ->icons(self::phaseFilterIcons()),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->where('phase', $value);
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return [];
+                        }
+
+                        return ['Fase: '.self::phaseLabel($value)];
+                    }),
                 SelectFilter::make('state')
                     ->label('State')
                     ->options([
@@ -130,6 +143,7 @@ class ThesisProjectsTable
                 SelectFilter::make('program_studi_id')
                     ->label('Program Studi')
                     ->options(fn(): array => ProgramStudi::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->native(false)
                     ->searchable()
                     ->preload(),
                 Filter::make('missing_supervisors')
@@ -188,6 +202,41 @@ class ThesisProjectsTable
             'cancelled' => 'Dibatalkan',
             default => ucwords(str_replace('_', ' ', $state)),
         };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function phaseOptions(): array
+    {
+        return [
+            'title_review' => self::phaseLabel('title_review'),
+            'sempro' => self::phaseLabel('sempro'),
+            'research' => self::phaseLabel('research'),
+            'sidang' => self::phaseLabel('sidang'),
+            'completed' => self::phaseLabel('completed'),
+            'cancelled' => self::phaseLabel('cancelled'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function phaseFilterColors(): array
+    {
+        return collect(array_keys(self::phaseOptions()))
+            ->mapWithKeys(fn(string $phase): array => [$phase => BadgeStyles::phaseColor($phase)])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function phaseFilterIcons(): array
+    {
+        return collect(array_keys(self::phaseOptions()))
+            ->mapWithKeys(fn(string $phase): array => [$phase => BadgeStyles::phaseIcon($phase)])
+            ->all();
     }
 
     private static function resolveCurrentTitle(ThesisProject $record): ?ThesisProjectTitle

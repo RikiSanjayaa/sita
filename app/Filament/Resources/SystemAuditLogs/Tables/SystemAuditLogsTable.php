@@ -4,6 +4,7 @@ namespace App\Filament\Resources\SystemAuditLogs\Tables;
 
 use App\Models\SystemAuditLog;
 use App\Models\User;
+use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
@@ -45,7 +46,9 @@ class SystemAuditLogsTable
                 TextColumn::make('event_type')
                     ->label('Jenis')
                     ->badge()
-                    ->formatStateUsing(fn(string $state): string => str($state)->replace('_', ' ')->headline()->toString())
+                    ->formatStateUsing(fn(string $state): string => BadgeStyles::auditEventLabel($state))
+                    ->color(fn(string $state): string => BadgeStyles::auditEventColor($state))
+                    ->icon(fn(string $state): string => BadgeStyles::auditEventIcon($state))
                     ->toggleable(),
                 TextColumn::make('ip_address')
                     ->label('IP')
@@ -64,8 +67,9 @@ class SystemAuditLogsTable
                         ->distinct()
                         ->orderBy('event_type')
                         ->pluck('event_type', 'event_type')
-                        ->mapWithKeys(fn(string $eventType): array => [$eventType => str($eventType)->replace('_', ' ')->headline()->toString()])
-                        ->all()),
+                        ->mapWithKeys(fn(string $eventType): array => [$eventType => BadgeStyles::auditEventLabel($eventType)])
+                        ->all())
+                    ->native(false),
                 SelectFilter::make('user_id')
                     ->label('Pengguna')
                     ->visible(function (): bool {
@@ -75,6 +79,7 @@ class SystemAuditLogsTable
                         return $user?->hasRole('super_admin') ?? false;
                     })
                     ->relationship('user', 'name')
+                    ->native(false)
                     ->searchable()
                     ->preload(),
             ])

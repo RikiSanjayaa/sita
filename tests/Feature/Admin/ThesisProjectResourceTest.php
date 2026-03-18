@@ -254,7 +254,7 @@ test('admin can use workflow tabs and filters in thesis projects list', function
         ->assertCanNotSeeTableRecords([$semproProject, $researchProject, $sidangProject]);
 
     Livewire::test(ListThesisProjects::class)
-        ->filterTable('phase', 'research')
+        ->filterTable('phase', ['value' => 'research'])
         ->assertCanSeeTableRecords([$researchProject, $revisionProject])
         ->assertCanNotSeeTableRecords([$semproProject, $sidangProject]);
 

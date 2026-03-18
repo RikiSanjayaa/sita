@@ -11,6 +11,7 @@ use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
+use App\Support\Filament\BadgeStyles;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -35,7 +36,10 @@ class ThesisProjectInfolist
                             ->placeholder('-'),
                         TextEntry::make('programStudi.name')
                             ->label('Program Studi')
-                            ->placeholder('-'),
+                            ->placeholder('-')
+                            ->badge()
+                            ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
+                            ->icon(BadgeStyles::programStudiIcon()),
                         TextEntry::make('active_title')
                             ->label('Judul Aktif')
                             ->state(fn(ThesisProject $record): string => self::resolveCurrentTitle($record)?->title_id ?? '-')
@@ -43,26 +47,13 @@ class ThesisProjectInfolist
                         TextEntry::make('phase')
                             ->label('Fase')
                             ->badge()
-                            ->color(fn(string $state): string => match ($state) {
-                                'title_review' => 'gray',
-                                'sempro' => 'info',
-                                'research' => 'warning',
-                                'sidang' => 'primary',
-                                'completed' => 'success',
-                                'cancelled' => 'danger',
-                                default => 'gray',
-                            })
+                            ->color(fn(string $state): string => BadgeStyles::phaseColor($state))
+                            ->icon(fn(string $state): string => BadgeStyles::phaseIcon($state))
                             ->formatStateUsing(fn(string $state): string => ThesisProjectsTable::phaseLabel($state)),
                         TextEntry::make('state')
                             ->label('State')
                             ->badge()
-                            ->color(fn(string $state): string => match ($state) {
-                                'active' => 'success',
-                                'on_hold' => 'warning',
-                                'completed' => 'gray',
-                                'cancelled' => 'danger',
-                                default => 'gray',
-                            })
+                            ->color(fn(string $state): string => BadgeStyles::stateColor($state))
                             ->formatStateUsing(fn(string $state): string => ThesisProjectsTable::stateLabel($state)),
                         TextEntry::make('started_at')
                             ->label('Mulai')
@@ -189,7 +180,10 @@ class ThesisProjectInfolist
                 TextEntry::make('version'),
                 TextEntry::make('title_id')->placeholder('-'),
                 TextEntry::make('title_en')->placeholder('-'),
-                TextEntry::make('status')->badge(),
+                TextEntry::make('status')
+                    ->badge()
+                    ->color(fn(string $state): string => self::titleStatusColor($state))
+                    ->icon(fn(string $state): string => self::titleStatusIcon($state)),
                 TextEntry::make('submitted_at'),
                 TextEntry::make('decided_at'),
                 TextEntry::make('decided_by'),
@@ -227,7 +221,10 @@ class ThesisProjectInfolist
                 TextEntry::make('lecturer'),
                 TextEntry::make('nik'),
                 TextEntry::make('role'),
-                TextEntry::make('status')->badge(),
+                TextEntry::make('status')
+                    ->badge()
+                    ->color(fn(string $state): string => self::assignmentStatusColor($state))
+                    ->icon(fn(string $state): string => self::assignmentStatusIcon($state)),
                 TextEntry::make('started_at'),
                 TextEntry::make('ended_at'),
                 TextEntry::make('notes'),
@@ -252,8 +249,14 @@ class ThesisProjectInfolist
             ])
             ->schema([
                 TextEntry::make('attempt'),
-                TextEntry::make('status')->badge(),
-                TextEntry::make('result')->badge(),
+                TextEntry::make('status')
+                    ->badge()
+                    ->color(fn(string $state): string => self::defenseStatusColor($state))
+                    ->icon(fn(string $state): string => self::defenseStatusIcon($state)),
+                TextEntry::make('result')
+                    ->badge()
+                    ->color(fn(string $state): string => self::defenseResultColor($state))
+                    ->icon(fn(string $state): string => self::defenseResultIcon($state)),
                 TextEntry::make('scheduled_for'),
                 TextEntry::make('location'),
                 TextEntry::make('mode'),
@@ -351,7 +354,10 @@ class ThesisProjectInfolist
                 TextEntry::make('category')->placeholder('-'),
                 TextEntry::make('version'),
                 TextEntry::make('lecturer')->label('Tujuan'),
-                TextEntry::make('status')->badge(),
+                TextEntry::make('status')
+                    ->badge()
+                    ->color(fn(string $state): string => self::mentorshipStatusColor($state))
+                    ->icon(fn(string $state): string => self::mentorshipStatusIcon($state)),
                 TextEntry::make('review_notes')->placeholder('-'),
                 TextEntry::make('uploaded_at'),
                 TextEntry::make('file_name')->placeholder('-'),
@@ -557,6 +563,32 @@ class ThesisProjectInfolist
         };
     }
 
+    private static function titleStatusColor(string $status): string
+    {
+        return match ($status) {
+            'draft' => 'gray',
+            'submitted' => 'info',
+            'approved' => 'success',
+            'rejected' => 'danger',
+            'superseded' => 'warning',
+            'withdrawn' => 'gray',
+            default => 'gray',
+        };
+    }
+
+    private static function titleStatusIcon(string $status): string
+    {
+        return match ($status) {
+            'draft' => 'heroicon-m-pencil-square',
+            'submitted' => 'heroicon-m-paper-airplane',
+            'approved' => 'heroicon-m-check-circle',
+            'rejected' => 'heroicon-m-x-circle',
+            'superseded' => 'heroicon-m-arrow-path',
+            'withdrawn' => 'heroicon-m-arrow-uturn-left',
+            default => 'heroicon-m-tag',
+        };
+    }
+
     private static function defenseStatusLabel(string $status): string
     {
         return match ($status) {
@@ -568,6 +600,28 @@ class ThesisProjectInfolist
         };
     }
 
+    private static function defenseStatusColor(string $status): string
+    {
+        return match ($status) {
+            'draft' => 'gray',
+            'scheduled' => 'info',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+            default => 'gray',
+        };
+    }
+
+    private static function defenseStatusIcon(string $status): string
+    {
+        return match ($status) {
+            'draft' => 'heroicon-m-pencil-square',
+            'scheduled' => 'heroicon-m-calendar-days',
+            'completed' => 'heroicon-m-check-badge',
+            'cancelled' => 'heroicon-m-no-symbol',
+            default => 'heroicon-m-tag',
+        };
+    }
+
     private static function defenseResultLabel(string $result): string
     {
         return match ($result) {
@@ -576,6 +630,28 @@ class ThesisProjectInfolist
             'pass_with_revision' => 'Lulus Revisi',
             'fail' => 'Tidak Lulus',
             default => ucwords(str_replace('_', ' ', $result)),
+        };
+    }
+
+    private static function defenseResultColor(string $result): string
+    {
+        return match ($result) {
+            'pending' => 'gray',
+            'pass' => 'success',
+            'pass_with_revision' => 'warning',
+            'fail' => 'danger',
+            default => 'gray',
+        };
+    }
+
+    private static function defenseResultIcon(string $result): string
+    {
+        return match ($result) {
+            'pending' => 'heroicon-m-clock',
+            'pass' => 'heroicon-m-check-circle',
+            'pass_with_revision' => 'heroicon-m-exclamation-triangle',
+            'fail' => 'heroicon-m-x-circle',
+            default => 'heroicon-m-tag',
         };
     }
 
@@ -598,6 +674,26 @@ class ThesisProjectInfolist
             'resolved' => 'Selesai',
             'cancelled' => 'Dibatalkan',
             default => ucwords(str_replace('_', ' ', $status)),
+        };
+    }
+
+    private static function assignmentStatusColor(string $status): string
+    {
+        return match ($status) {
+            'active' => 'success',
+            'inactive', 'ended' => 'gray',
+            'cancelled' => 'danger',
+            default => 'gray',
+        };
+    }
+
+    private static function assignmentStatusIcon(string $status): string
+    {
+        return match ($status) {
+            'active' => 'heroicon-m-check-circle',
+            'inactive', 'ended' => 'heroicon-m-pause-circle',
+            'cancelled' => 'heroicon-m-x-circle',
+            default => 'heroicon-m-tag',
         };
     }
 
@@ -636,6 +732,26 @@ class ThesisProjectInfolist
             'needs_revision' => 'Perlu Revisi',
             'submitted' => 'Dikirim',
             default => ucwords(str_replace('_', ' ', $status)),
+        };
+    }
+
+    private static function mentorshipStatusColor(string $status): string
+    {
+        return match ($status) {
+            'Disetujui' => 'success',
+            'Perlu Revisi' => 'warning',
+            'Dikirim' => 'info',
+            default => 'gray',
+        };
+    }
+
+    private static function mentorshipStatusIcon(string $status): string
+    {
+        return match ($status) {
+            'Disetujui' => 'heroicon-m-check-circle',
+            'Perlu Revisi' => 'heroicon-m-exclamation-triangle',
+            'Dikirim' => 'heroicon-m-paper-airplane',
+            default => 'heroicon-m-tag',
         };
     }
 
