@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class ThesisProjectResource extends Resource
@@ -121,5 +122,38 @@ class ThesisProjectResource extends Resource
             'view' => ViewThesisProject::route('/{record}'),
             'edit' => EditThesisProject::route('/{record}/edit'),
         ];
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'student.name',
+            'student.mahasiswaProfile.nim',
+            'latestTitle.title_id',
+            'latestTitle.title_en',
+            'programStudi.name',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        /** @var ThesisProject $record */
+        return $record->latestTitle?->title_id ?? $record->student?->name ?? 'Proyek Tugas Akhir';
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        /** @var ThesisProject $record */
+        return array_filter([
+            'Mahasiswa' => $record->student?->name,
+            'NIM' => $record->student?->mahasiswaProfile?->nim,
+            'Prodi' => $record->programStudi?->name,
+            'Fase' => ThesisProjectsTable::phaseLabel($record->phase),
+        ]);
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return static::getEloquentQuery();
     }
 }

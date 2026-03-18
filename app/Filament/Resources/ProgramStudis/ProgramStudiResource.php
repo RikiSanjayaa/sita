@@ -13,6 +13,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class ProgramStudiResource extends Resource
 {
@@ -27,7 +29,10 @@ class ProgramStudiResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(\App\Enums\AppRole::SuperAdmin) ?? false;
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return $user?->hasRole(\App\Enums\AppRole::SuperAdmin) ?? false;
     }
 
     public static function getNavigationLabel(): string
@@ -70,6 +75,19 @@ class ProgramStudiResource extends Resource
             'index' => ListProgramStudis::route('/'),
             'create' => CreateProgramStudi::route('/create'),
             'edit' => EditProgramStudi::route('/{record}/edit'),
+        ];
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'slug'];
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        /** @var ProgramStudi $record */
+        return [
+            'Konsentrasi' => implode(', ', $record->concentrationList()),
         ];
     }
 }
