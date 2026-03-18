@@ -16,11 +16,14 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
+
+    protected static ?string $recordTitleAttribute = 'name';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
@@ -99,5 +102,35 @@ class UserResource extends Resource
             'view' => ViewUser::route('/{record}'),
             'edit' => EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'name',
+            'email',
+            'mahasiswaProfile.nim',
+            'dosenProfile.nik',
+            'mahasiswaProfile.programStudi.name',
+            'dosenProfile.programStudi.name',
+            'adminProfile.programStudi.name',
+        ];
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        /** @var User $record */
+        return array_filter([
+            'Role' => $record->roles->pluck('name')->first(),
+            'Identitas' => $record->mahasiswaProfile?->nim ?? $record->dosenProfile?->nik,
+            'Prodi' => $record->mahasiswaProfile?->programStudi?->name
+                ?? $record->dosenProfile?->programStudi?->name
+                ?? $record->adminProfile?->programStudi?->name,
+        ]);
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return static::getEloquentQuery();
     }
 }

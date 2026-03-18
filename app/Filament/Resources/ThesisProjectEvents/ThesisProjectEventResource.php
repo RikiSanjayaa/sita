@@ -11,11 +11,14 @@ use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class ThesisProjectEventResource extends Resource
 {
     protected static ?string $model = ThesisProjectEvent::class;
+
+    protected static ?string $recordTitleAttribute = 'label';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
@@ -72,5 +75,32 @@ class ThesisProjectEventResource extends Resource
         return [
             'index' => ListThesisProjectEvents::route('/'),
         ];
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'label',
+            'description',
+            'event_type',
+            'actor.name',
+            'project.student.name',
+            'project.latestTitle.title_id',
+        ];
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        /** @var ThesisProjectEvent $record */
+        return array_filter([
+            'Mahasiswa' => $record->project?->student?->name,
+            'Prodi' => $record->project?->programStudi?->name,
+            'Aktor' => $record->actor?->name ?? 'Sistem',
+        ]);
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return static::getEloquentQuery();
     }
 }
