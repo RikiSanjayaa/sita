@@ -31,7 +31,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Judul dan Proposal',
+                title: 'Tugas Akhir',
                 href: '/mahasiswa/tugas-akhir',
                 icon: FileText,
             },
@@ -70,7 +70,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Seminar Proposal',
+                title: 'Sempro & Sidang',
                 href: '/dosen/seminar-proposal',
                 icon: ClipboardCheck,
             },
