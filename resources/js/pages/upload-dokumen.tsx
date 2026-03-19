@@ -38,7 +38,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import * as routes from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -79,6 +78,9 @@ const panduanItems = [
     'Setiap upload membuat versi baru dokumen',
     'Dosen pembimbing mendapat notifikasi realtime di group chat',
 ];
+
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
 
 function StatusBadge({ status }: { status: DokumenStatus }) {
     if (status === 'Disetujui') {
@@ -290,12 +292,15 @@ export default function UploadDokumenPage() {
                     </Alert>
                 )}
 
-                <Card>
-                    <CardHeader>
+                <Card className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
                         <CardTitle>Panduan Upload</CardTitle>
+                        <CardDescription>
+                            Hal yang perlu diperhatikan sebelum mengunggah
+                            dokumen.
+                        </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent>
+                    <CardContent className="pb-6">
                         <div className="grid gap-3">
                             {panduanItems.map((item) => (
                                 <div
@@ -314,15 +319,14 @@ export default function UploadDokumenPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
+                <Card className={sectionCardClass}>
+                    <CardHeader className={`${sectionCardHeaderClass} gap-1`}>
                         <CardTitle>Dokumen yang Diupload</CardTitle>
                         <CardDescription>
                             Daftar dokumen beserta riwayat versi
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent>
+                    <CardContent className="pb-6">
                         {hasUploadedDocuments ? (
                             <>
                                 <div className="grid gap-3 md:hidden">

@@ -90,7 +90,7 @@ export default function DosenDokumenRevisiPage() {
             <Head title="Dokumen & Revisi Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <Card className="py-0 shadow-sm">
+                <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>

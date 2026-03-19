@@ -89,6 +89,9 @@ type DashboardProps = {
     timeline: TimelineStep[];
 };
 
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
 export default function DashboardPage() {
     const { summary, quickActionState, upcomingActivities, timeline } = usePage<
         SharedData & DashboardProps
@@ -203,11 +206,15 @@ export default function DashboardPage() {
 
                 <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
                     <div className="grid content-start gap-6">
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className={sectionCardClass}>
+                            <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Aksi Cepat</CardTitle>
+                                <CardDescription>
+                                    Pintasan untuk langkah yang paling sering
+                                    Anda buka.
+                                </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 <div className="grid gap-3 md:grid-cols-2">
                                     {quickActions.map((action) => {
                                         const Icon = action.icon;
@@ -278,11 +285,15 @@ export default function DashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className={sectionCardClass}>
+                            <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Kegiatan Mendatang</CardTitle>
+                                <CardDescription>
+                                    Jadwal bimbingan, sempro, dan sidang
+                                    terdekat.
+                                </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 {upcomingActivities.length > 0 ? (
                                     <div className="grid gap-3">
                                         {upcomingActivities.map((activity) => (
@@ -338,11 +349,14 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="grid content-start gap-6">
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className={sectionCardClass}>
+                            <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Dosen Pembimbing</CardTitle>
+                                <CardDescription>
+                                    Pembimbing aktif untuk tugas akhir Anda.
+                                </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 {summary.advisors.length > 0 ? (
                                     <div className="grid gap-3">
                                         {summary.advisors.map(
@@ -365,15 +379,14 @@ export default function DashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className={sectionCardClass}>
+                            <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Timeline Progres</CardTitle>
                                 <CardDescription>
-                                    Tahapan utama disusun dari data asli tugas
-                                    akhir dan ujian Anda.
+                                    Tahap utama perjalanan tugas akhir Anda.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 <div className="relative">
                                     <div className="absolute top-2 left-3.5 h-[calc(100%-1rem)] w-px bg-border" />
                                     <div className="grid gap-5">

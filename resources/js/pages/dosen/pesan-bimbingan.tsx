@@ -440,7 +440,7 @@ export default function DosenPesanBimbinganPage() {
                         mobileView === 'threads' && 'flex-1 lg:flex-initial',
                     )}
                 >
-                    <CardHeader className="shrink-0 space-y-3 p-6 pb-4">
+                    <CardHeader className="shrink-0 space-y-3 bg-muted/20 p-6 pb-4">
                         <div>
                             <CardTitle>Ruang Bimbingan</CardTitle>
                             <CardDescription>
@@ -482,7 +482,7 @@ export default function DosenPesanBimbinganPage() {
                         </div>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="relative flex-1 overflow-hidden p-0">
+                    <CardContent className="relative flex-1 overflow-hidden pb-6">
                         <ScrollArea className="h-full w-full">
                             <div className="flex flex-col gap-2 p-4">
                                 {visibleThreads.length > 0 ? (
@@ -568,7 +568,7 @@ export default function DosenPesanBimbinganPage() {
                         mobileView === 'threads' && 'hidden lg:flex',
                     )}
                 >
-                    <CardHeader className="shrink-0 p-6 pb-4">
+                    <CardHeader className="shrink-0 bg-muted/20 p-6 pb-4">
                         {activeThread ? (
                             <>
                                 <div className="flex items-center gap-2">
@@ -705,7 +705,7 @@ export default function DosenPesanBimbinganPage() {
                     </CardHeader>
                     <Separator />
 
-                    <CardContent className="relative flex-1 overflow-hidden p-0">
+                    <CardContent className="relative flex-1 overflow-hidden pb-6">
                         <ScrollArea className="h-full w-full">
                             <div className="flex min-h-full flex-col p-4">
                                 {flashMessage && (

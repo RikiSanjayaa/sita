@@ -10,6 +10,9 @@ import {
 } from '@/components/ui/card';
 import { type UserProfileDetail } from '@/types';
 
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
 export function ProfileDetailsSections({
     profile,
 }: {
@@ -17,14 +20,14 @@ export function ProfileDetailsSections({
 }) {
     return (
         <div className="grid gap-6">
-            <Card>
-                <CardHeader>
+            <Card className={sectionCardClass}>
+                <CardHeader className={sectionCardHeaderClass}>
                     <CardTitle>Informasi Utama</CardTitle>
                     <CardDescription>
                         Ringkasan identitas dan detail akademik yang relevan.
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pb-6">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {profile.meta.map((item) => (
                             <div
@@ -44,14 +47,14 @@ export function ProfileDetailsSections({
             </Card>
 
             {profile.stats.length > 0 ? (
-                <Card>
-                    <CardHeader>
+                <Card className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
                         <CardTitle>Ringkasan</CardTitle>
                         <CardDescription>
                             Gambaran singkat aktivitas dan peran saat ini.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
                             {profile.stats.map((item) => (
                                 <div
@@ -72,8 +75,8 @@ export function ProfileDetailsSections({
             ) : null}
 
             {profile.thesis ? (
-                <Card>
-                    <CardHeader>
+                <Card className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
                         <CardTitle className="flex items-center gap-2">
                             <FileText className="size-4" />
                             Tugas Akhir
@@ -82,7 +85,7 @@ export function ProfileDetailsSections({
                             Status terkini dan dosen yang sedang terlibat.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-6 pb-6">
                         <div className="rounded-xl border p-4">
                             <p className="text-xs tracking-wide text-muted-foreground uppercase">
                                 Judul Saat Ini
@@ -150,14 +153,14 @@ export function ProfileDetailsSections({
             ) : null}
 
             {profile.relatedUsers.map((group) => (
-                <Card key={group.title}>
-                    <CardHeader>
+                <Card key={group.title} className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
                         <CardTitle>{group.title}</CardTitle>
                         <CardDescription>
                             Profil pengguna terkait yang bisa dibuka langsung.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         {group.users.length > 0 ? (
                             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                 {group.users.map((person) => (

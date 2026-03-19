@@ -56,8 +56,8 @@ export default function DosenMahasiswaBimbinganPage() {
             <Head title="Mahasiswa Bimbingan" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <Card className="shadow-sm">
-                    <CardHeader>
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <CardTitle>Kontak Mahasiswa Aktif</CardTitle>
                         <CardDescription>
                             Saat ini Anda menangani{' '}
@@ -71,7 +71,7 @@ export default function DosenMahasiswaBimbinganPage() {
                             kuota mahasiswa aktif.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         {mahasiswaRows.length > 0 ? (
                             <div className="grid gap-3">
                                 {mahasiswaRows.map((row) => (

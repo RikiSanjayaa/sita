@@ -68,7 +68,8 @@ type TugasAkhirPageProps = {
     submission: Submission | null;
     assignedLecturers: AssignedLecturers;
     advisorProfiles: UserProfileSummary[];
-    examinerProfiles: UserProfileSummary[];
+    semproExaminerProfiles: UserProfileSummary[];
+    sidangExaminerProfiles: UserProfileSummary[];
     semproDate: string | null;
     sidangDate: string | null;
     semproResult: {
@@ -99,6 +100,74 @@ type TugasAkhirPageProps = {
             decisionNotes: string | null;
         }>;
     } | null;
+    defenseHistory: {
+        sempro: Array<{
+            id: number;
+            attemptNo: number;
+            statusLabel: string;
+            resultLabel: string;
+            scheduledFor: string | null;
+            location: string | null;
+            mode: string | null;
+            officialNotes: string | null;
+            titleId: string;
+            titleEn: string | null;
+            proposalSummary: string | null;
+            proposalFileName: string | null;
+            proposalFileViewUrl: string | null;
+            proposalFileDownloadUrl: string | null;
+            examiners: Array<{
+                id: number;
+                name: string;
+                roleLabel: string;
+                decisionLabel: string;
+                score: number | string | null;
+                decisionNotes: string | null;
+            }>;
+            revisions: Array<{
+                id: number;
+                statusLabel: string;
+                notes: string;
+                requestedBy: string;
+                dueAt: string | null;
+                resolvedAt: string | null;
+                resolutionNotes: string | null;
+            }>;
+        }>;
+        sidang: Array<{
+            id: number;
+            attemptNo: number;
+            statusLabel: string;
+            resultLabel: string;
+            scheduledFor: string | null;
+            location: string | null;
+            mode: string | null;
+            officialNotes: string | null;
+            titleId: string;
+            titleEn: string | null;
+            proposalSummary: string | null;
+            proposalFileName: string | null;
+            proposalFileViewUrl: string | null;
+            proposalFileDownloadUrl: string | null;
+            examiners: Array<{
+                id: number;
+                name: string;
+                roleLabel: string;
+                decisionLabel: string;
+                score: number | string | null;
+                decisionNotes: string | null;
+            }>;
+            revisions: Array<{
+                id: number;
+                statusLabel: string;
+                notes: string;
+                requestedBy: string;
+                dueAt: string | null;
+                resolvedAt: string | null;
+                resolutionNotes: string | null;
+            }>;
+        }>;
+    };
     profileProgramStudi: string;
     flashMessage?: string | null;
     errorMessage?: string | null;
@@ -113,8 +182,11 @@ type FormData = {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Judul dan Proposal', href: tugasAkhir().url },
+    { title: 'Tugas Akhir', href: tugasAkhir().url },
 ];
+
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
 
 function normalizeTitleEn(value: string | null | undefined): string {
     if (value === null || value === '-' || value === undefined) {
@@ -139,8 +211,8 @@ function ProposalFileCard({ submission }: { submission: Submission }) {
         submission.proposal_file_view_url === null
     ) {
         return (
-            <Card>
-                <CardHeader>
+            <Card className={sectionCardClass}>
+                <CardHeader className={sectionCardHeaderClass}>
                     <CardTitle>File Proposal Terkirim</CardTitle>
                     <CardDescription>
                         File proposal belum tersedia. Admin akan membantu jika
@@ -152,14 +224,14 @@ function ProposalFileCard({ submission }: { submission: Submission }) {
     }
 
     return (
-        <Card>
-            <CardHeader>
+        <Card className={sectionCardClass}>
+            <CardHeader className={sectionCardHeaderClass}>
                 <CardTitle>File Proposal Terkirim</CardTitle>
                 <CardDescription>
                     Anda dapat melihat dan mengunduh ulang file proposal.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-6">
                 <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-3">
                         <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -299,7 +371,7 @@ function SubmissionFields({
     );
 }
 
-function SemproResultCard({
+function DefenseResultCard({
     title,
     result,
 }: {
@@ -312,14 +384,13 @@ function SemproResultCard({
     const finalGrade = resolveAcademicGrade(averageScore);
 
     return (
-        <Card>
-            <CardHeader className="gap-3">
+        <Card className={sectionCardClass}>
+            <CardHeader className={`${sectionCardHeaderClass} gap-3`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <CardTitle>{title}</CardTitle>
                         <CardDescription>
-                            Ringkasan keputusan, nilai, dan catatan dari dosen
-                            penguji setelah ujian selesai.
+                            Nilai dan catatan dari dosen penguji.
                         </CardDescription>
                     </div>
 
@@ -343,7 +414,7 @@ function SemproResultCard({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pb-6">
                 <div className="rounded-xl border bg-muted/15 p-4">
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-foreground">
@@ -402,13 +473,234 @@ function SemproResultCard({
     );
 }
 
+function DefenseHistorySection({
+    title,
+    items,
+}: {
+    title: string;
+    items: TugasAkhirPageProps['defenseHistory']['sempro'];
+}) {
+    if (items.length === 0) {
+        return null;
+    }
+
+    return (
+        <Card className={sectionCardClass}>
+            <CardHeader className={sectionCardHeaderClass}>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>
+                    Jadwal, nilai, catatan dosen, dan revisi tiap ujian.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pb-6">
+                {items.map((item) => {
+                    const averageScore = calculateAverageAcademicScore(
+                        item.examiners.map((examiner) => examiner.score),
+                    );
+                    const finalGrade = resolveAcademicGrade(averageScore);
+
+                    return (
+                        <div key={item.id} className="rounded-xl border p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">
+                                        Attempt #{item.attemptNo}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {item.scheduledFor ?? '-'}
+                                        {item.location
+                                            ? ` · ${item.location}`
+                                            : ''}
+                                        {item.mode ? ` · ${item.mode}` : ''}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge variant="outline">
+                                        {item.statusLabel}
+                                    </Badge>
+                                    <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
+                                        {item.resultLabel}
+                                    </Badge>
+                                    {averageScore !== null ? (
+                                        <Badge variant="secondary">
+                                            Nilai {averageScore.toFixed(2)}
+                                        </Badge>
+                                    ) : null}
+                                    {finalGrade ? (
+                                        <Badge
+                                            variant="soft"
+                                            className={academicGradeClassName(
+                                                finalGrade,
+                                            )}
+                                        >
+                                            Grade {finalGrade}
+                                        </Badge>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="mt-4 rounded-xl border bg-muted/15 p-4">
+                                <p className="text-sm font-semibold text-foreground">
+                                    {item.titleId}
+                                </p>
+                                {item.titleEn ? (
+                                    <p className="mt-1 text-xs text-muted-foreground italic">
+                                        {item.titleEn}
+                                    </p>
+                                ) : null}
+                                {item.proposalSummary ? (
+                                    <p className="mt-3 text-sm text-muted-foreground">
+                                        {item.proposalSummary}
+                                    </p>
+                                ) : null}
+                                {item.proposalFileName ? (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <Badge variant="outline">
+                                            {item.proposalFileName}
+                                        </Badge>
+                                        {item.proposalFileViewUrl ? (
+                                            <Button
+                                                asChild
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <a
+                                                    href={
+                                                        item.proposalFileViewUrl
+                                                    }
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    <Eye className="mr-2 size-4" />
+                                                    Lihat Proposal
+                                                </a>
+                                            </Button>
+                                        ) : null}
+                                        {item.proposalFileDownloadUrl ? (
+                                            <Button
+                                                asChild
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <a
+                                                    href={
+                                                        item.proposalFileDownloadUrl
+                                                    }
+                                                >
+                                                    <Download className="mr-2 size-4" />
+                                                    Unduh Proposal
+                                                </a>
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                {item.examiners.map((examiner) => (
+                                    <div
+                                        key={examiner.id}
+                                        className="rounded-lg border bg-background p-3"
+                                    >
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-medium text-foreground">
+                                                    {examiner.name}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {examiner.roleLabel}
+                                                </p>
+                                            </div>
+                                            <Badge variant="outline">
+                                                {examiner.decisionLabel}
+                                            </Badge>
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <Badge variant="secondary">
+                                                Nilai: {examiner.score ?? '-'}
+                                            </Badge>
+                                        </div>
+                                        <div className="mt-3 rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
+                                            <span className="font-medium text-foreground">
+                                                Catatan dosen:
+                                            </span>{' '}
+                                            {examiner.decisionNotes ??
+                                                'Belum ada catatan dari dosen.'}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {item.revisions.length > 0 ? (
+                                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                                        Catatan Revisi
+                                    </p>
+                                    <div className="mt-3 space-y-3">
+                                        {item.revisions.map((revision) => (
+                                            <div
+                                                key={revision.id}
+                                                className="rounded-lg border border-amber-200/70 bg-white/70 p-3 dark:border-amber-800 dark:bg-transparent"
+                                            >
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Badge variant="outline">
+                                                        {revision.statusLabel}
+                                                    </Badge>
+                                                    <Badge variant="secondary">
+                                                        {revision.requestedBy}
+                                                    </Badge>
+                                                </div>
+                                                <p className="mt-3 text-sm text-amber-950 dark:text-amber-100">
+                                                    {revision.notes}
+                                                </p>
+                                                <p className="mt-2 text-xs text-amber-800 dark:text-amber-300">
+                                                    {revision.dueAt
+                                                        ? `Batas: ${revision.dueAt}`
+                                                        : 'Tanpa batas revisi'}
+                                                    {revision.resolvedAt
+                                                        ? ` · Selesai: ${revision.resolvedAt}`
+                                                        : ''}
+                                                </p>
+                                                {revision.resolutionNotes ? (
+                                                    <p className="mt-2 text-xs text-amber-800 dark:text-amber-300">
+                                                        Catatan penyelesaian:{' '}
+                                                        {
+                                                            revision.resolutionNotes
+                                                        }
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {item.officialNotes ? (
+                                <div className="mt-4 rounded-lg border bg-background p-3 text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">
+                                        Catatan resmi admin:
+                                    </span>{' '}
+                                    {item.officialNotes}
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function TugasAkhirSaya() {
     const {
         submission,
         advisorProfiles,
-        examinerProfiles,
-        semproResult,
+        semproExaminerProfiles,
+        sidangExaminerProfiles,
         sidangResult,
+        defenseHistory,
         flashMessage,
         errorMessage,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
@@ -447,15 +739,13 @@ export default function TugasAkhirSaya() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Judul dan Proposal" />
+            <Head title="Tugas Akhir" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div>
-                    <h1 className="text-xl font-semibold">
-                        Judul dan Proposal
-                    </h1>
+                    <h1 className="text-xl font-semibold">Tugas Akhir</h1>
                     <p className="text-sm text-muted-foreground">
-                        Kelola judul, proposal, dan informasi penugasan skripsi
-                        Anda.
+                        mulai dari judul, proposal hingga seminar dan sidang
+                        beserta riwayat skripsi Anda.
                     </p>
                 </div>
 
@@ -468,15 +758,15 @@ export default function TugasAkhirSaya() {
                 )}
 
                 {submission === null && (
-                    <Card>
-                        <CardHeader>
+                    <Card className={sectionCardClass}>
+                        <CardHeader className={sectionCardHeaderClass}>
                             <CardTitle>Ajukan Judul & Proposal</CardTitle>
                             <CardDescription>
                                 Isi formulir di bawah ini untuk mengajukan judul
                                 dan proposal skripsi.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pb-6">
                             <form
                                 onSubmit={createSubmission}
                                 className="space-y-6"
@@ -501,14 +791,16 @@ export default function TugasAkhirSaya() {
 
                 {submission !== null && (
                     <div className="space-y-6">
-                        <Card>
-                            <CardHeader className="gap-3">
+                        <Card className={sectionCardClass}>
+                            <CardHeader
+                                className={`${sectionCardHeaderClass} gap-3`}
+                            >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <CardTitle>Status Pengajuan</CardTitle>
                                         <CardDescription>
-                                            Status proses judul dan proposal
-                                            skripsi Anda.
+                                            Perkembangan pengajuan Anda saat
+                                            ini.
                                         </CardDescription>
                                     </div>
                                     <Badge className="w-fit bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
@@ -516,7 +808,7 @@ export default function TugasAkhirSaya() {
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 <Alert>
                                     {submission.workflow.key ===
                                     'title_review_pending' ? (
@@ -531,14 +823,16 @@ export default function TugasAkhirSaya() {
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="gap-3">
+                        <Card className={sectionCardClass}>
+                            <CardHeader
+                                className={`${sectionCardHeaderClass} gap-3`}
+                            >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <CardTitle>Informasi Judul</CardTitle>
                                         <CardDescription>
-                                            Detail judul dan ringkasan proposal
-                                            yang Anda kirim.
+                                            Judul dan ringkasan proposal
+                                            terbaru.
                                         </CardDescription>
                                     </div>
                                     {!isEditing && (
@@ -561,7 +855,7 @@ export default function TugasAkhirSaya() {
                                     </p>
                                 )}
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 {isEditing ? (
                                     <form
                                         onSubmit={updateSubmission}
@@ -631,26 +925,24 @@ export default function TugasAkhirSaya() {
 
                         <ProposalFileCard submission={submission} />
 
-                        <Card>
-                            <CardHeader>
+                        <Card className={sectionCardClass}>
+                            <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>
                                     Dosen Pembimbing dan Penguji
                                 </CardTitle>
                                 <CardDescription>
-                                    Profil dosen yang sedang terhubung dengan
-                                    proses tugas akhir Anda.
+                                    Dosen yang terlibat pada sempro dan sidang.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="grid gap-6 lg:grid-cols-2">
+                            <CardContent className="space-y-6 pb-6">
+                                <div className="grid gap-6 xl:grid-cols-3">
                                     <div className="space-y-3">
                                         <div>
                                             <p className="text-sm font-semibold">
                                                 Dosen Pembimbing
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Klik kartu untuk membuka profil
-                                                dosen pembimbing.
+                                                Pembimbing aktif
                                             </p>
                                         </div>
                                         {advisorProfiles.length > 0 ? (
@@ -676,17 +968,16 @@ export default function TugasAkhirSaya() {
                                     <div className="space-y-3">
                                         <div>
                                             <p className="text-sm font-semibold">
-                                                Dosen Penguji
+                                                Dosen Penguji Sempro
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Data penguji diambil dari tahap
-                                                ujian yang sedang aktif atau
-                                                paling baru.
+                                                Penguji pada seminar proposal
+                                                terbaru.
                                             </p>
                                         </div>
-                                        {examinerProfiles.length > 0 ? (
+                                        {semproExaminerProfiles.length > 0 ? (
                                             <div className="grid gap-3">
-                                                {examinerProfiles.map(
+                                                {semproExaminerProfiles.map(
                                                     (person, index) => (
                                                         <PersonCardLink
                                                             key={`${person.id}-${index}`}
@@ -698,7 +989,35 @@ export default function TugasAkhirSaya() {
                                             </div>
                                         ) : (
                                             <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                                Belum ada dosen penguji aktif.
+                                                Belum ada dosen penguji sempro.
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-sm font-semibold">
+                                                Dosen Penguji Sidang
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Penguji pada sidang terbaru.
+                                            </p>
+                                        </div>
+                                        {sidangExaminerProfiles.length > 0 ? (
+                                            <div className="grid gap-3">
+                                                {sidangExaminerProfiles.map(
+                                                    (person, index) => (
+                                                        <PersonCardLink
+                                                            key={`${person.id}-sidang-${index}`}
+                                                            person={person}
+                                                            label={`Penguji Sidang ${index + 1}`}
+                                                        />
+                                                    ),
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                                                Belum ada dosen penguji sidang.
                                             </div>
                                         )}
                                     </div>
@@ -706,19 +1025,22 @@ export default function TugasAkhirSaya() {
                             </CardContent>
                         </Card>
 
-                        {semproResult ? (
-                            <SemproResultCard
-                                title="Hasil Seminar Proposal"
-                                result={semproResult}
-                            />
-                        ) : null}
-
                         {sidangResult ? (
-                            <SemproResultCard
+                            <DefenseResultCard
                                 title="Hasil Sidang Skripsi"
                                 result={sidangResult}
                             />
                         ) : null}
+
+                        <DefenseHistorySection
+                            title="Riwayat Seminar Proposal"
+                            items={defenseHistory.sempro}
+                        />
+
+                        <DefenseHistorySection
+                            title="Riwayat Sidang Skripsi"
+                            items={defenseHistory.sidang}
+                        />
                     </div>
                 )}
             </div>

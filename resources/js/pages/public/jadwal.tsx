@@ -5,7 +5,13 @@ import { useEffect, useState } from 'react';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { type SharedData } from '@/types';
 
@@ -50,6 +56,9 @@ const statusClassName: Record<ScheduleItem['statusTone'], string> = {
     muted: 'bg-muted text-muted-foreground hover:bg-muted',
 };
 
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
 function ScheduleTable({
     emptyMessage,
     items,
@@ -70,9 +79,16 @@ function ScheduleTable({
     const rangeEnd = items.length === 0 ? 0 : rangeStart + items.length - 1;
 
     return (
-        <Card className="shadow-sm">
-            <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle>{title}</CardTitle>
+        <Card className={sectionCardClass}>
+            <CardHeader
+                className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
+            >
+                <div>
+                    <CardTitle>{title}</CardTitle>
+                    <CardDescription>
+                        Jadwal yang tersedia pada bagian ini.
+                    </CardDescription>
+                </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span>
                         Menampilkan {rangeStart}-{rangeEnd}
@@ -82,7 +98,7 @@ function ScheduleTable({
                     </Badge>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pb-6">
                 {items.length > 0 ? (
                     <div className="space-y-3">
                         <div className="grid gap-3 md:hidden">
