@@ -255,8 +255,8 @@ test('admin service respects configurable lecturer quota when assigning supervis
 test('admin service schedules and completes sidang with revision', function (): void {
     $admin = User::factory()->asAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
-    $chair = User::factory()->asDosen()->create();
-    $secretary = User::factory()->asDosen()->create();
+    $primarySupervisor = User::factory()->asDosen()->create();
+    $secondarySupervisor = User::factory()->asDosen()->create();
     $examiner = User::factory()->asDosen()->create();
     $prodi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
 
@@ -264,9 +264,21 @@ test('admin service schedules and completes sidang with revision', function (): 
         'user_id' => $student->id,
         'nim' => '2210510301',
         'program_studi_id' => $prodi->id,
+        'concentration' => 'Data Science',
         'angkatan' => 2022,
         'is_active' => true,
     ]);
+
+    foreach ([$primarySupervisor, $secondarySupervisor, $examiner] as $lecturer) {
+        DosenProfile::query()->create([
+            'user_id' => $lecturer->id,
+            'nik' => fake()->numerify('730101010101####'),
+            'program_studi_id' => $prodi->id,
+            'concentration' => 'Data Science',
+            'supervision_quota' => 10,
+            'is_active' => true,
+        ]);
+    }
 
     $project = ThesisProject::query()->create([
         'student_user_id' => $student->id,
@@ -287,19 +299,51 @@ test('admin service schedules and completes sidang with revision', function (): 
         'decided_at' => now()->subDays(27),
     ]);
 
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $primarySupervisor->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(25),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $secondarySupervisor->id,
+        'role' => AdvisorType::Secondary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(25),
+    ]);
+
     app(ThesisProjectAdminService::class)->scheduleSidang(
         project: $project,
         createdBy: $admin->id,
         scheduledFor: now()->addDays(10)->format('Y-m-d H:i:s'),
         location: 'Ruang Sidang Proyek',
         mode: 'offline',
-        examinerAssignments: [
-            'chair_user_id' => $chair->id,
-            'secretary_user_id' => $secretary->id,
-            'examiner_user_id' => $examiner->id,
-        ],
+        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id],
         notes: 'Sidang tahap akhir.',
     );
+
+    $scheduledSidang = ThesisDefense::query()->where('project_id', $project->id)->where('type', 'sidang')->firstOrFail();
+
+    expect($scheduledSidang->examiners()->count())->toBe(3)
+        ->and($scheduledSidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
+        ->and($scheduledSidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
+        ->and($scheduledSidang->examiners()->where('role', 'examiner')->exists())->toBeTrue();
+
+    $scheduledSidang->examiners()->update([
+        'decision' => 'pass_with_revision',
+        'score' => 84,
+        'decided_at' => now(),
+    ]);
+
+    $scheduledSidang->forceFill([
+        'status' => 'awaiting_finalization',
+        'result' => 'pending',
+    ])->save();
 
     app(ThesisProjectAdminService::class)->completeSidang(
         project: $project->fresh(),
@@ -318,5 +362,89 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_scheduled')->count())->toBe(1)
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_completed')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sidang')
+        ->and($project->fresh()->state)->toBe('active');
+});
+
+test('admin service finalizes sempro as failed without opening revisions', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $examinerOne = User::factory()->asDosen()->create();
+    $examinerTwo = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510399',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Artificial Intelligence',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    foreach ([$examinerOne, $examinerTwo] as $lecturer) {
+        DosenProfile::query()->create([
+            'user_id' => $lecturer->id,
+            'nik' => fake()->numerify('730101010101####'),
+            'program_studi_id' => $prodi->id,
+            'concentration' => 'Artificial Intelligence',
+            'supervision_quota' => 10,
+            'is_active' => true,
+        ]);
+    }
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(14),
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Evaluasi Sistem Penilaian Adaptif',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(13),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(12),
+    ]);
+
+    app(ThesisProjectAdminService::class)->scheduleSempro(
+        project: $project,
+        scheduledBy: $admin->id,
+        scheduledFor: now()->addDays(4)->format('Y-m-d H:i:s'),
+        location: 'Ruang Sempro 2',
+        mode: 'offline',
+        examinerUserIds: [$examinerOne->id, $examinerTwo->id],
+    );
+
+    $sempro = ThesisDefense::query()->where('project_id', $project->id)->where('type', 'sempro')->firstOrFail();
+
+    $sempro->examiners()->update([
+        'decision' => 'fail',
+        'score' => 55,
+        'decided_at' => now(),
+    ]);
+
+    $sempro->forceFill([
+        'status' => 'awaiting_finalization',
+        'result' => 'pending',
+    ])->save();
+
+    app(ThesisProjectAdminService::class)->finalizeSempro(
+        project: $project->fresh(),
+        decidedBy: $admin->id,
+        result: 'fail',
+        notes: 'Proposal belum memenuhi standar kelulusan sempro.',
+    );
+
+    expect($sempro->fresh()->status)->toBe('completed')
+        ->and($sempro->fresh()->result)->toBe('fail')
+        ->and(ThesisRevision::query()->where('project_id', $project->id)->count())->toBe(0)
+        ->and(ThesisProjectEvent::query()->where('event_type', 'sempro_failed')->count())->toBe(1)
+        ->and($project->fresh()->phase)->toBe('sempro')
         ->and($project->fresh()->state)->toBe('active');
 });

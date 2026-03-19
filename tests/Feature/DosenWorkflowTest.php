@@ -512,7 +512,7 @@ test('dosen seminar proposal page shows only assigned sempro and sidang defenses
     ]);
 
     assignDefenseExaminer($assignedSempro, $dosen, 'examiner', 1);
-    assignDefenseExaminer($assignedSidang, $dosen, 'chair', 1);
+    assignDefenseExaminer($assignedSidang, $dosen, 'primary_supervisor', 1);
     assignDefenseExaminer($foreignDefense, $otherDosen, 'examiner', 1);
 
     $this->actingAs($dosen)
@@ -525,7 +525,7 @@ test('dosen seminar proposal page shows only assigned sempro and sidang defenses
             ->where('defenses.1.type', 'sempro'));
 });
 
-test('dosen defense decision keeps defense open until all examiners decide and then completes it', function () {
+test('dosen defense decision keeps defense scheduled until all examiners decide and then waits for admin finalization', function () {
     $dosen = createDosenUser();
     $otherDosen = createDosenUser();
     $student = createMahasiswaUser('2210519003');
@@ -567,11 +567,9 @@ test('dosen defense decision keeps defense open until all examiners decide and t
         'result' => 'pending',
     ]);
 
-    $this->assertDatabaseHas('thesis_revisions', [
+    $this->assertDatabaseMissing('thesis_revisions', [
         'project_id' => $project->id,
         'defense_id' => $defense->id,
-        'requested_by_user_id' => $dosen->id,
-        'status' => 'open',
     ]);
 
     $this->actingAs($otherDosen)
@@ -584,8 +582,8 @@ test('dosen defense decision keeps defense open until all examiners decide and t
 
     $this->assertDatabaseHas('thesis_defenses', [
         'id' => $defense->id,
-        'status' => 'completed',
-        'result' => 'pass_with_revision',
+        'status' => 'awaiting_finalization',
+        'result' => 'pending',
     ]);
 
     $this->actingAs($dosen)

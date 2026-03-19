@@ -574,7 +574,7 @@ test('tugas akhir page shows completed sempro and sidang results', function () {
     ThesisDefenseExaminer::query()->create([
         'defense_id' => $sidang->id,
         'lecturer_user_id' => $ketuaSidang->id,
-        'role' => 'chair',
+        'role' => 'primary_supervisor',
         'order_no' => 1,
         'decision' => 'pass',
         'score' => 85,
@@ -593,7 +593,99 @@ test('tugas akhir page shows completed sempro and sidang results', function () {
             ->where('sidangResult.label', 'Sidang Skripsi')
             ->where('sidangResult.resultLabel', 'Lulus')
             ->where('sidangResult.examiners.0.name', $ketuaSidang->name)
-            ->where('sidangResult.examiners.0.score', '85.00'));
+            ->where('sidangResult.examiners.0.roleLabel', 'Pembimbing 1')
+            ->where('sidangResult.examiners.0.score', '85.00')
+            ->where('defenseHistory.sempro.0.attemptNo', 1)
+            ->where('defenseHistory.sidang.0.attemptNo', 1));
+});
+
+test('tugas akhir page keeps previous sempro attempts visible after reschedule', function () {
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $examiner = createUserWithRole(AppRole::Dosen->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    DosenProfile::query()->where('user_id', $examiner->id)->update([
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subMonth(),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Analisis Riwayat Sempro',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subMonth(),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subWeeks(3),
+    ]);
+
+    $firstAttempt = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'fail',
+        'scheduled_for' => now()->subWeeks(2),
+        'location' => 'Ruang Lama',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subWeeks(2),
+        'notes' => 'Perlu sempro ulang.',
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $firstAttempt->id,
+        'lecturer_user_id' => $examiner->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'fail',
+        'assigned_by' => $admin->id,
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 2,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addWeek(),
+        'location' => 'Ruang Baru',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('submission.workflow.key', 'sempro_scheduled')
+            ->where('submission.workflow.can_edit', true)
+            ->where('semproResult', null)
+            ->where('defenseHistory.sempro.0.attemptNo', 2)
+            ->where('defenseHistory.sempro.0.statusLabel', 'Dijadwalkan')
+            ->where('defenseHistory.sempro.1.attemptNo', 1)
+            ->where('defenseHistory.sempro.1.resultLabel', 'Tidak Lulus')
+            ->where('defenseHistory.sempro.1.officialNotes', 'Perlu sempro ulang.'));
 });
 
 test('mahasiswa can update pending thesis project and replace proposal file', function () {
