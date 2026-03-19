@@ -120,11 +120,21 @@ class MahasiswaBimbinganController extends Controller
                     'label' => 'Sidang Terjadwal',
                     'description' => 'Mahasiswa bersiap menuju sidang akhir.',
                 ],
+                'awaiting_finalization' => [
+                    'label' => 'Menunggu Hasil Sidang',
+                    'description' => 'Semua keputusan dosen sudah masuk dan menunggu finalisasi admin.',
+                ],
                 'completed' => [
-                    'label' => $latestSidang->result === 'pass_with_revision' ? 'Revisi Sidang' : 'Sidang Selesai',
-                    'description' => $latestSidang->result === 'pass_with_revision'
-                        ? 'Masih ada revisi sidang yang perlu dipantau.'
-                        : 'Tahap sidang sudah selesai.',
+                    'label' => match ($latestSidang->result) {
+                        'pass_with_revision' => 'Revisi Sidang',
+                        'fail' => 'Sidang Tidak Lulus',
+                        default => 'Sidang Selesai',
+                    },
+                    'description' => match ($latestSidang->result) {
+                        'pass_with_revision' => 'Masih ada revisi sidang yang perlu dipantau.',
+                        'fail' => 'Mahasiswa menunggu penjadwalan ulang sidang berikutnya.',
+                        default => 'Tahap sidang sudah selesai.',
+                    },
                 ],
                 default => [
                     'label' => 'Tahap Sidang',
@@ -144,11 +154,21 @@ class MahasiswaBimbinganController extends Controller
                     'label' => 'Sempro Terjadwal',
                     'description' => 'Mahasiswa sedang menuju pelaksanaan seminar proposal.',
                 ],
+                'awaiting_finalization' => [
+                    'label' => 'Menunggu Hasil Sempro',
+                    'description' => 'Semua keputusan dosen sudah masuk dan menunggu finalisasi admin.',
+                ],
                 'completed' => [
-                    'label' => $latestSempro->result === 'pass_with_revision' ? 'Revisi Sempro' : 'Penelitian Berjalan',
-                    'description' => $latestSempro->result === 'pass_with_revision'
-                        ? 'Perlu menindaklanjuti revisi sempro.'
-                        : 'Sempro selesai, lanjut ke fase penelitian.',
+                    'label' => match ($latestSempro->result) {
+                        'pass_with_revision' => 'Revisi Sempro',
+                        'fail' => 'Sempro Tidak Lulus',
+                        default => 'Penelitian Berjalan',
+                    },
+                    'description' => match ($latestSempro->result) {
+                        'pass_with_revision' => 'Perlu menindaklanjuti revisi sempro.',
+                        'fail' => 'Mahasiswa menunggu penjadwalan ulang sempro berikutnya.',
+                        default => 'Sempro selesai, lanjut ke fase penelitian.',
+                    },
                 ],
                 default => [
                     'label' => 'Tahap Sempro',

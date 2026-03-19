@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
-use App\Models\ThesisRevision;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -33,7 +32,7 @@ class ThesisDefenseExaminerDecisionService
             throw new RuntimeException('Anda sudah mengirim keputusan untuk ujian ini.');
         }
 
-        DB::transaction(function () use ($data, $defense, $examiner, $lecturer): void {
+        DB::transaction(function () use ($data, $defense, $examiner): void {
             $examiner->forceFill([
                 'decision' => $data['decision'],
                 'score' => $data['score'],
@@ -41,26 +40,7 @@ class ThesisDefenseExaminerDecisionService
                 'decided_at' => now(),
             ])->save();
 
-            if ($data['decision'] === 'pass_with_revision') {
-                ThesisRevision::query()->updateOrCreate(
-                    [
-                        'project_id' => $defense->project_id,
-                        'defense_id' => $defense->id,
-                        'requested_by_user_id' => $lecturer->id,
-                        'status' => 'open',
-                    ],
-                    [
-                        'notes' => $data['revision_notes'] ?? $data['decision_notes'] ?? 'Perlu revisi setelah penilaian penguji.',
-                        'due_at' => now()->addDays(14),
-                        'submitted_at' => null,
-                        'resolved_at' => null,
-                        'resolved_by_user_id' => null,
-                        'resolution_notes' => null,
-                    ],
-                );
-            }
-
-            $this->recalculateDefenseOutcome($defense->fresh(['examiners', 'revisions']));
+            $this->recalculateDefenseOutcome($defense->fresh('examiners'));
         });
 
         return $examiner->fresh();
@@ -79,29 +59,9 @@ class ThesisDefenseExaminerDecisionService
             return;
         }
 
-        if ($decisions->contains('fail')) {
-            $defense->forceFill([
-                'status' => 'completed',
-                'result' => 'fail',
-            ])->save();
-
-            return;
-        }
-
-        if ($decisions->contains('pass_with_revision')) {
-            $defense->forceFill([
-                'status' => 'completed',
-                'result' => 'pass_with_revision',
-            ])->save();
-
-            return;
-        }
-
-        if ($decisions->isNotEmpty() && $decisions->every(fn(string $decision): bool => $decision === 'pass')) {
-            $defense->forceFill([
-                'status' => 'completed',
-                'result' => 'pass',
-            ])->save();
-        }
+        $defense->forceFill([
+            'status' => 'awaiting_finalization',
+            'result' => 'pending',
+        ])->save();
     }
 }

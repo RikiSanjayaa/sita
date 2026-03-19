@@ -36,6 +36,7 @@ class ThesisProjectAdminService
                 ->whereIn('status', ['draft', 'scheduled'])
                 ->latest('attempt_no')
                 ->first();
+            $wasRescheduled = $defense instanceof ThesisDefense && $defense->status === 'scheduled';
 
             $attemptNo = (int) $project->semproDefenses()->max('attempt_no');
 
@@ -79,9 +80,12 @@ class ThesisProjectAdminService
             $this->recordEvent(
                 $project->fresh(),
                 actorUserId: $scheduledBy,
-                eventType: 'sempro_scheduled',
-                label: 'Sempro dijadwalkan',
-                description: sprintf('Sempro dijadwalkan di %s.', $location),
+                eventType: $wasRescheduled ? 'sempro_rescheduled' : 'sempro_scheduled',
+                label: $wasRescheduled ? 'Sempro dijadwalkan ulang' : 'Sempro dijadwalkan',
+                description: sprintf(
+                    $wasRescheduled ? 'Sempro dijadwalkan ulang di %s.' : 'Sempro dijadwalkan di %s.',
+                    $location,
+                ),
                 occurredAt: $scheduledFor,
             );
 
@@ -105,6 +109,10 @@ class ThesisProjectAdminService
             throw new RuntimeException('Sempro belum tersedia untuk proyek ini.');
         }
 
+        if ($defense->status !== 'awaiting_finalization') {
+            throw new RuntimeException('Sempro belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
+        }
+
         return DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt): ThesisProject {
             $defense->forceFill([
                 'status' => 'completed',
@@ -114,28 +122,11 @@ class ThesisProjectAdminService
                 'notes' => $notes,
             ])->save();
 
-            $defense->examiners->each(function (ThesisDefenseExaminer $examiner) use ($decidedBy, $result, $notes): void {
-                $examiner->forceFill([
-                    'decision' => $result,
-                    'score' => $examiner->score,
-                    'notes' => $notes,
-                    'decided_at' => now(),
-                    'assigned_by' => $decidedBy,
-                ])->save();
-            });
+            if ($result !== 'pass_with_revision') {
+                $this->closeDefenseRevisions($defense, $decidedBy, $notes);
+            }
 
             if ($result === 'pass') {
-                ThesisRevision::query()
-                    ->where('project_id', $project->getKey())
-                    ->where('defense_id', $defense->getKey())
-                    ->whereIn('status', ['open', 'submitted'])
-                    ->update([
-                        'status' => 'resolved',
-                        'resolved_at' => now(),
-                        'resolved_by_user_id' => $decidedBy,
-                        'resolution_notes' => $notes,
-                    ]);
-
                 $project->forceFill([
                     'phase' => 'research',
                     'state' => 'active',
@@ -145,23 +136,17 @@ class ThesisProjectAdminService
             }
 
             if ($result === 'pass_with_revision') {
-                ThesisRevision::query()->updateOrCreate(
-                    [
-                        'project_id' => $project->getKey(),
-                        'defense_id' => $defense->getKey(),
-                        'status' => 'open',
-                    ],
-                    [
-                        'requested_by_user_id' => $decidedBy,
-                        'notes' => $notes,
-                        'due_at' => $revisionDueAt,
-                        'submitted_at' => null,
-                        'resolved_at' => null,
-                        'resolved_by_user_id' => null,
-                        'resolution_notes' => null,
-                    ],
-                );
+                $this->upsertDefenseRevision($defense, $decidedBy, $notes, $revisionDueAt);
 
+                $project->forceFill([
+                    'phase' => 'sempro',
+                    'state' => 'active',
+                    'completed_at' => null,
+                    'closed_by' => null,
+                ])->save();
+            }
+
+            if ($result === 'fail') {
                 $project->forceFill([
                     'phase' => 'sempro',
                     'state' => 'active',
@@ -175,11 +160,32 @@ class ThesisProjectAdminService
             $this->recordEvent(
                 $freshProject,
                 actorUserId: $decidedBy,
-                eventType: $result === 'pass' ? 'sempro_completed' : 'revision_opened',
-                label: $result === 'pass' ? 'Sempro selesai' : 'Revisi sempro dibuka',
+                eventType: match ($result) {
+                    'pass' => 'sempro_completed',
+                    'pass_with_revision' => 'sempro_completed',
+                    'fail' => 'sempro_failed',
+                    default => 'sempro_completed',
+                },
+                label: match ($result) {
+                    'pass' => 'Sempro selesai',
+                    'pass_with_revision' => 'Sempro selesai dengan revisi',
+                    'fail' => 'Sempro tidak lulus',
+                    default => 'Hasil sempro ditetapkan',
+                },
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
             );
+
+            if ($result === 'pass_with_revision') {
+                $this->recordEvent(
+                    $freshProject,
+                    actorUserId: $decidedBy,
+                    eventType: 'revision_opened',
+                    label: 'Revisi sempro dibuka',
+                    description: $notes,
+                    occurredAt: now()->toDateTimeString(),
+                );
+            }
 
             return $freshProject;
         });
@@ -242,7 +248,7 @@ class ThesisProjectAdminService
     }
 
     /**
-     * @param  array<string, int>  $examinerAssignments
+     * @param  array<int, int>  $panelUserIds
      */
     public function scheduleSidang(
         ThesisProject $project,
@@ -250,15 +256,16 @@ class ThesisProjectAdminService
         string $scheduledFor,
         string $location,
         string $mode,
-        array $examinerAssignments,
+        array $panelUserIds,
         ?string $notes = null,
     ): ThesisDefense {
-        return DB::transaction(function () use ($project, $createdBy, $scheduledFor, $location, $mode, $examinerAssignments, $notes): ThesisDefense {
+        return DB::transaction(function () use ($project, $createdBy, $scheduledFor, $location, $mode, $panelUserIds, $notes): ThesisDefense {
             $attemptNo = (int) $project->sidangDefenses()->max('attempt_no');
             $openDefense = $project->sidangDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
                 ->latest('attempt_no')
                 ->first();
+            $wasRescheduled = $openDefense instanceof ThesisDefense && $openDefense->status === 'scheduled';
 
             $defense = $openDefense instanceof ThesisDefense
                 ? $openDefense
@@ -281,25 +288,12 @@ class ThesisProjectAdminService
                 'location' => $location,
                 'mode' => $mode,
                 'created_by' => $createdBy,
+                'decided_by' => null,
+                'decision_at' => null,
                 'notes' => $notes,
             ])->save();
 
-            $defense->examiners()->delete();
-
-            foreach ([
-                'chair_user_id' => ['role' => 'chair', 'order' => 1],
-                'secretary_user_id' => ['role' => 'secretary', 'order' => 2],
-                'examiner_user_id' => ['role' => 'examiner', 'order' => 3],
-            ] as $field => $config) {
-                ThesisDefenseExaminer::query()->create([
-                    'defense_id' => $defense->getKey(),
-                    'lecturer_user_id' => $examinerAssignments[$field],
-                    'role' => $config['role'],
-                    'order_no' => $config['order'],
-                    'decision' => 'pending',
-                    'assigned_by' => $createdBy,
-                ]);
-            }
+            $this->syncSidangExaminers($project, $defense, $panelUserIds, $createdBy);
 
             $project->forceFill([
                 'phase' => 'sidang',
@@ -311,8 +305,8 @@ class ThesisProjectAdminService
             $this->recordEvent(
                 $project->fresh(),
                 actorUserId: $createdBy,
-                eventType: 'sidang_scheduled',
-                label: 'Sidang dijadwalkan',
+                eventType: $wasRescheduled ? 'sidang_rescheduled' : 'sidang_scheduled',
+                label: $wasRescheduled ? 'Sidang dijadwalkan ulang' : 'Sidang dijadwalkan',
                 description: $notes,
                 occurredAt: $scheduledFor,
             );
@@ -339,6 +333,10 @@ class ThesisProjectAdminService
                 throw new RuntimeException('Sidang belum dijadwalkan untuk proyek ini.');
             }
 
+            if ($defense->status !== 'awaiting_finalization') {
+                throw new RuntimeException('Sidang belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
+            }
+
             $defense->forceFill([
                 'status' => 'completed',
                 'result' => $result,
@@ -347,14 +345,9 @@ class ThesisProjectAdminService
                 'notes' => $notes,
             ])->save();
 
-            $defense->examiners->each(function ($examiner) use ($decidedBy, $result, $notes): void {
-                $examiner->forceFill([
-                    'decision' => $result,
-                    'notes' => $notes,
-                    'decided_at' => now(),
-                    'assigned_by' => $decidedBy,
-                ])->save();
-            });
+            if ($result !== 'pass_with_revision') {
+                $this->closeDefenseRevisions($defense, $decidedBy, $notes);
+            }
 
             if ($result === 'pass') {
                 $project->supervisorAssignments()
@@ -373,14 +366,7 @@ class ThesisProjectAdminService
             }
 
             if ($result === 'pass_with_revision') {
-                ThesisRevision::query()->create([
-                    'project_id' => $project->getKey(),
-                    'defense_id' => $defense->getKey(),
-                    'requested_by_user_id' => $decidedBy,
-                    'status' => 'open',
-                    'notes' => $revisionNotes ?? $notes,
-                    'due_at' => $revisionDueAt,
-                ]);
+                $this->upsertDefenseRevision($defense, $decidedBy, $revisionNotes ?? $notes, $revisionDueAt);
 
                 $project->forceFill([
                     'phase' => 'sidang',
@@ -402,8 +388,18 @@ class ThesisProjectAdminService
             $this->recordEvent(
                 $project->fresh(),
                 actorUserId: $decidedBy,
-                eventType: 'sidang_completed',
-                label: 'Sidang diselesaikan',
+                eventType: match ($result) {
+                    'pass' => 'sidang_completed',
+                    'pass_with_revision' => 'sidang_completed',
+                    'fail' => 'sidang_failed',
+                    default => 'sidang_completed',
+                },
+                label: match ($result) {
+                    'pass' => 'Sidang selesai',
+                    'pass_with_revision' => 'Sidang selesai dengan revisi',
+                    'fail' => 'Sidang tidak lulus',
+                    default => 'Hasil sidang ditetapkan',
+                },
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
             );
@@ -436,6 +432,54 @@ class ThesisProjectAdminService
         return $approvedTitle ?? $project->latestTitle;
     }
 
+    private function closeDefenseRevisions(ThesisDefense $defense, int $resolvedBy, string $resolutionNotes): void
+    {
+        ThesisRevision::query()
+            ->where('project_id', $defense->project_id)
+            ->where('defense_id', $defense->getKey())
+            ->whereIn('status', ['open', 'submitted'])
+            ->update([
+                'status' => 'resolved',
+                'resolved_at' => now(),
+                'resolved_by_user_id' => $resolvedBy,
+                'resolution_notes' => $resolutionNotes,
+            ]);
+    }
+
+    private function upsertDefenseRevision(ThesisDefense $defense, int $requestedBy, string $notes, ?string $dueAt): void
+    {
+        $revision = ThesisRevision::query()
+            ->where('project_id', $defense->project_id)
+            ->where('defense_id', $defense->getKey())
+            ->whereIn('status', ['open', 'submitted'])
+            ->latest('id')
+            ->first();
+
+        if ($revision instanceof ThesisRevision) {
+            $revision->forceFill([
+                'requested_by_user_id' => $requestedBy,
+                'status' => 'open',
+                'notes' => $notes,
+                'due_at' => $dueAt,
+                'submitted_at' => null,
+                'resolved_at' => null,
+                'resolved_by_user_id' => null,
+                'resolution_notes' => null,
+            ])->save();
+
+            return;
+        }
+
+        ThesisRevision::query()->create([
+            'project_id' => $defense->project_id,
+            'defense_id' => $defense->getKey(),
+            'requested_by_user_id' => $requestedBy,
+            'status' => 'open',
+            'notes' => $notes,
+            'due_at' => $dueAt,
+        ]);
+    }
+
     /**
      * @param  array<int, int>  $examinerUserIds
      */
@@ -457,6 +501,76 @@ class ThesisProjectAdminService
                 'defense_id' => $defense->getKey(),
                 'lecturer_user_id' => $examinerUserId,
                 'role' => 'examiner',
+                'order_no' => $index + 1,
+                'decision' => 'pending',
+                'assigned_by' => $assignedBy,
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, int>  $panelUserIds
+     */
+    private function syncSidangExaminers(ThesisProject $project, ThesisDefense $defense, array $panelUserIds, int $assignedBy): void
+    {
+        $project->loadMissing('activeSupervisorAssignments');
+
+        $normalizedPanelIds = collect($panelUserIds)
+            ->map(static fn($id): int => (int) $id)
+            ->filter(static fn(int $id): bool => $id > 0)
+            ->values();
+
+        if ($normalizedPanelIds->isEmpty() || $normalizedPanelIds->count() !== $normalizedPanelIds->unique()->count()) {
+            throw new RuntimeException('Panel sidang harus berisi dosen yang berbeda.');
+        }
+
+        $activeSupervisors = $project->activeSupervisorAssignments
+            ->sortBy(fn(ThesisSupervisorAssignment $assignment): int => $assignment->role === AdvisorType::Primary->value ? 1 : 2)
+            ->values();
+
+        $supervisorIds = $activeSupervisors
+            ->pluck('lecturer_user_id')
+            ->map(static fn($id): int => (int) $id)
+            ->values();
+
+        if ($supervisorIds->isEmpty()) {
+            throw new RuntimeException('Sidang memerlukan pembimbing aktif sebelum dapat dijadwalkan.');
+        }
+
+        foreach ($supervisorIds as $index => $supervisorId) {
+            if (! $normalizedPanelIds->contains($supervisorId)) {
+                throw new RuntimeException(sprintf('Panel sidang harus menyertakan Pembimbing %d.', $index + 1));
+            }
+        }
+
+        $additionalExaminerIds = $normalizedPanelIds
+            ->reject(fn(int $id): bool => $supervisorIds->contains($id))
+            ->values();
+
+        if ($additionalExaminerIds->isEmpty()) {
+            throw new RuntimeException('Sidang harus memiliki minimal satu penguji tambahan di luar pembimbing aktif.');
+        }
+
+        $orderedPanelIds = $supervisorIds
+            ->concat($additionalExaminerIds)
+            ->values();
+
+        foreach ($orderedPanelIds as $index => $lecturerUserId) {
+            $this->assertDefenseExaminerEligible($project, $lecturerUserId, sprintf('Panel sidang #%d', $index + 1));
+        }
+
+        $roleByLecturerId = $activeSupervisors
+            ->mapWithKeys(fn(ThesisSupervisorAssignment $assignment): array => [
+                (int) $assignment->lecturer_user_id => $assignment->role === AdvisorType::Primary->value ? 'primary_supervisor' : 'secondary_supervisor',
+            ]);
+
+        $defense->examiners()->delete();
+
+        foreach ($orderedPanelIds as $index => $lecturerUserId) {
+            ThesisDefenseExaminer::query()->create([
+                'defense_id' => $defense->getKey(),
+                'lecturer_user_id' => $lecturerUserId,
+                'role' => $roleByLecturerId->get($lecturerUserId, 'examiner'),
                 'order_no' => $index + 1,
                 'decision' => 'pending',
                 'assigned_by' => $assignedBy,
@@ -639,6 +753,27 @@ class ThesisProjectAdminService
 
         if ($activeStudentIds->count() >= $quota) {
             throw new RuntimeException(sprintf('%s sudah mencapai kuota bimbingan (%d mahasiswa aktif).', $label, $quota));
+        }
+    }
+
+    private function assertDefenseExaminerEligible(ThesisProject $project, int $lecturerUserId, string $label): void
+    {
+        $lecturer = User::query()
+            ->with('dosenProfile')
+            ->find($lecturerUserId);
+
+        if (! $lecturer instanceof User || ! $lecturer->hasRole('dosen')) {
+            throw new RuntimeException(sprintf('%s harus merupakan dosen yang valid.', $label));
+        }
+
+        $lecturerProfile = $lecturer->dosenProfile;
+
+        if ($lecturerProfile === null || ! $lecturerProfile->is_active) {
+            throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
+        }
+
+        if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
+            throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
         }
     }
 

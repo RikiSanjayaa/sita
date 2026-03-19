@@ -344,8 +344,8 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertSupervisorAssignment($historicalProject, $supervisorTwo, AdvisorType::Secondary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:05:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing kedua proyek lama.');
 
         $historicalSidang = $this->upsertDefense($historicalProject, $historicalTitle, 'sidang', 1, 'completed', 'pass_with_revision', $historicalSidangAt, 'Ruang Sidang B', 'offline', $admin, $admin, $historicalSidangAt->addHours(2), 'Sidang historis untuk proyek yang telah ditutup.');
-        $this->upsertDefenseExaminer($historicalSidang, $supervisorOne, 'chair', 1, 'pass', 83.5, 'Ketua menyetujui dengan revisi minor.', $admin, $historicalSidangAt->addMinutes(95));
-        $this->upsertDefenseExaminer($historicalSidang, $supervisorTwo, 'secretary', 2, 'pass_with_revision', 81, 'Sekretaris menambahkan catatan format.', $admin, $historicalSidangAt->addMinutes(100));
+        $this->upsertDefenseExaminer($historicalSidang, $supervisorOne, 'primary_supervisor', 1, 'pass', 83.5, 'Pembimbing utama menyetujui dengan revisi minor.', $admin, $historicalSidangAt->addMinutes(95));
+        $this->upsertDefenseExaminer($historicalSidang, $supervisorTwo, 'secondary_supervisor', 2, 'pass_with_revision', 81, 'Pembimbing kedua menambahkan catatan format.', $admin, $historicalSidangAt->addMinutes(100));
         $this->upsertDefenseExaminer($historicalSidang, $examinerOne, 'examiner', 3, 'pass', 84, 'Penguji menyetujui hasil sidang.', $admin, $historicalSidangAt->addMinutes(105));
 
         $revision = $this->upsertRevision(
@@ -422,8 +422,8 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertSupervisorAssignment($project, $secondarySupervisor, AdvisorType::Secondary->value, 'active', $admin, CarbonImmutable::parse('2026-02-21 09:05:00'), null, 'Pembimbing kedua aktif setelah rotasi.');
 
         $sidang = $this->upsertDefense($project, $title, 'sidang', 1, 'scheduled', 'pending', $sidangAt, 'Ruang Sidang A', 'offline', $admin, null, null, 'Sidang perdana terjadwal untuk proyek aktif dengan pembimbing yang sudah lengkap.');
-        $this->upsertDefenseExaminer($sidang, $newPrimarySupervisor, 'chair', 1, 'pending', null, 'Ketua sidang.', $admin, null);
-        $this->upsertDefenseExaminer($sidang, $secondarySupervisor, 'secretary', 2, 'pending', null, 'Sekretaris sidang.', $admin, null);
+        $this->upsertDefenseExaminer($sidang, $newPrimarySupervisor, 'primary_supervisor', 1, 'pending', null, 'Pembimbing utama sidang.', $admin, null);
+        $this->upsertDefenseExaminer($sidang, $secondarySupervisor, 'secondary_supervisor', 2, 'pending', null, 'Pembimbing kedua sidang.', $admin, null);
         $this->upsertDefenseExaminer($sidang, $semproExaminer, 'examiner', 3, 'pending', null, 'Penguji eksternal sidang.', $admin, null);
 
         $this->upsertMentorshipDocument($student, $newPrimarySupervisor, 'Draft Bab 4', 'draft-tugas-akhir', 1, 'mentorship/putra/draft-bab4-v1.pdf', 'submitted', CarbonImmutable::parse('2026-03-01 11:00:00'), null);
