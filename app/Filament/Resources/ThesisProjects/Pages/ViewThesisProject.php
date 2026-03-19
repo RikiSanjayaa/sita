@@ -109,12 +109,15 @@ class ViewThesisProject extends ViewRecord
                 ->icon('heroicon-m-check-badge')
                 ->color('success')
                 ->visible(fn(): bool => $record->state === 'active' && $this->latestSempro($record) !== null)
+                ->disabled(fn(): bool => $this->latestSempro($record)?->status !== 'awaiting_finalization')
+                ->tooltip(fn(): ?string => $this->finalizeSemproTooltip($record))
                 ->form([
                     Select::make('result')
                         ->label('Hasil')
                         ->options([
                             'pass' => 'Lulus',
                             'pass_with_revision' => 'Lulus dengan Revisi',
+                            'fail' => 'Tidak Lulus',
                         ])
                         ->required()
                         ->native(false),
@@ -233,29 +236,22 @@ class ViewThesisProject extends ViewRecord
                         ->default('offline')
                         ->required()
                         ->native(false),
-                    Select::make('chair_user_id')
-                        ->label('Ketua Sidang')
-                        ->options(fn(): array => $this->dosenOptions($record))
+                    Textarea::make('active_supervisors')
+                        ->label('Pembimbing Aktif')
+                        ->default(fn(): string => $this->activeSupervisorSummary($record))
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->rows(2),
+                    Select::make('additional_examiner_user_ids')
+                        ->label('Dosen Penguji Sidang')
+                        ->multiple()
+                        ->options(fn(): array => $this->sidangAdditionalExaminerOptions($record))
+                        ->default(fn(): array => $this->defaultSidangAdditionalExaminerUserIds($record))
                         ->searchable()
                         ->preload()
                         ->required()
-                        ->native(false),
-                    Select::make('secretary_user_id')
-                        ->label('Sekretaris Sidang')
-                        ->options(fn(): array => $this->dosenOptions($record))
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->different('chair_user_id')
-                        ->native(false),
-                    Select::make('examiner_user_id')
-                        ->label('Penguji Sidang')
-                        ->options(fn(): array => $this->dosenOptions($record))
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->different('chair_user_id')
-                        ->different('secretary_user_id')
+                        ->minItems(1)
+                        ->helperText('Pembimbing aktif otomatis masuk panel sidang. Pilih minimal satu dosen penguji tambahan.')
                         ->native(false),
                     Textarea::make('notes')
                         ->label('Catatan')
@@ -275,11 +271,10 @@ class ViewThesisProject extends ViewRecord
                             scheduledFor: (string) $data['scheduled_for'],
                             location: (string) $data['location'],
                             mode: (string) $data['mode'],
-                            examinerAssignments: [
-                                'chair_user_id' => (int) $data['chair_user_id'],
-                                'secretary_user_id' => (int) $data['secretary_user_id'],
-                                'examiner_user_id' => (int) $data['examiner_user_id'],
-                            ],
+                            panelUserIds: array_merge(
+                                $this->requiredSidangPanelUserIds($record),
+                                array_map(static fn($id): int => (int) $id, $data['additional_examiner_user_ids'] ?? []),
+                            ),
                             notes: $data['notes'] ?? null,
                         );
 
@@ -302,6 +297,8 @@ class ViewThesisProject extends ViewRecord
                 ->icon('heroicon-m-check-circle')
                 ->color('success')
                 ->visible(fn(): bool => $record->state === 'active' && $this->latestSidang($record) !== null)
+                ->disabled(fn(): bool => $this->latestSidang($record)?->status !== 'awaiting_finalization')
+                ->tooltip(fn(): ?string => $this->completeSidangTooltip($record))
                 ->form([
                     Select::make('result')
                         ->label('Hasil Sidang')
@@ -406,6 +403,74 @@ class ViewThesisProject extends ViewRecord
             ->all();
     }
 
+    /**
+     * @return array<int, int>
+     */
+    private function requiredSidangPanelUserIds(ThesisProject $project): array
+    {
+        return $project->activeSupervisorAssignments
+            ->sortBy('role')
+            ->pluck('lecturer_user_id')
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function defaultSidangAdditionalExaminerUserIds(ThesisProject $project): array
+    {
+        $latestSidang = $this->latestSidang($project);
+
+        $existingExaminerIds = collect($latestSidang?->examiners ?? [])
+            ->where('role', 'examiner')
+            ->pluck('lecturer_user_id')
+            ->map(static fn($id): int => (int) $id)
+            ->filter(static fn(int $id): bool => $id > 0)
+            ->values();
+
+        if ($existingExaminerIds->isNotEmpty()) {
+            return $existingExaminerIds->all();
+        }
+
+        $availableIds = collect(array_keys($this->sidangAdditionalExaminerOptions($project)))
+            ->map(static fn($id): int => (int) $id)
+            ->values();
+
+        $extraExaminerId = $availableIds->first();
+
+        return collect()
+            ->when($extraExaminerId !== null, fn($ids) => $ids->push($extraExaminerId))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function sidangAdditionalExaminerOptions(ThesisProject $project): array
+    {
+        $requiredIds = collect($this->requiredSidangPanelUserIds($project));
+
+        return collect($this->dosenOptions($project))
+            ->reject(fn($_label, $id): bool => $requiredIds->contains((int) $id))
+            ->all();
+    }
+
+    private function activeSupervisorSummary(ThesisProject $project): string
+    {
+        $project->loadMissing('activeSupervisorAssignments.lecturer');
+
+        return $project->activeSupervisorAssignments
+            ->sortBy('role')
+            ->map(function (ThesisSupervisorAssignment $assignment, int $index): string {
+                return sprintf('Pembimbing %d: %s', $index + 1, $assignment->lecturer?->name ?? '-');
+            })
+            ->implode(PHP_EOL);
+    }
+
     private function activeThesisStudentCountForLecturer(int $lecturerUserId): int
     {
         return ThesisSupervisorAssignment::query()
@@ -434,5 +499,59 @@ class ViewThesisProject extends ViewRecord
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
             ->first();
+    }
+
+    private function finalizeSemproTooltip(ThesisProject $project): ?string
+    {
+        $defense = $this->latestSempro($project);
+
+        if (! $defense instanceof ThesisDefense) {
+            return null;
+        }
+
+        if ($defense->status === 'awaiting_finalization') {
+            return null;
+        }
+
+        if ($defense->status === 'scheduled') {
+            $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
+
+            return $decidedCount === 0
+                ? 'Belum ada nilai dari dosen penguji.'
+                : 'Belum semua dosen penguji mengirim keputusan.';
+        }
+
+        if ($defense->status === 'completed') {
+            return 'Hasil sempro sudah pernah dicatat. Jadwalkan ulang jika perlu attempt baru.';
+        }
+
+        return 'Hasil sempro belum bisa dicatat pada status saat ini.';
+    }
+
+    private function completeSidangTooltip(ThesisProject $project): ?string
+    {
+        $defense = $this->latestSidang($project);
+
+        if (! $defense instanceof ThesisDefense) {
+            return null;
+        }
+
+        if ($defense->status === 'awaiting_finalization') {
+            return null;
+        }
+
+        if ($defense->status === 'scheduled') {
+            $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
+
+            return $decidedCount === 0
+                ? 'Belum ada nilai dari panel sidang.'
+                : 'Belum semua panel sidang mengirim keputusan.';
+        }
+
+        if ($defense->status === 'completed') {
+            return 'Hasil sidang sudah pernah dicatat. Jadwalkan ulang jika perlu attempt baru.';
+        }
+
+        return 'Hasil sidang belum bisa dicatat pada status saat ini.';
     }
 }
