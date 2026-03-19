@@ -411,14 +411,14 @@ class ThesisProjectInfolist
 
         return match ($record->phase) {
             'title_review', 'sempro' => $latestSempro instanceof ThesisDefense
-                ? ($latestSempro->status === 'scheduled' ? 'Pantau Pelaksanaan Sempro' : 'Catat Hasil Sempro')
-                : 'Jadwalkan Sempro',
+                ? self::nextSemproStepLabel($record, $latestSempro)
+            : 'Jadwalkan Sempro',
             'research' => $record->activeSupervisorAssignments->count() < 2
                 ? 'Lengkapi Pembimbing Aktif'
                 : 'Pantau Bimbingan Penelitian',
             'sidang' => $latestSidang instanceof ThesisDefense
-                ? ($latestSidang->status === 'scheduled' ? 'Pantau Pelaksanaan Sidang' : 'Selesaikan Hasil Sidang')
-                : 'Jadwalkan Sidang',
+                ? self::nextSidangStepLabel($record, $latestSidang)
+            : 'Jadwalkan Sidang',
             default => 'Monitoring Proyek',
         };
     }
@@ -447,6 +447,13 @@ class ThesisProjectInfolist
             return sprintf('%d revisi masih terbuka dan perlu ditindaklanjuti.', $record->open_revisions_count);
         }
 
+        $awaitingDefense = collect([$record->defenses->where('type', 'sempro')->sortByDesc('attempt_no')->first(), $record->defenses->where('type', 'sidang')->sortByDesc('attempt_no')->first()])
+            ->first(fn(?ThesisDefense $defense): bool => $defense instanceof ThesisDefense && $defense->status === 'awaiting_finalization');
+
+        if ($awaitingDefense instanceof ThesisDefense) {
+            return sprintf('Keputusan dosen untuk %s #%d sudah lengkap dan menunggu finalisasi admin.', $awaitingDefense->type, $awaitingDefense->attempt_no);
+        }
+
         if ($record->activeSupervisorAssignments->isEmpty()) {
             return 'Belum ada pembimbing aktif yang tercatat pada proyek ini.';
         }
@@ -467,11 +474,64 @@ class ThesisProjectInfolist
         }
 
         return sprintf(
-            '#%d - %s - %s',
+            '#%d - %s - %s - %s',
             $defense->attempt_no,
             self::defenseStatusLabel($defense->status),
+            self::defenseResultLabel($defense->result),
             $defense->scheduled_for?->format('d M Y H:i') ?? '-',
         );
+    }
+
+    private static function nextSemproStepLabel(ThesisProject $record, ThesisDefense $defense): string
+    {
+        if ($defense->status === 'awaiting_finalization') {
+            return 'Tetapkan Hasil Sempro';
+        }
+
+        if ($defense->status === 'scheduled') {
+            $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
+
+            return $decidedCount === 0
+                ? 'Tunggu Nilai Penguji Sempro'
+                : 'Tunggu Nilai Penguji Lain';
+        }
+
+        if ($defense->status === 'completed') {
+            return match ($defense->result) {
+                'fail' => 'Jadwalkan Sempro Ulang',
+                'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi Sempro' : 'Tetapkan Pembimbing Aktif',
+                'pass' => 'Tetapkan Pembimbing Aktif',
+                default => 'Monitoring Sempro',
+            };
+        }
+
+        return 'Jadwalkan Sempro';
+    }
+
+    private static function nextSidangStepLabel(ThesisProject $record, ThesisDefense $defense): string
+    {
+        if ($defense->status === 'awaiting_finalization') {
+            return 'Tetapkan Hasil Sidang';
+        }
+
+        if ($defense->status === 'scheduled') {
+            $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
+
+            return $decidedCount === 0
+                ? 'Tunggu Nilai Panel Sidang'
+                : 'Tunggu Nilai Panel Lain';
+        }
+
+        if ($defense->status === 'completed') {
+            return match ($defense->result) {
+                'fail' => 'Jadwalkan Sidang Ulang',
+                'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi Sidang' : 'Monitoring Sidang',
+                'pass' => 'Monitoring Saja',
+                default => 'Monitoring Sidang',
+            };
+        }
+
+        return 'Jadwalkan Sidang';
     }
 
     private static function activeSupervisorsSummary(ThesisProject $record): string
@@ -530,9 +590,11 @@ class ThesisProjectInfolist
                 'examiners' => $defense->examiners
                     ->sortBy('order_no')
                     ->map(fn($examiner): string => sprintf(
-                        '%s (%s)',
+                        '%s - %s - %s%s',
                         $examiner->lecturer?->name ?? '-',
+                        self::defenseRoleLabel($examiner->role, $examiner->order_no),
                         self::examinerDecisionLabel($examiner->decision),
+                        $examiner->score !== null ? sprintf(' - Nilai %s', $examiner->score) : '',
                     ))
                     ->values()
                     ->all(),
@@ -594,6 +656,7 @@ class ThesisProjectInfolist
         return match ($status) {
             'draft' => 'Draft',
             'scheduled' => 'Dijadwalkan',
+            'awaiting_finalization' => 'Menunggu Finalisasi',
             'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
             default => ucwords(str_replace('_', ' ', $status)),
@@ -605,6 +668,7 @@ class ThesisProjectInfolist
         return match ($status) {
             'draft' => 'gray',
             'scheduled' => 'info',
+            'awaiting_finalization' => 'warning',
             'completed' => 'success',
             'cancelled' => 'danger',
             default => 'gray',
@@ -616,6 +680,7 @@ class ThesisProjectInfolist
         return match ($status) {
             'draft' => 'heroicon-m-pencil-square',
             'scheduled' => 'heroicon-m-calendar-days',
+            'awaiting_finalization' => 'heroicon-m-exclamation-circle',
             'completed' => 'heroicon-m-check-badge',
             'cancelled' => 'heroicon-m-no-symbol',
             default => 'heroicon-m-tag',
@@ -663,6 +728,15 @@ class ThesisProjectInfolist
             'pass_with_revision' => 'Revisi',
             'fail' => 'Gagal',
             default => ucwords(str_replace('_', ' ', $decision)),
+        };
+    }
+
+    private static function defenseRoleLabel(string $role, int $orderNo): string
+    {
+        return match ($role) {
+            'primary_supervisor' => 'Pembimbing 1',
+            'secondary_supervisor' => 'Pembimbing 2',
+            default => 'Penguji',
         };
     }
 
