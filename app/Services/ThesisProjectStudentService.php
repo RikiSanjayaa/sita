@@ -226,6 +226,7 @@ class ThesisProjectStudentService
             $eventDescription = match ($mode) {
                 'sempro_scheduled' => 'Mahasiswa memperbarui judul atau proposal untuk kebutuhan sempro yang sudah dijadwalkan.',
                 'sempro_revision' => 'Mahasiswa memperbarui judul atau proposal untuk menindaklanjuti revisi sempro.',
+                'sempro_failed' => 'Mahasiswa memperbarui judul atau proposal setelah sempro dinyatakan gagal untuk persiapan attempt berikutnya.',
                 default => 'Mahasiswa memperbarui judul atau proposal sebelum direview admin.',
             };
 
@@ -277,6 +278,10 @@ class ThesisProjectStudentService
                 && $latestSempro->result === 'pass_with_revision'
                 && $hasOpenSemproRevision) {
                 return 'sempro_revision';
+            }
+
+            if ($latestSempro->status === 'completed' && $latestSempro->result === 'fail') {
+                return 'sempro_failed';
             }
 
             return null;

@@ -337,16 +337,23 @@ class DashboardController extends Controller
                 'description' => $latestSempro instanceof ThesisDefense
                     ? match ($latestSempro->status) {
                         'scheduled' => 'Sempro sudah dijadwalkan. Pastikan dokumen dan kesiapan presentasi sudah lengkap.',
+                        'awaiting_finalization' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
                         'completed' => $latestSempro->result === 'pass_with_revision'
                             ? 'Sempro selesai dengan revisi. Tindak lanjuti catatan penguji.'
-                            : 'Sempro sudah selesai. Lanjutkan ke tahap berikutnya.',
+                            : ($latestSempro->result === 'fail'
+                                ? 'Sempro belum lulus. Tunggu penjadwalan ulang dari admin.'
+                                : 'Sempro sudah selesai. Lanjutkan ke tahap berikutnya.'),
                         default => 'Tahap sempro sedang diproses.',
                     }
                     : 'Sempro akan muncul setelah tahap awal siap diproses.',
                 'date' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d M Y')
                     ?? $latestSempro?->decision_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $latestSempro instanceof ThesisDefense
-                    ? ($latestSempro->status === 'scheduled' ? 'current' : 'done')
+                    ? match ($latestSempro->status) {
+                        'scheduled', 'awaiting_finalization' => 'current',
+                        'completed' => $latestSempro->result === 'fail' ? 'current' : 'done',
+                        default => 'current',
+                    }
                     : 'upcoming',
             ],
             [
@@ -364,16 +371,23 @@ class DashboardController extends Controller
                 'description' => $latestSidang instanceof ThesisDefense
                     ? match ($latestSidang->status) {
                         'scheduled' => 'Sidang sudah terjadwal. Pastikan dokumen akhir dan revisi sempro telah siap.',
+                        'awaiting_finalization' => 'Seluruh keputusan dosen untuk sidang sudah masuk. Menunggu hasil resmi dari admin.',
                         'completed' => $latestSidang->result === 'pass_with_revision'
                             ? 'Sidang selesai dengan revisi.'
-                            : 'Sidang akhir telah selesai.',
+                            : ($latestSidang->result === 'fail'
+                                ? 'Sidang belum lulus. Tunggu penjadwalan ulang dari admin.'
+                                : 'Sidang akhir telah selesai.'),
                         default => 'Tahap sidang sedang diproses.',
                     }
                     : 'Tahap sidang akan muncul setelah penelitian selesai.',
                 'date' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d M Y')
                     ?? $latestSidang?->decision_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $latestSidang instanceof ThesisDefense
-                    ? ($latestSidang->status === 'scheduled' ? 'current' : 'done')
+                    ? match ($latestSidang->status) {
+                        'scheduled', 'awaiting_finalization' => 'current',
+                        'completed' => $latestSidang->result === 'fail' ? 'current' : 'done',
+                        default => 'current',
+                    }
                     : 'upcoming',
             ],
         ];
@@ -395,6 +409,8 @@ class DashboardController extends Controller
         if ($latestSidang instanceof ThesisDefense) {
             if ($latestSidang->status === 'scheduled') {
                 $key = 'sidang_scheduled';
+            } elseif ($latestSidang->status === 'awaiting_finalization') {
+                $key = 'sidang_waiting_result';
             } elseif ($latestSidang->status === 'completed') {
                 $key = match ($latestSidang->result) {
                     'pass' => 'completed',
@@ -419,12 +435,16 @@ class DashboardController extends Controller
         if ($latestSempro instanceof ThesisDefense) {
             if ($latestSempro->status === 'scheduled') {
                 $key = 'sempro_scheduled';
+            } elseif ($latestSempro->status === 'awaiting_finalization') {
+                $key = 'sempro_waiting_result';
             } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass_with_revision') {
                 $key = $hasOpenRevisions ? 'sempro_revision' : 'research_in_progress';
             } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass') {
                 $key = $project->activeSupervisorAssignments->isNotEmpty()
                     ? 'research_in_progress'
                     : 'sempro_passed';
+            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'fail') {
+                $key = 'sempro_failed';
             }
         } elseif ($project->phase === 'title_review') {
             $key = 'title_review_pending';
@@ -444,10 +464,13 @@ class DashboardController extends Controller
         return match ($key) {
             'title_review_pending' => 'Menunggu Persetujuan',
             'sempro_scheduled' => 'Sempro Dijadwalkan',
+            'sempro_waiting_result' => 'Menunggu Hasil Sempro',
             'sempro_revision' => 'Revisi Sempro',
+            'sempro_failed' => 'Sempro Tidak Lulus',
             'sempro_passed' => 'Sempro Selesai',
             'research_in_progress' => 'Penelitian Berjalan',
             'sidang_scheduled' => 'Sidang Dijadwalkan',
+            'sidang_waiting_result' => 'Menunggu Hasil Sidang',
             'sidang_revision' => 'Revisi Sidang',
             'completed' => 'Sidang Selesai',
             'sidang_failed' => 'Sidang Tidak Lulus',
@@ -460,10 +483,13 @@ class DashboardController extends Controller
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
             'sempro_scheduled' => 'Sempro sudah dijadwalkan. Siapkan proposal dan presentasi terbaik Anda.',
+            'sempro_waiting_result' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
             'sempro_revision' => 'Sempro selesai dengan revisi. Cek catatan penguji dan unggah dokumen perbaikan.',
+            'sempro_failed' => 'Sempro belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
             'sempro_passed' => 'Tahap sempro telah selesai. Menunggu penetapan pembimbing aktif atau progres berikutnya.',
             'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan penelitian, bimbingan, dan pengumpulan dokumen.',
             'sidang_scheduled' => 'Sidang skripsi sudah dijadwalkan. Pastikan dokumen akhir Anda lengkap.',
+            'sidang_waiting_result' => 'Seluruh keputusan dosen untuk sidang sudah masuk. Menunggu hasil resmi dari admin.',
             'sidang_revision' => 'Sidang selesai dengan revisi. Tindak lanjuti masukan tim sidang.',
             'completed' => 'Tahap sidang skripsi telah selesai.',
             'sidang_failed' => 'Sidang belum lulus. Segera koordinasikan langkah berikutnya dengan admin dan pembimbing.',
@@ -476,10 +502,13 @@ class DashboardController extends Controller
         return match ($key) {
             'title_review_pending' => 20,
             'sempro_scheduled' => 40,
+            'sempro_waiting_result' => 50,
             'sempro_revision' => 55,
+            'sempro_failed' => 45,
             'sempro_passed' => 60,
             'research_in_progress' => 75,
             'sidang_scheduled' => 90,
+            'sidang_waiting_result' => 92,
             'sidang_revision' => 95,
             'completed' => 100,
             'sidang_failed' => 90,

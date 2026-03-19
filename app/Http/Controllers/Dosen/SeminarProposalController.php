@@ -114,12 +114,6 @@ class SeminarProposalController extends Controller
             'revision_notes' => ['nullable', 'required_if:decision,pass_with_revision', 'string', 'max:2000'],
         ]);
 
-        if ($defense->type === 'sempro' && $validated['decision'] === 'fail') {
-            return back()->withErrors([
-                'decision' => 'Sempro hanya dapat dinilai lulus atau lulus dengan revisi.',
-            ]);
-        }
-
         try {
             $this->decisionService->submit($lecturer, $defense, $validated);
         } catch (RuntimeException $exception) {
