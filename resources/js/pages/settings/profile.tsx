@@ -37,6 +37,9 @@ type ProfileFormData = {
     _method?: 'patch';
 };
 
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
 export default function ProfilePage() {
     const { auth, profile } = usePage<SharedData & ProfilePageProps>().props;
     const getInitials = useInitials();
@@ -125,15 +128,15 @@ export default function ProfilePage() {
             <Head title="Profil Saya" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <Card>
-                    <CardHeader>
+                <Card className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
                         <CardTitle>Perbarui Profil</CardTitle>
                         <CardDescription>
                             Ubah nama, email, dan foto profil agar tampil
                             konsisten di chat dan halaman akademik.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         <form
                             onSubmit={submit}
                             className="grid gap-6 lg:grid-cols-[220px_1fr]"

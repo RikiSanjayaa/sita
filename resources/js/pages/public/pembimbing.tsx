@@ -35,6 +35,9 @@ type PageProps = {
     concentrationStudentTotals: Record<string, Record<string, number>>;
 };
 
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
 export default function PublicAdvisorsPage() {
     const { advisorDirectory, advisorPrograms, concentrationStudentTotals } =
         usePage<SharedData & PageProps>().props;
@@ -78,34 +81,34 @@ export default function PublicAdvisorsPage() {
         >
             <div className="space-y-6">
                 <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Filter Program Studi</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="max-w-xs">
-                            <Select
-                                value={programFilter}
-                                onValueChange={setProgramFilter}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih program studi" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="semua">
-                                        Semua Program Studi
-                                    </SelectItem>
-                                    {advisorPrograms.map((program) => (
-                                        <SelectItem
-                                            key={program.slug}
-                                            value={program.slug}
-                                        >
-                                            {program.name}
+                    <CardHeader className="gap-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <CardTitle>Filter Program Studi</CardTitle>
+                            <div className="w-full sm:max-w-xs">
+                                <Select
+                                    value={programFilter}
+                                    onValueChange={setProgramFilter}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih program studi" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="semua">
+                                            Semua Program Studi
                                         </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                        {advisorPrograms.map((program) => (
+                                            <SelectItem
+                                                key={program.slug}
+                                                value={program.slug}
+                                            >
+                                                {program.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                    </CardContent>
+                    </CardHeader>
                 </Card>
 
                 {advisorGroups.length > 0 ? (
@@ -123,8 +126,11 @@ export default function PublicAdvisorsPage() {
                                 : 0);
 
                         return (
-                            <Card key={concentration} className="shadow-sm">
-                                <CardHeader>
+                            <Card
+                                key={concentration}
+                                className={sectionCardClass}
+                            >
+                                <CardHeader className={sectionCardHeaderClass}>
                                     <div className="flex flex-wrap items-center gap-2">
                                         <CardTitle>{concentration}</CardTitle>
                                         <Badge variant="outline">
@@ -132,7 +138,7 @@ export default function PublicAdvisorsPage() {
                                         </Badge>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
+                                <CardContent className="space-y-4 pb-6">
                                     <div className="overflow-x-auto rounded-xl border">
                                         <table className="w-full min-w-[640px] text-sm">
                                             <thead className="bg-muted/30 text-left">
@@ -185,7 +191,7 @@ export default function PublicAdvisorsPage() {
                         );
                     })
                 ) : (
-                    <Card className="shadow-sm">
+                    <Card className={sectionCardClass}>
                         <CardContent className="p-6 text-center text-sm text-muted-foreground">
                             Belum ada data pembimbing aktif pada filter ini.
                         </CardContent>

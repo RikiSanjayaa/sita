@@ -51,6 +51,9 @@ type PageProps = {
     }>;
 };
 
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
 export default function PublicStudentsPage() {
     const { filters, activeStudents, studentPagination, studentPrograms } =
         usePage<SharedData & PageProps>().props;
@@ -186,8 +189,10 @@ function PublicStudentsContent({
                     </CardHeader>
                 </Card>
 
-                <Card className="shadow-sm">
-                    <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Card className={sectionCardClass}>
+                    <CardHeader
+                        className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
+                    >
                         <CardTitle>Daftar Mahasiswa</CardTitle>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <span>
@@ -200,7 +205,7 @@ function PublicStudentsContent({
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pb-6">
                         {activeStudents.length > 0 ? (
                             <div className="overflow-x-auto rounded-xl border">
                                 <table className="w-full min-w-[980px] text-sm">

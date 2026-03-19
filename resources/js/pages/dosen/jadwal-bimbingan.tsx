@@ -596,11 +596,13 @@ export default function DosenJadwalBimbinganPage() {
                         </p>
                     </div>
                 </div>
-                <Card className="shadow-sm">
-                    <CardHeader className="gap-3">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <CardTitle>Workspace Jadwal</CardTitle>
+                                <CardTitle className="text-lg font-semibold">
+                                    Workspace Jadwal
+                                </CardTitle>
                                 <CardDescription>
                                     Gunakan satu kalender yang sama, lalu
                                     fokuskan tampilan pada bimbingan,
@@ -649,7 +651,7 @@ export default function DosenJadwalBimbinganPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         <BimbinganCalendar
                             events={filteredWorkspaceEvents}
                             onEventClick={handleEventClick}
@@ -661,7 +663,7 @@ export default function DosenJadwalBimbinganPage() {
             </div>
 
             <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
-                <Card className="py-0 shadow-sm">
+                <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <CardTitle className="text-lg font-semibold">
                             Permintaan Menunggu Konfirmasi

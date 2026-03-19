@@ -21,7 +21,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { usePrimaryColor } from '@/hooks/use-primary-color';
 import AppLayout from '@/layouts/app-layout';
@@ -245,8 +244,8 @@ export default function SettingNotifikasi() {
                     </p>
                 </div>
 
-                <Card>
-                    <CardHeader>
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="space-y-1">
                                 <CardTitle>Tema</CardTitle>
@@ -260,16 +259,15 @@ export default function SettingNotifikasi() {
                     </CardHeader>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <CardTitle>Preset Warna</CardTitle>
                         <CardDescription>
                             Pilih preset agar warna primary dan background
                             berubah seragam di seluruh aplikasi
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent className="grid gap-4 pt-6">
+                    <CardContent className="grid gap-4 pb-6">
                         <div className="grid gap-3 sm:grid-cols-2">
                             {presets.map((preset) => {
                                 const isActive = preset.id === presetId;
@@ -344,8 +342,8 @@ export default function SettingNotifikasi() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <CardTitle>Notifikasi Browser</CardTitle>
@@ -370,9 +368,7 @@ export default function SettingNotifikasi() {
                         </div>
                     </CardHeader>
 
-                    <Separator />
-
-                    <CardContent className="pt-6">
+                    <CardContent className="pb-6">
                         <div className="flex items-start justify-between gap-6 rounded-xl border bg-background p-4">
                             <div className="min-w-0">
                                 <div className="text-sm font-medium">
@@ -420,8 +416,8 @@ export default function SettingNotifikasi() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <CardTitle>Jenis Notifikasi</CardTitle>
@@ -436,9 +432,7 @@ export default function SettingNotifikasi() {
                         </div>
                     </CardHeader>
 
-                    <Separator />
-
-                    <CardContent className="pt-2">
+                    <CardContent className="pb-6">
                         <div className="divide-y">
                             {items.map((item) => {
                                 const Icon = item.icon;

@@ -696,16 +696,18 @@ export default function JadwalBimbinganPage() {
                             </Alert>
                         )}
 
-                        <Card className="shadow-sm">
-                            <CardHeader className="gap-1">
-                                <CardTitle>Tampilan Jadwal</CardTitle>
+                        <Card className="overflow-hidden py-0 shadow-sm">
+                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                                <CardTitle className="text-lg font-semibold">
+                                    Tampilan Jadwal
+                                </CardTitle>
                                 <CardDescription>
                                     Pilih tampilan daftar untuk layar kecil,
                                     atau kalender jika ingin melihat sebaran
                                     jadwal secara menyeluruh.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 <BimbinganCalendar
                                     events={calendarEvents}
                                     onEventClick={handleEventClick}

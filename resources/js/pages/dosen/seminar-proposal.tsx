@@ -39,7 +39,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
-    { title: 'Seminar Proposal', href: '/dosen/seminar-proposal' },
+    { title: 'Sempro & Sidang', href: '/dosen/seminar-proposal' },
 ];
 
 type OtherExaminer = {
@@ -91,12 +91,15 @@ type PageProps = {
 
 const statusLabel: Record<string, string> = {
     scheduled: 'Dijadwalkan',
+    awaiting_finalization: 'Menunggu Finalisasi',
     completed: 'Selesai',
     cancelled: 'Dibatalkan',
 };
 
 const statusColor: Record<string, string> = {
     scheduled: 'bg-primary/10 text-primary hover:bg-primary/20',
+    awaiting_finalization:
+        'bg-amber-600/10 text-amber-700 hover:bg-amber-600/20',
     completed: 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20',
     cancelled: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
 };
@@ -109,19 +112,29 @@ const decisionLabel: Record<string, string> = {
 };
 
 const resultLabel: Record<string, string> = {
-    pending: 'Menunggu Hasil',
+    pending: 'Menunggu Finalisasi',
     pass: 'Lulus',
     pass_with_revision: 'Lulus Revisi',
     fail: 'Tidak Lulus',
 };
 
+function resolveDefenseRoleLabel(role: string) {
+    if (role === 'primary_supervisor') {
+        return 'Pembimbing 1';
+    }
+
+    if (role === 'secondary_supervisor') {
+        return 'Pembimbing 2';
+    }
+
+    return 'Penguji';
+}
+
 function DecisionForm({
     defenseId,
-    defenseType,
     onClose,
 }: {
     defenseId: number;
-    defenseType: 'sempro' | 'sidang';
     onClose: () => void;
 }) {
     const [decision, setDecision] = useState<string>('');
@@ -192,24 +205,22 @@ function DecisionForm({
                             <FileWarning className="mr-1.5 size-3.5" />
                             Perlu Revisi
                         </Button>
-                        {defenseType === 'sidang' && (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant={
-                                    decision === 'fail' ? 'default' : 'outline'
-                                }
-                                onClick={() => setDecision('fail')}
-                                className={
-                                    decision === 'fail'
-                                        ? 'bg-destructive hover:bg-destructive/90'
-                                        : ''
-                                }
-                            >
-                                <FileWarning className="mr-1.5 size-3.5" />
-                                Tidak Lulus
-                            </Button>
-                        )}
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                                decision === 'fail' ? 'default' : 'outline'
+                            }
+                            onClick={() => setDecision('fail')}
+                            className={
+                                decision === 'fail'
+                                    ? 'bg-destructive hover:bg-destructive/90'
+                                    : ''
+                            }
+                        >
+                            <FileWarning className="mr-1.5 size-3.5" />
+                            Tidak Lulus
+                        </Button>
                     </div>
                 </div>
 
@@ -283,8 +294,8 @@ function DefenseCard({ item }: { item: DefenseItem }) {
     const finalGrade = resolveAcademicGrade(averageScore);
 
     return (
-        <Card className="shadow-sm">
-            <CardHeader>
+        <Card className="overflow-hidden py-0 shadow-sm">
+            <CardHeader className="border-b bg-muted/20 px-6 py-4">
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <CardTitle className="text-base leading-snug">
@@ -312,7 +323,7 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                     </span>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pb-6">
                 {/* Student info */}
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
@@ -334,7 +345,7 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                 {/* My decision */}
                 <div className="rounded-md border p-3">
                     <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Keputusan Saya ({item.myRole} {item.myOrder})
+                        Keputusan Saya ({resolveDefenseRoleLabel(item.myRole)})
                     </p>
                     {item.myDecision === 'pending' ? (
                         <Badge
@@ -388,6 +399,9 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                                 >
                                     <span className="font-medium">
                                         {ex.name}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {resolveDefenseRoleLabel(ex.role)}
                                     </span>
                                     <Badge
                                         variant="soft"
@@ -479,7 +493,6 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                 {showForm && (
                     <DecisionForm
                         defenseId={item.defenseId}
-                        defenseType={item.type}
                         onClose={() => setShowForm(false)}
                     />
                 )}
@@ -625,7 +638,7 @@ export default function DosenSeminarProposalPage() {
         <DosenLayout
             breadcrumbs={breadcrumbs}
             title="Sempro & Sidang"
-            subtitle="Kelola tugas penguji seminar proposal dan sidang skripsi"
+            subtitle="Jadwal dan penilaian sempro serta sidang"
         >
             <Head title="Sempro & Sidang — Dosen" />
 
@@ -636,16 +649,16 @@ export default function DosenSeminarProposalPage() {
                     </div>
                 )}
 
-                <Card className="shadow-sm">
-                    <CardHeader className="gap-3">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <CardTitle>Workspace Jadwal</CardTitle>
+                                <CardTitle className="text-lg font-semibold">
+                                    Workspace Jadwal
+                                </CardTitle>
                                 <CardDescription>
-                                    Fokus default halaman ini adalah
-                                    sempro/sidang, tetapi Anda tetap bisa
-                                    menampilkan agenda bimbingan pada kalender
-                                    yang sama.
+                                    Lihat jadwal sempro, sidang, dan bimbingan
+                                    dalam satu kalender.
                                 </CardDescription>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -690,7 +703,7 @@ export default function DosenSeminarProposalPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         <BimbinganCalendar
                             events={filteredWorkspaceEvents}
                             onEventClick={handleEventClick}
@@ -700,15 +713,17 @@ export default function DosenSeminarProposalPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Pencarian</CardTitle>
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                        <CardTitle className="text-lg font-semibold">
+                            Pencarian
+                        </CardTitle>
                         <CardDescription>
                             Cari berdasarkan nama mahasiswa atau judul tugas
                             akhir.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-6">
                         <div className="relative max-w-xl">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -772,8 +787,8 @@ export default function DosenSeminarProposalPage() {
                                     Sidang
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Daftar sidang skripsi yang perlu Anda nilai
-                                    sebagai ketua, sekretaris, atau penguji.
+                                    Daftar sidang skripsi yang menunggu
+                                    penilaian atau tindak lanjut Anda.
                                 </p>
                             </div>
                             {sidangPendingItems.length > 0 ? (

@@ -83,7 +83,7 @@ export default function DosenDashboardPage() {
             primary: false,
         },
         {
-            title: 'Seminar Proposal',
+            title: 'Sempro & Sidang',
             description:
                 'Pantau agenda sempro dan sidang yang perlu Anda nilai.',
             href: '/dosen/seminar-proposal',
@@ -254,15 +254,15 @@ export default function DosenDashboardPage() {
 
                 <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
                     <div className="grid content-start gap-6">
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className="overflow-hidden py-0 shadow-sm">
+                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
                                 <CardTitle>Aksi Cepat</CardTitle>
                                 <CardDescription>
                                     Akses halaman kerja utama untuk mengelola
                                     mahasiswa, jadwal, ujian, dan dokumen.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 <div className="grid gap-3 md:grid-cols-2">
                                     {quickActions.map((action) => {
                                         const Icon = action.icon;
@@ -310,15 +310,15 @@ export default function DosenDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className="overflow-hidden py-0 shadow-sm">
+                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
                                 <CardTitle>Agenda Mendatang</CardTitle>
                                 <CardDescription>
                                     Bimbingan dan agenda ujian terdekat agar
                                     prioritas harian lebih mudah dipantau.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 {upcomingActivities.length > 0 ? (
                                     <div className="grid gap-3">
                                         {upcomingActivities.map((activity) => (
@@ -367,15 +367,15 @@ export default function DosenDashboardPage() {
                     </div>
 
                     <div className="grid content-start gap-6">
-                        <Card className="shadow-sm">
-                            <CardHeader>
+                        <Card className="overflow-hidden py-0 shadow-sm">
+                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
                                 <CardTitle>Mahasiswa Aktif</CardTitle>
                                 <CardDescription>
                                     Profil singkat mahasiswa yang sedang aktif
                                     dibimbing.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-6">
                                 {activeStudents.length > 0 ? (
                                     <div className="grid gap-3">
                                         {activeStudents.map((student) => (

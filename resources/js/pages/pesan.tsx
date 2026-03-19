@@ -46,6 +46,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pesan', href: pesan().url },
 ];
 
+const panelCardClass = 'overflow-hidden border-border/70 !gap-0 !p-0 shadow-sm';
+const panelHeaderClass = 'shrink-0 border-b bg-muted/20 px-6 py-4';
+
 type ChatMessage = {
     id: number;
     senderUserId: number | null;
@@ -252,18 +255,17 @@ export default function PesanPage() {
                 {/* Thread List */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
+                        `flex min-h-0 flex-col ${panelCardClass} lg:h-full lg:w-[340px] lg:shrink-0`,
                         mobileView === 'chat' && 'hidden lg:flex',
                         mobileView === 'threads' && 'flex-1 lg:flex-initial',
                     )}
                 >
-                    <CardHeader className="shrink-0 p-6 pb-4">
+                    <CardHeader className={panelHeaderClass}>
                         <CardTitle>Pesan</CardTitle>
                         <CardDescription>
                             Thread bimbingan dan sempro Anda
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
                     <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
                             <div className="flex flex-col gap-2 p-4">
@@ -345,11 +347,11 @@ export default function PesanPage() {
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
+                        `flex min-h-0 flex-1 flex-col ${panelCardClass} lg:h-full`,
                         mobileView === 'threads' && 'hidden lg:flex',
                     )}
                 >
-                    <CardHeader className="shrink-0 p-6 pb-4">
+                    <CardHeader className={panelHeaderClass}>
                         {activeThread ? (
                             <>
                                 <div className="flex items-center gap-2">
@@ -466,8 +468,6 @@ export default function PesanPage() {
                             </>
                         )}
                     </CardHeader>
-                    <Separator />
-
                     <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
                             <div className="flex min-h-full flex-col p-4">
