@@ -7,6 +7,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Support\Filament\BadgeStyles;
+use App\Support\WitaDateTime;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\ToggleButtons;
@@ -273,7 +274,7 @@ class ThesisProjectsTable
             '%s #%d - %s',
             strtoupper($defense->type),
             $defense->attempt_no,
-            $defense->scheduled_for?->format('d M Y H:i') ?? '-',
+            WitaDateTime::format($defense->scheduled_for),
         );
     }
 }

@@ -12,6 +12,7 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Support\Filament\BadgeStyles;
+use App\Support\WitaDateTime;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -161,8 +162,8 @@ class ThesisProjectInfolist
                     'title_id' => $title->title_id,
                     'title_en' => $title->title_en,
                     'status' => self::titleStatusLabel($title->status),
-                    'submitted_at' => $title->submitted_at?->format('d M Y H:i') ?? '-',
-                    'decided_at' => $title->decided_at?->format('d M Y H:i') ?? '-',
+                    'submitted_at' => WitaDateTime::format($title->submitted_at),
+                    'decided_at' => WitaDateTime::format($title->decided_at),
                     'decided_by' => $title->decidedBy?->name ?? '-',
                 ])
                 ->values()
@@ -279,7 +280,7 @@ class ThesisProjectInfolist
                     'title_version' => $document->titleVersion?->title_id ?? '-',
                     'context' => self::documentContextLabel($document),
                     'uploaded_by' => $document->uploadedBy?->name ?? '-',
-                    'uploaded_at' => $document->uploaded_at?->format('d M Y H:i') ?? '-',
+                    'uploaded_at' => WitaDateTime::format($document->uploaded_at),
                     'file_name' => $document->file_name,
                     'stored_file_name' => $document->stored_file_name ?? '-',
                     'download_url' => route('files.thesis-documents.download', ['document' => $document]),
@@ -330,7 +331,7 @@ class ThesisProjectInfolist
                     'lecturer' => $document->lecturer?->name ?? '-',
                     'status' => self::mentorshipDocumentStatusLabel($document->status),
                     'review_notes' => $document->revision_notes ?? '-',
-                    'uploaded_at' => $document->created_at?->format('d M Y H:i') ?? '-',
+                    'uploaded_at' => WitaDateTime::format($document->created_at),
                     'file_name' => $document->file_name,
                     'stored_file_name' => $document->stored_file_name ?? '-',
                     'download_url' => route('files.documents.download', ['document' => $document, 'escalated' => 1]),
@@ -381,7 +382,7 @@ class ThesisProjectInfolist
                     'label' => $event->label,
                     'description' => $event->description ?? '-',
                     'actor' => $event->actor?->name ?? 'Sistem',
-                    'occurred_at' => $event->occurred_at?->format('d M Y H:i') ?? '-',
+                    'occurred_at' => WitaDateTime::format($event->occurred_at),
                 ])
                 ->values()
                 ->all())
@@ -478,7 +479,7 @@ class ThesisProjectInfolist
             $defense->attempt_no,
             self::defenseStatusLabel($defense->status),
             self::defenseResultLabel($defense->result),
-            $defense->scheduled_for?->format('d M Y H:i') ?? '-',
+            WitaDateTime::format($defense->scheduled_for),
         );
     }
 
@@ -584,7 +585,7 @@ class ThesisProjectInfolist
                 'attempt' => '#'.$defense->attempt_no,
                 'status' => self::defenseStatusLabel($defense->status),
                 'result' => self::defenseResultLabel($defense->result),
-                'scheduled_for' => $defense->scheduled_for?->format('d M Y H:i') ?? '-',
+                'scheduled_for' => WitaDateTime::format($defense->scheduled_for),
                 'location' => $defense->location ?? '-',
                 'mode' => ucfirst($defense->mode),
                 'examiners' => $defense->examiners

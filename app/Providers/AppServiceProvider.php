@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
+use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+        FilamentTimezone::set(WitaDateTime::TIMEZONE);
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
