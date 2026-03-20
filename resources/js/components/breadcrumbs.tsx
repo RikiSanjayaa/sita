@@ -15,8 +15,6 @@ export function Breadcrumbs({
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
-    const currentPage = breadcrumbs[breadcrumbs.length - 1]?.title ?? '-';
-
     return (
         <Breadcrumb>
             <BreadcrumbList>
@@ -25,10 +23,29 @@ export function Breadcrumbs({
                         <Link href="/">Portal SiTA</Link>
                     </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                    <BreadcrumbPage>{currentPage}</BreadcrumbPage>
-                </BreadcrumbItem>
+
+                {breadcrumbs.map((breadcrumb, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
+
+                    return [
+                        <BreadcrumbSeparator
+                            key={`${breadcrumb.href}-separator`}
+                        />,
+                        <BreadcrumbItem key={breadcrumb.href}>
+                            {isLast ? (
+                                <BreadcrumbPage>
+                                    {breadcrumb.title}
+                                </BreadcrumbPage>
+                            ) : (
+                                <BreadcrumbLink asChild>
+                                    <Link href={breadcrumb.href}>
+                                        {breadcrumb.title}
+                                    </Link>
+                                </BreadcrumbLink>
+                            )}
+                        </BreadcrumbItem>,
+                    ];
+                })}
             </BreadcrumbList>
         </Breadcrumb>
     );
