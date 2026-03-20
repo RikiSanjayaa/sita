@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     CalendarClock,
@@ -51,9 +51,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function SettingNotifikasi() {
-    const { notificationSettings } = usePage<SharedData>().props;
+    const { auth, notificationSettings } = usePage<SharedData>().props;
     const { presetId, presets, updatePreset, resetPreset } = usePrimaryColor();
     const [isSaving, setIsSaving] = useState(false);
+    const canAccessCsat =
+        auth.activeRole === 'mahasiswa' || auth.activeRole === 'dosen';
     const [browserPermission, setBrowserPermission] = useState<
         NotificationPermission | 'unsupported'
     >(() => {
@@ -341,6 +343,39 @@ export default function SettingNotifikasi() {
                         </p>
                     </CardContent>
                 </Card>
+
+                {canAccessCsat ? (
+                    <Card className="overflow-hidden py-0 shadow-sm">
+                        <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <CardTitle>CSAT & Umpan Balik</CardTitle>
+                                    <CardDescription>
+                                        Nilai pengalaman Anda menggunakan SiTA
+                                        dan kirimkan kritik atau saran penting
+                                        yang dapat dibaca oleh admin.
+                                    </CardDescription>
+                                </div>
+                                <Badge variant="outline" className="mt-0.5">
+                                    Limit: 1 submission tiap 30 hari
+                                </Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pb-6">
+                            <div className="flex flex-col gap-4 rounded-xl border bg-background p-4 md:flex-row md:items-center md:justify-between">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        Bantu kami membaca kualitas pengalaman
+                                        Anda
+                                    </div>
+                                </div>
+                                <Button asChild>
+                                    <Link href="/settings/csat">Isi CSAT</Link>
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : null}
 
                 <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">

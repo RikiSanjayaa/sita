@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             ThesisWorkflowSeeder::class,
+            CsatResponseSeeder::class,
         ]);
 
         $admin = User::query()->where('email', 'admin@sita.test')->first();

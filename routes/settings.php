@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\CsatResponseController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -27,6 +28,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
+
+    Route::get('settings/csat', [CsatResponseController::class, 'show'])
+        ->name('settings.csat.show');
+
+    Route::post('settings/csat', [CsatResponseController::class, 'store'])
+        ->name('settings.csat.store');
 
     Route::patch('settings/notifications', [NotificationSettingsController::class, 'update'])
         ->name('settings.notifications.update');
