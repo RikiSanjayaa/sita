@@ -8,6 +8,7 @@ use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
+use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\ThesisDefense;
@@ -993,6 +994,80 @@ test('mahasiswa upload dokumen works without dosbing and notifies sempro thread'
     ]);
 });
 
+test('mahasiswa upload dokumen uses valid mentorship assignment id for advisor recipients', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $advisor = createUserWithRole(AppRole::Dosen->value);
+    $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
+    $otherAdvisor = createUserWithRole(AppRole::Dosen->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $otherStudent->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $advisor->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+
+    $otherProject = ensureActiveThesisProject($otherStudent);
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $otherProject->id,
+        'lecturer_user_id' => $otherAdvisor->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now(),
+    ]);
+
+    syncThesisSupervisor($student, $advisor, $admin, AdvisorType::Primary->value);
+
+    $mentorAssignment = MentorshipAssignment::query()
+        ->where('student_user_id', $student->id)
+        ->where('lecturer_user_id', $advisor->id)
+        ->firstOrFail();
+
+    $thesisAssignment = ThesisSupervisorAssignment::query()
+        ->whereHas('project', fn($query) => $query
+            ->where('student_user_id', $student->id)
+            ->where('state', 'active'))
+        ->where('lecturer_user_id', $advisor->id)
+        ->where('status', 'active')
+        ->firstOrFail();
+
+    expect($thesisAssignment->id)->not->toBe($mentorAssignment->id);
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/upload-dokumen', [
+            'title' => 'Draft Proposal Bimbingan',
+            'category' => 'proposal',
+            'document' => UploadedFile::fake()->create('proposal-bimbingan.pdf', 400, 'application/pdf'),
+        ])
+        ->assertRedirect('/mahasiswa/upload-dokumen');
+
+    $document = MentorshipDocument::query()
+        ->where('student_user_id', $student->id)
+        ->where('lecturer_user_id', $advisor->id)
+        ->firstOrFail();
+
+    expect($document->mentorship_assignment_id)->toBe($mentorAssignment->id)
+        ->and($document->mentorship_assignment_id)->not->toBe($thesisAssignment->id);
+});
+
 test('mahasiswa chat attachment is mirrored into active sempro thread', function () {
     Storage::fake('public');
 
@@ -1035,7 +1110,42 @@ test('mahasiswa chat attachment is mirrored into active sempro thread', function
         'status' => AssignmentStatus::Active->value,
         'assigned_by' => $admin->id,
     ]);
+
+    $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
+    $otherAdvisor = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $otherStudent->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $otherProject = ensureActiveThesisProject($otherStudent);
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $otherProject->id,
+        'lecturer_user_id' => $otherAdvisor->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now(),
+    ]);
+
     syncThesisSupervisor($student, $advisor, $admin, AdvisorType::Primary->value);
+
+    $mentorAssignment = MentorshipAssignment::query()
+        ->where('student_user_id', $student->id)
+        ->where('lecturer_user_id', $advisor->id)
+        ->firstOrFail();
+
+    $thesisAssignment = ThesisSupervisorAssignment::query()
+        ->whereHas('project', fn($query) => $query
+            ->where('student_user_id', $student->id)
+            ->where('state', 'active'))
+        ->where('lecturer_user_id', $advisor->id)
+        ->where('status', 'active')
+        ->firstOrFail();
+
+    expect($thesisAssignment->id)->not->toBe($mentorAssignment->id);
 
     $sempro = ThesisDefense::query()->create([
         'project_id' => $project->id,
@@ -1097,6 +1207,22 @@ test('mahasiswa chat attachment is mirrored into active sempro thread', function
         'message_type' => 'document_event',
         'attachment_name' => 'proposal-chat-sempro.pdf',
     ]);
+
+    $advisorDocument = MentorshipDocument::query()
+        ->where('student_user_id', $student->id)
+        ->where('lecturer_user_id', $advisor->id)
+        ->where('category', 'lampiran-chat')
+        ->firstOrFail();
+
+    $examinerDocument = MentorshipDocument::query()
+        ->where('student_user_id', $student->id)
+        ->where('lecturer_user_id', $examiner->id)
+        ->where('category', 'lampiran-chat')
+        ->firstOrFail();
+
+    expect($advisorDocument->mentorship_assignment_id)->toBe($mentorAssignment->id)
+        ->and($advisorDocument->mentorship_assignment_id)->not->toBe($thesisAssignment->id)
+        ->and($examinerDocument->mentorship_assignment_id)->toBeNull();
 });
 
 test('project proposal document download is restricted by thesis project access', function () {

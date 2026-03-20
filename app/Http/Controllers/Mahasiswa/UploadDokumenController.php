@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
+use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
@@ -120,10 +121,7 @@ class UploadDokumenController extends Controller
             ->max('version_number')) + 1;
 
         $createdDocuments = collect();
-        $assignmentIdsByLecturer = $assignments
-            ->mapWithKeys(fn(ThesisSupervisorAssignment $assignment): array => [
-                (int) $assignment->lecturer_user_id => $assignment->getKey(),
-            ]);
+        $assignmentIdsByLecturer = $this->mentorshipAssignmentIdsByLecturer($student->id, $assignments);
 
         DB::transaction(function () use ($assignmentIdsByLecturer, $assignments, $createdDocuments, $data, $disk, $file, $groupKey, $nextVersion, $pengujiThreads, $recipientLecturerIds, $storedPath, $student): void {
             foreach ($recipientLecturerIds as $lecturerUserId) {
@@ -267,6 +265,33 @@ class UploadDokumenController extends Controller
                 fn($query) => $query->whereRaw('1 = 0'),
             )
             ->get();
+    }
+
+    /**
+     * @param  Collection<int, ThesisSupervisorAssignment>  $assignments
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function mentorshipAssignmentIdsByLecturer(int $studentUserId, Collection $assignments): \Illuminate\Support\Collection
+    {
+        $lecturerIds = $assignments
+            ->pluck('lecturer_user_id')
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($lecturerIds->isEmpty()) {
+            return collect();
+        }
+
+        return MentorshipAssignment::query()
+            ->where('student_user_id', $studentUserId)
+            ->whereIn('lecturer_user_id', $lecturerIds)
+            ->where('status', 'active')
+            ->get()
+            ->mapWithKeys(fn(MentorshipAssignment $assignment): array => [
+                (int) $assignment->lecturer_user_id => $assignment->getKey(),
+            ]);
     }
 
     /**
