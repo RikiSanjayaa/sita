@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     ChevronDown,
@@ -26,14 +26,20 @@ import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard, panduan, pesan, uploadDokumen } from '@/routes';
 import { create as jadwalBimbinganCreate } from '@/routes/jadwal-bimbingan';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type GuidanceCard = {
-    id: 'alur' | 'jadwal' | 'upload' | 'komunikasi';
+    id: string;
     title: string;
     description: string;
     badge: string;
-    icon: typeof ListChecks;
+    icon:
+        | 'calendar-clock'
+        | 'file-text'
+        | 'list-checks'
+        | 'message-square-text'
+        | 'upload-cloud';
+    action: 'none' | 'template' | 'schedule' | 'upload' | 'message';
     bullets: string[];
     keywords: string[];
 };
@@ -50,7 +56,28 @@ type TemplateDoc = {
     title: string;
     description: string;
     format: string;
-    badge?: string;
+    badge?: string | null;
+    fileName?: string | null;
+    downloadUrl?: string | null;
+};
+
+type HelpContent = {
+    title: string;
+    description: string;
+    boxTitle: string;
+    boxDescription: string;
+    messageTemplateTitle: string;
+    messageTemplateSteps: string[];
+};
+
+type PanduanPageProps = {
+    pageTitle: string;
+    pageSubtitle: string;
+    searchHint: string;
+    guidanceCards: GuidanceCard[];
+    faqItems: FaqItem[];
+    templateDocs: TemplateDoc[];
+    helpContent: HelpContent;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -64,125 +91,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const guidanceCards: GuidanceCard[] = [
-    {
-        id: 'alur',
-        title: 'Alur Pengajuan',
-        description: 'Dari ide sampai disetujui, tanpa bolak-balik.',
-        badge: 'Langkah awal',
-        icon: ListChecks,
-        bullets: [
-            'Siapkan judul, ringkasan 3-5 paragraf, dan rencana metode singkat.',
-            'Ajukan judul terlebih dulu, lalu tunggu status (Disetujui/Revisi).',
-            'Jika revisi, fokus ke poin catatan: perbaiki dan ajukan versi berikutnya.',
-            'Jaga penamaan versi: v1, v2, v3 agar riwayat rapi.',
-        ],
-        keywords: ['judul', 'pengajuan', 'revisi', 'status', 'versi'],
-    },
-    {
-        id: 'jadwal',
-        title: 'Jadwal & Bimbingan',
-        description: 'Cara minta bimbingan yang cepat disetujui.',
-        badge: 'Biar cepat',
-        icon: CalendarClock,
-        bullets: [
-            'Tawarkan 2-3 opsi waktu dan cantumkan topik yang spesifik.',
-            'Lampirkan progres terakhir (tautan atau dokumen) sebelum mengajukan.',
-            'Tulis tujuan pertemuan: butuh keputusan, review, atau diskusi.',
-            'Catat hasil bimbingan, lalu tindak lanjuti maksimal 1-3 hari.',
-        ],
-        keywords: ['jadwal', 'bimbingan', 'pertemuan', 'topik', 'waktu'],
-    },
-    {
-        id: 'upload',
-        title: 'Upload & Revisi',
-        description: 'Unggah dokumen dengan rapi dan mudah ditinjau.',
-        badge: 'Dokumen',
-        icon: UploadCloud,
-        bullets: [
-            'Pastikan format sesuai (mis. PDF) dan ukuran file wajar.',
-            'Gunakan nama file konsisten: Bab_1_Nama_v2.pdf.',
-            'Tulis ringkasan perubahan singkat pada revisi (3-5 poin).',
-            'Unggah hanya yang relevan; jangan campur dokumen mentah di final.',
-        ],
-        keywords: ['upload', 'unggah', 'dokumen', 'pdf', 'nama file'],
-    },
-    {
-        id: 'komunikasi',
-        title: 'Komunikasi',
-        description: 'Sopan, jelas, dan enak ditindaklanjuti pembimbing.',
-        badge: 'Etika',
-        icon: MessageSquareText,
-        bullets: [
-            'Mulai dengan konteks 1 kalimat: tahap apa dan tujuan pesan.',
-            'Ajukan pertanyaan yang bisa dijawab ya/tidak atau pilihan A/B.',
-            'Sertakan tautan/dokumen yang dirujuk, jangan hanya "sudah saya kirim".',
-            'Akhiri dengan permintaan tindakan dan tenggat yang realistis.',
-        ],
-        keywords: ['pesan', 'komunikasi', 'pembimbing', 'tenggat', 'konteks'],
-    },
-];
-
-const faqItems: FaqItem[] = [
-    {
-        id: 'faq-1',
-        question: 'Saya harus mulai dari mana?',
-        answer: 'Mulai dari Alur Pengajuan. Siapkan judul dan ringkasan singkat, lalu ajukan judul. Setelah status jelas, baru susun dokumen bab per bab dan ajukan bimbingan berkala.',
-        tags: ['alur', 'judul'],
-    },
-    {
-        id: 'faq-2',
-        question: 'Berapa sering sebaiknya bimbingan?',
-        answer: 'Idealnya 1-2 minggu sekali, atau setiap ada perubahan besar yang butuh keputusan. Yang penting: selalu bawa progres yang bisa ditinjau agar pertemuan efektif.',
-        tags: ['bimbingan', 'jadwal'],
-    },
-    {
-        id: 'faq-3',
-        question: 'Apa yang perlu ditulis saat mengunggah revisi?',
-        answer: 'Tulis ringkasan perubahan 3-5 poin: bagian apa yang diubah, alasan singkat, dan apa yang ingin ditinjau. Ini membuat pembimbing cepat menemukan perbaikan.',
-        tags: ['revisi', 'upload'],
-    },
-    {
-        id: 'faq-4',
-        question: 'Bagaimana kalau pembimbing lama merespons?',
-        answer: 'Kirim follow-up singkat setelah 2-3 hari kerja dengan konteks dan tautan dokumen. Jika tetap belum ada respons, ajukan jadwal bimbingan dengan opsi waktu yang jelas.',
-        tags: ['komunikasi', 'follow-up'],
-    },
-    {
-        id: 'faq-5',
-        question: 'Nama file yang rapi seperti apa?',
-        answer: 'Gunakan pola konsisten: Tahap_Bab_Nama_vX.ext, misalnya Bab_2_MuhammadAkbar_v3.pdf. Hindari spasi ganda dan gunakan versi agar riwayat tidak membingungkan.',
-        tags: ['dokumen', 'versi'],
-    },
-];
-
-const templateDocs: TemplateDoc[] = [
-    {
-        id: 'tpl-1',
-        title: 'Template Proposal',
-        description: 'Kerangka proposal sesuai format kampus.',
-        format: 'DOCX',
-        badge: 'Wajib',
-    },
-    {
-        id: 'tpl-2',
-        title: 'Template Bab 1-3',
-        description: 'Struktur penulisan awal (Pendahuluan sampai Metode).',
-        format: 'DOCX',
-    },
-    {
-        id: 'tpl-3',
-        title: 'Template Logbook Bimbingan',
-        description: 'Catatan pertemuan dan tindak lanjut.',
-        format: 'XLSX',
-    },
-    {
-        id: 'tpl-4',
-        title: 'Template Slide Seminar',
-        description: 'Slide ringkas untuk presentasi proposal/sidang.',
-        format: 'PPTX',
-    },
-];
+const iconMap = {
+    'calendar-clock': CalendarClock,
+    'file-text': FileText,
+    'list-checks': ListChecks,
+    'message-square-text': MessageSquareText,
+    'upload-cloud': UploadCloud,
+} as const;
 
 function normalize(text: string) {
     return text.toLowerCase();
@@ -204,13 +119,13 @@ function FaqAccordionItem({
                 <div className="min-w-0">
                     <div className="text-sm font-semibold">{item.question}</div>
                     <div className="mt-1 flex flex-wrap gap-1">
-                        {item.tags.map((t) => (
+                        {item.tags.map((tag) => (
                             <Badge
-                                key={t}
+                                key={tag}
                                 variant="secondary"
                                 className="rounded-full"
                             >
-                                {t}
+                                {tag}
                             </Badge>
                         ))}
                     </div>
@@ -225,12 +140,25 @@ function FaqAccordionItem({
 }
 
 export default function Panduan() {
+    const {
+        faqItems,
+        guidanceCards,
+        helpContent,
+        pageSubtitle,
+        pageTitle,
+        searchHint,
+        templateDocs,
+    } = usePage<SharedData & PanduanPageProps>().props;
+
     const [query, setQuery] = useState('');
 
     const q = query.trim();
 
     const filteredGuidance = useMemo(() => {
-        if (!q) return guidanceCards;
+        if (!q) {
+            return guidanceCards;
+        }
+
         const nq = normalize(q);
 
         return guidanceCards.filter((card) => {
@@ -243,39 +171,70 @@ export default function Panduan() {
                     card.keywords.join(' '),
                 ].join(' '),
             );
+
             return hay.includes(nq);
         });
-    }, [q]);
+    }, [guidanceCards, q]);
 
     const filteredFaq = useMemo(() => {
-        if (!q) return faqItems;
+        if (!q) {
+            return faqItems;
+        }
+
         const nq = normalize(q);
 
         return faqItems.filter((item) => {
             const hay = normalize(
                 [item.question, item.answer, item.tags.join(' ')].join(' '),
             );
+
             return hay.includes(nq);
         });
-    }, [q]);
+    }, [faqItems, q]);
 
-    const hasResults = filteredGuidance.length > 0 || filteredFaq.length > 0;
+    const filteredTemplateDocs = useMemo(() => {
+        if (!q) {
+            return templateDocs;
+        }
+
+        const nq = normalize(q);
+
+        return templateDocs.filter((doc) => {
+            const hay = normalize(
+                [
+                    doc.title,
+                    doc.description,
+                    doc.format,
+                    doc.badge,
+                    doc.fileName,
+                ]
+                    .filter(Boolean)
+                    .join(' '),
+            );
+
+            return hay.includes(nq);
+        });
+    }, [q, templateDocs]);
+
+    const hasResults =
+        filteredGuidance.length > 0 ||
+        filteredFaq.length > 0 ||
+        filteredTemplateDocs.length > 0;
 
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
-            title="Panduan"
-            subtitle="Ringkas, bisa dicari, dan siap membantu kamu bergerak"
+            title={pageTitle}
+            subtitle={pageSubtitle}
         >
-            <Head title="Panduan" />
+            <Head title={pageTitle} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h1 className="text-xl font-semibold">Panduan</h1>
+                        <h1 className="text-xl font-semibold">{pageTitle}</h1>
                         <p className="text-sm text-muted-foreground">
-                            Temukan alur, tips bimbingan, dan FAQ tanpa harus
-                            mencari chat lama.
+                            {pageSubtitle}
                         </p>
                     </div>
 
@@ -296,9 +255,9 @@ export default function Panduan() {
                                     ? hasResults
                                         ? `Hasil untuk "${q}"`
                                         : `Tidak ada hasil untuk "${q}"`
-                                    : 'Ketik kata kunci: revisi, bimbingan, upload, judul'}
+                                    : searchHint}
                             </span>
-                            {q && (
+                            {q ? (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -308,7 +267,7 @@ export default function Panduan() {
                                 >
                                     Reset
                                 </Button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -345,7 +304,8 @@ export default function Panduan() {
 
                     <div className="grid gap-4 md:grid-cols-2">
                         {filteredGuidance.map((card) => {
-                            const Icon = card.icon;
+                            const Icon = iconMap[card.icon] ?? FileText;
+
                             return (
                                 <Card
                                     key={card.id}
@@ -379,14 +339,14 @@ export default function Panduan() {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <ul className="grid gap-2 text-sm text-muted-foreground">
-                                            {card.bullets.map((b) => (
+                                            {card.bullets.map((bullet) => (
                                                 <li
-                                                    key={b}
+                                                    key={bullet}
                                                     className="flex gap-2"
                                                 >
                                                     <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
                                                     <span className="min-w-0">
-                                                        {b}
+                                                        {bullet}
                                                     </span>
                                                 </li>
                                             ))}
@@ -395,7 +355,7 @@ export default function Panduan() {
                                         <Separator />
 
                                         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                                            {card.id === 'jadwal' && (
+                                            {card.action === 'schedule' ? (
                                                 <Button
                                                     type="button"
                                                     className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
@@ -412,8 +372,9 @@ export default function Panduan() {
                                                         Ajukan Bimbingan
                                                     </Link>
                                                 </Button>
-                                            )}
-                                            {card.id === 'upload' && (
+                                            ) : null}
+
+                                            {card.action === 'upload' ? (
                                                 <Button
                                                     type="button"
                                                     variant="outline"
@@ -430,8 +391,9 @@ export default function Panduan() {
                                                         Buka Upload Dokumen
                                                     </Link>
                                                 </Button>
-                                            )}
-                                            {card.id === 'komunikasi' && (
+                                            ) : null}
+
+                                            {card.action === 'message' ? (
                                                 <Button
                                                     type="button"
                                                     variant="outline"
@@ -446,8 +408,9 @@ export default function Panduan() {
                                                         Kirim Pesan
                                                     </Link>
                                                 </Button>
-                                            )}
-                                            {card.id === 'alur' && (
+                                            ) : null}
+
+                                            {card.action === 'template' ? (
                                                 <Button
                                                     type="button"
                                                     variant="outline"
@@ -462,7 +425,7 @@ export default function Panduan() {
                                                         Lihat Template
                                                     </a>
                                                 </Button>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -522,56 +485,106 @@ export default function Panduan() {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid gap-3">
-                                        {templateDocs.map((doc, idx) => (
-                                            <div key={doc.id}>
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="mt-0.5 size-4 text-muted-foreground" />
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-medium break-words">
-                                                                    {doc.title}
+                                    {filteredTemplateDocs.length === 0 ? (
+                                        <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                                            Tidak ada dokumen template yang
+                                            cocok dengan pencarianmu.
+                                        </div>
+                                    ) : (
+                                        <div className="grid gap-3">
+                                            {filteredTemplateDocs.map(
+                                                (doc, idx) => (
+                                                    <div key={doc.id}>
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <FileText className="mt-0.5 size-4 text-muted-foreground" />
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-sm font-medium break-words">
+                                                                            {
+                                                                                doc.title
+                                                                            }
+                                                                        </div>
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            {
+                                                                                doc.description
+                                                                            }
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    {
-                                                                        doc.description
-                                                                    }
+                                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="rounded-full"
+                                                                    >
+                                                                        {
+                                                                            doc.format
+                                                                        }
+                                                                    </Badge>
+                                                                    {doc.badge ? (
+                                                                        <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                                                                            {
+                                                                                doc.badge
+                                                                            }
+                                                                        </Badge>
+                                                                    ) : null}
+                                                                    {doc.fileName ? (
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="rounded-full"
+                                                                        >
+                                                                            {
+                                                                                doc.fileName
+                                                                            }
+                                                                        </Badge>
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="rounded-full"
-                                                            >
-                                                                {doc.format}
-                                                            </Badge>
-                                                            {doc.badge && (
-                                                                <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                                                                    {doc.badge}
-                                                                </Badge>
+
+                                                            {doc.downloadUrl ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-8 w-full sm:w-auto"
+                                                                    asChild
+                                                                >
+                                                                    <a
+                                                                        href={
+                                                                            doc.downloadUrl
+                                                                        }
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                    >
+                                                                        <FileDown className="size-4" />
+                                                                        Unduh
+                                                                    </a>
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-8 w-full sm:w-auto"
+                                                                    disabled
+                                                                >
+                                                                    <FileDown className="size-4" />
+                                                                    Belum
+                                                                    tersedia
+                                                                </Button>
                                                             )}
                                                         </div>
+                                                        {idx !==
+                                                        filteredTemplateDocs.length -
+                                                            1 ? (
+                                                            <Separator className="my-3" />
+                                                        ) : null}
                                                     </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8 w-full sm:w-auto"
-                                                        disabled
-                                                    >
-                                                        <FileDown className="size-4" />
-                                                        Unduh
-                                                    </Button>
-                                                </div>
-                                                {idx !==
-                                                    templateDocs.length - 1 && (
-                                                    <Separator className="my-3" />
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="mt-4 rounded-xl border bg-muted/30 p-4 text-sm">
                                         <div className="font-medium">
                                             Tips: versi itu penting
@@ -590,21 +603,19 @@ export default function Panduan() {
                             <Card className="overflow-hidden">
                                 <CardHeader className="gap-1">
                                     <CardTitle className="text-base">
-                                        Bantuan
+                                        {helpContent.title}
                                     </CardTitle>
                                     <CardDescription>
-                                        Jika masih bingung, mulai dari sini.
+                                        {helpContent.description}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="rounded-xl border bg-background p-4">
                                         <div className="text-sm font-medium">
-                                            Cek dulu yang paling dekat
+                                            {helpContent.boxTitle}
                                         </div>
                                         <div className="mt-1 text-sm text-muted-foreground">
-                                            Biasanya masalah selesai setelah:
-                                            cari kata kunci, baca FAQ, lalu
-                                            kirim pesan dengan konteks.
+                                            {helpContent.boxDescription}
                                         </div>
                                     </div>
 
@@ -640,24 +651,14 @@ export default function Panduan() {
 
                                     <div className="rounded-xl border bg-muted/30 p-4">
                                         <div className="text-sm font-medium">
-                                            Format pesan yang efektif
+                                            {helpContent.messageTemplateTitle}
                                         </div>
                                         <div className="mt-2 grid gap-2 text-sm text-muted-foreground">
-                                            <div>
-                                                1) Tahap: Bab 2 / Proposal /
-                                                Revisi
-                                            </div>
-                                            <div>
-                                                2) Tujuan: minta review atau
-                                                keputusan
-                                            </div>
-                                            <div>
-                                                3) Tautan: dokumen yang dirujuk
-                                            </div>
-                                            <div>
-                                                4) Pertanyaan: pilihan A/B atau
-                                                ya/tidak
-                                            </div>
+                                            {helpContent.messageTemplateSteps.map(
+                                                (step) => (
+                                                    <div key={step}>{step}</div>
+                                                ),
+                                            )}
                                         </div>
                                     </div>
                                 </CardContent>

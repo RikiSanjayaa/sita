@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
+use App\Http\Controllers\Mahasiswa\PanduanController;
 use App\Http\Controllers\Mahasiswa\PesanController;
 use App\Http\Controllers\Mahasiswa\TugasAkhirController;
 use App\Http\Controllers\Mahasiswa\UploadDokumenController;
@@ -30,7 +31,5 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
     Route::get('pesan', [PesanController::class, 'index'])->name('pesan');
     Route::post('pesan/{thread}/messages', [PesanController::class, 'storeMessage'])->name('pesan.messages.store');
 
-    Route::get('panduan', function () {
-        return \Inertia\Inertia::render('panduan');
-    })->name('panduan');
+    Route::get('panduan', PanduanController::class)->name('panduan');
 });
