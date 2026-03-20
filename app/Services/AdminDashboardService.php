@@ -9,6 +9,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisRevision;
 use App\Models\User;
+use App\Support\WitaDateTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -279,7 +280,7 @@ class AdminDashboardService
                 'student' => $defense->project?->student?->name ?? '-',
                 'nim' => $defense->project?->student?->mahasiswaProfile?->nim ?? '-',
                 'programStudi' => $defense->project?->programStudi?->name ?? '-',
-                'when' => $defense->scheduled_for?->translatedFormat('D, d M Y H:i') ?? '-',
+                'when' => WitaDateTime::translated($defense->scheduled_for, 'D, d M Y H:i'),
                 'location' => trim(implode(' - ', array_filter([$defense->location, $defense->mode]))),
                 'url' => ThesisProjectResource::getUrl('view', ['record' => $defense->project]),
             ]);
@@ -378,7 +379,7 @@ class AdminDashboardService
             '%s #%d - %s',
             strtoupper($agenda->type),
             $agenda->attempt_no,
-            $agenda->scheduled_for?->format('d M Y H:i') ?? '-',
+            WitaDateTime::format($agenda->scheduled_for),
         );
     }
 
