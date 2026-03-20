@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\StudentGuideContent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProgramStudi extends Model
@@ -28,13 +30,23 @@ class ProgramStudi extends Model
         'name',
         'slug',
         'concentrations',
+        'student_guide_content',
+        'student_guide_updated_by',
+        'student_guide_updated_at',
     ];
 
     protected function casts(): array
     {
         return [
             'concentrations' => 'array',
+            'student_guide_content' => 'array',
+            'student_guide_updated_at' => 'datetime',
         ];
+    }
+
+    public function studentGuideUpdatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'student_guide_updated_by');
     }
 
     public function mahasiswaProfiles(): HasMany
@@ -60,6 +72,14 @@ class ProgramStudi extends Model
     public function thesisProjects(): HasMany
     {
         return $this->hasMany(ThesisProject::class, 'program_studi_id');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function resolvedStudentGuideContent(): array
+    {
+        return StudentGuideContent::normalize($this->student_guide_content);
     }
 
     /**
