@@ -179,13 +179,17 @@ function RelationTypeBadge({
 export default function JadwalBimbinganPage() {
     const page = usePage<SharedData & JadwalPageProps>();
     const query = page.url.split('?')[1] ?? '';
+    const defaultLecturerUserId = page.props.advisors[0]?.lecturerUserId;
     const [isAjukanOpen, setIsAjukanOpen] = useState(
         new URLSearchParams(query).get('open') === 'ajukan',
     );
 
     const form = useForm({
         topic: '',
-        lecturer_user_id: '',
+        lecturer_user_id:
+            defaultLecturerUserId === undefined
+                ? ''
+                : String(defaultLecturerUserId),
         requested_for: '',
         meeting_type: 'offline',
         student_note: '',
@@ -193,18 +197,6 @@ export default function JadwalBimbinganPage() {
         recurring_pattern: 'weekly',
         recurring_count: 4,
     });
-
-    useEffect(() => {
-        if (
-            form.data.lecturer_user_id === '' &&
-            page.props.advisors.length > 0
-        ) {
-            form.setData(
-                'lecturer_user_id',
-                String(page.props.advisors[0].lecturerUserId),
-            );
-        }
-    }, [form, form.data.lecturer_user_id, page.props.advisors]);
 
     useEffect(() => {
         const userId = page.props.auth.user?.id;
