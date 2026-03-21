@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     ChevronDown,
@@ -87,6 +87,83 @@ type PesanBimbinganProps = {
     flashMessage?: string | null;
 };
 
+type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {
+    initialThreads: ThreadItem[];
+    tab: 'aktif' | 'arsip';
+    flashMessage?: string | null;
+};
+
+function buildThreadStateKey(
+    threads: ThreadItem[],
+    tab: 'aktif' | 'arsip',
+): string {
+    return [
+        tab,
+        ...threads.map(
+            (thread) =>
+                `${thread.id}:${thread.messages.length}:${thread.unread}:${thread.latestActivityAt ?? ''}`,
+        ),
+    ].join('|');
+}
+
+function syncThreadSearchParam(threadId: number | null): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const nextUrl = new URL(window.location.href);
+
+    if (threadId === null) {
+        nextUrl.searchParams.delete('thread');
+    } else {
+        nextUrl.searchParams.set('thread', String(threadId));
+    }
+
+    window.history.replaceState(
+        window.history.state,
+        '',
+        `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`,
+    );
+}
+
+function sortThreads(threads: ThreadItem[]): ThreadItem[] {
+    return [...threads].sort((a, b) => {
+        if (a.latestActivityAt === b.latestActivityAt) {
+            return b.id - a.id;
+        }
+
+        if (a.latestActivityAt === null) {
+            return 1;
+        }
+
+        if (b.latestActivityAt === null) {
+            return -1;
+        }
+
+        return b.latestActivityAt.localeCompare(a.latestActivityAt);
+    });
+}
+
+function getVisibleThreads(
+    threads: ThreadItem[],
+    search: string,
+    activeThreadId: number | null,
+): ThreadItem[] {
+    return sortThreads(threads)
+        .map((thread) => {
+            if (thread.id === activeThreadId) {
+                return { ...thread, unread: 0 };
+            }
+
+            return thread;
+        })
+        .filter((thread) => {
+            return thread.student
+                .toLowerCase()
+                .includes(search.trim().toLowerCase());
+        });
+}
+
 function resolveInitialThreadId(initialThreads: ThreadItem[]): number | null {
     const fallbackThreadId = initialThreads[0]?.id ?? null;
 
@@ -115,6 +192,24 @@ export default function DosenPesanBimbinganPage() {
         flashMessage,
         auth,
     } = usePage<SharedData & PesanBimbinganProps>().props;
+
+    return (
+        <DosenPesanBimbinganContent
+            key={buildThreadStateKey(initialThreads, tab)}
+            initialThreads={initialThreads}
+            tab={tab}
+            flashMessage={flashMessage}
+            auth={auth}
+        />
+    );
+}
+
+function DosenPesanBimbinganContent({
+    initialThreads,
+    tab,
+    flashMessage,
+    auth,
+}: PesanBimbinganContentProps) {
     const getInitials = useInitials();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
@@ -139,11 +234,6 @@ export default function DosenPesanBimbinganPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const activeThreadIdRef = useRef(activeThreadId);
-    useEffect(() => {
-        activeThreadIdRef.current = activeThreadId;
-    }, [activeThreadId]);
-
     const form = useForm<{
         message: string;
         attachment: File | null;
@@ -151,25 +241,6 @@ export default function DosenPesanBimbinganPage() {
         message: '',
         attachment: null,
     });
-
-    useEffect(() => {
-        router.reload({
-            only: ['threads'],
-        });
-    }, [tab]);
-
-    useEffect(() => {
-        // Wait until initialThreads are swapped out during tab change
-        /* eslint-disable react-hooks/set-state-in-effect */
-        setThreadItems(initialThreads);
-        setMessagesByThread(
-            Object.fromEntries(
-                initialThreads.map((thread) => [thread.id, thread.messages]),
-            ),
-        );
-        setActiveThreadId(resolveInitialThreadId(initialThreads));
-        /* eslint-enable react-hooks/set-state-in-effect */
-    }, [initialThreads]);
 
     async function markThreadAsRead(threadId: number) {
         setThreadItems((current) =>
@@ -196,6 +267,32 @@ export default function DosenPesanBimbinganPage() {
         });
     }
 
+    const visibleThreads = useMemo(
+        () => getVisibleThreads(threadItems, search, activeThreadId),
+        [activeThreadId, search, threadItems],
+    );
+
+    const evaluatedActiveThreadId = useMemo(() => {
+        if (visibleThreads.length === 0) {
+            return null;
+        }
+
+        if (
+            activeThreadId === null ||
+            !visibleThreads.some((thread) => thread.id === activeThreadId)
+        ) {
+            return visibleThreads[0].id;
+        }
+
+        return activeThreadId;
+    }, [activeThreadId, visibleThreads]);
+
+    const activeThread =
+        visibleThreads.find((t) => t.id === evaluatedActiveThreadId) ?? null;
+
+    const activeMessages =
+        activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
+
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
             return;
@@ -211,17 +308,16 @@ export default function DosenPesanBimbinganPage() {
                         const currentMessages = current[event.threadId] ?? [];
                         if (
                             currentMessages.some(
-                                (m) => m.id === event.message.id,
+                                (message) => message.id === event.message.id,
                             )
                         ) {
                             return current;
                         }
 
                         if (
-                            activeThreadIdRef.current === event.threadId &&
+                            evaluatedActiveThreadId === event.threadId &&
                             event.message.senderUserId !== auth.user?.id
                         ) {
-                            // small delay for smooth scrolling on receive
                             setTimeout(() => scrollToBottom(), 50);
                         }
 
@@ -252,7 +348,7 @@ export default function DosenPesanBimbinganPage() {
                             event.message.senderUserId !== auth.user?.id;
                         const shouldIncrementUnread =
                             isIncomingMessage &&
-                            activeThreadIdRef.current !== event.threadId;
+                            evaluatedActiveThreadId !== event.threadId;
 
                         const updatedThread: ThreadItem = {
                             ...targetThread,
@@ -273,7 +369,7 @@ export default function DosenPesanBimbinganPage() {
                     });
 
                     if (
-                        event.threadId === activeThreadIdRef.current &&
+                        event.threadId === evaluatedActiveThreadId &&
                         event.message.senderUserId !== null &&
                         event.message.senderUserId !== auth.user?.id
                     ) {
@@ -289,83 +385,11 @@ export default function DosenPesanBimbinganPage() {
                 window.Echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
-    }, [auth.user?.id, initialThreads]);
-
-    useEffect(() => {
-        // @ts-expect-error - injected globally for app-sidebar-header to read
-        window.activeMentorshipThreadId = activeThreadId;
-
-        if (activeThreadId === null) {
-            return;
-        }
-        void markThreadAsRead(activeThreadId);
-
-        return () => {
-            // @ts-expect-error - injected globally
-            window.activeMentorshipThreadId = null;
-        };
-    }, [activeThreadId]);
-
-    const visibleThreads = useMemo(() => {
-        return [...threadItems]
-            .sort((a, b) => {
-                if (a.latestActivityAt === b.latestActivityAt) {
-                    return b.id - a.id;
-                }
-
-                if (a.latestActivityAt === null) {
-                    return 1;
-                }
-
-                if (b.latestActivityAt === null) {
-                    return -1;
-                }
-
-                return b.latestActivityAt.localeCompare(a.latestActivityAt);
-            })
-            .map((thread) => {
-                if (thread.id === activeThreadId) {
-                    return { ...thread, unread: 0 };
-                }
-                return thread;
-            })
-            .filter((thread) => {
-                return thread.student
-                    .toLowerCase()
-                    .includes(search.trim().toLowerCase());
-            });
-    }, [search, threadItems, activeThreadId]);
-
-    const evaluatedActiveThreadId = useMemo(() => {
-        if (visibleThreads.length === 0) {
-            return null;
-        }
-
-        if (
-            activeThreadId === null ||
-            !visibleThreads.some((thread) => thread.id === activeThreadId)
-        ) {
-            return visibleThreads[0].id;
-        }
-
-        return activeThreadId;
-    }, [activeThreadId, visibleThreads]);
-
-    useEffect(() => {
-        if (evaluatedActiveThreadId === null) return;
-        /* eslint-disable-next-line react-hooks/set-state-in-effect */
-        void markThreadAsRead(evaluatedActiveThreadId);
-    }, [evaluatedActiveThreadId]);
-
-    const activeThread =
-        visibleThreads.find((t) => t.id === evaluatedActiveThreadId) ?? null;
-
-    const activeMessages =
-        activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
+    }, [auth.user?.id, evaluatedActiveThreadId, initialThreads]);
 
     useEffect(() => {
         scrollToBottom();
-    }, [activeMessages.length, activeThreadId]);
+    }, [activeMessages.length, evaluatedActiveThreadId]);
 
     const canSend = useMemo(
         () =>
@@ -382,7 +406,33 @@ export default function DosenPesanBimbinganPage() {
 
     function selectThread(threadId: number) {
         setActiveThreadId(threadId);
+        syncThreadSearchParam(threadId);
         setMobileView('chat');
+        void markThreadAsRead(threadId);
+    }
+
+    function handleSearchChange(nextSearch: string) {
+        const nextVisibleThreads = getVisibleThreads(
+            threadItems,
+            nextSearch,
+            activeThreadId,
+        );
+        const nextActiveThreadId = nextVisibleThreads.some(
+            (thread) => thread.id === activeThreadId,
+        )
+            ? activeThreadId
+            : (nextVisibleThreads[0]?.id ?? null);
+
+        setSearch(nextSearch);
+
+        if (nextActiveThreadId !== activeThreadId) {
+            setActiveThreadId(nextActiveThreadId);
+            syncThreadSearchParam(nextActiveThreadId);
+
+            if (nextActiveThreadId !== null) {
+                void markThreadAsRead(nextActiveThreadId);
+            }
+        }
     }
 
     function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
@@ -474,7 +524,7 @@ export default function DosenPesanBimbinganPage() {
                             <Input
                                 value={search}
                                 onChange={(event) =>
-                                    setSearch(event.target.value)
+                                    handleSearchChange(event.target.value)
                                 }
                                 className="pl-9"
                                 placeholder="Cari mahasiswa..."

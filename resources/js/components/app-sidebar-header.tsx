@@ -39,12 +39,6 @@ import {
     type SharedData,
 } from '@/types';
 
-declare global {
-    interface Window {
-        activeMentorshipThreadId?: number;
-    }
-}
-
 const notificationIconMap: Record<string, LucideIcon> = {
     bell: Bell,
     'calendar-clock': CalendarClock,
@@ -64,6 +58,11 @@ type IncomingNotification = {
         createdAt?: string;
     };
     read_at?: string | null;
+};
+
+type NotificationOverride = {
+    deleted?: boolean;
+    unread?: boolean;
 };
 
 function csrfToken(): string {
@@ -103,24 +102,76 @@ function mapIncomingNotification(
     };
 }
 
-function mergeNotifications(
-    incoming: HeaderNotification[],
-    current: HeaderNotification[],
+function applyNotificationOverride(
+    notification: HeaderNotification,
+    override?: NotificationOverride,
+): HeaderNotification | null {
+    if (override?.deleted) {
+        return null;
+    }
+
+    return {
+        ...notification,
+        unread: override?.unread ?? notification.unread,
+    };
+}
+
+function deriveNotificationItems(
+    notifications: HeaderNotification[],
+    sessionNotifications: HeaderNotification[],
+    overrides: Record<string, NotificationOverride>,
 ): HeaderNotification[] {
-    const currentById = new Map(current.map((item) => [item.id, item]));
+    const serverIds = new Set(notifications.map((item) => item.id));
+    const sessionById = new Map(
+        sessionNotifications.map((item) => [item.id, item]),
+    );
 
-    return incoming.map((item) => {
-        const existing = currentById.get(item.id);
+    const sessionOnlyItems = sessionNotifications
+        .filter((item) => !serverIds.has(item.id))
+        .map((item) => applyNotificationOverride(item, overrides[item.id]))
+        .filter((item): item is HeaderNotification => item !== null);
 
-        if (!existing) {
-            return item;
-        }
+    const mergedServerItems = notifications
+        .map((item) => {
+            const sessionItem = sessionById.get(item.id);
+            const mergedItem = sessionItem ? { ...item, ...sessionItem } : item;
 
-        return {
-            ...item,
-            unread: existing.unread === false ? false : item.unread,
-        };
-    });
+            return applyNotificationOverride(mergedItem, overrides[item.id]);
+        })
+        .filter((item): item is HeaderNotification => item !== null);
+
+    return [...sessionOnlyItems, ...mergedServerItems].slice(0, 15);
+}
+
+function upsertNotification(
+    notifications: HeaderNotification[],
+    nextNotification: HeaderNotification,
+): HeaderNotification[] {
+    const withoutDuplicate = notifications.filter(
+        (item) => item.id !== nextNotification.id,
+    );
+
+    return [nextNotification, ...withoutDuplicate].slice(0, 15);
+}
+
+function isThreadNotificationOpen(url: string | null): boolean {
+    if (typeof window === 'undefined' || url === null) {
+        return false;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const targetUrl = new URL(url, window.location.origin);
+    const targetThreadId = targetUrl.searchParams.get('thread');
+
+    if (targetThreadId === null) {
+        return false;
+    }
+
+    return (
+        currentUrl.pathname === targetUrl.pathname &&
+        currentUrl.searchParams.get('thread') === targetThreadId &&
+        document.visibilityState === 'visible'
+    );
 }
 
 function HeaderNotifications() {
@@ -130,11 +181,24 @@ function HeaderNotifications() {
         notificationSettings,
     } = usePage<SharedData>().props;
 
-    const [notificationItems, setNotificationItems] =
-        useState<HeaderNotification[]>(notifications);
+    const [sessionNotifications, setSessionNotifications] = useState<
+        HeaderNotification[]
+    >([]);
+    const [notificationOverrides, setNotificationOverrides] = useState<
+        Record<string, NotificationOverride>
+    >({});
     const [toastNotification, setToastNotification] =
         useState<HeaderNotification | null>(null);
     const toastTimeoutRef = useRef<number | null>(null);
+    const notificationItems = useMemo(
+        () =>
+            deriveNotificationItems(
+                notifications,
+                sessionNotifications,
+                notificationOverrides,
+            ),
+        [notifications, notificationOverrides, sessionNotifications],
+    );
     const unreadCount = useMemo(
         () => notificationItems.filter((item) => item.unread).length,
         [notificationItems],
@@ -143,12 +207,6 @@ function HeaderNotifications() {
         () => notificationItems.filter((item) => !item.unread).length,
         [notificationItems],
     );
-
-    useEffect(() => {
-        setNotificationItems((current) =>
-            mergeNotifications(notifications, current),
-        );
-    }, [notifications]);
 
     useEffect(() => {
         return () => {
@@ -168,35 +226,17 @@ function HeaderNotifications() {
 
         channel.notification((payload: IncomingNotification) => {
             const nextNotification = mapIncomingNotification(payload);
-
-            let isThreadCurrentlyOpen = false;
-            const url = nextNotification.url || '';
-            const threadMatch = url.match(/[?&]thread=(\d+)/);
-
-            if (threadMatch) {
-                const threadId = parseInt(threadMatch[1], 10);
-                if (
-                    window.activeMentorshipThreadId === threadId &&
-                    document.visibilityState === 'visible'
-                ) {
-                    isThreadCurrentlyOpen = true;
-                }
-            }
+            const isThreadCurrentlyOpen = isThreadNotificationOpen(
+                nextNotification.url ?? null,
+            );
 
             if (isThreadCurrentlyOpen) {
-                setNotificationItems((current) => {
-                    const withoutDuplicate = current.filter(
-                        (item) => item.id !== nextNotification.id,
-                    );
-
-                    return [
-                        {
-                            ...nextNotification,
-                            unread: false,
-                        },
-                        ...withoutDuplicate,
-                    ].slice(0, 15);
-                });
+                setSessionNotifications((current) =>
+                    upsertNotification(current, {
+                        ...nextNotification,
+                        unread: false,
+                    }),
+                );
 
                 fetch(`/settings/notifications/${nextNotification.id}/read`, {
                     method: 'POST',
@@ -212,26 +252,24 @@ function HeaderNotifications() {
                 return;
             }
 
-            setNotificationItems((current) => {
+            setSessionNotifications((current) => {
                 const existing = current.find(
                     (item) => item.id === nextNotification.id,
                 );
-                const nextItem = existing
-                    ? {
-                          ...existing,
-                          ...nextNotification,
-                          unread:
-                              existing.unread === false
-                                  ? false
-                                  : nextNotification.unread,
-                      }
-                    : nextNotification;
 
-                const withoutDuplicate = current.filter(
-                    (item) => item.id !== nextItem.id,
+                return upsertNotification(
+                    current,
+                    existing
+                        ? {
+                              ...existing,
+                              ...nextNotification,
+                              unread:
+                                  existing.unread === false
+                                      ? false
+                                      : nextNotification.unread,
+                          }
+                        : nextNotification,
                 );
-
-                return [nextItem, ...withoutDuplicate].slice(0, 15);
             });
             setToastNotification(nextNotification);
 
@@ -289,12 +327,18 @@ function HeaderNotifications() {
             return;
         }
 
-        setNotificationItems((current) =>
-            current.map((notification) => ({
-                ...notification,
-                unread: false,
-            })),
-        );
+        setNotificationOverrides((current) => {
+            const next = { ...current };
+
+            for (const notification of notificationItems) {
+                next[notification.id] = {
+                    ...next[notification.id],
+                    unread: false,
+                };
+            }
+
+            return next;
+        });
 
         await fetch('/settings/notifications/read-all', {
             method: 'POST',
@@ -314,9 +358,29 @@ function HeaderNotifications() {
             return;
         }
 
-        setNotificationItems((current) =>
-            current.filter((notification) => notification.unread),
+        const readNotificationIds = new Set(
+            notificationItems
+                .filter((notification) => !notification.unread)
+                .map((notification) => notification.id),
         );
+
+        setSessionNotifications((current) =>
+            current.filter(
+                (notification) => !readNotificationIds.has(notification.id),
+            ),
+        );
+        setNotificationOverrides((current) => {
+            const next = { ...current };
+
+            for (const notificationId of readNotificationIds) {
+                next[notificationId] = {
+                    ...next[notificationId],
+                    deleted: true,
+                };
+            }
+
+            return next;
+        });
 
         await fetch('/settings/notifications/read-items', {
             method: 'DELETE',
@@ -332,9 +396,16 @@ function HeaderNotifications() {
     };
 
     const handleDeleteNotification = async (notificationId: string) => {
-        setNotificationItems((current) =>
+        setSessionNotifications((current) =>
             current.filter((item) => item.id !== notificationId),
         );
+        setNotificationOverrides((current) => ({
+            ...current,
+            [notificationId]: {
+                ...current[notificationId],
+                deleted: true,
+            },
+        }));
 
         if (toastNotification?.id === notificationId) {
             setToastNotification(null);
@@ -357,16 +428,13 @@ function HeaderNotifications() {
         notification: HeaderNotification,
     ) => {
         if (notification.unread) {
-            setNotificationItems((current) =>
-                current.map((item) =>
-                    item.id === notification.id
-                        ? {
-                              ...item,
-                              unread: false,
-                          }
-                        : item,
-                ),
-            );
+            setNotificationOverrides((current) => ({
+                ...current,
+                [notification.id]: {
+                    ...current[notification.id],
+                    unread: false,
+                },
+            }));
 
             await markNotificationAsRead(notification.id);
         }
@@ -617,7 +685,6 @@ function HeaderRoleSwitcher() {
 export function AppSidebarHeader({
     breadcrumbs = [],
     title,
-    subtitle,
 }: {
     breadcrumbs?: BreadcrumbItemType[];
     title?: ReactNode;

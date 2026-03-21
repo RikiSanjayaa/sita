@@ -80,6 +80,38 @@ type PesanPageProps = {
     flashMessage?: string | null;
 };
 
+type PesanPageContentProps = Pick<SharedData, 'auth'> & {
+    hasDosbing: boolean;
+    flashMessage?: string | null;
+    initialThreads: ThreadItem[];
+};
+
+function buildThreadStateKey(threads: ThreadItem[]): string {
+    return threads
+        .map((thread) => `${thread.id}:${thread.messages.length}`)
+        .join('|');
+}
+
+function syncThreadSearchParam(threadId: number | null): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const nextUrl = new URL(window.location.href);
+
+    if (threadId === null) {
+        nextUrl.searchParams.delete('thread');
+    } else {
+        nextUrl.searchParams.set('thread', String(threadId));
+    }
+
+    window.history.replaceState(
+        window.history.state,
+        '',
+        `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`,
+    );
+}
+
 function resolveInitialThreadId(threads: ThreadItem[]): number | null {
     if (typeof window !== 'undefined') {
         const queryThread = Number(
@@ -102,6 +134,24 @@ export default function PesanPage() {
         flashMessage,
         auth,
     } = usePage<SharedData & PesanPageProps>().props;
+
+    return (
+        <PesanPageContent
+            key={buildThreadStateKey(initialThreads)}
+            initialThreads={initialThreads}
+            hasDosbing={hasDosbing}
+            flashMessage={flashMessage}
+            auth={auth}
+        />
+    );
+}
+
+function PesanPageContent({
+    initialThreads,
+    hasDosbing,
+    flashMessage,
+    auth,
+}: PesanPageContentProps) {
     const getInitials = useInitials();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
@@ -124,22 +174,19 @@ export default function PesanPage() {
         attachment: null,
     });
 
-    useEffect(() => {
-        /* eslint-disable react-hooks/set-state-in-effect */
-        setMessagesByThread(
-            Object.fromEntries(initialThreads.map((t) => [t.id, t.messages])),
-        );
-        /* eslint-enable react-hooks/set-state-in-effect */
-    }, [initialThreads]);
+    const resolvedActiveThreadId = useMemo(() => {
+        if (activeThreadId !== null) {
+            const matchingThread = initialThreads.find(
+                (thread) => thread.id === activeThreadId,
+            );
 
-    useEffect(() => {
-        // @ts-expect-error - injected globally for app-sidebar-header to read
-        window.activeMentorshipThreadId = activeThreadId;
-        return () => {
-            // @ts-expect-error - injected globally
-            window.activeMentorshipThreadId = null;
-        };
-    }, [activeThreadId]);
+            if (matchingThread) {
+                return matchingThread.id;
+            }
+        }
+
+        return initialThreads[0]?.id ?? null;
+    }, [activeThreadId, initialThreads]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
@@ -163,7 +210,7 @@ export default function PesanPage() {
                         }
 
                         if (
-                            activeThreadId === event.threadId &&
+                            resolvedActiveThreadId === event.threadId &&
                             event.message.senderUserId !== auth.user?.id
                         ) {
                             setTimeout(() => scrollToBottom(), 50);
@@ -187,11 +234,14 @@ export default function PesanPage() {
                 window.Echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
-    }, [auth.user?.id, initialThreads, activeThreadId]);
+    }, [auth.user?.id, initialThreads, resolvedActiveThreadId]);
 
     const activeThread = useMemo(
-        () => initialThreads.find((t) => t.id === activeThreadId) ?? null,
-        [activeThreadId, initialThreads],
+        () =>
+            initialThreads.find(
+                (thread) => thread.id === resolvedActiveThreadId,
+            ) ?? null,
+        [initialThreads, resolvedActiveThreadId],
     );
 
     const activeMessages = useMemo(
@@ -201,7 +251,7 @@ export default function PesanPage() {
 
     useEffect(() => {
         scrollToBottom();
-    }, [activeMessages.length, activeThreadId]);
+    }, [activeMessages.length, resolvedActiveThreadId]);
 
     const canSend = useMemo(
         () =>
@@ -218,6 +268,7 @@ export default function PesanPage() {
 
     function selectThread(threadId: number) {
         setActiveThreadId(threadId);
+        syncThreadSearchParam(threadId);
         setMobileView('chat');
     }
 
