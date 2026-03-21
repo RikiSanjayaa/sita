@@ -105,6 +105,14 @@ class ThesisProjectAdminService
             location: $location,
             wasRescheduled: $wasRescheduled,
         );
+        $this->notifyLecturersAboutDefenseSchedule(
+            project: $updatedProject,
+            defense: $updatedProject->semproDefenses()->latest('attempt_no')->with('examiners.lecturer')->first(),
+            type: 'sempro',
+            scheduledFor: $scheduledFor,
+            location: $location,
+            wasRescheduled: $wasRescheduled,
+        );
 
         return $updatedProject;
     }
@@ -347,6 +355,14 @@ class ThesisProjectAdminService
 
         $this->notifyStudentAboutDefenseSchedule(
             project: $project,
+            type: 'sidang',
+            scheduledFor: $scheduledFor,
+            location: $location,
+            wasRescheduled: $wasRescheduled,
+        );
+        $this->notifyLecturersAboutDefenseSchedule(
+            project: $project,
+            defense: $defense,
             type: 'sidang',
             scheduledFor: $scheduledFor,
             location: $location,
@@ -939,6 +955,48 @@ class ThesisProjectAdminService
             'icon' => 'calendar-clock',
             'createdAt' => now()->toIso8601String(),
         ]);
+    }
+
+    private function notifyLecturersAboutDefenseSchedule(
+        ThesisProject $project,
+        ?ThesisDefense $defense,
+        string $type,
+        string $scheduledFor,
+        string $location,
+        bool $wasRescheduled,
+    ): void {
+        $project->loadMissing('activeSupervisorAssignments.lecturer');
+        $defense?->loadMissing('examiners.lecturer');
+
+        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+        $recipients = $project->activeSupervisorAssignments
+            ->map(fn(ThesisSupervisorAssignment $assignment): ?User => $assignment->lecturer)
+            ->concat(
+                collect($defense?->examiners ?? [])
+                    ->map(fn(ThesisDefenseExaminer $examiner): ?User => $examiner->lecturer),
+            )
+            ->filter(fn(?User $user): bool => $user instanceof User)
+            ->unique('id')
+            ->values();
+
+        foreach ($recipients as $recipient) {
+            $this->realtimeNotificationService->notifyUser($recipient, 'statusTugasAkhir', [
+                'title' => $wasRescheduled
+                    ? sprintf('Jadwal %s mahasiswa diperbarui', $label)
+                    : sprintf('%s mahasiswa dijadwalkan', ucfirst($label)),
+                'description' => sprintf(
+                    $wasRescheduled
+                        ? '%s mahasiswa bimbingan Anda dijadwalkan ulang pada %s di %s.'
+                        : '%s mahasiswa bimbingan Anda dijadwalkan pada %s di %s.',
+                    ucfirst($label),
+                    $scheduledFor,
+                    $location,
+                ),
+                'url' => '/dosen/seminar-proposal',
+                'icon' => 'calendar-clock',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
     }
 
     private function notifyStudentAboutDefenseResult(

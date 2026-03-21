@@ -25,6 +25,7 @@ test('admin service schedules sempro from thesis project aggregate without creat
     $student = User::factory()->asMahasiswa()->create();
     $dosenA = User::factory()->asDosen()->create();
     $dosenB = User::factory()->asDosen()->create();
+    $supervisor = User::factory()->asDosen()->create();
     $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
 
     AdminProfile::query()->create([
@@ -49,6 +50,15 @@ test('admin service schedules sempro from thesis project aggregate without creat
         'created_by' => $student->id,
     ]);
 
+    DosenProfile::query()->create([
+        'user_id' => $supervisor->id,
+        'nik' => '7301010101019898',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Umum',
+        'supervision_quota' => 10,
+        'is_active' => true,
+    ]);
+
     ThesisProjectTitle::query()->create([
         'project_id' => $project->id,
         'version_no' => 1,
@@ -58,6 +68,15 @@ test('admin service schedules sempro from thesis project aggregate without creat
         'submitted_at' => now()->subDays(2),
         'decided_by_user_id' => $admin->id,
         'decided_at' => now()->subDay(),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $supervisor->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDay(),
     ]);
 
     app(ThesisProjectAdminService::class)->scheduleSempro(
@@ -81,7 +100,14 @@ test('admin service schedules sempro from thesis project aggregate without creat
         ->and(ThesisProjectEvent::query()->where('event_type', 'sempro_scheduled')->count())->toBe(1)
         ->and($admin->notifications()->count())->toBe(1)
         ->and($superAdmin->notifications()->count())->toBe(1)
+        ->and($dosenA->notifications()->count())->toBe(1)
+        ->and($dosenB->notifications()->count())->toBe(1)
+        ->and($supervisor->notifications()->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sempro');
+
+    expect($dosenA->notifications()->latest()->first()?->data['title'] ?? null)->toBe('Sempro mahasiswa dijadwalkan')
+        ->and($dosenB->notifications()->latest()->first()?->data['title'] ?? null)->toBe('Sempro mahasiswa dijadwalkan')
+        ->and($supervisor->notifications()->latest()->first()?->data['title'] ?? null)->toBe('Sempro mahasiswa dijadwalkan');
 });
 
 test('admin service notifies mahasiswa when sempro is scheduled', function (): void {
@@ -463,6 +489,30 @@ test('admin service schedules and completes sidang with revision', function (): 
         return in_array('broadcast', $channels, true)
             && $data['title'] === 'Sidang selesai dengan revisi'
             && $data['description'] === 'Sidang diterima dengan revisi minor.'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+
+    Notification::assertSentTo($primarySupervisor, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($primarySupervisor): bool {
+        $data = $notification->toArray($primarySupervisor);
+
+        return in_array('broadcast', $channels, true)
+            && $data['title'] === 'Sidang mahasiswa dijadwalkan'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+
+    Notification::assertSentTo($secondarySupervisor, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($secondarySupervisor): bool {
+        $data = $notification->toArray($secondarySupervisor);
+
+        return in_array('broadcast', $channels, true)
+            && $data['title'] === 'Sidang mahasiswa dijadwalkan'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+
+    Notification::assertSentTo($examiner, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($examiner): bool {
+        $data = $notification->toArray($examiner);
+
+        return in_array('broadcast', $channels, true)
+            && $data['title'] === 'Sidang mahasiswa dijadwalkan'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 });
