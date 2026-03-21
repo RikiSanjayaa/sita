@@ -438,11 +438,20 @@ test('admin service schedules and completes sidang with revision', function (): 
     );
 
     $scheduledSidang = ThesisDefense::query()->where('project_id', $project->id)->where('type', 'sidang')->firstOrFail();
+    $sidangThread = MentorshipChatThread::query()
+        ->where('student_user_id', $student->id)
+        ->where('type', 'sidang')
+        ->where('context_id', $scheduledSidang->id)
+        ->firstOrFail();
 
     expect($scheduledSidang->examiners()->count())->toBe(3)
         ->and($scheduledSidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
         ->and($scheduledSidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
-        ->and($scheduledSidang->examiners()->where('role', 'examiner')->exists())->toBeTrue();
+        ->and($scheduledSidang->examiners()->where('role', 'examiner')->exists())->toBeTrue()
+        ->and($sidangThread->label)->toBe('Sidang')
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'student')->count())->toBe(1)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(3)
+        ->and($sidangThread->messages()->count())->toBe(1);
 
     $scheduledSidang->examiners()->update([
         'decision' => 'pass_with_revision',
