@@ -80,6 +80,74 @@ test('user can mark all notifications as read', function () {
     expect($user->fresh()->unreadNotifications()->count())->toBe(0);
 });
 
+test('user can delete one read notification', function () {
+    $user = User::factory()->create();
+
+    $user->notify(new RealtimeNotification([
+        'title' => 'Tes dibaca',
+        'description' => 'Notifikasi yang sudah dibaca',
+        'icon' => 'bell',
+        'url' => '/dashboard',
+    ]));
+
+    $notification = $user->notifications()->firstOrFail();
+    $notification->markAsRead();
+
+    $this->actingAs($user)
+        ->delete(route('settings.notifications.delete-one', ['notificationId' => $notification->id]))
+        ->assertOk();
+
+    expect($user->fresh()->notifications()->count())->toBe(0);
+});
+
+test('user cannot delete unread notification directly', function () {
+    $user = User::factory()->create();
+
+    $user->notify(new RealtimeNotification([
+        'title' => 'Tes unread',
+        'description' => 'Notifikasi unread',
+        'icon' => 'bell',
+        'url' => '/dashboard',
+    ]));
+
+    $notificationId = $user->notifications()->firstOrFail()->id;
+
+    $this->actingAs($user)
+        ->delete(route('settings.notifications.delete-one', ['notificationId' => $notificationId]))
+        ->assertUnprocessable();
+
+    expect($user->fresh()->notifications()->count())->toBe(1)
+        ->and($user->fresh()->unreadNotifications()->count())->toBe(1);
+});
+
+test('user can delete all read notifications without touching unread ones', function () {
+    $user = User::factory()->create();
+
+    $user->notify(new RealtimeNotification([
+        'title' => 'Tes unread',
+        'description' => 'Notifikasi unread',
+        'icon' => 'bell',
+        'url' => '/dashboard',
+    ]));
+
+    $user->notify(new RealtimeNotification([
+        'title' => 'Tes read',
+        'description' => 'Notifikasi read',
+        'icon' => 'bell',
+        'url' => '/dashboard',
+    ]));
+
+    $readNotification = $user->notifications()->latest()->firstOrFail();
+    $readNotification->markAsRead();
+
+    $this->actingAs($user)
+        ->delete(route('settings.notifications.delete-read'))
+        ->assertOk();
+
+    expect($user->fresh()->notifications()->count())->toBe(1)
+        ->and($user->fresh()->unreadNotifications()->count())->toBe(1);
+});
+
 test('disabling one notification preference only blocks that notification type', function (string $disabledKey) {
     Notification::fake();
 

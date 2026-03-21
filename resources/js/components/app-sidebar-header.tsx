@@ -9,6 +9,7 @@ import {
     MessageSquareText,
     PencilLine,
     Repeat,
+    Trash2,
     type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -136,6 +137,10 @@ function HeaderNotifications() {
     const toastTimeoutRef = useRef<number | null>(null);
     const unreadCount = useMemo(
         () => notificationItems.filter((item) => item.unread).length,
+        [notificationItems],
+    );
+    const readCount = useMemo(
+        () => notificationItems.filter((item) => !item.unread).length,
         [notificationItems],
     );
 
@@ -304,6 +309,50 @@ function HeaderNotifications() {
         });
     };
 
+    const handleDeleteReadNotifications = async () => {
+        if (readCount === 0) {
+            return;
+        }
+
+        setNotificationItems((current) =>
+            current.filter((notification) => notification.unread),
+        );
+
+        await fetch('/settings/notifications/read-items', {
+            method: 'DELETE',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleDeleteNotification = async (notificationId: string) => {
+        setNotificationItems((current) =>
+            current.filter((item) => item.id !== notificationId),
+        );
+
+        if (toastNotification?.id === notificationId) {
+            setToastNotification(null);
+        }
+
+        await fetch(`/settings/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
     const handleNotificationClick = async (
         notification: HeaderNotification,
     ) => {
@@ -350,7 +399,7 @@ function HeaderNotifications() {
                 </SheetTrigger>
                 <SheetContent side="right" className="p-0">
                     <div className="flex h-full flex-col">
-                        <div className="flex items-center justify-between gap-3 p-4 pr-12">
+                        <div className="flex flex-col gap-2 p-4 pr-12">
                             <div className="flex items-center gap-2">
                                 <div className="text-sm leading-tight font-semibold">
                                     Notifikasi
@@ -359,15 +408,26 @@ function HeaderNotifications() {
                                     {unreadCount}
                                 </Badge>
                             </div>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                className="h-8 px-2 text-xs"
-                                onClick={handleMarkAllAsRead}
-                                disabled={unreadCount === 0}
-                            >
-                                Tandai Semua Dibaca
-                            </Button>
+                            <div className="flex items-center gap-4">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto p-0 text-sm text-primary hover:bg-transparent hover:text-primary/80"
+                                    onClick={handleMarkAllAsRead}
+                                    disabled={unreadCount === 0}
+                                >
+                                    Baca semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto p-0 text-sm text-destructive hover:bg-transparent hover:text-destructive/80"
+                                    onClick={handleDeleteReadNotifications}
+                                    disabled={readCount === 0}
+                                >
+                                    Bersihkan
+                                </Button>
+                            </div>
                         </div>
 
                         <Separator />
@@ -391,13 +451,9 @@ function HeaderNotifications() {
                                             notificationIconMap[n.icon] ?? Bell;
 
                                         return (
-                                            <button
-                                                type="button"
+                                            <div
                                                 key={n.id}
-                                                className="flex w-full items-start gap-3 rounded-lg border bg-background p-4 text-left transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                                                onClick={() =>
-                                                    handleNotificationClick(n)
-                                                }
+                                                className="flex items-start gap-3 rounded-lg border bg-background p-4 transition-colors hover:bg-primary/10"
                                             >
                                                 <span
                                                     className={
@@ -406,7 +462,15 @@ function HeaderNotifications() {
                                                 >
                                                     <Icon className="size-4" />
                                                 </span>
-                                                <div className="min-w-0 flex-1">
+                                                <button
+                                                    type="button"
+                                                    className="min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                    onClick={() =>
+                                                        handleNotificationClick(
+                                                            n,
+                                                        )
+                                                    }
+                                                >
                                                     <div className="flex items-start justify-between gap-3">
                                                         <p className="text-sm font-medium">
                                                             {n.title}
@@ -421,8 +485,24 @@ function HeaderNotifications() {
                                                     <p className="mt-2 text-xs text-muted-foreground">
                                                         {n.time}
                                                     </p>
-                                                </div>
-                                            </button>
+                                                </button>
+                                                {!n.unread && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="mt-0.5 size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                                                        onClick={() =>
+                                                            handleDeleteNotification(
+                                                                n.id,
+                                                            )
+                                                        }
+                                                        aria-label="Hapus notifikasi"
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         );
                                     },
                                 )

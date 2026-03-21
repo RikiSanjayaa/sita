@@ -59,4 +59,36 @@ class NotificationSettingsController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function deleteReadNotifications(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $deleted = $user->readNotifications()->delete();
+
+        return response()->json([
+            'ok' => true,
+            'deleted' => $deleted,
+        ]);
+    }
+
+    public function deleteReadNotification(Request $request, string $notificationId): JsonResponse
+    {
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $notification = $user->notifications()->where('id', $notificationId)->first();
+        abort_if($notification === null, 404);
+
+        if ($notification->read_at === null) {
+            return response()->json([
+                'message' => 'Hanya notifikasi yang sudah dibaca yang dapat dihapus.',
+            ], 422);
+        }
+
+        $notification->delete();
+
+        return response()->json(['ok' => true]);
+    }
 }
