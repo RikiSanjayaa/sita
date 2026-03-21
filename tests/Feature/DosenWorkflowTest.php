@@ -16,6 +16,9 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Notifications\RealtimeNotification;
+use App\Services\ThesisDefenseExaminerDecisionService;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function createDosenUser(): User
@@ -297,6 +300,48 @@ test('dosen can decide schedule only for own assignment', function () {
             'decision' => 'reject',
         ])
         ->assertForbidden();
+});
+
+test('examiner decision sends notification to mahasiswa', function () {
+    Notification::fake();
+
+    $student = createMahasiswaUser('2210519998');
+    $examinerOne = createDosenUser();
+    $examinerTwo = createDosenUser();
+
+    $project = createThesisProjectForStudent($student);
+
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle?->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'mode' => 'offline',
+        'scheduled_for' => now()->addDays(2),
+        'location' => 'Ruang Uji Sempro',
+        'created_by' => $examinerOne->id,
+    ]);
+
+    assignDefenseExaminer($defense, $examinerOne, 'examiner', 1);
+    assignDefenseExaminer($defense, $examinerTwo, 'examiner', 2);
+
+    app(ThesisDefenseExaminerDecisionService::class)->submit($examinerOne, $defense, [
+        'decision' => 'pass',
+        'score' => 88,
+        'decision_notes' => 'Presentasi sudah baik.',
+        'revision_notes' => null,
+    ]);
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student, $examinerOne): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('broadcast', $channels, true)
+            && $data['title'] === 'Nilai sempro dari penguji tersedia'
+            && str_contains($data['description'], $examinerOne->name)
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
 });
 
 test('dosen can close confirmed schedule as completed or cancelled', function () {

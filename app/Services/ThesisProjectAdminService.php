@@ -20,6 +20,10 @@ use RuntimeException;
 
 class ThesisProjectAdminService
 {
+    public function __construct(
+        private readonly RealtimeNotificationService $realtimeNotificationService,
+    ) {}
+
     /**
      * @param  array<int, int>  $examinerUserIds
      */
@@ -31,7 +35,9 @@ class ThesisProjectAdminService
         string $mode,
         array $examinerUserIds,
     ): ThesisProject {
-        return DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $location, $mode, $examinerUserIds): ThesisProject {
+        $wasRescheduled = false;
+
+        $updatedProject = DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $location, $mode, $examinerUserIds, &$wasRescheduled): ThesisProject {
             $defense = $project->semproDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
                 ->latest('attempt_no')
@@ -91,6 +97,16 @@ class ThesisProjectAdminService
 
             return $project->fresh();
         });
+
+        $this->notifyStudentAboutDefenseSchedule(
+            project: $updatedProject,
+            type: 'sempro',
+            scheduledFor: $scheduledFor,
+            location: $location,
+            wasRescheduled: $wasRescheduled,
+        );
+
+        return $updatedProject;
     }
 
     public function finalizeSempro(
@@ -113,7 +129,7 @@ class ThesisProjectAdminService
             throw new RuntimeException('Sempro belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
         }
 
-        return DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt): ThesisProject {
             $defense->forceFill([
                 'status' => 'completed',
                 'result' => $result,
@@ -189,6 +205,15 @@ class ThesisProjectAdminService
 
             return $freshProject;
         });
+
+        $this->notifyStudentAboutDefenseResult(
+            $updatedProject,
+            type: 'sempro',
+            result: $result,
+            notes: $notes,
+        );
+
+        return $updatedProject;
     }
 
     public function assignSupervisors(
@@ -208,7 +233,7 @@ class ThesisProjectAdminService
             $this->assertSupervisorEligible($project, $secondaryLecturerUserId, 'Pembimbing 2');
         }
 
-        return DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): ThesisProject {
             $this->syncSupervisorAssignment(
                 project: $project,
                 assignedBy: $assignedBy,
@@ -245,6 +270,10 @@ class ThesisProjectAdminService
 
             return $freshProject;
         });
+
+        $this->notifyStudentAboutSupervisorAssignment($updatedProject);
+
+        return $updatedProject;
     }
 
     /**
@@ -259,7 +288,9 @@ class ThesisProjectAdminService
         array $panelUserIds,
         ?string $notes = null,
     ): ThesisDefense {
-        return DB::transaction(function () use ($project, $createdBy, $scheduledFor, $location, $mode, $panelUserIds, $notes): ThesisDefense {
+        $wasRescheduled = false;
+
+        $defense = DB::transaction(function () use ($project, $createdBy, $scheduledFor, $location, $mode, $panelUserIds, $notes, &$wasRescheduled): ThesisDefense {
             $attemptNo = (int) $project->sidangDefenses()->max('attempt_no');
             $openDefense = $project->sidangDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
@@ -313,6 +344,16 @@ class ThesisProjectAdminService
 
             return $defense->fresh(['examiners.lecturer']);
         });
+
+        $this->notifyStudentAboutDefenseSchedule(
+            project: $project,
+            type: 'sidang',
+            scheduledFor: $scheduledFor,
+            location: $location,
+            wasRescheduled: $wasRescheduled,
+        );
+
+        return $defense;
     }
 
     public function completeSidang(
@@ -323,7 +364,7 @@ class ThesisProjectAdminService
         ?string $revisionNotes = null,
         ?string $revisionDueAt = null,
     ): ThesisProject {
-        return DB::transaction(function () use ($project, $decidedBy, $result, $notes, $revisionNotes, $revisionDueAt): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $decidedBy, $result, $notes, $revisionNotes, $revisionDueAt): ThesisProject {
             $defense = $project->sidangDefenses()
                 ->latest('attempt_no')
                 ->with('examiners')
@@ -417,6 +458,15 @@ class ThesisProjectAdminService
 
             return $project->fresh();
         });
+
+        $this->notifyStudentAboutDefenseResult(
+            $updatedProject,
+            type: 'sidang',
+            result: $result,
+            notes: $notes,
+        );
+
+        return $updatedProject;
     }
 
     private function resolveCurrentTitleVersion(ThesisProject $project): ?ThesisProjectTitle
@@ -856,5 +906,99 @@ class ThesisProjectAdminService
                 ->icon('heroicon-o-bell-alert')
                 ->sendToDatabase($recipient, isEventDispatched: true);
         }
+    }
+
+    private function notifyStudentAboutDefenseSchedule(
+        ThesisProject $project,
+        string $type,
+        string $scheduledFor,
+        string $location,
+        bool $wasRescheduled,
+    ): void {
+        $project->loadMissing('student');
+
+        if (! $project->student instanceof User) {
+            return;
+        }
+
+        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+
+        $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+            'title' => $wasRescheduled
+                ? sprintf('Jadwal %s diperbarui', $label)
+                : sprintf('%s dijadwalkan', ucfirst($label)),
+            'description' => sprintf(
+                $wasRescheduled
+                    ? '%s Anda dijadwalkan ulang pada %s di %s.'
+                    : '%s Anda dijadwalkan pada %s di %s.',
+                ucfirst($label),
+                $scheduledFor,
+                $location,
+            ),
+            'url' => '/tugas-akhir',
+            'icon' => 'calendar-clock',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+    }
+
+    private function notifyStudentAboutDefenseResult(
+        ThesisProject $project,
+        string $type,
+        string $result,
+        string $notes,
+    ): void {
+        $project->loadMissing('student');
+
+        if (! $project->student instanceof User) {
+            return;
+        }
+
+        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+
+        $title = match ($result) {
+            'pass' => sprintf('Hasil %s tersedia', $label),
+            'pass_with_revision' => sprintf('%s selesai dengan revisi', ucfirst($label)),
+            'fail' => sprintf('%s dinyatakan tidak lulus', ucfirst($label)),
+            default => sprintf('Update %s tersedia', $label),
+        };
+
+        $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+            'title' => $title,
+            'description' => $notes,
+            'url' => '/tugas-akhir',
+            'icon' => 'check-circle',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+    }
+
+    private function notifyStudentAboutSupervisorAssignment(ThesisProject $project): void
+    {
+        $project->loadMissing([
+            'student',
+            'activeSupervisorAssignments.lecturer',
+        ]);
+
+        if (! $project->student instanceof User) {
+            return;
+        }
+
+        $names = $project->activeSupervisorAssignments
+            ->sortBy('role')
+            ->map(fn(ThesisSupervisorAssignment $assignment): ?string => $assignment->lecturer?->name)
+            ->filter()
+            ->values()
+            ->all();
+
+        $description = count($names) > 0
+            ? 'Pembimbing Anda telah ditetapkan: '.implode(', ', $names).'.'
+            : 'Pembimbing Anda telah diperbarui.';
+
+        $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+            'title' => 'Pembimbing ditetapkan',
+            'description' => $description,
+            'url' => '/tugas-akhir',
+            'icon' => 'bell',
+            'createdAt' => now()->toIso8601String(),
+        ]);
     }
 }

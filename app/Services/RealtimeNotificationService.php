@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Notifications\RealtimeNotification;
+use Illuminate\Support\Facades\DB;
 
 class RealtimeNotificationService
 {
@@ -22,9 +23,17 @@ class RealtimeNotificationService
             return;
         }
 
-        $user->notify(new RealtimeNotification([
+        $notification = new RealtimeNotification([
             ...$payload,
             'preferenceKey' => $preferenceKey,
-        ]));
+        ]);
+
+        if (DB::transactionLevel() > 0) {
+            DB::afterCommit(static fn() => $user->notify($notification));
+
+            return;
+        }
+
+        $user->notify($notification);
     }
 }
