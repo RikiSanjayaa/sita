@@ -43,4 +43,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('settings/notifications/{notificationId}/read', [NotificationSettingsController::class, 'markAsRead'])
         ->name('settings.notifications.read');
+
+    Route::delete('settings/notifications/read-items', [NotificationSettingsController::class, 'deleteReadNotifications'])
+        ->name('settings.notifications.delete-read');
+
+    Route::delete('settings/notifications/{notificationId}', [NotificationSettingsController::class, 'deleteReadNotification'])
+        ->name('settings.notifications.delete-one');
 });
