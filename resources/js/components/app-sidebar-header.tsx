@@ -11,7 +11,7 @@ import {
     Repeat,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -77,17 +77,49 @@ function mapIncomingNotification(
     payload: IncomingNotification,
 ): HeaderNotification {
     const data = (payload.data ?? payload) as Record<string, unknown>;
+    const notificationId =
+        typeof payload.id === 'string'
+            ? payload.id
+            : typeof data.id === 'string'
+              ? data.id
+              : String(Math.random());
+    const readAt =
+        typeof payload.read_at === 'string' || payload.read_at === null
+            ? payload.read_at
+            : typeof data.read_at === 'string' || data.read_at === null
+              ? (data.read_at as string | null)
+              : null;
 
     return {
-        id: payload.id ?? String(Math.random()),
+        id: notificationId,
         title: typeof data.title === 'string' ? data.title : 'Notifikasi baru',
         description:
             typeof data.description === 'string' ? data.description : '',
         icon: typeof data.icon === 'string' ? data.icon : 'bell',
         url: typeof data.url === 'string' ? data.url : null,
         time: 'baru saja',
-        unread: payload.read_at === null || payload.read_at === undefined,
+        unread: readAt === null,
     };
+}
+
+function mergeNotifications(
+    incoming: HeaderNotification[],
+    current: HeaderNotification[],
+): HeaderNotification[] {
+    const currentById = new Map(current.map((item) => [item.id, item]));
+
+    return incoming.map((item) => {
+        const existing = currentById.get(item.id);
+
+        if (!existing) {
+            return item;
+        }
+
+        return {
+            ...item,
+            unread: existing.unread === false ? false : item.unread,
+        };
+    });
 }
 
 function HeaderNotifications() {
@@ -95,23 +127,23 @@ function HeaderNotifications() {
         auth,
         notifications = [],
         notificationSettings,
-        unreadNotificationCount = 0,
     } = usePage<SharedData>().props;
 
     const [notificationItems, setNotificationItems] =
         useState<HeaderNotification[]>(notifications);
-    const [unreadCount, setUnreadCount] = useState(unreadNotificationCount);
     const [toastNotification, setToastNotification] =
         useState<HeaderNotification | null>(null);
     const toastTimeoutRef = useRef<number | null>(null);
+    const unreadCount = useMemo(
+        () => notificationItems.filter((item) => item.unread).length,
+        [notificationItems],
+    );
 
     useEffect(() => {
-        setNotificationItems(notifications);
+        setNotificationItems((current) =>
+            mergeNotifications(notifications, current),
+        );
     }, [notifications]);
-
-    useEffect(() => {
-        setUnreadCount(unreadNotificationCount);
-    }, [unreadNotificationCount]);
 
     useEffect(() => {
         return () => {
@@ -147,6 +179,20 @@ function HeaderNotifications() {
             }
 
             if (isThreadCurrentlyOpen) {
+                setNotificationItems((current) => {
+                    const withoutDuplicate = current.filter(
+                        (item) => item.id !== nextNotification.id,
+                    );
+
+                    return [
+                        {
+                            ...nextNotification,
+                            unread: false,
+                        },
+                        ...withoutDuplicate,
+                    ].slice(0, 15);
+                });
+
                 fetch(`/settings/notifications/${nextNotification.id}/read`, {
                     method: 'POST',
                     headers: {
@@ -162,19 +208,25 @@ function HeaderNotifications() {
             }
 
             setNotificationItems((current) => {
-                const isNewNotification = !current.some(
+                const existing = current.find(
                     (item) => item.id === nextNotification.id,
                 );
-
-                if (isNewNotification) {
-                    setUnreadCount((value) => value + 1);
-                }
+                const nextItem = existing
+                    ? {
+                          ...existing,
+                          ...nextNotification,
+                          unread:
+                              existing.unread === false
+                                  ? false
+                                  : nextNotification.unread,
+                      }
+                    : nextNotification;
 
                 const withoutDuplicate = current.filter(
-                    (item) => item.id !== nextNotification.id,
+                    (item) => item.id !== nextItem.id,
                 );
 
-                return [nextNotification, ...withoutDuplicate].slice(0, 15);
+                return [nextItem, ...withoutDuplicate].slice(0, 15);
             });
             setToastNotification(nextNotification);
 
@@ -238,7 +290,6 @@ function HeaderNotifications() {
                 unread: false,
             })),
         );
-        setUnreadCount(0);
 
         await fetch('/settings/notifications/read-all', {
             method: 'POST',
@@ -268,7 +319,6 @@ function HeaderNotifications() {
                 ),
             );
 
-            setUnreadCount((current) => Math.max(0, current - 1));
             await markNotificationAsRead(notification.id);
         }
 

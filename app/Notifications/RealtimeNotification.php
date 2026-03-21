@@ -29,7 +29,11 @@ class RealtimeNotification extends Notification
 
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
-        return new BroadcastMessage($this->data);
+        return new BroadcastMessage([
+            'id' => $this->id,
+            'read_at' => null,
+            ...$this->data,
+        ]);
     }
 
     /**
