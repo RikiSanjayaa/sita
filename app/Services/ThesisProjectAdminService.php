@@ -341,6 +341,11 @@ class ThesisProjectAdminService
                 'completed_at' => null,
             ])->save();
 
+            $this->createOrRefreshSidangThread(
+                $defense->fresh(['examiners']),
+                $project->student_user_id,
+            );
+
             $this->recordEvent(
                 $project->fresh(),
                 actorUserId: $createdBy,
@@ -696,6 +701,77 @@ class ThesisProjectAdminService
             'started_at' => now(),
             'notes' => $notes,
         ]);
+    }
+
+    private function createOrRefreshSidangThread(ThesisDefense $defense, int $studentUserId): void
+    {
+        $thread = MentorshipChatThread::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('type', 'sidang')
+            ->where('context_id', $defense->getKey())
+            ->first();
+
+        if (! $thread instanceof MentorshipChatThread) {
+            $thread = MentorshipChatThread::query()->create([
+                'student_user_id' => $studentUserId,
+                'type' => 'sidang',
+                'context_id' => $defense->getKey(),
+                'label' => 'Sidang',
+            ]);
+        } elseif ($thread->label !== 'Sidang') {
+            $thread->forceFill([
+                'label' => 'Sidang',
+            ])->save();
+        }
+
+        $wasRecentlyCreated = $thread->wasRecentlyCreated;
+
+        MentorshipChatThreadParticipant::query()->updateOrCreate(
+            [
+                'thread_id' => $thread->getKey(),
+                'user_id' => $studentUserId,
+            ],
+            [
+                'role' => 'student',
+            ],
+        );
+
+        $panelIds = $defense->examiners
+            ->pluck('lecturer_user_id')
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->values();
+
+        MentorshipChatThreadParticipant::query()
+            ->where('thread_id', $thread->getKey())
+            ->where('role', 'examiner')
+            ->when(
+                $panelIds->isNotEmpty(),
+                static fn($query) => $query->whereNotIn('user_id', $panelIds->all()),
+                static fn($query) => $query,
+            )
+            ->delete();
+
+        foreach ($panelIds as $panelId) {
+            MentorshipChatThreadParticipant::query()->updateOrCreate(
+                [
+                    'thread_id' => $thread->getKey(),
+                    'user_id' => $panelId,
+                ],
+                [
+                    'role' => 'examiner',
+                ],
+            );
+        }
+
+        if ($wasRecentlyCreated) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Thread Sidang telah dibuat. Silahkan berdiskusi mengenai sidang di sini.',
+                'sent_at' => now(),
+            ]);
+        }
     }
 
     private function createOrRefreshSemproThread(ThesisDefense $defense, int $studentUserId): void
