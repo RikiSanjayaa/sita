@@ -9,6 +9,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ThesisProjectAdminService;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -29,11 +30,7 @@ class ViewThesisProject extends ViewRecord
         /** @var ThesisProject $record */
         $record = $this->record;
 
-        return [
-            Action::make('edit')
-                ->label('Edit Proyek')
-                ->icon('heroicon-m-pencil-square')
-                ->url(fn(): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
+        $workflowActions = [
             Action::make('schedule_sempro')
                 ->label('Jadwalkan Sempro')
                 ->icon('heroicon-m-calendar')
@@ -153,6 +150,46 @@ class ViewThesisProject extends ViewRecord
                     } catch (\Throwable $exception) {
                         Notification::make()
                             ->title('Gagal mencatat hasil sempro')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+            Action::make('approve_sempro_revision')
+                ->label('Setujui Revisi Sempro')
+                ->icon('heroicon-m-check-circle')
+                ->color('primary')
+                ->visible(fn(): bool => $this->hasPendingRevision($record, 'sempro'))
+                ->form([
+                    Textarea::make('resolution_notes')
+                        ->label('Catatan Persetujuan')
+                        ->rows(3),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        app(ThesisProjectAdminService::class)->approveSemproRevision(
+                            project: $record,
+                            resolvedBy: $userId,
+                            resolutionNotes: filled($data['resolution_notes'] ?? null)
+                                ? (string) $data['resolution_notes']
+                                : null,
+                        );
+
+                        Notification::make()
+                            ->title('Revisi sempro disetujui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal menyetujui revisi sempro')
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();
@@ -350,6 +387,58 @@ class ViewThesisProject extends ViewRecord
                             ->send();
                     }
                 }),
+            Action::make('approve_sidang_revision')
+                ->label('Setujui Revisi Sidang')
+                ->icon('heroicon-m-check-circle')
+                ->color('primary')
+                ->visible(fn(): bool => $this->hasPendingRevision($record, 'sidang'))
+                ->form([
+                    Textarea::make('resolution_notes')
+                        ->label('Catatan Persetujuan')
+                        ->rows(3),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        app(ThesisProjectAdminService::class)->approveSidangRevision(
+                            project: $record,
+                            resolvedBy: $userId,
+                            resolutionNotes: filled($data['resolution_notes'] ?? null)
+                                ? (string) $data['resolution_notes']
+                                : null,
+                        );
+
+                        Notification::make()
+                            ->title('Revisi sidang disetujui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal menyetujui revisi sidang')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+        ];
+
+        return [
+            Action::make('edit')
+                ->label('Edit Proyek')
+                ->icon('heroicon-m-pencil-square')
+                ->url(fn(): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
+            ActionGroup::make($workflowActions)
+                ->label('Aksi Workflow')
+                ->icon('heroicon-m-bolt')
+                ->color('gray')
+                ->button(),
         ];
     }
 
@@ -499,6 +588,22 @@ class ViewThesisProject extends ViewRecord
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
             ->first();
+    }
+
+    private function hasPendingRevision(ThesisProject $project, string $type): bool
+    {
+        $defense = $type === 'sidang'
+            ? $this->latestSidang($project)
+            : $this->latestSempro($project);
+
+        if (! $defense instanceof ThesisDefense || $defense->status !== 'completed' || $defense->result !== 'pass_with_revision') {
+            return false;
+        }
+
+        return $project->revisions
+            ->where('defense_id', $defense->getKey())
+            ->whereIn('status', ['open', 'submitted'])
+            ->isNotEmpty();
     }
 
     private function finalizeSemproTooltip(ThesisProject $project): ?string
