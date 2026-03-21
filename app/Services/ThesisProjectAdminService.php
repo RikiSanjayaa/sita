@@ -224,6 +224,55 @@ class ThesisProjectAdminService
         return $updatedProject;
     }
 
+    public function approveSemproRevision(
+        ThesisProject $project,
+        int $resolvedBy,
+        ?string $resolutionNotes = null,
+    ): ThesisProject {
+        $defense = $project->semproDefenses()
+            ->latest('attempt_no')
+            ->with('revisions')
+            ->first();
+
+        if (! $defense instanceof ThesisDefense || $defense->status !== 'completed' || $defense->result !== 'pass_with_revision') {
+            throw new RuntimeException('Revisi sempro belum tersedia untuk proyek ini.');
+        }
+
+        if (! $defense->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty()) {
+            throw new RuntimeException('Tidak ada revisi sempro aktif yang perlu disetujui.');
+        }
+
+        $notes = $resolutionNotes ?: 'Revisi sempro disetujui. Mahasiswa dapat lanjut ke tahap penelitian.';
+
+        $updatedProject = DB::transaction(function () use ($defense, $notes, $project, $resolvedBy): ThesisProject {
+            $this->closeDefenseRevisions($defense, $resolvedBy, $notes);
+
+            $project->forceFill([
+                'phase' => 'research',
+                'state' => 'active',
+                'completed_at' => null,
+                'closed_by' => null,
+            ])->save();
+
+            $freshProject = $project->fresh();
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $resolvedBy,
+                eventType: 'revision_resolved',
+                label: 'Revisi sempro disetujui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
+
+        $this->notifyStudentAboutRevisionApproval($updatedProject, 'sempro', $notes);
+
+        return $updatedProject;
+    }
+
     public function assignSupervisors(
         ThesisProject $project,
         int $assignedBy,
@@ -486,6 +535,62 @@ class ThesisProjectAdminService
             result: $result,
             notes: $notes,
         );
+
+        return $updatedProject;
+    }
+
+    public function approveSidangRevision(
+        ThesisProject $project,
+        int $resolvedBy,
+        ?string $resolutionNotes = null,
+    ): ThesisProject {
+        $defense = $project->sidangDefenses()
+            ->latest('attempt_no')
+            ->with('revisions')
+            ->first();
+
+        if (! $defense instanceof ThesisDefense || $defense->status !== 'completed' || $defense->result !== 'pass_with_revision') {
+            throw new RuntimeException('Revisi sidang belum tersedia untuk proyek ini.');
+        }
+
+        if (! $defense->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty()) {
+            throw new RuntimeException('Tidak ada revisi sidang aktif yang perlu disetujui.');
+        }
+
+        $notes = $resolutionNotes ?: 'Revisi sidang disetujui. Proyek tugas akhir dinyatakan selesai.';
+
+        $updatedProject = DB::transaction(function () use ($defense, $notes, $project, $resolvedBy): ThesisProject {
+            $this->closeDefenseRevisions($defense, $resolvedBy, $notes);
+
+            $project->supervisorAssignments()
+                ->where('status', 'active')
+                ->update([
+                    'status' => 'ended',
+                    'ended_at' => now(),
+                ]);
+
+            $project->forceFill([
+                'phase' => 'completed',
+                'state' => 'completed',
+                'completed_at' => now(),
+                'closed_by' => $resolvedBy,
+            ])->save();
+
+            $freshProject = $project->fresh();
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $resolvedBy,
+                eventType: 'revision_resolved',
+                label: 'Revisi sidang disetujui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
+
+        $this->notifyStudentAboutRevisionApproval($updatedProject, 'sidang', $notes);
 
         return $updatedProject;
     }
@@ -1132,6 +1237,28 @@ class ThesisProjectAdminService
             'description' => $description,
             'url' => '/tugas-akhir',
             'icon' => 'bell',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+    }
+
+    private function notifyStudentAboutRevisionApproval(
+        ThesisProject $project,
+        string $type,
+        string $notes,
+    ): void {
+        $project->loadMissing('student');
+
+        if (! $project->student instanceof User) {
+            return;
+        }
+
+        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+
+        $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+            'title' => sprintf('Revisi %s disetujui', $label),
+            'description' => $notes,
+            'url' => '/tugas-akhir',
+            'icon' => 'check-circle',
             'createdAt' => now()->toIso8601String(),
         ]);
     }

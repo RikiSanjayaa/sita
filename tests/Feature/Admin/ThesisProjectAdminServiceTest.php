@@ -620,3 +620,166 @@ test('admin service finalizes sempro as failed without opening revisions', funct
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 });
+
+test('admin service approves sempro revision and advances project to research', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510311',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Artificial Intelligence',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(20),
+        'created_by' => $student->id,
+    ]);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(5),
+        'location' => 'Ruang Sempro 1',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(5),
+        'notes' => 'Perlu revisi metodologi.',
+    ]);
+
+    ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $sempro->id,
+        'requested_by_user_id' => $admin->id,
+        'status' => 'submitted',
+        'notes' => 'Lengkapi metodologi penelitian.',
+        'submitted_at' => now()->subDay(),
+        'due_at' => now()->addDays(3),
+    ]);
+
+    app(ThesisProjectAdminService::class)->approveSemproRevision(
+        project: $project,
+        resolvedBy: $admin->id,
+        resolutionNotes: 'Revisi sempro disetujui, lanjut tetapkan pembimbing.',
+    );
+
+    expect($project->fresh()->phase)->toBe('research')
+        ->and($project->fresh()->state)->toBe('active')
+        ->and(ThesisRevision::query()->where('project_id', $project->id)->where('status', 'resolved')->count())->toBe(1)
+        ->and(ThesisProjectEvent::query()->where('project_id', $project->id)->where('event_type', 'revision_resolved')->count())->toBe(1);
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Revisi sempro disetujui'
+            && $data['description'] === 'Revisi sempro disetujui, lanjut tetapkan pembimbing.'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+});
+
+test('admin service approves sidang revision and completes project', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $lecturer = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510312',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Data Science',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    DosenProfile::query()->create([
+        'user_id' => $lecturer->id,
+        'nik' => '7301010101015511',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Data Science',
+        'supervision_quota' => 10,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sidang',
+        'state' => 'active',
+        'started_at' => now()->subDays(45),
+        'created_by' => $student->id,
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(30),
+    ]);
+
+    $sidang = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(7),
+        'location' => 'Ruang Sidang 1',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(7),
+        'notes' => 'Perlu revisi final.',
+    ]);
+
+    ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $sidang->id,
+        'requested_by_user_id' => $admin->id,
+        'status' => 'submitted',
+        'notes' => 'Rapikan lampiran final.',
+        'submitted_at' => now()->subDay(),
+        'due_at' => now()->addDays(2),
+    ]);
+
+    app(ThesisProjectAdminService::class)->approveSidangRevision(
+        project: $project,
+        resolvedBy: $admin->id,
+        resolutionNotes: 'Revisi sidang disetujui, proyek dinyatakan selesai.',
+    );
+
+    expect($project->fresh()->phase)->toBe('completed')
+        ->and($project->fresh()->state)->toBe('completed')
+        ->and($project->fresh()->closed_by)->toBe($admin->id)
+        ->and(ThesisRevision::query()->where('project_id', $project->id)->where('status', 'resolved')->count())->toBe(1)
+        ->and(ThesisSupervisorAssignment::query()->where('project_id', $project->id)->where('status', 'ended')->count())->toBe(1)
+        ->and(ThesisProjectEvent::query()->where('project_id', $project->id)->where('event_type', 'revision_resolved')->count())->toBe(1);
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Revisi sidang disetujui'
+            && $data['description'] === 'Revisi sidang disetujui, proyek dinyatakan selesai.'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+});
