@@ -40,10 +40,10 @@ export function PublicLayout({
 
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b bg-background/95 backdrop-blur">
-                    <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between px-5 py-4 lg:px-6">
+                    <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-4 lg:px-6">
                         <Link
                             href={home().url}
-                            className="flex min-w-0 items-center gap-3"
+                            className="flex min-w-0 flex-1 items-center gap-3"
                         >
                             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                                 <AppLogoIcon className="size-5" />
@@ -52,7 +52,7 @@ export function PublicLayout({
                                 <span className="truncate text-[15px] font-semibold sm:text-sm">
                                     SiTA Universitas Bumigora
                                 </span>
-                                <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
+                                <span className="hidden truncate text-[11px] text-muted-foreground sm:block sm:text-xs">
                                     Sistem Informasi Tugas Akhir
                                 </span>
                             </div>
@@ -75,23 +75,26 @@ export function PublicLayout({
                             ))}
                         </nav>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                             {isAuthenticated ? (
                                 <Button
                                     asChild
                                     size="sm"
-                                    className="h-10 rounded-lg px-4"
+                                    className="h-9 rounded-lg px-3 sm:h-10 sm:px-4"
                                 >
-                                    <Link href={dashboard().url}>
+                                    <Link
+                                        href={dashboard().url}
+                                        className="inline-flex items-center gap-1.5"
+                                    >
                                         Dashboard
-                                        <ArrowRight className="size-4" />
+                                        <ArrowRight className="hidden size-4 sm:block" />
                                     </Link>
                                 </Button>
                             ) : (
                                 <Button
                                     asChild
                                     size="sm"
-                                    className="h-10 rounded-lg px-4"
+                                    className="h-9 rounded-lg px-3 sm:h-10 sm:px-4"
                                 >
                                     <Link href={login().url}>Masuk</Link>
                                 </Button>

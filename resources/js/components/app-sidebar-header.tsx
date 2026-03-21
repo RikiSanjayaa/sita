@@ -493,27 +493,24 @@ export function AppSidebarHeader({
     title?: ReactNode;
     subtitle?: ReactNode;
 }) {
+    const mobileTitle = title ?? breadcrumbs[breadcrumbs.length - 1]?.title;
+
     return (
         <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <Breadcrumbs breadcrumbs={breadcrumbs} />
-                    {title && (
-                        <div className="hidden flex-1 items-center gap-3 md:flex">
-                            <Separator orientation="vertical" className="h-6" />
-                            <div className="min-w-0">
-                                <h1 className="truncate text-base font-semibold">
-                                    {title}
-                                </h1>
-                                {subtitle && (
-                                    <p className="truncate text-xs text-muted-foreground">
-                                        {subtitle}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    <div className="min-w-0 md:hidden">
+                        {mobileTitle ? (
+                            <h1 className="truncate text-sm font-semibold">
+                                {mobileTitle}
+                            </h1>
+                        ) : null}
+                    </div>
+
+                    <div className="hidden min-w-0 md:block">
+                        <Breadcrumbs breadcrumbs={breadcrumbs} />
+                    </div>
                 </div>
             </div>
             <div className="ml-auto flex items-center gap-2">

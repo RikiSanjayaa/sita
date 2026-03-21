@@ -69,6 +69,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const { auth } = page.props;
     const getInitials = useInitials();
     const { urlIsActive } = useActiveUrl();
+    const mobileTitle = breadcrumbs[breadcrumbs.length - 1]?.title;
+
     return (
         <>
             <div className="border-b border-sidebar-border/80">
@@ -240,7 +242,12 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             {breadcrumbs.length > 1 && (
                 <div className="flex w-full border-b border-sidebar-border/70">
                     <div className="mx-auto flex h-12 w-full items-center justify-start px-4 text-neutral-500 md:max-w-7xl">
-                        <Breadcrumbs breadcrumbs={breadcrumbs} />
+                        <p className="truncate text-sm font-medium text-foreground md:hidden">
+                            {mobileTitle}
+                        </p>
+                        <div className="hidden md:block">
+                            <Breadcrumbs breadcrumbs={breadcrumbs} />
+                        </div>
                     </div>
                 </div>
             )}

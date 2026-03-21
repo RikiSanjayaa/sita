@@ -180,22 +180,24 @@ export default function DosenDokumenRevisiPage() {
                             visibleDocuments.map((doc) => (
                                 <div
                                     key={`${doc.id}-${doc.file}`}
-                                    className="rounded-xl border bg-background p-5 shadow-sm transition-shadow hover:shadow-md"
+                                    className="rounded-xl border bg-background p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5"
                                 >
                                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                        <div className="grid gap-1.5">
-                                            <p className="text-base font-semibold">
+                                        <div className="grid min-w-0 gap-1.5">
+                                            <p className="text-base font-semibold break-words">
                                                 {doc.mahasiswa}
                                             </p>
-                                            <p className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                                <FileText className="size-4" />
-                                                {doc.file}
+                                            <p className="flex min-w-0 items-start gap-2 text-sm font-medium text-muted-foreground">
+                                                <FileText className="mt-0.5 size-4 shrink-0" />
+                                                <span className="min-w-0 break-all">
+                                                    {doc.file}
+                                                </span>
                                             </p>
                                             <p className="mt-1 text-xs text-muted-foreground">
                                                 Upload: {doc.uploadedAt}
                                             </p>
                                             {doc.revisionNotes && (
-                                                <p className="text-xs text-muted-foreground">
+                                                <p className="text-xs break-words text-muted-foreground">
                                                     Catatan terakhir:{' '}
                                                     <span className="font-medium text-foreground">
                                                         {doc.revisionNotes}
@@ -204,7 +206,7 @@ export default function DosenDokumenRevisiPage() {
                                             )}
                                         </div>
                                         <div className="flex flex-col items-start gap-3 lg:items-end">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <Badge
                                                     variant="soft"
                                                     className={
@@ -222,7 +224,7 @@ export default function DosenDokumenRevisiPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="font-semibold"
+                                                    className="w-full font-semibold sm:w-auto"
                                                     onClick={() => {
                                                         if (doc.fileUrl) {
                                                             window.open(
@@ -238,13 +240,13 @@ export default function DosenDokumenRevisiPage() {
                                                     Unduh
                                                 </Button>
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                                                 {doc.status ===
                                                     'Perlu Review' && (
                                                     <Button
                                                         size="sm"
                                                         variant="soft"
-                                                        className="bg-amber-600/10 font-semibold text-amber-600 hover:bg-amber-600/20"
+                                                        className="w-full bg-amber-600/10 font-semibold text-amber-600 hover:bg-amber-600/20 sm:w-auto"
                                                         disabled={
                                                             form.processing
                                                         }
@@ -262,7 +264,7 @@ export default function DosenDokumenRevisiPage() {
                                                     'Perlu Review' && (
                                                     <Button
                                                         size="sm"
-                                                        className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+                                                        className="w-full bg-emerald-600 font-semibold text-white hover:bg-emerald-700 sm:w-auto"
                                                         disabled={
                                                             form.processing
                                                         }
@@ -297,7 +299,7 @@ export default function DosenDokumenRevisiPage() {
                         )}
 
                         {filteredDocuments.length > visibleDocuments.length ? (
-                            <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
+                            <div className="flex flex-col gap-3 rounded-xl border bg-muted/15 p-3 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     Menampilkan {visibleDocuments.length} dari{' '}
                                     {filteredDocuments.length} dokumen pada

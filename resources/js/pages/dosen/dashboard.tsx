@@ -177,14 +177,14 @@ export default function DosenDashboardPage() {
                                     </p>
                                 </div>
 
-                                <div className="grid gap-3 md:grid-cols-3">
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {spotlightCards.map((item) => {
                                         const Icon = item.icon;
 
                                         return (
                                             <div
                                                 key={item.title}
-                                                className="rounded-2xl border bg-background/80 p-4 shadow-sm backdrop-blur"
+                                                className="min-w-0 rounded-2xl border bg-background/80 p-4 shadow-sm backdrop-blur"
                                             >
                                                 <span className="inline-flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                                     <Icon className="size-4" />
@@ -204,7 +204,7 @@ export default function DosenDashboardPage() {
                             </div>
 
                             <div className="rounded-3xl border bg-white/90 p-5 shadow-sm backdrop-blur dark:bg-black/90">
-                                <div className="flex items-center justify-between gap-3">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
                                             Ringkasan Kerja
@@ -213,7 +213,7 @@ export default function DosenDashboardPage() {
                                             {summary.quotaLabel}
                                         </p>
                                     </div>
-                                    <Badge variant="outline">
+                                    <Badge variant="outline" className="w-fit">
                                         {summary.status.label}
                                     </Badge>
                                 </div>
