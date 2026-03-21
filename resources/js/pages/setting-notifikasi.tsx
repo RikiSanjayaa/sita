@@ -183,7 +183,7 @@ export default function SettingNotifikasi() {
                 key: 'statusTugasAkhir',
                 title: 'Update Status Skripsi',
                 description:
-                    'Notifikasi saat status pengajuan judul atau proposal berubah',
+                    'Notifikasi saat status judul, sempro, sidang, atau pembimbing berubah',
                 icon: FileText,
             },
             {

@@ -3,6 +3,7 @@
 use App\Enums\AdvisorType;
 use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
+use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
@@ -18,6 +19,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\ThesisProjectStudentService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -207,6 +209,49 @@ test('mahasiswa upload creates document version rows and chat event', function (
         'message_type' => 'document_event',
         'attachment_name' => 'draft-bab3.pdf',
     ]);
+});
+
+test('mahasiswa thesis submission notifies super admin and scoped admin', function () {
+    Storage::fake('public');
+
+    $matchingProdi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+    $otherProdi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+
+    $student = User::factory()->asMahasiswa()->create();
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+    $scopedAdmin = User::factory()->asAdmin()->create();
+    $otherAdmin = User::factory()->asAdmin()->create();
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $matchingProdi->id,
+        'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
+        'is_active' => true,
+    ]);
+
+    AdminProfile::factory()->create([
+        'user_id' => $scopedAdmin->id,
+        'program_studi_id' => $matchingProdi->id,
+    ]);
+
+    AdminProfile::factory()->create([
+        'user_id' => $otherAdmin->id,
+        'program_studi_id' => $otherProdi->id,
+    ]);
+
+    app(ThesisProjectStudentService::class)->submit(
+        student: $student,
+        data: [
+            'title_id' => 'Sistem Monitoring Tugas Akhir Adaptif',
+            'title_en' => 'Adaptive Thesis Monitoring System',
+            'proposal_summary' => 'Ringkasan proposal untuk pengujian notifikasi admin.',
+        ],
+        proposalFile: UploadedFile::fake()->create('proposal-monitoring.pdf', 512, 'application/pdf'),
+    );
+
+    expect($superAdmin->notifications()->count())->toBe(1)
+        ->and($scopedAdmin->notifications()->count())->toBe(1)
+        ->and($otherAdmin->notifications()->count())->toBe(0);
 });
 
 test('mahasiswa chat attachment creates document event and appears as versioned upload', function () {

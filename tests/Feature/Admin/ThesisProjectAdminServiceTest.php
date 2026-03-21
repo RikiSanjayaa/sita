@@ -15,7 +15,9 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Notifications\RealtimeNotification;
 use App\Services\ThesisProjectAdminService;
+use Illuminate\Support\Facades\Notification;
 
 test('admin service schedules sempro from thesis project aggregate without creating legacy sempro rows', function (): void {
     $admin = User::factory()->asAdmin()->create();
@@ -82,7 +84,77 @@ test('admin service schedules sempro from thesis project aggregate without creat
         ->and($project->fresh()->phase)->toBe('sempro');
 });
 
+test('admin service notifies mahasiswa when sempro is scheduled', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $examinerOne = User::factory()->asDosen()->create();
+    $examinerTwo = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510310',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Artificial Intelligence',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    foreach ([$examinerOne, $examinerTwo] as $lecturer) {
+        DosenProfile::query()->create([
+            'user_id' => $lecturer->id,
+            'nik' => fake()->numerify('730101010101####'),
+            'program_studi_id' => $prodi->id,
+            'concentration' => 'Artificial Intelligence',
+            'supervision_quota' => 10,
+            'is_active' => true,
+        ]);
+    }
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subDays(5),
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Deteksi Semantik Jadwal Seminar',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(4),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(3),
+    ]);
+
+    app(ThesisProjectAdminService::class)->scheduleSempro(
+        project: $project,
+        scheduledBy: $admin->id,
+        scheduledFor: '2026-04-10 09:00:00',
+        location: 'Ruang Seminar 1',
+        mode: 'offline',
+        examinerUserIds: [$examinerOne->id, $examinerTwo->id],
+    );
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Sempro dijadwalkan'
+            && str_contains($data['description'], 'Ruang Seminar 1')
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+});
+
 test('admin service assigns supervisors through thesis supervisor assignments only', function (): void {
+    Notification::fake();
+
     $admin = User::factory()->asAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
     $primary = User::factory()->asDosen()->create();
@@ -138,6 +210,16 @@ test('admin service assigns supervisors through thesis supervisor assignments on
         ->and(MentorshipAssignment::query()->count())->toBe(0)
         ->and(ThesisProjectEvent::query()->where('event_type', 'supervisor_assigned')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('research');
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student, $primary, $secondary): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('broadcast', $channels, true)
+            && $data['title'] === 'Pembimbing ditetapkan'
+            && str_contains($data['description'], $primary->name)
+            && str_contains($data['description'], $secondary->name)
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
 });
 
 test('admin service rejects supervisor assignment when concentration does not match', function (): void {
@@ -253,6 +335,8 @@ test('admin service respects configurable lecturer quota when assigning supervis
 });
 
 test('admin service schedules and completes sidang with revision', function (): void {
+    Notification::fake();
+
     $admin = User::factory()->asAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
     $primarySupervisor = User::factory()->asDosen()->create();
@@ -363,9 +447,29 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_completed')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sidang')
         ->and($project->fresh()->state)->toBe('active');
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Sidang dijadwalkan'
+            && str_contains($data['description'], 'Ruang Sidang Proyek')
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('broadcast', $channels, true)
+            && $data['title'] === 'Sidang selesai dengan revisi'
+            && $data['description'] === 'Sidang diterima dengan revisi minor.'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
 });
 
 test('admin service finalizes sempro as failed without opening revisions', function (): void {
+    Notification::fake();
+
     $admin = User::factory()->asAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
     $examinerOne = User::factory()->asDosen()->create();
@@ -447,4 +551,13 @@ test('admin service finalizes sempro as failed without opening revisions', funct
         ->and(ThesisProjectEvent::query()->where('event_type', 'sempro_failed')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sempro')
         ->and($project->fresh()->state)->toBe('active');
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Sempro dinyatakan tidak lulus'
+            && $data['description'] === 'Proposal belum memenuhi standar kelulusan sempro.'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
 });

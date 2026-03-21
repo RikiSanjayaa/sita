@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AppRole;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -9,6 +10,7 @@ use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\User;
+use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -34,7 +36,7 @@ class ThesisProjectStudentService
 
         $path = $proposalFile->store('proposal_files', 'public');
 
-        return DB::transaction(function () use ($data, $path, $programStudiId, $proposalFile, $student): ThesisProject {
+        $project = DB::transaction(function () use ($data, $path, $programStudiId, $proposalFile, $student): ThesisProject {
             $submittedAt = now();
 
             $project = ThesisProject::query()->create([
@@ -92,6 +94,10 @@ class ThesisProjectStudentService
 
             return $project;
         });
+
+        $this->notifyAdminsAboutNewSubmission($project);
+
+        return $project;
     }
 
     /**
@@ -316,6 +322,43 @@ class ThesisProjectStudentService
             'payload' => null,
             'occurred_at' => now(),
         ]);
+    }
+
+    private function notifyAdminsAboutNewSubmission(ThesisProject $project): void
+    {
+        $project->loadMissing([
+            'student',
+            'programStudi',
+            'latestTitle',
+        ]);
+
+        $recipients = User::query()
+            ->where(function ($query) use ($project): void {
+                $query->whereHas('roles', function ($roleQuery): void {
+                    $roleQuery->where('name', AppRole::SuperAdmin->value);
+                })->orWhere(function ($adminQuery) use ($project): void {
+                    $adminQuery->whereHas('roles', function ($roleQuery): void {
+                        $roleQuery->where('name', AppRole::Admin->value);
+                    })->whereHas('adminProfile', function ($profileQuery) use ($project): void {
+                        $profileQuery->where('program_studi_id', $project->program_studi_id);
+                    });
+                });
+            })
+            ->get();
+
+        $body = trim(implode(' - ', array_filter([
+            $project->student?->name,
+            $project->programStudi?->name,
+            $project->latestTitle?->title_id,
+        ])));
+
+        foreach ($recipients as $recipient) {
+            Notification::make()
+                ->title('Pengajuan judul baru')
+                ->body($body)
+                ->icon('heroicon-o-bell-alert')
+                ->sendToDatabase($recipient, isEventDispatched: true);
+        }
     }
 
     private function toKilobytes(?int $bytes): ?int

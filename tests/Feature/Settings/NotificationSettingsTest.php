@@ -2,6 +2,8 @@
 
 use App\Models\User;
 use App\Notifications\RealtimeNotification;
+use App\Services\RealtimeNotificationService;
+use Illuminate\Support\Facades\Notification;
 
 test('user can update notification settings', function () {
     $user = User::factory()->create();
@@ -77,3 +79,47 @@ test('user can mark all notifications as read', function () {
 
     expect($user->fresh()->unreadNotifications()->count())->toBe(0);
 });
+
+test('disabling one notification preference only blocks that notification type', function (string $disabledKey) {
+    Notification::fake();
+
+    $preferences = collect(User::NOTIFICATION_PREFERENCE_KEYS)
+        ->mapWithKeys(fn (string $key): array => [$key => $key !== $disabledKey])
+        ->all();
+
+    $user = User::factory()->create([
+        'notification_preferences' => $preferences,
+    ]);
+
+    $service = app(RealtimeNotificationService::class);
+
+    foreach (User::NOTIFICATION_PREFERENCE_KEYS as $key) {
+        $service->notifyUser($user, $key, [
+            'title' => "Notif {$key}",
+            'description' => "Deskripsi {$key}",
+            'icon' => 'bell',
+            'url' => '/dashboard',
+        ]);
+    }
+
+    $sentKeys = Notification::sent($user, RealtimeNotification::class)
+        ->map(fn (RealtimeNotification $notification): string => $notification->toArray($user)['preferenceKey'])
+        ->values()
+        ->all();
+
+    expect($sentKeys)
+        ->toHaveCount(count(User::NOTIFICATION_PREFERENCE_KEYS) - 1)
+        ->not->toContain($disabledKey)
+        ->toEqualCanonicalizing(array_values(array_filter(
+            User::NOTIFICATION_PREFERENCE_KEYS,
+            fn (string $key): bool => $key !== $disabledKey,
+        )));
+})->with([
+    'pesan baru' => 'pesanBaru',
+    'status tugas akhir' => 'statusTugasAkhir',
+    'jadwal bimbingan' => 'jadwalBimbingan',
+    'feedback dokumen' => 'feedbackDokumen',
+    'reminder deadline' => 'reminderDeadline',
+    'pengumuman sistem' => 'pengumumanSistem',
+    'konfirmasi bimbingan' => 'konfirmasiBimbingan',
+]);

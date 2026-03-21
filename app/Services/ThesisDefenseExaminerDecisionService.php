@@ -10,6 +10,10 @@ use RuntimeException;
 
 class ThesisDefenseExaminerDecisionService
 {
+    public function __construct(
+        private readonly RealtimeNotificationService $realtimeNotificationService,
+    ) {}
+
     /**
      * @param  array{decision:string,score:float|int,decision_notes:?string,revision_notes:?string}  $data
      */
@@ -32,7 +36,7 @@ class ThesisDefenseExaminerDecisionService
             throw new RuntimeException('Anda sudah mengirim keputusan untuk ujian ini.');
         }
 
-        DB::transaction(function () use ($data, $defense, $examiner): void {
+        DB::transaction(function () use ($data, $defense, $examiner, $lecturer): void {
             $examiner->forceFill([
                 'decision' => $data['decision'],
                 'score' => $data['score'],
@@ -41,6 +45,25 @@ class ThesisDefenseExaminerDecisionService
             ])->save();
 
             $this->recalculateDefenseOutcome($defense->fresh('examiners'));
+
+            $student = $defense->project?->student;
+
+            if ($student instanceof User) {
+                $this->realtimeNotificationService->notifyUser($student, 'statusTugasAkhir', [
+                    'title' => sprintf(
+                        'Nilai %s dari penguji tersedia',
+                        $defense->type === 'sidang' ? 'sidang' : 'sempro',
+                    ),
+                    'description' => sprintf(
+                        '%s sudah mengirim nilai dan keputusan untuk %s Anda.',
+                        $lecturer->name,
+                        $defense->type === 'sidang' ? 'sidang' : 'sempro',
+                    ),
+                    'url' => '/tugas-akhir',
+                    'icon' => 'check-circle',
+                    'createdAt' => now()->toIso8601String(),
+                ]);
+            }
         });
 
         return $examiner->fresh();
