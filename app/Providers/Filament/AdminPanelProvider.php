@@ -27,6 +27,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('SiTA Universitas Bumigora')
+            ->favicon(asset('favicon.svg'))
             ->login(Login::class)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->globalSearchFieldSuffix(fn(): string => match (Platform::detect()) {

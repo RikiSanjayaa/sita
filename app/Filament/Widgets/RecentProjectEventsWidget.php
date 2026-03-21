@@ -27,7 +27,6 @@ class RecentProjectEventsWidget extends TableWidget
 
         return $table
             ->heading('Aktivitas Admin Terkini')
-            ->description('Jejak aktivitas terbaru untuk membantu admin membaca konteks tanpa membuka log penuh.')
             ->query($this->query($user))
             ->defaultPaginationPageOption(5)
             ->paginated([5, 10])
