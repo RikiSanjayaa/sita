@@ -18,14 +18,15 @@ export default function AppSidebarLayout({
     subtitle?: ReactNode;
     role?: AppRole | null;
 }>) {
-    void title;
-    void subtitle;
-
     return (
         <AppShell variant="sidebar">
             <AppSidebar role={role} />
             <AppContent variant="sidebar" className="overflow-x-hidden">
-                <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                <AppSidebarHeader
+                    breadcrumbs={breadcrumbs}
+                    title={title}
+                    subtitle={subtitle}
+                />
                 {children}
             </AppContent>
         </AppShell>

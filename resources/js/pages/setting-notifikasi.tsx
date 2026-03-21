@@ -241,8 +241,8 @@ export default function SettingNotifikasi() {
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div>
                     <h1 className="text-xl font-semibold">Settings</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Kelola preferensi tema dan notifikasi akun Anda
+                    <p className="max-w-lg text-sm leading-5 text-muted-foreground sm:leading-6">
+                        Kelola tema, preset warna, dan notifikasi akun.
                     </p>
                 </div>
 
@@ -347,16 +347,19 @@ export default function SettingNotifikasi() {
                 {canAccessCsat ? (
                     <Card className="overflow-hidden py-0 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0 space-y-1">
                                     <CardTitle>CSAT & Umpan Balik</CardTitle>
-                                    <CardDescription>
+                                    <CardDescription className="max-w-xl leading-6">
                                         Nilai pengalaman Anda menggunakan SiTA
                                         dan kirimkan kritik atau saran penting
                                         yang dapat dibaca oleh admin.
                                     </CardDescription>
                                 </div>
-                                <Badge variant="outline" className="mt-0.5">
+                                <Badge
+                                    variant="outline"
+                                    className="w-fit max-w-full self-start"
+                                >
                                     Limit: 1 submission tiap 30 hari
                                 </Badge>
                             </div>
@@ -379,22 +382,17 @@ export default function SettingNotifikasi() {
 
                 <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0 space-y-1">
                                 <CardTitle>Notifikasi Browser</CardTitle>
-                                <CardDescription>
+                                <CardDescription className="max-w-xl leading-6">
                                     Aktifkan notifikasi desktop untuk
                                     mendapatkan pemberitahuan real-time
                                 </CardDescription>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="mt-0.5">
-                                    Disarankan
-                                </Badge>
-                                <Badge
-                                    variant="outline"
-                                    className="mt-0.5 capitalize"
-                                >
+                            <div className="flex flex-wrap items-center gap-2 self-start">
+                                <Badge variant="secondary">Disarankan</Badge>
+                                <Badge variant="outline" className="capitalize">
                                     {browserPermission === 'unsupported'
                                         ? 'tidak didukung'
                                         : browserPermission}
@@ -404,7 +402,7 @@ export default function SettingNotifikasi() {
                     </CardHeader>
 
                     <CardContent className="pb-6">
-                        <div className="flex items-start justify-between gap-6 rounded-xl border bg-background p-4">
+                        <div className="flex flex-col gap-4 rounded-xl border bg-background p-4 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
                                 <div className="text-sm font-medium">
                                     Aktifkan Notifikasi Browser
@@ -440,7 +438,7 @@ export default function SettingNotifikasi() {
                                     handleBrowserNotificationToggle
                                 }
                                 aria-label="Aktifkan Notifikasi Browser"
-                                className="mt-1"
+                                className="self-start sm:mt-1"
                                 disabled={
                                     browserPermission === 'unsupported' ||
                                     browserPermission === 'denied' ||
@@ -453,15 +451,18 @@ export default function SettingNotifikasi() {
 
                 <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0 space-y-1">
                                 <CardTitle>Jenis Notifikasi</CardTitle>
-                                <CardDescription>
+                                <CardDescription className="max-w-xl leading-6">
                                     Pilih jenis notifikasi yang ingin Anda
                                     terima
                                 </CardDescription>
                             </div>
-                            <Badge variant="outline" className="mt-0.5">
+                            <Badge
+                                variant="outline"
+                                className="w-fit self-start"
+                            >
                                 {enabledJenisCount}/{items.length} aktif
                             </Badge>
                         </div>
@@ -475,7 +476,7 @@ export default function SettingNotifikasi() {
                                 return (
                                     <div
                                         key={item.key}
-                                        className="flex items-start justify-between gap-6 py-4"
+                                        className="flex flex-col gap-4 py-4 sm:flex-row sm:items-start sm:justify-between"
                                     >
                                         <div className="flex min-w-0 items-start gap-3">
                                             <span
@@ -512,7 +513,7 @@ export default function SettingNotifikasi() {
                                                 })
                                             }
                                             aria-label={`Aktifkan ${item.title}`}
-                                            className="mt-1"
+                                            className="self-start sm:mt-1"
                                             disabled={
                                                 !settings.browserNotifications ||
                                                 isSaving

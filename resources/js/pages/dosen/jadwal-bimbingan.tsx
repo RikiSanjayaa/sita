@@ -613,6 +613,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         workspaceFilter === 'bimbingan'
                                             ? 'default'
@@ -627,6 +628,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         workspaceFilter === 'ujian'
                                             ? 'default'
@@ -639,6 +641,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         workspaceFilter === 'semua'
                                             ? 'default'
@@ -691,9 +694,9 @@ export default function DosenJadwalBimbinganPage() {
                                         return (
                                             <div
                                                 key={groupKey}
-                                                className="rounded-xl border bg-background p-5 shadow-sm"
+                                                className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
                                             >
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                                     <p className="text-base font-semibold">
                                                         {firstItem.mahasiswa}
                                                     </p>
@@ -861,7 +864,7 @@ export default function DosenJadwalBimbinganPage() {
                                                         <Button
                                                             size="sm"
                                                             variant="soft"
-                                                            className="bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20"
+                                                            className="w-full bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20 sm:w-auto"
                                                             disabled={
                                                                 form.processing
                                                             }
@@ -877,7 +880,7 @@ export default function DosenJadwalBimbinganPage() {
                                                         </Button>
                                                         <Button
                                                             size="sm"
-                                                            className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+                                                            className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
                                                             disabled={
                                                                 form.processing
                                                             }
@@ -901,9 +904,9 @@ export default function DosenJadwalBimbinganPage() {
                                     return (
                                         <div
                                             key={`${item.id}-${item.mahasiswa}`}
-                                            className="rounded-xl border bg-background p-5 shadow-sm"
+                                            className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
                                         >
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                                 <p className="text-base font-semibold">
                                                     {item.mahasiswa}
                                                 </p>
@@ -1123,7 +1126,7 @@ export default function DosenJadwalBimbinganPage() {
                                                     <Button
                                                         size="sm"
                                                         variant="soft"
-                                                        className="font-semibold"
+                                                        className="w-full font-semibold sm:w-auto"
                                                         disabled={
                                                             form.processing
                                                         }
@@ -1140,7 +1143,7 @@ export default function DosenJadwalBimbinganPage() {
                                                     <Button
                                                         size="sm"
                                                         variant="soft"
-                                                        className="bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20"
+                                                        className="w-full bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20 sm:w-auto"
                                                         disabled={
                                                             form.processing
                                                         }
@@ -1156,7 +1159,7 @@ export default function DosenJadwalBimbinganPage() {
                                                     </Button>
                                                     <Button
                                                         size="sm"
-                                                        className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+                                                        className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
                                                         disabled={
                                                             form.processing
                                                         }
@@ -1200,10 +1203,10 @@ export default function DosenJadwalBimbinganPage() {
                             upcomingSchedules.map((item) => (
                                 <div
                                     key={`${item.id}-${item.mahasiswa}`}
-                                    className="rounded-xl border bg-background p-5 shadow-sm"
+                                    className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
                                 >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                             <p className="text-base font-semibold">
                                                 {item.mahasiswa}
                                             </p>
@@ -1217,18 +1220,20 @@ export default function DosenJadwalBimbinganPage() {
                                         {item.topic}
                                     </p>
                                     <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                        <div className="inline-flex items-center gap-2">
-                                            <CalendarClock className="size-4" />
-                                            <span>
+                                        <div className="flex items-start gap-2">
+                                            <CalendarClock className="mt-0.5 size-4 shrink-0" />
+                                            <span className="min-w-0 break-words">
                                                 {formatDateTime(
                                                     item.date,
                                                     item.time,
                                                 )}
                                             </span>
                                         </div>
-                                        <div className="inline-flex items-center gap-2">
-                                            <MapPin className="size-4" />
-                                            <span>{item.location}</span>
+                                        <div className="flex items-start gap-2">
+                                            <MapPin className="mt-0.5 size-4 shrink-0" />
+                                            <span className="min-w-0 break-words">
+                                                {item.location}
+                                            </span>
                                         </div>
                                         {item.lecturerNote && (
                                             <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -1243,7 +1248,7 @@ export default function DosenJadwalBimbinganPage() {
                                         <Button
                                             size="sm"
                                             variant="soft"
-                                            className="bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20"
+                                            className="w-full bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20 sm:w-auto"
                                             disabled={form.processing}
                                             onClick={() =>
                                                 closeSchedule(
@@ -1257,7 +1262,7 @@ export default function DosenJadwalBimbinganPage() {
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+                                            className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
                                             disabled={form.processing}
                                             onClick={() =>
                                                 closeSchedule(
@@ -1298,6 +1303,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         historyFilter === 'semua'
                                             ? 'default'
@@ -1313,6 +1319,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         historyFilter === 'completed'
                                             ? 'default'
@@ -1328,6 +1335,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         historyFilter === 'rejected'
                                             ? 'default'
@@ -1343,6 +1351,7 @@ export default function DosenJadwalBimbinganPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="w-full sm:w-auto"
                                     variant={
                                         historyFilter === 'cancelled'
                                             ? 'default'
@@ -1358,15 +1367,15 @@ export default function DosenJadwalBimbinganPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="grid gap-4 pb-6 sm:grid-cols-2">
+                    <CardContent className="grid gap-4 pb-6 lg:grid-cols-2">
                         {visibleHistorySchedules.length > 0 ? (
                             visibleHistorySchedules.map((item) => (
                                 <div
                                     key={`${item.id}-${item.status}`}
-                                    className="rounded-xl border bg-background p-5 shadow-sm"
+                                    className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
                                 >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div>
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="min-w-0">
                                             <p className="text-base font-semibold">
                                                 {item.mahasiswa}
                                             </p>
@@ -1384,18 +1393,20 @@ export default function DosenJadwalBimbinganPage() {
                                         {item.topic}
                                     </p>
                                     <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                        <div className="inline-flex items-center gap-2">
-                                            <CalendarClock className="size-4" />
-                                            <span>
+                                        <div className="flex items-start gap-2">
+                                            <CalendarClock className="mt-0.5 size-4 shrink-0" />
+                                            <span className="min-w-0 break-words">
                                                 {formatDateTime(
                                                     item.date,
                                                     item.time,
                                                 )}
                                             </span>
                                         </div>
-                                        <div className="inline-flex items-center gap-2">
-                                            <MapPin className="size-4" />
-                                            <span>{item.location}</span>
+                                        <div className="flex items-start gap-2">
+                                            <MapPin className="mt-0.5 size-4 shrink-0" />
+                                            <span className="min-w-0 break-words">
+                                                {item.location}
+                                            </span>
                                         </div>
                                         {item.lecturerNote && (
                                             <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -1417,7 +1428,7 @@ export default function DosenJadwalBimbinganPage() {
                         )}
                         {filteredHistorySchedules.length >
                         visibleHistorySchedules.length ? (
-                            <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3 sm:col-span-2">
+                            <div className="flex flex-col gap-3 rounded-xl border bg-muted/15 p-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
                                 <p className="text-sm text-muted-foreground">
                                     Menampilkan {visibleHistorySchedules.length}{' '}
                                     dari {filteredHistorySchedules.length}{' '}

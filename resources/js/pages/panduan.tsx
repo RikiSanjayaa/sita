@@ -578,7 +578,7 @@ export default function Panduan() {
                                                                     {doc.fileName ? (
                                                                         <Badge
                                                                             variant="secondary"
-                                                                            className="rounded-full"
+                                                                            className="max-w-full rounded-full text-left break-all whitespace-normal"
                                                                         >
                                                                             {
                                                                                 doc.fileName

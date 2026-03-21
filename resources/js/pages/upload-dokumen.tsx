@@ -344,9 +344,11 @@ export default function UploadDokumenPage() {
                                                         <p className="text-sm font-medium break-words">
                                                             {row.title}
                                                         </p>
-                                                        <p className="text-xs break-words text-muted-foreground">
-                                                            {row.fileName} -{' '}
-                                                            {row.version}
+                                                        <p className="text-xs text-muted-foreground">
+                                                            <span className="break-all">
+                                                                {row.fileName}
+                                                            </span>{' '}
+                                                            - {row.version}
                                                         </p>
                                                     </div>
 
@@ -415,7 +417,7 @@ export default function UploadDokumenPage() {
                                 </div>
 
                                 <div className="hidden overflow-x-auto rounded-lg border md:block">
-                                    <table className="w-full text-left text-sm">
+                                    <table className="w-full table-fixed text-left text-sm">
                                         <thead className="bg-background">
                                             <tr className="border-b">
                                                 <th className="px-4 py-3 font-medium">
@@ -451,15 +453,17 @@ export default function UploadDokumenPage() {
                                                                     <FileText className="size-4" />
                                                                 </span>
                                                                 <div className="min-w-0">
-                                                                    <div className="text-sm font-medium">
+                                                                    <div className="text-sm font-medium break-words">
                                                                         {
                                                                             row.title
                                                                         }
                                                                     </div>
                                                                     <div className="text-xs text-muted-foreground">
-                                                                        {
-                                                                            row.fileName
-                                                                        }{' '}
+                                                                        <span className="break-all">
+                                                                            {
+                                                                                row.fileName
+                                                                            }
+                                                                        </span>{' '}
                                                                         -{' '}
                                                                         {
                                                                             row.version

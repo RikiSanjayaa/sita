@@ -33,12 +33,15 @@ export function Breadcrumbs({
                         />,
                         <BreadcrumbItem key={breadcrumb.href}>
                             {isLast ? (
-                                <BreadcrumbPage>
+                                <BreadcrumbPage className="block max-w-[18rem] truncate xl:max-w-none">
                                     {breadcrumb.title}
                                 </BreadcrumbPage>
                             ) : (
                                 <BreadcrumbLink asChild>
-                                    <Link href={breadcrumb.href}>
+                                    <Link
+                                        href={breadcrumb.href}
+                                        className="block max-w-[14rem] truncate xl:max-w-none"
+                                    >
                                         {breadcrumb.title}
                                     </Link>
                                 </BreadcrumbLink>
