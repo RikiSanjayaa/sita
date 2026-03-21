@@ -15,10 +15,6 @@ class AdminOverviewStats extends StatsOverviewWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected ?string $heading = 'Prioritas Admin';
-
-    protected ?string $description = 'Gunakan persentase untuk gap proses utama, lalu pakai jumlah proyek untuk isu yang butuh tindak lanjut langsung.';
-
     protected function getStats(): array
     {
         /** @var User|null $user */
