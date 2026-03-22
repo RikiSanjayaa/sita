@@ -212,6 +212,7 @@ test('public landing pages show schedules, advisors, and finalized thesis topics
 
     expect($welcomePage['component'])->toBe('welcome')
         ->and(data_get($welcomePage, 'props.highlights'))->toHaveCount(4)
+        ->and(data_get($welcomePage, 'props.highlights.0.value'))->toBe('2')
         ->and(data_get($welcomePage, 'props.highlights.2.label'))->toBe('Mahasiswa Aktif');
 
     $scheduleResponse = $this->get('/jadwal')

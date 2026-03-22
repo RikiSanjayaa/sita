@@ -39,11 +39,11 @@ export function PublicLayout({
             <Head title={headTitle} />
 
             <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b bg-background/95 backdrop-blur">
+                <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
                     <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-4 lg:px-6">
                         <Link
                             href={home().url}
-                            className="flex min-w-0 flex-1 items-center gap-3"
+                            className="flex min-w-0 shrink-0 items-center gap-3"
                         >
                             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                                 <AppLogoIcon className="size-5" />
@@ -58,22 +58,24 @@ export function PublicLayout({
                             </div>
                         </Link>
 
-                        <nav className="hidden items-center rounded-full border bg-muted/20 p-1 md:flex">
-                            {navItems.map((item) => (
-                                <Link
-                                    key={item.id}
-                                    href={item.href}
-                                    className={cn(
-                                        'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                                        active === item.id
-                                            ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
-                                            : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                                    )}
-                                >
-                                    {item.label}
-                                </Link>
-                            ))}
-                        </nav>
+                        <div className="hidden min-w-0 flex-1 justify-center md:flex">
+                            <nav className="flex items-center justify-center rounded-full border bg-muted/20 p-1">
+                                {navItems.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        href={item.href}
+                                        className={cn(
+                                            'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                                            active === item.id
+                                                ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
+                                                : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                                        )}
+                                    >
+                                        {item.label}
+                                    </Link>
+                                ))}
+                            </nav>
+                        </div>
 
                         <div className="flex shrink-0 items-center gap-2">
                             {isAuthenticated ? (

@@ -9,6 +9,8 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -116,10 +118,7 @@ class WelcomeController extends Controller
      */
     private function highlights(): array
     {
-        $scheduleItemsCount = ThesisDefense::query()
-            ->whereIn('type', ['sempro', 'sidang'])
-            ->whereIn('status', ['scheduled', 'completed'])
-            ->count();
+        $scheduleItemsCount = $this->visibleScheduleItemsCount();
 
         $advisorCount = User::query()
             ->whereHas('roles', function ($query): void {
@@ -180,32 +179,7 @@ class WelcomeController extends Controller
      */
     private function upcomingScheduleItems(string $search = '', int $page = 1): array
     {
-        $paginator = ThesisDefense::query()
-            ->with([
-                'project.student.mahasiswaProfile',
-                'project.programStudi',
-            ])
-            ->whereIn('type', ['sempro', 'sidang'])
-            ->where('status', 'scheduled')
-            ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '>=', now())
-            ->orderBy('scheduled_for')
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($innerQuery) use ($search): void {
-                    $innerQuery
-                        ->whereHas('project.student', function ($studentQuery) use ($search): void {
-                            $studentQuery->where('name', 'like', "%{$search}%")
-                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
-                                    $profileQuery->where('nim', 'like', "%{$search}%");
-                                });
-                        })
-                        ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
-                            $programQuery->where('name', 'like', "%{$search}%");
-                        })
-                        ->orWhere('location', 'like', "%{$search}%")
-                        ->orWhere('mode', 'like', "%{$search}%");
-                });
-            })
+        $paginator = $this->upcomingScheduleQuery($search)
             ->simplePaginate(perPage: 10, pageName: 'upcoming_page', page: $page)
             ->through(function (ThesisDefense $defense): array {
                 $project = $defense->project;
@@ -241,46 +215,7 @@ class WelcomeController extends Controller
     {
         $now = now();
 
-        $paginator = ThesisDefense::query()
-            ->with([
-                'project.student.mahasiswaProfile',
-                'project.programStudi',
-                'examiners',
-                'revisions',
-            ])
-            ->whereIn('type', ['sempro', 'sidang'])
-            ->where('status', 'completed')
-            ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '>=', $now->copy()->subDays(45))
-            ->orderByDesc('scheduled_for')
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($innerQuery) use ($search): void {
-                    $innerQuery
-                        ->whereHas('project.student', function ($studentQuery) use ($search): void {
-                            $studentQuery->where('name', 'like', "%{$search}%")
-                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
-                                    $profileQuery->where('nim', 'like', "%{$search}%");
-                                });
-                        })
-                        ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
-                            $programQuery->where('name', 'like', "%{$search}%");
-                        })
-                        ->orWhere('location', 'like', "%{$search}%")
-                        ->orWhere('mode', 'like', "%{$search}%");
-                });
-            })
-            ->where(function ($query): void {
-                $query->where('result', 'pass_with_revision')
-                    ->orWhereHas('revisions', function ($revisionQuery): void {
-                        $revisionQuery->whereIn('status', ['open', 'submitted']);
-                    })
-                    ->orWhereHas('examiners', function ($examinerQuery): void {
-                        $examinerQuery->where(function ($pendingQuery): void {
-                            $pendingQuery->whereNull('decision')
-                                ->orWhereNull('score');
-                        });
-                    });
-            })
+        $paginator = $this->followUpScheduleQuery($search, $now)
             ->simplePaginate(perPage: 8, pageName: 'follow_up_page', page: $page)
             ->through(function (ThesisDefense $defense) use ($now): array {
                 $project = $defense->project;
@@ -748,6 +683,80 @@ class WelcomeController extends Controller
                 'description' => 'Tugas akhir mahasiswa sedang berjalan.',
             ],
         };
+    }
+
+    private function visibleScheduleItemsCount(): int
+    {
+        return $this->upcomingScheduleQuery()->count()
+            + $this->followUpScheduleQuery()->count();
+    }
+
+    private function upcomingScheduleQuery(string $search = ''): Builder
+    {
+        return ThesisDefense::query()
+            ->with([
+                'project.student.mahasiswaProfile',
+                'project.programStudi',
+            ])
+            ->whereIn('type', ['sempro', 'sidang'])
+            ->where('status', 'scheduled')
+            ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '>=', now())
+            ->orderBy('scheduled_for')
+            ->when($search !== '', function ($query) use ($search): void {
+                $this->applyScheduleSearch($query, $search);
+            });
+    }
+
+    private function followUpScheduleQuery(string $search = '', ?CarbonInterface $referenceTime = null): Builder
+    {
+        $now = $referenceTime ?? now();
+
+        return ThesisDefense::query()
+            ->with([
+                'project.student.mahasiswaProfile',
+                'project.programStudi',
+                'examiners',
+                'revisions',
+            ])
+            ->whereIn('type', ['sempro', 'sidang'])
+            ->where('status', 'completed')
+            ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '>=', $now->copy()->subDays(45))
+            ->orderByDesc('scheduled_for')
+            ->when($search !== '', function ($query) use ($search): void {
+                $this->applyScheduleSearch($query, $search);
+            })
+            ->where(function ($query): void {
+                $query->where('result', 'pass_with_revision')
+                    ->orWhereHas('revisions', function ($revisionQuery): void {
+                        $revisionQuery->whereIn('status', ['open', 'submitted']);
+                    })
+                    ->orWhereHas('examiners', function ($examinerQuery): void {
+                        $examinerQuery->where(function ($pendingQuery): void {
+                            $pendingQuery->whereNull('decision')
+                                ->orWhereNull('score');
+                        });
+                    });
+            });
+    }
+
+    private function applyScheduleSearch(Builder $query, string $search): void
+    {
+        $query->where(function ($innerQuery) use ($search): void {
+            $innerQuery
+                ->whereHas('project.student', function ($studentQuery) use ($search): void {
+                    $studentQuery->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
+                            $profileQuery->where('nim', 'like', "%{$search}%");
+                        });
+                })
+                ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
+                    $programQuery->where('name', 'like', "%{$search}%");
+                })
+                ->orWhere('location', 'like', "%{$search}%")
+                ->orWhere('mode', 'like', "%{$search}%");
+        });
     }
 
     private function simplePaginationData($paginator): array

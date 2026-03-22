@@ -261,7 +261,7 @@ function ScheduleTable({
                     </div>
                 )}
 
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                <div className="flex flex-col-reverse items-center justify-center gap-2 sm:flex-row sm:flex-wrap">
                     <Button
                         type="button"
                         variant="outline"

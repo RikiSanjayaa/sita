@@ -383,7 +383,7 @@ function PublicTopicsContent({
                                     </table>
                                 </div>
 
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center justify-center gap-2">
                                     <Button
                                         type="button"
                                         variant="outline"
