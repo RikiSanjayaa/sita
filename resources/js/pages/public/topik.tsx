@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Select,
     SelectContent,
@@ -214,7 +215,7 @@ function PublicTopicsContent({
                     <CardContent className="space-y-4 pb-6">
                         {semproTitles.length > 0 ? (
                             <>
-                                <div className="overflow-x-auto rounded-xl border">
+                                <ScrollArea className="rounded-xl border">
                                     <table className="w-full min-w-[980px] text-sm">
                                         <thead className="bg-muted/30 text-left">
                                             <tr>
@@ -381,7 +382,7 @@ function PublicTopicsContent({
                                             })}
                                         </tbody>
                                     </table>
-                                </div>
+                                </ScrollArea>
 
                                 <div className="flex items-center justify-center gap-2">
                                     <Button

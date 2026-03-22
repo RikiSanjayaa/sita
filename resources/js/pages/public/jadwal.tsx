@@ -13,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { type SharedData } from '@/types';
 
 type ScheduleItem = {
@@ -176,7 +177,7 @@ function ScheduleTable({
                             ))}
                         </div>
 
-                        <div className="hidden overflow-x-auto rounded-xl border md:block">
+                        <ScrollArea className="hidden rounded-xl border md:block">
                             <table className="w-full min-w-[760px] text-sm">
                                 <thead className="bg-muted/30 text-left">
                                     <tr>
@@ -253,7 +254,7 @@ function ScheduleTable({
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
+                        </ScrollArea>
                     </div>
                 ) : (
                     <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">

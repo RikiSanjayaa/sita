@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Select,
     SelectContent,
@@ -139,7 +140,7 @@ export default function PublicAdvisorsPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4 pb-6">
-                                    <div className="overflow-x-auto rounded-xl border">
+                                    <ScrollArea className="rounded-xl border">
                                         <table className="w-full min-w-[640px] text-sm">
                                             <thead className="bg-muted/30 text-left">
                                                 <tr>
@@ -177,7 +178,7 @@ export default function PublicAdvisorsPage() {
                                                 ))}
                                             </tbody>
                                         </table>
-                                    </div>
+                                    </ScrollArea>
 
                                     <div className="flex justify-end text-sm text-muted-foreground">
                                         Total mahasiswa aktif pada konsentrasi
