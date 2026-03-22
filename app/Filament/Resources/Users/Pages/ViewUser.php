@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Pages;
 
+use App\Filament\Resources\Users\Actions\SendPasswordResetLinkAction;
 use App\Filament\Resources\Users\UserResource;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
@@ -14,6 +15,7 @@ class ViewUser extends ViewRecord
     {
         return [
             EditAction::make(),
+            SendPasswordResetLinkAction::make(fn(): \App\Models\User => $this->record),
         ];
     }
 }

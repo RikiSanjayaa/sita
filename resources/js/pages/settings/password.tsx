@@ -1,8 +1,7 @@
 import { Transition } from '@headlessui/react';
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useRef } from 'react';
 
-import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -10,15 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { edit } from '@/routes/user-password';
-import { type BreadcrumbItem } from '@/types';
+import { makeSettingsBreadcrumbs } from '@/pages/settings/breadcrumbs';
+import { request } from '@/routes/password';
+import { edit, update } from '@/routes/user-password';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Password settings',
-        href: edit().url,
-    },
-];
+const breadcrumbs = makeSettingsBreadcrumbs('Password', edit().url);
 
 export default function Password() {
     const passwordInput = useRef<HTMLInputElement>(null);
@@ -30,16 +25,27 @@ export default function Password() {
 
             <h1 className="sr-only">Password Settings</h1>
 
-            <SettingsLayout>
+            <SettingsLayout width="compact">
                 <div className="space-y-6">
                     <Heading
                         variant="small"
-                        title="Update password"
-                        description="Ensure your account is using a long, random password to stay secure"
+                        title="Ubah password"
+                        description="Perbarui password akun Anda dengan kombinasi yang kuat. Konfirmasi password membantu memastikan input sama persis."
                     />
 
+                    <p className="text-sm text-neutral-600">
+                        Lupa password akun?{' '}
+                        <Link
+                            href={request().url}
+                            className="font-medium text-primary hover:underline"
+                        >
+                            Kirim ulang tautan reset password
+                        </Link>
+                        .
+                    </p>
+
                     <Form
-                        {...PasswordController.update.form()}
+                        {...update.form()}
                         options={{
                             preserveScroll: true,
                         }}
@@ -64,7 +70,7 @@ export default function Password() {
                             <>
                                 <div className="grid gap-2">
                                     <Label htmlFor="current_password">
-                                        Current password
+                                        Password saat ini
                                     </Label>
 
                                     <Input
@@ -74,7 +80,7 @@ export default function Password() {
                                         type="password"
                                         className="mt-1 block w-full"
                                         autoComplete="current-password"
-                                        placeholder="Current password"
+                                        placeholder="Masukkan password saat ini"
                                     />
 
                                     <InputError
@@ -84,7 +90,7 @@ export default function Password() {
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="password">
-                                        New password
+                                        Password baru
                                     </Label>
 
                                     <Input
@@ -94,7 +100,7 @@ export default function Password() {
                                         type="password"
                                         className="mt-1 block w-full"
                                         autoComplete="new-password"
-                                        placeholder="New password"
+                                        placeholder="Masukkan password baru"
                                     />
 
                                     <InputError message={errors.password} />
@@ -102,7 +108,7 @@ export default function Password() {
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="password_confirmation">
-                                        Confirm password
+                                        Konfirmasi password baru
                                     </Label>
 
                                     <Input
@@ -111,7 +117,7 @@ export default function Password() {
                                         type="password"
                                         className="mt-1 block w-full"
                                         autoComplete="new-password"
-                                        placeholder="Confirm password"
+                                        placeholder="Ulangi password baru yang sama"
                                     />
 
                                     <InputError
@@ -124,7 +130,7 @@ export default function Password() {
                                         disabled={processing}
                                         data-test="update-password-button"
                                     >
-                                        Save password
+                                        Simpan password
                                     </Button>
 
                                     <Transition
@@ -135,7 +141,7 @@ export default function Password() {
                                         leaveTo="opacity-0"
                                     >
                                         <p className="text-sm text-neutral-600">
-                                            Saved
+                                            Password berhasil diperbarui
                                         </p>
                                     </Transition>
                                 </div>

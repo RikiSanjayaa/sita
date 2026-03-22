@@ -2,7 +2,6 @@ import { Form, Head } from '@inertiajs/react';
 import { ShieldBan, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
-import Heading from '@/components/heading';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Badge } from '@/components/ui/badge';
@@ -10,20 +9,15 @@ import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { makeSettingsBreadcrumbs } from '@/pages/settings/breadcrumbs';
 import { disable, enable, show } from '@/routes/two-factor';
-import { type BreadcrumbItem } from '@/types';
 
 interface TwoFactorProps {
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Two-Factor Authentication',
-        href: show.url(),
-    },
-];
+const breadcrumbs = makeSettingsBreadcrumbs('Dua Faktor', show.url());
 
 export default function TwoFactor({
     requiresConfirmation = false,
@@ -49,11 +43,6 @@ export default function TwoFactor({
 
             <SettingsLayout>
                 <div className="space-y-6">
-                    <Heading
-                        variant="small"
-                        title="Two-Factor Authentication"
-                        description="Manage your two-factor authentication settings"
-                    />
                     {twoFactorEnabled ? (
                         <div className="flex flex-col items-start justify-start space-y-4">
                             <Badge variant="default">Enabled</Badge>

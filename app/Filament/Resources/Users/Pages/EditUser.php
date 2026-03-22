@@ -3,11 +3,14 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Enums\AppRole;
+use App\Filament\Resources\Users\Actions\SendPasswordResetLinkAction;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\User;
 use App\Services\UserProvisioningService;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
 
 class EditUser extends EditRecord
 {
@@ -33,6 +36,13 @@ class EditUser extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        /** @var User|null $authenticatedUser */
+        $authenticatedUser = Auth::user();
+
+        if ($authenticatedUser?->is($this->record)) {
+            $data['email'] = $this->record->email;
+        }
+
         $this->provisioningData = [
             'role' => $data['role'] ?? null,
             'nim' => $data['nim'] ?? null,
@@ -73,6 +83,7 @@ class EditUser extends EditRecord
     {
         return [
             ViewAction::make(),
+            SendPasswordResetLinkAction::make(fn(): \App\Models\User => $this->record),
             DeleteAction::make(),
         ];
     }
