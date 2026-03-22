@@ -9,6 +9,7 @@ use App\Models\ThesisRevision;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
 use App\Services\ThesisDefenseExaminerDecisionService;
+use App\Services\ThesisDefenseRevisionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,6 +23,7 @@ class SeminarProposalController extends Controller
         private readonly DosenScheduleWorkspaceService $dosenScheduleWorkspaceService,
         private readonly DosenThesisWorkspaceService $dosenThesisWorkspaceService,
         private readonly ThesisDefenseExaminerDecisionService $decisionService,
+        private readonly ThesisDefenseRevisionService $revisionService,
     ) {}
 
     public function index(Request $request): Response
@@ -57,9 +59,18 @@ class SeminarProposalController extends Controller
                     'id' => $revision->id,
                     'notes' => $revision->notes,
                     'status' => $revision->status,
+                    'statusLabel' => match ($revision->status) {
+                        'open' => 'Terbuka',
+                        'submitted' => 'Dikirim',
+                        'resolved' => 'Selesai',
+                        default => ucwords(str_replace('_', ' ', $revision->status)),
+                    },
                     'dueAt' => $revision->due_at?->format('d M Y'),
                     'resolvedAt' => $revision->resolved_at?->format('d M Y'),
+                    'resolutionNotes' => $revision->resolution_notes,
                     'requestedBy' => $revision->requestedBy?->name ?? '-',
+                    'canResolve' => $revision->requested_by_user_id === $lecturer->id
+                        && in_array($revision->status, ['open', 'submitted'], true),
                 ])
                 ->values()
                 ->all() ?? [];
@@ -92,6 +103,7 @@ class SeminarProposalController extends Controller
         return Inertia::render('dosen/seminar-proposal', [
             'defenses' => $defenses,
             'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
+            'errorMessage' => $request->session()->get('error'),
         ]);
     }
 
@@ -124,5 +136,29 @@ class SeminarProposalController extends Controller
 
         return redirect()->route('dosen.seminar-proposal')
             ->with('success', 'Keputusan berhasil disimpan.');
+    }
+
+    public function resolveRevision(Request $request, ThesisRevision $revision): RedirectResponse
+    {
+        $lecturer = $request->user();
+        abort_if($lecturer === null, 401);
+
+        $validated = $request->validate([
+            'resolution_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $this->revisionService->approveByLecturer(
+                $lecturer,
+                $revision,
+                $validated['resolution_notes'] ?? null,
+            );
+        } catch (RuntimeException $exception) {
+            return redirect()->route('dosen.seminar-proposal')
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('dosen.seminar-proposal')
+            ->with('success', 'Revisi berhasil ditandai selesai.');
     }
 }

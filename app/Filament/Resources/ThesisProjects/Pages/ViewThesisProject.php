@@ -155,46 +155,6 @@ class ViewThesisProject extends ViewRecord
                             ->send();
                     }
                 }),
-            Action::make('approve_sempro_revision')
-                ->label('Setujui Revisi Sempro')
-                ->icon('heroicon-m-check-circle')
-                ->color('primary')
-                ->visible(fn(): bool => $this->hasPendingRevision($record, 'sempro'))
-                ->form([
-                    Textarea::make('resolution_notes')
-                        ->label('Catatan Persetujuan')
-                        ->rows(3),
-                ])
-                ->action(function (array $data) use ($record): void {
-                    $userId = Auth::id();
-
-                    if ($userId === null) {
-                        return;
-                    }
-
-                    try {
-                        app(ThesisProjectAdminService::class)->approveSemproRevision(
-                            project: $record,
-                            resolvedBy: $userId,
-                            resolutionNotes: filled($data['resolution_notes'] ?? null)
-                                ? (string) $data['resolution_notes']
-                                : null,
-                        );
-
-                        Notification::make()
-                            ->title('Revisi sempro disetujui')
-                            ->success()
-                            ->send();
-
-                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
-                    } catch (\Throwable $exception) {
-                        Notification::make()
-                            ->title('Gagal menyetujui revisi sempro')
-                            ->body($exception->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
             Action::make('assign_supervisors')
                 ->label('Tetapkan Pembimbing')
                 ->icon('heroicon-m-user-plus')
@@ -387,46 +347,6 @@ class ViewThesisProject extends ViewRecord
                             ->send();
                     }
                 }),
-            Action::make('approve_sidang_revision')
-                ->label('Setujui Revisi Sidang')
-                ->icon('heroicon-m-check-circle')
-                ->color('primary')
-                ->visible(fn(): bool => $this->hasPendingRevision($record, 'sidang'))
-                ->form([
-                    Textarea::make('resolution_notes')
-                        ->label('Catatan Persetujuan')
-                        ->rows(3),
-                ])
-                ->action(function (array $data) use ($record): void {
-                    $userId = Auth::id();
-
-                    if ($userId === null) {
-                        return;
-                    }
-
-                    try {
-                        app(ThesisProjectAdminService::class)->approveSidangRevision(
-                            project: $record,
-                            resolvedBy: $userId,
-                            resolutionNotes: filled($data['resolution_notes'] ?? null)
-                                ? (string) $data['resolution_notes']
-                                : null,
-                        );
-
-                        Notification::make()
-                            ->title('Revisi sidang disetujui')
-                            ->success()
-                            ->send();
-
-                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
-                    } catch (\Throwable $exception) {
-                        Notification::make()
-                            ->title('Gagal menyetujui revisi sidang')
-                            ->body($exception->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
         ];
 
         return [
@@ -588,22 +508,6 @@ class ViewThesisProject extends ViewRecord
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
             ->first();
-    }
-
-    private function hasPendingRevision(ThesisProject $project, string $type): bool
-    {
-        $defense = $type === 'sidang'
-            ? $this->latestSidang($project)
-            : $this->latestSempro($project);
-
-        if (! $defense instanceof ThesisDefense || $defense->status !== 'completed' || $defense->result !== 'pass_with_revision') {
-            return false;
-        }
-
-        return $project->revisions
-            ->where('defense_id', $defense->getKey())
-            ->whereIn('status', ['open', 'submitted'])
-            ->isNotEmpty();
     }
 
     private function finalizeSemproTooltip(ThesisProject $project): ?string

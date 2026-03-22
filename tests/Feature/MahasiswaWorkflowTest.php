@@ -17,6 +17,7 @@ use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
+use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ThesisProjectStudentService;
@@ -927,6 +928,96 @@ test('mahasiswa can update sempro revision proposal without resetting thesis pro
 
     Storage::disk('public')->assertMissing($oldPath);
     Storage::disk('public')->assertExists((string) $updatedDocument->storage_path);
+});
+
+test('mahasiswa sees sempro selesai when sempro revision is approved but supervisors are not assigned yet', function () {
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $examiner = createUserWithRole(AppRole::Dosen->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $examiner->dosenProfile()->update([
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subDays(10),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Pasca Revisi Sempro',
+        'title_en' => 'Post Sempro Revision Title',
+        'proposal_summary' => 'Ringkasan pasca revisi sempro.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(9),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(8),
+    ]);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(4),
+        'location' => 'Ruang Sempro 1',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(4),
+        'notes' => 'Sempro selesai dengan revisi.',
+    ]);
+
+    ThesisDefenseExaminer::query()->create([
+        'defense_id' => $sempro->id,
+        'lecturer_user_id' => $examiner->id,
+        'role' => 'examiner',
+        'order_no' => 1,
+        'decision' => 'pass_with_revision',
+        'revision_notes' => 'Rapikan pembahasan.',
+        'decided_at' => now()->subDays(4),
+    ]);
+
+    ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $sempro->id,
+        'requested_by_user_id' => $examiner->id,
+        'status' => 'resolved',
+        'notes' => 'Rapikan pembahasan.',
+        'submitted_at' => now()->subDays(2),
+        'resolved_at' => now()->subDay(),
+        'resolved_by_user_id' => $examiner->id,
+        'resolution_notes' => 'Sudah sesuai.',
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('submission.workflow.key', 'sempro_passed')
+            ->where('submission.workflow.label', 'Sempro Selesai'));
 });
 
 test('mahasiswa upload dokumen works without dosbing and notifies sempro thread', function () {

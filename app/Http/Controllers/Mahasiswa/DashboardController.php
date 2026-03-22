@@ -438,7 +438,11 @@ class DashboardController extends Controller
             } elseif ($latestSempro->status === 'awaiting_finalization') {
                 $key = 'sempro_waiting_result';
             } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass_with_revision') {
-                $key = $hasOpenRevisions ? 'sempro_revision' : 'research_in_progress';
+                $key = $hasOpenRevisions
+                    ? 'sempro_revision'
+                    : ($project->activeSupervisorAssignments->isNotEmpty()
+                        ? 'research_in_progress'
+                        : 'sempro_passed');
             } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass') {
                 $key = $project->activeSupervisorAssignments->isNotEmpty()
                     ? 'research_in_progress'

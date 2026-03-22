@@ -2,6 +2,7 @@
 
 use App\Enums\AdvisorType;
 use App\Enums\AssignmentStatus;
+use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
@@ -13,11 +14,14 @@ use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
+use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
+use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Notifications\RealtimeNotification;
 use App\Services\ThesisDefenseExaminerDecisionService;
+use Filament\Notifications\DatabaseNotification as FilamentDatabaseNotification;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -604,6 +608,7 @@ test('dosen defense decision keeps defense scheduled until all examiners decide 
     $this->assertDatabaseHas('thesis_defense_examiners', [
         'id' => $ownExaminer->id,
         'decision' => 'pass_with_revision',
+        'revision_notes' => 'Lengkapi pembahasan evaluasi dan simpulan.',
     ]);
 
     $this->assertDatabaseHas('thesis_defenses', [
@@ -640,4 +645,224 @@ test('dosen defense decision keeps defense scheduled until all examiners decide 
         ])
         ->assertRedirect(route('dosen.seminar-proposal'))
         ->assertSessionHasErrors('decision');
+});
+
+test('dosen who requested sempro revision can resolve their own revision and advance project', function () {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $dosen = createDosenUser();
+    $otherDosen = createDosenUser();
+    $student = createMahasiswaUser('2210519004');
+    $project = createThesisProjectForStudent($student);
+
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $project->program_studi_id,
+    ]);
+
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle?->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(3),
+        'location' => 'Ruang Sempro A',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(3),
+        'notes' => 'Sempro perlu revisi minor.',
+    ]);
+
+    assignDefenseExaminer($defense, $dosen, 'examiner', 1)->forceFill([
+        'decision' => 'pass_with_revision',
+        'score' => 84,
+        'notes' => 'Perbaiki alur pembahasan.',
+        'revision_notes' => 'Lengkapi pembahasan hasil dan perbaiki simpulan.',
+        'decided_at' => now()->subDays(3),
+    ])->save();
+
+    assignDefenseExaminer($defense, $otherDosen, 'examiner', 2)->forceFill([
+        'decision' => 'pass',
+        'score' => 88,
+        'notes' => 'Sudah cukup baik.',
+        'decided_at' => now()->subDays(3),
+    ])->save();
+
+    $revision = ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $defense->id,
+        'requested_by_user_id' => $dosen->id,
+        'status' => 'submitted',
+        'notes' => 'Lengkapi pembahasan hasil dan perbaiki simpulan.',
+        'submitted_at' => now()->subDay(),
+        'due_at' => now()->addDays(3),
+    ]);
+
+    $this->actingAs($dosen)
+        ->post(route('dosen.seminar-proposal.revisions.resolve', $revision))
+        ->assertRedirect(route('dosen.seminar-proposal'));
+
+    $this->assertDatabaseHas('thesis_revisions', [
+        'id' => $revision->id,
+        'status' => 'resolved',
+        'resolved_by_user_id' => $dosen->id,
+    ]);
+
+    $this->assertDatabaseHas('thesis_projects', [
+        'id' => $project->id,
+        'phase' => 'research',
+        'state' => 'active',
+    ]);
+
+    expect(ThesisProjectEvent::query()
+        ->where('project_id', $project->id)
+        ->where('event_type', 'revision_resolved')
+        ->count())->toBe(1);
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Revisi sempro disetujui'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
+
+    $adminNotifications = Notification::sent($admin, FilamentDatabaseNotification::class);
+
+    expect($adminNotifications)->toHaveCount(1)
+        ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi sempro selesai');
+});
+
+test('sidang project completes only after all requesting lecturers resolve their revisions', function () {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $firstLecturer = createDosenUser();
+    $secondLecturer = createDosenUser();
+    $student = createMahasiswaUser('2210519005');
+    $project = createThesisProjectForStudent($student);
+
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $project->program_studi_id,
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $firstLecturer->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subDays(14),
+    ]);
+
+    $project->forceFill([
+        'phase' => 'sidang',
+        'state' => 'active',
+    ])->save();
+
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle?->id,
+        'type' => 'sidang',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass_with_revision',
+        'scheduled_for' => now()->subDays(5),
+        'location' => 'Ruang Sidang 3',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(5),
+        'notes' => 'Sidang perlu revisi akhir.',
+    ]);
+
+    assignDefenseExaminer($defense, $firstLecturer, 'primary_supervisor', 1)->forceFill([
+        'decision' => 'pass_with_revision',
+        'score' => 85,
+        'revision_notes' => 'Rapikan abstrak.',
+        'decided_at' => now()->subDays(5),
+    ])->save();
+
+    assignDefenseExaminer($defense, $secondLecturer, 'examiner', 2)->forceFill([
+        'decision' => 'pass_with_revision',
+        'score' => 87,
+        'revision_notes' => 'Perbaiki daftar pustaka.',
+        'decided_at' => now()->subDays(5),
+    ])->save();
+
+    $firstRevision = ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $defense->id,
+        'requested_by_user_id' => $firstLecturer->id,
+        'status' => 'submitted',
+        'notes' => 'Rapikan abstrak.',
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $secondRevision = ThesisRevision::query()->create([
+        'project_id' => $project->id,
+        'defense_id' => $defense->id,
+        'requested_by_user_id' => $secondLecturer->id,
+        'status' => 'submitted',
+        'notes' => 'Perbaiki daftar pustaka.',
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($firstLecturer)
+        ->post(route('dosen.seminar-proposal.revisions.resolve', $firstRevision))
+        ->assertRedirect(route('dosen.seminar-proposal'));
+
+    $this->assertDatabaseHas('thesis_projects', [
+        'id' => $project->id,
+        'phase' => 'sidang',
+        'state' => 'active',
+    ]);
+
+    $this->assertDatabaseHas('thesis_revisions', [
+        'id' => $firstRevision->id,
+        'status' => 'resolved',
+    ]);
+
+    expect(Notification::sent($admin, FilamentDatabaseNotification::class))->toHaveCount(0);
+
+    $this->actingAs($firstLecturer)
+        ->post(route('dosen.seminar-proposal.revisions.resolve', $secondRevision))
+        ->assertRedirect(route('dosen.seminar-proposal'));
+
+    $this->assertDatabaseHas('thesis_revisions', [
+        'id' => $secondRevision->id,
+        'status' => 'submitted',
+    ]);
+
+    $this->actingAs($secondLecturer)
+        ->post(route('dosen.seminar-proposal.revisions.resolve', $secondRevision))
+        ->assertRedirect(route('dosen.seminar-proposal'));
+
+    $this->assertDatabaseHas('thesis_projects', [
+        'id' => $project->id,
+        'phase' => 'completed',
+        'state' => 'completed',
+        'closed_by' => $secondLecturer->id,
+    ]);
+
+    $this->assertDatabaseHas('thesis_supervisor_assignments', [
+        'project_id' => $project->id,
+        'lecturer_user_id' => $firstLecturer->id,
+        'status' => 'ended',
+    ]);
+
+    expect(ThesisProjectEvent::query()
+        ->where('project_id', $project->id)
+        ->where('event_type', 'revision_resolved')
+        ->count())->toBe(2);
+
+    $adminNotifications = Notification::sent($admin, FilamentDatabaseNotification::class);
+
+    expect($adminNotifications)->toHaveCount(1)
+        ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi sidang selesai');
 });

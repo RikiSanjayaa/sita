@@ -19,6 +19,7 @@ class ThesisDefenseExaminer extends Model
         'decision',
         'score',
         'notes',
+        'revision_notes',
         'decided_at',
         'assigned_by',
     ];

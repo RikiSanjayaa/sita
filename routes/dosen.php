@@ -14,6 +14,8 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::get('seminar-proposal', [SeminarProposalController::class, 'index'])->name('seminar-proposal');
     Route::post('seminar-proposal/{defense}/decision', [SeminarProposalController::class, 'submitDecision'])
         ->name('seminar-proposal.decision');
+    Route::post('seminar-proposal/revisions/{revision}/resolve', [SeminarProposalController::class, 'resolveRevision'])
+        ->name('seminar-proposal.revisions.resolve');
 
     Route::get('mahasiswa-bimbingan', MahasiswaBimbinganController::class)->name('mahasiswa-bimbingan');
 

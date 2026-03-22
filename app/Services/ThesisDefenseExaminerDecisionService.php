@@ -41,6 +41,9 @@ class ThesisDefenseExaminerDecisionService
                 'decision' => $data['decision'],
                 'score' => $data['score'],
                 'notes' => $data['decision_notes'],
+                'revision_notes' => $data['decision'] === 'pass_with_revision'
+                    ? $data['revision_notes']
+                    : null,
                 'decided_at' => now(),
             ])->save();
 

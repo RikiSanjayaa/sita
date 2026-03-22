@@ -54,9 +54,12 @@ type Revision = {
     id: number;
     notes: string;
     status: string;
+    statusLabel: string;
     dueAt: string | null;
     resolvedAt: string | null;
+    resolutionNotes: string | null;
     requestedBy: string;
+    canResolve: boolean;
 };
 
 type DefenseItem = {
@@ -87,6 +90,7 @@ type PageProps = {
     defenses: DefenseItem[];
     workspaceEvents: BimbinganEvent[];
     flashMessage?: string | null;
+    errorMessage?: string | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -285,6 +289,9 @@ function DecisionForm({
 
 function DefenseCard({ item }: { item: DefenseItem }) {
     const [showForm, setShowForm] = useState(false);
+    const [resolvingRevisionId, setResolvingRevisionId] = useState<
+        number | null
+    >(null);
     const canDecide =
         item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
     const averageScore = calculateAverageAcademicScore([
@@ -292,6 +299,19 @@ function DefenseCard({ item }: { item: DefenseItem }) {
         ...item.otherExaminers.map((examiner) => examiner.score),
     ]);
     const finalGrade = resolveAcademicGrade(averageScore);
+
+    function resolveRevision(revisionId: number) {
+        setResolvingRevisionId(revisionId);
+
+        router.post(
+            `/dosen/seminar-proposal/revisions/${revisionId}/resolve`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setResolvingRevisionId(null),
+            },
+        );
+    }
 
     return (
         <Card className="overflow-hidden py-0 shadow-sm">
@@ -462,15 +482,48 @@ function DefenseCard({ item }: { item: DefenseItem }) {
                         <div className="space-y-2">
                             {item.revisions.map((rev) => (
                                 <div key={rev.id} className="text-sm">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline">
+                                            {rev.statusLabel}
+                                        </Badge>
+                                        <span className="text-xs text-amber-700 dark:text-amber-300">
+                                            Diminta oleh: {rev.requestedBy}
+                                        </span>
+                                    </div>
                                     <p className="text-amber-900 dark:text-amber-100">
                                         {rev.notes}
                                     </p>
                                     <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
-                                        Diminta oleh: {rev.requestedBy}
-                                        {rev.dueAt && ` · Batas: ${rev.dueAt}`}
+                                        {rev.dueAt && `Batas: ${rev.dueAt}`}
                                         {rev.resolvedAt &&
                                             ` · Selesai: ${rev.resolvedAt}`}
                                     </p>
+                                    {rev.resolutionNotes ? (
+                                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                            Catatan penyelesaian:{' '}
+                                            {rev.resolutionNotes}
+                                        </p>
+                                    ) : null}
+                                    {rev.canResolve ? (
+                                        <div className="mt-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="secondary"
+                                                disabled={
+                                                    resolvingRevisionId ===
+                                                    rev.id
+                                                }
+                                                onClick={() =>
+                                                    resolveRevision(rev.id)
+                                                }
+                                            >
+                                                {resolvingRevisionId === rev.id
+                                                    ? 'Menyimpan...'
+                                                    : 'Revisi Selesai'}
+                                            </Button>
+                                        </div>
+                                    ) : null}
                                 </div>
                             ))}
                         </div>
@@ -502,7 +555,7 @@ function DefenseCard({ item }: { item: DefenseItem }) {
 }
 
 export default function DosenSeminarProposalPage() {
-    const { defenses, workspaceEvents, flashMessage } = usePage<
+    const { defenses, workspaceEvents, flashMessage, errorMessage } = usePage<
         SharedData & PageProps
     >().props;
     const [search, setSearch] = useState('');
@@ -643,9 +696,15 @@ export default function DosenSeminarProposalPage() {
             <Head title="Sempro & Sidang — Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                {flashMessage && (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
-                        {flashMessage}
+                {(flashMessage || errorMessage) && (
+                    <div
+                        className={`rounded-lg border p-3 text-sm ${
+                            errorMessage
+                                ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
+                        }`}
+                    >
+                        {errorMessage || flashMessage}
                     </div>
                 )}
 
