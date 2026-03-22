@@ -3,6 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\Login;
+use App\Filament\Pages\Auth\RequestPasswordReset;
+use App\Filament\Pages\Auth\ResetPassword;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -29,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('SiTA Universitas Bumigora')
             ->favicon(asset('favicon.svg'))
             ->login(Login::class)
+            ->passwordReset(RequestPasswordReset::class, ResetPassword::class)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->globalSearchFieldSuffix(fn(): string => match (Platform::detect()) {
                 Platform::Mac => 'Cmd+K',
