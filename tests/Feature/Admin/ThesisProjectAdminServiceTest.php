@@ -453,11 +453,24 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(3)
         ->and($sidangThread->messages()->count())->toBe(1);
 
-    $scheduledSidang->examiners()->update([
-        'decision' => 'pass_with_revision',
-        'score' => 84,
-        'decided_at' => now(),
-    ]);
+    $scheduledSidang->examiners()
+        ->where('lecturer_user_id', $primarySupervisor->id)
+        ->update([
+            'decision' => 'pass_with_revision',
+            'score' => 84,
+            'notes' => 'Perbaiki penjelasan hasil penelitian.',
+            'revision_notes' => 'Rapikan format daftar pustaka.',
+            'decided_at' => now(),
+        ]);
+
+    $scheduledSidang->examiners()
+        ->whereIn('lecturer_user_id', [$secondarySupervisor->id, $examiner->id])
+        ->update([
+            'decision' => 'pass',
+            'score' => 86,
+            'notes' => 'Siap diluluskan.',
+            'decided_at' => now(),
+        ]);
 
     $scheduledSidang->forceFill([
         'status' => 'awaiting_finalization',
@@ -478,6 +491,8 @@ test('admin service schedules and completes sidang with revision', function (): 
     expect($sidang->status)->toBe('completed')
         ->and($sidang->result)->toBe('pass_with_revision')
         ->and(ThesisRevision::query()->where('project_id', $project->id)->count())->toBe(1)
+        ->and(ThesisRevision::query()->where('project_id', $project->id)->value('requested_by_user_id'))->toBe($primarySupervisor->id)
+        ->and(ThesisRevision::query()->where('project_id', $project->id)->value('notes'))->toBe('Rapikan format daftar pustaka.')
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_scheduled')->count())->toBe(1)
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_completed')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sidang')

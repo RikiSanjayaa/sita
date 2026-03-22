@@ -160,7 +160,7 @@ class ThesisProjectAdminService
             }
 
             if ($result === 'pass_with_revision') {
-                $this->upsertDefenseRevision($defense, $decidedBy, $notes, $revisionDueAt);
+                $this->syncDefenseRevisionsFromExaminers($defense, $notes, $revisionDueAt);
 
                 $project->forceFill([
                     'phase' => 'sempro',
@@ -477,7 +477,7 @@ class ThesisProjectAdminService
             }
 
             if ($result === 'pass_with_revision') {
-                $this->upsertDefenseRevision($defense, $decidedBy, $revisionNotes ?? $notes, $revisionDueAt);
+                $this->syncDefenseRevisionsFromExaminers($defense, $revisionNotes ?? $notes, $revisionDueAt);
 
                 $project->forceFill([
                     'phase' => 'sidang',
@@ -622,38 +622,53 @@ class ThesisProjectAdminService
             ]);
     }
 
-    private function upsertDefenseRevision(ThesisDefense $defense, int $requestedBy, string $notes, ?string $dueAt): void
+    private function syncDefenseRevisionsFromExaminers(ThesisDefense $defense, string $fallbackNotes, ?string $dueAt): void
     {
-        $revision = ThesisRevision::query()
-            ->where('project_id', $defense->project_id)
-            ->where('defense_id', $defense->getKey())
-            ->whereIn('status', ['open', 'submitted'])
-            ->latest('id')
-            ->first();
+        $requestingExaminers = $defense->examiners
+            ->where('decision', 'pass_with_revision')
+            ->values();
 
-        if ($revision instanceof ThesisRevision) {
-            $revision->forceFill([
-                'requested_by_user_id' => $requestedBy,
+        if ($requestingExaminers->isEmpty()) {
+            throw new RuntimeException('Tidak ada dosen penguji yang meminta revisi untuk hasil ini.');
+        }
+
+        foreach ($requestingExaminers as $examiner) {
+            $notes = filled($examiner->revision_notes)
+                ? $examiner->revision_notes
+                : ($examiner->notes ?: $fallbackNotes);
+
+            $revision = ThesisRevision::query()
+                ->where('project_id', $defense->project_id)
+                ->where('defense_id', $defense->getKey())
+                ->where('requested_by_user_id', $examiner->lecturer_user_id)
+                ->whereIn('status', ['open', 'submitted'])
+                ->latest('id')
+                ->first();
+
+            if ($revision instanceof ThesisRevision) {
+                $revision->forceFill([
+                    'requested_by_user_id' => $examiner->lecturer_user_id,
+                    'status' => 'open',
+                    'notes' => $notes,
+                    'due_at' => $dueAt,
+                    'submitted_at' => null,
+                    'resolved_at' => null,
+                    'resolved_by_user_id' => null,
+                    'resolution_notes' => null,
+                ])->save();
+
+                continue;
+            }
+
+            ThesisRevision::query()->create([
+                'project_id' => $defense->project_id,
+                'defense_id' => $defense->getKey(),
+                'requested_by_user_id' => $examiner->lecturer_user_id,
                 'status' => 'open',
                 'notes' => $notes,
                 'due_at' => $dueAt,
-                'submitted_at' => null,
-                'resolved_at' => null,
-                'resolved_by_user_id' => null,
-                'resolution_notes' => null,
-            ])->save();
-
-            return;
+            ]);
         }
-
-        ThesisRevision::query()->create([
-            'project_id' => $defense->project_id,
-            'defense_id' => $defense->getKey(),
-            'requested_by_user_id' => $requestedBy,
-            'status' => 'open',
-            'notes' => $notes,
-            'due_at' => $dueAt,
-        ]);
     }
 
     /**
