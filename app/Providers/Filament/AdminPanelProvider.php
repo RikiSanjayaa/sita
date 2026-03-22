@@ -2,9 +2,11 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Auth\RequestPasswordReset;
 use App\Filament\Pages\Auth\ResetPassword;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -32,6 +34,12 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('favicon.svg'))
             ->login(Login::class)
             ->passwordReset(RequestPasswordReset::class, ResetPassword::class)
+            ->profile(EditProfile::class, isSimple: false)
+            ->userMenuItems([
+                'profile' => fn(Action $action): Action => $action
+                    ->label('Edit profil')
+                    ->icon('heroicon-m-user-circle'),
+            ])
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->globalSearchFieldSuffix(fn(): string => match (Platform::detect()) {
                 Platform::Mac => 'Cmd+K',

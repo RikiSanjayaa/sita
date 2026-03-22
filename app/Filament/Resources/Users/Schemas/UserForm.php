@@ -52,6 +52,11 @@ class UserForm
                             ->label('Email address')
                             ->email()
                             ->required()
+                            ->disabled(fn(?User $record): bool => self::isCurrentUserRecord($record))
+                            ->dehydrated(fn(?User $record): bool => ! self::isCurrentUserRecord($record))
+                            ->helperText(fn(?User $record): ?string => self::isCurrentUserRecord($record)
+                                ? 'Email akun Anda sendiri tidak bisa diubah dari halaman ini.'
+                                : null)
                             ->maxLength(255),
                         TextInput::make('phone_number')
                             ->label('Nomor HP')
@@ -146,5 +151,13 @@ class UserForm
         $user = Auth::user();
 
         return $user?->hasRole(AppRole::SuperAdmin) ?? false;
+    }
+
+    private static function isCurrentUserRecord(?User $record): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user !== null && $record !== null && $record->is($user);
     }
 }

@@ -1,23 +1,25 @@
 import { Head } from '@inertiajs/react';
 
-import AppearanceSettingsPanel from '@/components/settings/appearance-settings-panel';
+import NotificationSettingsPanel from '@/components/settings/notification-settings-panel';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { makeSettingsBreadcrumbs } from '@/pages/settings/breadcrumbs';
-import { edit as editAppearance } from '@/routes/appearance';
 
-const breadcrumbs = makeSettingsBreadcrumbs('Tampilan', editAppearance().url);
+const breadcrumbs = makeSettingsBreadcrumbs(
+    'Notifikasi',
+    '/settings/notifications',
+);
 
-export default function Appearance() {
+export default function NotificationsPage() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Appearance settings" />
+            <Head title="Pengaturan notifikasi" />
 
-            <h1 className="sr-only">Appearance Settings</h1>
+            <h1 className="sr-only">Pengaturan notifikasi</h1>
 
             <SettingsLayout>
                 <div className="space-y-6">
-                    <AppearanceSettingsPanel />
+                    <NotificationSettingsPanel />
                 </div>
             </SettingsLayout>
         </AppLayout>

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Tables;
 
 use App\Enums\AppRole;
+use App\Filament\Resources\Users\Actions\SendPasswordResetLinkAction;
 use App\Models\ProgramStudi;
 use App\Models\User;
 use App\Support\Filament\BadgeStyles;
@@ -197,6 +198,7 @@ class UsersTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                SendPasswordResetLinkAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

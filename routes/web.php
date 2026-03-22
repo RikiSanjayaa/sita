@@ -9,7 +9,6 @@ use App\Http\Controllers\ProfileShowController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 Route::get('/jadwal', [WelcomeController::class, 'schedules'])->name('public.schedules');
@@ -29,10 +28,7 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('edit-profile', '/settings/profile')->name('edit-profile');
-
-    Route::get('settings', function () {
-        return Inertia::render('setting-notifikasi');
-    })->name('setting-notifikasi');
+    Route::redirect('settings', '/settings/profile');
 
     Route::redirect('tugas-akhir', '/mahasiswa/tugas-akhir')->name('tugas-akhir');
     Route::redirect('jadwal-bimbingan', '/mahasiswa/jadwal-bimbingan')->name('jadwal-bimbingan');
