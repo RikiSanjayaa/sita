@@ -14,9 +14,10 @@ createServer((page) =>
         page,
         render: ReactDOMServer.renderToString,
         title: (title) => {
-            const appName =
-                typeof (page as InertiaPage).props?.name === 'string'
-                    ? (page as InertiaPage).props.name
+            const inertiaPage = page as InertiaPage;
+            const appName: string =
+                typeof inertiaPage.props?.name === 'string'
+                    ? inertiaPage.props.name
                     : 'Laravel';
 
             return title ? `${title} - ${appName}` : appName;

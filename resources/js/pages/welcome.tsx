@@ -24,13 +24,22 @@ type WelcomePageProps = {
     highlights: Highlight[];
 };
 
-const featureLinks = [
+type FeatureLink = {
+    href: string;
+    title: string;
+    description: string;
+    icon: typeof CalendarClock;
+    highlightKey: keyof typeof highlightMeta;
+};
+
+const featureLinks: FeatureLink[] = [
     {
         href: '/jadwal',
         title: 'Jadwal',
         description:
             'Lihat jadwal sempro dan sidang yang akan datang maupun yang sudah berlalu.',
         icon: CalendarClock,
+        highlightKey: 'Jadwal',
     },
     {
         href: '/mahasiswa-aktif',
@@ -38,6 +47,7 @@ const featureLinks = [
         description:
             'Lihat mahasiswa yang masih aktif mengambil tugas akhir, dari yang baru terdaftar sampai tahap sempro, bimbingan, dan sidang.',
         icon: GraduationCap,
+        highlightKey: 'Mahasiswa Aktif',
     },
     {
         href: '/pembimbing',
@@ -45,6 +55,7 @@ const featureLinks = [
         description:
             'Telusuri dosen pembimbing aktif berdasarkan program studi dan konsentrasi.',
         icon: Users,
+        highlightKey: 'Dosen',
     },
     {
         href: '/topik',
@@ -52,6 +63,7 @@ const featureLinks = [
         description:
             'Telusuri topik skripsi yang benar-benar sudah final setelah sidang selesai dan dinyatakan lulus.',
         icon: BookOpenText,
+        highlightKey: 'Topik',
     },
 ];
 
@@ -59,26 +71,22 @@ const highlightMeta = {
     Jadwal: {
         accentClassName: 'bg-primary/12 text-primary',
         valueClassName: 'text-primary',
-        helper: 'Agenda sempro dan sidang yang saat ini tersedia untuk publik.',
         icon: CalendarClock,
     },
     Dosen: {
         accentClassName:
             'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400',
         valueClassName: 'text-emerald-600 dark:text-emerald-400',
-        helper: 'Pembimbing aktif yang bisa ditelusuri dari direktori publik.',
         icon: Users,
     },
     'Mahasiswa Aktif': {
         accentClassName: 'bg-cyan-500/12 text-cyan-700 dark:text-cyan-400',
         valueClassName: 'text-cyan-600 dark:text-cyan-400',
-        helper: 'Mahasiswa yang masih menjalani proses tugas akhir hari ini.',
         icon: GraduationCap,
     },
     Topik: {
         accentClassName: 'bg-amber-500/12 text-amber-700 dark:text-amber-400',
         valueClassName: 'text-amber-600 dark:text-amber-400',
-        helper: 'Topik skripsi final yang aman dijadikan referensi publik.',
         icon: BookOpenText,
     },
 } as const;
@@ -239,10 +247,6 @@ export default function Welcome() {
                                     </Link>
                                 </Button>
                             )}
-                            <p className="text-sm text-muted-foreground">
-                                Data publik diperbarui mengikuti isi sistem yang
-                                sedang aktif.
-                            </p>
                         </div>
                     </div>
                 </section>
@@ -254,13 +258,8 @@ export default function Welcome() {
                                 Snapshot Publik
                             </p>
                             <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                                Angka penting yang paling sering dicari.
+                                Jelajahi data publik SiTA dalam satu tempat.
                             </h3>
-                            <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                                Ringkasan ini memberi gambaran cepat tentang
-                                aktivitas publik SiTA sebelum pengunjung masuk
-                                ke halaman detailnya.
-                            </p>
                         </div>
 
                         <Badge variant="outline" className="w-fit">
@@ -268,94 +267,73 @@ export default function Welcome() {
                         </Badge>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        {highlights.map((item) => {
-                            const meta =
-                                highlightMeta[
-                                    item.label as keyof typeof highlightMeta
-                                ] ?? highlightMeta.Jadwal;
-                            const Icon = meta.icon;
+                    <div className="grid gap-0 divide-y rounded-3xl border sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
+                        {featureLinks.map((item, index) => {
+                            const Icon = item.icon;
+                            const meta = highlightMeta[item.highlightKey];
+                            const highlight = highlights.find(
+                                (h) => h.label === item.highlightKey,
+                            );
+
+                            const isSecond = index === 1;
+                            const isThird = index === 2;
+                            const isFourth = index === 3;
 
                             return (
                                 <div
-                                    key={item.label}
-                                    className="group relative overflow-hidden rounded-[1.75rem] border bg-background/90 p-5 shadow-sm transition-colors hover:bg-background"
+                                    key={item.href}
+                                    className={cn(
+                                        'flex flex-col gap-4 p-6',
+                                        isSecond && 'sm:border-l',
+                                        isThird &&
+                                            'sm:border-t xl:border-t-0 xl:border-l',
+                                        isFourth &&
+                                            'sm:border-t sm:border-l xl:border-t-0',
+                                    )}
                                 >
-                                    <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-primary/5 blur-2xl transition-opacity group-hover:opacity-100" />
-                                    <div className="relative flex h-full flex-col gap-5">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div
-                                                className={cn(
-                                                    'inline-flex size-11 items-center justify-center rounded-2xl',
-                                                    meta.accentClassName,
-                                                )}
-                                            >
-                                                <Icon className="size-5" />
-                                            </div>
-                                            <Badge
-                                                variant="outline"
-                                                className="rounded-full"
-                                            >
-                                                {item.label}
-                                            </Badge>
-                                        </div>
-
-                                        <div className="space-y-2">
+                                    <div className="flex items-start justify-between">
+                                        <span
+                                            className={cn(
+                                                'inline-flex size-10 items-center justify-center rounded-xl',
+                                                meta.accentClassName,
+                                            )}
+                                        >
+                                            <Icon className="size-5" />
+                                        </span>
+                                        {highlight && (
                                             <CountUpNumber
-                                                value={item.value}
+                                                value={highlight.value}
                                                 className={cn(
                                                     'text-4xl font-semibold tracking-tight sm:text-5xl',
                                                     meta.valueClassName,
                                                 )}
                                             />
-                                            <p className="text-base font-semibold text-foreground">
-                                                {item.label}
-                                            </p>
-                                            <p className="text-sm leading-6 text-muted-foreground">
-                                                {meta.helper}
-                                            </p>
-                                        </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="text-lg font-semibold">
+                                            {item.title}
+                                        </h3>
+                                        <p className="text-sm leading-6 text-muted-foreground">
+                                            {item.description}
+                                        </p>
+                                    </div>
+                                    <div className="mt-auto pt-2">
+                                        <Button
+                                            asChild
+                                            variant="secondary"
+                                            size="sm"
+                                            className="rounded-lg"
+                                        >
+                                            <Link href={item.href}>
+                                                Buka {item.title}
+                                            </Link>
+                                        </Button>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
-                </section>
-
-                <section className="grid gap-4 border-b md:grid-cols-2 md:gap-0 md:divide-x md:rounded-3xl md:border xl:grid-cols-4">
-                    {featureLinks.map((item) => {
-                        const Icon = item.icon;
-
-                        return (
-                            <div
-                                key={item.href}
-                                className="flex flex-col gap-4 p-6"
-                            >
-                                <span className="inline-flex size-10 items-center justify-center rounded-xl bg-muted text-primary">
-                                    <Icon className="size-5" />
-                                </span>
-                                <div className="space-y-2">
-                                    <h3 className="text-lg font-semibold">
-                                        {item.title}
-                                    </h3>
-                                    <p className="text-sm leading-6 text-muted-foreground">
-                                        {item.description}
-                                    </p>
-                                </div>
-                                <div className="mt-auto pt-2">
-                                    <Button
-                                        asChild
-                                        variant="ghost"
-                                        className="px-0"
-                                    >
-                                        <Link href={item.href}>
-                                            Buka {item.title}
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </div>
-                        );
-                    })}
                 </section>
             </div>
         </PublicLayout>
