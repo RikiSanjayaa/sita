@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ThesisProjects\Schemas;
 
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -108,6 +109,35 @@ class ThesisProjectForm
                         Textarea::make('notes')
                             ->label('Catatan Admin')
                             ->rows(4)
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Override Judul & Proposal')
+                    ->description('Admin dapat memperbarui judul dan proposal aktif kapan saja. Mahasiswa akan menerima notifikasi otomatis ketika data inti ini diubah.')
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('title_id')
+                            ->label('Judul Indonesia')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('title_en')
+                            ->label('Judul Inggris')
+                            ->maxLength(255),
+                        Textarea::make('proposal_summary')
+                            ->label('Ringkasan Proposal')
+                            ->rows(6)
+                            ->columnSpanFull(),
+                        TextInput::make('current_proposal_file_name')
+                            ->label('Proposal Aktif Saat Ini')
+                            ->disabled()
+                            ->dehydrated(false),
+                        FileUpload::make('proposal_file')
+                            ->label('Ganti File Proposal')
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                            ])
+                            ->helperText('Kosongkan jika file proposal tidak berubah. Upload PDF baru jika admin perlu mengganti dokumen proposal aktif.')
+                            ->storeFiles(false)
+                            ->downloadable()
                             ->columnSpanFull(),
                     ]),
             ]);
