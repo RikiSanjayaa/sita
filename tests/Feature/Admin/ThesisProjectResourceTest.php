@@ -14,6 +14,9 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Notifications\RealtimeNotification;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -156,6 +159,126 @@ test('admin can edit thesis project metadata from a dedicated edit page', functi
         ->and($project->started_at?->format('Y-m-d H:i:s'))->toBe($startedAt)
         ->and($project->completed_at?->format('Y-m-d H:i:s'))->toBe($completedAt)
         ->and($project->cancelled_at)->toBeNull();
+});
+
+test('admin can override title and proposal anytime and student receives notification', function (): void {
+    Storage::fake('public');
+    Notification::fake();
+
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = User::factory()->asMahasiswa()->create(['name' => 'Mahasiswa Override']);
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510302',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'research',
+        'state' => 'active',
+        'started_at' => now()->subDays(14),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Lama Mahasiswa',
+        'title_en' => 'Old Thesis Title',
+        'proposal_summary' => 'Ringkasan proposal lama.',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(13),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(12),
+    ]);
+
+    Storage::disk('public')->put('proposal_files/proposal-lama-admin.pdf', 'proposal-lama');
+
+    ThesisDocument::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'uploaded_by_user_id' => $student->id,
+        'kind' => 'proposal',
+        'status' => 'active',
+        'version_no' => 1,
+        'title' => 'Proposal Skripsi',
+        'storage_disk' => 'public',
+        'storage_path' => 'proposal_files/proposal-lama-admin.pdf',
+        'stored_file_name' => 'proposal-lama-admin.pdf',
+        'file_name' => 'proposal-lama-admin.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'uploaded_at' => now()->subDays(13),
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'pass',
+        'scheduled_for' => now()->subDays(7),
+        'location' => 'Ruang Sempro',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+        'decided_by' => $admin->id,
+        'decision_at' => now()->subDays(7),
+    ]);
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($admin);
+
+    Livewire::test(EditThesisProject::class, ['record' => $project->getRouteKey()])
+        ->fillForm([
+            'title_id' => 'Judul Baru Mahasiswa',
+            'title_en' => 'New Thesis Title',
+            'proposal_summary' => 'Ringkasan proposal baru hasil koreksi admin.',
+            'proposal_file' => UploadedFile::fake()->create('proposal-baru-admin.pdf', 700, 'application/pdf'),
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertRedirect(ThesisProjectResource::getUrl('view', ['record' => $project]));
+
+    $title->refresh();
+    $proposal = ThesisDocument::query()
+        ->where('project_id', $project->id)
+        ->where('kind', 'proposal')
+        ->firstOrFail();
+
+    expect($title->title_id)->toBe('Judul Baru Mahasiswa')
+        ->and($title->title_en)->toBe('New Thesis Title')
+        ->and($title->proposal_summary)->toBe('Ringkasan proposal baru hasil koreksi admin.')
+        ->and($proposal->file_name)->toBe('proposal-baru-admin.pdf');
+
+    Storage::disk('public')->assertMissing('proposal_files/proposal-lama-admin.pdf');
+    Storage::disk('public')->assertExists((string) $proposal->storage_path);
+
+    $this->assertDatabaseHas('thesis_project_events', [
+        'project_id' => $project->id,
+        'event_type' => 'core_submission_updated_by_admin',
+        'label' => 'Judul/proposal diperbarui admin',
+    ]);
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Judul / proposal diperbarui admin'
+            && $data['preferenceKey'] === 'statusTugasAkhir';
+    });
 });
 
 test('admin can use workflow tabs and filters in thesis projects list', function (): void {
