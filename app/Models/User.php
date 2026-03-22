@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AppRole;
+use App\Notifications\Auth\ResetPasswordNotification;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -317,5 +318,10 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->hasRole(AppRole::Admin) || $this->hasRole(AppRole::SuperAdmin);
+    }
+
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
