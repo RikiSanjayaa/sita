@@ -267,7 +267,7 @@ export default function Welcome() {
                         </Badge>
                     </div>
 
-                    <div className="grid gap-0 divide-y rounded-3xl border sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
+                    <div className="grid gap-0 rounded-3xl border sm:grid-cols-2 xl:grid-cols-4">
                         {featureLinks.map((item, index) => {
                             const Icon = item.icon;
                             const meta = highlightMeta[item.highlightKey];
@@ -275,6 +275,7 @@ export default function Welcome() {
                                 (h) => h.label === item.highlightKey,
                             );
 
+                            const isFirst = index === 0;
                             const isSecond = index === 1;
                             const isThird = index === 2;
                             const isFourth = index === 3;
@@ -284,11 +285,10 @@ export default function Welcome() {
                                     key={item.href}
                                     className={cn(
                                         'flex flex-col gap-4 p-6',
-                                        isSecond && 'sm:border-l',
-                                        isThird &&
-                                            'sm:border-t xl:border-t-0 xl:border-l',
-                                        isFourth &&
-                                            'sm:border-t sm:border-l xl:border-t-0',
+                                        !isFirst && 'border-t',
+                                        isSecond && 'sm:border-t-0 sm:border-l',
+                                        isThird && 'xl:border-t-0 xl:border-l',
+                                        isFourth && 'sm:border-l xl:border-t-0',
                                     )}
                                 >
                                     <div className="flex items-start justify-between">
@@ -325,8 +325,12 @@ export default function Welcome() {
                                             size="sm"
                                             className="rounded-lg"
                                         >
-                                            <Link href={item.href}>
+                                            <Link
+                                                href={item.href}
+                                                className="inline-flex items-center gap-1.5"
+                                            >
                                                 Buka {item.title}
+                                                <ArrowRight className="size-4" />
                                             </Link>
                                         </Button>
                                     </div>

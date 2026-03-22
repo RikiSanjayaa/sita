@@ -133,12 +133,19 @@
 }
 
 @layer base {
+    html {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+    }
+
     * {
         @apply border-border;
     }
 
     body {
         @apply bg-background text-foreground;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
     }
 
     /* Shadcn-like Custom Global Scrollbar */

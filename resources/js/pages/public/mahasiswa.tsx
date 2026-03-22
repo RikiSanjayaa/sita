@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Select,
     SelectContent,
@@ -207,7 +208,7 @@ function PublicStudentsContent({
                     </CardHeader>
                     <CardContent className="space-y-4 pb-6">
                         {activeStudents.length > 0 ? (
-                            <div className="overflow-x-auto rounded-xl border">
+                            <ScrollArea className="rounded-xl border">
                                 <table className="w-full min-w-[980px] text-sm">
                                     <thead className="bg-muted/30 text-left">
                                         <tr>
@@ -288,7 +289,7 @@ function PublicStudentsContent({
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </ScrollArea>
                         ) : (
                             <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                                 {hasActiveFilter

@@ -101,7 +101,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </div>
                         </CardContent>
 
-                        <CardFooter className="flex flex-col gap-4">
+                        <CardFooter className="flex flex-col">
                             <Button
                                 type="submit"
                                 className="w-full"
@@ -112,10 +112,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 {processing && <Spinner />}
                                 Masuk
                             </Button>
-
-                            <div className="invisible text-center text-sm text-muted-foreground">
-                                Belum punya akun?{' '}
-                            </div>
                         </CardFooter>
                     </Card>
                 )}

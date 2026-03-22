@@ -308,12 +308,7 @@ export default function CsatPage() {
                                 />
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-                                <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                                    <MessageSquareText className="size-4" />
-                                    Isi singkat saja, yang penting jelas.
-                                </div>
-
+                            <div className="flex flex-wrap items-center justify-end border-t pt-4">
                                 <Button
                                     type="submit"
                                     disabled={
