@@ -49,50 +49,90 @@ class MahasiswaBimbinganController extends Controller
             ->keyBy('student_user_id');
 
         $rows = $assignments->map(function ($assignment) use ($latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent): array {
-            $student = $assignment->project?->student;
-            $profile = $student?->mahasiswaProfile;
-            $project = $assignment->project;
-            $studentUserId = $assignment->project?->student_user_id;
-            $latestSchedule = $studentUserId === null ? null : $latestScheduleByStudent->get($studentUserId);
-            $latestDocument = $studentUserId === null ? null : $latestDocumentByStudent->get($studentUserId);
-            $threadId = $studentUserId === null ? null : $threadIdsByStudent->get($studentUserId);
+            return $this->buildRow($assignment, $latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent);
+        })->values()->all();
 
-            $isActive = $profile?->is_active ?? true;
+        // Archived / history rows
+        $archivedAssignments = $this->dosenBimbinganService->archivedAssignmentsWithStudent($lecturer);
+        $archivedStudentIds = $archivedAssignments->pluck('project.student_user_id')->filter()->unique()->values();
 
-            $stage = $this->stageSummary($project);
-            $studentSummary = $this->userProfilePresenter->summary($student);
+        $archivedThreadIds = MentorshipChatThread::query()
+            ->whereIn('student_user_id', $archivedStudentIds)
+            ->pluck('id', 'student_user_id');
 
-            return [
-                'nim' => $profile?->nim ?? '-',
-                'name' => $student?->name ?? '-',
-                'avatar' => $studentSummary['avatar'] ?? null,
-                'advisorType' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
-                'otherAdvisors' => $project?->activeSupervisorAssignments
-                    ->filter(fn(ThesisSupervisorAssignment $activeAssignment): bool => $activeAssignment->lecturer_user_id !== $assignment->lecturer_user_id)
-                    ->sortBy('role')
-                    ->map(fn(ThesisSupervisorAssignment $activeAssignment): string => sprintf(
-                        '%s: %s',
-                        $activeAssignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
-                        $activeAssignment->lecturer?->name ?? '-',
-                    ))
-                    ->values()
-                    ->all() ?? [],
-                'stageLabel' => $stage['label'],
-                'stageDescription' => $stage['description'],
-                'status' => $isActive ? 'Aktif' : 'Nonaktif',
-                'lastUpdate' => $latestDocument?->updated_at?->diffForHumans()
-                    ?? $latestSchedule?->updated_at?->diffForHumans()
-                    ?? 'Belum ada aktivitas',
-                'chatUrl' => $threadId === null ? null : "/dosen/pesan-bimbingan?thread={$threadId}",
-                'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
-            ];
+        $archivedLatestDoc = MentorshipDocument::query()
+            ->where('lecturer_user_id', $lecturer->id)
+            ->whereIn('student_user_id', $archivedStudentIds)
+            ->orderByDesc('updated_at')
+            ->get()
+            ->keyBy('student_user_id');
+
+        $archivedLatestSchedule = MentorshipSchedule::query()
+            ->where('lecturer_user_id', $lecturer->id)
+            ->whereIn('student_user_id', $archivedStudentIds)
+            ->orderByDesc('updated_at')
+            ->get()
+            ->keyBy('student_user_id');
+
+        $historyRows = $archivedAssignments->map(function ($assignment) use ($archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds): array {
+            return $this->buildRow($assignment, $archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds);
         })->values()->all();
 
         return Inertia::render('dosen/mahasiswa-bimbingan', [
             'mahasiswaRows' => $rows,
+            'historyRows' => $historyRows,
             'activeCount' => count($rows),
             'capacityLimit' => $this->dosenBimbinganService->lecturerQuota($lecturer),
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<string,mixed>  $latestDocByStudent
+     * @param  \Illuminate\Support\Collection<string,mixed>  $latestScheduleByStudent
+     * @param  \Illuminate\Support\Collection<string,mixed>  $threadIdsByStudent
+     * @return array<string,mixed>
+     */
+    private function buildRow(
+        mixed $assignment,
+        mixed $latestDocByStudent,
+        mixed $latestScheduleByStudent,
+        mixed $threadIdsByStudent,
+    ): array {
+        $student = $assignment->project?->student;
+        $profile = $student?->mahasiswaProfile;
+        $project = $assignment->project;
+        $studentUserId = $assignment->project?->student_user_id;
+        $latestSchedule = $studentUserId === null ? null : $latestScheduleByStudent->get($studentUserId);
+        $latestDocument = $studentUserId === null ? null : $latestDocByStudent->get($studentUserId);
+        $threadId = $studentUserId === null ? null : $threadIdsByStudent->get($studentUserId);
+
+        $stage = $this->stageSummary($project);
+        $studentSummary = $this->userProfilePresenter->summary($student);
+
+        return [
+            'nim' => $profile?->nim ?? '-',
+            'name' => $student?->name ?? '-',
+            'avatar' => $studentSummary['avatar'] ?? null,
+            'advisorType' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
+            'otherAdvisors' => $project?->activeSupervisorAssignments
+                ->filter(fn (ThesisSupervisorAssignment $a): bool => $a->lecturer_user_id !== $assignment->lecturer_user_id)
+                ->sortBy('role')
+                ->map(fn (ThesisSupervisorAssignment $a): string => sprintf(
+                    '%s: %s',
+                    $a->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
+                    $a->lecturer?->name ?? '-',
+                ))
+                ->values()
+                ->all() ?? [],
+            'stageLabel' => $stage['label'],
+            'stageDescription' => $stage['description'],
+            'status' => ($profile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
+            'lastUpdate' => $latestDocument?->updated_at?->diffForHumans()
+                ?? $latestSchedule?->updated_at?->diffForHumans()
+                ?? 'Belum ada aktivitas',
+            'chatUrl' => $threadId === null ? null : "/dosen/pesan-bimbingan?thread={$threadId}",
+            'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
+        ];
     }
 
     /**

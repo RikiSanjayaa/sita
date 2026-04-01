@@ -785,15 +785,6 @@ function DosenPesanBimbinganContent({
                     <CardContent className="relative flex-1 overflow-hidden pb-6">
                         <ScrollArea className="h-full w-full">
                             <div className="flex min-h-full flex-col p-4">
-                                {flashMessage && (
-                                    <Alert className="mb-3">
-                                        <AlertTitle>Info</AlertTitle>
-                                        <AlertDescription>
-                                            {flashMessage}
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
                                 {activeThread ? (
                                     <div className="grid">
                                         {activeMessages.map((message) => {

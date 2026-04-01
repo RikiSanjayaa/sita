@@ -56,6 +56,7 @@ class UploadDokumenController extends Controller
                         'needs_revision' => 'Perlu Revisi',
                         default => 'Menunggu Review',
                     },
+                    'revisionNotes' => $document->revision_notes,
                     'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
                 ];
             })

@@ -4,6 +4,7 @@ import {
     CheckCircle2,
     Clock,
     FileWarning,
+    Inbox,
     MapPin,
     Search,
     Send,
@@ -17,15 +18,9 @@ import {
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +30,7 @@ import {
     calculateAverageAcademicScore,
     resolveAcademicGrade,
 } from '@/lib/academic-grade';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -101,11 +97,10 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusColor: Record<string, string> = {
-    scheduled: 'bg-primary/10 text-primary hover:bg-primary/20',
-    awaiting_finalization:
-        'bg-amber-600/10 text-amber-700 hover:bg-amber-600/20',
-    completed: 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20',
-    cancelled: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
+    scheduled: 'bg-primary/10 text-primary',
+    awaiting_finalization: 'bg-amber-600/10 text-amber-700',
+    completed: 'bg-emerald-600/10 text-emerald-600',
+    cancelled: 'bg-destructive/10 text-destructive',
 };
 
 const decisionLabel: Record<string, string> = {
@@ -123,14 +118,8 @@ const resultLabel: Record<string, string> = {
 };
 
 function resolveDefenseRoleLabel(role: string) {
-    if (role === 'primary_supervisor') {
-        return 'Pembimbing 1';
-    }
-
-    if (role === 'secondary_supervisor') {
-        return 'Pembimbing 2';
-    }
-
+    if (role === 'primary_supervisor') return 'Pembimbing 1';
+    if (role === 'secondary_supervisor') return 'Pembimbing 2';
     return 'Penguji';
 }
 
@@ -149,7 +138,6 @@ function DecisionForm({
 
     function submit() {
         if (!decision || !score) return;
-
         setSubmitting(true);
         router.post(
             `/dosen/seminar-proposal/${defenseId}/decision`,
@@ -168,68 +156,47 @@ function DecisionForm({
     }
 
     return (
-        <div className="mt-4 space-y-5 rounded-xl border bg-background p-5 shadow-sm">
-            <h4 className="text-sm font-semibold">Input Keputusan</h4>
+        <div className="space-y-4 border-t bg-muted/20 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Input Keputusan
+            </p>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-                <div>
+            <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-1.5">
                     <Label htmlFor="decision">Keputusan *</Label>
-                    <div className="mt-1.5 flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Button
                             type="button"
                             size="sm"
-                            variant={
-                                decision === 'pass' ? 'default' : 'outline'
-                            }
+                            variant={decision === 'pass' ? 'default' : 'outline'}
                             onClick={() => setDecision('pass')}
-                            className={
-                                decision === 'pass'
-                                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                                    : ''
-                            }
+                            className={decision === 'pass' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
                         >
-                            <CheckCircle2 className="mr-1.5 size-3.5" />
-                            Setujui
+                            <CheckCircle2 className="size-3.5" /> Setujui
                         </Button>
                         <Button
                             type="button"
                             size="sm"
-                            variant={
-                                decision === 'pass_with_revision'
-                                    ? 'default'
-                                    : 'outline'
-                            }
+                            variant={decision === 'pass_with_revision' ? 'default' : 'outline'}
                             onClick={() => setDecision('pass_with_revision')}
-                            className={
-                                decision === 'pass_with_revision'
-                                    ? 'bg-amber-600 hover:bg-amber-700'
-                                    : ''
-                            }
+                            className={decision === 'pass_with_revision' ? 'bg-amber-600 hover:bg-amber-700' : ''}
                         >
-                            <FileWarning className="mr-1.5 size-3.5" />
-                            Perlu Revisi
+                            <FileWarning className="size-3.5" /> Perlu Revisi
                         </Button>
                         <Button
                             type="button"
                             size="sm"
-                            variant={
-                                decision === 'fail' ? 'default' : 'outline'
-                            }
+                            variant={decision === 'fail' ? 'default' : 'outline'}
                             onClick={() => setDecision('fail')}
-                            className={
-                                decision === 'fail'
-                                    ? 'bg-destructive hover:bg-destructive/90'
-                                    : ''
-                            }
+                            className={decision === 'fail' ? 'bg-destructive hover:bg-destructive/90' : ''}
                         >
-                            <FileWarning className="mr-1.5 size-3.5" />
-                            Tidak Lulus
+                            <FileWarning className="size-3.5" /> Tidak Lulus
                         </Button>
                     </div>
                 </div>
 
-                <div>
-                    <Label htmlFor="score">Nilai (0-100) *</Label>
+                <div className="grid gap-1.5">
+                    <Label htmlFor="score">Nilai (0–100) *</Label>
                     <Input
                         id="score"
                         type="number"
@@ -238,13 +205,12 @@ function DecisionForm({
                         step={0.01}
                         value={score}
                         onChange={(e) => setScore(e.target.value)}
-                        placeholder="0 - 100"
-                        className="mt-1.5"
+                        placeholder="0 – 100"
                     />
                 </div>
             </div>
 
-            <div>
+            <div className="grid gap-1.5">
                 <Label htmlFor="decision-notes">Catatan Keputusan</Label>
                 <Textarea
                     id="decision-notes"
@@ -252,12 +218,12 @@ function DecisionForm({
                     value={decisionNotes}
                     onChange={(e) => setDecisionNotes(e.target.value)}
                     placeholder="Catatan umum untuk mahasiswa..."
-                    className="mt-1.5"
+                    className="resize-none"
                 />
             </div>
 
             {decision === 'pass_with_revision' && (
-                <div>
+                <div className="grid gap-1.5">
                     <Label htmlFor="revision-notes">Catatan Revisi *</Label>
                     <Textarea
                         id="revision-notes"
@@ -265,18 +231,14 @@ function DecisionForm({
                         value={revisionNotes}
                         onChange={(e) => setRevisionNotes(e.target.value)}
                         placeholder="Jelaskan apa yang perlu direvisi..."
-                        className="mt-1.5"
+                        className="resize-none"
                     />
                 </div>
             )}
 
             <div className="flex gap-2">
-                <Button
-                    size="sm"
-                    onClick={submit}
-                    disabled={submitting || !decision || !score}
-                >
-                    <Send className="mr-1.5 size-3.5" />
+                <Button size="sm" onClick={submit} disabled={submitting || !decision || !score}>
+                    <Send className="size-3.5" />
                     {submitting ? 'Menyimpan...' : 'Submit Keputusan'}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={onClose}>
@@ -289,276 +251,229 @@ function DecisionForm({
 
 function DefenseCard({ item }: { item: DefenseItem }) {
     const [showForm, setShowForm] = useState(false);
-    const [resolvingRevisionId, setResolvingRevisionId] = useState<
-        number | null
-    >(null);
-    const canDecide =
-        item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
+    const [resolvingRevisionId, setResolvingRevisionId] = useState<number | null>(null);
+
+    const canDecide = item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
     const averageScore = calculateAverageAcademicScore([
         item.myScore,
-        ...item.otherExaminers.map((examiner) => examiner.score),
+        ...item.otherExaminers.map((e) => e.score),
     ]);
     const finalGrade = resolveAcademicGrade(averageScore);
 
     function resolveRevision(revisionId: number) {
         setResolvingRevisionId(revisionId);
-
         router.post(
             `/dosen/seminar-proposal/revisions/${revisionId}/resolve`,
             {},
-            {
-                preserveScroll: true,
-                onFinish: () => setResolvingRevisionId(null),
-            },
+            { preserveScroll: true, onFinish: () => setResolvingRevisionId(null) },
         );
     }
 
     return (
-        <Card className="overflow-hidden py-0 shadow-sm">
-            <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <CardTitle className="text-base leading-snug">
-                            {item.titleId}
-                        </CardTitle>
-                        {item.titleEn && (
-                            <CardDescription className="mt-1 text-xs italic">
-                                {item.titleEn}
-                            </CardDescription>
-                        )}
-                    </div>
-                    <Badge
-                        variant="soft"
-                        className={`font-semibold ${statusColor[item.defenseStatus] ?? 'bg-muted text-muted-foreground'}`}
-                    >
-                        {statusLabel[item.defenseStatus] ?? item.defenseStatus}
-                    </Badge>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline">{item.typeLabel}</Badge>
-                    <span>Attempt #{item.attemptNo}</span>
-                    <span>
-                        Hasil:{' '}
-                        {resultLabel[item.defenseResult] ?? item.defenseResult}
-                    </span>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-4 pb-6">
-                {/* Student info */}
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5">
-                        <User className="size-3.5" />
-                        {item.studentName} ({item.studentNim})
-                    </span>
-                    {item.scheduledFor && (
-                        <span className="inline-flex items-center gap-1.5">
-                            <Clock className="size-3.5" />
-                            {item.scheduledFor}
-                        </span>
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            {/* ── Title + status ── */}
+            <div className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug">{item.titleId}</p>
+                    {item.titleEn && (
+                        <p className="mt-0.5 truncate text-xs italic text-muted-foreground">
+                            {item.titleEn}
+                        </p>
                     )}
-                    <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="size-3.5" />
-                        {item.location} ({item.mode})
-                    </span>
                 </div>
+                <span
+                    className={cn(
+                        'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                        statusColor[item.defenseStatus] ?? 'bg-muted text-muted-foreground',
+                    )}
+                >
+                    {statusLabel[item.defenseStatus] ?? item.defenseStatus}
+                </span>
+            </div>
 
+            {/* ── Meta strip ── */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
+                <Badge variant="outline" className="rounded-full text-xs">
+                    {item.typeLabel} #{item.attemptNo}
+                </Badge>
+                <span className="flex items-center gap-1">
+                    <User className="size-3 shrink-0" />
+                    {item.studentName} · {item.studentNim}
+                </span>
+                {item.scheduledFor && (
+                    <span className="flex items-center gap-1">
+                        <Clock className="size-3 shrink-0" />
+                        {item.scheduledFor}
+                    </span>
+                )}
+                <span className="flex items-center gap-1">
+                    <MapPin className="size-3 shrink-0" />
+                    {item.location} · {item.mode}
+                </span>
+            </div>
+
+            {/* ── Decision rows ── */}
+            <div className="divide-y border-t px-4">
                 {/* My decision */}
-                <div className="rounded-md border p-3">
-                    <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Keputusan Saya ({resolveDefenseRoleLabel(item.myRole)})
-                    </p>
+                <div className="flex flex-wrap items-center gap-2 py-2.5 text-xs">
+                    <span className="text-muted-foreground">
+                        Saya ({resolveDefenseRoleLabel(item.myRole)}):
+                    </span>
                     {item.myDecision === 'pending' ? (
-                        <Badge
-                            variant="soft"
-                            className="bg-muted font-medium text-muted-foreground hover:bg-muted"
-                        >
-                            Belum Diputuskan
-                        </Badge>
+                        <span className="font-medium text-muted-foreground">Belum diputus</span>
                     ) : (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <>
                             <Badge
                                 variant="soft"
-                                className={`font-semibold ${
+                                className={cn(
+                                    'text-xs font-semibold',
                                     item.myDecision === 'pass'
-                                        ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
-                                        : item.myDecision ===
-                                            'pass_with_revision'
-                                          ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                          : 'bg-destructive/10 text-destructive'
-                                }`}
+                                        ? 'bg-emerald-600/10 text-emerald-600'
+                                        : item.myDecision === 'pass_with_revision'
+                                          ? 'bg-amber-600/10 text-amber-600'
+                                          : 'bg-destructive/10 text-destructive',
+                                )}
                             >
-                                {decisionLabel[item.myDecision ?? ''] ??
-                                    item.myDecision}
+                                {decisionLabel[item.myDecision ?? ''] ?? item.myDecision}
                             </Badge>
                             {item.myScore !== null && (
-                                <span className="inline-flex items-center gap-1 text-sm font-medium">
-                                    <Star className="size-3.5 text-amber-500" />
+                                <span className="flex items-center gap-1 font-medium">
+                                    <Star className="size-3 text-amber-500" />
                                     {item.myScore}
                                 </span>
                             )}
                             {item.myDecisionNotes && (
-                                <p className="mt-1 w-full text-sm text-muted-foreground">
-                                    {item.myDecisionNotes}
-                                </p>
+                                <span className="italic text-muted-foreground">
+                                    — {item.myDecisionNotes}
+                                </span>
                             )}
-                        </div>
+                        </>
                     )}
                 </div>
 
                 {/* Other examiners */}
-                {item.otherExaminers.length > 0 && (
-                    <div className="rounded-md border p-3">
-                        <p className="mb-2 text-xs font-medium text-muted-foreground">
-                            Penguji Lain
-                        </p>
-                        <div className="space-y-1.5">
-                            {item.otherExaminers.map((ex, i) => (
-                                <div
-                                    key={i}
-                                    className="flex items-center gap-2 text-sm"
-                                >
-                                    <span className="font-medium">
-                                        {ex.name}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {resolveDefenseRoleLabel(ex.role)}
-                                    </span>
-                                    <Badge
-                                        variant="soft"
-                                        className={`font-medium ${
-                                            ex.decision === 'pass'
-                                                ? 'bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20'
-                                                : ex.decision ===
-                                                    'pass_with_revision'
-                                                  ? 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20'
-                                                  : ex.decision === 'fail'
-                                                    ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted'
-                                        }`}
-                                    >
-                                        {decisionLabel[ex.decision ?? ''] ??
-                                            'Pending'}
-                                    </Badge>
-                                    {ex.score !== null && (
-                                        <span className="text-xs text-muted-foreground">
-                                            Nilai: {ex.score}
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {averageScore !== null ? (
-                    <div className="rounded-md border bg-muted/15 p-3">
-                        <p className="mb-2 text-xs font-medium text-muted-foreground">
-                            Nilai Akhir Gabungan
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary">
-                                Rata-rata: {averageScore.toFixed(2)}
-                            </Badge>
-                            {finalGrade ? (
-                                <Badge
-                                    variant="soft"
-                                    className={academicGradeClassName(
-                                        finalGrade,
-                                    )}
-                                >
-                                    Grade Akhir {finalGrade}
-                                </Badge>
-                            ) : null}
-                        </div>
-                    </div>
-                ) : null}
-
-                {/* Revisions */}
-                {item.revisions.length > 0 && (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-                        <p className="mb-2 text-xs font-medium text-amber-800 dark:text-amber-200">
-                            Revisi ({item.revisions.length})
-                        </p>
-                        <div className="space-y-2">
-                            {item.revisions.map((rev) => (
-                                <div key={rev.id} className="text-sm">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline">
-                                            {rev.statusLabel}
-                                        </Badge>
-                                        <span className="text-xs text-amber-700 dark:text-amber-300">
-                                            Diminta oleh: {rev.requestedBy}
-                                        </span>
-                                    </div>
-                                    <p className="text-amber-900 dark:text-amber-100">
-                                        {rev.notes}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
-                                        {rev.dueAt && `Batas: ${rev.dueAt}`}
-                                        {rev.resolvedAt &&
-                                            ` · Selesai: ${rev.resolvedAt}`}
-                                    </p>
-                                    {rev.resolutionNotes ? (
-                                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                            Catatan penyelesaian:{' '}
-                                            {rev.resolutionNotes}
-                                        </p>
-                                    ) : null}
-                                    {rev.canResolve ? (
-                                        <div className="mt-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="secondary"
-                                                disabled={
-                                                    resolvingRevisionId ===
-                                                    rev.id
-                                                }
-                                                onClick={() =>
-                                                    resolveRevision(rev.id)
-                                                }
-                                            >
-                                                {resolvingRevisionId === rev.id
-                                                    ? 'Menyimpan...'
-                                                    : 'Revisi Selesai'}
-                                            </Button>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Action */}
-                {canDecide && !showForm && (
-                    <div className="pt-2">
-                        <Button
-                            size="sm"
-                            onClick={() => setShowForm(true)}
-                            className="px-5 font-semibold"
+                {item.otherExaminers.map((ex, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2 py-2.5 text-xs">
+                        <span className="text-muted-foreground">
+                            {ex.name} ({resolveDefenseRoleLabel(ex.role)}):
+                        </span>
+                        <Badge
+                            variant="soft"
+                            className={cn(
+                                'text-xs font-medium',
+                                ex.decision === 'pass'
+                                    ? 'bg-emerald-600/10 text-emerald-600'
+                                    : ex.decision === 'pass_with_revision'
+                                      ? 'bg-amber-600/10 text-amber-600'
+                                      : ex.decision === 'fail'
+                                        ? 'bg-destructive/10 text-destructive'
+                                        : 'bg-muted text-muted-foreground',
+                            )}
                         >
-                            Input Keputusan
-                        </Button>
+                            {decisionLabel[ex.decision ?? ''] ?? 'Pending'}
+                        </Badge>
+                        {ex.score !== null && (
+                            <span className="flex items-center gap-1 font-medium">
+                                <Star className="size-3 text-amber-500" />
+                                {ex.score}
+                            </span>
+                        )}
+                    </div>
+                ))}
+
+                {/* Average score */}
+                {averageScore !== null && (
+                    <div className="flex flex-wrap items-center gap-2 py-2.5 text-xs">
+                        <span className="text-muted-foreground">Rata-rata:</span>
+                        <Badge variant="secondary" className="text-xs">
+                            {averageScore.toFixed(2)}
+                        </Badge>
+                        {finalGrade && (
+                            <Badge
+                                variant="soft"
+                                className={cn('text-xs', academicGradeClassName(finalGrade))}
+                            >
+                                Grade {finalGrade}
+                            </Badge>
+                        )}
+                        <span className="text-muted-foreground">
+                            · Hasil: {resultLabel[item.defenseResult] ?? item.defenseResult}
+                        </span>
                     </div>
                 )}
+            </div>
 
-                {showForm && (
-                    <DecisionForm
-                        defenseId={item.defenseId}
-                        onClose={() => setShowForm(false)}
-                    />
-                )}
-            </CardContent>
-        </Card>
+            {/* ── Revisions ── */}
+            {item.revisions.length > 0 && (
+                <div className="space-y-2 border-t bg-amber-50 px-4 py-3 dark:bg-amber-950/30">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                        Revisi ({item.revisions.length})
+                    </p>
+                    {item.revisions.map((rev) => (
+                        <div key={rev.id}>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                    {rev.statusLabel}
+                                </Badge>
+                                <span className="text-xs text-amber-700 dark:text-amber-300">
+                                    {rev.requestedBy}
+                                </span>
+                                {rev.dueAt && (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                                        Batas: {rev.dueAt}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="mt-1 text-xs text-amber-900 dark:text-amber-100">
+                                {rev.notes}
+                            </p>
+                            {rev.canResolve && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    className="mt-1.5"
+                                    disabled={resolvingRevisionId === rev.id}
+                                    onClick={() => resolveRevision(rev.id)}
+                                >
+                                    {resolvingRevisionId === rev.id ? 'Menyimpan...' : 'Revisi Selesai'}
+                                </Button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* ── Action ── */}
+            {canDecide && !showForm && (
+                <div className="border-t px-4 py-3">
+                    <Button size="sm" onClick={() => setShowForm(true)}>
+                        Input Keputusan
+                    </Button>
+                </div>
+            )}
+
+            {showForm && (
+                <DecisionForm
+                    defenseId={item.defenseId}
+                    onClose={() => setShowForm(false)}
+                />
+            )}
+        </div>
     );
 }
 
+type WorkspaceFilter = 'ujian' | 'bimbingan' | 'semua';
+
 export default function DosenSeminarProposalPage() {
-    const { defenses, workspaceEvents, flashMessage, errorMessage } = usePage<
-        SharedData & PageProps
-    >().props;
+    const { defenses, workspaceEvents, flashMessage, errorMessage } =
+        usePage<SharedData & PageProps>().props;
+
     const [search, setSearch] = useState('');
+    const [workspaceFilter, setWorkspaceFilter] = useState<WorkspaceFilter>('ujian');
+    const [visibleSemproReviewedCount, setVisibleSemproReviewedCount] = useState(5);
+    const [visibleSidangReviewedCount, setVisibleSidangReviewedCount] = useState(5);
+
     const [selectedEvent, setSelectedEvent] = useState<{
         id: number;
         topic: string;
@@ -578,98 +493,56 @@ export default function DosenSeminarProposalPage() {
         notes?: string | null;
     } | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
     const sortByScheduledForDesc = (items: DefenseItem[]) =>
         [...items].sort((a, b) => {
-            const aTime = a.scheduledFor
-                ? new Date(a.scheduledFor).getTime()
-                : 0;
-            const bTime = b.scheduledFor
-                ? new Date(b.scheduledFor).getTime()
-                : 0;
-
+            const aTime = a.scheduledFor ? new Date(a.scheduledFor).getTime() : 0;
+            const bTime = b.scheduledFor ? new Date(b.scheduledFor).getTime() : 0;
             return bTime - aTime;
         });
 
     const normalizedSearch = search.trim().toLowerCase();
     const visibleDefenses = useMemo(() => {
-        if (normalizedSearch === '') {
-            return defenses;
-        }
-
-        return defenses.filter((item: DefenseItem) => {
-            return [item.studentName, item.titleId, item.titleEn]
+        if (!normalizedSearch) return defenses;
+        return defenses.filter((item) =>
+            [item.studentName, item.titleId, item.titleEn]
                 .filter(Boolean)
-                .some((value) =>
-                    value.toLowerCase().includes(normalizedSearch),
-                );
-        });
+                .some((v) => v.toLowerCase().includes(normalizedSearch)),
+        );
     }, [defenses, normalizedSearch]);
 
     const semproPendingItems = sortByScheduledForDesc(
         visibleDefenses.filter(
-            (item: DefenseItem) =>
-                item.type === 'sempro' &&
-                item.defenseStatus === 'scheduled' &&
-                item.myDecision === 'pending',
+            (i) => i.type === 'sempro' && i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
         ),
     );
     const semproReviewedItems = sortByScheduledForDesc(
         visibleDefenses.filter(
-            (item: DefenseItem) =>
-                item.type === 'sempro' &&
-                !(
-                    item.defenseStatus === 'scheduled' &&
-                    item.myDecision === 'pending'
-                ),
+            (i) => i.type === 'sempro' && !(i.defenseStatus === 'scheduled' && i.myDecision === 'pending'),
         ),
     );
     const sidangPendingItems = sortByScheduledForDesc(
         visibleDefenses.filter(
-            (item: DefenseItem) =>
-                item.type === 'sidang' &&
-                item.defenseStatus === 'scheduled' &&
-                item.myDecision === 'pending',
+            (i) => i.type === 'sidang' && i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
         ),
     );
     const sidangReviewedItems = sortByScheduledForDesc(
         visibleDefenses.filter(
-            (item: DefenseItem) =>
-                item.type === 'sidang' &&
-                !(
-                    item.defenseStatus === 'scheduled' &&
-                    item.myDecision === 'pending'
-                ),
+            (i) => i.type === 'sidang' && !(i.defenseStatus === 'scheduled' && i.myDecision === 'pending'),
         ),
     );
-    const [workspaceFilter, setWorkspaceFilter] = useState<
-        'ujian' | 'bimbingan' | 'semua'
-    >('ujian');
-    const [visibleSemproReviewedCount, setVisibleSemproReviewedCount] =
-        useState(5);
-    const [visibleSidangReviewedCount, setVisibleSidangReviewedCount] =
-        useState(5);
 
-    const filteredWorkspaceEvents = workspaceEvents.filter((event) => {
-        if (workspaceFilter === 'semua') {
-            return true;
-        }
+    const filteredWorkspaceEvents = workspaceEvents.filter((e) =>
+        workspaceFilter === 'semua' ? true : e.category === workspaceFilter,
+    );
 
-        return event.category === workspaceFilter;
-    });
-    const visibleSemproReviewedItems = semproReviewedItems.slice(
-        0,
-        visibleSemproReviewedCount,
-    );
-    const visibleSidangReviewedItems = sidangReviewedItems.slice(
-        0,
-        visibleSidangReviewedCount,
-    );
+    const visibleSemproReviewedItems = semproReviewedItems.slice(0, visibleSemproReviewedCount);
+    const visibleSidangReviewedItems = sidangReviewedItems.slice(0, visibleSidangReviewedCount);
 
     function handleEventClick(event: BimbinganEvent) {
         const scheduleId = Number(
             String(event.id).replace('defense-', '').replace('schedule-', ''),
         );
-
         setSelectedEvent({
             id: Number.isNaN(scheduleId) ? 0 : scheduleId,
             topic:
@@ -687,6 +560,21 @@ export default function DosenSeminarProposalPage() {
         setIsDetailModalOpen(true);
     }
 
+    const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
+        { label: 'Sempro / Sidang', value: 'ujian' },
+        { label: 'Bimbingan', value: 'bimbingan' },
+        { label: 'Semua', value: 'semua' },
+    ];
+
+    function EmptySection({ text }: { text: string }) {
+        return (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center">
+                <CalendarClock className="mb-2 size-7 text-muted-foreground/40" />
+                <p className="text-xs text-muted-foreground">{text}</p>
+            </div>
+        );
+    }
+
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
@@ -695,117 +583,68 @@ export default function DosenSeminarProposalPage() {
         >
             <Head title="Sempro & Sidang — Dosen" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
+
+                {/* Flash / Error */}
                 {(flashMessage || errorMessage) && (
-                    <div
-                        className={`rounded-lg border p-3 text-sm ${
-                            errorMessage
-                                ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
-                        }`}
-                    >
-                        {errorMessage || flashMessage}
-                    </div>
+                    <Alert variant={errorMessage ? 'destructive' : 'default'}>
+                        <AlertTitle>{errorMessage ? 'Error' : 'Berhasil'}</AlertTitle>
+                        <AlertDescription>{errorMessage || flashMessage}</AlertDescription>
+                    </Alert>
                 )}
 
-                <Card className="overflow-hidden py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <CardTitle className="text-lg font-semibold">
-                                    Workspace Jadwal
-                                </CardTitle>
-                                <CardDescription>
-                                    Lihat jadwal sempro, sidang, dan bimbingan
-                                    dalam satu kalender.
-                                </CardDescription>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        workspaceFilter === 'ujian'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => setWorkspaceFilter('ujian')}
-                                >
-                                    Sempro / Sidang
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        workspaceFilter === 'bimbingan'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        setWorkspaceFilter('bimbingan')
-                                    }
-                                >
-                                    Bimbingan
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        workspaceFilter === 'semua'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => setWorkspaceFilter('semua')}
-                                >
-                                    Semua
-                                </Button>
-                            </div>
+                {/* ── WORKSPACE CALENDAR ── */}
+                <section>
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold">Workspace Jadwal</h2>
+                            <p className="text-sm text-muted-foreground">
+                                Lihat jadwal sempro, sidang, dan bimbingan dalam satu kalender
+                            </p>
                         </div>
-                    </CardHeader>
-                    <CardContent className="pb-6">
-                        <BimbinganCalendar
-                            events={filteredWorkspaceEvents}
-                            onEventClick={handleEventClick}
-                            defaultView="calendar"
-                            showLegend={false}
-                        />
-                    </CardContent>
-                </Card>
-
-                <Card className="overflow-hidden py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">
-                            Pencarian
-                        </CardTitle>
-                        <CardDescription>
-                            Cari berdasarkan nama mahasiswa atau judul tugas
-                            akhir.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pb-6">
-                        <div className="relative max-w-xl">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                placeholder="Cari nama mahasiswa atau judul..."
-                                className="pl-9"
-                            />
+                        <div className="flex flex-wrap gap-1.5">
+                            {workspaceFilterTabs.map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    type="button"
+                                    onClick={() => setWorkspaceFilter(tab.value)}
+                                    className={cn(
+                                        'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                        workspaceFilter === tab.value
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                    <BimbinganCalendar
+                        events={filteredWorkspaceEvents}
+                        onEventClick={handleEventClick}
+                        defaultView="calendar"
+                        showLegend={false}
+                    />
+                </section>
 
+                {/* ── SEARCH ── */}
+                <div className="relative max-w-xl">
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Cari nama mahasiswa atau judul..."
+                        className="pl-9"
+                    />
+                </div>
+
+                {/* ── MAIN CONTENT ── */}
                 {visibleDefenses.length === 0 ? (
-                    <div className="mt-6 rounded-xl border border-dashed bg-muted/20 p-8 text-center">
-                        <span className="mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                            <CalendarClock className="size-6" />
-                        </span>
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
+                        <Inbox className="mb-3 size-10 text-muted-foreground/40" />
                         <p className="text-sm font-semibold">
-                            {search.trim() === ''
-                                ? 'Belum ada tugas penguji ujian'
-                                : 'Tidak ada hasil yang cocok'}
+                            {search.trim() === '' ? 'Belum ada tugas penguji ujian' : 'Tidak ada hasil yang cocok'}
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                             {search.trim() === ''
@@ -814,163 +653,152 @@ export default function DosenSeminarProposalPage() {
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-8">
-                        <section className="grid gap-4">
-                            <div>
-                                <h2 className="text-lg font-semibold">
-                                    Sempro
-                                </h2>
+                    <div className="grid gap-10">
+
+                        {/* ── SEMPRO ── */}
+                        <section>
+                            <div className="mb-4 border-b pb-3">
+                                <h2 className="text-base font-semibold">Seminar Proposal</h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Daftar seminar proposal yang menunggu
-                                    penilaian atau tindak lanjut Anda.
+                                    Sempro yang menunggu penilaian atau tindak lanjut Anda
                                 </p>
                             </div>
-                            {semproPendingItems.length > 0 ? (
-                                semproPendingItems.map((item) => (
-                                    <DefenseCard
-                                        key={item.defenseId}
-                                        item={item}
-                                    />
-                                ))
-                            ) : (
-                                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-                                    Tidak ada sempro yang sedang menunggu
-                                    penilaian Anda.
-                                </div>
-                            )}
-                        </section>
-
-                        <section className="grid gap-4">
-                            <div>
-                                <h2 className="text-lg font-semibold">
-                                    Sidang
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Daftar sidang skripsi yang menunggu
-                                    penilaian atau tindak lanjut Anda.
-                                </p>
-                            </div>
-                            {sidangPendingItems.length > 0 ? (
-                                sidangPendingItems.map((item) => (
-                                    <DefenseCard
-                                        key={item.defenseId}
-                                        item={item}
-                                    />
-                                ))
-                            ) : (
-                                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-                                    Tidak ada sidang yang sedang menunggu
-                                    penilaian Anda.
-                                </div>
-                            )}
-                        </section>
-
-                        <section className="grid gap-4 border-t pt-2">
                             <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-                                <section className="grid gap-4">
-                                    <div>
-                                        <h3 className="text-base font-semibold">
-                                            Riwayat Sempro
+                                {/* Pending */}
+                                <section>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Menunggu Penilaian
                                         </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Seminar proposal yang sudah Anda
-                                            respons atau sudah selesai.
-                                        </p>
+                                        {semproPendingItems.length > 0 && (
+                                            <span className="inline-flex size-5 items-center justify-center rounded-full bg-amber-600/10 text-xs font-bold text-amber-700">
+                                                {semproPendingItems.length}
+                                            </span>
+                                        )}
                                     </div>
-                                    {visibleSemproReviewedItems.length > 0 ? (
-                                        visibleSemproReviewedItems.map(
-                                            (item) => (
-                                                <DefenseCard
-                                                    key={`reviewed-sempro-${item.defenseId}`}
-                                                    item={item}
-                                                />
-                                            ),
-                                        )
+                                    {semproPendingItems.length > 0 ? (
+                                        <div className="flex flex-col gap-3">
+                                            {semproPendingItems.map((item) => (
+                                                <DefenseCard key={item.defenseId} item={item} />
+                                            ))}
+                                        </div>
                                     ) : (
-                                        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-                                            Belum ada riwayat penilaian sempro.
-                                        </div>
+                                        <EmptySection text="Tidak ada sempro yang menunggu penilaian" />
                                     )}
-                                    {semproReviewedItems.length >
-                                    visibleSemproReviewedItems.length ? (
-                                        <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
-                                            <p className="text-sm text-muted-foreground">
-                                                Menampilkan{' '}
-                                                {
-                                                    visibleSemproReviewedItems.length
-                                                }{' '}
-                                                dari{' '}
-                                                {semproReviewedItems.length}{' '}
-                                                riwayat sempro.
-                                            </p>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    setVisibleSemproReviewedCount(
-                                                        (current) =>
-                                                            current + 5,
-                                                    )
-                                                }
-                                            >
-                                                Muat Lebih Banyak
-                                            </Button>
-                                        </div>
-                                    ) : null}
                                 </section>
 
-                                <section className="grid gap-4">
-                                    <div>
-                                        <h3 className="text-base font-semibold">
+                                {/* Reviewed */}
+                                <section>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Riwayat Sempro
+                                        </h3>
+                                        {semproReviewedItems.length > 0 && (
+                                            <span className="text-xs text-muted-foreground">
+                                                {semproReviewedItems.length} item
+                                            </span>
+                                        )}
+                                    </div>
+                                    {visibleSemproReviewedItems.length > 0 ? (
+                                        <>
+                                            <div className="flex flex-col gap-3">
+                                                {visibleSemproReviewedItems.map((item) => (
+                                                    <DefenseCard key={`rs-${item.defenseId}`} item={item} />
+                                                ))}
+                                            </div>
+                                            {semproReviewedItems.length > visibleSemproReviewedItems.length && (
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {visibleSemproReviewedItems.length} dari {semproReviewedItems.length}
+                                                    </p>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setVisibleSemproReviewedCount((c) => c + 5)}
+                                                    >
+                                                        Muat Lebih Banyak
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <EmptySection text="Belum ada riwayat penilaian sempro" />
+                                    )}
+                                </section>
+                            </div>
+                        </section>
+
+                        {/* ── SIDANG ── */}
+                        <section>
+                            <div className="mb-4 border-b pb-3">
+                                <h2 className="text-base font-semibold">Sidang Skripsi</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Sidang yang menunggu penilaian atau tindak lanjut Anda
+                                </p>
+                            </div>
+                            <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+                                {/* Pending */}
+                                <section>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            Menunggu Penilaian
+                                        </h3>
+                                        {sidangPendingItems.length > 0 && (
+                                            <span className="inline-flex size-5 items-center justify-center rounded-full bg-amber-600/10 text-xs font-bold text-amber-700">
+                                                {sidangPendingItems.length}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {sidangPendingItems.length > 0 ? (
+                                        <div className="flex flex-col gap-3">
+                                            {sidangPendingItems.map((item) => (
+                                                <DefenseCard key={item.defenseId} item={item} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <EmptySection text="Tidak ada sidang yang menunggu penilaian" />
+                                    )}
+                                </section>
+
+                                {/* Reviewed */}
+                                <section>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                             Riwayat Sidang
                                         </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Sidang yang sudah Anda nilai atau
-                                            sudah berpindah ke arsip hasil.
-                                        </p>
+                                        {sidangReviewedItems.length > 0 && (
+                                            <span className="text-xs text-muted-foreground">
+                                                {sidangReviewedItems.length} item
+                                            </span>
+                                        )}
                                     </div>
                                     {visibleSidangReviewedItems.length > 0 ? (
-                                        visibleSidangReviewedItems.map(
-                                            (item) => (
-                                                <DefenseCard
-                                                    key={`reviewed-sidang-${item.defenseId}`}
-                                                    item={item}
-                                                />
-                                            ),
-                                        )
+                                        <>
+                                            <div className="flex flex-col gap-3">
+                                                {visibleSidangReviewedItems.map((item) => (
+                                                    <DefenseCard key={`rs-${item.defenseId}`} item={item} />
+                                                ))}
+                                            </div>
+                                            {sidangReviewedItems.length > visibleSidangReviewedItems.length && (
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {visibleSidangReviewedItems.length} dari {sidangReviewedItems.length}
+                                                    </p>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setVisibleSidangReviewedCount((c) => c + 5)}
+                                                    >
+                                                        Muat Lebih Banyak
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </>
                                     ) : (
-                                        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-                                            Belum ada riwayat penilaian sidang.
-                                        </div>
+                                        <EmptySection text="Belum ada riwayat penilaian sidang" />
                                     )}
-                                    {sidangReviewedItems.length >
-                                    visibleSidangReviewedItems.length ? (
-                                        <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/15 p-3">
-                                            <p className="text-sm text-muted-foreground">
-                                                Menampilkan{' '}
-                                                {
-                                                    visibleSidangReviewedItems.length
-                                                }{' '}
-                                                dari{' '}
-                                                {sidangReviewedItems.length}{' '}
-                                                riwayat sidang.
-                                            </p>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    setVisibleSidangReviewedCount(
-                                                        (current) =>
-                                                            current + 5,
-                                                    )
-                                                }
-                                            >
-                                                Muat Lebih Banyak
-                                            </Button>
-                                        </div>
-                                    ) : null}
                                 </section>
                             </div>
                         </section>

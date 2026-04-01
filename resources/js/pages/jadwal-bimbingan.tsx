@@ -1,6 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     Calendar,
+    CalendarClock,
     CheckCircle2,
     Clock,
     Inbox,
@@ -22,13 +23,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -44,9 +38,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { dashboard, jadwalBimbingan } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -95,58 +89,59 @@ type JadwalPageProps = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-    {
-        title: 'Jadwal Bimbingan',
-        href: jadwalBimbingan().url,
-    },
+    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Jadwal Bimbingan', href: jadwalBimbingan().url },
 ];
 
 function StatusBadge({ status }: { status: ScheduleStatus }) {
-    if (status === 'completed') {
-        return (
-            <Badge className="gap-1 rounded-full bg-blue-600 text-white hover:bg-blue-600/90 dark:bg-blue-500 dark:hover:bg-blue-500/90">
-                <CheckCircle2 className="size-3" />
-                Selesai
-            </Badge>
-        );
-    }
+    const map: Record<
+        ScheduleStatus,
+        { label: string; className: string; icon: React.ReactNode }
+    > = {
+        completed: {
+            label: 'Selesai',
+            className: 'bg-blue-600/10 text-blue-600',
+            icon: <CheckCircle2 className="size-3" />,
+        },
+        cancelled: {
+            label: 'Dibatalkan',
+            className: 'bg-muted text-muted-foreground',
+            icon: <XCircle className="size-3" />,
+        },
+        approved: {
+            label: 'Terjadwal',
+            className: 'bg-emerald-600/10 text-emerald-700',
+            icon: <CheckCircle2 className="size-3" />,
+        },
+        rescheduled: {
+            label: 'Terjadwal',
+            className: 'bg-emerald-600/10 text-emerald-700',
+            icon: <CheckCircle2 className="size-3" />,
+        },
+        pending: {
+            label: 'Menunggu Konfirmasi',
+            className: 'bg-amber-600/10 text-amber-700',
+            icon: <Clock className="size-3" />,
+        },
+        rejected: {
+            label: 'Ditolak',
+            className: 'bg-destructive/10 text-destructive',
+            icon: <XCircle className="size-3" />,
+        },
+    };
 
-    if (status === 'cancelled') {
-        return (
-            <Badge variant="outline" className="gap-1 rounded-full">
-                <XCircle className="size-3" />
-                Dibatalkan
-            </Badge>
-        );
-    }
-
-    if (status === 'approved' || status === 'rescheduled') {
-        return (
-            <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-                <CheckCircle2 className="size-3" />
-                Terjadwal
-            </Badge>
-        );
-    }
-
-    if (status === 'pending') {
-        return (
-            <Badge variant="secondary" className="gap-1 rounded-full">
-                <Clock className="size-3" />
-                Menunggu Konfirmasi
-            </Badge>
-        );
-    }
+    const { label, className, icon } = map[status] ?? map.cancelled;
 
     return (
-        <Badge variant="destructive" className="gap-1 rounded-full">
-            <XCircle className="size-3" />
-            Ditolak
-        </Badge>
+        <span
+            className={cn(
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                className,
+            )}
+        >
+            {icon}
+            {label}
+        </span>
     );
 }
 
@@ -165,7 +160,6 @@ function RelationTypeBadge({
             </Badge>
         );
     }
-
     return (
         <Badge
             variant="outline"
@@ -173,6 +167,88 @@ function RelationTypeBadge({
         >
             Pembimbing
         </Badge>
+    );
+}
+
+function MeetingCard({
+    meeting,
+    formatDate,
+}: {
+    meeting: UpcomingMeeting | HistoryMeeting;
+    formatDate: (d: string | null) => string;
+}) {
+    const scheduledAt = 'scheduledAt' in meeting ? meeting.scheduledAt : null;
+    const requestedAt = 'requestedAt' in meeting ? meeting.requestedAt : null;
+
+    return (
+        <div className="flex gap-4 py-4">
+            {/* Left accent */}
+            <div className="flex flex-col items-center pt-1">
+                <div
+                    className={cn(
+                        'flex size-8 shrink-0 items-center justify-center rounded-full',
+                        meeting.status === 'completed'
+                            ? 'bg-blue-600/10 text-blue-600'
+                            : meeting.status === 'approved' ||
+                                meeting.status === 'rescheduled'
+                              ? 'bg-emerald-600/10 text-emerald-600'
+                              : meeting.status === 'pending'
+                                ? 'bg-amber-600/10 text-amber-600'
+                                : 'bg-muted text-muted-foreground',
+                    )}
+                >
+                    <CalendarClock className="size-4" />
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                        <p className="text-sm leading-snug font-semibold break-words">
+                            {meeting.topic}
+                        </p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">
+                                {meeting.lecturer}
+                            </span>
+                            <RelationTypeBadge
+                                relationType={meeting.relationType}
+                            />
+                        </div>
+                    </div>
+                    <StatusBadge status={meeting.status} />
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {requestedAt && (
+                        <span className="flex items-center gap-1.5">
+                            <Calendar className="size-3.5 shrink-0" />
+                            Preferensi: {formatDate(requestedAt)}
+                        </span>
+                    )}
+                    <span className="flex items-center gap-1.5">
+                        <Clock className="size-3.5 shrink-0" />
+                        {scheduledAt
+                            ? formatDate(scheduledAt)
+                            : 'Menunggu konfirmasi dosen'}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <MapPin className="size-3.5 shrink-0" />
+                        {meeting.location}
+                    </span>
+                </div>
+
+                {meeting.lecturerNote && (
+                    <div className="rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                            Catatan dosen:{' '}
+                        </span>
+                        {meeting.lecturerNote}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 
@@ -200,9 +276,7 @@ export default function JadwalBimbinganPage() {
 
     useEffect(() => {
         const userId = page.props.auth.user?.id;
-        if (typeof window === 'undefined' || !window.Echo || !userId) {
-            return;
-        }
+        if (typeof window === 'undefined' || !window.Echo || !userId) return;
 
         const channelName = `schedule.user.${userId}`;
         const channel = window.Echo.private(channelName).listen(
@@ -230,9 +304,6 @@ export default function JadwalBimbinganPage() {
         });
     }
 
-    const hasUpcomingMeetings = page.props.upcomingMeetings.length > 0;
-    const hasHistoryMeetings = page.props.historyMeetings.length > 0;
-
     const [selectedEvent, setSelectedEvent] = useState<{
         id: number;
         topic: string;
@@ -259,35 +330,20 @@ export default function JadwalBimbinganPage() {
     };
 
     function formatDateForCalendar(dateInput: string | Date): string {
-        if (typeof dateInput === 'string') {
-            return dateInput;
-        }
-
-        if (isNaN(dateInput.getTime())) {
-            return '';
-        }
-
+        if (typeof dateInput === 'string') return dateInput;
+        if (isNaN(dateInput.getTime())) return '';
         return dateInput.toISOString();
     }
 
     const calendarEvents: BimbinganEvent[] = [
         ...page.props.upcomingMeetings.flatMap((meeting) => {
             const startDate = meeting.scheduledAt || meeting.requestedAt;
-
-            if (!startDate) {
-                return [];
-            }
-
+            if (!startDate) return [];
             const start = formatDateForCalendar(startDate);
-
-            if (!start) {
-                return [];
-            }
-
+            if (!start) return [];
             const endDate = new Date(
                 new Date(startDate).getTime() + 60 * 60 * 1000,
             );
-
             return [
                 {
                     id: meeting.id,
@@ -303,20 +359,12 @@ export default function JadwalBimbinganPage() {
             ];
         }),
         ...page.props.historyMeetings.flatMap((meeting) => {
-            if (!meeting.scheduledAt) {
-                return [];
-            }
-
+            if (!meeting.scheduledAt) return [];
             const start = formatDateForCalendar(meeting.scheduledAt);
-
-            if (!start) {
-                return [];
-            }
-
+            if (!start) return [];
             const endDate = new Date(
                 new Date(meeting.scheduledAt).getTime() + 60 * 60 * 1000,
             );
-
             return [
                 {
                     id: meeting.id,
@@ -337,12 +385,8 @@ export default function JadwalBimbinganPage() {
         const fullMeeting = [
             ...page.props.upcomingMeetings,
             ...page.props.historyMeetings,
-        ].find((meeting) => meeting.id === event.id);
-
-        if (!fullMeeting) {
-            return;
-        }
-
+        ].find((m) => m.id === event.id);
+        if (!fullMeeting) return;
         setSelectedEvent({
             id: fullMeeting.id,
             topic: fullMeeting.topic,
@@ -370,6 +414,7 @@ export default function JadwalBimbinganPage() {
         >
             <Head title="Jadwal Bimbingan" />
 
+            {/* Request Dialog */}
             <Dialog open={isAjukanOpen} onOpenChange={setIsAjukanOpen}>
                 <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
@@ -381,8 +426,8 @@ export default function JadwalBimbinganPage() {
 
                     <form
                         className="grid gap-5"
-                        onSubmit={(event) => {
-                            event.preventDefault();
+                        onSubmit={(e) => {
+                            e.preventDefault();
                             submitRequest();
                         }}
                     >
@@ -391,8 +436,8 @@ export default function JadwalBimbinganPage() {
                             <Input
                                 id="topic"
                                 value={form.data.topic}
-                                onChange={(event) =>
-                                    form.setData('topic', event.target.value)
+                                onChange={(e) =>
+                                    form.setData('topic', e.target.value)
                                 }
                                 required
                                 placeholder="Contoh: Review Bab 3 - Metodologi Penelitian"
@@ -406,32 +451,30 @@ export default function JadwalBimbinganPage() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="lecturer_user_id">
-                                Dosen Pembimbing Tujuan
+                                Dosen Tujuan
                             </Label>
                             <Select
                                 value={form.data.lecturer_user_id}
-                                onValueChange={(value) =>
-                                    form.setData('lecturer_user_id', value)
+                                onValueChange={(v) =>
+                                    form.setData('lecturer_user_id', v)
                                 }
                             >
                                 <SelectTrigger id="lecturer_user_id">
                                     <SelectValue placeholder="Pilih dosen pembimbing" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {page.props.advisors.map((advisor) => (
+                                    {page.props.advisors.map((a) => (
                                         <SelectItem
-                                            key={`${advisor.assignmentId}-${advisor.lecturerUserId}`}
-                                            value={String(
-                                                advisor.lecturerUserId,
-                                            )}
+                                            key={`${a.assignmentId}-${a.lecturerUserId}`}
+                                            value={String(a.lecturerUserId)}
                                         >
-                                            {advisor.lecturerName} (
-                                            {advisor.advisorType ===
-                                                'primary' && 'Pembimbing 1'}
-                                            {advisor.advisorType ===
-                                                'secondary' && 'Pembimbing 2'}
-                                            {advisor.advisorType ===
-                                                'penguji' && 'Penguji'}
+                                            {a.lecturerName} (
+                                            {a.advisorType === 'primary' &&
+                                                'Pembimbing 1'}
+                                            {a.advisorType === 'secondary' &&
+                                                'Pembimbing 2'}
+                                            {a.advisorType === 'penguji' &&
+                                                'Penguji'}
                                             )
                                         </SelectItem>
                                     ))}
@@ -446,16 +489,16 @@ export default function JadwalBimbinganPage() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="requested_for">
-                                Tanggal & Waktu Preferensi
+                                Tanggal &amp; Waktu Preferensi
                             </Label>
                             <Input
                                 id="requested_for"
                                 type="datetime-local"
                                 value={form.data.requested_for}
-                                onChange={(event) =>
+                                onChange={(e) =>
                                     form.setData(
                                         'requested_for',
-                                        event.target.value,
+                                        e.target.value,
                                     )
                                 }
                                 required
@@ -471,12 +514,12 @@ export default function JadwalBimbinganPage() {
                             <Label htmlFor="meeting_type">Tipe Bimbingan</Label>
                             <Select
                                 value={form.data.meeting_type}
-                                onValueChange={(value) =>
-                                    form.setData('meeting_type', value)
+                                onValueChange={(v) =>
+                                    form.setData('meeting_type', v)
                                 }
                             >
                                 <SelectTrigger id="meeting_type">
-                                    <SelectValue placeholder="Pilih tipe bimbingan" />
+                                    <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="offline">
@@ -487,11 +530,6 @@ export default function JadwalBimbinganPage() {
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                            {form.errors.meeting_type && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.meeting_type}
-                                </p>
-                            )}
                         </div>
 
                         <div className="grid gap-3 rounded-lg border p-4">
@@ -500,10 +538,10 @@ export default function JadwalBimbinganPage() {
                                     type="checkbox"
                                     id="is_recurring"
                                     checked={form.data.is_recurring}
-                                    onChange={(event) =>
+                                    onChange={(e) =>
                                         form.setData(
                                             'is_recurring',
-                                            event.target.checked,
+                                            e.target.checked,
                                         )
                                     }
                                     className="size-4 rounded border-input"
@@ -525,30 +563,29 @@ export default function JadwalBimbinganPage() {
                                         </Label>
                                         <Select
                                             value={form.data.recurring_pattern}
-                                            onValueChange={(value) =>
+                                            onValueChange={(v) =>
                                                 form.setData(
                                                     'recurring_pattern',
-                                                    value,
+                                                    v,
                                                 )
                                             }
                                         >
                                             <SelectTrigger id="recurring_pattern">
-                                                <SelectValue placeholder="Pilih pola" />
+                                                <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="weekly">
-                                                    Mingguan (setiap minggu)
+                                                    Mingguan
                                                 </SelectItem>
                                                 <SelectItem value="biweekly">
-                                                    2 Mingguan (setiap 2 minggu)
+                                                    2 Mingguan
                                                 </SelectItem>
                                                 <SelectItem value="monthly">
-                                                    Bulanan (setiap bulan)
+                                                    Bulanan
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
-
                                     <div className="grid gap-2">
                                         <Label htmlFor="recurring_count">
                                             Jumlah Pertemuan
@@ -557,31 +594,30 @@ export default function JadwalBimbinganPage() {
                                             value={String(
                                                 form.data.recurring_count,
                                             )}
-                                            onValueChange={(value) =>
+                                            onValueChange={(v) =>
                                                 form.setData(
                                                     'recurring_count',
-                                                    parseInt(value, 10),
+                                                    parseInt(v, 10),
                                                 )
                                             }
                                         >
                                             <SelectTrigger id="recurring_count">
-                                                <SelectValue placeholder="Pilih jumlah" />
+                                                <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {[2, 3, 4, 5, 6, 7, 8].map(
-                                                    (num) => (
+                                                    (n) => (
                                                         <SelectItem
-                                                            key={num}
-                                                            value={String(num)}
+                                                            key={n}
+                                                            value={String(n)}
                                                         >
-                                                            {num} pertemuan
+                                                            {n} pertemuan
                                                         </SelectItem>
                                                     ),
                                                 )}
                                             </SelectContent>
                                         </Select>
                                     </div>
-
                                     <p className="text-xs text-muted-foreground">
                                         Akan dibuat {form.data.recurring_count}{' '}
                                         jadwal dengan pola{' '}
@@ -604,19 +640,11 @@ export default function JadwalBimbinganPage() {
                             <Textarea
                                 id="student_note"
                                 value={form.data.student_note}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'student_note',
-                                        event.target.value,
-                                    )
+                                onChange={(e) =>
+                                    form.setData('student_note', e.target.value)
                                 }
                                 placeholder="Jelaskan hal-hal yang ingin didiskusikan..."
                             />
-                            {form.errors.student_note && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.student_note}
-                                </p>
-                            )}
                         </div>
 
                         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -641,8 +669,9 @@ export default function JadwalBimbinganPage() {
                 </DialogContent>
             </Dialog>
 
-            <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 md:px-6">
+                {/* Page header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             Jadwal Bimbingan
@@ -655,7 +684,7 @@ export default function JadwalBimbinganPage() {
                     {page.props.hasDosbing && (
                         <Button
                             type="button"
-                            className="h-10 w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
+                            className="h-10 w-full gap-2 sm:w-auto"
                             onClick={() => setIsAjukanOpen(true)}
                         >
                             <Plus className="size-4" />
@@ -664,19 +693,20 @@ export default function JadwalBimbinganPage() {
                     )}
                 </div>
 
+                {/* No dosbing state */}
                 {!page.props.auth.activeRole || !page.props.hasDosbing ? (
-                    <Card className="mt-4 flex flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center text-muted-foreground">
                         <Users className="mb-4 size-12 opacity-20" />
-                        <h2 className="mb-2 text-xl font-semibold text-foreground">
+                        <h2 className="mb-2 text-lg font-semibold text-foreground">
                             Fitur Bimbingan Belum Aktif
                         </h2>
-                        <p className="max-w-md">
+                        <p className="max-w-md text-sm">
                             Anda belum memiliki Dosen Pembimbing yang
                             ditugaskan. Fitur jadwal bimbingan akan otomatis
                             aktif setelah admin menetapkan dosen pembimbing
                             untuk Anda.
                         </p>
-                    </Card>
+                    </div>
                 ) : (
                     <>
                         {page.props.flashMessage && (
@@ -688,231 +718,178 @@ export default function JadwalBimbinganPage() {
                             </Alert>
                         )}
 
-                        <Card className="overflow-hidden py-0 shadow-sm">
-                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                                <CardTitle className="text-lg font-semibold">
-                                    Tampilan Jadwal
-                                </CardTitle>
-                                <CardDescription>
-                                    Pilih tampilan daftar untuk layar kecil,
-                                    atau kalender jika ingin melihat sebaran
-                                    jadwal secara menyeluruh.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="pb-6">
-                                <BimbinganCalendar
-                                    events={calendarEvents}
-                                    onEventClick={handleEventClick}
-                                    defaultView="list"
-                                />
-                            </CardContent>
-                        </Card>
+                        {/* Calendar */}
+                        <section>
+                            <BimbinganCalendar
+                                events={calendarEvents}
+                                onEventClick={handleEventClick}
+                                defaultView="list"
+                            />
+                        </section>
 
-                        <Card className="py-0 shadow-sm">
-                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                                <CardTitle className="text-lg font-semibold">
-                                    Bimbingan Akan Datang
-                                </CardTitle>
-                                <CardDescription>
-                                    Jadwal bimbingan yang diajukan atau telah
-                                    dikonfirmasi
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pb-6">
-                                <div className="grid gap-3">
-                                    {hasUpcomingMeetings ? (
-                                        page.props.upcomingMeetings.map(
-                                            (meeting) => (
-                                                <div
-                                                    key={meeting.id}
-                                                    className="rounded-xl border bg-background p-4"
-                                                >
-                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                        <div className="min-w-0">
-                                                            <div className="text-sm font-semibold break-words">
-                                                                {meeting.topic}
-                                                            </div>
-                                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                                                <span className="break-words">
-                                                                    {
-                                                                        meeting.lecturer
-                                                                    }
-                                                                </span>
-                                                                <RelationTypeBadge
-                                                                    relationType={
-                                                                        meeting.relationType
-                                                                    }
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="sm:shrink-0">
-                                                            <StatusBadge
-                                                                status={
-                                                                    meeting.status
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
+                        {/* Upcoming */}
+                        <section>
+                            <div className="mb-1 flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-base font-semibold">
+                                        Bimbingan Akan Datang
+                                    </h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        Jadwal yang diajukan atau telah
+                                        dikonfirmasi
+                                    </p>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                    {page.props.upcomingMeetings.length} jadwal
+                                </span>
+                            </div>
 
-                                                    <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
-                                                        <div className="flex items-start gap-2">
-                                                            <Calendar className="mt-0.5 size-4 shrink-0" />
-                                                            <span className="break-words">
-                                                                Preferensi:{' '}
-                                                                {formatDate(
-                                                                    meeting.requestedAt,
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-start gap-2">
-                                                            <Clock className="mt-0.5 size-4 shrink-0" />
-                                                            <span className="break-words">
-                                                                Terkonfirmasi:{' '}
-                                                                {meeting.scheduledAt
-                                                                    ? formatDate(
-                                                                          meeting.scheduledAt,
-                                                                      )
-                                                                    : 'Menunggu konfirmasi dosen'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-start gap-2">
-                                                            <MapPin className="mt-0.5 size-4 shrink-0" />
-                                                            <span className="break-words">
-                                                                {
-                                                                    meeting.location
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                        {meeting.lecturerNote && (
-                                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-                                                                Catatan dosen:{' '}
-                                                                {
-                                                                    meeting.lecturerNote
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ),
-                                        )
-                                    ) : (
-                                        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
-                                            <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                                <Inbox className="size-5" />
-                                            </span>
-                                            <p className="text-sm font-medium">
-                                                Belum ada jadwal mendatang
-                                            </p>
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                Ajukan jadwal baru untuk mulai
-                                                sesi bimbingan berikutnya.
-                                            </p>
-                                        </div>
+                            {page.props.upcomingMeetings.length > 0 ? (
+                                <div className="divide-y rounded-xl border bg-card shadow-sm">
+                                    {page.props.upcomingMeetings.map(
+                                        (meeting) => (
+                                            <div
+                                                key={meeting.id}
+                                                className="px-5 transition-colors hover:bg-muted/20"
+                                            >
+                                                <MeetingCard
+                                                    meeting={meeting}
+                                                    formatDate={formatDate}
+                                                />
+                                            </div>
+                                        ),
                                     )}
                                 </div>
-                            </CardContent>
-                        </Card>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
+                                    <Inbox className="mb-3 size-9 text-muted-foreground/40" />
+                                    <p className="text-sm font-medium">
+                                        Belum ada jadwal mendatang
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Ajukan jadwal baru untuk mulai sesi
+                                        bimbingan berikutnya.
+                                    </p>
+                                </div>
+                            )}
+                        </section>
 
-                        <Card className="py-0 shadow-sm">
-                            <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                                <CardTitle className="text-lg font-semibold">
+                        {/* History */}
+                        <section>
+                            <div className="mb-3">
+                                <h2 className="text-base font-semibold">
                                     Riwayat Bimbingan
-                                </CardTitle>
-                                <CardDescription>
-                                    Riwayat bimbingan yang sudah selesai /
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Sesi bimbingan yang sudah selesai atau
                                     ditutup
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pb-6">
-                                <div className="grid gap-3">
-                                    {hasHistoryMeetings ? (
-                                        page.props.historyMeetings.map(
-                                            (row) => (
-                                                <div
-                                                    key={row.id}
-                                                    className="rounded-xl border bg-background p-4"
-                                                >
-                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                        <div className="min-w-0">
-                                                            <div className="text-sm font-semibold break-words">
-                                                                {row.topic}
-                                                            </div>
-                                                            <div className="mt-1 text-sm break-words text-muted-foreground">
-                                                                {row.lecturer}
-                                                            </div>
-                                                            <div className="mt-1">
+                                </p>
+                            </div>
+
+                            {page.props.historyMeetings.length > 0 ? (
+                                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="border-b bg-muted/30">
+                                                <tr>
+                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                        Topik
+                                                    </th>
+                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                        Dosen
+                                                    </th>
+                                                    <th className="px-5 py-3 text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                        Waktu
+                                                    </th>
+                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                        Lokasi
+                                                    </th>
+                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                        Status
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y bg-background">
+                                                {page.props.historyMeetings.map(
+                                                    (row) => (
+                                                        <tr
+                                                            key={row.id}
+                                                            className="transition-colors hover:bg-muted/20"
+                                                        >
+                                                            <td className="px-5 py-3.5 align-middle">
+                                                                <p className="max-w-[180px] truncate text-sm font-medium">
+                                                                    {row.topic}
+                                                                </p>
+                                                                {row.lecturerNote && (
+                                                                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground italic opacity-70">
+                                                                        {
+                                                                            row.lecturerNote
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-5 py-3.5 align-middle">
+                                                                <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                    {
+                                                                        row.lecturer
+                                                                    }
+                                                                </p>
                                                                 <RelationTypeBadge
                                                                     relationType={
                                                                         row.relationType
                                                                     }
                                                                 />
-                                                            </div>
-                                                        </div>
-                                                        <div className="sm:shrink-0">
-                                                            <StatusBadge
-                                                                status={
-                                                                    row.status
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <Separator className="my-3" />
-
-                                                    <div className="grid gap-2 text-sm text-muted-foreground">
-                                                        <div className="flex items-start gap-2">
-                                                            <Calendar className="mt-0.5 size-4 shrink-0" />
-                                                            <span className="break-words">
+                                                            </td>
+                                                            <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
                                                                 {formatDate(
                                                                     row.scheduledAt,
                                                                 )}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-start gap-2">
-                                                            <MapPin className="mt-0.5 size-4 shrink-0" />
-                                                            <span className="break-words">
-                                                                {row.location}
-                                                            </span>
-                                                        </div>
-                                                        {row.lecturerNote && (
-                                                            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-                                                                Catatan dosen:{' '}
-                                                                {
-                                                                    row.lecturerNote
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ),
-                                        )
-                                    ) : (
-                                        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
-                                            <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                                <Calendar className="size-5" />
-                                            </span>
-                                            <p className="text-sm font-medium">
-                                                Belum ada riwayat bimbingan
-                                            </p>
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                Riwayat akan muncul setelah sesi
-                                                pertama selesai.
-                                            </p>
-                                        </div>
-                                    )}
+                                                            </td>
+                                                            <td className="px-5 py-3.5 align-middle">
+                                                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                                    <MapPin className="size-3 shrink-0" />
+                                                                    {
+                                                                        row.location
+                                                                    }
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-5 py-3.5 align-middle">
+                                                                <StatusBadge
+                                                                    status={
+                                                                        row.status
+                                                                    }
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </CardContent>
-                        </Card>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
+                                    <Calendar className="mb-3 size-9 text-muted-foreground/40" />
+                                    <p className="text-sm font-medium">
+                                        Belum ada riwayat bimbingan
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Riwayat akan muncul setelah sesi pertama
+                                        selesai.
+                                    </p>
+                                </div>
+                            )}
+                        </section>
                     </>
                 )}
-
-                <ScheduleDetailModal
-                    open={isDetailModalOpen}
-                    onOpenChange={setIsDetailModalOpen}
-                    schedule={selectedEvent}
-                    currentUserRole="mahasiswa"
-                />
             </div>
+
+            <ScheduleDetailModal
+                open={isDetailModalOpen}
+                onOpenChange={setIsDetailModalOpen}
+                schedule={selectedEvent}
+                currentUserRole="mahasiswa"
+            />
         </AppLayout>
     );
 }
