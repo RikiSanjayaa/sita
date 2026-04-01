@@ -1,8 +1,9 @@
 import { Link } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export type ChatMessagePayload = {
     id: number | string;
@@ -30,36 +31,6 @@ function initials(name: string) {
         .toUpperCase();
 }
 
-function AuthorIdentity({ message }: { message: ChatMessagePayload }) {
-    const content = (
-        <>
-            <Avatar className="size-8 border">
-                <AvatarImage
-                    src={message.authorAvatar ?? undefined}
-                    alt={message.author}
-                />
-                <AvatarFallback>{initials(message.author)}</AvatarFallback>
-            </Avatar>
-            <span className="text-xs font-medium text-muted-foreground">
-                {message.author}
-            </span>
-        </>
-    );
-
-    if (message.authorProfileUrl) {
-        return (
-            <Link
-                href={message.authorProfileUrl}
-                className="inline-flex items-center gap-2 transition hover:text-primary"
-            >
-                {content}
-            </Link>
-        );
-    }
-
-    return <div className="inline-flex items-center gap-2">{content}</div>;
-}
-
 export function ChatBubble({ message, isMe }: ChatBubbleProps) {
     if (
         message.type === 'document_event' ||
@@ -68,60 +39,88 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
         const isRevision = message.type === 'revision_suggestion';
 
         return (
-            <div className="animate-pop relative overflow-hidden rounded-lg border border-primary/25 bg-background p-3">
-                <div className="pointer-events-none absolute inset-0 bg-primary/10" />
-                <div className="relative z-10">
-                    <div className="mb-3">
-                        <AuthorIdentity message={message} />
-                    </div>
-                    <div className="text-sm font-medium text-primary">
-                        {isRevision
-                            ? 'File revisi dari dosen'
-                            : 'Dokumen baru diunggah'}
-                    </div>
-                    <div className="mt-1 text-sm text-primary">
-                        {message.message}
-                    </div>
-                    {message.documentName && (
-                        <div className="mt-2 max-w-[200px] truncate rounded border bg-background p-2 text-sm sm:max-w-none">
-                            {message.documentName}
+            <div className="animate-pop my-4 flex flex-col items-center gap-1.5">
+                <div className="flex w-full max-w-[85%] items-center justify-between gap-4 rounded-xl border bg-background px-4 py-3 shadow-sm sm:w-auto sm:min-w-[400px]">
+                    <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
+                            <FileText className="size-5" />
                         </div>
-                    )}
-                    <div className="mt-2 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                        <span className="text-xs text-muted-foreground">
-                            {message.author} - {message.time}
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 w-full gap-2 sm:w-auto"
-                            disabled={!message.documentUrl}
-                            onClick={() => {
-                                if (message.documentUrl) {
-                                    window.open(
-                                        message.documentUrl,
-                                        '_blank',
-                                        'noopener,noreferrer',
-                                    );
-                                }
-                            }}
-                        >
-                            <Download className="size-3.5" />
-                            Unduh
-                        </Button>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                                {isRevision
+                                    ? 'File Revisi dari Dosen'
+                                    : 'Dokumen Baru Diunggah'}
+                            </p>
+                            <p className="truncate text-sm font-semibold text-foreground">
+                                {message.documentName}
+                            </p>
+                        </div>
                     </div>
+
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 shrink-0 gap-1.5 rounded-full px-4 text-primary hover:text-primary"
+                        disabled={!message.documentUrl}
+                        asChild={!!message.documentUrl}
+                    >
+                        {message.documentUrl ? (
+                            <a
+                                href={message.documentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <Download className="size-3.5" />
+                                <span className="text-xs font-semibold">
+                                    Unduh
+                                </span>
+                            </a>
+                        ) : (
+                            <div>
+                                <Download className="size-3.5" />
+                                <span className="text-xs font-semibold">
+                                    Unduh
+                                </span>
+                            </div>
+                        )}
+                    </Button>
                 </div>
+                <span className="text-[11px] font-medium text-muted-foreground">
+                    {message.time}
+                </span>
             </div>
         );
     }
 
     return (
-        <div className={`animate-pop flex ${isMe ? 'justify-end' : ''}`}>
-            {!isMe && (
-                <div className="mt-0.5 mr-2 shrink-0">
-                    {message.authorProfileUrl ? (
-                        <Link href={message.authorProfileUrl}>
-                            <Avatar className="size-7">
+        <div
+            className={cn(
+                'animate-pop my-2 flex w-full',
+                isMe ? 'justify-end' : 'justify-start',
+            )}
+        >
+            <div
+                className={cn(
+                    'flex max-w-[85%] gap-3 sm:max-w-[75%]',
+                    isMe ? 'flex-row-reverse' : 'flex-row',
+                )}
+            >
+                {!isMe && (
+                    <div className="mt-1 shrink-0">
+                        {message.authorProfileUrl ? (
+                            <Link href={message.authorProfileUrl}>
+                                <Avatar className="size-8">
+                                    <AvatarImage
+                                        src={message.authorAvatar ?? undefined}
+                                        alt={message.author}
+                                    />
+                                    <AvatarFallback>
+                                        {initials(message.author)}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </Link>
+                        ) : (
+                            <Avatar className="size-8">
                                 <AvatarImage
                                     src={message.authorAvatar ?? undefined}
                                     alt={message.author}
@@ -130,59 +129,63 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                                     {initials(message.author)}
                                 </AvatarFallback>
                             </Avatar>
-                        </Link>
-                    ) : (
-                        <Avatar className="size-7">
-                            <AvatarImage
-                                src={message.authorAvatar ?? undefined}
-                                alt={message.author}
-                            />
-                            <AvatarFallback>
-                                {initials(message.author)}
-                            </AvatarFallback>
-                        </Avatar>
-                    )}
-                </div>
-            )}
-            <div
-                className={`max-w-[85%] rounded-2xl border px-3 py-2 text-sm sm:max-w-[78%] ${
-                    isMe
-                        ? 'rounded-tr-sm bg-primary text-primary-foreground'
-                        : 'rounded-tl-sm bg-background'
-                }`}
-            >
-                {message.documentName && (
-                    <div
-                        className={`mb-2 rounded border p-2 text-xs break-all ${
-                            isMe
-                                ? 'border-primary-foreground/25 bg-primary-foreground/15'
-                                : 'bg-muted/30'
-                        }`}
-                    >
-                        {message.documentName}
+                        )}
                     </div>
                 )}
-                {message.message && (
-                    <div className="break-words">{message.message}</div>
-                )}
-                <div
-                    className={`mt-1 text-[11px] ${
-                        isMe
-                            ? 'text-primary-foreground/70'
-                            : 'text-muted-foreground'
-                    }`}
-                >
-                    {message.authorProfileUrl && !isMe ? (
-                        <Link
-                            href={message.authorProfileUrl}
-                            className="font-medium transition hover:text-primary"
-                        >
-                            {message.author}
-                        </Link>
-                    ) : (
-                        message.author
-                    )}{' '}
-                    - {message.time}
+
+                <div className="flex min-w-0 flex-col gap-1">
+                    {!isMe && (
+                        <div className="pl-1 text-xs text-muted-foreground">
+                            {message.authorProfileUrl ? (
+                                <Link
+                                    href={message.authorProfileUrl}
+                                    className="font-medium hover:text-primary"
+                                >
+                                    {message.author}
+                                </Link>
+                            ) : (
+                                <span className="font-medium">
+                                    {message.author}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    <div
+                        className={cn(
+                            'rounded-2xl px-4 py-3 text-[15px] leading-relaxed',
+                            isMe
+                                ? 'rounded-br-sm bg-primary text-primary-foreground'
+                                : 'rounded-tl-sm border bg-background text-foreground shadow-sm',
+                        )}
+                    >
+                        {message.documentName && (
+                            <div
+                                className={cn(
+                                    'mb-2 break-all rounded border p-2 text-xs',
+                                    isMe
+                                        ? 'border-primary-foreground/25 bg-primary-foreground/15'
+                                        : 'bg-muted/30',
+                                )}
+                            >
+                                {message.documentName}
+                            </div>
+                        )}
+                        {message.message && (
+                            <div className="break-words whitespace-pre-wrap">
+                                {message.message}
+                            </div>
+                        )}
+                    </div>
+
+                    <div
+                        className={cn(
+                            'mt-0.5 text-[11px] text-muted-foreground',
+                            isMe ? 'pr-1 text-right' : 'pl-1 text-left',
+                        )}
+                    >
+                        {message.time}
+                    </div>
                 </div>
             </div>
         </div>

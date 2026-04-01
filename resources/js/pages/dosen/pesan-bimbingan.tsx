@@ -1,13 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    ChevronDown,
-    Inbox,
-    Paperclip,
-    Search,
-    Send,
-    Users,
-} from 'lucide-react';
+import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -24,11 +16,11 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -532,9 +524,9 @@ function DosenPesanBimbinganContent({
                         </div>
                     </CardHeader>
                     <Separator />
-                    <CardContent className="relative flex-1 overflow-hidden pb-6">
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
-                            <div className="flex flex-col gap-2 p-4">
+                            <div className="flex flex-col">
                                 {visibleThreads.length > 0 ? (
                                     visibleThreads.map((thread) => {
                                         const threadMessages =
@@ -548,46 +540,67 @@ function DosenPesanBimbinganContent({
                                                 key={thread.id}
                                                 type="button"
                                                 className={cn(
-                                                    'w-full shrink-0 rounded-xl border p-3.5 text-left transition-all hover:bg-muted/50',
+                                                    'flex w-full shrink-0 flex-col border-b border-l-[3px] border-l-transparent p-4 text-left transition-all last:border-b-0 hover:bg-muted/50',
                                                     activeThread?.id ===
                                                         thread.id &&
-                                                        'border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20',
+                                                        'border-l-primary',
                                                 )}
                                                 onClick={() =>
                                                     selectThread(thread.id)
                                                 }
                                             >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <p className="truncate text-sm font-semibold">
-                                                        {thread.student}
-                                                    </p>
-                                                    <span className="shrink-0 text-xs text-muted-foreground">
-                                                        {thread.lastTime}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                                    {latestMessage?.message ||
-                                                        latestMessage?.documentName ||
-                                                        thread.preview}
-                                                </p>
-                                                <div className="mt-2 flex items-center justify-between gap-1">
-                                                    <Badge
-                                                        variant="soft"
-                                                        className={cn(
-                                                            'px-2 py-0.5 text-[10px] font-medium',
-                                                            thread.threadType ===
-                                                                'pembimbing'
-                                                                ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
-                                                        )}
-                                                    >
-                                                        {thread.threadLabel}
-                                                    </Badge>
-                                                    {thread.unread > 0 && (
-                                                        <Badge className="bg-primary text-primary-foreground">
-                                                            {thread.unread} baru
+                                                <div className="flex w-full items-start justify-between gap-3">
+                                                    <div className="flex min-w-0 flex-col gap-1.5">
+                                                        <p
+                                                            className={cn(
+                                                                'truncate font-semibold',
+                                                                activeThread?.id ===
+                                                                    thread.id
+                                                                    ? 'text-[15px] text-primary'
+                                                                    : 'text-sm text-foreground',
+                                                            )}
+                                                        >
+                                                            {thread.student}
+                                                        </p>
+                                                        <p
+                                                            className={cn(
+                                                                'line-clamp-2 text-[13px]',
+                                                                activeThread?.id ===
+                                                                    thread.id
+                                                                    ? 'font-medium text-primary/90'
+                                                                    : 'text-muted-foreground',
+                                                            )}
+                                                        >
+                                                            {latestMessage?.message ||
+                                                                latestMessage?.documentName ||
+                                                                thread.preview}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex shrink-0 flex-col items-end gap-2">
+                                                        <Badge
+                                                            variant="soft"
+                                                            className={cn(
+                                                                'px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase',
+                                                                thread.threadType ===
+                                                                    'pembimbing'
+                                                                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                                                            )}
+                                                        >
+                                                            {thread.threadLabel}
                                                         </Badge>
-                                                    )}
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[11px] font-medium text-muted-foreground">
+                                                                {
+                                                                    thread.lastTime
+                                                                }
+                                                            </span>
+                                                            {thread.unread >
+                                                                0 && (
+                                                                <div className="size-2 rounded-full bg-primary" />
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </button>
                                         );
@@ -621,116 +634,130 @@ function DosenPesanBimbinganContent({
                     <CardHeader className="shrink-0 bg-muted/20 p-6 pb-4">
                         {activeThread ? (
                             <>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="-ml-2 lg:hidden"
-                                        onClick={() => setMobileView('threads')}
-                                    >
-                                        <ArrowLeft className="size-5" />
-                                    </Button>
-                                    <CardTitle className="truncate">
-                                        {activeThread.studentProfile ? (
-                                            <Link
-                                                href={
-                                                    activeThread.studentProfile
-                                                        .profileUrl
-                                                }
-                                                className="transition hover:text-primary"
-                                            >
-                                                {
-                                                    activeThread.studentProfile
-                                                        .name
-                                                }
-                                            </Link>
-                                        ) : (
-                                            activeThread.student
-                                        )}
-                                    </CardTitle>
-                                    <Badge
-                                        variant="soft"
-                                        className={cn(
-                                            'font-medium',
-                                            activeThread.threadType ===
-                                                'pembimbing'
-                                                ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
-                                        )}
-                                    >
-                                        {activeThread.threadLabel}
-                                    </Badge>
-                                </div>
-                                <CardDescription className="inline-flex items-center gap-1">
-                                    <Users className="size-3.5 shrink-0" />
-                                    <span className="truncate">
-                                        {activeThread.members.join(', ')}
-                                    </span>
-                                </CardDescription>
-                                {activeThread.memberProfiles.length > 0 ? (
-                                    <div className="mt-3 hidden sm:flex">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="gap-2"
-                                                >
-                                                    Lihat Peserta
-                                                    <ChevronDown className="size-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start">
-                                                {activeThread.memberProfiles.map(
-                                                    (member) => (
-                                                        <DropdownMenuItem
-                                                            key={member.id}
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={
-                                                                    member.profileUrl
-                                                                }
-                                                                className="flex min-w-0 items-center gap-2"
+                                <div className="flex items-center gap-4">
+                                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="-ml-2 shrink-0 lg:hidden"
+                                            onClick={() =>
+                                                setMobileView('threads')
+                                            }
+                                        >
+                                            <ArrowLeft className="size-5" />
+                                        </Button>
+
+                                        {activeThread.memberProfiles.length >
+                                        0 ? (
+                                            <TooltipProvider delayDuration={0}>
+                                                <div className="hidden shrink-0 items-center -space-x-3 sm:flex">
+                                                    {activeThread.memberProfiles.map(
+                                                        (member) => (
+                                                            <Tooltip
+                                                                key={member.id}
                                                             >
-                                                                <Avatar className="size-7 border">
-                                                                    <AvatarImage
-                                                                        src={
-                                                                            member.avatar ??
-                                                                            undefined
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={
+                                                                            member.profileUrl
                                                                         }
-                                                                        alt={
-                                                                            member.name
-                                                                        }
-                                                                    />
-                                                                    <AvatarFallback className="bg-primary/10 text-primary">
-                                                                        {getInitials(
-                                                                            member.name,
-                                                                        )}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                                <div className="min-w-0">
-                                                                    <span className="block truncate">
+                                                                        className="relative z-0 transition-transform hover:z-10 hover:scale-110"
+                                                                    >
+                                                                        <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
+                                                                            <AvatarImage
+                                                                                src={
+                                                                                    member.avatar ??
+                                                                                    undefined
+                                                                                }
+                                                                                alt={
+                                                                                    member.name
+                                                                                }
+                                                                            />
+                                                                            <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                                                                                {getInitials(
+                                                                                    member.name,
+                                                                                )}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
+                                                                    </Link>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="px-3 py-1.5 text-xs">
+                                                                    <p className="font-semibold">
                                                                         {
                                                                             member.name
                                                                         }
-                                                                    </span>
-                                                                    <span className="block truncate text-xs text-muted-foreground">
-                                                                        {
-                                                                            member.subtitle
-                                                                        }
-                                                                    </span>
-                                                                </div>
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                    ),
+                                                                    </p>
+                                                                    {member.subtitle && (
+                                                                        <p className="opacity-80">
+                                                                            {
+                                                                                member.subtitle
+                                                                            }
+                                                                        </p>
+                                                                    )}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </TooltipProvider>
+                                        ) : null}
+
+                                        <div className="flex min-w-0 flex-col gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                                <CardTitle className="truncate">
+                                                    {activeThread.studentProfile ? (
+                                                        <Link
+                                                            href={
+                                                                activeThread
+                                                                    .studentProfile
+                                                                    .profileUrl
+                                                            }
+                                                            className="transition hover:text-primary"
+                                                        >
+                                                            {
+                                                                activeThread
+                                                                    .studentProfile
+                                                                    .name
+                                                            }
+                                                        </Link>
+                                                    ) : (
+                                                        activeThread.student
+                                                    )}
+                                                </CardTitle>
+                                                <Badge
+                                                    variant="soft"
+                                                    className={cn(
+                                                        'font-medium',
+                                                        activeThread.threadType ===
+                                                            'pembimbing'
+                                                            ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                            : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
+                                                    )}
+                                                >
+                                                    {activeThread.threadLabel}
+                                                </Badge>
+                                            </div>
+                                            <CardDescription className="truncate">
+                                                {activeThread.members.join(
+                                                    ', ',
                                                 )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                            </CardDescription>
+                                        </div>
                                     </div>
-                                ) : null}
+
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-8 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <Search className="size-4" />
+                                        </Button>
+                                    </div>
+                                </div>
                             </>
                         ) : (
                             <>
@@ -768,7 +795,7 @@ function DosenPesanBimbinganContent({
                                 )}
 
                                 {activeThread ? (
-                                    <div className="grid gap-3">
+                                    <div className="grid">
                                         {activeMessages.map((message) => {
                                             const isMe =
                                                 message.senderUserId ===
