@@ -1,17 +1,131 @@
-import { FileText, GraduationCap, Users } from 'lucide-react';
+import {
+    BookOpen,
+    CalendarCheck,
+    CalendarClock,
+    FileText,
+    Gauge,
+    GraduationCap,
+    type LucideIcon,
+    UserCheck,
+    Users,
+} from 'lucide-react';
 
 import { PersonCardLink } from '@/components/profile/person-card-link';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { type UserProfileDetail } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import { type ProfileFieldItem, type UserProfileDetail } from '@/types';
 
-const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
-const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+// ---------------------------------------------------------------------------
+// Stat icon + color config, keyed by label from the backend
+// ---------------------------------------------------------------------------
+
+type StatConfig = {
+    icon: LucideIcon;
+    /** className applied to the icon wrapper square */
+    wrapperClass: string;
+    /** className applied to the icon itself */
+    iconClass: string;
+};
+
+const STAT_CONFIGS: Record<string, StatConfig> = {
+    'Status Skripsi': {
+        icon: BookOpen,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Pembimbing Aktif': {
+        icon: GraduationCap,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Penguji Aktif': {
+        icon: UserCheck,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Mahasiswa Aktif': {
+        icon: Users,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Sisa Kuota': {
+        icon: Gauge,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Sempro Terjadwal': {
+        icon: CalendarClock,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Sidang Terjadwal': {
+        icon: CalendarCheck,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+};
+
+const DEFAULT_STAT_CONFIG: StatConfig = {
+    icon: FileText,
+    wrapperClass: 'bg-primary/10',
+    iconClass: 'text-primary',
+};
+
+// ---------------------------------------------------------------------------
+
+function StatItem({ label, value }: ProfileFieldItem) {
+    const {
+        icon: Icon,
+        wrapperClass,
+        iconClass,
+    } = STAT_CONFIGS[label] ?? DEFAULT_STAT_CONFIG;
+
+    return (
+        <div className="flex items-center gap-3">
+            <div
+                className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-lg',
+                    wrapperClass,
+                )}
+            >
+                <Icon aria-hidden="true" className={cn('size-5', iconClass)} />
+            </div>
+            <div className="min-w-0">
+                <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                    {label}
+                </p>
+                <p className="mt-0.5 text-sm font-bold text-foreground">
+                    {value}
+                </p>
+            </div>
+        </div>
+    );
+}
+
+function SectionHeader({
+    title,
+    description,
+    icon: Icon,
+}: {
+    title: string;
+    description?: string;
+    icon?: LucideIcon;
+}) {
+    return (
+        <div className="space-y-1">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-balance">
+                {Icon ? (
+                    <Icon aria-hidden="true" className="size-5 shrink-0" />
+                ) : null}
+                {title}
+            </h2>
+            {description ? (
+                <p className="text-sm text-muted-foreground">{description}</p>
+            ) : null}
+        </div>
+    );
+}
 
 export function ProfileDetailsSections({
     profile,
@@ -19,90 +133,87 @@ export function ProfileDetailsSections({
     profile: UserProfileDetail;
 }) {
     return (
-        <div className="grid gap-6">
-            <Card className={sectionCardClass}>
-                <CardHeader className={sectionCardHeaderClass}>
-                    <CardTitle>Informasi Utama</CardTitle>
-                    <CardDescription>
-                        Ringkasan identitas dan detail akademik yang relevan.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="pb-6">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {profile.meta.map((item) => (
-                            <div
-                                key={item.label}
-                                className="rounded-xl border p-4"
-                            >
-                                <p className="text-xs tracking-wide text-muted-foreground uppercase">
-                                    {item.label}
-                                </p>
-                                <p className="mt-2 text-sm font-medium text-foreground">
-                                    {item.value}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+        <div className="space-y-8">
+            {/* ── Detail Akademik & Peran ─────────────────────────────── */}
+            <div className="overflow-hidden rounded-xl border">
+                {/* Header */}
+                <div className="px-6 py-5">
+                    <SectionHeader
+                        title="Detail Akademik & Peran"
+                        description="Ringkasan identitas dan status bimbingan Anda saat ini."
+                    />
+                </div>
 
-            {profile.stats.length > 0 ? (
-                <Card className={sectionCardClass}>
-                    <CardHeader className={sectionCardHeaderClass}>
-                        <CardTitle>Ringkasan</CardTitle>
-                        <CardDescription>
-                            Gambaran singkat aktivitas dan peran saat ini.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pb-6">
-                        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+                <Separator />
+
+                {/* Meta grid */}
+                <div className="grid gap-x-8 gap-y-5 px-6 py-5 sm:grid-cols-2 xl:grid-cols-3">
+                    {profile.meta.map((item) => (
+                        <div key={item.label}>
+                            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                                {item.label}
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                                {item.value}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Stats row — only if present */}
+                {profile.stats.length > 0 ? (
+                    <>
+                        <Separator />
+                        <div className="grid gap-5 px-6 py-5 sm:grid-cols-2 lg:grid-cols-3">
                             {profile.stats.map((item) => (
-                                <div
+                                <StatItem
                                     key={item.label}
-                                    className="rounded-xl border bg-muted/20 p-4"
-                                >
-                                    <p className="text-xs tracking-wide text-muted-foreground uppercase">
-                                        {item.label}
-                                    </p>
-                                    <p className="mt-2 text-lg font-semibold text-foreground">
-                                        {item.value}
-                                    </p>
-                                </div>
+                                    label={item.label}
+                                    value={item.value}
+                                />
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
-            ) : null}
+                    </>
+                ) : null}
+            </div>
 
+            {/* ── Tugas Akhir ─────────────────────────────────────────── */}
             {profile.thesis ? (
-                <Card className={sectionCardClass}>
-                    <CardHeader className={sectionCardHeaderClass}>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileText className="size-4" />
-                            Tugas Akhir
-                        </CardTitle>
-                        <CardDescription>
-                            Status terkini dan dosen yang sedang terlibat.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6 pb-6">
-                        <div className="rounded-xl border p-4">
-                            <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                <div className="overflow-hidden rounded-xl border">
+                    {/* Header */}
+                    <div className="px-6 py-5">
+                        <SectionHeader
+                            title="Tugas Akhir"
+                            description="Status terkini dan dosen yang sedang terlibat."
+                            icon={FileText}
+                        />
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-6 px-6 py-5">
+                        {/* Thesis title block */}
+                        <div>
+                            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
                                 Judul Saat Ini
                             </p>
-                            <p className="mt-2 text-sm font-medium text-foreground">
+                            <p className="mt-1 text-sm font-semibold text-foreground">
                                 {profile.thesis.title ??
                                     'Belum ada judul aktif'}
                             </p>
-                            <p className="mt-2 text-xs text-muted-foreground">
+                            <Badge variant="secondary" className="mt-2">
                                 Status: {profile.thesis.statusLabel}
-                            </p>
+                            </Badge>
                         </div>
 
+                        {/* Advisors & examiners */}
                         <div className="grid gap-6 lg:grid-cols-2">
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                    <GraduationCap className="size-4" />
+                                    <GraduationCap
+                                        aria-hidden="true"
+                                        className="size-4 shrink-0"
+                                    />
                                     Dosen Pembimbing
                                 </div>
                                 {profile.thesis.advisors.length > 0 ? (
@@ -126,7 +237,10 @@ export function ProfileDetailsSections({
 
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                    <Users className="size-4" />
+                                    <Users
+                                        aria-hidden="true"
+                                        className="size-4 shrink-0"
+                                    />
                                     Dosen Penguji
                                 </div>
                                 {profile.thesis.examiners.length > 0 ? (
@@ -148,19 +262,23 @@ export function ProfileDetailsSections({
                                 )}
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             ) : null}
 
+            {/* ── Related user groups ─────────────────────────────────── */}
             {profile.relatedUsers.map((group) => (
-                <Card key={group.title} className={sectionCardClass}>
-                    <CardHeader className={sectionCardHeaderClass}>
-                        <CardTitle>{group.title}</CardTitle>
-                        <CardDescription>
-                            Profil pengguna terkait yang bisa dibuka langsung.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pb-6">
+                <div
+                    key={group.title}
+                    className="overflow-hidden rounded-xl border"
+                >
+                    <div className="px-6 py-5">
+                        <SectionHeader title={group.title} />
+                    </div>
+
+                    <Separator />
+
+                    <div className="px-6 py-5">
                         {group.users.length > 0 ? (
                             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                 {group.users.map((person) => (
@@ -175,8 +293,8 @@ export function ProfileDetailsSections({
                                 {group.emptyMessage}
                             </p>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             ))}
         </div>
     );

@@ -111,164 +111,175 @@ export default function ProfilePage() {
             <Head title="Profil Saya" />
 
             <SettingsLayout>
-                <div>
-                    <h2 className="text-lg font-semibold">Perbarui profil</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Ubah nama, email, dan foto profil agar tampil konsisten
-                        di seluruh aplikasi.
-                    </p>
-                </div>
-
-                <Separator />
-
-                <form
-                    onSubmit={submit}
-                    className="grid gap-6 lg:grid-cols-[220px_1fr]"
-                >
-                    <div className="flex flex-col items-center gap-4 rounded-xl border bg-muted/20 p-5 text-center">
-                        <Avatar className="size-24 border">
-                            <AvatarImage
-                                src={
-                                    avatarPreview ??
-                                    auth.user.avatar ??
-                                    undefined
-                                }
-                                alt={auth.user.name}
-                            />
-                            <AvatarFallback className="bg-primary/10 text-lg text-primary">
-                                {getInitials(auth.user.name)}
-                            </AvatarFallback>
-                        </Avatar>
-
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.webp"
-                            className="hidden"
-                            onChange={pickAvatar}
-                        />
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <Camera className="mr-2 size-4" />
-                            Ganti foto
-                        </Button>
-
-                        <div className="space-y-1 text-xs text-muted-foreground">
-                            <p>JPG, PNG, atau WebP.</p>
-                            <p>Maksimal 2 MB.</p>
-                        </div>
-
-                        {profile.whatsappUrl ? (
-                            <Button asChild variant="secondary">
-                                <a
-                                    href={profile.whatsappUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    <MessageCircle className="mr-2 size-4" />
-                                    Chat WhatsApp
-                                </a>
-                            </Button>
-                        ) : null}
-
-                        <InputError
-                            message={form.errors.avatar}
-                            className="text-center text-xs"
-                        />
+                {/* Profile form card */}
+                <div className="overflow-hidden rounded-xl border">
+                    <div className="px-6 py-5">
+                        <h2 className="text-lg font-semibold text-balance">
+                            Perbarui Profil
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Ubah nama, email, dan foto profil agar tampil
+                            konsisten di chat dan halaman akademik.
+                        </p>
                     </div>
 
-                    <div className="grid gap-5">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">Nama lengkap</Label>
-                            <Input
-                                id="name"
-                                value={form.data.name}
-                                onChange={(event) =>
-                                    form.setData('name', event.target.value)
-                                }
-                                autoComplete="name"
-                                required
-                            />
-                            <InputError
-                                message={form.errors.name}
-                                className="text-xs"
-                            />
-                        </div>
+                    <Separator />
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={form.data.email}
-                                onChange={(event) =>
-                                    form.setData('email', event.target.value)
-                                }
-                                autoComplete="email"
-                                required
-                            />
-                            <InputError
-                                message={form.errors.email}
-                                className="text-xs"
-                            />
-                        </div>
+                    <form
+                        onSubmit={submit}
+                        className="grid gap-6 px-6 py-5 lg:grid-cols-[200px_1fr]"
+                    >
+                        <div className="flex flex-col items-center gap-4 text-center">
+                            <Avatar className="size-24 border">
+                                <AvatarImage
+                                    src={
+                                        avatarPreview ??
+                                        auth.user.avatar ??
+                                        undefined
+                                    }
+                                    alt={auth.user.name}
+                                />
+                                <AvatarFallback className="bg-primary/10 text-lg text-primary">
+                                    {getInitials(auth.user.name)}
+                                </AvatarFallback>
+                            </Avatar>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="phone_number">Nomor HP</Label>
-                            <Input
-                                id="phone_number"
-                                value={form.data.phone_number}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'phone_number',
-                                        event.target.value,
-                                    )
-                                }
-                                placeholder="08xxxxxxxxxx"
-                                inputMode="tel"
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.webp"
+                                className="hidden"
+                                onChange={pickAvatar}
                             />
-                            <InputError
-                                message={form.errors.phone_number}
-                                className="text-xs"
-                            />
-                        </div>
 
-                        <div className="flex flex-wrap justify-end gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
-                                disabled={form.processing}
-                                onClick={() => {
-                                    form.reset();
-                                    setAvatarPreview(auth.user.avatar ?? null);
-
-                                    if (fileInputRef.current) {
-                                        fileInputRef.current.value = '';
-                                    }
-
-                                    if (objectUrlRef.current !== null) {
-                                        URL.revokeObjectURL(
-                                            objectUrlRef.current,
-                                        );
-                                        objectUrlRef.current = null;
-                                    }
-                                }}
+                                onClick={() => fileInputRef.current?.click()}
                             >
-                                Reset
+                                <Camera className="mr-2 size-4" />
+                                Ganti foto
                             </Button>
-                            <Button type="submit" disabled={form.processing}>
-                                <Save className="mr-2 size-4" />
-                                Simpan perubahan
-                            </Button>
-                        </div>
-                    </div>
-                </form>
 
-                <Separator />
+                            <div className="space-y-1 text-xs text-muted-foreground">
+                                <p>JPG, PNG, atau WebP.</p>
+                                <p>Maksimal 2 MB.</p>
+                            </div>
+
+                            {profile.whatsappUrl ? (
+                                <Button asChild variant="secondary">
+                                    <a
+                                        href={profile.whatsappUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <MessageCircle className="mr-2 size-4" />
+                                        Chat WhatsApp
+                                    </a>
+                                </Button>
+                            ) : null}
+
+                            <InputError
+                                message={form.errors.avatar}
+                                className="text-center text-xs"
+                            />
+                        </div>
+
+                        <div className="grid gap-5">
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Nama lengkap</Label>
+                                <Input
+                                    id="name"
+                                    value={form.data.name}
+                                    onChange={(event) =>
+                                        form.setData('name', event.target.value)
+                                    }
+                                    autoComplete="name"
+                                    required
+                                />
+                                <InputError
+                                    message={form.errors.name}
+                                    className="text-xs"
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={form.data.email}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'email',
+                                            event.target.value,
+                                        )
+                                    }
+                                    autoComplete="email"
+                                    required
+                                />
+                                <InputError
+                                    message={form.errors.email}
+                                    className="text-xs"
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="phone_number">Nomor HP</Label>
+                                <Input
+                                    id="phone_number"
+                                    value={form.data.phone_number}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'phone_number',
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="08xxxxxxxxxx…"
+                                    inputMode="tel"
+                                />
+                                <InputError
+                                    message={form.errors.phone_number}
+                                    className="text-xs"
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={form.processing}
+                                    onClick={() => {
+                                        form.reset();
+                                        setAvatarPreview(
+                                            auth.user.avatar ?? null,
+                                        );
+
+                                        if (fileInputRef.current) {
+                                            fileInputRef.current.value = '';
+                                        }
+
+                                        if (objectUrlRef.current !== null) {
+                                            URL.revokeObjectURL(
+                                                objectUrlRef.current,
+                                            );
+                                            objectUrlRef.current = null;
+                                        }
+                                    }}
+                                >
+                                    Reset
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={form.processing}
+                                >
+                                    <Save className="mr-2 size-4" />
+                                    Simpan perubahan
+                                </Button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
 
                 <ProfileDetailsSections profile={profile} />
             </SettingsLayout>
