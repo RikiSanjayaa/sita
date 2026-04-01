@@ -237,7 +237,9 @@ class PesanController extends Controller
                 ]));
             }
 
-            $message = $thread->messages()->create([
+            $createdMessages = collect();
+
+            $createdMessages->push($thread->messages()->create([
                 'sender_user_id' => $student->id,
                 'related_document_id' => $createdDocuments->first()?->id,
                 'attachment_disk' => $disk,
@@ -248,7 +250,17 @@ class PesanController extends Controller
                 'message_type' => 'document_event',
                 'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d.', $nextVersion),
                 'sent_at' => now(),
-            ]);
+            ]));
+
+            if ($trimmedMessage !== '') {
+                $createdMessages->push($thread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'related_document_id' => $createdDocuments->first()?->id,
+                    'message_type' => 'text',
+                    'message' => $trimmedMessage,
+                    'sent_at' => now()->addSecond(),
+                ]));
+            }
 
             $mirroredMessages = collect();
 
@@ -269,20 +281,32 @@ class PesanController extends Controller
                     'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d (notifikasi ke thread Sempro).', $nextVersion),
                     'sent_at' => now(),
                 ]));
+
+                if ($trimmedMessage !== '') {
+                    $mirroredMessages->push($semproThread->messages()->create([
+                        'sender_user_id' => $student->id,
+                        'related_document_id' => $createdDocuments->first()?->id,
+                        'message_type' => 'text',
+                        'message' => $trimmedMessage,
+                        'sent_at' => now()->addSecond(),
+                    ]));
+                }
             }
 
             return [
-                'primary' => $message,
+                'primary' => $createdMessages,
                 'mirrored' => $mirroredMessages,
             ];
         });
 
-        /** @var MentorshipChatMessage $message */
-        $message = $result['primary'];
+        /** @var Collection<int, MentorshipChatMessage> $messages */
+        $messages = $result['primary'];
         /** @var Collection<int, MentorshipChatMessage> $mirroredMessages */
         $mirroredMessages = $result['mirrored'];
 
-        $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+        foreach ($messages as $message) {
+            $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+        }
 
         foreach ($mirroredMessages as $mirroredMessage) {
             $this->broadcastChatMessage($mirroredMessage->mentorship_chat_thread_id, $this->mapMessagePayload($mirroredMessage));
@@ -290,7 +314,7 @@ class PesanController extends Controller
 
         $this->notifyThreadMembers($student, $thread);
 
-        return back()->with('success', 'Pesan berhasil dikirim.');
+        return back();
     }
 
     /**

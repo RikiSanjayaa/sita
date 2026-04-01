@@ -19,16 +19,10 @@ import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import DosenLayout from '@/layouts/dosen-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -106,64 +100,39 @@ type ScheduleModalStatus =
     | 'cancelled';
 
 function StatusBadge({ status }: { status: string }) {
-    const normalizedStatus = status.toLowerCase();
-
-    if (normalizedStatus === 'approved' || normalizedStatus === 'rescheduled') {
+    const s = status.toLowerCase();
+    if (s === 'approved' || s === 'rescheduled') {
         return (
-            <Badge
-                variant="soft"
-                className="gap-1 rounded-full bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20"
-            >
-                <CheckCircle2 className="size-3.5" />
-                Terjadwal
-            </Badge>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="size-3" /> Terjadwal
+            </span>
         );
     }
-
-    if (normalizedStatus === 'completed') {
+    if (s === 'completed') {
         return (
-            <Badge
-                variant="soft"
-                className="gap-1 rounded-full bg-blue-600/10 text-blue-600 hover:bg-blue-600/20"
-            >
-                <CheckCircle2 className="size-3.5" />
-                Selesai
-            </Badge>
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2.5 py-0.5 text-xs font-medium text-blue-600">
+                <CheckCircle2 className="size-3" /> Selesai
+            </span>
         );
     }
-
-    if (normalizedStatus === 'pending') {
+    if (s === 'pending') {
         return (
-            <Badge
-                variant="soft"
-                className="gap-1 rounded-full bg-amber-600/10 text-amber-600 hover:bg-amber-600/20"
-            >
-                <Clock className="size-3.5" />
-                Menunggu
-            </Badge>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                <Clock className="size-3" /> Menunggu
+            </span>
         );
     }
-
-    if (normalizedStatus === 'rejected') {
+    if (s === 'rejected') {
         return (
-            <Badge
-                variant="soft"
-                className="gap-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
-            >
-                <XCircle className="size-3.5" />
-                Ditolak
-            </Badge>
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+                <XCircle className="size-3" /> Ditolak
+            </span>
         );
     }
-
     return (
-        <Badge
-            variant="outline"
-            className="gap-1 rounded-full text-muted-foreground"
-        >
-            <XCircle className="size-3.5" />
-            Dibatalkan
-        </Badge>
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+            <XCircle className="size-3" /> Dibatalkan
+        </span>
     );
 }
 
@@ -182,7 +151,6 @@ function RelationTypeBadge({
             </Badge>
         );
     }
-
     return (
         <Badge
             variant="outline"
@@ -193,6 +161,9 @@ function RelationTypeBadge({
     );
 }
 
+type WorkspaceFilter = 'bimbingan' | 'ujian' | 'semua';
+type HistoryFilter = 'semua' | 'completed' | 'rejected' | 'cancelled';
+
 export default function DosenJadwalBimbinganPage() {
     const {
         pendingRequests,
@@ -202,32 +173,20 @@ export default function DosenJadwalBimbinganPage() {
         workspaceEvents,
         auth,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
-    const [workspaceFilter, setWorkspaceFilter] = useState<
-        'bimbingan' | 'ujian' | 'semua'
-    >('bimbingan');
-    const [historyFilter, setHistoryFilter] = useState<
-        'semua' | 'completed' | 'rejected' | 'cancelled'
-    >('semua');
+
+    const [workspaceFilter, setWorkspaceFilter] = useState<WorkspaceFilter>('bimbingan');
+    const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('semua');
     const [visibleHistoryCount, setVisibleHistoryCount] = useState(10);
 
     const form = useForm({
-        decision: 'approve' as
-            | 'approve'
-            | 'reject'
-            | 'reschedule'
-            | 'complete'
-            | 'cancel',
+        decision: 'approve' as 'approve' | 'reject' | 'reschedule' | 'complete' | 'cancel',
         scheduled_for: '',
         location: '',
         lecturer_note: '',
     });
-    const [decisionFormById, setDecisionFormById] = useState<
-        Record<number, DecisionFormState>
-    >({});
-    const [decisionErrorsById, setDecisionErrorsById] = useState<
-        Record<number, DecisionFormErrors>
-    >({});
 
+    const [decisionFormById, setDecisionFormById] = useState<Record<number, DecisionFormState>>({});
+    const [decisionErrorsById, setDecisionErrorsById] = useState<Record<number, DecisionFormErrors>>({});
     const [recurringFormById, setRecurringFormById] = useState<
         Record<string, { location: string; lecturer_note: string }>
     >({});
@@ -246,30 +205,20 @@ export default function DosenJadwalBimbinganPage() {
         status: ScheduleModalStatus;
         notes?: string | null;
     } | null>(null);
-
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     useEffect(() => {
         const userId = auth.user?.id;
-        if (typeof window === 'undefined' || !window.Echo || !userId) {
-            return;
-        }
-
+        if (typeof window === 'undefined' || !window.Echo || !userId) return;
         const channelName = `schedule.user.${userId}`;
         const channel = window.Echo.private(channelName).listen(
             '.schedule.updated',
             () => {
                 router.reload({
-                    only: [
-                        'pendingRequests',
-                        'upcomingSchedules',
-                        'historySchedules',
-                        'workspaceEvents',
-                    ],
+                    only: ['pendingRequests', 'upcomingSchedules', 'historySchedules', 'workspaceEvents'],
                 });
             },
         );
-
         return () => {
             channel.stopListening('.schedule.updated');
             window.Echo.leaveChannel(`private-${channelName}`);
@@ -289,29 +238,22 @@ export default function DosenJadwalBimbinganPage() {
 
         const nextErrors: DecisionFormErrors = {};
         if (
-            (decision === 'approve' ||
-                decision === 'reject' ||
-                decision === 'reschedule') &&
+            (decision === 'approve' || decision === 'reject' || decision === 'reschedule') &&
             input.lecturer_note.trim() === ''
         ) {
             nextErrors.lecturer_note = 'Feedback wajib diisi';
         }
         if (decision === 'reschedule' && input.scheduled_for.trim() === '') {
-            nextErrors.scheduled_for =
-                'Tanggal/jam baru wajib diisi untuk jadwal ulang.';
+            nextErrors.scheduled_for = 'Tanggal/jam baru wajib diisi untuk jadwal ulang.';
         }
         if (Object.keys(nextErrors).length > 0) {
-            setDecisionErrorsById((current) => ({
-                ...current,
-                [scheduleId]: nextErrors,
-            }));
+            setDecisionErrorsById((c) => ({ ...c, [scheduleId]: nextErrors }));
             return;
         }
-
-        setDecisionErrorsById((current) => {
-            const next = { ...current };
-            delete next[scheduleId];
-            return next;
+        setDecisionErrorsById((c) => {
+            const n = { ...c };
+            delete n[scheduleId];
+            return n;
         });
 
         const payload = {
@@ -322,12 +264,7 @@ export default function DosenJadwalBimbinganPage() {
                     : input.scheduled_for || item.requestedForInput || '',
             location: input.location || item.location || 'Google Meet',
             lecturer_note:
-                input.lecturer_note ??
-                (decision === 'reject'
-                    ? ''
-                    : decision === 'reschedule'
-                      ? ''
-                      : 'Permintaan jadwal disetujui.'),
+                input.lecturer_note ?? (decision === 'reject' ? '' : 'Permintaan jadwal disetujui.'),
         };
 
         form.transform(() => ({
@@ -340,44 +277,28 @@ export default function DosenJadwalBimbinganPage() {
         form.post(`/dosen/jadwal-bimbingan/${scheduleId}/decision`, {
             preserveScroll: true,
             onError: (errors) => {
-                setDecisionErrorsById((current) => ({
-                    ...current,
+                setDecisionErrorsById((c) => ({
+                    ...c,
                     [scheduleId]: {
-                        ...current[scheduleId],
-                        scheduled_for:
-                            errors.scheduled_for ??
-                            current[scheduleId]?.scheduled_for,
-                        lecturer_note:
-                            errors.lecturer_note ??
-                            current[scheduleId]?.lecturer_note,
+                        ...c[scheduleId],
+                        scheduled_for: errors.scheduled_for ?? c[scheduleId]?.scheduled_for,
+                        lecturer_note: errors.lecturer_note ?? c[scheduleId]?.lecturer_note,
                     },
                 }));
             },
             onSuccess: () => {
-                setDecisionErrorsById((current) => {
-                    const next = { ...current };
-                    delete next[scheduleId];
-                    return next;
+                setDecisionErrorsById((c) => {
+                    const n = { ...c };
+                    delete n[scheduleId];
+                    return n;
                 });
             },
         });
     }
 
-    function closeSchedule(
-        scheduleId: number,
-        decision: 'complete' | 'cancel',
-        location: string,
-    ) {
-        form.transform(() => ({
-            decision,
-            scheduled_for: null,
-            location,
-            lecturer_note: null,
-        }));
-
-        form.post(`/dosen/jadwal-bimbingan/${scheduleId}/decision`, {
-            preserveScroll: true,
-        });
+    function closeSchedule(scheduleId: number, decision: 'complete' | 'cancel', location: string) {
+        form.transform(() => ({ decision, scheduled_for: null, location, lecturer_note: null }));
+        form.post(`/dosen/jadwal-bimbingan/${scheduleId}/decision`, { preserveScroll: true });
     }
 
     function decideRecurringGroup(
@@ -389,81 +310,57 @@ export default function DosenJadwalBimbinganPage() {
             location: items[0]?.location ?? 'Google Meet',
             lecturer_note: '',
         };
-
         if (input.lecturer_note.trim() === '') {
-            setRecurringErrorsById((current) => ({
-                ...current,
-                [groupId]: { lecturer_note: 'Feedback wajib diisi' },
-            }));
+            setRecurringErrorsById((c) => ({ ...c, [groupId]: { lecturer_note: 'Feedback wajib diisi' } }));
             return;
         }
-
-        setRecurringErrorsById((current) => {
-            const next = { ...current };
-            delete next[groupId];
-            return next;
+        setRecurringErrorsById((c) => {
+            const n = { ...c };
+            delete n[groupId];
+            return n;
         });
-
         form.transform(() => ({
             decision,
             scheduled_for: null,
             location: input.location,
             lecturer_note: input.lecturer_note,
         }));
-
         form.post(`/dosen/jadwal-bimbingan/recurring/${groupId}/decision`, {
             preserveScroll: true,
             onError: (errors) => {
-                setRecurringErrorsById((current) => ({
-                    ...current,
-                    [groupId]: {
-                        lecturer_note:
-                            errors.lecturer_note ??
-                            current[groupId]?.lecturer_note,
-                    },
+                setRecurringErrorsById((c) => ({
+                    ...c,
+                    [groupId]: { lecturer_note: errors.lecturer_note ?? c[groupId]?.lecturer_note },
                 }));
             },
             onSuccess: () => {
-                setRecurringErrorsById((current) => {
-                    const next = { ...current };
-                    delete next[groupId];
-                    return next;
+                setRecurringErrorsById((c) => {
+                    const n = { ...c };
+                    delete n[groupId];
+                    return n;
                 });
             },
         });
     }
 
     const groupedPendingRequests = useMemo(() => {
-        const groups: Record<
-            string,
-            { isRecurringGroup: boolean; items: PendingRequest[] }
-        > = {};
-
+        const groups: Record<string, { isRecurringGroup: boolean; items: PendingRequest[] }> = {};
         pendingRequests.forEach((item) => {
             if (item.isRecurring && item.recurringGroupId) {
                 if (!groups[item.recurringGroupId]) {
-                    groups[item.recurringGroupId] = {
-                        isRecurringGroup: true,
-                        items: [],
-                    };
+                    groups[item.recurringGroupId] = { isRecurringGroup: true, items: [] };
                 }
                 groups[item.recurringGroupId].items.push(item);
             } else {
-                groups[`single-${item.id}`] = {
-                    isRecurringGroup: false,
-                    items: [item],
-                };
+                groups[`single-${item.id}`] = { isRecurringGroup: false, items: [item] };
             }
         });
-
         return groups;
     }, [pendingRequests]);
 
     function formatDateInIndonesian(dateInput: string | Date): string {
-        const date =
-            typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+        const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
         if (isNaN(date.getTime())) return '';
-
         return date.toLocaleDateString('id-ID', {
             weekday: 'long',
             day: 'numeric',
@@ -476,10 +373,9 @@ export default function DosenJadwalBimbinganPage() {
 
     function formatDateTime(date: string, time: string): string {
         if (date === time) {
-            const parsedDateTime = new Date(date);
-
-            if (!isNaN(parsedDateTime.getTime())) {
-                return parsedDateTime.toLocaleString('id-ID', {
+            const p = new Date(date);
+            if (!isNaN(p.getTime())) {
+                return p.toLocaleString('id-ID', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
@@ -488,60 +384,38 @@ export default function DosenJadwalBimbinganPage() {
                 });
             }
         }
-
-        const parsedDate = new Date(`${date} ${time}`);
-        if (isNaN(parsedDate.getTime())) return `${date} pukul ${time}`;
-
+        const p = new Date(`${date} ${time}`);
+        if (isNaN(p.getTime())) return `${date} pukul ${time}`;
         return (
-            parsedDate.toLocaleDateString('id-ID', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-            }) + ` pukul ${time}`
+            p.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) +
+            ` pukul ${time}`
         );
     }
 
-    const filteredWorkspaceEvents = workspaceEvents.filter((event) => {
-        if (workspaceFilter === 'semua') {
-            return true;
-        }
-
-        return event.category === workspaceFilter;
-    });
-
-    const filteredHistorySchedules = historySchedules.filter((item) => {
-        if (historyFilter === 'semua') {
-            return true;
-        }
-
-        return item.status === historyFilter;
-    });
-
-    const visibleHistorySchedules = filteredHistorySchedules.slice(
-        0,
-        visibleHistoryCount,
+    const filteredWorkspaceEvents = workspaceEvents.filter((e) =>
+        workspaceFilter === 'semua' ? true : e.category === workspaceFilter,
     );
+
+    const filteredHistorySchedules = historySchedules.filter((i) =>
+        historyFilter === 'semua' ? true : i.status === historyFilter,
+    );
+
+    const visibleHistorySchedules = filteredHistorySchedules.slice(0, visibleHistoryCount);
 
     function handleEventClick(event: BimbinganEvent) {
         if (event.category === 'ujian') {
             router.visit('/dosen/seminar-proposal');
-
             return;
         }
-
         const scheduleId =
             typeof event.id === 'string' && event.id.startsWith('schedule-')
                 ? Number(event.id.replace('schedule-', ''))
                 : Number(event.id);
-
-        if (Number.isNaN(scheduleId)) {
-            return;
-        }
+        if (Number.isNaN(scheduleId)) return;
 
         const fullSchedule = [...upcomingSchedules, ...historySchedules].find(
             (s) => s.id === scheduleId,
         );
-
         const scheduleStatus = (
             event.status === 'scheduled' ? 'approved' : event.status
         ) as ScheduleModalStatus;
@@ -558,24 +432,34 @@ export default function DosenJadwalBimbinganPage() {
                 status: fullSchedule.status.toLowerCase() as ScheduleModalStatus,
                 notes: fullSchedule.lecturerNote,
             });
-            setIsDetailModalOpen(true);
-
-            return;
+        } else {
+            setSelectedEvent({
+                id: scheduleId,
+                topic: event.topic,
+                person: event.person,
+                personRole: 'student',
+                start: event.start,
+                end: event.end,
+                location: event.location,
+                status: scheduleStatus,
+                notes: null,
+            });
         }
-
-        setSelectedEvent({
-            id: scheduleId,
-            topic: event.topic,
-            person: event.person,
-            personRole: 'student',
-            start: event.start,
-            end: event.end,
-            location: event.location,
-            status: scheduleStatus,
-            notes: null,
-        });
         setIsDetailModalOpen(true);
     }
+
+    const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
+        { label: 'Bimbingan', value: 'bimbingan' },
+        { label: 'Sempro / Sidang', value: 'ujian' },
+        { label: 'Semua', value: 'semua' },
+    ];
+
+    const historyFilterTabs: { label: string; value: HistoryFilter }[] = [
+        { label: 'Semua', value: 'semua' },
+        { label: 'Selesai', value: 'completed' },
+        { label: 'Ditolak', value: 'rejected' },
+        { label: 'Dibatalkan', value: 'cancelled' },
+    ];
 
     return (
         <DosenLayout
@@ -585,311 +469,200 @@ export default function DosenJadwalBimbinganPage() {
         >
             <Head title="Jadwal Bimbingan Dosen" />
 
-            <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Jadwal Bimbingan
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Kelola jadwal bimbingan skripsi mahasiswa bimbingan
-                        </p>
-                    </div>
-                </div>
-                <Card className="overflow-hidden py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <CardTitle className="text-lg font-semibold">
-                                    Workspace Jadwal
-                                </CardTitle>
-                                <CardDescription>
-                                    Gunakan satu kalender yang sama, lalu
-                                    fokuskan tampilan pada bimbingan,
-                                    sempro/sidang, atau keduanya.
-                                </CardDescription>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        workspaceFilter === 'bimbingan'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        setWorkspaceFilter('bimbingan')
-                                    }
-                                >
-                                    Bimbingan
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        workspaceFilter === 'ujian'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => setWorkspaceFilter('ujian')}
-                                >
-                                    Sempro / Sidang
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        workspaceFilter === 'semua'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => setWorkspaceFilter('semua')}
-                                >
-                                    Semua
-                                </Button>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pb-6">
-                        <BimbinganCalendar
-                            events={filteredWorkspaceEvents}
-                            onEventClick={handleEventClick}
-                            defaultView="calendar"
-                            showLegend={false}
-                        />
-                    </CardContent>
-                </Card>
-            </div>
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
 
-            <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-2 lg:gap-8 lg:py-8">
-                <Card className="overflow-hidden py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">
-                            Permintaan Menunggu Konfirmasi
-                        </CardTitle>
-                        <CardDescription>
-                            Konfirmasi, jadwalkan ulang, atau tolak permintaan
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pb-6">
-                        {flashMessage && (
-                            <Alert>
-                                <AlertTitle>Berhasil</AlertTitle>
-                                <AlertDescription>
-                                    {flashMessage}
-                                </AlertDescription>
-                            </Alert>
-                        )}
+                {/* Flash */}
+                {flashMessage && (
+                    <Alert>
+                        <AlertTitle>Berhasil</AlertTitle>
+                        <AlertDescription>{flashMessage}</AlertDescription>
+                    </Alert>
+                )}
+
+                {/* ---------------- WORKSPACE CALENDAR ---------------- */}
+                <section>
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold">Workspace Jadwal</h2>
+                            <p className="text-sm text-muted-foreground">
+                                Satu kalender untuk bimbingan, sempro, dan sidang
+                            </p>
+                        </div>
+                        {/* filter pills */}
+                        <div className="flex flex-wrap gap-1.5">
+                            {workspaceFilterTabs.map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    type="button"
+                                    onClick={() => setWorkspaceFilter(tab.value)}
+                                    className={cn(
+                                        'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                        workspaceFilter === tab.value
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <BimbinganCalendar
+                        events={filteredWorkspaceEvents}
+                        onEventClick={handleEventClick}
+                        defaultView="calendar"
+                        showLegend={false}
+                    />
+                </section>
+
+                {/* ---------------- TWO-COLUMN: PENDING + UPCOMING ---------------- */}
+                <div className="grid gap-8 lg:grid-cols-2">
+
+                    {/* --- Permintaan Pending --- */}
+                    <section>
+                        <div className="mb-3 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold">
+                                    Permintaan Menunggu Konfirmasi
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Konfirmasi, jadwalkan ulang, atau tolak permintaan
+                                </p>
+                            </div>
+                            {pendingRequests.length > 0 && (
+                                <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-600/10 text-xs font-bold text-amber-700">
+                                    {pendingRequests.length}
+                                </span>
+                            )}
+                        </div>
 
                         {pendingRequests.length > 0 ? (
-                            Object.entries(groupedPendingRequests).map(
-                                ([groupKey, group]) => {
+                            <div className="flex flex-col gap-4">
+                                {Object.entries(groupedPendingRequests).map(([groupKey, group]) => {
                                     const firstItem = group.items[0];
 
                                     if (group.isRecurringGroup) {
                                         return (
                                             <div
                                                 key={groupKey}
-                                                className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
+                                                className="rounded-xl border bg-card p-5 shadow-sm"
                                             >
-                                                <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                                                    <p className="text-base font-semibold">
+                                                {/* Header */}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-sm font-semibold">
                                                         {firstItem.mahasiswa}
                                                     </p>
                                                     <Badge
                                                         variant="soft"
                                                         className="gap-1 rounded-full bg-blue-600/10 text-blue-600"
                                                     >
-                                                        <Repeat className="size-3.5" />
-                                                        {group.items.length}{' '}
-                                                        Pertemuan
+                                                        <Repeat className="size-3" />
+                                                        {group.items.length} Pertemuan
                                                     </Badge>
-                                                    <RelationTypeBadge
-                                                        relationType={
-                                                            firstItem.relationType
-                                                        }
-                                                    />
+                                                    <RelationTypeBadge relationType={firstItem.relationType} />
                                                 </div>
-                                                <p className="mt-0.5 text-sm text-muted-foreground">
+                                                <p className="mt-1 text-xs text-muted-foreground">
                                                     {firstItem.topic}
                                                 </p>
 
-                                                <div className="mt-3 rounded-lg border bg-muted/50 p-3">
-                                                    <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                                        Jadwal yang diajukan:
+                                                {/* Schedule list */}
+                                                <div className="mt-3 rounded-lg border bg-muted/30 p-3">
+                                                    <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                                                        Jadwal diajukan
                                                     </p>
                                                     <div className="space-y-1">
-                                                        {group.items.map(
-                                                            (item) => (
-                                                                <div
-                                                                    key={
-                                                                        item.id
-                                                                    }
-                                                                    className="text-sm"
-                                                                >
-                                                                    {formatDateInIndonesian(
-                                                                        item.requestedAt,
-                                                                    )}
-                                                                </div>
-                                                            ),
-                                                        )}
+                                                        {group.items.map((item) => (
+                                                            <p key={item.id} className="text-xs">
+                                                                {formatDateInIndonesian(item.requestedAt)}
+                                                            </p>
+                                                        ))}
                                                     </div>
                                                 </div>
 
                                                 {firstItem.studentNote && (
-                                                    <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                                    <div className="mt-3 rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
                                                         <span className="font-medium text-foreground">
-                                                            Catatan mahasiswa:
-                                                        </span>{' '}
+                                                            Catatan mahasiswa:{' '}
+                                                        </span>
                                                         {firstItem.studentNote}
                                                     </div>
                                                 )}
 
-                                                <div className="mt-3 grid gap-2">
+                                                {/* Decision form */}
+                                                <div className="mt-4 grid gap-2.5">
                                                     <div className="grid gap-1">
-                                                        <Label
-                                                            htmlFor={`recurring-location-${groupKey}`}
-                                                        >
-                                                            Lokasi untuk Semua
-                                                            Jadwal
+                                                        <Label htmlFor={`recurring-location-${groupKey}`}>
+                                                            Lokasi untuk Semua Jadwal
                                                         </Label>
                                                         <Input
                                                             id={`recurring-location-${groupKey}`}
                                                             value={
-                                                                recurringFormById[
-                                                                    groupKey
-                                                                ]?.location ??
+                                                                recurringFormById[groupKey]?.location ??
                                                                 firstItem.location ??
                                                                 'Google Meet'
                                                             }
-                                                            onChange={(event) =>
-                                                                setRecurringFormById(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        [groupKey]:
-                                                                            {
-                                                                                location:
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                                lecturer_note:
-                                                                                    current[
-                                                                                        groupKey
-                                                                                    ]
-                                                                                        ?.lecturer_note ??
-                                                                                    '',
-                                                                            },
-                                                                    }),
-                                                                )
+                                                            onChange={(e) =>
+                                                                setRecurringFormById((c) => ({
+                                                                    ...c,
+                                                                    [groupKey]: {
+                                                                        location: e.target.value,
+                                                                        lecturer_note:
+                                                                            c[groupKey]?.lecturer_note ?? '',
+                                                                    },
+                                                                }))
                                                             }
                                                         />
                                                     </div>
-
                                                     <div className="grid gap-1">
-                                                        <Label
-                                                            htmlFor={`recurring-note-${groupKey}`}
-                                                        >
-                                                            Feedback ke
-                                                            Mahasiswa
+                                                        <Label htmlFor={`recurring-note-${groupKey}`}>
+                                                            Feedback ke Mahasiswa
                                                         </Label>
                                                         <Textarea
                                                             id={`recurring-note-${groupKey}`}
-                                                            value={
-                                                                recurringFormById[
-                                                                    groupKey
-                                                                ]
-                                                                    ?.lecturer_note ??
-                                                                ''
-                                                            }
-                                                            onChange={(
-                                                                event,
-                                                            ) => {
-                                                                setRecurringFormById(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        [groupKey]:
-                                                                            {
-                                                                                location:
-                                                                                    current[
-                                                                                        groupKey
-                                                                                    ]
-                                                                                        ?.location ??
-                                                                                    firstItem.location ??
-                                                                                    'Google Meet',
-                                                                                lecturer_note:
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                            },
-                                                                    }),
-                                                                );
-                                                                setRecurringErrorsById(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        [groupKey]:
-                                                                            {
-                                                                                lecturer_note:
-                                                                                    undefined,
-                                                                            },
-                                                                    }),
-                                                                );
+                                                            value={recurringFormById[groupKey]?.lecturer_note ?? ''}
+                                                            onChange={(e) => {
+                                                                setRecurringFormById((c) => ({
+                                                                    ...c,
+                                                                    [groupKey]: {
+                                                                        location:
+                                                                            c[groupKey]?.location ??
+                                                                            firstItem.location ??
+                                                                            'Google Meet',
+                                                                        lecturer_note: e.target.value,
+                                                                    },
+                                                                }));
+                                                                setRecurringErrorsById((c) => ({
+                                                                    ...c,
+                                                                    [groupKey]: { lecturer_note: undefined },
+                                                                }));
                                                             }}
-                                                            placeholder="Contoh: Semua jadwal disetujui, tolong siapkan materi untuk setiap pertemuan."
+                                                            placeholder="Contoh: Semua jadwal disetujui..."
+                                                            className="min-h-[80px] resize-none"
                                                         />
-                                                        {recurringErrorsById[
-                                                            groupKey
-                                                        ]?.lecturer_note && (
+                                                        {recurringErrorsById[groupKey]?.lecturer_note && (
                                                             <p className="text-xs text-destructive">
-                                                                {
-                                                                    recurringErrorsById[
-                                                                        groupKey
-                                                                    ]
-                                                                        ?.lecturer_note
-                                                                }
+                                                                {recurringErrorsById[groupKey]?.lecturer_note}
                                                             </p>
                                                         )}
                                                     </div>
-
-                                                    <div className="flex flex-wrap gap-2 pt-2">
+                                                    <div className="flex flex-wrap gap-2 pt-1">
                                                         <Button
                                                             size="sm"
                                                             variant="soft"
-                                                            className="w-full bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20 sm:w-auto"
-                                                            disabled={
-                                                                form.processing
-                                                            }
+                                                            className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 sm:flex-none"
+                                                            disabled={form.processing}
                                                             onClick={() =>
-                                                                decideRecurringGroup(
-                                                                    groupKey,
-                                                                    'reject',
-                                                                    group.items,
-                                                                )
+                                                                decideRecurringGroup(groupKey, 'reject', group.items)
                                                             }
                                                         >
                                                             Tolak Semua
                                                         </Button>
                                                         <Button
                                                             size="sm"
-                                                            className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
-                                                            disabled={
-                                                                form.processing
-                                                            }
+                                                            className="flex-1 sm:flex-none"
+                                                            disabled={form.processing}
                                                             onClick={() =>
-                                                                decideRecurringGroup(
-                                                                    groupKey,
-                                                                    'approve',
-                                                                    group.items,
-                                                                )
+                                                                decideRecurringGroup(groupKey, 'approve', group.items)
                                                             }
                                                         >
                                                             Konfirmasi Semua
@@ -904,272 +677,160 @@ export default function DosenJadwalBimbinganPage() {
                                     return (
                                         <div
                                             key={`${item.id}-${item.mahasiswa}`}
-                                            className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
+                                            className="rounded-xl border bg-card p-5 shadow-sm"
                                         >
-                                            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                                                <p className="text-base font-semibold">
-                                                    {item.mahasiswa}
-                                                </p>
-                                                <RelationTypeBadge
-                                                    relationType={
-                                                        item.relationType
-                                                    }
-                                                />
+                                            {/* Header */}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="text-sm font-semibold">{item.mahasiswa}</p>
+                                                <RelationTypeBadge relationType={item.relationType} />
                                             </div>
-                                            <p className="mt-0.5 text-sm text-muted-foreground">
+                                            <p className="mt-0.5 text-xs text-muted-foreground">
                                                 {item.topic}
                                             </p>
-                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                                <Badge
-                                                    variant="soft"
-                                                    className="bg-muted text-muted-foreground hover:bg-muted"
-                                                >
-                                                    {formatDateInIndonesian(
-                                                        item.requestedAt,
-                                                    )}
-                                                </Badge>
-                                            </div>
+                                            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <CalendarClock className="size-3.5 shrink-0" />
+                                                {formatDateInIndonesian(item.requestedAt)}
+                                            </p>
+
                                             {item.studentNote && (
-                                                <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                                <div className="mt-3 rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
                                                     <span className="font-medium text-foreground">
-                                                        Catatan mahasiswa:
-                                                    </span>{' '}
+                                                        Catatan mahasiswa:{' '}
+                                                    </span>
                                                     {item.studentNote}
                                                 </div>
                                             )}
-                                            <div className="mt-3 grid gap-2">
+
+                                            {/* Decision form */}
+                                            <div className="mt-4 grid gap-2.5">
                                                 <div className="grid gap-1">
-                                                    <Label
-                                                        htmlFor={`scheduled-${item.id}`}
-                                                    >
-                                                        Tanggal/Jam Konfirmasi
-                                                        atau Jadwal Ulang
+                                                    <Label htmlFor={`scheduled-${item.id}`}>
+                                                        Tanggal/Jam Konfirmasi atau Jadwal Ulang
                                                     </Label>
                                                     <Input
                                                         id={`scheduled-${item.id}`}
                                                         type="datetime-local"
                                                         value={
-                                                            decisionFormById[
-                                                                item.id
-                                                            ]?.scheduled_for ??
+                                                            decisionFormById[item.id]?.scheduled_for ??
                                                             item.requestedForInput ??
                                                             ''
                                                         }
-                                                        onChange={(event) => {
-                                                            setDecisionFormById(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    [item.id]: {
-                                                                        scheduled_for:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        location:
-                                                                            current[
-                                                                                item
-                                                                                    .id
-                                                                            ]
-                                                                                ?.location ??
-                                                                            item.location ??
-                                                                            'Google Meet',
-                                                                        lecturer_note:
-                                                                            current[
-                                                                                item
-                                                                                    .id
-                                                                            ]
-                                                                                ?.lecturer_note ??
-                                                                            '',
-                                                                    },
-                                                                }),
-                                                            );
-                                                            setDecisionErrorsById(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    [item.id]: {
-                                                                        ...current[
-                                                                            item
-                                                                                .id
-                                                                        ],
-                                                                        scheduled_for:
-                                                                            undefined,
-                                                                    },
-                                                                }),
-                                                            );
+                                                        onChange={(e) => {
+                                                            setDecisionFormById((c) => ({
+                                                                ...c,
+                                                                [item.id]: {
+                                                                    scheduled_for: e.target.value,
+                                                                    location:
+                                                                        c[item.id]?.location ??
+                                                                        item.location ??
+                                                                        'Google Meet',
+                                                                    lecturer_note:
+                                                                        c[item.id]?.lecturer_note ?? '',
+                                                                },
+                                                            }));
+                                                            setDecisionErrorsById((c) => ({
+                                                                ...c,
+                                                                [item.id]: {
+                                                                    ...c[item.id],
+                                                                    scheduled_for: undefined,
+                                                                },
+                                                            }));
                                                         }}
                                                     />
-                                                    {decisionErrorsById[item.id]
-                                                        ?.scheduled_for && (
+                                                    {decisionErrorsById[item.id]?.scheduled_for && (
                                                         <p className="text-xs text-destructive">
-                                                            {
-                                                                decisionErrorsById[
-                                                                    item.id
-                                                                ]?.scheduled_for
-                                                            }
+                                                            {decisionErrorsById[item.id]?.scheduled_for}
                                                         </p>
                                                     )}
                                                 </div>
                                                 <div className="grid gap-1">
-                                                    <Label
-                                                        htmlFor={`location-${item.id}`}
-                                                    >
-                                                        Lokasi
-                                                    </Label>
+                                                    <Label htmlFor={`location-${item.id}`}>Lokasi</Label>
                                                     <Input
                                                         id={`location-${item.id}`}
                                                         value={
-                                                            decisionFormById[
-                                                                item.id
-                                                            ]?.location ??
+                                                            decisionFormById[item.id]?.location ??
                                                             item.location ??
                                                             'Google Meet'
                                                         }
-                                                        onChange={(event) =>
-                                                            setDecisionFormById(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    [item.id]: {
-                                                                        scheduled_for:
-                                                                            current[
-                                                                                item
-                                                                                    .id
-                                                                            ]
-                                                                                ?.scheduled_for ??
-                                                                            item.requestedForInput ??
-                                                                            '',
-                                                                        location:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        lecturer_note:
-                                                                            current[
-                                                                                item
-                                                                                    .id
-                                                                            ]
-                                                                                ?.lecturer_note ??
-                                                                            '',
-                                                                    },
-                                                                }),
-                                                            )
+                                                        onChange={(e) =>
+                                                            setDecisionFormById((c) => ({
+                                                                ...c,
+                                                                [item.id]: {
+                                                                    scheduled_for:
+                                                                        c[item.id]?.scheduled_for ??
+                                                                        item.requestedForInput ??
+                                                                        '',
+                                                                    location: e.target.value,
+                                                                    lecturer_note:
+                                                                        c[item.id]?.lecturer_note ?? '',
+                                                                },
+                                                            }))
                                                         }
                                                     />
                                                 </div>
                                                 <div className="grid gap-1">
-                                                    <Label
-                                                        htmlFor={`note-${item.id}`}
-                                                    >
+                                                    <Label htmlFor={`note-${item.id}`}>
                                                         Feedback ke Mahasiswa
                                                     </Label>
                                                     <Textarea
                                                         id={`note-${item.id}`}
-                                                        value={
-                                                            decisionFormById[
-                                                                item.id
-                                                            ]?.lecturer_note ??
-                                                            ''
-                                                        }
-                                                        onChange={(event) => {
-                                                            setDecisionFormById(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    [item.id]: {
-                                                                        scheduled_for:
-                                                                            current[
-                                                                                item
-                                                                                    .id
-                                                                            ]
-                                                                                ?.scheduled_for ??
-                                                                            item.requestedForInput ??
-                                                                            '',
-                                                                        location:
-                                                                            current[
-                                                                                item
-                                                                                    .id
-                                                                            ]
-                                                                                ?.location ??
-                                                                            item.location ??
-                                                                            'Google Meet',
-                                                                        lecturer_note:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    },
-                                                                }),
-                                                            );
-                                                            setDecisionErrorsById(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    [item.id]: {
-                                                                        ...current[
-                                                                            item
-                                                                                .id
-                                                                        ],
-                                                                        lecturer_note:
-                                                                            undefined,
-                                                                    },
-                                                                }),
-                                                            );
+                                                        value={decisionFormById[item.id]?.lecturer_note ?? ''}
+                                                        onChange={(e) => {
+                                                            setDecisionFormById((c) => ({
+                                                                ...c,
+                                                                [item.id]: {
+                                                                    scheduled_for:
+                                                                        c[item.id]?.scheduled_for ??
+                                                                        item.requestedForInput ??
+                                                                        '',
+                                                                    location:
+                                                                        c[item.id]?.location ??
+                                                                        item.location ??
+                                                                        'Google Meet',
+                                                                    lecturer_note: e.target.value,
+                                                                },
+                                                            }));
+                                                            setDecisionErrorsById((c) => ({
+                                                                ...c,
+                                                                [item.id]: {
+                                                                    ...c[item.id],
+                                                                    lecturer_note: undefined,
+                                                                },
+                                                            }));
                                                         }}
-                                                        placeholder="Contoh: Tolong lengkapi data pada Bab 3 sebelum bimbingan berikutnya."
+                                                        placeholder="Contoh: Tolong lengkapi data Bab 3 sebelum bimbingan berikutnya."
+                                                        className="min-h-[80px] resize-none"
                                                     />
-                                                    {decisionErrorsById[item.id]
-                                                        ?.lecturer_note && (
+                                                    {decisionErrorsById[item.id]?.lecturer_note && (
                                                         <p className="text-xs text-destructive">
-                                                            {
-                                                                decisionErrorsById[
-                                                                    item.id
-                                                                ]?.lecturer_note
-                                                            }
+                                                            {decisionErrorsById[item.id]?.lecturer_note}
                                                         </p>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 pt-2">
+                                                <div className="flex flex-wrap gap-2 pt-1">
                                                     <Button
                                                         size="sm"
                                                         variant="soft"
-                                                        className="w-full font-semibold sm:w-auto"
-                                                        disabled={
-                                                            form.processing
-                                                        }
-                                                        onClick={() =>
-                                                            decide(
-                                                                item.id,
-                                                                'reschedule',
-                                                                item,
-                                                            )
-                                                        }
+                                                        className="flex-1 sm:flex-none"
+                                                        disabled={form.processing}
+                                                        onClick={() => decide(item.id, 'reschedule', item)}
                                                     >
                                                         Jadwalkan Ulang
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="soft"
-                                                        className="w-full bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20 sm:w-auto"
-                                                        disabled={
-                                                            form.processing
-                                                        }
-                                                        onClick={() =>
-                                                            decide(
-                                                                item.id,
-                                                                'reject',
-                                                                item,
-                                                            )
-                                                        }
+                                                        className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 sm:flex-none"
+                                                        disabled={form.processing}
+                                                        onClick={() => decide(item.id, 'reject', item)}
                                                     >
                                                         Tolak
                                                     </Button>
                                                     <Button
                                                         size="sm"
-                                                        className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
-                                                        disabled={
-                                                            form.processing
-                                                        }
-                                                        onClick={() =>
-                                                            decide(
-                                                                item.id,
-                                                                'approve',
-                                                                item,
-                                                            )
-                                                        }
+                                                        className="flex-1 sm:flex-none"
+                                                        disabled={form.processing}
+                                                        onClick={() => decide(item.id, 'approve', item)}
                                                     >
                                                         Konfirmasi
                                                     </Button>
@@ -1177,8 +838,8 @@ export default function DosenJadwalBimbinganPage() {
                                             </div>
                                         </div>
                                     );
-                                },
-                            )
+                                })}
+                            </div>
                         ) : (
                             <EmptyState
                                 icon={Inbox}
@@ -1186,97 +847,90 @@ export default function DosenJadwalBimbinganPage() {
                                 description="Permintaan bimbingan dari mahasiswa akan tampil di sini."
                             />
                         )}
-                    </CardContent>
-                </Card>
+                    </section>
 
-                <Card className="py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle className="text-lg font-semibold">
-                            Jadwal Mendatang
-                        </CardTitle>
-                        <CardDescription>
-                            Agenda bimbingan terkonfirmasi minggu ini
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pb-6">
+                    {/* --- Jadwal Mendatang --- */}
+                    <section>
+                        <div className="mb-3 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold">Jadwal Mendatang</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Agenda bimbingan terkonfirmasi
+                                </p>
+                            </div>
+                            {upcomingSchedules.length > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                    {upcomingSchedules.length} jadwal
+                                </span>
+                            )}
+                        </div>
+
                         {upcomingSchedules.length > 0 ? (
-                            upcomingSchedules.map((item) => (
-                                <div
-                                    key={`${item.id}-${item.mahasiswa}`}
-                                    className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
-                                >
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                                            <p className="text-base font-semibold">
-                                                {item.mahasiswa}
-                                            </p>
-                                            <RelationTypeBadge
-                                                relationType={item.relationType}
-                                            />
+                            <div className="divide-y rounded-xl border bg-card shadow-sm">
+                                {upcomingSchedules.map((item) => (
+                                    <div key={`${item.id}-${item.mahasiswa}`} className="p-5">
+                                        {/* Header */}
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-sm font-semibold">{item.mahasiswa}</p>
+                                                    <RelationTypeBadge relationType={item.relationType} />
+                                                </div>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                    {item.topic}
+                                                </p>
+                                            </div>
+                                            <StatusBadge status={item.status} />
                                         </div>
-                                        <StatusBadge status={item.status} />
-                                    </div>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        {item.topic}
-                                    </p>
-                                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                        <div className="flex items-start gap-2">
-                                            <CalendarClock className="mt-0.5 size-4 shrink-0" />
-                                            <span className="min-w-0 break-words">
-                                                {formatDateTime(
-                                                    item.date,
-                                                    item.time,
-                                                )}
+
+                                        {/* Meta */}
+                                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                            <span className="flex items-center gap-1.5">
+                                                <CalendarClock className="size-3.5 shrink-0" />
+                                                {formatDateTime(item.date, item.time)}
                                             </span>
-                                        </div>
-                                        <div className="flex items-start gap-2">
-                                            <MapPin className="mt-0.5 size-4 shrink-0" />
-                                            <span className="min-w-0 break-words">
+                                            <span className="flex items-center gap-1.5">
+                                                <MapPin className="size-3.5 shrink-0" />
                                                 {item.location}
                                             </span>
                                         </div>
+
                                         {item.lecturerNote && (
-                                            <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                            <div className="mt-2 rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
                                                 <span className="font-medium text-foreground">
-                                                    Catatan dosen:
-                                                </span>{' '}
+                                                    Catatan:{' '}
+                                                </span>
                                                 {item.lecturerNote}
                                             </div>
                                         )}
+
+                                        {/* Actions */}
+                                        <div className="mt-4 flex flex-wrap gap-2 border-t border-dashed pt-3">
+                                            <Button
+                                                size="sm"
+                                                variant="soft"
+                                                className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 sm:flex-none"
+                                                disabled={form.processing}
+                                                onClick={() =>
+                                                    closeSchedule(item.id, 'cancel', item.location)
+                                                }
+                                            >
+                                                Batalkan
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="flex-1 sm:flex-none"
+                                                disabled={form.processing}
+                                                onClick={() =>
+                                                    closeSchedule(item.id, 'complete', item.location)
+                                                }
+                                            >
+                                                Tandai Selesai
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="mt-4 flex flex-wrap gap-2 border-t border-dashed pt-2">
-                                        <Button
-                                            size="sm"
-                                            variant="soft"
-                                            className="w-full bg-destructive/10 font-semibold text-destructive hover:bg-destructive/20 sm:w-auto"
-                                            disabled={form.processing}
-                                            onClick={() =>
-                                                closeSchedule(
-                                                    item.id,
-                                                    'cancel',
-                                                    item.location,
-                                                )
-                                            }
-                                        >
-                                            Batalkan
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
-                                            disabled={form.processing}
-                                            onClick={() =>
-                                                closeSchedule(
-                                                    item.id,
-                                                    'complete',
-                                                    item.location,
-                                                )
-                                            }
-                                        >
-                                            Tandai Selesai
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         ) : (
                             <EmptyState
                                 icon={CalendarClock}
@@ -1284,180 +938,135 @@ export default function DosenJadwalBimbinganPage() {
                                 description="Agenda yang sudah dikonfirmasi akan muncul di bagian ini."
                             />
                         )}
-                    </CardContent>
-                </Card>
+                    </section>
+                </div>
 
-                <Card className="py-0 shadow-sm lg:col-span-2">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <CardTitle className="text-lg font-semibold">
-                                    Riwayat Jadwal
-                                </CardTitle>
-                                <CardDescription>
-                                    Tampilkan ringkas riwayat terbaru agar
-                                    halaman tetap mudah discroll.
-                                </CardDescription>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        historyFilter === 'semua'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => {
-                                        setHistoryFilter('semua');
-                                        setVisibleHistoryCount(10);
-                                    }}
-                                >
-                                    Semua
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        historyFilter === 'completed'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => {
-                                        setHistoryFilter('completed');
-                                        setVisibleHistoryCount(10);
-                                    }}
-                                >
-                                    Selesai
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        historyFilter === 'rejected'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => {
-                                        setHistoryFilter('rejected');
-                                        setVisibleHistoryCount(10);
-                                    }}
-                                >
-                                    Ditolak
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
-                                    variant={
-                                        historyFilter === 'cancelled'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => {
-                                        setHistoryFilter('cancelled');
-                                        setVisibleHistoryCount(10);
-                                    }}
-                                >
-                                    Dibatalkan
-                                </Button>
-                            </div>
+                {/* ---------------- HISTORY TABLE ---------------- */}
+                <section>
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold">Riwayat Jadwal</h2>
+                            <p className="text-sm text-muted-foreground">
+                                {filteredHistorySchedules.length === historySchedules.length
+                                    ? `${historySchedules.length} riwayat`
+                                    : `${filteredHistorySchedules.length} dari ${historySchedules.length} riwayat`}
+                            </p>
                         </div>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 pb-6 lg:grid-cols-2">
-                        {visibleHistorySchedules.length > 0 ? (
-                            visibleHistorySchedules.map((item) => (
-                                <div
-                                    key={`${item.id}-${item.status}`}
-                                    className="rounded-xl border bg-background p-4 shadow-sm sm:p-5"
-                                >
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="min-w-0">
-                                            <p className="text-base font-semibold">
-                                                {item.mahasiswa}
-                                            </p>
-                                            <div className="mt-1">
-                                                <RelationTypeBadge
-                                                    relationType={
-                                                        item.relationType
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-                                        <StatusBadge status={item.status} />
-                                    </div>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        {item.topic}
-                                    </p>
-                                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                        <div className="flex items-start gap-2">
-                                            <CalendarClock className="mt-0.5 size-4 shrink-0" />
-                                            <span className="min-w-0 break-words">
-                                                {formatDateTime(
-                                                    item.date,
-                                                    item.time,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-start gap-2">
-                                            <MapPin className="mt-0.5 size-4 shrink-0" />
-                                            <span className="min-w-0 break-words">
-                                                {item.location}
-                                            </span>
-                                        </div>
-                                        {item.lecturerNote && (
-                                            <div className="mt-1 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                                                <span className="font-medium text-foreground">
-                                                    Catatan dosen:
-                                                </span>{' '}
-                                                {item.lecturerNote}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <EmptyState
-                                icon={CalendarClock}
-                                title="Belum ada riwayat jadwal"
-                                description="Riwayat sesi selesai, ditolak, atau dibatalkan akan muncul di sini."
-                            />
-                        )}
-                        {filteredHistorySchedules.length >
-                        visibleHistorySchedules.length ? (
-                            <div className="flex flex-col gap-3 rounded-xl border bg-muted/15 p-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
-                                <p className="text-sm text-muted-foreground">
-                                    Menampilkan {visibleHistorySchedules.length}{' '}
-                                    dari {filteredHistorySchedules.length}{' '}
-                                    riwayat.
-                                </p>
-                                <Button
+                        {/* filter pills */}
+                        <div className="flex flex-wrap gap-1.5">
+                            {historyFilterTabs.map((tab) => (
+                                <button
+                                    key={tab.value}
                                     type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                        setVisibleHistoryCount(
-                                            (current) => current + 10,
-                                        )
-                                    }
+                                    onClick={() => {
+                                        setHistoryFilter(tab.value);
+                                        setVisibleHistoryCount(10);
+                                    }}
+                                    className={cn(
+                                        'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                        historyFilter === tab.value
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                                    )}
                                 >
-                                    Muat Lebih Banyak
-                                </Button>
-                            </div>
-                        ) : null}
-                    </CardContent>
-                </Card>
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                <ScheduleDetailModal
-                    open={isDetailModalOpen}
-                    onOpenChange={setIsDetailModalOpen}
-                    schedule={selectedEvent}
-                    currentUserRole="dosen"
-                />
+                    {visibleHistorySchedules.length > 0 ? (
+                        <>
+                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="border-b bg-muted/30">
+                                        <tr>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Mahasiswa
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Topik
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Waktu
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Lokasi
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Status
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y bg-background">
+                                        {visibleHistorySchedules.map((item) => (
+                                            <tr
+                                                key={`${item.id}-${item.status}`}
+                                                className="transition-colors hover:bg-muted/20"
+                                            >
+                                                <td className="px-5 py-3.5 align-middle">
+                                                    <p className="text-sm font-medium">{item.mahasiswa}</p>
+                                                    <RelationTypeBadge relationType={item.relationType} />
+                                                </td>
+                                                <td className="px-5 py-3.5 align-middle text-xs text-muted-foreground max-w-[180px]">
+                                                    <p className="truncate">{item.topic}</p>
+                                                    {item.lecturerNote && (
+                                                        <p className="mt-0.5 italic line-clamp-1 opacity-70">
+                                                            {item.lecturerNote}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-3.5 align-middle text-xs text-muted-foreground whitespace-nowrap">
+                                                    {formatDateTime(item.date, item.time)}
+                                                </td>
+                                                <td className="px-5 py-3.5 align-middle text-xs text-muted-foreground">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <MapPin className="size-3 shrink-0" />
+                                                        {item.location}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5 align-middle">
+                                                    <StatusBadge status={item.status} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {filteredHistorySchedules.length > visibleHistorySchedules.length && (
+                                <div className="mt-4 flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground">
+                                        Menampilkan {visibleHistorySchedules.length} dari{' '}
+                                        {filteredHistorySchedules.length} riwayat
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setVisibleHistoryCount((c) => c + 10)}
+                                    >
+                                        Muat Lebih Banyak
+                                    </Button>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <EmptyState
+                            icon={CalendarClock}
+                            title="Belum ada riwayat jadwal"
+                            description="Riwayat sesi selesai, ditolak, atau dibatalkan akan muncul di sini."
+                        />
+                    )}
+                </section>
             </div>
+
+            <ScheduleDetailModal
+                open={isDetailModalOpen}
+                onOpenChange={setIsDetailModalOpen}
+                schedule={selectedEvent}
+                currentUserRole="dosen"
+            />
         </DosenLayout>
     );
 }

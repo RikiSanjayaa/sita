@@ -162,13 +162,30 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                         {message.documentName && (
                             <div
                                 className={cn(
-                                    'mb-2 break-all rounded border p-2 text-xs',
+                                    'mb-2 overflow-hidden rounded border text-xs break-all',
                                     isMe
-                                        ? 'border-primary-foreground/25 bg-primary-foreground/15'
-                                        : 'bg-muted/30',
+                                        ? 'border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground'
+                                        : 'border-border bg-muted/30',
                                 )}
                             >
-                                {message.documentName}
+                                {message.documentUrl ? (
+                                    <a
+                                        href={message.documentUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                    >
+                                        <FileText className="size-3.5 shrink-0" />
+                                        <span className="font-semibold underline decoration-primary-foreground/30 underline-offset-2 hover:decoration-primary-foreground">
+                                            {message.documentName}
+                                        </span>
+                                    </a>
+                                ) : (
+                                    <div className="flex items-center gap-2 p-2">
+                                        <FileText className="size-3.5 shrink-0" />
+                                        <span>{message.documentName}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {message.message && (

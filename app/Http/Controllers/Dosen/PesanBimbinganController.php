@@ -221,38 +221,59 @@ class PesanBimbinganController extends Controller
             $attachmentSizeKb = (int) ceil($attachment->getSize() / 1024);
         }
 
-        $message = $thread->messages()->create([
-            'sender_user_id' => $lecturer->id,
-            'message_type' => $attachmentPath === null ? 'text' : 'revision_suggestion',
-            'message' => trim((string) ($data['message'] ?? '')),
-            'attachment_disk' => $attachmentDisk,
-            'attachment_path' => $attachmentPath,
-            'attachment_name' => $attachmentName,
-            'attachment_mime' => $attachmentMime,
-            'attachment_size_kb' => $attachmentSizeKb,
-            'sent_at' => now(),
-        ]);
+        $trimmedMessage = trim((string) ($data['message'] ?? ''));
+        $messagesToSend = collect();
+
+        if ($attachment !== null) {
+            $messagesToSend->push($thread->messages()->create([
+                'sender_user_id' => $lecturer->id,
+                'message_type' => 'revision_suggestion',
+                'message' => 'Mengirim lampiran revisi',
+                'attachment_disk' => $attachmentDisk,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
+                'attachment_mime' => $attachmentMime,
+                'attachment_size_kb' => $attachmentSizeKb,
+                'sent_at' => now(),
+            ]));
+        }
+
+        if ($trimmedMessage !== '') {
+            $messagesToSend->push($thread->messages()->create([
+                'sender_user_id' => $lecturer->id,
+                'message_type' => 'text',
+                'message' => $trimmedMessage,
+                'attachment_disk' => $attachmentDisk,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
+                'attachment_mime' => $attachmentMime,
+                'attachment_size_kb' => $attachmentSizeKb,
+                'sent_at' => now()->addSecond(),
+            ]));
+        }
 
         $author = $this->userProfilePresenter->summary($lecturer);
 
-        $this->broadcastChatMessage($thread->id, [
-            'id' => $message->id,
-            'senderUserId' => $message->sender_user_id,
-            'author' => $lecturer->name,
-            'authorAvatar' => $author['avatar'] ?? null,
-            'authorProfileUrl' => $author['profileUrl'] ?? null,
-            'message' => $message->message,
-            'time' => $message->created_at->format('d M Y H:i'),
-            'type' => $message->message_type,
-            'documentName' => $message->attachment_name,
-            'documentUrl' => $message->attachment_path === null
-                ? null
-                : route('files.chat-attachments.download', ['message' => $message->id]),
-        ]);
+        foreach ($messagesToSend as $message) {
+            $this->broadcastChatMessage($thread->id, [
+                'id' => $message->id,
+                'senderUserId' => $message->sender_user_id,
+                'author' => $lecturer->name,
+                'authorAvatar' => $author['avatar'] ?? null,
+                'authorProfileUrl' => $author['profileUrl'] ?? null,
+                'message' => $message->message,
+                'time' => $message->created_at->format('d M Y H:i'),
+                'type' => $message->message_type,
+                'documentName' => $message->attachment_name,
+                'documentUrl' => $message->attachment_path === null
+                    ? null
+                    : route('files.chat-attachments.download', ['message' => $message->id]),
+            ]);
 
-        $this->notifyStudent($thread, $lecturer, $message->message_type);
+            $this->notifyStudent($thread, $lecturer, $message->message_type);
+        }
 
-        return back()->with('success', 'Pesan berhasil dikirim.');
+        return back();
     }
 
     private function canAccessThread(User $lecturer, MentorshipChatThread $thread): bool
