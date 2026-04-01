@@ -18,9 +18,7 @@ export default function NotificationsPage() {
             <h1 className="sr-only">Pengaturan notifikasi</h1>
 
             <SettingsLayout>
-                <div className="space-y-6">
-                    <NotificationSettingsPanel />
-                </div>
+                <NotificationSettingsPanel />
             </SettingsLayout>
         </AppLayout>
     );

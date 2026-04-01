@@ -13,13 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { type NotificationSettings, type SharedData } from '@/types';
 
@@ -207,149 +201,149 @@ export default function NotificationSettingsPanel() {
     );
 
     return (
-        <div className="space-y-6">
-            <Card className="overflow-hidden py-0 shadow-sm">
-                <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 space-y-1">
-                            <CardTitle>Notifikasi browser</CardTitle>
-                            <CardDescription className="max-w-xl leading-6">
-                                Aktifkan notifikasi desktop untuk mendapatkan
-                                pemberitahuan real-time.
-                            </CardDescription>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 self-start">
-                            <Badge variant="secondary">Disarankan</Badge>
-                            <Badge variant="outline" className="capitalize">
-                                {browserPermission === 'unsupported'
-                                    ? 'tidak didukung'
-                                    : browserPermission}
-                            </Badge>
-                        </div>
+        <div className="space-y-8">
+            {/* Notifikasi browser section */}
+            <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold">
+                            Notifikasi browser
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Aktifkan notifikasi desktop untuk mendapatkan
+                            pemberitahuan real-time.
+                        </p>
                     </div>
-                </CardHeader>
-
-                <CardContent className="pb-6">
-                    <div className="flex flex-col gap-4 rounded-xl border bg-background p-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                            <div className="text-sm font-medium">
-                                Aktifkan notifikasi browser
-                            </div>
-                            <div className="mt-1 text-sm text-muted-foreground">
-                                Terima notifikasi meskipun browser tidak aktif.
-                            </div>
-                            <div className="mt-3 text-xs text-muted-foreground">
-                                {browserPermission === 'denied'
-                                    ? 'Izin notifikasi ditolak di browser. Ubah melalui pengaturan browser untuk mengaktifkan kembali.'
-                                    : 'Jika belum diizinkan, browser akan meminta izin saat fitur ini diaktifkan.'}
-                            </div>
-
-                            {browserPermission === 'default' ||
-                            browserPermission === 'denied' ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-3"
-                                    onClick={requestBrowserPermission}
-                                    disabled={isSaving}
-                                >
-                                    {browserPermission === 'default'
-                                        ? 'Minta izin notifikasi'
-                                        : 'Coba minta izin lagi'}
-                                </Button>
-                            ) : null}
-                        </div>
-
-                        <Switch
-                            checked={settings.browserNotifications}
-                            onCheckedChange={handleBrowserNotificationToggle}
-                            aria-label="Aktifkan notifikasi browser"
-                            className="self-start sm:mt-1"
-                            disabled={
-                                browserPermission === 'unsupported' ||
-                                browserPermission === 'denied' ||
-                                isSaving
-                            }
-                        />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="overflow-hidden py-0 shadow-sm">
-                <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 space-y-1">
-                            <CardTitle>Jenis notifikasi</CardTitle>
-                            <CardDescription className="max-w-xl leading-6">
-                                Pilih jenis notifikasi yang ingin Anda terima.
-                            </CardDescription>
-                        </div>
-                        <Badge variant="outline" className="w-fit self-start">
-                            {enabledJenisCount}/{items.length} aktif
+                    <div className="flex flex-wrap items-center gap-2 self-start">
+                        <Badge variant="secondary">Disarankan</Badge>
+                        <Badge variant="outline" className="capitalize">
+                            {browserPermission === 'unsupported'
+                                ? 'tidak didukung'
+                                : browserPermission}
                         </Badge>
                     </div>
-                </CardHeader>
+                </div>
 
-                <CardContent className="pb-6">
-                    <div className="divide-y">
-                        {items.map((item) => {
-                            const Icon = item.icon;
-                            const checked = settings[item.key];
+                <div className="flex flex-col gap-4 rounded-xl border bg-muted/10 p-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">
+                            Aktifkan notifikasi browser
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            Terima notifikasi meskipun browser tidak aktif.
+                        </div>
+                        <div className="mt-3 text-xs text-muted-foreground">
+                            {browserPermission === 'denied'
+                                ? 'Izin notifikasi ditolak di browser. Ubah melalui pengaturan browser untuk mengaktifkan kembali.'
+                                : 'Jika belum diizinkan, browser akan meminta izin saat fitur ini diaktifkan.'}
+                        </div>
 
-                            return (
-                                <div
-                                    key={item.key}
-                                    className="flex flex-col gap-4 py-4 sm:flex-row sm:items-start sm:justify-between"
-                                >
-                                    <div className="flex min-w-0 items-start gap-3">
-                                        <span
-                                            className={`mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg ${
-                                                settings.browserNotifications
-                                                    ? 'bg-muted text-muted-foreground'
-                                                    : 'bg-muted/50 text-muted-foreground/50'
-                                            }`}
-                                        >
-                                            <Icon className="size-4" />
-                                        </span>
+                        {browserPermission === 'default' ||
+                        browserPermission === 'denied' ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-3"
+                                onClick={requestBrowserPermission}
+                                disabled={isSaving}
+                            >
+                                {browserPermission === 'default'
+                                    ? 'Minta izin notifikasi'
+                                    : 'Coba minta izin lagi'}
+                            </Button>
+                        ) : null}
+                    </div>
 
-                                        <div
-                                            className={`min-w-0 ${
-                                                settings.browserNotifications
-                                                    ? ''
-                                                    : 'opacity-50'
-                                            }`}
-                                        >
-                                            <div className="text-sm font-medium">
-                                                {item.title}
-                                            </div>
-                                            <div className="mt-1 text-sm text-muted-foreground">
-                                                {item.description}
-                                            </div>
+                    <Switch
+                        checked={settings.browserNotifications}
+                        onCheckedChange={handleBrowserNotificationToggle}
+                        aria-label="Aktifkan notifikasi browser"
+                        className="self-start sm:mt-1"
+                        disabled={
+                            browserPermission === 'unsupported' ||
+                            browserPermission === 'denied' ||
+                            isSaving
+                        }
+                    />
+                </div>
+            </div>
+
+            <Separator />
+
+            {/* Jenis notifikasi section */}
+            <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold">
+                            Jenis notifikasi
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Pilih jenis notifikasi yang ingin Anda terima.
+                        </p>
+                    </div>
+                    <Badge variant="outline" className="w-fit self-start">
+                        {enabledJenisCount}/{items.length} aktif
+                    </Badge>
+                </div>
+
+                <div className="divide-y">
+                    {items.map((item) => {
+                        const Icon = item.icon;
+                        const checked = settings[item.key];
+
+                        return (
+                            <div
+                                key={item.key}
+                                className="flex flex-col gap-4 py-4 sm:flex-row sm:items-start sm:justify-between"
+                            >
+                                <div className="flex min-w-0 items-start gap-3">
+                                    <span
+                                        className={`mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg ${
+                                            settings.browserNotifications
+                                                ? 'bg-muted text-muted-foreground'
+                                                : 'bg-muted/50 text-muted-foreground/50'
+                                        }`}
+                                    >
+                                        <Icon className="size-4" />
+                                    </span>
+
+                                    <div
+                                        className={`min-w-0 ${
+                                            settings.browserNotifications
+                                                ? ''
+                                                : 'opacity-50'
+                                        }`}
+                                    >
+                                        <div className="text-sm font-medium">
+                                            {item.title}
+                                        </div>
+                                        <div className="mt-1 text-sm text-muted-foreground">
+                                            {item.description}
                                         </div>
                                     </div>
-
-                                    <Switch
-                                        checked={checked}
-                                        onCheckedChange={(next) =>
-                                            setAndPersistSettings({
-                                                ...settings,
-                                                [item.key]: next,
-                                            })
-                                        }
-                                        aria-label={`Aktifkan ${item.title}`}
-                                        className="self-start sm:mt-1"
-                                        disabled={
-                                            !settings.browserNotifications ||
-                                            isSaving
-                                        }
-                                    />
                                 </div>
-                            );
-                        })}
-                    </div>
-                </CardContent>
-            </Card>
+
+                                <Switch
+                                    checked={checked}
+                                    onCheckedChange={(next) =>
+                                        setAndPersistSettings({
+                                            ...settings,
+                                            [item.key]: next,
+                                        })
+                                    }
+                                    aria-label={`Aktifkan ${item.title}`}
+                                    className="self-start sm:mt-1"
+                                    disabled={
+                                        !settings.browserNotifications ||
+                                        isSaving
+                                    }
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 }

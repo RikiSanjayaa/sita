@@ -16,9 +16,7 @@ export default function Appearance() {
             <h1 className="sr-only">Appearance Settings</h1>
 
             <SettingsLayout>
-                <div className="space-y-6">
-                    <AppearanceSettingsPanel />
-                </div>
+                <AppearanceSettingsPanel />
             </SettingsLayout>
         </AppLayout>
     );

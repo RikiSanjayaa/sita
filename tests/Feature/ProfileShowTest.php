@@ -4,6 +4,7 @@ use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\User;
+
 test('authenticated user can view mahasiswa profile page', function () {
     $viewer = User::factory()->create();
     $student = User::factory()->asMahasiswa()->create();
