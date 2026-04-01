@@ -13,8 +13,6 @@ class AdminProfileFactory extends Factory
 {
     protected $model = AdminProfile::class;
 
-
-
     /**
      * @return array<string, mixed>
      */
