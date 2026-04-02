@@ -67,7 +67,7 @@ export function ThemeSettingsFab() {
                                 </p>
                             </div>
 
-                            <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="grid gap-3 sm:grid-cols-3">
                                 {THEME_PRESETS.map((preset) => {
                                     const isActive = preset.id === presetId;
 
