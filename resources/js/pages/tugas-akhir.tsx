@@ -1,12 +1,21 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    CalendarClock,
     CheckCircle2,
+    ChevronDown,
+    ChevronUp,
     Clock,
     Download,
     Eye,
     FileText,
+    GraduationCap,
+    Languages,
+    MapPin,
     Pencil,
+    Star,
+    Users,
+    X,
 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -14,13 +23,7 @@ import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { DataTableContainer } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,6 +33,7 @@ import {
     calculateAverageAcademicScore,
     resolveAcademicGrade,
 } from '@/lib/academic-grade';
+import { cn } from '@/lib/utils';
 import { dashboard, tugasAkhir } from '@/routes';
 import {
     type BreadcrumbItem,
@@ -185,14 +189,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tugas Akhir', href: tugasAkhir().url },
 ];
 
-const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
-const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
-
 function normalizeTitleEn(value: string | null | undefined): string {
-    if (value === null || value === '-' || value === undefined) {
-        return '';
-    }
-
+    if (value === null || value === '-' || value === undefined) return '';
     return value;
 }
 
@@ -205,74 +203,60 @@ function submissionDefaults(submission: Submission | null): FormData {
     };
 }
 
-function ProposalFileCard({ submission }: { submission: Submission }) {
-    if (
-        submission.proposal_file_download_url === null ||
-        submission.proposal_file_view_url === null
-    ) {
-        return (
-            <Card className={sectionCardClass}>
-                <CardHeader className={sectionCardHeaderClass}>
-                    <CardTitle>File Proposal Terkirim</CardTitle>
-                    <CardDescription>
-                        File proposal belum tersedia. Admin akan membantu jika
-                        terjadi kendala.
-                    </CardDescription>
-                </CardHeader>
-            </Card>
-        );
-    }
-
+/* ─── Workflow status badge ─────────────────────────────────────── */
+function WorkflowBadge({
+    workflowKey,
+    label,
+}: {
+    workflowKey: string;
+    label: string;
+}) {
+    const isReview = workflowKey === 'title_review_pending';
     return (
-        <Card className={sectionCardClass}>
-            <CardHeader className={sectionCardHeaderClass}>
-                <CardTitle>File Proposal Terkirim</CardTitle>
-                <CardDescription>
-                    Anda dapat melihat dan mengunduh ulang file proposal.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-6">
-                <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                        <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                            <FileText className="size-4" />
-                        </span>
-                        <div>
-                            <p className="text-sm font-medium">
-                                {submission.proposal_file_name ??
-                                    'Proposal.pdf'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Dokumen proposal yang tersimpan dari pengajuan
-                                Anda.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <Button asChild type="button" variant="outline">
-                            <a
-                                href={submission.proposal_file_view_url}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <Eye className="mr-2 size-4" />
-                                Lihat
-                            </a>
-                        </Button>
-                        <Button asChild type="button">
-                            <a href={submission.proposal_file_download_url}>
-                                <Download className="mr-2 size-4" />
-                                Unduh
-                            </a>
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+        <span
+            className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                isReview
+                    ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
+                    : 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
+            )}
+        >
+            {isReview ? (
+                <Clock className="size-3" />
+            ) : (
+                <CheckCircle2 className="size-3" />
+            )}
+            {label}
+        </span>
     );
 }
 
+/* ─── Section header ────────────────────────────────────────────── */
+function SectionHeader({
+    title,
+    description,
+    action,
+}: {
+    title: string;
+    description?: string;
+    action?: React.ReactNode;
+}) {
+    return (
+        <div className="flex items-start justify-between border-b bg-muted/20 px-5 py-3.5">
+            <div>
+                <p className="text-sm font-semibold">{title}</p>
+                {description && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {description}
+                    </p>
+                )}
+            </div>
+            {action && <div className="shrink-0">{action}</div>}
+        </div>
+    );
+}
+
+/* ─── Submission form fields ────────────────────────────────────── */
 function SubmissionFields({
     form,
     fileRequired,
@@ -283,67 +267,63 @@ function SubmissionFields({
     idPrefix: string;
 }) {
     return (
-        <div className="space-y-6">
-            <div className="space-y-2">
+        <div className="space-y-5">
+            <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}title_id`}>
                     Judul Skripsi (Bahasa Indonesia)
                 </Label>
                 <Textarea
                     id={`${idPrefix}title_id`}
                     value={form.data.title_id}
-                    onChange={(event) =>
-                        form.setData('title_id', event.target.value)
-                    }
-                    className="h-20"
+                    onChange={(e) => form.setData('title_id', e.target.value)}
+                    className="h-20 resize-none"
                     required
                 />
                 {form.errors.title_id && (
-                    <p className="text-sm text-destructive">
+                    <p className="text-xs text-destructive">
                         {form.errors.title_id}
                     </p>
                 )}
             </div>
 
-            <div className="space-y-2">
+            <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}title_en`}>
                     Judul Skripsi (Bahasa Inggris)
                 </Label>
                 <Textarea
                     id={`${idPrefix}title_en`}
                     value={form.data.title_en}
-                    onChange={(event) =>
-                        form.setData('title_en', event.target.value)
-                    }
-                    className="h-20"
+                    onChange={(e) => form.setData('title_en', e.target.value)}
+                    className="h-20 resize-none"
                 />
                 {form.errors.title_en && (
-                    <p className="text-sm text-destructive">
+                    <p className="text-xs text-destructive">
                         {form.errors.title_en}
                     </p>
                 )}
             </div>
 
-            <div className="space-y-2">
+            <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}proposal_summary`}>
                     Ringkasan Proposal
                 </Label>
                 <Textarea
                     id={`${idPrefix}proposal_summary`}
                     value={form.data.proposal_summary}
-                    onChange={(event) =>
-                        form.setData('proposal_summary', event.target.value)
+                    onChange={(e) =>
+                        form.setData('proposal_summary', e.target.value)
                     }
-                    className="h-40"
+                    className="h-36 resize-none"
                     required
                 />
                 {form.errors.proposal_summary && (
-                    <p className="text-sm text-destructive">
+                    <p className="text-xs text-destructive">
                         {form.errors.proposal_summary}
                     </p>
                 )}
             </div>
 
-            <div className="space-y-2">
+            <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}proposal_file`}>
                     {fileRequired
                         ? 'File Proposal (PDF)'
@@ -353,16 +333,16 @@ function SubmissionFields({
                     id={`${idPrefix}proposal_file`}
                     type="file"
                     accept=".pdf"
-                    onChange={(event) =>
+                    onChange={(e) =>
                         form.setData(
                             'proposal_file',
-                            event.target.files?.[0] ?? null,
+                            e.target.files?.[0] ?? null,
                         )
                     }
                     required={fileRequired}
                 />
                 {form.errors.proposal_file && (
-                    <p className="text-sm text-destructive">
+                    <p className="text-xs text-destructive">
                         {form.errors.proposal_file}
                     </p>
                 )}
@@ -371,7 +351,8 @@ function SubmissionFields({
     );
 }
 
-function DefenseResultCard({
+/* ─── Defense result table ──────────────────────────────────────── */
+function DefenseResultSection({
     title,
     result,
 }: {
@@ -379,320 +360,505 @@ function DefenseResultCard({
     result: NonNullable<TugasAkhirPageProps['semproResult']>;
 }) {
     const averageScore = calculateAverageAcademicScore(
-        result.examiners.map((examiner) => examiner.score),
+        result.examiners.map((e) => e.score),
     );
     const finalGrade = resolveAcademicGrade(averageScore);
 
     return (
-        <Card className={sectionCardClass}>
-            <CardHeader className={`${sectionCardHeaderClass} gap-3`}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <CardTitle>{title}</CardTitle>
-                        <CardDescription>
-                            Nilai dan catatan dari dosen penguji.
-                        </CardDescription>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 sm:justify-end">
-                        <Badge className="w-fit bg-primary text-primary-foreground hover:bg-primary/90">
-                            {result.resultLabel}
+        <section>
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 className="text-base font-semibold">{title}</h2>
+                    <p className="text-sm text-muted-foreground">
+                        {result.label}
+                        {result.scheduledFor
+                            ? ` · ${result.scheduledFor}`
+                            : ''}
+                        {result.location ? ` · ${result.location}` : ''}
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500">
+                        {result.resultLabel}
+                    </Badge>
+                    {averageScore !== null && (
+                        <Badge variant="secondary">
+                            <Star className="mr-1 size-3 text-amber-500" />
+                            {averageScore.toFixed(2)}
                         </Badge>
-                        {averageScore !== null ? (
-                            <Badge variant="secondary">
-                                Nilai {averageScore.toFixed(2)}
-                            </Badge>
-                        ) : null}
-                        {finalGrade ? (
-                            <Badge
-                                variant="soft"
-                                className={academicGradeClassName(finalGrade)}
-                            >
-                                Grade {finalGrade}
-                            </Badge>
-                        ) : null}
-                    </div>
+                    )}
+                    {finalGrade && (
+                        <Badge
+                            variant="soft"
+                            className={academicGradeClassName(finalGrade)}
+                        >
+                            Grade {finalGrade}
+                        </Badge>
+                    )}
                 </div>
-            </CardHeader>
-            <CardContent className="space-y-6 pb-6">
-                <div className="rounded-xl border bg-muted/15 p-4">
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">
-                            {result.label}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            {result.scheduledFor ?? '-'}
-                            {result.location ? ` · ${result.location}` : ''}
-                        </p>
-                    </div>
-                </div>
+            </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                    {result.examiners.map((examiner) => {
-                        return (
-                            <div
+            <DataTableContainer>
+                <table className="w-full min-w-[600px] text-sm">
+                    <thead>
+                        <tr className="border-b bg-muted/30">
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Penguji
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Peran
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Keputusan
+                            </th>
+                            <th className="px-5 py-2.5 text-right text-xs font-medium text-muted-foreground">
+                                Nilai
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Catatan
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {result.examiners.map((examiner) => (
+                            <tr
                                 key={examiner.id}
-                                className="rounded-xl border bg-background p-4"
+                                className="transition-colors hover:bg-muted/20"
                             >
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-foreground">
-                                            {examiner.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {examiner.roleLabel}
-                                        </p>
-                                    </div>
-                                    <Badge variant="outline">
+                                <td className="px-5 py-3 font-medium">
+                                    {examiner.name}
+                                </td>
+                                <td className="px-5 py-3 text-xs text-muted-foreground">
+                                    {examiner.roleLabel}
+                                </td>
+                                <td className="px-5 py-3">
+                                    <Badge variant="outline" className="text-xs">
                                         {examiner.decisionLabel}
                                     </Badge>
-                                </div>
-
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    <Badge variant="secondary">
-                                        Nilai:{' '}
-                                        {examiner.score !== null
-                                            ? examiner.score
-                                            : '-'}
-                                    </Badge>
-                                </div>
-
-                                <div className="mt-4 rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
-                                    <span className="font-medium text-foreground">
-                                        Catatan keputusan:
-                                    </span>{' '}
-                                    {examiner.decisionNotes ??
-                                        'Belum ada catatan dari penguji.'}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </CardContent>
-        </Card>
+                                </td>
+                                <td className="px-5 py-3 text-right">
+                                    {examiner.score !== null ? (
+                                        <span className="inline-flex items-center gap-1 text-sm font-semibold">
+                                            <Star className="size-3 text-amber-500" />
+                                            {examiner.score}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground/50 italic">
+                                            —
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="px-5 py-3 text-xs text-muted-foreground">
+                                    {examiner.decisionNotes ?? (
+                                        <span className="italic opacity-50">
+                                            Belum ada catatan
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </DataTableContainer>
+        </section>
     );
 }
 
-function DefenseHistorySection({
-    title,
-    items,
+/* ─── Defense history expandable row ───────────────────────────── */
+function DefenseHistoryRow({
+    item,
+    type,
 }: {
-    title: string;
-    items: TugasAkhirPageProps['defenseHistory']['sempro'];
+    item: TugasAkhirPageProps['defenseHistory']['sempro'][number];
+    type: 'sempro' | 'sidang';
 }) {
-    if (items.length === 0) {
-        return null;
-    }
+    const [expanded, setExpanded] = useState(false);
+    const averageScore = calculateAverageAcademicScore(
+        item.examiners.map((e) => e.score),
+    );
+    const finalGrade = resolveAcademicGrade(averageScore);
+    const hasRevisions = item.revisions.length > 0;
+    const pendingRevisions = item.revisions.filter(
+        (r) => !r.resolvedAt,
+    ).length;
 
     return (
-        <Card className={sectionCardClass}>
-            <CardHeader className={sectionCardHeaderClass}>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription>
-                    Jadwal, nilai, catatan dosen, dan revisi tiap ujian.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pb-6">
-                {items.map((item) => {
-                    const averageScore = calculateAverageAcademicScore(
-                        item.examiners.map((examiner) => examiner.score),
-                    );
-                    const finalGrade = resolveAcademicGrade(averageScore);
+        <>
+            {/* ── Summary row ── */}
+            <tr
+                className={cn(
+                    'cursor-pointer select-none transition-colors hover:bg-muted/30',
+                    expanded && 'bg-muted/20',
+                )}
+                onClick={() => setExpanded((v) => !v)}
+            >
+                {/* Tipe & attempt */}
+                <td className="px-5 py-3">
+                    <span
+                        className={cn(
+                            'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                            type === 'sempro'
+                                ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400'
+                                : 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+                        )}
+                    >
+                        {type === 'sempro' ? 'Sempro' : 'Sidang'} #
+                        {item.attemptNo}
+                    </span>
+                </td>
 
-                    return (
-                        <div key={item.id} className="rounded-xl border p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                {/* Judul */}
+                <td className="px-5 py-3">
+                    <p className="line-clamp-1 max-w-xs text-sm font-medium">
+                        {item.titleId}
+                    </p>
+                    {item.titleEn && (
+                        <p className="line-clamp-1 max-w-xs text-xs text-muted-foreground italic">
+                            {item.titleEn}
+                        </p>
+                    )}
+                </td>
+
+                {/* Jadwal */}
+                <td className="px-5 py-3">
+                    {item.scheduledFor ? (
+                        <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+                            <CalendarClock className="size-3 shrink-0" />
+                            {item.scheduledFor}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground/50 italic">
+                            —
+                        </span>
+                    )}
+                    {item.location && (
+                        <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="size-3 shrink-0" />
+                            {item.location}
+                            {item.mode ? ` · ${item.mode}` : ''}
+                        </span>
+                    )}
+                </td>
+
+                {/* Status */}
+                <td className="px-5 py-3">
+                    <Badge variant="outline" className="text-xs">
+                        {item.statusLabel}
+                    </Badge>
+                </td>
+
+                {/* Hasil & nilai */}
+                <td className="px-5 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge className="bg-primary text-primary-foreground text-xs hover:bg-primary/90">
+                            {item.resultLabel}
+                        </Badge>
+                        {averageScore !== null && (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold">
+                                <Star className="size-3 text-amber-500" />
+                                {averageScore.toFixed(2)}
+                            </span>
+                        )}
+                        {finalGrade && (
+                            <Badge
+                                variant="soft"
+                                className={cn(
+                                    'text-xs',
+                                    academicGradeClassName(finalGrade),
+                                )}
+                            >
+                                {finalGrade}
+                            </Badge>
+                        )}
+                        {hasRevisions && (
+                            <span
+                                className={cn(
+                                    'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                                    pendingRevisions > 0
+                                        ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
+                                        : 'bg-muted text-muted-foreground',
+                                )}
+                            >
+                                {item.revisions.length} revisi
+                            </span>
+                        )}
+                    </div>
+                </td>
+
+                {/* Expand toggle */}
+                <td className="w-8 px-4 py-3 text-center">
+                    {expanded ? (
+                        <ChevronUp className="size-4 text-muted-foreground" />
+                    ) : (
+                        <ChevronDown className="size-4 text-muted-foreground" />
+                    )}
+                </td>
+            </tr>
+
+            {/* ── Expanded detail panel ── */}
+            {expanded && (
+                <tr>
+                    <td colSpan={6} className="p-0">
+                        <div className="border-t border-dashed bg-muted/5 px-5 py-5 space-y-5">
+                            {/* Penilaian Penguji */}
+                            {item.examiners.length > 0 && (
                                 <div>
-                                    <p className="text-sm font-semibold text-foreground">
-                                        Attempt #{item.attemptNo}
+                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <Star className="size-3" />
+                                        Penilaian Penguji
                                     </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {item.scheduledFor ?? '-'}
-                                        {item.location
-                                            ? ` · ${item.location}`
-                                            : ''}
-                                        {item.mode ? ` · ${item.mode}` : ''}
-                                    </p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    <Badge variant="outline">
-                                        {item.statusLabel}
-                                    </Badge>
-                                    <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                        {item.resultLabel}
-                                    </Badge>
-                                    {averageScore !== null ? (
-                                        <Badge variant="secondary">
-                                            Nilai {averageScore.toFixed(2)}
-                                        </Badge>
-                                    ) : null}
-                                    {finalGrade ? (
-                                        <Badge
-                                            variant="soft"
-                                            className={academicGradeClassName(
-                                                finalGrade,
-                                            )}
-                                        >
-                                            Grade {finalGrade}
-                                        </Badge>
-                                    ) : null}
-                                </div>
-                            </div>
-
-                            <div className="mt-4 rounded-xl border bg-muted/15 p-4">
-                                <p className="text-sm font-semibold text-foreground">
-                                    {item.titleId}
-                                </p>
-                                {item.titleEn ? (
-                                    <p className="mt-1 text-xs text-muted-foreground italic">
-                                        {item.titleEn}
-                                    </p>
-                                ) : null}
-                                {item.proposalSummary ? (
-                                    <p className="mt-3 text-sm text-muted-foreground">
-                                        {item.proposalSummary}
-                                    </p>
-                                ) : null}
-                                {item.proposalFileName ? (
-                                    <div className="mt-4 flex flex-wrap gap-2">
-                                        <Badge variant="outline">
-                                            {item.proposalFileName}
-                                        </Badge>
-                                        {item.proposalFileViewUrl ? (
-                                            <Button
-                                                asChild
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                            >
-                                                <a
-                                                    href={
-                                                        item.proposalFileViewUrl
-                                                    }
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    <Eye className="mr-2 size-4" />
-                                                    Lihat Proposal
-                                                </a>
-                                            </Button>
-                                        ) : null}
-                                        {item.proposalFileDownloadUrl ? (
-                                            <Button
-                                                asChild
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                            >
-                                                <a
-                                                    href={
-                                                        item.proposalFileDownloadUrl
-                                                    }
-                                                >
-                                                    <Download className="mr-2 size-4" />
-                                                    Unduh Proposal
-                                                </a>
-                                            </Button>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-                            </div>
-
-                            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                                {item.examiners.map((examiner) => (
-                                    <div
-                                        key={examiner.id}
-                                        className="rounded-lg border bg-background p-3"
-                                    >
-                                        <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div>
-                                                <p className="text-sm font-medium text-foreground">
-                                                    {examiner.name}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {examiner.roleLabel}
-                                                </p>
-                                            </div>
-                                            <Badge variant="outline">
-                                                {examiner.decisionLabel}
-                                            </Badge>
-                                        </div>
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            <Badge variant="secondary">
-                                                Nilai: {examiner.score ?? '-'}
-                                            </Badge>
-                                        </div>
-                                        <div className="mt-3 rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
-                                            <span className="font-medium text-foreground">
-                                                Catatan dosen:
-                                            </span>{' '}
-                                            {examiner.decisionNotes ??
-                                                'Belum ada catatan dari dosen.'}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {item.revisions.length > 0 ? (
-                                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-                                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-                                        Catatan Revisi
-                                    </p>
-                                    <div className="mt-3 space-y-3">
-                                        {item.revisions.map((revision) => (
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        {item.examiners.map((ex) => (
                                             <div
-                                                key={revision.id}
-                                                className="rounded-lg border border-amber-200/70 bg-white/70 p-3 dark:border-amber-800 dark:bg-transparent"
+                                                key={ex.id}
+                                                className="flex flex-col gap-1.5 rounded-lg border bg-card px-4 py-3"
                                             >
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Badge variant="outline">
-                                                        {revision.statusLabel}
-                                                    </Badge>
-                                                    <Badge variant="secondary">
-                                                        {revision.requestedBy}
-                                                    </Badge>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm font-semibold leading-snug">
+                                                            {ex.name}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {ex.roleLabel}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center gap-1.5">
+                                                        {ex.score !== null && (
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                                                                <Star className="size-3" />
+                                                                {ex.score}
+                                                            </span>
+                                                        )}
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="text-xs"
+                                                        >
+                                                            {ex.decisionLabel}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
-                                                <p className="mt-3 text-sm text-amber-950 dark:text-amber-100">
-                                                    {revision.notes}
-                                                </p>
-                                                <p className="mt-2 text-xs text-amber-800 dark:text-amber-300">
-                                                    {revision.dueAt
-                                                        ? `Batas: ${revision.dueAt}`
-                                                        : 'Tanpa batas revisi'}
-                                                    {revision.resolvedAt
-                                                        ? ` · Selesai: ${revision.resolvedAt}`
-                                                        : ''}
-                                                </p>
-                                                {revision.resolutionNotes ? (
-                                                    <p className="mt-2 text-xs text-amber-800 dark:text-amber-300">
-                                                        Catatan penyelesaian:{' '}
-                                                        {
-                                                            revision.resolutionNotes
-                                                        }
+                                                {ex.decisionNotes && (
+                                                    <p className="rounded-md bg-muted/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                                                        {ex.decisionNotes}
                                                     </p>
-                                                ) : null}
+                                                )}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                            ) : null}
+                            )}
 
-                            {item.officialNotes ? (
-                                <div className="mt-4 rounded-lg border bg-background p-3 text-sm text-muted-foreground">
-                                    <span className="font-medium text-foreground">
-                                        Catatan resmi admin:
-                                    </span>{' '}
-                                    {item.officialNotes}
+                            {/* Catatan Revisi */}
+                            {hasRevisions && (
+                                <div>
+                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                                        <svg
+                                            className="size-3"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        >
+                                            <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                        </svg>
+                                        Catatan Revisi ({item.revisions.length})
+                                    </p>
+                                    <div className="space-y-2">
+                                        {item.revisions.map((rev) => {
+                                            const isDone = !!rev.resolvedAt;
+                                            return (
+                                                <div
+                                                    key={rev.id}
+                                                    className={cn(
+                                                        'rounded-lg border px-4 py-3',
+                                                        isDone
+                                                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/10'
+                                                            : 'border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20',
+                                                    )}
+                                                >
+                                                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={cn(
+                                                                'text-xs',
+                                                                isDone
+                                                                    ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400'
+                                                                    : '',
+                                                            )}
+                                                        >
+                                                            {rev.statusLabel}
+                                                        </Badge>
+                                                        <span
+                                                            className={cn(
+                                                                'text-xs font-medium',
+                                                                isDone
+                                                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                                                    : 'text-amber-700 dark:text-amber-300',
+                                                            )}
+                                                        >
+                                                            {rev.requestedBy}
+                                                        </span>
+                                                        {rev.dueAt && !isDone && (
+                                                            <span className="text-xs text-amber-600 dark:text-amber-400">
+                                                                · Batas:{' '}
+                                                                {rev.dueAt}
+                                                            </span>
+                                                        )}
+                                                        {rev.resolvedAt && (
+                                                            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                                                                <CheckCircle2 className="size-3" />
+                                                                Selesai:{' '}
+                                                                {rev.resolvedAt}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <p
+                                                        className={cn(
+                                                            'text-xs leading-relaxed',
+                                                            isDone
+                                                                ? 'text-emerald-900 dark:text-emerald-100'
+                                                                : 'text-amber-900 dark:text-amber-100',
+                                                        )}
+                                                    >
+                                                        {rev.notes}
+                                                    </p>
+
+                                                    {rev.resolutionNotes && (
+                                                        <div className="mt-2 rounded border border-emerald-200 bg-white/60 px-3 py-1.5 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-transparent dark:text-emerald-300">
+                                                            <span className="font-medium">
+                                                                Penyelesaian:
+                                                            </span>{' '}
+                                                            {rev.resolutionNotes}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            ) : null}
+                            )}
+
+                            {/* File & catatan admin */}
+                            <div className="flex flex-wrap items-center gap-3">
+                                {item.proposalFileName && (
+                                    <div className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2">
+                                        <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
+                                            <FileText className="size-3.5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="max-w-[200px] truncate text-xs font-medium">
+                                                {item.proposalFileName}
+                                            </p>
+                                        </div>
+                                        {item.proposalFileViewUrl && (
+                                            <a
+                                                href={item.proposalFileViewUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            >
+                                                <Eye className="size-3" />
+                                                Lihat
+                                            </a>
+                                        )}
+                                        {item.proposalFileDownloadUrl && (
+                                            <a
+                                                href={
+                                                    item.proposalFileDownloadUrl
+                                                }
+                                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            >
+                                                <Download className="size-3" />
+                                                Unduh
+                                            </a>
+                                        )}
+                                    </div>
+                                )}
+                                {item.officialNotes && (
+                                    <p className="text-xs text-muted-foreground">
+                                        <span className="font-medium text-foreground">
+                                            Catatan admin:
+                                        </span>{' '}
+                                        {item.officialNotes}
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                    );
-                })}
-            </CardContent>
-        </Card>
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
 
+/* ─── Defense history table section ────────────────────────────── */
+function DefenseHistorySection({
+    title,
+    items,
+    type,
+}: {
+    title: string;
+    items: TugasAkhirPageProps['defenseHistory']['sempro'];
+    type: 'sempro' | 'sidang';
+}) {
+    if (items.length === 0) return null;
+
+    return (
+        <section>
+            <div className="mb-3">
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="text-sm text-muted-foreground">
+                    Klik baris untuk melihat detail, nilai, dan catatan revisi.
+                </p>
+            </div>
+
+            <DataTableContainer>
+                <table className="w-full min-w-[700px] text-sm">
+                    <thead>
+                        <tr className="border-b bg-muted/30">
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Tipe
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Judul
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Jadwal & Lokasi
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Status
+                            </th>
+                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                Hasil & Nilai
+                            </th>
+                            <th className="w-8 px-4 py-2.5" />
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {items.map((item) => (
+                            <DefenseHistoryRow
+                                key={item.id}
+                                item={item}
+                                type={type}
+                            />
+                        ))}
+                    </tbody>
+                </table>
+            </DataTableContainer>
+        </section>
+    );
+}
+
+/* ─── Main page ─────────────────────────────────────────────────── */
 export default function TugasAkhirSaya() {
     const {
         submission,
@@ -704,6 +870,7 @@ export default function TugasAkhirSaya() {
         flashMessage,
         errorMessage,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
+
     const [isEditing, setIsEditing] = useState(false);
     const form = useForm<FormData>(submissionDefaults(submission));
 
@@ -722,11 +889,7 @@ export default function TugasAkhirSaya() {
     const updateSubmission: FormEventHandler = (event) => {
         event.preventDefault();
         if (submission === null) return;
-
-        form.transform((data) => ({
-            ...data,
-            _method: 'patch',
-        }));
+        form.transform((data) => ({ ...data, _method: 'patch' }));
         form.post(`/mahasiswa/tugas-akhir/${submission.id}`, {
             forceFormData: true,
             preserveScroll: true,
@@ -738,17 +901,15 @@ export default function TugasAkhirSaya() {
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout
+            breadcrumbs={breadcrumbs}
+            title="Tugas Akhir"
+            subtitle="Judul, proposal, seminar, dan sidang skripsi Anda"
+        >
             <Head title="Tugas Akhir" />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div>
-                    <h1 className="text-xl font-semibold">Tugas Akhir</h1>
-                    <p className="text-sm text-muted-foreground">
-                        mulai dari judul, proposal hingga seminar dan sidang
-                        beserta riwayat skripsi Anda.
-                    </p>
-                </div>
 
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 md:px-6">
+                {/* Flash / Error */}
                 {(flashMessage || errorMessage) && (
                     <Alert variant={errorMessage ? 'destructive' : 'default'}>
                         <AlertDescription>
@@ -757,192 +918,273 @@ export default function TugasAkhirSaya() {
                     </Alert>
                 )}
 
+                {/* ── No submission yet ── */}
                 {submission === null && (
-                    <Card className={sectionCardClass}>
-                        <CardHeader className={sectionCardHeaderClass}>
-                            <CardTitle>Ajukan Judul & Proposal</CardTitle>
-                            <CardDescription>
-                                Isi formulir di bawah ini untuk mengajukan judul
-                                dan proposal skripsi.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="pb-6">
-                            <form
-                                onSubmit={createSubmission}
-                                className="space-y-6"
-                            >
-                                <SubmissionFields
-                                    form={form}
-                                    fileRequired
-                                    idPrefix="create_"
-                                />
-                                <Button
-                                    type="submit"
-                                    disabled={form.processing}
-                                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
+                    <section>
+                        <div className="mb-3">
+                            <h2 className="text-base font-semibold">
+                                Ajukan Judul & Proposal
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Isi formulir di bawah ini untuk memulai
+                                pengajuan skripsi Anda.
+                            </p>
+                        </div>
+                        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                            <div className="px-5 py-5">
+                                <form
+                                    onSubmit={createSubmission}
+                                    className="space-y-5"
                                 >
-                                    <BookOpen className="mr-2 size-4" />
-                                    Ajukan Sekarang
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
+                                    <SubmissionFields
+                                        form={form}
+                                        fileRequired
+                                        idPrefix="create_"
+                                    />
+                                    <Button
+                                        type="submit"
+                                        disabled={form.processing}
+                                    >
+                                        <BookOpen className="size-4" />
+                                        Ajukan Sekarang
+                                    </Button>
+                                </form>
+                            </div>
+                        </div>
+                    </section>
                 )}
 
+                {/* ── Has submission ── */}
                 {submission !== null && (
-                    <div className="space-y-6">
-                        <Card className={sectionCardClass}>
-                            <CardHeader
-                                className={`${sectionCardHeaderClass} gap-3`}
-                            >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <CardTitle>Status Pengajuan</CardTitle>
-                                        <CardDescription>
-                                            Perkembangan pengajuan Anda saat
-                                            ini.
-                                        </CardDescription>
-                                    </div>
-                                    <Badge className="w-fit bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-                                        {label}
-                                    </Badge>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="pb-6">
-                                <Alert>
+                    <>
+                        {/* ── Status pengajuan ── */}
+                        <section>
+                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                <SectionHeader
+                                    title="Status Pengajuan"
+                                    description="Perkembangan pengajuan Anda saat ini"
+                                    action={
+                                        <WorkflowBadge
+                                            workflowKey={submission.workflow.key}
+                                            label={label}
+                                        />
+                                    }
+                                />
+                                <div className="flex items-start gap-3 px-5 py-3.5 text-sm">
                                     {submission.workflow.key ===
                                     'title_review_pending' ? (
-                                        <Clock className="size-4" />
+                                        <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
                                     ) : (
-                                        <CheckCircle2 className="size-4" />
+                                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                                     )}
-                                    <AlertDescription>
+                                    <p className="text-muted-foreground">
                                         {description}
-                                    </AlertDescription>
-                                </Alert>
-                            </CardContent>
-                        </Card>
-
-                        <Card className={sectionCardClass}>
-                            <CardHeader
-                                className={`${sectionCardHeaderClass} gap-3`}
-                            >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <CardTitle>Informasi Judul</CardTitle>
-                                        <CardDescription>
-                                            Judul dan ringkasan proposal
-                                            terbaru.
-                                        </CardDescription>
-                                    </div>
-                                    {!isEditing && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            disabled={!canEditSubmission}
-                                            onClick={() => setIsEditing(true)}
-                                        >
-                                            <Pencil className="mr-2 size-4" />
-                                            Edit
-                                        </Button>
-                                    )}
-                                </div>
-                                {!canEditSubmission && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Pengajuan yang sudah diproses tidak bisa
-                                        diedit. Silakan hubungi admin jika perlu
-                                        perubahan.
                                     </p>
-                                )}
-                            </CardHeader>
-                            <CardContent className="pb-6">
-                                {isEditing ? (
-                                    <form
-                                        onSubmit={updateSubmission}
-                                        className="space-y-6"
-                                    >
-                                        <SubmissionFields
-                                            form={form}
-                                            fileRequired={false}
-                                            idPrefix="edit_"
-                                        />
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button
-                                                type="submit"
-                                                disabled={form.processing}
-                                                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                            >
-                                                Simpan Perubahan
-                                            </Button>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* ── Informasi Judul ── */}
+                        <section>
+                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                <SectionHeader
+                                    title="Informasi Judul"
+                                    description="Judul dan ringkasan proposal skripsi terbaru"
+                                    action={
+                                        !isEditing ? (
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                onClick={() => {
-                                                    form.setData(
-                                                        submissionDefaults(
-                                                            submission,
-                                                        ),
-                                                    );
-                                                    setIsEditing(false);
-                                                }}
+                                                size="sm"
+                                                disabled={!canEditSubmission}
+                                                onClick={() =>
+                                                    setIsEditing(true)
+                                                }
                                             >
-                                                Batal
+                                                <Pencil className="size-3.5" />
+                                                Edit
                                             </Button>
-                                        </div>
-                                    </form>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">
-                                                Judul (Bahasa Indonesia)
-                                            </p>
-                                            <Input
-                                                readOnly
-                                                value={submission.title_id}
+                                        ) : undefined
+                                    }
+                                />
+
+                                {!canEditSubmission && !isEditing && (
+                                    <div className="border-b bg-amber-50/60 px-5 py-2 text-xs text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
+                                        Pengajuan yang sudah diproses tidak bisa
+                                        diedit. Hubungi admin jika perlu
+                                        perubahan.
+                                    </div>
+                                )}
+
+                                {isEditing ? (
+                                    <div className="px-5 py-5">
+                                        <form
+                                            onSubmit={updateSubmission}
+                                            className="space-y-5"
+                                        >
+                                            <SubmissionFields
+                                                form={form}
+                                                fileRequired={false}
+                                                idPrefix="edit_"
                                             />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">
-                                                Judul (Bahasa Inggris)
-                                            </p>
-                                            <Input
-                                                readOnly
-                                                value={submission.title_en}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">
-                                                Ringkasan Proposal
-                                            </p>
-                                            <div className="rounded-md border bg-background px-3 py-2 text-sm whitespace-pre-wrap text-muted-foreground">
-                                                {submission.proposal_summary}
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button
+                                                    type="submit"
+                                                    disabled={form.processing}
+                                                >
+                                                    Simpan Perubahan
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        form.setData(
+                                                            submissionDefaults(
+                                                                submission,
+                                                            ),
+                                                        );
+                                                        setIsEditing(false);
+                                                    }}
+                                                >
+                                                    <X className="size-3.5" />
+                                                    Batal
+                                                </Button>
                                             </div>
+                                        </form>
+                                    </div>
+                                ) : (
+                                    <div className="px-5 py-4 space-y-4">
+                                        {/* Judul Indonesia */}
+                                        <div className="rounded-lg border bg-muted/10 p-4">
+                                            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                                <GraduationCap className="size-3" />
+                                                Judul (Bahasa Indonesia)
+                                            </div>
+                                            <p className="text-sm font-semibold leading-relaxed text-foreground">
+                                                {submission.title_id}
+                                            </p>
+                                        </div>
+
+                                        {/* Judul Inggris */}
+                                        {submission.title_en && (
+                                            <div className="rounded-lg border bg-muted/10 p-4">
+                                                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                                    <Languages className="size-3" />
+                                                    Judul (Bahasa Inggris)
+                                                </div>
+                                                <p className="text-sm italic leading-relaxed text-muted-foreground">
+                                                    {submission.title_en}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Ringkasan */}
+                                        <div className="rounded-lg border bg-muted/10 p-4">
+                                            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                                <FileText className="size-3" />
+                                                Ringkasan Proposal
+                                            </div>
+                                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                                                {submission.proposal_summary}
+                                            </p>
+                                        </div>
+
+                                        {/* Program studi chip */}
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span>Program Studi:</span>
+                                            <Badge variant="secondary">
+                                                {submission.program_studi}
+                                            </Badge>
                                         </div>
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </section>
 
-                        <ProposalFileCard submission={submission} />
+                        {/* ── File proposal ── */}
+                        {(submission.proposal_file_download_url ||
+                            submission.proposal_file_view_url) && (
+                            <section>
+                                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                    <SectionHeader
+                                        title="File Proposal Terkirim"
+                                        description="Anda dapat melihat dan mengunduh ulang file proposal"
+                                    />
+                                    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                <FileText className="size-4" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    {submission.proposal_file_name ??
+                                                        'Proposal.pdf'}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Dokumen proposal yang
+                                                    tersimpan
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {submission.proposal_file_view_url && (
+                                                <Button
+                                                    asChild
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                >
+                                                    <a
+                                                        href={
+                                                            submission.proposal_file_view_url
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <Eye className="size-3.5" />
+                                                        Lihat
+                                                    </a>
+                                                </Button>
+                                            )}
+                                            {submission.proposal_file_download_url && (
+                                                <Button
+                                                    asChild
+                                                    type="button"
+                                                    size="sm"
+                                                >
+                                                    <a
+                                                        href={
+                                                            submission.proposal_file_download_url
+                                                        }
+                                                    >
+                                                        <Download className="size-3.5" />
+                                                        Unduh
+                                                    </a>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        )}
 
-                        <Card className={sectionCardClass}>
-                            <CardHeader className={sectionCardHeaderClass}>
-                                <CardTitle>
-                                    Dosen Pembimbing dan Penguji
-                                </CardTitle>
-                                <CardDescription>
-                                    Dosen yang terlibat pada sempro dan sidang.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6 pb-6">
-                                <div className="grid gap-6 xl:grid-cols-3">
+                        {/* ── Dosen Pembimbing & Penguji ── */}
+                        <section>
+                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                <SectionHeader
+                                    title="Dosen Pembimbing & Penguji"
+                                    description="Dosen yang terlibat pada sempro dan sidang skripsi Anda"
+                                />
+                                <div className="grid gap-6 p-5 xl:grid-cols-3">
+                                    {/* Pembimbing */}
                                     <div className="space-y-3">
                                         <div>
-                                            <p className="text-sm font-semibold">
+                                            <p className="flex items-center gap-1.5 text-sm font-semibold">
+                                                <GraduationCap className="size-4 text-primary" />
                                                 Dosen Pembimbing
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Pembimbing aktif
+                                                Pembimbing aktif skripsi
                                             </p>
                                         </div>
                                         {advisorProfiles.length > 0 ? (
@@ -965,14 +1207,16 @@ export default function TugasAkhirSaya() {
                                         )}
                                     </div>
 
+                                    {/* Penguji Sempro */}
                                     <div className="space-y-3">
                                         <div>
-                                            <p className="text-sm font-semibold">
-                                                Dosen Penguji Sempro
+                                            <p className="flex items-center gap-1.5 text-sm font-semibold">
+                                                <Users className="size-4 text-cyan-600" />
+                                                Penguji Sempro
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                                 Penguji pada seminar proposal
-                                                terbaru.
+                                                terbaru
                                             </p>
                                         </div>
                                         {semproExaminerProfiles.length > 0 ? (
@@ -994,13 +1238,16 @@ export default function TugasAkhirSaya() {
                                         )}
                                     </div>
 
+                                    {/* Penguji Sidang */}
                                     <div className="space-y-3">
                                         <div>
-                                            <p className="text-sm font-semibold">
-                                                Dosen Penguji Sidang
+                                            <p className="flex items-center gap-1.5 text-sm font-semibold">
+                                                <Users className="size-4 text-purple-600" />
+                                                Penguji Sidang
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Penguji pada sidang terbaru.
+                                                Penguji pada sidang skripsi
+                                                terbaru
                                             </p>
                                         </div>
                                         {sidangExaminerProfiles.length > 0 ? (
@@ -1022,26 +1269,31 @@ export default function TugasAkhirSaya() {
                                         )}
                                     </div>
                                 </div>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </section>
 
-                        {sidangResult ? (
-                            <DefenseResultCard
+                        {/* ── Hasil sidang ── */}
+                        {sidangResult && (
+                            <DefenseResultSection
                                 title="Hasil Sidang Skripsi"
                                 result={sidangResult}
                             />
-                        ) : null}
+                        )}
 
+                        {/* ── Riwayat sempro ── */}
                         <DefenseHistorySection
                             title="Riwayat Seminar Proposal"
                             items={defenseHistory.sempro}
+                            type="sempro"
                         />
 
+                        {/* ── Riwayat sidang ── */}
                         <DefenseHistorySection
                             title="Riwayat Sidang Skripsi"
                             items={defenseHistory.sidang}
+                            type="sidang"
                         />
-                    </div>
+                    </>
                 )}
             </div>
         </AppLayout>

@@ -580,26 +580,34 @@ function HeaderNotifications() {
                 </SheetContent>
             </Sheet>
 
-            {toast !== null && (
-                <button
-                    type="button"
-                    className="group fixed top-4 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-primary/30 bg-background p-4 text-left shadow-2xl shadow-primary/20 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
-                    onClick={() => handleNotificationClick(toast)}
-                >
-                    <div className="pointer-events-none absolute inset-0 bg-primary/10 transition-colors group-hover:bg-primary/20" />
-                    <div className="relative z-10">
-                        <p className="text-sm font-semibold text-primary">
-                            {toast.title}
-                        </p>
-                        <p className="mt-1 text-sm text-foreground/85">
-                            {toast.description}
-                        </p>
-                        <p className="mt-2 text-[11px] text-primary/80">
-                            Klik untuk buka detail
-                        </p>
-                    </div>
-                </button>
-            )}
+            {toast !== null && (() => {
+                const ToastIcon = notificationIconMap[toast.icon] ?? Bell;
+                return (
+                    <button
+                        type="button"
+                        className="group fixed right-4 top-[72px] z-[100] flex w-[min(380px,calc(100vw-2rem))] items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all animate-in fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8"
+                        onClick={() => handleNotificationClick(toast)}
+                    >
+                        <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <ToastIcon className="size-5" />
+                        </div>
+                        <div className="flex-1 space-y-1 overflow-hidden">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                                {toast.title}
+                            </p>
+                            <p className="line-clamp-2 text-sm text-muted-foreground">
+                                {toast.description}
+                            </p>
+                            <p className="pt-1 text-[11px] font-medium tracking-wide text-primary/80 uppercase">
+                                Lihat detail &rarr;
+                            </p>
+                        </div>
+                        <div className="mt-1.5 shrink-0">
+                            <div className="size-2 rounded-full bg-primary shadow-sm" />
+                        </div>
+                    </button>
+                );
+            })()}
         </>
     );
 }

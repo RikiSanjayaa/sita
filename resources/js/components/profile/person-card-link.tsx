@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
+import { ChevronRight } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type UserProfileSummary } from '@/types';
@@ -19,42 +19,67 @@ export function PersonCardLink({
 }: PersonCardLinkProps) {
     const getInitials = useInitials();
 
+    // Build subtitle chips from subtitle string (split on " · " or "·")
+    const chips = person.subtitle
+        ? person.subtitle
+              .split(/\s*·\s*/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+        : [];
+
     return (
         <Link
             href={person.profileUrl}
             className={cn(
-                'group flex items-start gap-3 rounded-xl border bg-background p-4 text-left transition hover:border-primary/30 hover:bg-muted/30',
+                'group flex items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors hover:border-primary/40',
                 className,
             )}
         >
-            <Avatar className="size-12 border">
+
+            <Avatar className="size-10 shrink-0 border">
                 <AvatarImage
                     src={person.avatar ?? undefined}
                     alt={person.name}
                 />
-                <AvatarFallback className="bg-primary/10 text-primary">
+                <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                     {getInitials(person.name)}
                 </AvatarFallback>
             </Avatar>
 
-            <div className="min-w-0 flex-1 space-y-1">
-                {label ? (
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <div className="min-w-0 flex-1 pl-1">
+                {label && (
+                    <p className="mb-0.5 text-[10px] font-semibold tracking-widest text-primary/70 uppercase">
                         {label}
                     </p>
-                ) : null}
-                <p className="truncate text-sm font-semibold text-foreground group-hover:text-primary">
+                )}
+                <p className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
                     {person.name}
                 </p>
-                {person.subtitle ? (
-                    <p className="line-clamp-2 text-xs text-muted-foreground">
-                        {person.subtitle}
+                {chips.length > 0 && (
+                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        {chips.map((chip, i) => (
+                            <span
+                                key={i}
+                                className="text-[11px] text-muted-foreground"
+                            >
+                                {chip}
+                                {i < chips.length - 1 && (
+                                    <span className="ml-1.5 text-muted-foreground/40">
+                                        ·
+                                    </span>
+                                )}
+                            </span>
+                        ))}
+                    </div>
+                )}
+                {chips.length === 0 && person.roleLabel && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {person.roleLabel}
                     </p>
-                ) : null}
-                <Badge variant="outline" className="mt-2 w-fit">
-                    {person.roleLabel}
-                </Badge>
+                )}
             </div>
+
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary/60" />
         </Link>
     );
 }

@@ -164,11 +164,13 @@ class PesanController extends Controller
         $result = DB::transaction(function () use ($activeSemproDefenses, $attachment, $semproThreads, $student, $thread, $trimmedMessage): array {
             if ($attachment === null) {
                 return [
-                    'primary' => $thread->messages()->create([
-                        'sender_user_id' => $student->id,
-                        'message_type' => 'text',
-                        'message' => $trimmedMessage,
-                        'sent_at' => now(),
+                    'primary' => collect([
+                        $thread->messages()->create([
+                            'sender_user_id' => $student->id,
+                            'message_type' => 'text',
+                            'message' => $trimmedMessage,
+                            'sent_at' => now(),
+                        ]),
                     ]),
                     'mirrored' => collect(),
                 ];
