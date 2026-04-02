@@ -202,7 +202,6 @@ class UserProfilePresenter
             ],
             'stats' => [
                 ['label' => 'Mahasiswa Aktif', 'value' => (string) $activeStudents->count()],
-                ['label' => 'Sisa Kuota', 'value' => (string) max(0, $quota - $activeStudents->count())],
                 ['label' => 'Sempro Terjadwal', 'value' => (string) $scheduledSemproCount],
                 ['label' => 'Sidang Terjadwal', 'value' => (string) $scheduledSidangCount],
             ],
