@@ -1,10 +1,8 @@
 import { router, usePage } from '@inertiajs/react';
-import { Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -12,8 +10,12 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+} from '@/components/ui/data-table';
 import { type SharedData } from '@/types';
 
 type ScheduleItem = {
@@ -64,20 +66,37 @@ function ScheduleTable({
     emptyMessage,
     items,
     pagination,
-    title,
+    search,
     onPageChange,
+    onSearchChange,
+    title,
 }: {
     emptyMessage: string;
     items: ScheduleItem[];
     pagination: PaginationData;
-    title: string;
+    search: string;
     onPageChange: (page: number) => void;
+    onSearchChange: (value: string) => void;
+    title: string;
 }) {
+    const [typeFilter, setTypeFilter] = useState<
+        'semua' | ScheduleItem['type']
+    >('semua');
+
+    const filteredItems = useMemo(() => {
+        if (typeFilter === 'semua') {
+            return items;
+        }
+
+        return items.filter((item) => item.type === typeFilter);
+    }, [items, typeFilter]);
+
     const rangeStart =
-        items.length === 0
+        filteredItems.length === 0
             ? 0
             : (pagination.currentPage - 1) * pagination.perPage + 1;
-    const rangeEnd = items.length === 0 ? 0 : rangeStart + items.length - 1;
+    const rangeEnd =
+        filteredItems.length === 0 ? 0 : rangeStart + filteredItems.length - 1;
 
     return (
         <Card className={sectionCardClass}>
@@ -100,10 +119,46 @@ function ScheduleTable({
                 </div>
             </CardHeader>
             <CardContent className="space-y-4 pb-6">
-                {items.length > 0 ? (
-                    <div className="space-y-3">
+                <DataTableToolbar
+                    search={search}
+                    onSearchChange={onSearchChange}
+                    searchPlaceholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
+                    filterGroups={[
+                        {
+                            tabs: [
+                                {
+                                    label: 'Semua',
+                                    value: 'semua',
+                                    count: items.length,
+                                },
+                                {
+                                    label: 'Sempro',
+                                    value: 'sempro',
+                                    count: items.filter(
+                                        (item) => item.type === 'sempro',
+                                    ).length,
+                                },
+                                {
+                                    label: 'Sidang',
+                                    value: 'sidang',
+                                    count: items.filter(
+                                        (item) => item.type === 'sidang',
+                                    ).length,
+                                },
+                            ],
+                            value: typeFilter,
+                            onChange: (value) =>
+                                setTypeFilter(
+                                    value as 'semua' | ScheduleItem['type'],
+                                ),
+                        },
+                    ]}
+                />
+
+                {filteredItems.length > 0 ? (
+                    <>
                         <div className="grid gap-3 md:hidden">
-                            {items.map((item) => (
+                            {filteredItems.map((item) => (
                                 <div
                                     key={`${title}-${item.id}`}
                                     className="rounded-xl border bg-background p-4"
@@ -177,7 +232,7 @@ function ScheduleTable({
                             ))}
                         </div>
 
-                        <ScrollArea className="hidden rounded-xl border md:block">
+                        <DataTableContainer className="hidden md:block">
                             <table className="w-full min-w-[760px] text-sm">
                                 <thead className="bg-muted/30 text-left">
                                     <tr>
@@ -199,7 +254,7 @@ function ScheduleTable({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {items.map((item) => (
+                                    {filteredItems.map((item) => (
                                         <tr
                                             key={`${title}-${item.id}`}
                                             className="border-t align-top"
@@ -254,42 +309,27 @@ function ScheduleTable({
                                     ))}
                                 </tbody>
                             </table>
-                        </ScrollArea>
-                    </div>
+                        </DataTableContainer>
+                    </>
                 ) : (
-                    <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                        {emptyMessage}
-                    </div>
+                    <DataTableEmptyState
+                        title="Tidak ada jadwal"
+                        description={emptyMessage}
+                    />
                 )}
 
-                <div className="flex flex-col-reverse items-center justify-center gap-2 sm:flex-row sm:flex-wrap">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={pagination.previousPage === null}
-                        onClick={() => {
-                            if (pagination.previousPage !== null) {
-                                onPageChange(pagination.previousPage);
-                            }
-                        }}
-                    >
-                        Sebelumnya
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={pagination.nextPage === null}
-                        onClick={() => {
-                            if (pagination.nextPage !== null) {
-                                onPageChange(pagination.nextPage);
-                            }
-                        }}
-                    >
-                        Berikutnya
-                    </Button>
-                </div>
+                <DataTablePagination
+                    currentPage={pagination.currentPage}
+                    totalPages={Math.max(
+                        1,
+                        pagination.currentPage +
+                            (pagination.hasMorePages ? 1 : 0),
+                    )}
+                    totalItems={filteredItems.length}
+                    pageSize={pagination.perPage}
+                    onPageChange={onPageChange}
+                    itemLabel="jadwal"
+                />
             </CardContent>
         </Card>
     );
@@ -375,29 +415,12 @@ function PublicSchedulesContent({
             description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
             <div className="grid gap-6">
-                <Card className="shadow-sm">
-                    <CardHeader className="gap-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>Cari jadwal publik</CardTitle>
-                            <div className="relative w-full max-w-md">
-                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
-                                    }
-                                    placeholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
-                                    className="pl-9"
-                                />
-                            </div>
-                        </div>
-                    </CardHeader>
-                </Card>
-
                 <ScheduleTable
                     title="Jadwal Akan Datang"
                     items={upcomingSchedules}
                     pagination={upcomingPagination}
+                    search={search}
+                    onSearchChange={setSearch}
                     emptyMessage={
                         hasActiveSearch
                             ? 'Tidak ada jadwal mendatang yang cocok dengan pencarian ini.'
@@ -409,6 +432,8 @@ function PublicSchedulesContent({
                     title="Tindak Lanjut Terbaru"
                     items={followUpSchedules}
                     pagination={followUpPagination}
+                    search={search}
+                    onSearchChange={setSearch}
                     emptyMessage={
                         hasActiveSearch
                             ? 'Tidak ada tindak lanjut yang cocok dengan pencarian ini.'

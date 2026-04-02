@@ -4,7 +4,11 @@ import { useMemo, useState } from 'react';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTableToolbar,
+} from '@/components/ui/data-table';
 import {
     Select,
     SelectContent,
@@ -43,18 +47,24 @@ export default function PublicAdvisorsPage() {
     const { advisorDirectory, advisorPrograms, concentrationStudentTotals } =
         usePage<SharedData & PageProps>().props;
     const [programFilter, setProgramFilter] = useState<string>(
-        advisorPrograms[0]?.slug ?? 'semua',
+        advisorPrograms[0]?.slug ?? '',
     );
+    const [search, setSearch] = useState('');
 
     const visibleAdvisors = useMemo(() => {
-        if (programFilter === 'semua') {
-            return advisorDirectory;
-        }
+        const normalizedSearch = search.trim().toLowerCase();
 
-        return advisorDirectory.filter(
-            (advisor) => advisor.programSlug === programFilter,
-        );
-    }, [advisorDirectory, programFilter]);
+        return advisorDirectory.filter((advisor) => {
+            const matchProgram = advisor.programSlug === programFilter;
+            const matchSearch =
+                normalizedSearch === '' ||
+                advisor.name.toLowerCase().includes(normalizedSearch) ||
+                advisor.programStudi.toLowerCase().includes(normalizedSearch) ||
+                advisor.concentration.toLowerCase().includes(normalizedSearch);
+
+            return matchProgram && matchSearch;
+        });
+    }, [advisorDirectory, programFilter, search]);
 
     const advisorGroups = useMemo(() => {
         const grouped = visibleAdvisors.reduce<
@@ -84,7 +94,7 @@ export default function PublicAdvisorsPage() {
                 <Card className="shadow-sm">
                     <CardHeader className="gap-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>Filter Program Studi</CardTitle>
+                            <CardTitle>Program Studi</CardTitle>
                             <div className="w-full sm:max-w-xs">
                                 <Select
                                     value={programFilter}
@@ -94,9 +104,6 @@ export default function PublicAdvisorsPage() {
                                         <SelectValue placeholder="Pilih program studi" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="semua">
-                                            Semua Program Studi
-                                        </SelectItem>
                                         {advisorPrograms.map((program) => (
                                             <SelectItem
                                                 key={program.slug}
@@ -112,19 +119,23 @@ export default function PublicAdvisorsPage() {
                     </CardHeader>
                 </Card>
 
+                <DataTableToolbar
+                    search={search}
+                    onSearchChange={setSearch}
+                    searchPlaceholder="Cari dosen atau konsentrasi..."
+                />
+
                 {advisorGroups.length > 0 ? (
                     advisorGroups.map(([concentration, advisors]) => {
                         const totalActiveStudents =
                             concentrationStudentTotals[programFilter]?.[
                                 concentration
                             ] ??
-                            (programFilter === 'semua'
-                                ? advisors.reduce(
-                                      (total, advisor) =>
-                                          total + advisor.totalActiveCount,
-                                      0,
-                                  )
-                                : 0);
+                            advisors.reduce(
+                                (total, advisor) =>
+                                    total + advisor.totalActiveCount,
+                                0,
+                            );
 
                         return (
                             <Card
@@ -140,7 +151,7 @@ export default function PublicAdvisorsPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4 pb-6">
-                                    <ScrollArea className="rounded-xl border">
+                                    <DataTableContainer>
                                         <table className="w-full min-w-[640px] text-sm">
                                             <thead className="bg-muted/30 text-left">
                                                 <tr>
@@ -178,7 +189,7 @@ export default function PublicAdvisorsPage() {
                                                 ))}
                                             </tbody>
                                         </table>
-                                    </ScrollArea>
+                                    </DataTableContainer>
 
                                     <div className="flex justify-end text-sm text-muted-foreground">
                                         Total mahasiswa aktif pada konsentrasi
@@ -193,8 +204,11 @@ export default function PublicAdvisorsPage() {
                     })
                 ) : (
                     <Card className={sectionCardClass}>
-                        <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                            Belum ada data pembimbing aktif pada filter ini.
+                        <CardContent className="p-6">
+                            <DataTableEmptyState
+                                title="Tidak ada pembimbing"
+                                description="Belum ada data pembimbing aktif pada filter ini."
+                            />
                         </CardContent>
                     </Card>
                 )}

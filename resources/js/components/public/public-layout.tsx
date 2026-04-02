@@ -24,6 +24,13 @@ const navItems = [
     { id: 'topik', label: 'Topik', href: '/topik' },
 ] as const;
 
+const footerLinks = [
+    { label: 'Jadwal Publik', href: '/jadwal' },
+    { label: 'Mahasiswa Aktif', href: '/mahasiswa-aktif' },
+    { label: 'Direktori Pembimbing', href: '/pembimbing' },
+    { label: 'Topik Tugas Akhir', href: '/topik' },
+] as const;
+
 export function PublicLayout({
     active,
     children,
@@ -144,6 +151,49 @@ export function PublicLayout({
 
                     {children}
                 </main>
+
+                <footer className="border-t bg-muted/10">
+                    <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-8 lg:grid-cols-[1.3fr_0.7fr] lg:px-6">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                                    <AppLogoIcon className="size-5" />
+                                </span>
+                                <div className="grid leading-tight">
+                                    <span className="text-sm font-semibold">
+                                        SiTA Universitas Bumigora
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Portal informasi publik tugas akhir.
+                                    </span>
+                                </div>
+                            </div>
+                            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+                                Akses ringkas untuk melihat jadwal sempro dan
+                                sidang, direktori pembimbing, mahasiswa aktif,
+                                dan daftar topik tugas akhir yang sudah
+                                dipublikasikan.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <p className="text-sm font-semibold">
+                                Navigasi Publik
+                            </p>
+                            <nav className="grid gap-2 text-sm text-muted-foreground">
+                                {footerLinks.map((item) => (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className="transition-colors hover:text-foreground"
+                                    >
+                                        {item.label}
+                                    </Link>
+                                ))}
+                            </nav>
+                        </div>
+                    </div>
+                </footer>
 
                 <ThemeSettingsFab />
             </div>

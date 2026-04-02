@@ -1,13 +1,17 @@
 import { router, usePage } from '@inertiajs/react';
-import { ChevronDown, ChevronRight, Search } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+} from '@/components/ui/data-table';
 import {
     Select,
     SelectContent,
@@ -15,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 
 type SemproTitleItem = {
@@ -81,6 +86,7 @@ function PublicTopicsContent({
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
+    const [yearFilter, setYearFilter] = useState('semua');
     const [openRowId, setOpenRowId] = useState<number | null>(null);
 
     useEffect(() => {
@@ -111,12 +117,37 @@ function PublicTopicsContent({
         return () => window.clearTimeout(timeoutId);
     }, [filters.program, filters.search, programFilter, search]);
 
+    const yearTabs = useMemo(() => {
+        const years = Array.from(
+            new Set(semproTitles.map((item) => item.year)),
+        );
+
+        return [
+            { label: 'Semua', value: 'semua', count: semproTitles.length },
+            ...years.map((year) => ({
+                label: year,
+                value: year,
+                count: semproTitles.filter((item) => item.year === year).length,
+            })),
+        ];
+    }, [semproTitles]);
+
+    const filteredTitles = useMemo(() => {
+        if (yearFilter === 'semua') {
+            return semproTitles;
+        }
+
+        return semproTitles.filter((item) => item.year === yearFilter);
+    }, [semproTitles, yearFilter]);
+
     const rangeStart =
-        semproTitles.length === 0
+        filteredTitles.length === 0
             ? 0
             : (topicPagination.currentPage - 1) * topicPagination.perPage + 1;
     const rangeEnd =
-        semproTitles.length === 0 ? 0 : rangeStart + semproTitles.length - 1;
+        filteredTitles.length === 0
+            ? 0
+            : rangeStart + filteredTitles.length - 1;
     const hasActiveFilter =
         filters.search.trim() !== '' || filters.program.trim() !== '';
 
@@ -148,79 +179,81 @@ function PublicTopicsContent({
             description="Daftar topik tugas akhir yang sudah selesai sempro dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan."
         >
             <div className="space-y-6">
-                <Card className="shadow-sm">
-                    <CardHeader className="gap-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>Filter Topik</CardTitle>
-                            <div className="flex w-full flex-col gap-3 sm:max-w-2xl sm:flex-row">
-                                <div className="w-full sm:max-w-xs">
-                                    <Select
-                                        value={programFilter}
-                                        onValueChange={(value) => {
-                                            setProgramFilter(value);
-                                            setOpenRowId(null);
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Filter prodi" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="semua">
-                                                Semua Prodi
-                                            </SelectItem>
-                                            {topicPrograms.map((program) => (
-                                                <SelectItem
-                                                    key={program.slug}
-                                                    value={program.slug}
-                                                >
-                                                    {program.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="relative w-full max-w-md">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        value={search}
-                                        onChange={(event) => {
-                                            setSearch(event.target.value);
-                                            setOpenRowId(null);
-                                        }}
-                                        placeholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
-                                        className="pl-9"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </CardHeader>
-                </Card>
-
                 <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>Daftar Topik</CardTitle>
-                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                <span>
-                                    Menampilkan {rangeStart}-{rangeEnd} dari
-                                    halaman ini
-                                </span>
-                                <Badge variant="outline">
-                                    Halaman {topicPagination.currentPage}
-                                </Badge>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-1.5">
+                                <CardTitle>Daftar Topik</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                    <span>
+                                        Menampilkan {rangeStart}-{rangeEnd} dari
+                                        halaman ini
+                                    </span>
+                                    <Badge variant="outline">
+                                        Halaman {topicPagination.currentPage}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div className="w-full lg:max-w-xs">
+                                <Select
+                                    value={programFilter}
+                                    onValueChange={(value) => {
+                                        setProgramFilter(value);
+                                        setOpenRowId(null);
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder="Filter prodi" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="semua">
+                                            Semua Prodi
+                                        </SelectItem>
+                                        {topicPrograms.map((program) => (
+                                            <SelectItem
+                                                key={program.slug}
+                                                value={program.slug}
+                                            >
+                                                {program.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4 pb-6">
-                        {semproTitles.length > 0 ? (
+                        <DataTableToolbar
+                            search={search}
+                            onSearchChange={(value) => {
+                                setSearch(value);
+                                setOpenRowId(null);
+                            }}
+                            searchPlaceholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
+                            filterGroups={[
+                                {
+                                    tabs: yearTabs,
+                                    value: yearFilter,
+                                    onChange: (value) => {
+                                        setYearFilter(value);
+                                        setOpenRowId(null);
+                                    },
+                                },
+                            ]}
+                        />
+
+                        {filteredTitles.length > 0 ? (
                             <>
-                                <ScrollArea className="rounded-xl border">
+                                <DataTableContainer>
                                     <table className="w-full min-w-[980px] text-sm">
                                         <thead className="bg-muted/30 text-left">
                                             <tr>
                                                 <th className="w-14 px-4 py-3 font-semibold">
                                                     Detail
+                                                </th>
+                                                <th className="px-4 py-3 font-semibold">
+                                                    Mahasiswa
                                                 </th>
                                                 <th className="px-4 py-3 font-semibold">
                                                     Judul
@@ -234,19 +267,19 @@ function PublicTopicsContent({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {semproTitles.map((item) => {
+                                            {filteredTitles.map((item) => {
                                                 const isOpen =
                                                     openRowId === item.id;
 
                                                 return (
                                                     <Fragment key={item.id}>
-                                                        <tr className="border-t align-top">
+                                                        <tr className="border-t align-top transition-colors hover:bg-muted/5">
                                                             <td className="px-4 py-3">
                                                                 <Button
                                                                     type="button"
                                                                     size="icon"
                                                                     variant="ghost"
-                                                                    className="size-8 rounded-full"
+                                                                    className="size-8 rounded-full transition-transform duration-300"
                                                                     onClick={() =>
                                                                         toggleRow(
                                                                             item.id,
@@ -254,12 +287,24 @@ function PublicTopicsContent({
                                                                     }
                                                                     aria-label="Buka detail topik"
                                                                 >
-                                                                    {isOpen ? (
-                                                                        <ChevronDown className="size-4" />
-                                                                    ) : (
-                                                                        <ChevronRight className="size-4" />
-                                                                    )}
+                                                                    <ChevronRight
+                                                                        className={`size-4 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}
+                                                                    />
                                                                 </Button>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="space-y-1">
+                                                                    <div className="font-medium text-foreground">
+                                                                        {
+                                                                            item.studentName
+                                                                        }
+                                                                    </div>
+                                                                    <div className="text-muted-foreground">
+                                                                        {
+                                                                            item.studentNim
+                                                                        }
+                                                                    </div>
+                                                                </div>
                                                             </td>
                                                             <td className="px-4 py-3">
                                                                 <div className="max-w-md leading-6 font-medium text-foreground">
@@ -276,162 +321,151 @@ function PublicTopicsContent({
                                                             </td>
                                                         </tr>
 
-                                                        {isOpen ? (
-                                                            <tr className="border-t bg-muted/10">
-                                                                <td
-                                                                    colSpan={4}
-                                                                    className="px-6 py-4"
+                                                        <tr className="border-t bg-background">
+                                                            <td
+                                                                colSpan={5}
+                                                                className="p-0"
+                                                            >
+                                                                <div
+                                                                    className={cn(
+                                                                        'grid transition-all duration-300 ease-out',
+                                                                        isOpen
+                                                                            ? 'grid-rows-[1fr] opacity-100'
+                                                                            : 'grid-rows-[0fr] opacity-0',
+                                                                    )}
                                                                 >
-                                                                    <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr_0.8fr]">
-                                                                        <div className="rounded-xl border bg-background p-4">
-                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                Mahasiswa
-                                                                            </p>
-                                                                            <div className="mt-3 space-y-1 text-sm">
-                                                                                <p className="font-medium text-foreground">
-                                                                                    {
-                                                                                        item.studentName
-                                                                                    }
-                                                                                </p>
-                                                                                <p className="text-muted-foreground">
-                                                                                    NIM{' '}
-                                                                                    {
-                                                                                        item.studentNim
-                                                                                    }
-                                                                                </p>
-                                                                                <p className="text-muted-foreground">
-                                                                                    {
-                                                                                        item.programStudi
-                                                                                    }
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
+                                                                    <div className="overflow-hidden">
+                                                                        <div
+                                                                            className={cn(
+                                                                                'px-6 transition-[padding,transform,opacity] duration-300 ease-out',
+                                                                                isOpen
+                                                                                    ? 'translate-y-0 py-5 opacity-100'
+                                                                                    : '-translate-y-2 py-0 opacity-0',
+                                                                            )}
+                                                                        >
+                                                                            <div className="rounded-b-2xl border-t bg-muted/20 px-5 py-5">
+                                                                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
+                                                                                    <div className="space-y-5">
+                                                                                        <div className="space-y-2">
+                                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                                                                Ringkasan
+                                                                                                Proposal
+                                                                                            </p>
+                                                                                            <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
+                                                                                                {item.summary ||
+                                                                                                    '-'}
+                                                                                            </p>
+                                                                                        </div>
 
-                                                                        <div className="space-y-4 rounded-xl border bg-background p-4">
-                                                                            <div>
-                                                                                <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                    Judul
-                                                                                    Internasional
-                                                                                </p>
-                                                                                <p className="mt-1 text-sm text-muted-foreground italic">
-                                                                                    {item.titleEn ||
-                                                                                        '-'}
-                                                                                </p>
-                                                                            </div>
+                                                                                        <div className="space-y-2">
+                                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                                                                Judul
+                                                                                                Internasional
+                                                                                            </p>
+                                                                                            <p className="text-sm text-muted-foreground italic">
+                                                                                                {item.titleEn ||
+                                                                                                    '-'}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
 
-                                                                            <div>
-                                                                                <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                    Ringkasan
-                                                                                    Proposal
-                                                                                </p>
-                                                                                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                                                                                    {item.summary ||
-                                                                                        '-'}
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
+                                                                                    <div className="space-y-5 border-t pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
+                                                                                        <div className="space-y-2">
+                                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                                                                                                Pembimbing
+                                                                                            </p>
+                                                                                            <div className="flex flex-wrap gap-2">
+                                                                                                {item
+                                                                                                    .advisors
+                                                                                                    .length >
+                                                                                                0 ? (
+                                                                                                    item.advisors.map(
+                                                                                                        (
+                                                                                                            advisor,
+                                                                                                        ) => (
+                                                                                                            <Badge
+                                                                                                                key={`${item.id}-${advisor.label}`}
+                                                                                                                variant="secondary"
+                                                                                                            >
+                                                                                                                {
+                                                                                                                    advisor.label
+                                                                                                                }
 
-                                                                        <div className="space-y-3 rounded-xl border bg-background p-4">
-                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                Pembimbing
-                                                                            </p>
-                                                                            <div className="flex flex-wrap gap-2">
-                                                                                {item.advisors.map(
-                                                                                    (
-                                                                                        advisor,
-                                                                                    ) => (
-                                                                                        <Badge
-                                                                                            key={`${item.id}-${advisor.label}`}
-                                                                                            variant="secondary"
-                                                                                        >
-                                                                                            {
-                                                                                                advisor.label
-                                                                                            }
+                                                                                                                :{' '}
+                                                                                                                {
+                                                                                                                    advisor.name
+                                                                                                                }
+                                                                                                            </Badge>
+                                                                                                        ),
+                                                                                                    )
+                                                                                                ) : (
+                                                                                                    <span className="text-sm text-muted-foreground">
+                                                                                                        Belum
+                                                                                                        ada
+                                                                                                        data
+                                                                                                        pembimbing.
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
 
-                                                                                            :{' '}
-                                                                                            {
-                                                                                                advisor.name
-                                                                                            }
-                                                                                        </Badge>
-                                                                                    ),
-                                                                                )}
-                                                                            </div>
-                                                                            <div className="border-t pt-3 text-sm text-muted-foreground">
-                                                                                <span className="font-medium text-foreground">
-                                                                                    Tahun:
-                                                                                </span>{' '}
-                                                                                {
-                                                                                    item.year
-                                                                                }
-                                                                            </div>
-                                                                            <div className="text-sm text-muted-foreground">
-                                                                                <span className="font-medium text-foreground">
-                                                                                    Seminar
-                                                                                    selesai:
-                                                                                </span>{' '}
-                                                                                {item.seminarDate ||
-                                                                                    '-'}
+                                                                                        <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-1">
+                                                                                            <div>
+                                                                                                <span className="font-medium text-foreground">
+                                                                                                    Tahun:
+                                                                                                </span>{' '}
+                                                                                                {
+                                                                                                    item.year
+                                                                                                }
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <span className="font-medium text-foreground">
+                                                                                                    Seminar
+                                                                                                    selesai:
+                                                                                                </span>{' '}
+                                                                                                {item.seminarDate ||
+                                                                                                    '-'}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                </td>
-                                                            </tr>
-                                                        ) : null}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
                                                     </Fragment>
                                                 );
                                             })}
                                         </tbody>
                                     </table>
-                                </ScrollArea>
+                                </DataTableContainer>
 
-                                <div className="flex items-center justify-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={
-                                            topicPagination.previousPage ===
-                                            null
-                                        }
-                                        onClick={() => {
-                                            if (
-                                                topicPagination.previousPage !==
-                                                null
-                                            ) {
-                                                visitPage(
-                                                    topicPagination.previousPage,
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        Sebelumnya
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={!topicPagination.hasMorePages}
-                                        onClick={() => {
-                                            if (
-                                                topicPagination.nextPage !==
-                                                null
-                                            ) {
-                                                visitPage(
-                                                    topicPagination.nextPage,
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        Berikutnya
-                                    </Button>
-                                </div>
+                                <DataTablePagination
+                                    currentPage={topicPagination.currentPage}
+                                    totalPages={Math.max(
+                                        1,
+                                        topicPagination.currentPage +
+                                            (topicPagination.hasMorePages
+                                                ? 1
+                                                : 0),
+                                    )}
+                                    totalItems={filteredTitles.length}
+                                    pageSize={topicPagination.perPage}
+                                    onPageChange={visitPage}
+                                    itemLabel="topik"
+                                />
                             </>
                         ) : (
-                            <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                                {hasActiveFilter
-                                    ? 'Tidak ada topik yang cocok dengan pencarian ini.'
-                                    : 'Belum ada topik yang dapat ditampilkan.'}
-                            </div>
+                            <DataTableEmptyState
+                                title="Tidak ada topik"
+                                description={
+                                    hasActiveFilter || yearFilter !== 'semua'
+                                        ? 'Tidak ada topik yang cocok dengan pencarian ini.'
+                                        : 'Belum ada topik yang dapat ditampilkan.'
+                                }
+                            />
                         )}
                     </CardContent>
                 </Card>

@@ -1,13 +1,15 @@
 import { router, usePage } from '@inertiajs/react';
-import { Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+} from '@/components/ui/data-table';
 import {
     Select,
     SelectContent,
@@ -80,6 +82,7 @@ function PublicStudentsContent({
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
+    const [stageFilter, setStageFilter] = useState('semua');
 
     useEffect(() => {
         const normalizedProgram =
@@ -109,6 +112,37 @@ function PublicStudentsContent({
         return () => window.clearTimeout(timeoutId);
     }, [filters.program, filters.search, programFilter, search]);
 
+    const stageTabs = useMemo(() => {
+        const counts = activeStudents.reduce<Record<string, number>>(
+            (carry, student) => {
+                const key = student.stageLabel.toLowerCase();
+                carry[key] = (carry[key] ?? 0) + 1;
+
+                return carry;
+            },
+            {},
+        );
+
+        return [
+            { label: 'Semua', value: 'semua', count: activeStudents.length },
+            ...Object.entries(counts).map(([value, count]) => ({
+                label: value.replace(/\b\w/g, (char) => char.toUpperCase()),
+                value,
+                count,
+            })),
+        ];
+    }, [activeStudents]);
+
+    const filteredStudents = useMemo(() => {
+        if (stageFilter === 'semua') {
+            return activeStudents;
+        }
+
+        return activeStudents.filter(
+            (student) => student.stageLabel.toLowerCase() === stageFilter,
+        );
+    }, [activeStudents, stageFilter]);
+
     function visitPage(page: number) {
         router.get(
             '/mahasiswa-aktif',
@@ -126,14 +160,14 @@ function PublicStudentsContent({
     }
 
     const rangeStart =
-        activeStudents.length === 0
+        filteredStudents.length === 0
             ? 0
             : (studentPagination.currentPage - 1) * studentPagination.perPage +
               1;
     const rangeEnd =
-        activeStudents.length === 0
+        filteredStudents.length === 0
             ? 0
-            : rangeStart + activeStudents.length - 1;
+            : rangeStart + filteredStudents.length - 1;
     const hasActiveFilter =
         filters.search.trim() !== '' || filters.program.trim() !== '';
 
@@ -148,43 +182,29 @@ function PublicStudentsContent({
                 <Card className="shadow-sm">
                     <CardHeader className="gap-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>Filter Mahasiswa</CardTitle>
-                            <div className="flex w-full flex-col gap-3 sm:max-w-2xl sm:flex-row">
-                                <div className="w-full sm:max-w-xs">
-                                    <Select
-                                        value={programFilter}
-                                        onValueChange={setProgramFilter}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Filter prodi" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="semua">
-                                                Semua Prodi
+                            <CardTitle>Program Studi</CardTitle>
+                            <div className="w-full sm:max-w-xs">
+                                <Select
+                                    value={programFilter}
+                                    onValueChange={setProgramFilter}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Filter prodi" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="semua">
+                                            Semua Prodi
+                                        </SelectItem>
+                                        {studentPrograms.map((program) => (
+                                            <SelectItem
+                                                key={program.slug}
+                                                value={program.slug}
+                                            >
+                                                {program.name}
                                             </SelectItem>
-                                            {studentPrograms.map((program) => (
-                                                <SelectItem
-                                                    key={program.slug}
-                                                    value={program.slug}
-                                                >
-                                                    {program.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="relative w-full max-w-md">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Cari nama, NIM, atau prodi..."
-                                        className="pl-9"
-                                    />
-                                </div>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </CardHeader>
@@ -207,8 +227,21 @@ function PublicStudentsContent({
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4 pb-6">
-                        {activeStudents.length > 0 ? (
-                            <ScrollArea className="rounded-xl border">
+                        <DataTableToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            searchPlaceholder="Cari nama, NIM, atau prodi..."
+                            filterGroups={[
+                                {
+                                    tabs: stageTabs,
+                                    value: stageFilter,
+                                    onChange: setStageFilter,
+                                },
+                            ]}
+                        />
+
+                        {filteredStudents.length > 0 ? (
+                            <DataTableContainer>
                                 <table className="w-full min-w-[980px] text-sm">
                                     <thead className="bg-muted/30 text-left">
                                         <tr>
@@ -227,7 +260,7 @@ function PublicStudentsContent({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {activeStudents.map((student) => (
+                                        {filteredStudents.map((student) => (
                                             <tr
                                                 key={student.id}
                                                 className="border-t align-top"
@@ -289,49 +322,26 @@ function PublicStudentsContent({
                                         ))}
                                     </tbody>
                                 </table>
-                            </ScrollArea>
+                            </DataTableContainer>
                         ) : (
-                            <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                                {hasActiveFilter
-                                    ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
-                                    : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'}
-                            </div>
+                            <DataTableEmptyState
+                                title="Tidak ada mahasiswa"
+                                description={
+                                    hasActiveFilter || stageFilter !== 'semua'
+                                        ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
+                                        : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'
+                                }
+                            />
                         )}
 
-                        <div className="flex items-center justify-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                    studentPagination.previousPage === null
-                                }
-                                onClick={() => {
-                                    if (
-                                        studentPagination.previousPage !== null
-                                    ) {
-                                        visitPage(
-                                            studentPagination.previousPage,
-                                        );
-                                    }
-                                }}
-                            >
-                                Sebelumnya
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={studentPagination.nextPage === null}
-                                onClick={() => {
-                                    if (studentPagination.nextPage !== null) {
-                                        visitPage(studentPagination.nextPage);
-                                    }
-                                }}
-                            >
-                                Berikutnya
-                            </Button>
-                        </div>
+                        <DataTablePagination
+                            currentPage={studentPagination.currentPage}
+                            totalPages={studentPagination.lastPage}
+                            totalItems={filteredStudents.length}
+                            pageSize={studentPagination.perPage}
+                            onPageChange={visitPage}
+                            itemLabel="mahasiswa"
+                        />
                     </CardContent>
                 </Card>
             </div>
