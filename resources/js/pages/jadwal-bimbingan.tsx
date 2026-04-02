@@ -12,7 +12,7 @@ import {
     Users,
     XCircle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
     BimbinganCalendar,
@@ -29,6 +29,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+    usePagination,
+} from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -135,7 +142,7 @@ function StatusBadge({ status }: { status: ScheduleStatus }) {
     return (
         <span
             className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
                 className,
             )}
         >
@@ -170,88 +177,6 @@ function RelationTypeBadge({
     );
 }
 
-function MeetingCard({
-    meeting,
-    formatDate,
-}: {
-    meeting: UpcomingMeeting | HistoryMeeting;
-    formatDate: (d: string | null) => string;
-}) {
-    const scheduledAt = 'scheduledAt' in meeting ? meeting.scheduledAt : null;
-    const requestedAt = 'requestedAt' in meeting ? meeting.requestedAt : null;
-
-    return (
-        <div className="flex gap-4 py-4">
-            {/* Left accent */}
-            <div className="flex flex-col items-center pt-1">
-                <div
-                    className={cn(
-                        'flex size-8 shrink-0 items-center justify-center rounded-full',
-                        meeting.status === 'completed'
-                            ? 'bg-blue-600/10 text-blue-600'
-                            : meeting.status === 'approved' ||
-                                meeting.status === 'rescheduled'
-                              ? 'bg-emerald-600/10 text-emerald-600'
-                              : meeting.status === 'pending'
-                                ? 'bg-amber-600/10 text-amber-600'
-                                : 'bg-muted text-muted-foreground',
-                    )}
-                >
-                    <CalendarClock className="size-4" />
-                </div>
-            </div>
-
-            {/* Content */}
-            <div className="min-w-0 flex-1 space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                        <p className="text-sm leading-snug font-semibold break-words">
-                            {meeting.topic}
-                        </p>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">
-                                {meeting.lecturer}
-                            </span>
-                            <RelationTypeBadge
-                                relationType={meeting.relationType}
-                            />
-                        </div>
-                    </div>
-                    <StatusBadge status={meeting.status} />
-                </div>
-
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {requestedAt && (
-                        <span className="flex items-center gap-1.5">
-                            <Calendar className="size-3.5 shrink-0" />
-                            Preferensi: {formatDate(requestedAt)}
-                        </span>
-                    )}
-                    <span className="flex items-center gap-1.5">
-                        <Clock className="size-3.5 shrink-0" />
-                        {scheduledAt
-                            ? formatDate(scheduledAt)
-                            : 'Menunggu konfirmasi dosen'}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <MapPin className="size-3.5 shrink-0" />
-                        {meeting.location}
-                    </span>
-                </div>
-
-                {meeting.lecturerNote && (
-                    <div className="rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                            Catatan dosen:{' '}
-                        </span>
-                        {meeting.lecturerNote}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
 export default function JadwalBimbinganPage() {
     const page = usePage<SharedData & JadwalPageProps>();
     const query = page.url.split('?')[1] ?? '';
@@ -259,6 +184,38 @@ export default function JadwalBimbinganPage() {
     const [isAjukanOpen, setIsAjukanOpen] = useState(
         new URLSearchParams(query).get('open') === 'ajukan',
     );
+
+    const PAGE_SIZE = 15;
+
+    // Upcoming pagination
+    const upcomingPagination = usePagination(
+        page.props.upcomingMeetings,
+        PAGE_SIZE,
+    );
+
+    // History search + status filter + pagination
+    const [historySearch, setHistorySearch] = useState('');
+    const [historyStatusFilter, setHistoryStatusFilter] = useState<
+        'semua' | ScheduleStatus
+    >('semua');
+    const filteredHistory = useMemo(() => {
+        const q = historySearch.trim().toLowerCase();
+        return page.props.historyMeetings.filter((m) => {
+            const matchesStatus =
+                historyStatusFilter === 'semua' ||
+                m.status === historyStatusFilter;
+            const matchesSearch =
+                !q ||
+                m.topic.toLowerCase().includes(q) ||
+                m.lecturer.toLowerCase().includes(q) ||
+                m.location.toLowerCase().includes(q);
+            return matchesStatus && matchesSearch;
+        });
+    }, [page.props.historyMeetings, historySearch, historyStatusFilter]);
+    const historyPagination = usePagination(filteredHistory, PAGE_SIZE, [
+        historySearch,
+        historyStatusFilter,
+    ]);
 
     const form = useForm({
         topic: '',
@@ -727,7 +684,7 @@ export default function JadwalBimbinganPage() {
                             />
                         </section>
 
-                        {/* Upcoming */}
+                        {/* Upcoming — full data table with horizontal scroll + pagination */}
                         <section>
                             <div className="mb-1 flex items-center justify-between">
                                 <div>
@@ -745,36 +702,135 @@ export default function JadwalBimbinganPage() {
                             </div>
 
                             {page.props.upcomingMeetings.length > 0 ? (
-                                <div className="divide-y rounded-xl border bg-card shadow-sm">
-                                    {page.props.upcomingMeetings.map(
-                                        (meeting) => (
-                                            <div
-                                                key={meeting.id}
-                                                className="px-5 transition-colors hover:bg-muted/20"
-                                            >
-                                                <MeetingCard
-                                                    meeting={meeting}
-                                                    formatDate={formatDate}
-                                                />
-                                            </div>
-                                        ),
-                                    )}
-                                </div>
+                                <DataTableContainer>
+                                    <table className="w-full min-w-[700px] text-sm">
+                                        <thead>
+                                            <tr className="border-b bg-muted/30">
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Topik
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Dosen
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                    Waktu Preferensi
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                    Waktu Terkonfirmasi
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Lokasi
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Status
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Catatan Dosen
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {upcomingPagination.paginated.map(
+                                                (meeting) => (
+                                                    <tr
+                                                        key={meeting.id}
+                                                        className="transition-colors hover:bg-muted/20"
+                                                    >
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <p className="max-w-[200px] min-w-[140px] text-xs leading-snug font-medium">
+                                                                {meeting.topic}
+                                                            </p>
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                {
+                                                                    meeting.lecturer
+                                                                }
+                                                            </p>
+                                                            <RelationTypeBadge
+                                                                relationType={
+                                                                    meeting.relationType
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top text-xs whitespace-nowrap text-muted-foreground">
+                                                            {formatDate(
+                                                                meeting.requestedAt,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            {meeting.scheduledAt ? (
+                                                                <span className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                    {formatDate(
+                                                                        meeting.scheduledAt,
+                                                                    )}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
+                                                                    <Clock className="size-3 shrink-0" />
+                                                                    Menunggu
+                                                                    konfirmasi
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                                <MapPin className="size-3 shrink-0" />
+                                                                {
+                                                                    meeting.location
+                                                                }
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <StatusBadge
+                                                                status={
+                                                                    meeting.status
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            {meeting.lecturerNote ? (
+                                                                <p className="max-w-[240px] min-w-[160px] text-xs leading-relaxed text-muted-foreground">
+                                                                    {
+                                                                        meeting.lecturerNote
+                                                                    }
+                                                                </p>
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground/40 italic">
+                                                                    —
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    <DataTablePagination
+                                        currentPage={upcomingPagination.page}
+                                        totalPages={
+                                            upcomingPagination.totalPages
+                                        }
+                                        totalItems={
+                                            upcomingPagination.totalItems
+                                        }
+                                        pageSize={PAGE_SIZE}
+                                        onPageChange={
+                                            upcomingPagination.setPage
+                                        }
+                                        itemLabel="jadwal"
+                                    />
+                                </DataTableContainer>
                             ) : (
-                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
-                                    <Inbox className="mb-3 size-9 text-muted-foreground/40" />
-                                    <p className="text-sm font-medium">
-                                        Belum ada jadwal mendatang
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        Ajukan jadwal baru untuk mulai sesi
-                                        bimbingan berikutnya.
-                                    </p>
-                                </div>
+                                <DataTableEmptyState
+                                    icon={Inbox}
+                                    title="Belum ada jadwal mendatang"
+                                    description="Ajukan jadwal baru untuk mulai sesi bimbingan berikutnya."
+                                />
                             )}
                         </section>
 
-                        {/* History */}
+                        {/* History — search + table + pagination */}
                         <section>
                             <div className="mb-3">
                                 <h2 className="text-base font-semibold">
@@ -786,98 +842,143 @@ export default function JadwalBimbinganPage() {
                                 </p>
                             </div>
 
-                            {page.props.historyMeetings.length > 0 ? (
-                                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-sm">
-                                            <thead className="border-b bg-muted/30">
-                                                <tr>
-                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                        Topik
-                                                    </th>
-                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                        Dosen
-                                                    </th>
-                                                    <th className="px-5 py-3 text-xs font-medium whitespace-nowrap text-muted-foreground">
-                                                        Waktu
-                                                    </th>
-                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                        Lokasi
-                                                    </th>
-                                                    <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                        Status
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y bg-background">
-                                                {page.props.historyMeetings.map(
-                                                    (row) => (
-                                                        <tr
-                                                            key={row.id}
-                                                            className="transition-colors hover:bg-muted/20"
-                                                        >
-                                                            <td className="px-5 py-3.5 align-middle">
-                                                                <p className="max-w-[180px] truncate text-sm font-medium">
-                                                                    {row.topic}
-                                                                </p>
-                                                                {row.lecturerNote && (
-                                                                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground italic opacity-70">
-                                                                        {
-                                                                            row.lecturerNote
-                                                                        }
-                                                                    </p>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-5 py-3.5 align-middle">
-                                                                <p className="text-xs whitespace-nowrap text-muted-foreground">
+                            <DataTableToolbar
+                                search={historySearch}
+                                onSearchChange={setHistorySearch}
+                                searchPlaceholder="Cari topik, dosen, atau lokasi..."
+                                filterGroups={[
+                                    {
+                                        value: historyStatusFilter,
+                                        onChange: (v) =>
+                                            setHistoryStatusFilter(
+                                                v as 'semua' | ScheduleStatus,
+                                            ),
+                                        tabs: [
+                                            {
+                                                label: 'Semua',
+                                                value: 'semua',
+                                            },
+                                            {
+                                                label: 'Selesai',
+                                                value: 'completed',
+                                            },
+                                            {
+                                                label: 'Ditolak',
+                                                value: 'rejected',
+                                            },
+                                            {
+                                                label: 'Dibatalkan',
+                                                value: 'cancelled',
+                                            },
+                                        ],
+                                    },
+                                ]}
+                                className="mb-3"
+                            />
+
+                            {historyPagination.totalItems > 0 ? (
+                                <DataTableContainer>
+                                    <table className="w-full min-w-[600px] text-left text-sm">
+                                        <thead className="border-b bg-muted/30">
+                                            <tr>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Topik
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Dosen
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                    Waktu
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Lokasi
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Status
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y bg-card">
+                                            {historyPagination.paginated.map(
+                                                (row) => (
+                                                    <tr
+                                                        key={row.id}
+                                                        className="transition-colors hover:bg-muted/20"
+                                                    >
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <p className="max-w-[180px] truncate text-sm font-medium">
+                                                                {row.topic}
+                                                            </p>
+                                                            {row.lecturerNote && (
+                                                                <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground italic opacity-70">
                                                                     {
-                                                                        row.lecturer
+                                                                        row.lecturerNote
                                                                     }
                                                                 </p>
-                                                                <RelationTypeBadge
-                                                                    relationType={
-                                                                        row.relationType
-                                                                    }
-                                                                />
-                                                            </td>
-                                                            <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
-                                                                {formatDate(
-                                                                    row.scheduledAt,
-                                                                )}
-                                                            </td>
-                                                            <td className="px-5 py-3.5 align-middle">
-                                                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                                    <MapPin className="size-3 shrink-0" />
-                                                                    {
-                                                                        row.location
-                                                                    }
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-5 py-3.5 align-middle">
-                                                                <StatusBadge
-                                                                    status={
-                                                                        row.status
-                                                                    }
-                                                                />
-                                                            </td>
-                                                        </tr>
-                                                    ),
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                {row.lecturer}
+                                                            </p>
+                                                            <RelationTypeBadge
+                                                                relationType={
+                                                                    row.relationType
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
+                                                            {formatDate(
+                                                                row.scheduledAt,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                                <MapPin className="size-3 shrink-0" />
+                                                                {row.location}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <StatusBadge
+                                                                status={
+                                                                    row.status
+                                                                }
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    <DataTablePagination
+                                        currentPage={historyPagination.page}
+                                        totalPages={
+                                            historyPagination.totalPages
+                                        }
+                                        totalItems={
+                                            historyPagination.totalItems
+                                        }
+                                        pageSize={PAGE_SIZE}
+                                        onPageChange={historyPagination.setPage}
+                                        itemLabel="riwayat"
+                                    />
+                                </DataTableContainer>
                             ) : (
-                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
-                                    <Calendar className="mb-3 size-9 text-muted-foreground/40" />
-                                    <p className="text-sm font-medium">
-                                        Belum ada riwayat bimbingan
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        Riwayat akan muncul setelah sesi pertama
-                                        selesai.
-                                    </p>
-                                </div>
+                                <DataTableEmptyState
+                                    icon={Calendar}
+                                    title={
+                                        historySearch ||
+                                        historyStatusFilter !== 'semua'
+                                            ? 'Tidak ada riwayat yang cocok'
+                                            : 'Belum ada riwayat bimbingan'
+                                    }
+                                    description={
+                                        historySearch ||
+                                        historyStatusFilter !== 'semua'
+                                            ? 'Coba ubah kata kunci atau filter yang dipilih.'
+                                            : 'Riwayat akan muncul setelah sesi pertama selesai.'
+                                    }
+                                />
                             )}
                         </section>
                     </>
