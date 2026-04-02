@@ -16,6 +16,10 @@ import {
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
 import { EmptyState } from '@/components/empty-state';
+import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
@@ -24,10 +28,6 @@ import {
     type FilterGroup,
     usePagination,
 } from '@/components/ui/data-table';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -39,8 +39,8 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import DosenLayout from '@/layouts/dosen-layout';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [

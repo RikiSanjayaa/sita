@@ -308,7 +308,7 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
         'version_number' => 2,
     ]);
 
-    $this->assertDatabaseCount('mentorship_chat_messages', 2);
+    $this->assertDatabaseCount('mentorship_chat_messages', 4);
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'message_type' => 'document_event',
         'message' => 'Mahasiswa mengunggah dokumen lampiran chat versi v1.',
@@ -316,6 +316,14 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'message_type' => 'document_event',
         'message' => 'Mahasiswa mengunggah dokumen lampiran chat versi v2.',
+    ]);
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'message_type' => 'text',
+        'message' => 'Lampiran pertama',
+    ]);
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'message_type' => 'text',
+        'message' => 'Lampiran kedua',
     ]);
 
     $this->actingAs($student)
