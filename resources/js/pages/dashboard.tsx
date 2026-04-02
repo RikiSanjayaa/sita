@@ -3,6 +3,7 @@ import {
     CalendarClock,
     Check,
     ChevronRight,
+    Circle,
     FileText,
     MessageSquareText,
     Upload,
@@ -89,15 +90,61 @@ type DashboardProps = {
     timeline: TimelineStep[];
 };
 
-const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardClass = 'overflow-hidden gap-0 py-0 shadow-sm';
 const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
+/* ─── Quick Action config ──────────────────────────────────────── */
+const quickActionColors = {
+    primary: {
+        bg: 'bg-primary',
+        bgHover: 'hover:bg-primary/92',
+        icon: 'bg-primary-foreground/15 text-primary-foreground',
+        text: 'text-primary-foreground',
+        desc: 'text-primary-foreground/75',
+        border: 'border-primary/20',
+        arrow: 'text-primary-foreground/50 group-hover:text-primary-foreground/80',
+    },
+
+    outline: {
+        bg: 'bg-card',
+        bgHover: 'hover:border-primary/30 hover:bg-primary/5',
+        icon: 'bg-primary/10 text-primary dark:text-primary',
+        text: 'text-foreground group-hover:text-primary dark:group-hover:text-primary',
+        desc: 'text-muted-foreground',
+        border: 'border-border',
+        arrow: 'text-muted-foreground/30 group-hover:text-primary',
+    },
+} as const;
+
+type ColorKey = keyof typeof quickActionColors;
+
+/* ─── Upcoming activity type-to-color mapping ──────────────────── */
+const activityTypeColor: Record<string, string> = {
+    bimbingan:
+        'border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+    sempro: 'border-purple-500/50 bg-purple-500/10 text-purple-700 dark:text-purple-400',
+    sidang: 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+};
+
+const activityTypeIcon: Record<string, string> = {
+    bimbingan: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+    sempro: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+    sidang: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+};
 
 export default function DashboardPage() {
     const { summary, quickActionState, upcomingActivities, timeline } = usePage<
         SharedData & DashboardProps
     >().props;
 
-    const quickActions = [
+    const quickActions: Array<{
+        title: string;
+        description: string;
+        href: string;
+        icon: typeof FileText;
+        enabled: boolean;
+        color: ColorKey;
+    }> = [
         {
             title: summary.hasProject ? 'Buka Tugas Akhir' : 'Ajukan Judul',
             description: summary.hasProject
@@ -106,37 +153,37 @@ export default function DashboardPage() {
             href: tugasAkhir().url,
             icon: FileText,
             enabled: true,
-            variant: 'default' as const,
+            color: 'primary',
         },
         {
             title: 'Ajukan Bimbingan',
             description: quickActionState.canScheduleMeeting
-                ? 'Buat janji dengan pembimbing atau penguji yang tersedia.'
-                : 'Akan aktif setelah pembimbing atau penguji terhubung.',
+                ? 'Buat janji dengan pembimbing atau penguji.'
+                : 'Aktif setelah pembimbing atau penguji terhubung.',
             href: jadwalBimbingan({ query: { open: 'ajukan' } }).url,
             icon: CalendarClock,
             enabled: quickActionState.canScheduleMeeting,
-            variant: 'outline' as const,
+            color: 'outline',
         },
         {
             title: 'Upload Dokumen',
             description: quickActionState.canUploadDocument
-                ? 'Unggah proposal, revisi, atau dokumen bimbingan terbaru.'
-                : 'Akan aktif saat ada pembimbing atau sempro aktif.',
+                ? 'Unggah proposal, revisi, atau dokumen terbaru.'
+                : 'Aktif saat ada pembimbing atau sempro aktif.',
             href: uploadDokumen({ query: { open: 'unggah' } }).url,
             icon: Upload,
             enabled: quickActionState.canUploadDocument,
-            variant: 'outline' as const,
+            color: 'outline',
         },
         {
             title: 'Buka Pesan',
             description: quickActionState.hasThreads
-                ? 'Lanjutkan percakapan dengan pembimbing atau penguji.'
-                : 'Ruang pesan akan aktif saat thread akademik tersedia.',
+                ? 'Lanjutkan percakapan dengan pembimbing.'
+                : 'Aktif saat thread akademik tersedia.',
             href: pesan().url,
             icon: MessageSquareText,
             enabled: true,
-            variant: 'outline' as const,
+            color: 'outline',
         },
     ];
 
@@ -149,6 +196,7 @@ export default function DashboardPage() {
             <Head title="Dashboard Mahasiswa" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
+                {/* ── Hero Card ── (unchanged) */}
                 <Card className="overflow-hidden border-border/70 p-0 shadow-sm">
                     <CardContent className="bg-gradient-to-br from-white/8 via-background to-accent/20 p-6 lg:p-8">
                         <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
@@ -206,38 +254,39 @@ export default function DashboardPage() {
 
                 <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
                     <div className="grid content-start gap-6">
+                        {/* ── Aksi Cepat (redesigned) ── */}
                         <Card className={sectionCardClass}>
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Aksi Cepat</CardTitle>
                                 <CardDescription>
                                     Pintasan untuk langkah yang paling sering
-                                    Anda buka.
+                                    Anda gunakan
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="pb-6">
-                                <div className="grid gap-3 md:grid-cols-2">
+                            <CardContent className="py-6">
+                                <div className="grid gap-3 sm:grid-cols-2">
                                     {quickActions.map((action) => {
                                         const Icon = action.icon;
-                                        const isPrimary =
-                                            action.variant === 'default';
+                                        const colors =
+                                            quickActionColors[action.color];
 
                                         if (!action.enabled) {
                                             return (
                                                 <div
                                                     key={action.title}
-                                                    className="grid min-h-24 grid-cols-[36px_minmax(0,1fr)] items-start gap-3 rounded-xl border border-dashed bg-muted/20 p-4 opacity-70"
+                                                    className="flex items-center gap-4 rounded-xl border border-dashed bg-muted/10 px-4 py-4 opacity-60"
                                                 >
-                                                    <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                                                        <Icon className="size-4" />
+                                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                                                        <Icon className="size-5" />
                                                     </span>
-                                                    <span className="grid min-w-0 gap-1">
-                                                        <span className="text-sm font-medium text-foreground">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-semibold text-foreground">
                                                             {action.title}
-                                                        </span>
-                                                        <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                                                        </p>
+                                                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                                                             {action.description}
-                                                        </span>
-                                                    </span>
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             );
                                         }
@@ -247,37 +296,44 @@ export default function DashboardPage() {
                                                 key={action.title}
                                                 href={action.href}
                                                 className={cn(
-                                                    'grid min-h-24 grid-cols-[36px_minmax(0,1fr)] items-start gap-3 rounded-xl border p-4 transition',
-                                                    isPrimary
-                                                        ? 'border-primary/20 bg-primary text-primary-foreground hover:bg-primary/92'
-                                                        : 'border-border bg-background hover:border-primary/20 hover:bg-muted/20',
+                                                    'group flex items-center gap-4 rounded-xl border px-4 py-4 transition-all',
+                                                    colors.bg,
+                                                    colors.bgHover,
+                                                    colors.border,
                                                 )}
                                             >
                                                 <span
                                                     className={cn(
-                                                        'inline-flex size-9 items-center justify-center rounded-lg',
-                                                        isPrimary
-                                                            ? 'bg-primary-foreground/15 text-primary-foreground'
-                                                            : 'bg-muted text-muted-foreground',
+                                                        'flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105',
+                                                        colors.icon,
                                                     )}
                                                 >
-                                                    <Icon className="size-4" />
+                                                    <Icon className="size-5" />
                                                 </span>
-                                                <span className="grid min-w-0 gap-1">
-                                                    <span className="text-sm leading-tight font-medium">
-                                                        {action.title}
-                                                    </span>
-                                                    <span
+                                                <div className="min-w-0 flex-1">
+                                                    <p
                                                         className={cn(
-                                                            'line-clamp-2 text-xs leading-5',
-                                                            isPrimary
-                                                                ? 'text-primary-foreground/80'
-                                                                : 'text-muted-foreground',
+                                                            'text-sm font-semibold transition-colors',
+                                                            colors.text,
+                                                        )}
+                                                    >
+                                                        {action.title}
+                                                    </p>
+                                                    <p
+                                                        className={cn(
+                                                            'mt-0.5 line-clamp-2 text-xs leading-relaxed',
+                                                            colors.desc,
                                                         )}
                                                     >
                                                         {action.description}
-                                                    </span>
-                                                </span>
+                                                    </p>
+                                                </div>
+                                                <ChevronRight
+                                                    className={cn(
+                                                        'size-4 shrink-0 transition-all group-hover:translate-x-0.5',
+                                                        colors.arrow,
+                                                    )}
+                                                />
                                             </Link>
                                         );
                                     })}
@@ -285,6 +341,7 @@ export default function DashboardPage() {
                             </CardContent>
                         </Card>
 
+                        {/* ── Kegiatan Mendatang (redesigned) ── */}
                         <Card className={sectionCardClass}>
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Kegiatan Mendatang</CardTitle>
@@ -293,62 +350,92 @@ export default function DashboardPage() {
                                     terdekat.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="pb-6">
+                            <CardContent className="p-0">
                                 {upcomingActivities.length > 0 ? (
-                                    <div className="grid gap-3">
-                                        {upcomingActivities.map((activity) => (
-                                            <Link
-                                                key={activity.id}
-                                                href={activity.href}
-                                                className="group rounded-xl border bg-background p-4 transition hover:border-primary/30 hover:bg-muted/30"
-                                            >
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                    <div className="min-w-0 space-y-2">
+                                    <div className="divide-y">
+                                        {upcomingActivities.map((activity) => {
+                                            const typeColor =
+                                                activityTypeColor[
+                                                    activity.type
+                                                ] ??
+                                                'bg-muted text-muted-foreground';
+                                            const iconColor =
+                                                activityTypeIcon[
+                                                    activity.type
+                                                ] ??
+                                                'bg-muted text-muted-foreground';
+
+                                            return (
+                                                <Link
+                                                    key={activity.id}
+                                                    href={activity.href}
+                                                    className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-muted/20"
+                                                >
+                                                    {/* Icon */}
+                                                    <span
+                                                        className={cn(
+                                                            'flex size-8 shrink-0 items-center justify-center rounded-lg',
+                                                            iconColor,
+                                                        )}
+                                                    >
+                                                        <CalendarClock className="size-4" />
+                                                    </span>
+
+                                                    {/* Content */}
+                                                    <div className="min-w-0 flex-1">
                                                         <div className="flex flex-wrap items-center gap-2">
-                                                            <Badge variant="outline">
+                                                            <p className="text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+                                                                {activity.title}
+                                                            </p>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={cn(
+                                                                    'rounded-full text-[10px] font-semibold',
+                                                                    typeColor,
+                                                                )}
+                                                            >
                                                                 {activity.badge}
                                                             </Badge>
-                                                            <span className="text-xs text-muted-foreground">
+                                                        </div>
+                                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                                            {activity.subtitle}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Date + status + arrow */}
+                                                    <div className="hidden shrink-0 items-center gap-3 sm:flex">
+                                                        <div className="text-right">
+                                                            <p className="text-xs font-medium text-foreground">
+                                                                {activity.date ??
+                                                                    '-'}
+                                                            </p>
+                                                            <p className="text-[10px] text-muted-foreground">
                                                                 {
                                                                     activity.status
                                                                 }
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-foreground group-hover:text-primary">
-                                                                {activity.title}
-                                                            </p>
-                                                            <p className="text-sm text-muted-foreground">
-                                                                {
-                                                                    activity.subtitle
-                                                                }
                                                             </p>
                                                         </div>
+                                                        <ChevronRight className="size-4 text-muted-foreground/30 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
                                                     </div>
-
-                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground sm:shrink-0">
-                                                        <span>
-                                                            {activity.date ??
-                                                                '-'}
-                                                        </span>
-                                                        <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        ))}
+                                                </Link>
+                                            );
+                                        })}
                                     </div>
                                 ) : (
-                                    <EmptyState
-                                        icon={CalendarClock}
-                                        title="Belum ada agenda mendatang"
-                                        description="Saat ada bimbingan, sempro, atau sidang terjadwal, semuanya akan muncul di sini."
-                                    />
+                                    <div className="px-6 pb-6">
+                                        <EmptyState
+                                            icon={CalendarClock}
+                                            title="Belum ada agenda mendatang"
+                                            description="Saat ada bimbingan, sempro, atau sidang terjadwal, semuanya akan muncul di sini."
+                                        />
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
                     </div>
 
                     <div className="grid content-start gap-6">
+                        {/* ── Dosen Pembimbing (unchanged) ── */}
                         <Card className={sectionCardClass}>
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Dosen Pembimbing</CardTitle>
@@ -356,7 +443,7 @@ export default function DashboardPage() {
                                     Pembimbing aktif untuk tugas akhir Anda.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="pb-6">
+                            <CardContent className="py-6">
                                 {summary.advisors.length > 0 ? (
                                     <div className="grid gap-3">
                                         {summary.advisors.map(
@@ -379,72 +466,117 @@ export default function DashboardPage() {
                             </CardContent>
                         </Card>
 
+                        {/* ── Timeline Progres (redesigned) ── */}
                         <Card className={sectionCardClass}>
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Timeline Progres</CardTitle>
                                 <CardDescription>
-                                    Tahap utama perjalanan tugas akhir Anda.
+                                    Tahap utama perjalanan tugas akhir Anda
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="pb-6">
+                            <CardContent className="py-6">
                                 <div className="relative">
-                                    <div className="absolute top-2 left-3.5 h-[calc(100%-1rem)] w-px bg-border" />
-                                    <div className="grid gap-5">
-                                        {timeline.map((step) => {
-                                            const isDone =
-                                                step.status === 'done';
-                                            const isCurrent =
-                                                step.status === 'current';
+                                    {timeline.map((step, index) => {
+                                        const isDone = step.status === 'done';
+                                        const isCurrent =
+                                            step.status === 'current';
+                                        const isLast =
+                                            index === timeline.length - 1;
 
-                                            return (
-                                                <div
-                                                    key={step.title}
-                                                    className="relative grid grid-cols-[28px_1fr] gap-4"
-                                                >
+                                        return (
+                                            <div
+                                                key={step.title}
+                                                className="relative flex gap-4"
+                                            >
+                                                {/* Connector line + node */}
+                                                <div className="flex flex-col items-center">
+                                                    {/* Node */}
                                                     <div
                                                         className={cn(
-                                                            'mt-0.5 flex size-7 items-center justify-center rounded-full border bg-background',
+                                                            'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 transition-all',
                                                             isDone
-                                                                ? 'border-primary bg-primary text-primary-foreground'
-                                                                : '',
-                                                            isCurrent
-                                                                ? 'border-primary'
-                                                                : '',
+                                                                ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                                                                : isCurrent
+                                                                  ? 'border-primary bg-background shadow-sm shadow-primary/15'
+                                                                  : 'border-muted bg-muted/50',
                                                         )}
                                                     >
                                                         {isDone ? (
                                                             <Check className="size-4" />
+                                                        ) : isCurrent ? (
+                                                            <Circle className="size-3 fill-primary text-primary" />
                                                         ) : (
-                                                            <span
-                                                                className={cn(
-                                                                    'size-2 rounded-full bg-muted-foreground/40',
-                                                                    isCurrent
-                                                                        ? 'bg-primary'
-                                                                        : '',
-                                                                )}
-                                                            />
+                                                            <Circle className="size-2.5 fill-muted-foreground/30 text-muted-foreground/30" />
+                                                        )}
+
+                                                        {/* Pulse ring for current step */}
+                                                        {isCurrent && (
+                                                            <span className="absolute inset-0 animate-ping rounded-full border-2 border-primary/30" />
                                                         )}
                                                     </div>
 
-                                                    <div className="space-y-1">
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <p className="text-sm font-semibold text-foreground">
-                                                                {step.title}
-                                                            </p>
-                                                            {step.date ? (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {step.date}
-                                                                </span>
-                                                            ) : null}
-                                                        </div>
-                                                        <p className="text-sm leading-6 text-muted-foreground">
-                                                            {step.description}
-                                                        </p>
-                                                    </div>
+                                                    {/* Connector line */}
+                                                    {!isLast && (
+                                                        <div
+                                                            className={cn(
+                                                                'w-0.5 flex-1',
+                                                                isDone
+                                                                    ? 'bg-primary'
+                                                                    : 'bg-border',
+                                                            )}
+                                                        />
+                                                    )}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+
+                                                {/* Content */}
+                                                <div
+                                                    className={cn(
+                                                        'pb-6',
+                                                        isLast && 'pb-0',
+                                                    )}
+                                                >
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p
+                                                            className={cn(
+                                                                'text-sm font-semibold',
+                                                                isDone
+                                                                    ? 'text-foreground'
+                                                                    : isCurrent
+                                                                      ? 'text-primary'
+                                                                      : 'text-muted-foreground',
+                                                            )}
+                                                        >
+                                                            {step.title}
+                                                        </p>
+                                                        {step.date && (
+                                                            <span
+                                                                className={cn(
+                                                                    'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                                                    isDone
+                                                                        ? 'bg-primary/10 text-primary'
+                                                                        : isCurrent
+                                                                          ? 'bg-primary/10 text-primary'
+                                                                          : 'bg-muted text-muted-foreground',
+                                                                )}
+                                                            >
+                                                                {step.date}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p
+                                                        className={cn(
+                                                            'mt-1 text-xs leading-relaxed',
+                                                            isDone || isCurrent
+                                                                ? 'text-muted-foreground'
+                                                                : 'text-muted-foreground/60',
+                                                        )}
+                                                    >
+                                                        {step.description}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </CardContent>
                         </Card>
