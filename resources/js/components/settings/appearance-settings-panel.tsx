@@ -36,7 +36,7 @@ export default function AppearanceSettingsPanel() {
                     </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {presets.map((preset) => {
                         const isActive = preset.id === presetId;
 
@@ -72,12 +72,12 @@ export default function AppearanceSettingsPanel() {
                                     ) : null}
                                 </div>
 
-                                <div className="mt-3 flex items-center gap-2">
+                                <div className="mt-3 flex items-center gap-1.5">
                                     <span className="text-xs text-muted-foreground">
                                         Preview
                                     </span>
                                     <span
-                                        className="size-5 rounded-full border"
+                                        className="size-4 rounded-full border"
                                         style={{
                                             backgroundColor:
                                                 preset.light.background,
@@ -85,9 +85,17 @@ export default function AppearanceSettingsPanel() {
                                         aria-hidden
                                     />
                                     <span
-                                        className="size-5 rounded-full border"
+                                        className="size-4 rounded-full border"
                                         style={{
                                             backgroundColor: preset.primary,
+                                        }}
+                                        aria-hidden
+                                    />
+                                    <span
+                                        className="size-4 rounded-full border"
+                                        style={{
+                                            backgroundColor:
+                                                preset.dark.background,
                                         }}
                                         aria-hidden
                                     />
