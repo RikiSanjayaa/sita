@@ -70,12 +70,10 @@ type ThreadItem = {
 type PesanPageProps = {
     hasDosbing: boolean;
     threads: ThreadItem[];
-    flashMessage?: string | null;
 };
 
 type PesanPageContentProps = Pick<SharedData, 'auth'> & {
     hasDosbing: boolean;
-    flashMessage?: string | null;
     initialThreads: ThreadItem[];
 };
 
@@ -124,7 +122,6 @@ export default function PesanPage() {
     const {
         threads: initialThreads,
         hasDosbing,
-        flashMessage,
         auth,
     } = usePage<SharedData & PesanPageProps>().props;
 
@@ -133,7 +130,6 @@ export default function PesanPage() {
             key={buildThreadStateKey(initialThreads)}
             initialThreads={initialThreads}
             hasDosbing={hasDosbing}
-            flashMessage={flashMessage}
             auth={auth}
         />
     );
@@ -142,7 +138,6 @@ export default function PesanPage() {
 function PesanPageContent({
     initialThreads,
     hasDosbing,
-    flashMessage,
     auth,
 }: PesanPageContentProps) {
     const getInitials = useInitials();

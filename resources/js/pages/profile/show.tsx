@@ -1,5 +1,4 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { MessageCircle } from 'lucide-react';
 
 import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

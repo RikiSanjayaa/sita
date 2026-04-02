@@ -63,6 +63,51 @@ function getEventColor(status: BimbinganEvent['status']): string {
     return statusColors[status] ?? '#3b82f6';
 }
 
+function startOfDay(d: Date): Date {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function startOfWeek(d: Date): Date {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+
+    return new Date(d.getFullYear(), d.getMonth(), diff);
+}
+
+function startOfMonth(d: Date): Date {
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function endOfDay(d: Date): Date {
+    return new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        d.getDate(),
+        23,
+        59,
+        59,
+        999,
+    );
+}
+
+function endOfWeek(d: Date): Date {
+    const sw = startOfWeek(d);
+
+    return new Date(
+        sw.getFullYear(),
+        sw.getMonth(),
+        sw.getDate() + 6,
+        23,
+        59,
+        59,
+        999,
+    );
+}
+
+function endOfMonth(d: Date): Date {
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
 function CalendarWrapper({
     events,
     onEventClick,
@@ -204,53 +249,17 @@ export function BimbinganCalendar({
         'semua' | 'hari' | 'minggu' | 'bulan'
     >('semua');
 
-    const now = new Date();
-
-    function startOfDay(d: Date) {
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    }
-    function startOfWeek(d: Date) {
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        return new Date(d.getFullYear(), d.getMonth(), diff);
-    }
-    function startOfMonth(d: Date) {
-        return new Date(d.getFullYear(), d.getMonth(), 1);
-    }
-    function endOfDay(d: Date) {
-        return new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-            23,
-            59,
-            59,
-            999,
-        );
-    }
-    function endOfWeek(d: Date) {
-        const sw = startOfWeek(d);
-        return new Date(
-            sw.getFullYear(),
-            sw.getMonth(),
-            sw.getDate() + 6,
-            23,
-            59,
-            59,
-            999,
-        );
-    }
-    function endOfMonth(d: Date) {
-        return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-    }
+    const todayKey = new Date().toDateString();
 
     const periodBounds = useMemo(() => {
+        const today = new Date(todayKey);
+
         return {
-            hari: { start: startOfDay(now), end: endOfDay(now) },
-            minggu: { start: startOfWeek(now), end: endOfWeek(now) },
-            bulan: { start: startOfMonth(now), end: endOfMonth(now) },
+            hari: { start: startOfDay(today), end: endOfDay(today) },
+            minggu: { start: startOfWeek(today), end: endOfWeek(today) },
+            bulan: { start: startOfMonth(today), end: endOfMonth(today) },
         };
-    }, [now.toDateString()]);
+    }, [todayKey]);
 
     const sortedEvents = useMemo(
         () =>
