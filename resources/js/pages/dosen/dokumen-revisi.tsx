@@ -1,16 +1,23 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     CheckCircle2,
     Download,
     FileText,
-    Search,
     XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+    type FilterGroup,
+    usePagination,
+} from '@/components/ui/data-table';
 import {
     Dialog,
     DialogContent,
@@ -19,23 +26,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 import DosenLayout from '@/layouts/dosen-layout';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -60,6 +59,8 @@ type DokumenRevisiProps = {
 };
 
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
+
+const PAGE_SIZE = 15;
 
 export default function DosenDokumenRevisiPage() {
     const { documentQueue, flashMessage } = usePage<
@@ -120,27 +121,46 @@ export default function DosenDokumenRevisiPage() {
         });
     }, [documentQueue, statusFilter, search]);
 
+    const { page, setPage, totalPages, paginated, totalItems } = usePagination(
+        filteredDocuments,
+        PAGE_SIZE,
+        [search, statusFilter],
+    );
+
     const statusCounts = useMemo(
         () => ({
-            semua: documentQueue.length,
-            'Perlu Review': documentQueue.filter(
-                (d) => d.status === 'Perlu Review',
-            ).length,
-            'Perlu Revisi': documentQueue.filter(
-                (d) => d.status === 'Perlu Revisi',
-            ).length,
-            Disetujui: documentQueue.filter((d) => d.status === 'Disetujui')
+            review: documentQueue.filter((d) => d.status === 'Perlu Review')
+                .length,
+            revisi: documentQueue.filter((d) => d.status === 'Perlu Revisi')
+                .length,
+            disetujui: documentQueue.filter((d) => d.status === 'Disetujui')
                 .length,
         }),
         [documentQueue],
     );
 
-    const filterTabs: { label: string; value: StatusFilter }[] = [
-        { label: 'Semua', value: 'semua' },
-        { label: 'Perlu Review', value: 'Perlu Review' },
-        { label: 'Perlu Revisi', value: 'Perlu Revisi' },
-        { label: 'Disetujui', value: 'Disetujui' },
+    const filterTabs: FilterGroup[] = [
+        {
+            value: statusFilter,
+            onChange: (v) => setStatusFilter(v as StatusFilter),
+            tabs: [
+                { label: 'Semua', value: 'semua' },
+                {
+                    label: 'Perlu Review',
+                    value: 'Perlu Review',
+                    count: statusCounts.review,
+                },
+                {
+                    label: 'Perlu Revisi',
+                    value: 'Perlu Revisi',
+                    count: statusCounts.revisi,
+                },
+                { label: 'Disetujui', value: 'Disetujui' },
+            ],
+        },
     ];
+
+    const pendingCount = statusCounts.review;
 
     return (
         <DosenLayout
@@ -151,140 +171,80 @@ export default function DosenDokumenRevisiPage() {
             <Head title="Dokumen & Revisi Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <Card className="gap-0 overflow-hidden py-0 shadow-sm">
-                    {/* Header */}
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex flex-col gap-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                {/* Filter tabs */}
-                                <div className="flex flex-wrap gap-1.5">
-                                    {filterTabs.map((tab) => (
-                                        <button
-                                            key={tab.value}
-                                            type="button"
-                                            onClick={() =>
-                                                setStatusFilter(tab.value)
-                                            }
-                                            className={cn(
-                                                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                                statusFilter === tab.value
-                                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                            )}
-                                        >
-                                            {tab.label}
-                                            <span
-                                                className={cn(
-                                                    'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold',
-                                                    statusFilter === tab.value
-                                                        ? 'bg-white/20 text-white'
-                                                        : 'bg-background text-foreground',
-                                                )}
-                                            >
-                                                {
-                                                    statusCounts[
-                                                        tab.value as keyof typeof statusCounts
-                                                    ]
-                                                }
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
+                {/* Flash message */}
+                {flashMessage && (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-800 dark:text-emerald-400">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        {flashMessage}
+                    </div>
+                )}
 
-                                {/* Search */}
-                                <div className="relative w-full sm:w-64">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        value={search}
-                                        onChange={(e) =>
-                                            setSearch(e.target.value)
-                                        }
-                                        placeholder="Cari mahasiswa atau file..."
-                                        className="h-8 pl-8 text-sm"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Status filter (secondary: sort) */}
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs text-muted-foreground">
-                                    {filteredDocuments.length ===
-                                    documentQueue.length
-                                        ? `${documentQueue.length} dokumen`
-                                        : `${filteredDocuments.length} dari ${documentQueue.length} dokumen`}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <Label
-                                        htmlFor="sort-select"
-                                        className="shrink-0 text-xs text-muted-foreground"
-                                    >
-                                        Urutkan:
-                                    </Label>
-                                    <Select defaultValue="terbaru">
-                                        <SelectTrigger
-                                            id="sort-select"
-                                            className="h-7 w-32 text-xs"
-                                        >
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="terbaru">
-                                                Terbaru
-                                            </SelectItem>
-                                            <SelectItem value="terlama">
-                                                Terlama
-                                            </SelectItem>
-                                            <SelectItem value="nama">
-                                                Nama A-Z
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+                {/* Section header */}
+                <section>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold">
+                                Daftar Dokumen
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Klik aksi untuk menyetujui atau meminta revisi
+                            </p>
                         </div>
-                    </CardHeader>
-
-                    <CardContent className="p-0">
-                        {/* Flash message */}
-                        {flashMessage && (
-                            <div className="border-b bg-emerald-500/10 px-6 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="size-4 shrink-0" />
-                                    {flashMessage}
-                                </div>
-                            </div>
+                        {pendingCount > 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-600/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                                <AlertTriangle className="size-3" />
+                                {pendingCount} perlu review
+                            </span>
                         )}
+                    </div>
 
-                        {filteredDocuments.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm">
-                                    <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
-                                        <tr>
-                                            <th className="px-5 py-3 font-medium">
-                                                Mahasiswa
-                                            </th>
-                                            <th className="px-5 py-3 font-medium">
-                                                File / Judul
-                                            </th>
-                                            <th className="px-5 py-3 font-medium">
-                                                Status
-                                            </th>
-                                            <th className="px-5 py-3 font-medium">
-                                                Waktu Upload
-                                            </th>
-                                            <th className="w-[22%] px-5 py-3 font-medium">
-                                                Catatan Revisi
-                                            </th>
-                                            <th className="px-5 py-3 text-right font-medium">
-                                                Aksi
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y bg-background">
-                                        {filteredDocuments.map((doc) => (
+                    {/* Toolbar: search (left) + filter pills (right) */}
+                    <DataTableToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        searchPlaceholder="Cari mahasiswa atau file..."
+                        filterGroups={filterTabs}
+                        className="mb-3"
+                    />
+
+                    {/* Table */}
+                    {totalItems > 0 ? (
+                        <DataTableContainer>
+                            <table className="w-full text-left text-sm">
+                                <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
+                                    <tr>
+                                        <th className="px-5 py-3 font-medium">
+                                            Mahasiswa
+                                        </th>
+                                        <th className="px-5 py-3 font-medium">
+                                            File / Judul
+                                        </th>
+                                        <th className="px-5 py-3 font-medium">
+                                            Status
+                                        </th>
+                                        <th className="px-5 py-3 font-medium">
+                                            Waktu Upload
+                                        </th>
+                                        <th className="w-[22%] px-5 py-3 font-medium">
+                                            Catatan Revisi
+                                        </th>
+                                        <th className="px-5 py-3 text-right font-medium">
+                                            Aksi
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y bg-background">
+                                    {paginated.map((doc) => {
+                                        const isPending =
+                                            doc.status === 'Perlu Review';
+                                        return (
                                             <tr
                                                 key={`${doc.id}-${doc.file}`}
-                                                className="transition-colors hover:bg-muted/20"
+                                                className={cn(
+                                                    'transition-colors hover:bg-muted/20',
+                                                    isPending &&
+                                                        'bg-amber-50/40 dark:bg-amber-950/10',
+                                                )}
                                             >
                                                 {/* Mahasiswa */}
                                                 <td className="px-5 py-3.5 align-middle">
@@ -445,29 +405,35 @@ export default function DosenDokumenRevisiPage() {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-                                <span className="mb-4 inline-flex size-14 items-center justify-center rounded-full bg-muted">
-                                    <FileText className="size-6 text-muted-foreground" />
-                                </span>
-                                <p className="text-base font-semibold">
-                                    {search || statusFilter !== 'semua'
-                                        ? 'Tidak ada dokumen yang sesuai'
-                                        : 'Belum ada dokumen yang perlu direview'}
-                                </p>
-                                <p className="mt-1.5 text-sm text-muted-foreground">
-                                    {search || statusFilter !== 'semua'
-                                        ? 'Coba ubah kata kunci atau filter yang dipilih.'
-                                        : 'Dokumen mahasiswa yang butuh persetujuan akan muncul di sini.'}
-                                </p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                            <DataTablePagination
+                                currentPage={page}
+                                totalPages={totalPages}
+                                totalItems={totalItems}
+                                pageSize={PAGE_SIZE}
+                                onPageChange={setPage}
+                                itemLabel="dokumen"
+                            />
+                        </DataTableContainer>
+                    ) : (
+                        <DataTableEmptyState
+                            icon={FileText}
+                            title={
+                                search || statusFilter !== 'semua'
+                                    ? 'Tidak ada dokumen yang sesuai'
+                                    : 'Belum ada dokumen yang perlu direview'
+                            }
+                            description={
+                                search || statusFilter !== 'semua'
+                                    ? 'Coba ubah kata kunci atau filter yang dipilih.'
+                                    : 'Dokumen mahasiswa yang butuh persetujuan akan muncul di sini.'
+                            }
+                        />
+                    )}
+                </section>
             </div>
 
             {/* Dialog Revisi */}
