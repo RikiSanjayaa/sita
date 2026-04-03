@@ -371,9 +371,7 @@ function DefenseResultSection({
                     <h2 className="text-base font-semibold">{title}</h2>
                     <p className="text-sm text-muted-foreground">
                         {result.label}
-                        {result.scheduledFor
-                            ? ` · ${result.scheduledFor}`
-                            : ''}
+                        {result.scheduledFor ? ` · ${result.scheduledFor}` : ''}
                         {result.location ? ` · ${result.location}` : ''}
                     </p>
                 </div>
@@ -432,7 +430,10 @@ function DefenseResultSection({
                                     {examiner.roleLabel}
                                 </td>
                                 <td className="px-5 py-3">
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                    >
                                         {examiner.decisionLabel}
                                     </Badge>
                                 </td>
@@ -478,16 +479,14 @@ function DefenseHistoryRow({
     );
     const finalGrade = resolveAcademicGrade(averageScore);
     const hasRevisions = item.revisions.length > 0;
-    const pendingRevisions = item.revisions.filter(
-        (r) => !r.resolvedAt,
-    ).length;
+    const pendingRevisions = item.revisions.filter((r) => !r.resolvedAt).length;
 
     return (
         <>
             {/* ── Summary row ── */}
             <tr
                 className={cn(
-                    'cursor-pointer select-none transition-colors hover:bg-muted/30',
+                    'cursor-pointer transition-colors select-none hover:bg-muted/30',
                     expanded && 'bg-muted/20',
                 )}
                 onClick={() => setExpanded((v) => !v)}
@@ -550,7 +549,7 @@ function DefenseHistoryRow({
                 {/* Hasil & nilai */}
                 <td className="px-5 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge className="bg-primary text-primary-foreground text-xs hover:bg-primary/90">
+                        <Badge className="bg-primary text-xs text-primary-foreground hover:bg-primary/90">
                             {item.resultLabel}
                         </Badge>
                         {averageScore !== null && (
@@ -599,11 +598,11 @@ function DefenseHistoryRow({
             {expanded && (
                 <tr>
                     <td colSpan={6} className="p-0">
-                        <div className="border-t border-dashed bg-muted/5 px-5 py-5 space-y-5">
+                        <div className="space-y-5 border-t border-dashed bg-muted/5 px-5 py-5">
                             {/* Penilaian Penguji */}
                             {item.examiners.length > 0 && (
                                 <div>
-                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                         <Star className="size-3" />
                                         Penilaian Penguji
                                     </p>
@@ -615,7 +614,7 @@ function DefenseHistoryRow({
                                             >
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div>
-                                                        <p className="text-sm font-semibold leading-snug">
+                                                        <p className="text-sm leading-snug font-semibold">
                                                             {ex.name}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
@@ -651,7 +650,7 @@ function DefenseHistoryRow({
                             {/* Catatan Revisi */}
                             {hasRevisions && (
                                 <div>
-                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-amber-700 uppercase dark:text-amber-400">
                                         <svg
                                             className="size-3"
                                             viewBox="0 0 24 24"
@@ -700,12 +699,13 @@ function DefenseHistoryRow({
                                                         >
                                                             {rev.requestedBy}
                                                         </span>
-                                                        {rev.dueAt && !isDone && (
-                                                            <span className="text-xs text-amber-600 dark:text-amber-400">
-                                                                · Batas:{' '}
-                                                                {rev.dueAt}
-                                                            </span>
-                                                        )}
+                                                        {rev.dueAt &&
+                                                            !isDone && (
+                                                                <span className="text-xs text-amber-600 dark:text-amber-400">
+                                                                    · Batas:{' '}
+                                                                    {rev.dueAt}
+                                                                </span>
+                                                            )}
                                                         {rev.resolvedAt && (
                                                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                                                                 <CheckCircle2 className="size-3" />
@@ -731,7 +731,9 @@ function DefenseHistoryRow({
                                                             <span className="font-medium">
                                                                 Penyelesaian:
                                                             </span>{' '}
-                                                            {rev.resolutionNotes}
+                                                            {
+                                                                rev.resolutionNotes
+                                                            }
                                                         </div>
                                                     )}
                                                 </div>
@@ -965,7 +967,9 @@ export default function TugasAkhirSaya() {
                                     description="Perkembangan pengajuan Anda saat ini"
                                     action={
                                         <WorkflowBadge
-                                            workflowKey={submission.workflow.key}
+                                            workflowKey={
+                                                submission.workflow.key
+                                            }
                                             label={label}
                                         />
                                     }
@@ -1053,14 +1057,14 @@ export default function TugasAkhirSaya() {
                                         </form>
                                     </div>
                                 ) : (
-                                    <div className="px-5 py-4 space-y-4">
+                                    <div className="space-y-4 px-5 py-4">
                                         {/* Judul Indonesia */}
                                         <div className="rounded-lg border bg-muted/10 p-4">
-                                            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
                                                 <GraduationCap className="size-3" />
                                                 Judul (Bahasa Indonesia)
                                             </div>
-                                            <p className="text-sm font-semibold leading-relaxed text-foreground">
+                                            <p className="text-sm leading-relaxed font-semibold text-foreground">
                                                 {submission.title_id}
                                             </p>
                                         </div>
@@ -1068,11 +1072,11 @@ export default function TugasAkhirSaya() {
                                         {/* Judul Inggris */}
                                         {submission.title_en && (
                                             <div className="rounded-lg border bg-muted/10 p-4">
-                                                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
                                                     <Languages className="size-3" />
                                                     Judul (Bahasa Inggris)
                                                 </div>
-                                                <p className="text-sm italic leading-relaxed text-muted-foreground">
+                                                <p className="text-sm leading-relaxed text-muted-foreground italic">
                                                     {submission.title_en}
                                                 </p>
                                             </div>
@@ -1080,11 +1084,11 @@ export default function TugasAkhirSaya() {
 
                                         {/* Ringkasan */}
                                         <div className="rounded-lg border bg-muted/10 p-4">
-                                            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
                                                 <FileText className="size-3" />
                                                 Ringkasan Proposal
                                             </div>
-                                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
                                                 {submission.proposal_summary}
                                             </p>
                                         </div>

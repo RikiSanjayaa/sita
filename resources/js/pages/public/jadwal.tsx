@@ -118,7 +118,7 @@ function ScheduleTable({
                     </Badge>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4 pb-6">
+            <CardContent className="space-y-4 py-6">
                 <DataTableToolbar
                     search={search}
                     onSearchChange={onSearchChange}
@@ -325,7 +325,7 @@ function ScheduleTable({
                         pagination.currentPage +
                             (pagination.hasMorePages ? 1 : 0),
                     )}
-                    totalItems={filteredItems.length}
+                    currentItemCount={filteredItems.length}
                     pageSize={pagination.perPage}
                     onPageChange={onPageChange}
                     itemLabel="jadwal"

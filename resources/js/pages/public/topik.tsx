@@ -223,7 +223,7 @@ function PublicTopicsContent({
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="space-y-4 pb-6">
+                    <CardContent className="space-y-4 py-6">
                         <DataTableToolbar
                             search={search}
                             onSearchChange={(value) => {
@@ -451,7 +451,7 @@ function PublicTopicsContent({
                                                 ? 1
                                                 : 0),
                                     )}
-                                    totalItems={filteredTitles.length}
+                                    currentItemCount={filteredTitles.length}
                                     pageSize={topicPagination.perPage}
                                     onPageChange={visitPage}
                                     itemLabel="topik"

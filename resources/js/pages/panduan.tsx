@@ -6,10 +6,9 @@ import {
     FileText,
     ListChecks,
     MessageSquareText,
-    Search,
     UploadCloud,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { DataTableToolbar } from '@/components/ui/data-table';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard, panduan, pesan, uploadDokumen } from '@/routes';
 import { create as jadwalBimbinganCreate } from '@/routes/jadwal-bimbingan';
@@ -147,10 +146,12 @@ export default function Panduan() {
         helpContent,
         pageSubtitle,
         pageTitle,
+        searchHint,
         templateDocs,
     } = usePage<SharedData & PanduanPageProps>().props;
 
     const [query, setQuery] = useState('');
+    const [activeSection, setActiveSection] = useState('alur');
 
     const q = query.trim();
 
@@ -221,12 +222,74 @@ export default function Panduan() {
         filteredFaq.length +
         filteredTemplateDocs.length;
 
-    const quickLinks = [
-        { href: '#alur', label: 'Alur' },
-        { href: '#faq', label: 'FAQ' },
-        { href: '#template', label: 'Dokumen Template' },
-        { href: '#bantuan', label: 'Bantuan' },
-    ];
+    const quickLinks = useMemo(
+        () => [
+            { value: 'alur', label: 'Alur' },
+            { value: 'faq', label: 'FAQ' },
+            { value: 'template', label: 'Dokumen Template' },
+            { value: 'bantuan', label: 'Bantuan' },
+        ],
+        [],
+    );
+
+    useEffect(() => {
+        const syncActiveSection = () => {
+            const nextHash = window.location.hash.replace('#', '');
+            if (nextHash) {
+                setActiveSection(nextHash);
+            }
+        };
+
+        syncActiveSection();
+        window.addEventListener('hashchange', syncActiveSection);
+
+        return () =>
+            window.removeEventListener('hashchange', syncActiveSection);
+    }, []);
+
+    useEffect(() => {
+        const sections = quickLinks
+            .map((link) => document.getElementById(link.value))
+            .filter((section): section is HTMLElement => section !== null);
+
+        if (sections.length === 0) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visibleEntries = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort(
+                        (a, b) =>
+                            b.intersectionRatio - a.intersectionRatio ||
+                            a.boundingClientRect.top - b.boundingClientRect.top,
+                    );
+
+                if (visibleEntries.length > 0) {
+                    setActiveSection(visibleEntries[0].target.id);
+                }
+            },
+            {
+                rootMargin: '-96px 0px -55% 0px',
+                threshold: [0.1, 0.25, 0.5, 0.75],
+            },
+        );
+
+        sections.forEach((section) => observer.observe(section));
+
+        return () => observer.disconnect();
+    }, [quickLinks]);
+
+    const jumpToSection = (section: string) => {
+        setActiveSection(section);
+
+        const target = document.getElementById(section);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.history.replaceState(null, '', `#${section}`);
+        }
+    };
 
     return (
         <AppLayout
@@ -237,69 +300,54 @@ export default function Panduan() {
             <Head title={pageTitle} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
-                <Card className="relative overflow-hidden border-border/70 p-0 shadow-sm">
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-72 bg-[radial-gradient(circle_at_top_right,_hsl(var(--primary)/0.18),_transparent_68%)]" />
-                    <div className="pointer-events-none absolute -top-16 left-1/3 h-40 w-40 rounded-full bg-primary/8 blur-3xl" />
-                    <CardContent className="relative grid gap-6 bg-gradient-to-r from-background via-background to-accent/10 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:items-center lg:p-8">
-                        <div className="space-y-5 lg:pr-4">
-                            <div className="space-y-3">
-                                <h1 className="text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
-                                    {pageTitle}
-                                </h1>
-                                <p className="max-w-2xl text-sm leading-6 text-muted-foreground lg:text-base">
-                                    {pageSubtitle}
-                                </p>
-                            </div>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                            {pageTitle}
+                        </h1>
+                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                            {pageSubtitle}
+                        </p>
+                    </div>
 
-                            <div className="flex flex-wrap gap-2">
-                                {quickLinks.map((link) => (
-                                    <Button
-                                        key={link.href}
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        className="rounded-full"
-                                        asChild
-                                    >
-                                        <a href={link.href}>{link.label}</a>
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 lg:self-start lg:justify-self-end lg:pt-1">
-                            <div className="relative">
-                                <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                                <Input
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="Cari panduan atau FAQ..."
-                                    aria-label="Cari panduan atau FAQ"
-                                    className="h-11 rounded-xl border-border/70 bg-background/90 pl-10 shadow-sm"
-                                />
-                            </div>
-
-                            <div className="flex min-h-5 items-center justify-between gap-3 text-xs text-muted-foreground">
-                                <span>
-                                    {q
-                                        ? `${totalSearchResults} hasil ditemukan`
-                                        : 'Cari alur, template, revisi, atau bimbingan'}
-                                </span>
-                                {q ? (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={() => setQuery('')}
-                                    >
-                                        Reset
-                                    </Button>
-                                ) : null}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                    <Card className={sectionCardClass}>
+                        <CardContent className="px-6 py-5">
+                            <DataTableToolbar
+                                search={query}
+                                onSearchChange={setQuery}
+                                searchPlaceholder={searchHint}
+                                filterGroups={[
+                                    {
+                                        tabs: quickLinks,
+                                        value: activeSection,
+                                        onChange: jumpToSection,
+                                    },
+                                ]}
+                                alertBadge={
+                                    q ? (
+                                        <div className="flex items-center gap-2">
+                                            <Badge
+                                                variant="outline"
+                                                className="rounded-full"
+                                            >
+                                                {totalSearchResults} hasil
+                                            </Badge>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => setQuery('')}
+                                            >
+                                                Reset
+                                            </Button>
+                                        </div>
+                                    ) : null
+                                }
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
 
                 <section id="alur" className="scroll-mt-24 space-y-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -350,7 +398,7 @@ export default function Panduan() {
                                             </Badge>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="flex h-full flex-col gap-5 pb-6">
+                                    <CardContent className="flex h-full flex-col gap-5 py-6">
                                         <ul className="grid flex-1 gap-2.5 text-sm text-muted-foreground">
                                             {card.bullets.map((bullet) => (
                                                 <li
@@ -481,7 +529,7 @@ export default function Panduan() {
                                 {filteredFaq.length}/{faqItems.length}
                             </Badge>
                         </CardHeader>
-                        <CardContent className="space-y-3 pb-6">
+                        <CardContent className="space-y-3 py-6">
                             {filteredFaq.length === 0 ? (
                                 <div className="rounded-xl border bg-muted/30 p-4">
                                     <div className="text-sm font-medium">
@@ -531,7 +579,7 @@ export default function Panduan() {
                                     {templateDocs.length}
                                 </Badge>
                             </CardHeader>
-                            <CardContent className="space-y-4 pb-6">
+                            <CardContent className="space-y-4 py-6">
                                 {filteredTemplateDocs.length === 0 ? (
                                     <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
                                         Tidak ada dokumen template yang cocok
@@ -651,7 +699,7 @@ export default function Panduan() {
                                     {helpContent.description}
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4 pb-6">
+                            <CardContent className="space-y-4 py-6">
                                 <div className="rounded-xl border bg-background p-4">
                                     <div className="text-sm font-medium">
                                         {helpContent.boxTitle}

@@ -1,5 +1,14 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    ChevronUp,
+    Inbox,
+    Paperclip,
+    Search,
+    Send,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -25,6 +34,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
+import { useIsMobile } from '@/hooks/use-mobile';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import {
@@ -72,6 +82,18 @@ type ThreadItem = {
     threadLabel: string;
     messages: ThreadMessage[];
 };
+
+function messageMatches(message: ThreadMessage, query: string) {
+    if (!query) {
+        return false;
+    }
+
+    return [message.author, message.message, message.documentName, message.type]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+}
 
 type PesanBimbinganProps = {
     threads: ThreadItem[];
@@ -203,9 +225,13 @@ function DosenPesanBimbinganContent({
     auth,
 }: PesanBimbinganContentProps) {
     const getInitials = useInitials();
+    const isMobile = useIsMobile();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
     const [search, setSearch] = useState('');
+    const [threadSearch, setThreadSearch] = useState('');
+    const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
+    const [activeMatchIndex, setActiveMatchIndex] = useState(0);
     const [threadItems, setThreadItems] =
         useState<ThreadItem[]>(initialThreads);
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
@@ -221,6 +247,7 @@ function DosenPesanBimbinganContent({
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -284,6 +311,35 @@ function DosenPesanBimbinganContent({
 
     const activeMessages =
         activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
+
+    const normalizedThreadSearch = threadSearch.trim().toLowerCase();
+
+    const matchingMessageIds = useMemo(
+        () =>
+            normalizedThreadSearch
+                ? activeMessages
+                      .filter((message) =>
+                          messageMatches(message, normalizedThreadSearch),
+                      )
+                      .map((message) => String(message.id))
+                : [],
+        [activeMessages, normalizedThreadSearch],
+    );
+
+    const matchingMessageIdSet = useMemo(
+        () => new Set(matchingMessageIds),
+        [matchingMessageIds],
+    );
+
+    const resolvedActiveMatchIndex =
+        matchingMessageIds.length > 0
+            ? Math.min(activeMatchIndex, matchingMessageIds.length - 1)
+            : 0;
+
+    const activeMatchMessageId =
+        matchingMessageIds.length > 0
+            ? matchingMessageIds[resolvedActiveMatchIndex]
+            : null;
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
@@ -383,6 +439,17 @@ function DosenPesanBimbinganContent({
         scrollToBottom();
     }, [activeMessages.length, evaluatedActiveThreadId]);
 
+    useEffect(() => {
+        if (!activeMatchMessageId) {
+            return;
+        }
+
+        messageRefs.current[activeMatchMessageId]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+    }, [activeMatchMessageId]);
+
     const canSend = useMemo(
         () =>
             !form.processing &&
@@ -398,6 +465,9 @@ function DosenPesanBimbinganContent({
 
     function selectThread(threadId: number) {
         setActiveThreadId(threadId);
+        setThreadSearch('');
+        setIsThreadSearchOpen(false);
+        setActiveMatchIndex(0);
         syncThreadSearchParam(threadId);
         setMobileView('chat');
         void markThreadAsRead(threadId);
@@ -419,12 +489,20 @@ function DosenPesanBimbinganContent({
 
         if (nextActiveThreadId !== activeThreadId) {
             setActiveThreadId(nextActiveThreadId);
+            setThreadSearch('');
+            setIsThreadSearchOpen(false);
+            setActiveMatchIndex(0);
             syncThreadSearchParam(nextActiveThreadId);
 
             if (nextActiveThreadId !== null) {
                 void markThreadAsRead(nextActiveThreadId);
             }
         }
+    }
+
+    function handleThreadSearchChange(value: string) {
+        setThreadSearch(value);
+        setActiveMatchIndex(0);
     }
 
     function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
@@ -465,6 +543,26 @@ function DosenPesanBimbinganContent({
         );
     }
 
+    function stepMatch(direction: 1 | -1) {
+        if (matchingMessageIds.length === 0) {
+            return;
+        }
+
+        setActiveMatchIndex((current) => {
+            const next = current + direction;
+
+            if (next < 0) {
+                return matchingMessageIds.length - 1;
+            }
+
+            if (next >= matchingMessageIds.length) {
+                return 0;
+            }
+
+            return next;
+        });
+    }
+
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
@@ -473,16 +571,27 @@ function DosenPesanBimbinganContent({
         >
             <Head title="Pesan Bimbingan Dosen" />
 
-            <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid lg:h-[calc(100vh-4rem-3rem)] lg:grid-cols-[340px_1fr]">
+            <div
+                className={cn(
+                    'mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-7xl flex-1 lg:grid lg:h-[calc(100dvh-4rem-3rem)] lg:grid-cols-[340px_1fr]',
+                    isMobile ? 'gap-0 px-0 py-0' : 'gap-6 px-4 py-6 md:px-6',
+                )}
+            >
                 {/* Thread List / Side Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 shadow-sm lg:h-full lg:w-[340px] lg:shrink-0',
+                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
+                        isMobile && 'rounded-none border-0 shadow-none',
                         mobileView === 'chat' && 'hidden lg:flex',
                         mobileView === 'threads' && 'flex-1 lg:flex-initial',
                     )}
                 >
-                    <CardHeader className="shrink-0 space-y-3 bg-muted/20 p-6 pb-4">
+                    <CardHeader
+                        className={cn(
+                            'shrink-0 space-y-3 bg-muted/20 p-6 pb-4',
+                            isMobile && 'px-4 py-4',
+                        )}
+                    >
                         <div>
                             <CardTitle>Ruang Bimbingan</CardTitle>
                             <CardDescription>
@@ -627,11 +736,17 @@ function DosenPesanBimbinganContent({
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 shadow-sm lg:h-full',
+                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
+                        isMobile && 'rounded-none border-0 shadow-none',
                         mobileView === 'threads' && 'hidden lg:flex',
                     )}
                 >
-                    <CardHeader className="shrink-0 bg-muted/20 p-6 pb-4">
+                    <CardHeader
+                        className={cn(
+                            'shrink-0 bg-muted/20 p-6 pb-4',
+                            isMobile && 'px-4 py-4',
+                        )}
+                    >
                         {activeThread ? (
                             <>
                                 <div className="flex items-center gap-4">
@@ -753,11 +868,69 @@ function DosenPesanBimbinganContent({
                                             variant="ghost"
                                             size="icon"
                                             className="size-8 text-muted-foreground hover:text-foreground"
+                                            onClick={() => {
+                                                setIsThreadSearchOpen(
+                                                    (current) => !current,
+                                                );
+                                                if (isThreadSearchOpen) {
+                                                    setThreadSearch('');
+                                                    setActiveMatchIndex(0);
+                                                }
+                                            }}
                                         >
                                             <Search className="size-4" />
                                         </Button>
                                     </div>
                                 </div>
+                                {isThreadSearchOpen ? (
+                                    <div className="mt-3 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                value={threadSearch}
+                                                onChange={(event) =>
+                                                    handleThreadSearchChange(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="Cari di percakapan ini..."
+                                                className="h-9 flex-1"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-9"
+                                                disabled={
+                                                    matchingMessageIds.length ===
+                                                    0
+                                                }
+                                                onClick={() => stepMatch(-1)}
+                                            >
+                                                <ChevronUp className="size-4" />
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-9"
+                                                disabled={
+                                                    matchingMessageIds.length ===
+                                                    0
+                                                }
+                                                onClick={() => stepMatch(1)}
+                                            >
+                                                <ChevronDown className="size-4" />
+                                            </Button>
+                                        </div>
+                                        {threadSearch.trim() ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                {matchingMessageIds.length > 0
+                                                    ? `${resolvedActiveMatchIndex + 1} dari ${matchingMessageIds.length} hasil`
+                                                    : 'Tidak ada hasil yang cocok'}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                             </>
                         ) : (
                             <>
@@ -782,21 +955,54 @@ function DosenPesanBimbinganContent({
                     </CardHeader>
                     <Separator />
 
-                    <CardContent className="relative flex-1 overflow-hidden pb-6">
+                    <CardContent
+                        className={cn(
+                            'relative flex-1 overflow-hidden',
+                            isMobile ? 'pb-3' : 'pb-6',
+                        )}
+                    >
                         <ScrollArea className="h-full w-full">
-                            <div className="flex min-h-full flex-col p-4">
+                            <div
+                                className={cn(
+                                    'flex min-h-full flex-col',
+                                    isMobile ? 'px-4 py-3' : 'p-4',
+                                )}
+                            >
                                 {activeThread ? (
                                     <div className="grid">
                                         {activeMessages.map((message) => {
                                             const isMe =
                                                 message.senderUserId ===
                                                 auth.user?.id;
+                                            const messageId = String(
+                                                message.id,
+                                            );
+
                                             return (
-                                                <ChatBubble
+                                                <div
                                                     key={message.id}
-                                                    message={message}
-                                                    isMe={isMe}
-                                                />
+                                                    ref={(element) => {
+                                                        messageRefs.current[
+                                                            messageId
+                                                        ] = element;
+                                                    }}
+                                                >
+                                                    <ChatBubble
+                                                        message={message}
+                                                        isMe={isMe}
+                                                        searchTerm={
+                                                            matchingMessageIdSet.has(
+                                                                messageId,
+                                                            )
+                                                                ? normalizedThreadSearch
+                                                                : ''
+                                                        }
+                                                        isActiveMatch={
+                                                            activeMatchMessageId ===
+                                                            messageId
+                                                        }
+                                                    />
+                                                </div>
                                             );
                                         })}
                                         <div
@@ -832,7 +1038,12 @@ function DosenPesanBimbinganContent({
                             </p>
                         </div>
                     ) : (
-                        <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
+                        <CardFooter
+                            className={cn(
+                                'shrink-0 flex-col items-stretch gap-3 pt-4',
+                                isMobile ? 'px-4 pb-4' : 'p-6',
+                            )}
+                        >
                             <input
                                 ref={fileRef}
                                 type="file"

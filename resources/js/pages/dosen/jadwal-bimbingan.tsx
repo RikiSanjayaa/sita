@@ -1184,76 +1184,134 @@ export default function DosenJadwalBimbinganPage() {
                         </div>
 
                         {upcomingSchedules.length > 0 ? (
-                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                                Mahasiswa
-                                            </th>
-                                            <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                                Topik
-                                            </th>
-                                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                                Waktu
-                                            </th>
-                                            <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
-                                                Lokasi
-                                            </th>
-                                            <th className="w-8 px-4 py-2.5" />
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {upcomingSchedules.map((item) => (
-                                            <tr
-                                                key={`${item.id}-${item.mahasiswa}`}
-                                                className="cursor-pointer transition-colors hover:bg-muted/30"
-                                                onClick={() => {
-                                                    setSelectedUpcoming(item);
-                                                    setUpcomingSheetOpen(true);
-                                                }}
-                                            >
-                                                <td className="px-4 py-3">
-                                                    <p className="font-medium">
-                                                        {item.mahasiswa}
-                                                    </p>
-                                                    <RelationTypeBadge
-                                                        relationType={
-                                                            item.relationType
-                                                        }
-                                                    />
-                                                </td>
-                                                <td className="hidden max-w-[200px] px-4 py-3 md:table-cell">
-                                                    <p className="line-clamp-2 text-xs text-muted-foreground">
-                                                        {item.topic}
-                                                    </p>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                                                        <CalendarClock className="size-3 shrink-0" />
-                                                        {formatDateTime(
-                                                            item.date,
-                                                            item.time,
-                                                        )}
-                                                    </span>
-                                                </td>
-                                                <td className="hidden px-4 py-3 sm:table-cell">
-                                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                        <MapPin className="size-3 shrink-0" />
-                                                        {item.location}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    <ChevronRight className="size-4" />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <div className="border-t px-4 py-2 text-right text-xs text-muted-foreground">
-                                    {upcomingSchedules.length} jadwal mendatang
+                            <>
+                                <div className="grid gap-3 md:hidden">
+                                    {upcomingSchedules.map((item) => (
+                                        <button
+                                            key={`${item.id}-${item.mahasiswa}-mobile`}
+                                            type="button"
+                                            className="rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/20"
+                                            onClick={() => {
+                                                setSelectedUpcoming(item);
+                                                setUpcomingSheetOpen(true);
+                                            }}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 space-y-2">
+                                                    <div>
+                                                        <p className="text-sm font-semibold">
+                                                            {item.mahasiswa}
+                                                        </p>
+                                                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                            {item.topic}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <RelationTypeBadge
+                                                            relationType={
+                                                                item.relationType
+                                                            }
+                                                        />
+                                                        <StatusBadge
+                                                            status={item.status}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <CalendarClock className="size-3 shrink-0" />
+                                                            {formatDateTime(
+                                                                item.date,
+                                                                item.time,
+                                                            )}
+                                                        </span>
+                                                        <span className="flex items-center gap-1.5">
+                                                            <MapPin className="size-3 shrink-0" />
+                                                            {item.location}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                            </div>
+                                        </button>
+                                    ))}
                                 </div>
-                            </div>
+
+                                <div className="hidden overflow-hidden rounded-xl border bg-card shadow-sm md:block">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b bg-muted/30">
+                                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Mahasiswa
+                                                </th>
+                                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
+                                                    Topik
+                                                </th>
+                                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Waktu
+                                                </th>
+                                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
+                                                    Lokasi
+                                                </th>
+                                                <th className="w-8 px-4 py-2.5" />
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {upcomingSchedules.map((item) => (
+                                                <tr
+                                                    key={`${item.id}-${item.mahasiswa}`}
+                                                    className="cursor-pointer transition-colors hover:bg-muted/30"
+                                                    onClick={() => {
+                                                        setSelectedUpcoming(
+                                                            item,
+                                                        );
+                                                        setUpcomingSheetOpen(
+                                                            true,
+                                                        );
+                                                    }}
+                                                >
+                                                    <td className="px-4 py-3">
+                                                        <p className="font-medium">
+                                                            {item.mahasiswa}
+                                                        </p>
+                                                        <RelationTypeBadge
+                                                            relationType={
+                                                                item.relationType
+                                                            }
+                                                        />
+                                                    </td>
+                                                    <td className="hidden max-w-[200px] px-4 py-3 md:table-cell">
+                                                        <p className="line-clamp-2 text-xs text-muted-foreground">
+                                                            {item.topic}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                            <CalendarClock className="size-3 shrink-0" />
+                                                            {formatDateTime(
+                                                                item.date,
+                                                                item.time,
+                                                            )}
+                                                        </span>
+                                                    </td>
+                                                    <td className="hidden px-4 py-3 sm:table-cell">
+                                                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                            <MapPin className="size-3 shrink-0" />
+                                                            {item.location}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                        <ChevronRight className="size-4" />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <div className="border-t px-4 py-2 text-right text-xs text-muted-foreground">
+                                        {upcomingSchedules.length} jadwal
+                                        mendatang
+                                    </div>
+                                </div>
+                            </>
                         ) : (
                             <EmptyState
                                 icon={CalendarClock}
@@ -1286,83 +1344,146 @@ export default function DosenJadwalBimbinganPage() {
                     />
 
                     {historyPagination.totalItems > 0 ? (
-                        <DataTableContainer>
-                            <table className="w-full text-left text-sm">
-                                <thead className="border-b bg-muted/30">
-                                    <tr>
-                                        <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                            Mahasiswa
-                                        </th>
-                                        <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                            Topik
-                                        </th>
-                                        <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                            Waktu
-                                        </th>
-                                        <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                            Lokasi
-                                        </th>
-                                        <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                            Status
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y bg-card">
+                        <>
+                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm md:hidden">
+                                <div className="divide-y">
                                     {historyPagination.paginated.map((item) => (
-                                        <tr
-                                            key={`${item.id}-${item.status}`}
-                                            className="transition-colors hover:bg-muted/20"
+                                        <div
+                                            key={`${item.id}-${item.status}-mobile`}
+                                            className="space-y-3 p-4"
                                         >
-                                            <td className="px-5 py-3.5 align-middle">
-                                                <p className="text-sm font-medium">
-                                                    {item.mahasiswa}
-                                                </p>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold">
+                                                        {item.mahasiswa}
+                                                    </p>
+                                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                        {item.topic}
+                                                    </p>
+                                                </div>
+                                                <StatusBadge
+                                                    status={item.status}
+                                                />
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
                                                 <RelationTypeBadge
                                                     relationType={
                                                         item.relationType
                                                     }
                                                 />
-                                            </td>
-                                            <td className="max-w-[180px] px-5 py-3.5 align-middle text-xs text-muted-foreground">
-                                                <p className="truncate">
-                                                    {item.topic}
-                                                </p>
-                                                {item.lecturerNote && (
-                                                    <p className="mt-0.5 line-clamp-1 italic opacity-70">
-                                                        {item.lecturerNote}
-                                                    </p>
-                                                )}
-                                            </td>
-                                            <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
-                                                {formatDateTime(
-                                                    item.date,
-                                                    item.time,
-                                                )}
-                                            </td>
-                                            <td className="px-5 py-3.5 align-middle text-xs text-muted-foreground">
+                                            </div>
+                                            <div className="space-y-1.5 text-xs text-muted-foreground">
+                                                <div>
+                                                    {formatDateTime(
+                                                        item.date,
+                                                        item.time,
+                                                    )}
+                                                </div>
                                                 <span className="flex items-center gap-1.5">
                                                     <MapPin className="size-3 shrink-0" />
                                                     {item.location}
                                                 </span>
-                                            </td>
-                                            <td className="px-5 py-3.5 align-middle">
-                                                <StatusBadge
-                                                    status={item.status}
-                                                />
-                                            </td>
-                                        </tr>
+                                                {item.lecturerNote && (
+                                                    <p className="rounded-md bg-muted/40 px-3 py-2 italic">
+                                                        {item.lecturerNote}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                            <DataTablePagination
-                                currentPage={historyPagination.page}
-                                totalPages={historyPagination.totalPages}
-                                totalItems={historyPagination.totalItems}
-                                pageSize={HISTORY_PAGE_SIZE}
-                                onPageChange={historyPagination.setPage}
-                                itemLabel="riwayat"
-                            />
-                        </DataTableContainer>
+                                </div>
+                                <DataTablePagination
+                                    currentPage={historyPagination.page}
+                                    totalPages={historyPagination.totalPages}
+                                    totalItems={historyPagination.totalItems}
+                                    pageSize={HISTORY_PAGE_SIZE}
+                                    onPageChange={historyPagination.setPage}
+                                    itemLabel="riwayat"
+                                />
+                            </div>
+
+                            <DataTableContainer className="hidden md:block">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="border-b bg-muted/30">
+                                        <tr>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Mahasiswa
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Topik
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Waktu
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Lokasi
+                                            </th>
+                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                Status
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y bg-card">
+                                        {historyPagination.paginated.map(
+                                            (item) => (
+                                                <tr
+                                                    key={`${item.id}-${item.status}`}
+                                                    className="transition-colors hover:bg-muted/20"
+                                                >
+                                                    <td className="px-5 py-3.5 align-middle">
+                                                        <p className="text-sm font-medium">
+                                                            {item.mahasiswa}
+                                                        </p>
+                                                        <RelationTypeBadge
+                                                            relationType={
+                                                                item.relationType
+                                                            }
+                                                        />
+                                                    </td>
+                                                    <td className="max-w-[180px] px-5 py-3.5 align-middle text-xs text-muted-foreground">
+                                                        <p className="truncate">
+                                                            {item.topic}
+                                                        </p>
+                                                        {item.lecturerNote && (
+                                                            <p className="mt-0.5 line-clamp-1 italic opacity-70">
+                                                                {
+                                                                    item.lecturerNote
+                                                                }
+                                                            </p>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
+                                                        {formatDateTime(
+                                                            item.date,
+                                                            item.time,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3.5 align-middle text-xs text-muted-foreground">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <MapPin className="size-3 shrink-0" />
+                                                            {item.location}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3.5 align-middle">
+                                                        <StatusBadge
+                                                            status={item.status}
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ),
+                                        )}
+                                    </tbody>
+                                </table>
+                                <DataTablePagination
+                                    currentPage={historyPagination.page}
+                                    totalPages={historyPagination.totalPages}
+                                    totalItems={historyPagination.totalItems}
+                                    pageSize={HISTORY_PAGE_SIZE}
+                                    onPageChange={historyPagination.setPage}
+                                    itemLabel="riwayat"
+                                />
+                            </DataTableContainer>
+                        </>
                     ) : (
                         <DataTableEmptyState
                             icon={CalendarClock}

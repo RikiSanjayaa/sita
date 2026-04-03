@@ -179,16 +179,29 @@ function PublicStudentsContent({
             description="Daftar mahasiswa yang masih aktif menjalani proses tugas akhir, termasuk mahasiswa baru terdaftar, sempro, bimbingan aktif, hingga sidang yang masih berjalan."
         >
             <div className="space-y-6">
-                <Card className="shadow-sm">
-                    <CardHeader className="gap-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>Program Studi</CardTitle>
-                            <div className="w-full sm:max-w-xs">
+                <Card className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-1.5">
+                                <CardTitle>Daftar Mahasiswa</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                    <span>
+                                        Menampilkan {rangeStart}-{rangeEnd} dari{' '}
+                                        {studentPagination.total} mahasiswa
+                                    </span>
+                                    <Badge variant="outline">
+                                        Halaman {studentPagination.currentPage}{' '}
+                                        / {studentPagination.lastPage}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div className="w-full lg:max-w-xs">
                                 <Select
                                     value={programFilter}
                                     onValueChange={setProgramFilter}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="bg-background">
                                         <SelectValue placeholder="Filter prodi" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -208,25 +221,7 @@ function PublicStudentsContent({
                             </div>
                         </div>
                     </CardHeader>
-                </Card>
-
-                <Card className={sectionCardClass}>
-                    <CardHeader
-                        className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
-                    >
-                        <CardTitle>Daftar Mahasiswa</CardTitle>
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <span>
-                                Menampilkan {rangeStart}-{rangeEnd} dari{' '}
-                                {studentPagination.total} mahasiswa
-                            </span>
-                            <Badge variant="outline">
-                                Halaman {studentPagination.currentPage} /{' '}
-                                {studentPagination.lastPage}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pb-6">
+                    <CardContent className="space-y-4 py-6">
                         <DataTableToolbar
                             search={search}
                             onSearchChange={setSearch}
@@ -337,7 +332,7 @@ function PublicStudentsContent({
                         <DataTablePagination
                             currentPage={studentPagination.currentPage}
                             totalPages={studentPagination.lastPage}
-                            totalItems={filteredStudents.length}
+                            totalItems={studentPagination.total}
                             pageSize={studentPagination.perPage}
                             onPageChange={visitPage}
                             itemLabel="mahasiswa"

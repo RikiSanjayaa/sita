@@ -1,5 +1,10 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { MessageCircle, MessageSquareText, Search, UserRound } from 'lucide-react';
+import {
+    MessageCircle,
+    MessageSquareText,
+    Search,
+    UserRound,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -140,7 +145,9 @@ function StudentTable({
                                         <div className="flex items-center gap-2.5">
                                             <Avatar className="size-7 shrink-0 border">
                                                 <AvatarImage
-                                                    src={row.avatar ?? undefined}
+                                                    src={
+                                                        row.avatar ?? undefined
+                                                    }
                                                     alt={row.name}
                                                 />
                                                 <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
@@ -148,7 +155,7 @@ function StudentTable({
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
-                                                <p className="truncate font-medium leading-snug">
+                                                <p className="truncate leading-snug font-medium">
                                                     {row.name}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
@@ -156,10 +163,16 @@ function StudentTable({
                                                 </p>
                                                 {/* Mobile: show extras inline */}
                                                 <div className="mt-1 flex flex-wrap gap-1 md:hidden">
-                                                    <Badge variant="outline" className="rounded-full text-xs">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="rounded-full text-xs"
+                                                    >
                                                         {row.advisorType}
                                                     </Badge>
-                                                    <Badge variant="outline" className="rounded-full text-xs">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="rounded-full text-xs"
+                                                    >
                                                         {row.stageLabel}
                                                     </Badge>
                                                 </div>
@@ -169,14 +182,19 @@ function StudentTable({
 
                                     {/* Peran */}
                                     <td className="hidden px-4 py-3 md:table-cell">
-                                        <Badge variant="outline" className="rounded-full text-xs">
+                                        <Badge
+                                            variant="outline"
+                                            className="rounded-full text-xs"
+                                        >
                                             {row.advisorType}
                                         </Badge>
                                     </td>
 
                                     {/* Tahap */}
                                     <td className="hidden px-4 py-3 lg:table-cell">
-                                        <p className="text-xs font-medium">{row.stageLabel}</p>
+                                        <p className="text-xs font-medium">
+                                            {row.stageLabel}
+                                        </p>
                                         <p className="mt-0.5 max-w-[200px] truncate text-xs text-muted-foreground">
                                             {row.stageDescription}
                                         </p>
@@ -192,14 +210,24 @@ function StudentTable({
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-1.5">
                                                 {row.chatUrl ? (
-                                                    <Button asChild size="sm" className="h-7 px-2.5 text-xs">
-                                                        <Link href={row.chatUrl}>
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        className="h-7 px-2.5 text-xs"
+                                                    >
+                                                        <Link
+                                                            href={row.chatUrl}
+                                                        >
                                                             <MessageSquareText className="size-3.5" />
                                                             Chat
                                                         </Link>
                                                     </Button>
                                                 ) : (
-                                                    <Button size="sm" disabled className="h-7 px-2.5 text-xs">
+                                                    <Button
+                                                        size="sm"
+                                                        disabled
+                                                        className="h-7 px-2.5 text-xs"
+                                                    >
                                                         <MessageSquareText className="size-3.5" />
                                                         Chat
                                                     </Button>
@@ -212,7 +240,9 @@ function StudentTable({
                                                         className="h-7 px-2.5 text-xs"
                                                     >
                                                         <a
-                                                            href={row.whatsappUrl}
+                                                            href={
+                                                                row.whatsappUrl
+                                                            }
                                                             target="_blank"
                                                             rel="noreferrer"
                                                         >
@@ -246,8 +276,9 @@ function StudentTable({
 }
 
 export default function DosenMahasiswaBimbinganPage() {
-    const { mahasiswaRows, historyRows, activeCount, capacityLimit } =
-        usePage<SharedData & MahasiswaBimbinganProps>().props;
+    const { mahasiswaRows, historyRows, activeCount, capacityLimit } = usePage<
+        SharedData & MahasiswaBimbinganProps
+    >().props;
 
     return (
         <DosenLayout
@@ -258,18 +289,23 @@ export default function DosenMahasiswaBimbinganPage() {
             <Head title="Mahasiswa Bimbingan" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-6 md:px-6 lg:py-8">
-
                 {/* ── Mahasiswa Aktif ── */}
                 <section>
                     <div className="mb-4 flex items-center justify-between border-b pb-3">
                         <div>
-                            <h2 className="text-base font-semibold">Mahasiswa Aktif</h2>
+                            <h2 className="text-base font-semibold">
+                                Mahasiswa Aktif
+                            </h2>
                             <p className="text-sm text-muted-foreground">
                                 Menangani{' '}
-                                <span className="font-semibold text-foreground">{activeCount}</span>
-                                {' '}dari{' '}
-                                <span className="font-semibold text-foreground">{capacityLimit}</span>
-                                {' '}kuota
+                                <span className="font-semibold text-foreground">
+                                    {activeCount}
+                                </span>{' '}
+                                dari{' '}
+                                <span className="font-semibold text-foreground">
+                                    {capacityLimit}
+                                </span>{' '}
+                                kuota
                             </p>
                         </div>
                     </div>
@@ -283,7 +319,9 @@ export default function DosenMahasiswaBimbinganPage() {
                 {/* ── Riwayat Bimbingan ── */}
                 <section>
                     <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">Riwayat Bimbingan</h2>
+                        <h2 className="text-base font-semibold">
+                            Riwayat Bimbingan
+                        </h2>
                         <p className="text-sm text-muted-foreground">
                             Mahasiswa yang sudah tidak aktif atau sudah lulus
                         </p>
