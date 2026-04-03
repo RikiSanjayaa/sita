@@ -35,7 +35,6 @@ export function PersonCardLink({
                 className,
             )}
         >
-
             <Avatar className="size-10 shrink-0 border">
                 <AvatarImage
                     src={person.avatar ?? undefined}

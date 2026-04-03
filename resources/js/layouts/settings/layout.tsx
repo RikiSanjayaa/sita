@@ -67,7 +67,7 @@ export default function SettingsLayout({
         <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 md:px-6">
             <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
                 {/* Settings sidebar navigation */}
-                <aside className="w-full shrink-0 lg:sticky lg:top-16 lg:max-h-[calc(100svh-4rem)] lg:w-48 lg:self-start lg:overflow-y-auto lg:pt-6">
+                <aside className="mt-4 w-full shrink-0 lg:sticky lg:top-16 lg:mt-0 lg:max-h-[calc(100svh-4rem)] lg:w-48 lg:self-start lg:overflow-y-auto lg:pt-6">
                     <nav className="flex flex-row flex-wrap gap-1 lg:flex-col">
                         {visibleItems.map((item) => {
                             const Icon = item.icon;

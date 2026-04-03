@@ -1,8 +1,15 @@
 import { Link } from '@inertiajs/react';
 import { Download, FileText } from 'lucide-react';
+import { Fragment } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export type ChatMessagePayload = {
@@ -20,6 +27,8 @@ export type ChatMessagePayload = {
 interface ChatBubbleProps {
     message: ChatMessagePayload;
     isMe: boolean;
+    searchTerm?: string;
+    isActiveMatch?: boolean;
 }
 
 function initials(name: string) {
@@ -31,7 +40,101 @@ function initials(name: string) {
         .toUpperCase();
 }
 
-export function ChatBubble({ message, isMe }: ChatBubbleProps) {
+function truncateFilename(name: string | null, maxLength = 28) {
+    if (!name) {
+        return '';
+    }
+
+    if (name.length <= maxLength) {
+        return name;
+    }
+
+    return `${name.slice(0, maxLength - 3)}...`;
+}
+
+function escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightText(text: string, query?: string, inverse = false) {
+    const normalizedQuery = query?.trim() ?? '';
+
+    if (!normalizedQuery) {
+        return text;
+    }
+
+    const parts = text.split(
+        new RegExp(`(${escapeRegExp(normalizedQuery)})`, 'gi'),
+    );
+
+    return parts.map((part, index) => {
+        if (part.toLowerCase() !== normalizedQuery.toLowerCase()) {
+            return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
+        }
+
+        return (
+            <mark
+                key={`${part}-${index}`}
+                className={cn(
+                    'rounded px-0.5',
+                    inverse
+                        ? 'bg-primary-foreground/25 text-primary-foreground'
+                        : 'bg-yellow-200/80 text-foreground dark:bg-yellow-500/30 dark:text-foreground',
+                )}
+            >
+                {part}
+            </mark>
+        );
+    });
+}
+
+function FilenameLabel({
+    name,
+    className,
+    searchTerm,
+    inverse,
+}: {
+    name: string | null;
+    className?: string;
+    searchTerm?: string;
+    inverse?: boolean;
+}) {
+    if (!name) {
+        return null;
+    }
+
+    const shortName = truncateFilename(name);
+
+    if (shortName === name) {
+        return (
+            <span className={className}>
+                {highlightText(name, searchTerm, inverse)}
+            </span>
+        );
+    }
+
+    return (
+        <TooltipProvider delayDuration={0}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span className={className}>
+                        {highlightText(shortName, searchTerm, inverse)}
+                    </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p className="max-w-xs break-all">{name}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
+export function ChatBubble({
+    message,
+    isMe,
+    searchTerm = '',
+    isActiveMatch = false,
+}: ChatBubbleProps) {
     if (
         message.type === 'document_event' ||
         message.type === 'revision_suggestion'
@@ -40,8 +143,14 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
 
         return (
             <div className="animate-pop my-4 flex flex-col items-center gap-1.5">
-                <div className="flex w-full max-w-[85%] items-center justify-between gap-4 rounded-xl border bg-background px-4 py-3 shadow-sm sm:w-auto sm:min-w-[400px]">
-                    <div className="flex min-w-0 items-center gap-4">
+                <div
+                    className={cn(
+                        'flex w-full max-w-[min(100%,34rem)] flex-col gap-3 rounded-xl border bg-background px-3 py-3 shadow-sm min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between sm:px-4',
+                        isActiveMatch &&
+                            'border-primary ring-2 ring-primary/20',
+                    )}
+                >
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
                             <FileText className="size-5" />
                         </div>
@@ -51,16 +160,18 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                                     ? 'File Revisi dari Dosen'
                                     : 'Dokumen Baru Diunggah'}
                             </p>
-                            <p className="truncate text-sm font-semibold text-foreground">
-                                {message.documentName}
-                            </p>
+                            <FilenameLabel
+                                name={message.documentName}
+                                className="block truncate text-sm font-semibold text-foreground"
+                                searchTerm={searchTerm}
+                            />
                         </div>
                     </div>
 
                     <Button
                         size="sm"
                         variant="secondary"
-                        className="h-8 shrink-0 gap-1.5 rounded-full px-4 text-primary hover:text-primary"
+                        className="h-8 w-full shrink-0 gap-1.5 rounded-full px-3 text-primary hover:text-primary min-[520px]:w-auto sm:px-4"
                         disabled={!message.documentUrl}
                         asChild={!!message.documentUrl}
                     >
@@ -69,6 +180,7 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                                 href={message.documentUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                className="flex w-full items-center justify-center"
                             >
                                 <Download className="size-3.5" />
                                 <span className="text-xs font-semibold">
@@ -76,7 +188,7 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                                 </span>
                             </a>
                         ) : (
-                            <div>
+                            <div className="flex w-full items-center justify-center">
                                 <Download className="size-3.5" />
                                 <span className="text-xs font-semibold">
                                     Unduh
@@ -101,7 +213,7 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
         >
             <div
                 className={cn(
-                    'flex max-w-[85%] gap-3 sm:max-w-[75%]',
+                    'flex max-w-[calc(100%-2.75rem)] gap-3 sm:max-w-[75%]',
                     isMe ? 'flex-row-reverse' : 'flex-row',
                 )}
             >
@@ -157,6 +269,10 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                             isMe
                                 ? 'rounded-br-sm bg-primary text-primary-foreground'
                                 : 'rounded-tl-sm border bg-background text-foreground shadow-sm',
+                            isActiveMatch &&
+                                (isMe
+                                    ? 'ring-2 ring-primary-foreground/35'
+                                    : 'border-primary ring-2 ring-primary/20'),
                         )}
                     >
                         {message.documentName && (
@@ -173,24 +289,36 @@ export function ChatBubble({ message, isMe }: ChatBubbleProps) {
                                         href={message.documentUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-2 p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                        className="flex min-w-0 items-center gap-2 p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                                     >
                                         <FileText className="size-3.5 shrink-0" />
-                                        <span className="font-semibold underline decoration-primary-foreground/30 underline-offset-2 hover:decoration-primary-foreground">
-                                            {message.documentName}
-                                        </span>
+                                        <FilenameLabel
+                                            name={message.documentName}
+                                            className="block min-w-0 truncate font-semibold underline decoration-primary-foreground/30 underline-offset-2 hover:decoration-primary-foreground"
+                                            searchTerm={searchTerm}
+                                            inverse={isMe}
+                                        />
                                     </a>
                                 ) : (
-                                    <div className="flex items-center gap-2 p-2">
+                                    <div className="flex min-w-0 items-center gap-2 p-2">
                                         <FileText className="size-3.5 shrink-0" />
-                                        <span>{message.documentName}</span>
+                                        <FilenameLabel
+                                            name={message.documentName}
+                                            className="block min-w-0 truncate"
+                                            searchTerm={searchTerm}
+                                            inverse={isMe}
+                                        />
                                     </div>
                                 )}
                             </div>
                         )}
                         {message.message && (
                             <div className="break-words whitespace-pre-wrap">
-                                {message.message}
+                                {highlightText(
+                                    message.message,
+                                    searchTerm,
+                                    isMe,
+                                )}
                             </div>
                         )}
                     </div>

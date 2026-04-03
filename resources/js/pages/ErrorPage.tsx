@@ -1,5 +1,11 @@
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, Home, MoveLeft, ServerCrash, ShieldX } from 'lucide-react';
+import {
+    AlertTriangle,
+    Home,
+    MoveLeft,
+    ServerCrash,
+    ShieldX,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
@@ -49,7 +55,7 @@ export default function ErrorPage({ status }: ErrorPageProps) {
             <div className="w-full max-w-md space-y-8 text-center">
                 {/* Status code */}
                 <div className="relative inline-block">
-                    <span className="select-none text-[9rem] font-black leading-none tracking-tighter text-muted/40 dark:text-muted-foreground/10">
+                    <span className="text-[9rem] leading-none font-black tracking-tighter text-muted/40 select-none dark:text-muted-foreground/10">
                         {error.code}
                     </span>
                     {/* Icon overlaid on the number */}

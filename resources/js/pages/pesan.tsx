@@ -1,5 +1,14 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Inbox, Paperclip, Search, Send, Users } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    ChevronUp,
+    Inbox,
+    Paperclip,
+    Search,
+    Send,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
@@ -25,6 +34,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/hooks/use-initials';
+import { useIsMobile } from '@/hooks/use-mobile';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard, pesan } from '@/routes';
@@ -66,6 +76,18 @@ type ThreadItem = {
     preview: string;
     lastTime: string;
 };
+
+function messageMatches(message: ChatMessage, query: string) {
+    if (!query) {
+        return false;
+    }
+
+    return [message.author, message.message, message.documentName, message.type]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+}
 
 type PesanPageProps = {
     hasDosbing: boolean;
@@ -141,17 +163,22 @@ function PesanPageContent({
     auth,
 }: PesanPageContentProps) {
     const getInitials = useInitials();
+    const isMobile = useIsMobile();
 
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
         resolveInitialThreadId(initialThreads),
     );
+    const [threadSearch, setThreadSearch] = useState('');
+    const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
+    const [activeMatchIndex, setActiveMatchIndex] = useState(0);
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ChatMessage[]>
     >(() => Object.fromEntries(initialThreads.map((t) => [t.id, t.messages])));
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -237,9 +264,49 @@ function PesanPageContent({
         [activeThread, messagesByThread],
     );
 
+    const normalizedThreadSearch = threadSearch.trim().toLowerCase();
+
+    const matchingMessageIds = useMemo(
+        () =>
+            normalizedThreadSearch
+                ? activeMessages
+                      .filter((message) =>
+                          messageMatches(message, normalizedThreadSearch),
+                      )
+                      .map((message) => String(message.id))
+                : [],
+        [activeMessages, normalizedThreadSearch],
+    );
+
+    const matchingMessageIdSet = useMemo(
+        () => new Set(matchingMessageIds),
+        [matchingMessageIds],
+    );
+
+    const resolvedActiveMatchIndex =
+        matchingMessageIds.length > 0
+            ? Math.min(activeMatchIndex, matchingMessageIds.length - 1)
+            : 0;
+
+    const activeMatchMessageId =
+        matchingMessageIds.length > 0
+            ? matchingMessageIds[resolvedActiveMatchIndex]
+            : null;
+
     useEffect(() => {
         scrollToBottom();
     }, [activeMessages.length, resolvedActiveThreadId]);
+
+    useEffect(() => {
+        if (!activeMatchMessageId) {
+            return;
+        }
+
+        messageRefs.current[activeMatchMessageId]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+    }, [activeMatchMessageId]);
 
     const canSend = useMemo(
         () =>
@@ -256,8 +323,16 @@ function PesanPageContent({
 
     function selectThread(threadId: number) {
         setActiveThreadId(threadId);
+        setThreadSearch('');
+        setIsThreadSearchOpen(false);
+        setActiveMatchIndex(0);
         syncThreadSearchParam(threadId);
         setMobileView('chat');
+    }
+
+    function handleThreadSearchChange(value: string) {
+        setThreadSearch(value);
+        setActiveMatchIndex(0);
     }
 
     function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
@@ -286,20 +361,53 @@ function PesanPageContent({
         });
     }
 
+    function stepMatch(direction: 1 | -1) {
+        if (matchingMessageIds.length === 0) {
+            return;
+        }
+
+        setActiveMatchIndex((current) => {
+            const next = current + direction;
+
+            if (next < 0) {
+                return matchingMessageIds.length - 1;
+            }
+
+            if (next >= matchingMessageIds.length) {
+                return 0;
+            }
+
+            return next;
+        });
+    }
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pesan" />
 
-            <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid lg:h-[calc(100vh-4rem-3rem)] lg:grid-cols-[340px_1fr]">
+            <div
+                className={cn(
+                    'mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-7xl flex-1 lg:grid lg:h-[calc(100dvh-4rem-3rem)] lg:grid-cols-[340px_1fr]',
+                    isMobile ? 'gap-0 px-0 py-0' : 'gap-6 px-4 py-6 md:px-6',
+                )}
+            >
                 {/* Thread List */}
                 <Card
                     className={cn(
-                        `flex min-h-0 flex-col ${panelCardClass} lg:h-full lg:w-[340px] lg:shrink-0`,
+                        'flex min-h-0 flex-col lg:h-full lg:w-[340px] lg:shrink-0',
+                        isMobile
+                            ? 'rounded-none border-0 shadow-none'
+                            : panelCardClass,
                         mobileView === 'chat' && 'hidden lg:flex',
                         mobileView === 'threads' && 'flex-1 lg:flex-initial',
                     )}
                 >
-                    <CardHeader className={panelHeaderClass}>
+                    <CardHeader
+                        className={cn(
+                            panelHeaderClass,
+                            isMobile && 'px-4 py-4',
+                        )}
+                    >
                         <CardTitle>Pesan</CardTitle>
                         <CardDescription>
                             Thread bimbingan dan sempro Anda
@@ -404,11 +512,19 @@ function PesanPageContent({
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        `flex min-h-0 flex-1 flex-col ${panelCardClass} lg:h-full`,
+                        'flex min-h-0 flex-1 flex-col lg:h-full',
+                        isMobile
+                            ? 'rounded-none border-0 shadow-none'
+                            : panelCardClass,
                         mobileView === 'threads' && 'hidden lg:flex',
                     )}
                 >
-                    <CardHeader className={panelHeaderClass}>
+                    <CardHeader
+                        className={cn(
+                            panelHeaderClass,
+                            isMobile && 'px-4 py-4',
+                        )}
+                    >
                         {activeThread ? (
                             <>
                                 <div className="flex items-center gap-4">
@@ -513,11 +629,69 @@ function PesanPageContent({
                                             variant="ghost"
                                             size="icon"
                                             className="size-8 text-muted-foreground hover:text-foreground"
+                                            onClick={() => {
+                                                setIsThreadSearchOpen(
+                                                    (current) => !current,
+                                                );
+                                                if (isThreadSearchOpen) {
+                                                    setThreadSearch('');
+                                                    setActiveMatchIndex(0);
+                                                }
+                                            }}
                                         >
                                             <Search className="size-4" />
                                         </Button>
                                     </div>
                                 </div>
+                                {isThreadSearchOpen ? (
+                                    <div className="mt-3 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                value={threadSearch}
+                                                onChange={(event) =>
+                                                    handleThreadSearchChange(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="Cari di percakapan ini..."
+                                                className="h-9 flex-1"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-9"
+                                                disabled={
+                                                    matchingMessageIds.length ===
+                                                    0
+                                                }
+                                                onClick={() => stepMatch(-1)}
+                                            >
+                                                <ChevronUp className="size-4" />
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-9"
+                                                disabled={
+                                                    matchingMessageIds.length ===
+                                                    0
+                                                }
+                                                onClick={() => stepMatch(1)}
+                                            >
+                                                <ChevronDown className="size-4" />
+                                            </Button>
+                                        </div>
+                                        {threadSearch.trim() ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                {matchingMessageIds.length > 0
+                                                    ? `${resolvedActiveMatchIndex + 1} dari ${matchingMessageIds.length} hasil`
+                                                    : 'Tidak ada hasil yang cocok'}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                             </>
                         ) : (
                             <>
@@ -542,7 +716,12 @@ function PesanPageContent({
                     </CardHeader>
                     <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
-                            <div className="flex min-h-full flex-col p-4">
+                            <div
+                                className={cn(
+                                    'flex min-h-full flex-col',
+                                    isMobile ? 'px-4 py-3' : 'p-4',
+                                )}
+                            >
                                 {activeThread &&
                                     !hasDosbing &&
                                     activeThread.threadType ===
@@ -566,12 +745,35 @@ function PesanPageContent({
                                             const isMe =
                                                 message.senderUserId ===
                                                 auth.user?.id;
+                                            const messageId = String(
+                                                message.id,
+                                            );
+
                                             return (
-                                                <ChatBubble
+                                                <div
                                                     key={message.id}
-                                                    message={message}
-                                                    isMe={isMe}
-                                                />
+                                                    ref={(element) => {
+                                                        messageRefs.current[
+                                                            messageId
+                                                        ] = element;
+                                                    }}
+                                                >
+                                                    <ChatBubble
+                                                        message={message}
+                                                        isMe={isMe}
+                                                        searchTerm={
+                                                            matchingMessageIdSet.has(
+                                                                messageId,
+                                                            )
+                                                                ? normalizedThreadSearch
+                                                                : ''
+                                                        }
+                                                        isActiveMatch={
+                                                            activeMatchMessageId ===
+                                                            messageId
+                                                        }
+                                                    />
+                                                </div>
                                             );
                                         })}
                                         <div
@@ -599,7 +801,12 @@ function PesanPageContent({
 
                     <Separator />
 
-                    <CardFooter className="shrink-0 flex-col items-stretch gap-3 p-6 pt-4">
+                    <CardFooter
+                        className={cn(
+                            'shrink-0 flex-col items-stretch gap-3 pt-4',
+                            isMobile ? 'px-4 pb-4' : 'p-6',
+                        )}
+                    >
                         <input
                             ref={fileRef}
                             type="file"

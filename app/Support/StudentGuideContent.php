@@ -45,7 +45,7 @@ class StudentGuideContent
         return [
             'hero_title' => 'Panduan',
             'hero_subtitle' => 'Ringkas, bisa dicari, dan siap membantu kamu bergerak',
-            'search_hint' => 'Ketik kata kunci: revisi, bimbingan, upload, judul',
+            'search_hint' => 'Cari kata kunci: revisi, bimbingan, upload...',
             'guidance_cards' => [
                 [
                     'id' => 'alur',

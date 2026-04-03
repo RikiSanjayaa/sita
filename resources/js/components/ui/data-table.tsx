@@ -147,27 +147,35 @@ export function DataTablePagination({
     currentPage,
     totalPages,
     totalItems,
+    currentItemCount,
     pageSize,
     onPageChange,
     itemLabel = 'item',
 }: {
     currentPage: number;
     totalPages: number;
-    totalItems: number;
+    totalItems?: number;
+    currentItemCount?: number;
     pageSize: number;
     onPageChange: (page: number) => void;
     itemLabel?: string;
 }) {
     const safePage = Math.min(currentPage, totalPages);
-    const rangeStart = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
-    const rangeEnd = Math.min(safePage * pageSize, totalItems);
+    const hasKnownTotal = totalItems !== undefined;
+    const rangeStart =
+        hasKnownTotal && totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
+    const rangeEnd = hasKnownTotal
+        ? Math.min(safePage * pageSize, totalItems)
+        : Math.max(rangeStart - 1, rangeStart + (currentItemCount ?? pageSize) - 1);
 
     return (
         <div className="flex items-center justify-between border-t px-5 py-2.5">
             <p className="text-xs text-muted-foreground">
-                {totalItems === 0
-                    ? `Tidak ada ${itemLabel}`
-                    : `${rangeStart}\u2013${rangeEnd} dari ${totalItems} ${itemLabel}`}
+                {hasKnownTotal
+                    ? totalItems === 0
+                        ? `Tidak ada ${itemLabel}`
+                        : `${rangeStart}-${rangeEnd} dari ${totalItems} ${itemLabel}`
+                    : `${rangeStart}-${rangeEnd} ${itemLabel}`}
             </p>
             {totalPages > 1 && (
                 <div className="flex items-center gap-2">
@@ -180,7 +188,9 @@ export function DataTablePagination({
                         ← Prev
                     </button>
                     <span className="text-xs text-muted-foreground">
-                        Hal {safePage} / {totalPages}
+                        {hasKnownTotal
+                            ? `Hal ${safePage} / ${totalPages}`
+                            : `Halaman ${safePage}`}
                     </span>
                     <button
                         type="button"
