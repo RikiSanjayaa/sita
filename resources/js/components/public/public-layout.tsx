@@ -52,8 +52,8 @@ export function PublicLayout({
                             href={home().url}
                             className="flex min-w-0 shrink-0 items-center gap-3"
                         >
-                            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                                <AppLogoIcon className="size-5" />
+                            <span className="flex h-12 w-14 shrink-0 items-center justify-center text-primary">
+                                <AppLogoIcon className="h-12 w-14" />
                             </span>
                             <div className="grid min-w-0 leading-tight">
                                 <span className="truncate text-[15px] font-semibold sm:text-sm">
@@ -156,8 +156,8 @@ export function PublicLayout({
                     <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-8 lg:grid-cols-[1.3fr_0.7fr] lg:px-6">
                         <div className="space-y-3">
                             <div className="flex items-center gap-3">
-                                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                                    <AppLogoIcon className="size-5" />
+                                <span className="flex h-12 w-14 shrink-0 items-center justify-center text-primary">
+                                    <AppLogoIcon className="h-12 w-14" />
                                 </span>
                                 <div className="grid leading-tight">
                                     <span className="text-sm font-semibold">

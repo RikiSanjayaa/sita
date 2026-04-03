@@ -28,14 +28,14 @@ export default function AuthSplitLayout({
             {/* ── Dark Sidebar ── */}
             <aside className="relative hidden w-[26%] shrink-0 flex-col justify-between overflow-hidden bg-[#0d1b2e] p-8 lg:flex">
                 {/* Decorative circle */}
-                <div className="absolute -right-10 top-4 h-44 w-44 rounded-full bg-[#1a3a4a] opacity-60" />
+                <div className="absolute top-4 -right-10 h-44 w-44 rounded-full bg-[#1a3a4a] opacity-60" />
 
                 {/* Logo */}
                 <Link
                     href={home().url}
                     className="relative z-10 flex items-center gap-2"
                 >
-                    <AppLogoIcon className="size-5 fill-current text-white" />
+                    <AppLogoIcon className="h-28 w-28 fill-current text-white" />
                     <span className="text-sm font-bold tracking-wide text-white">
                         {name}
                     </span>
@@ -53,7 +53,7 @@ export default function AuthSplitLayout({
 
                     {/* Headline */}
                     <div className="space-y-2">
-                        <h2 className="text-2xl font-bold leading-tight text-white">
+                        <h2 className="text-2xl leading-tight font-bold text-white">
                             Selamat Datang
                             <br />
                             di {name}
@@ -95,7 +95,7 @@ export default function AuthSplitLayout({
                     href={home().url}
                     className="mb-8 flex items-center gap-2 lg:hidden"
                 >
-                    <AppLogoIcon className="size-7 fill-current text-primary" />
+                    <AppLogoIcon className="h-32 w-32 fill-current text-primary" />
                     <span className="font-semibold">{name}</span>
                 </Link>
 
