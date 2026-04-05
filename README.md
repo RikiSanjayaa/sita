@@ -121,7 +121,73 @@ composer run dev
 - Type check: `npm run types`
 - Menjalankan semua test: `composer run test`
 - Menjalankan test spesifik: `php artisan test --compact tests/Feature/...`
+- Menjalankan E2E Playwright: `npm run e2e`
+- Menjalankan E2E dengan browser terlihat: `npm run e2e:headed`
+- Menjalankan Playwright runner UI: `npm run e2e:ui`
 - Verifikasi CI lokal: `composer run ci:verify`
+
+## E2E Playwright
+
+Playwright dipakai untuk pengujian integrasi UI multi-role, terutama alur tugas akhir, chat bimbingan, sempro, dan sidang. Pest tetap dipakai untuk logika backend, seeder, service, dan assertion berbasis PHP.
+
+### Prasyarat E2E
+
+- Dependensi npm sudah terpasang melalui `npm install`
+- Browser Playwright sudah terinstal melalui `npx playwright install`
+- PHP, Composer, dan dependensi Laravel sudah siap
+
+### Cara Kerja E2E
+
+- Konfigurasi ada di `playwright.config.ts`
+- Spec berada di `tests/e2e/specs/`
+- Global setup akan menyiapkan environment Playwright sendiri, termasuk:
+    - memakai database SQLite terpisah di `database/playwright.sqlite`
+    - menyimpan auth state di `storage/playwright`
+    - menjalankan `php artisan migrate:fresh --seed --force`
+    - menangkap session login untuk admin, dosen, dan mahasiswa uji
+- Web server E2E dijalankan otomatis dari Playwright lewat `npm run build` dan `php artisan serve --host=127.0.0.1 --port=9000`
+
+### Menjalankan E2E
+
+Jalankan seluruh spec aktif:
+
+```bash
+npm run e2e
+```
+
+Jalankan satu spec:
+
+```bash
+npx playwright test tests/e2e/specs/session-isolation.spec.ts
+```
+
+Lihat browser saat test berjalan:
+
+```bash
+npm run e2e:headed
+```
+
+Gunakan Playwright UI untuk memilih/rerun test secara interaktif:
+
+```bash
+npm run e2e:ui
+```
+
+### Artefak dan Debugging
+
+- Screenshot, video, dan trace disimpan hanya saat test gagal
+- Folder output lokal seperti `test-results/` dan `playwright-report/` diabaikan oleh git
+- Untuk membuka trace kegagalan:
+
+```bash
+npx playwright show-trace test-results/<folder>/trace.zip
+```
+
+### Catatan Penting
+
+- E2E bergantung pada seed data yang konsisten, khususnya `UserSeeder` dan `ThesisWorkflowSeeder`
+- Jika menambah alur thesis baru, perbarui seed data dan spec Playwright yang relevan
+- Beberapa spec dapat sengaja ditandai `test.fixme(...)` sampai flow UI tersebut benar-benar diimplementasikan atau distabilkan
 
 ## Git Hook (Verifikasi CI sebelum Push)
 

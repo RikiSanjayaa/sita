@@ -66,6 +66,8 @@ class UserSeeder extends Seeder
         ['name' => 'Dr. Ratna Kusuma, M.Kom.', 'email' => 'dosen2@sita.test', 'nik' => '7301010101010002', 'concentration' => 'Sistem Cerdas'],
         ['name' => 'Prof. Ahmad Hidayat, Ph.D.', 'email' => 'dosen3@sita.test', 'nik' => '7301010101010003', 'concentration' => 'Computer Vision'],
         ['name' => 'Dr. Dewi Lestari, M.T.', 'email' => 'dosen4@sita.test', 'nik' => '7301010101010004', 'concentration' => 'Computer Vision'],
+        ['name' => 'Dr. Fajar Nugraha, M.Kom.', 'email' => 'dosen5@sita.test', 'nik' => '7301010101010005', 'concentration' => 'Jaringan'],
+        ['name' => 'Dr. Siska Maharani, M.Kom.', 'email' => 'dosen6@sita.test', 'nik' => '7301010101010006', 'concentration' => 'Sistem Cerdas'],
     ];
 
     /**

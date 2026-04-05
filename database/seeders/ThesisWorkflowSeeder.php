@@ -32,19 +32,30 @@ class ThesisWorkflowSeeder extends Seeder
         $dosen2 = User::query()->where('email', 'dosen2@sita.test')->first();
         $dosen3 = User::query()->where('email', 'dosen3@sita.test')->first();
         $dosen4 = User::query()->where('email', 'dosen4@sita.test')->first();
+        $dosen5 = User::query()->where('email', 'dosen5@sita.test')->first();
+        $dosen6 = User::query()->where('email', 'dosen6@sita.test')->first();
 
-        if (! $admin instanceof User || ! $ilkom instanceof ProgramStudi || ! $dosen1 instanceof User || ! $dosen2 instanceof User) {
+        if (
+            ! $admin instanceof User
+            || ! $ilkom instanceof ProgramStudi
+            || ! $dosen1 instanceof User
+            || ! $dosen2 instanceof User
+            || ! $dosen3 instanceof User
+            || ! $dosen4 instanceof User
+            || ! $dosen5 instanceof User
+            || ! $dosen6 instanceof User
+        ) {
             return;
         }
 
-        $this->seedFullyProgressed($admin, $ilkom, $dosen1, $dosen2, $dosen1, $dosen2);
+        $this->seedFullyProgressed($admin, $ilkom, $dosen1, $dosen2, $dosen1, $dosen5);
         $this->seedSemproScheduled($admin, $ilkom, $dosen1, $dosen2);
-        $this->seedSemproRevision($admin, $ilkom, $dosen1, $dosen2);
+        $this->seedSemproRevision($admin, $ilkom, $dosen2, $dosen6);
         $this->seedTitleReviewPending($ilkom);
-        $this->seedSemproPassedWithoutSupervisors($admin, $ilkom, $dosen1, $dosen2);
+        $this->seedSemproPassedWithoutSupervisors($admin, $ilkom, $dosen2, $dosen6);
         $this->seedMultipleSemproAttempts($admin, $ilkom, $dosen1, $dosen2);
-        $this->seedHistoricalRestart($admin, $ilkom, $dosen1, $dosen2, $dosen3 ?? $dosen1, $dosen4 ?? $dosen2);
-        $this->seedSupervisorRotationAndSidang($admin, $ilkom, $dosen1, $dosen2, $dosen3 ?? $dosen1, $dosen4 ?? $dosen2);
+        $this->seedHistoricalRestart($admin, $ilkom, $dosen3, $dosen2, $dosen3, $dosen4);
+        $this->seedSupervisorRotationAndSidang($admin, $ilkom, $dosen3, $dosen2, $dosen4, $dosen3);
     }
 
     private function seedFullyProgressed(User $admin, ProgramStudi $prodi, User $examinerOne, User $examinerTwo, User $supervisorOne, User $supervisorTwo): void
@@ -80,6 +91,7 @@ class ThesisWorkflowSeeder extends Seeder
 
         $this->upsertDefenseExaminer($sempro, $examinerOne, 'examiner', 1, 'pass', 82.5, 'Proposal sudah baik, lanjutkan ke pembimbingan.', $admin, $semproAt->addMinutes(90));
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'pass', 78, 'Metodologi cukup jelas. Setuju untuk lanjut.', $admin, $semproAt->addMinutes(95));
+        $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
         $this->upsertSupervisorAssignment($project, $supervisorOne, AdvisorType::Primary->value, 'active', $admin, CarbonImmutable::parse('2026-01-30 10:00:00'), null, 'Pembimbing utama untuk skripsi sistem rekomendasi.');
         $this->upsertSupervisorAssignment($project, $supervisorTwo, AdvisorType::Secondary->value, 'active', $admin, CarbonImmutable::parse('2026-01-30 10:05:00'), null, 'Pembimbing kedua.');
@@ -246,6 +258,7 @@ class ThesisWorkflowSeeder extends Seeder
 
         $this->upsertDefenseExaminer($sempro, $examinerOne, 'examiner', 1, 'pass', 85, 'Topik sangat relevan. Lanjutkan.', $admin, $semproAt->addMinutes(80));
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'pass', 80, 'Setuju. Dataset sudah jelas.', $admin, $semproAt->addMinutes(90));
+        $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
         $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul dibuat.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
@@ -284,6 +297,7 @@ class ThesisWorkflowSeeder extends Seeder
         $attemptOne = $this->upsertDefense($project, $title, 'sempro', 1, 'completed', 'pass', $attemptOneAt, 'Ruang Seminar 4A', 'offline', $admin, $admin, $attemptOneAt->addHours(2), 'Attempt pertama selesai.');
         $this->upsertDefenseExaminer($attemptOne, $examinerOne, 'examiner', 1, 'pass', 79.5, 'Attempt pertama dinyatakan layak, tetapi perlu penjadwalan ulang presentasi akhir.', $admin, $attemptOneAt->addMinutes(90));
         $this->upsertDefenseExaminer($attemptOne, $examinerTwo, 'examiner', 2, 'pass', 81, 'Attempt pertama selesai, lanjut ke penjadwalan ulang presentasi lanjutan.', $admin, $attemptOneAt->addMinutes(95));
+        $this->createSemproThread($attemptOne, $student, [$examinerOne, $examinerTwo], $attemptOneAt);
 
         $attemptTwoAt = CarbonImmutable::parse('2026-03-18 13:30:00');
         $attemptTwo = $this->upsertDefense($project, $title, 'sempro', 2, 'scheduled', 'pending', $attemptTwoAt, 'Ruang Seminar 4B', 'online', $admin);
@@ -339,6 +353,7 @@ class ThesisWorkflowSeeder extends Seeder
         $historicalSempro = $this->upsertDefense($historicalProject, $historicalTitle, 'sempro', 1, 'completed', 'pass', $historicalSemproAt, 'Ruang Seminar 2', 'offline', $admin, $admin, $historicalSemproAt->addHours(2), 'Sempro proyek lama disetujui.');
         $this->upsertDefenseExaminer($historicalSempro, $examinerOne, 'examiner', 1, 'pass', 78, 'Sempro proyek lama disetujui.', $admin, $historicalSemproAt->addMinutes(80));
         $this->upsertDefenseExaminer($historicalSempro, $examinerTwo, 'examiner', 2, 'pass', 80.5, 'Dokumen proyek lama cukup baik.', $admin, $historicalSemproAt->addMinutes(85));
+        $this->createSemproThread($historicalSempro, $student, [$examinerOne, $examinerTwo], $historicalSemproAt);
 
         $this->upsertSupervisorAssignment($historicalProject, $supervisorOne, AdvisorType::Primary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:00:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing proyek lama.');
         $this->upsertSupervisorAssignment($historicalProject, $supervisorTwo, AdvisorType::Secondary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:05:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing kedua proyek lama.');
@@ -347,6 +362,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertDefenseExaminer($historicalSidang, $supervisorOne, 'primary_supervisor', 1, 'pass', 83.5, 'Pembimbing utama menyetujui dengan revisi minor.', $admin, $historicalSidangAt->addMinutes(95));
         $this->upsertDefenseExaminer($historicalSidang, $supervisorTwo, 'secondary_supervisor', 2, 'pass_with_revision', 81, 'Pembimbing kedua menambahkan catatan format.', $admin, $historicalSidangAt->addMinutes(100));
         $this->upsertDefenseExaminer($historicalSidang, $examinerOne, 'examiner', 3, 'pass', 84, 'Penguji menyetujui hasil sidang.', $admin, $historicalSidangAt->addMinutes(105));
+        $this->createSidangThread($historicalSidang, $student, [$supervisorOne, $supervisorTwo, $examinerOne], $historicalSidangAt);
 
         $revision = $this->upsertRevision(
             $historicalProject,
@@ -416,6 +432,7 @@ class ThesisWorkflowSeeder extends Seeder
         $sempro = $this->upsertDefense($project, $title, 'sempro', 1, 'completed', 'pass', $semproAt, 'Ruang Seminar 5', 'offline', $admin, $admin, $semproAt->addHours(2), 'Lanjutkan ke tahap penelitian.');
         $this->upsertDefenseExaminer($sempro, $initialSupervisor, 'examiner', 1, 'pass', 84, 'Analisis sudah matang.', $admin, $semproAt->addMinutes(80));
         $this->upsertDefenseExaminer($sempro, $semproExaminer, 'examiner', 2, 'pass', 82, 'Lanjutkan ke tahap penelitian.', $admin, $semproAt->addMinutes(85));
+        $this->createSemproThread($sempro, $student, [$initialSupervisor, $semproExaminer], $semproAt);
 
         $this->upsertSupervisorAssignment($project, $initialSupervisor, AdvisorType::Primary->value, 'ended', $admin, CarbonImmutable::parse('2026-02-03 09:00:00'), CarbonImmutable::parse('2026-02-20 09:00:00'), 'Pembimbing utama awal sebelum rotasi.');
         $this->upsertSupervisorAssignment($project, $newPrimarySupervisor, AdvisorType::Primary->value, 'active', $admin, CarbonImmutable::parse('2026-02-21 09:00:00'), null, 'Rotasi pembimbing utama karena penyesuaian topik riset.');
@@ -425,6 +442,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertDefenseExaminer($sidang, $newPrimarySupervisor, 'primary_supervisor', 1, 'pending', null, 'Pembimbing utama sidang.', $admin, null);
         $this->upsertDefenseExaminer($sidang, $secondarySupervisor, 'secondary_supervisor', 2, 'pending', null, 'Pembimbing kedua sidang.', $admin, null);
         $this->upsertDefenseExaminer($sidang, $semproExaminer, 'examiner', 3, 'pending', null, 'Penguji eksternal sidang.', $admin, null);
+        $this->createSidangThread($sidang, $student, [$newPrimarySupervisor, $secondarySupervisor, $semproExaminer], $sidangAt);
 
         $this->upsertMentorshipDocument($student, $newPrimarySupervisor, 'Draft Bab 4', 'draft-tugas-akhir', 1, 'mentorship/putra/draft-bab4-v1.pdf', 'submitted', CarbonImmutable::parse('2026-03-01 11:00:00'), null);
         $this->upsertMentorshipDocument($student, $secondarySupervisor, 'Draft Bab 4', 'draft-tugas-akhir', 1, 'mentorship/putra/draft-bab4-v1.pdf', 'submitted', CarbonImmutable::parse('2026-03-01 11:00:00'), null);
@@ -814,6 +832,51 @@ class ThesisWorkflowSeeder extends Seeder
             ],
         );
 
+        $this->syncDefenseThreadParticipants($thread, $student, $examiners);
+
+        if ($thread->messages()->count() === 0) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
+                'sent_at' => $createdAt,
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, User>  $panel
+     */
+    private function createSidangThread(ThesisDefense $defense, User $student, array $panel, CarbonImmutable $createdAt): void
+    {
+        $thread = MentorshipChatThread::query()->updateOrCreate(
+            [
+                'student_user_id' => $student->id,
+                'type' => 'sidang',
+                'context_id' => $defense->id,
+            ],
+            [
+                'label' => 'Sidang',
+            ],
+        );
+
+        $this->syncDefenseThreadParticipants($thread, $student, $panel);
+
+        if ($thread->messages()->count() === 0) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Thread Sidang telah dibuat. Silahkan berdiskusi mengenai sidang di sini.',
+                'sent_at' => $createdAt,
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, User>  $lecturers
+     */
+    private function syncDefenseThreadParticipants(MentorshipChatThread $thread, User $student, array $lecturers): void
+    {
         MentorshipChatThreadParticipant::query()->updateOrCreate(
             [
                 'thread_id' => $thread->id,
@@ -824,25 +887,30 @@ class ThesisWorkflowSeeder extends Seeder
             ],
         );
 
-        foreach ($examiners as $examiner) {
+        $lecturerIds = collect($lecturers)
+            ->map(fn(User $lecturer): int => $lecturer->id)
+            ->values();
+
+        MentorshipChatThreadParticipant::query()
+            ->where('thread_id', $thread->id)
+            ->where('role', 'examiner')
+            ->when(
+                $lecturerIds->isNotEmpty(),
+                fn($query) => $query->whereNotIn('user_id', $lecturerIds->all()),
+                fn($query) => $query,
+            )
+            ->delete();
+
+        foreach ($lecturers as $lecturer) {
             MentorshipChatThreadParticipant::query()->updateOrCreate(
                 [
                     'thread_id' => $thread->id,
-                    'user_id' => $examiner->id,
+                    'user_id' => $lecturer->id,
                 ],
                 [
                     'role' => 'examiner',
                 ],
             );
-        }
-
-        if ($thread->messages()->count() === 0) {
-            $thread->messages()->create([
-                'sender_user_id' => null,
-                'message_type' => 'text',
-                'message' => 'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
-                'sent_at' => $createdAt,
-            ]);
         }
     }
 
