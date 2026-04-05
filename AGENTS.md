@@ -4,7 +4,7 @@ Compact operating guide for coding agents in this repository.
 
 ## Project Snapshot
 
-- Stack: Laravel 12, PHP 8.4, Inertia v2, React 19, Tailwind v4, Reverb, Pest 4.
+- Stack: Laravel 12, PHP 8.4, Inertia v2, React 19, Tailwind v4, Reverb, Pest 4, Playwright.
 - Main areas: backend (`app/`, `routes/`, `database/`), frontend (`resources/js/`).
 - Real-time features use Echo + Reverb and depend on Reverb env vars.
 - UI: Uses Radix UI primitives, Lucide icons, class-variance-authority (cva), clsx, tailwind-merge.
@@ -45,6 +45,10 @@ Compact operating guide for coding agents in this repository.
 - Run all tests (compact): `php artisan test --compact`
 - Run specific test file: `php artisan test --compact tests/Feature/ExampleTest.php`
 - Run tests matching filter: `php artisan test --compact --filter=testName`
+- Run Playwright E2E: `npm run e2e`
+- Run Playwright E2E headed: `npm run e2e:headed`
+- Run Playwright UI runner: `npm run e2e:ui`
+- Run one Playwright spec: `npx playwright test tests/e2e/specs/session-isolation.spec.ts`
 - CI verify hook: `composer run ci:verify`
 
 ## Laravel / PHP Rules
@@ -119,11 +123,22 @@ use Illuminate\Support\Facades\Auth;
 
 ## Testing & Quality Gates
 
-- All functional changes require tests (Pest).
+- All backend/domain changes require tests (Pest).
 - Tests live in `tests/Feature/` and `tests/Unit/`.
 - Use Pest syntax: `it('description', function () { ... });`
 - Run targeted tests first, then full suite if requested.
 - Use datasets for parameterized tests.
+
+### Playwright E2E
+
+- E2E specs live in `tests/e2e/specs/`.
+- Playwright support utilities live in `tests/e2e/support/`.
+- Playwright uses a dedicated SQLite database at `database/playwright.sqlite` and auth state under `storage/playwright`.
+- `global-setup.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
+- Prefer keeping E2E focused on user-visible multi-role integration flows; keep business logic coverage in Pest.
+- When changing thesis workflow UI or seed-backed flows, verify both the relevant Pest tests and the affected Playwright specs.
+- Use stable selectors in E2E assertions. Prefer page titles, labels, roles, unique section copy, or scoped locators over generic repeated text.
+- `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification.
 
 ### Test Conventions
 
