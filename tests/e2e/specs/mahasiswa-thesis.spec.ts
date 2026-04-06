@@ -63,10 +63,96 @@ test.describe('Mahasiswa title and proposal flow', () => {
         ).toBeVisible();
     });
 
-    test.fixme('mahasiswa submits a brand new title and proposal as the first thesis record', async () => {
-        // Use a dedicated mahasiswa account without an existing thesis project.
-        // Fill the initial form in /mahasiswa/tugas-akhir.
-        // Upload a PDF proposal and verify the workflow badge becomes title review pending.
-        // Verify admin sees the new project in /admin/thesis-projects.
+    test('mahasiswa submits a brand new title and proposal as the first thesis record', async ({
+        browser,
+    }) => {
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath(
+                thesisScenarios.firstSubmission.studentKey,
+            ),
+        });
+        const adminContext = await browser.newContext({
+            storageState: authStatePath('admin'),
+        });
+
+        const titleId =
+            'Arsitektur Zero-Trust untuk Keamanan Akses Laboratorium Komputasi';
+
+        try {
+            const mahasiswaPage = await mahasiswaContext.newPage();
+            const adminPage = await adminContext.newPage();
+
+            await mahasiswaPage.goto('/mahasiswa/tugas-akhir');
+            await expect(mahasiswaPage).toHaveTitle(/Tugas Akhir/i);
+            await expect(
+                mahasiswaPage.getByText('Ajukan Judul & Proposal').first(),
+            ).toBeVisible();
+
+            await mahasiswaPage
+                .getByLabel('Judul Skripsi (Bahasa Indonesia)')
+                .fill(titleId);
+            await mahasiswaPage
+                .getByLabel('Judul Skripsi (Bahasa Inggris)')
+                .fill(
+                    'Zero-Trust Architecture for Securing Computing Laboratory Access',
+                );
+            await mahasiswaPage
+                .getByLabel('Ringkasan Proposal')
+                .fill(
+                    'Proposal Playwright ini mengajukan rancangan kontrol akses laboratorium berbasis zero-trust dengan evaluasi kebijakan identitas, perangkat, dan sesi penggunaan.',
+                );
+            await mahasiswaPage
+                .getByLabel('File Proposal (PDF)')
+                .setInputFiles(
+                    path.join(
+                        process.cwd(),
+                        thesisFixtures.thesisDocumentUploadPath,
+                    ),
+                );
+            await mahasiswaPage
+                .getByRole('button', { name: 'Ajukan Sekarang' })
+                .click();
+
+            await expect(
+                mahasiswaPage
+                    .getByText(
+                        'Judul & Proposal berhasil diajukan dan sedang menunggu review Admin.',
+                    )
+                    .first(),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByText('Status Pengajuan').first(),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByText(titleId).first(),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByText('Menunggu Persetujuan').first(),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage
+                    .getByText(
+                        'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
+                    )
+                    .first(),
+            ).toBeVisible();
+
+            await adminPage.goto(thesisFixtures.adminProjectsPath);
+            await expect(adminPage).toHaveURL(/\/admin\/thesis-projects/);
+
+            const projectRow = adminPage
+                .locator('tr')
+                .filter({
+                    hasText: thesisScenarios.firstSubmission.studentName,
+                })
+                .first();
+
+            await expect(projectRow).toBeVisible();
+            await expect(projectRow).toContainText('Arsitektur Zero-Trust');
+            await expect(projectRow).toContainText('Review Judul');
+        } finally {
+            await mahasiswaContext.close();
+            await adminContext.close();
+        }
     });
 });
