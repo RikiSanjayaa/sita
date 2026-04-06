@@ -14,7 +14,9 @@ export type PlaywrightAccountKey =
     | 'akbar'
     | 'nadia'
     | 'rizky'
+    | 'siti'
     | 'bagas'
+    | 'farhan'
     | 'putra';
 
 type PlaywrightAccount = {
@@ -94,8 +96,20 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
+    siti: {
+        email: 'siti@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
     bagas: {
         email: 'bagas@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
+    farhan: {
+        email: 'farhan@sita.test',
         password: 'password',
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
@@ -125,10 +139,20 @@ export const thesisScenarios = {
         studentName: 'Nadia Putri',
         currentTitle: 'Pengembangan Aplikasi E-Learning Berbasis Gamifikasi',
     },
+    semproPassedWithoutSupervisors: {
+        studentKey: 'siti' as const,
+        studentName: 'Siti Aminah',
+        currentTitle:
+            'Sistem Deteksi Intrusi Jaringan Menggunakan Machine Learning',
+    },
     semproRetry: {
         studentKey: 'bagas' as const,
         studentName: 'Bagas Saputra',
         currentTitle: 'Platform Asesmen Otomatis Kualitas Proposal Skripsi',
+    },
+    firstSubmission: {
+        studentKey: 'farhan' as const,
+        studentName: 'Farhan Maulana',
     },
     sidangScheduled: {
         studentKey: 'putra' as const,
