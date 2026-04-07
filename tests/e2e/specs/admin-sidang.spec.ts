@@ -114,8 +114,6 @@ async function bimbinganThreadRow(
 }
 
 test.describe('Admin sidang workflow', () => {
-    test.use({ storageState: authStatePath('admin') });
-
     test('admin assigns supervisors after sempro pass and keeps thesis chat continuity intact', async ({
         browser,
     }) => {

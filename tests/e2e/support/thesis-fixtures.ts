@@ -3,6 +3,7 @@ import path from 'node:path';
 import { playwrightAuthPath } from './db';
 
 export type PlaywrightAccountKey =
+    | 'superadmin'
     | 'admin'
     | 'dosen1'
     | 'dosen2'
@@ -30,10 +31,16 @@ export const playwrightAccounts: Record<
     PlaywrightAccountKey,
     PlaywrightAccount
 > = {
+    superadmin: {
+        email: 'superadmin@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/dashboard',
+    },
     admin: {
         email: 'admin@sita.test',
         password: 'password',
-        loginPath: '/admin/login',
+        loginPath: '/admin',
         landingPath: '/admin',
     },
     dosen1: {

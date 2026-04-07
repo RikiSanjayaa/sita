@@ -145,7 +145,7 @@ Playwright dipakai untuk pengujian integrasi UI multi-role, terutama alur tugas 
     - menyimpan auth state di `storage/playwright`
     - menjalankan `php artisan migrate:fresh --seed --force`
     - menangkap session login untuk admin, dosen, dan mahasiswa uji
-- Web server E2E dijalankan otomatis dari Playwright lewat `npm run build` dan `php artisan serve --host=127.0.0.1 --port=9000`
+- Web server E2E dijalankan otomatis dari Playwright lewat `npm run build` dan `php artisan serve --host=127.0.0.1 --port=9010`
 
 ### Menjalankan E2E
 
