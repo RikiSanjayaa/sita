@@ -58,7 +58,8 @@ const rightNavItems: NavItem[] = [
     },
 ];
 
-const activeItemStyles = 'bg-primary/10 text-primary dark:bg-primary/15';
+const activeItemStyles =
+    'border border-primary/15 bg-primary/8 text-primary dark:bg-primary/12';
 
 interface AppHeaderProps {
     breadcrumbs?: BreadcrumbItem[];
