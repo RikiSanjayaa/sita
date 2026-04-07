@@ -120,11 +120,11 @@ export default function DosenDashboardPage() {
                 <Card className="relative overflow-hidden border-border/60 p-0 shadow-sm">
                     {/* Decorative background blobs */}
                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                        <div className="absolute -top-20 -right-20 size-72 rounded-full bg-primary/8 blur-3xl" />
-                        <div className="absolute -bottom-16 left-1/3 size-56 rounded-full bg-primary/5 blur-2xl" />
+                        <div className="absolute -top-20 -right-20 size-72 rounded-full bg-primary/5 blur-3xl" />
+                        <div className="absolute -bottom-16 left-1/3 size-56 rounded-full bg-primary/3 blur-2xl" />
                     </div>
 
-                    <CardContent className="relative bg-gradient-to-br from-primary/5 via-background to-accent/20 p-0">
+                    <CardContent className="relative bg-gradient-to-br from-background via-background to-accent/12 p-0">
                         <div className="grid lg:grid-cols-[1.3fr_0.7fr]">
                             {/* Left: greeting + description */}
                             <div className="flex flex-col justify-center gap-6 p-6 lg:p-8">
@@ -195,7 +195,7 @@ export default function DosenDashboardPage() {
 
                             {/* Right: summary mini-card — pinned flush inside the hero */}
                             <div className="flex items-stretch lg:border-l lg:border-border/60">
-                                <div className="flex w-full flex-col justify-between bg-white/80 p-6 backdrop-blur lg:rounded-none dark:bg-black/70">
+                                <div className="flex w-full flex-col justify-between bg-card/95 p-6 backdrop-blur lg:rounded-none">
                                     {/* Header */}
                                     <div>
                                         <div className="flex items-start justify-between gap-3">
@@ -225,7 +225,7 @@ export default function DosenDashboardPage() {
                                             {summary.metrics.map((metric) => (
                                                 <div
                                                     key={metric.label}
-                                                    className="rounded-xl bg-primary/8 px-3 py-2.5"
+                                                    className="rounded-xl bg-muted/55 px-3 py-2.5"
                                                 >
                                                     <p className="text-[10px] font-semibold tracking-wide text-primary/70 uppercase">
                                                         {metric.label}

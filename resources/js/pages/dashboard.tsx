@@ -198,7 +198,7 @@ export default function DashboardPage() {
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
                 {/* ── Hero Card ── (unchanged) */}
                 <Card className="overflow-hidden border-border/70 p-0 shadow-sm">
-                    <CardContent className="bg-gradient-to-br from-white/8 via-background to-accent/20 p-6 lg:p-8">
+                    <CardContent className="bg-gradient-to-br from-background via-background to-accent/12 p-6 lg:p-8">
                         <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
                             <div className="space-y-5">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="rounded-2xl border bg-white/90 p-5 shadow-sm backdrop-blur dark:bg-black/90">
+                            <div className="rounded-2xl border border-border/80 bg-card/95 p-5 shadow-sm backdrop-blur">
                                 <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
                                     Status Saat Ini
                                 </p>
@@ -495,9 +495,9 @@ export default function DashboardPage() {
                                                         className={cn(
                                                             'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 transition-all',
                                                             isDone
-                                                                ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                                                                ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/12'
                                                                 : isCurrent
-                                                                  ? 'border-primary bg-background shadow-sm shadow-primary/15'
+                                                                  ? 'border-primary bg-background shadow-sm shadow-primary/8'
                                                                   : 'border-muted bg-muted/50',
                                                         )}
                                                     >
@@ -511,7 +511,7 @@ export default function DashboardPage() {
 
                                                         {/* Pulse ring for current step */}
                                                         {isCurrent && (
-                                                            <span className="absolute inset-0 animate-ping rounded-full border-2 border-primary/30" />
+                                                            <span className="absolute inset-0 animate-ping rounded-full border-2 border-primary/18" />
                                                         )}
                                                     </div>
 
