@@ -19,7 +19,7 @@ export const playwrightDatabasePath = path.join(
 );
 
 export function playwrightEnvironment(
-    baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:9000',
+    baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:9010',
 ): NodeJS.ProcessEnv {
     return {
         ...process.env,

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:9000';
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:9010';
 const databasePath = path.join(
     currentDirectory,
     'database',
@@ -28,7 +28,7 @@ const webServerEnvironment = {
 };
 
 export default defineConfig({
-    testDir: './tests/e2e/specs',
+    testDir: './tests/e2e',
     fullyParallel: false,
     workers: 1,
     retries: process.env.CI ? 1 : 0,
@@ -36,16 +36,26 @@ export default defineConfig({
     expect: {
         timeout: 10_000,
     },
-    globalSetup: './tests/e2e/global-setup.ts',
     use: {
         baseURL,
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
     },
+    projects: [
+        {
+            name: 'setup',
+            testMatch: /setup[\\/].*\.spec\.ts/,
+        },
+        {
+            name: 'chromium',
+            testMatch: /specs[\\/].*\.spec\.ts/,
+            dependencies: ['setup'],
+        },
+    ],
     webServer: {
         command:
-            'npm run build && php artisan serve --host=127.0.0.1 --port=9000',
+            'npm run build && php artisan serve --host=127.0.0.1 --port=9010',
         url: `${baseURL}/up`,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,

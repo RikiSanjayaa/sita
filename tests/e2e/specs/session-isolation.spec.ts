@@ -6,7 +6,7 @@ test('playwright keeps admin, mahasiswa, and dosen sessions isolated in parallel
     browser,
 }) => {
     const adminContext = await browser.newContext({
-        storageState: authStatePath('admin'),
+        storageState: authStatePath('superadmin'),
     });
     const mahasiswaContext = await browser.newContext({
         storageState: authStatePath('mahasiswa'),

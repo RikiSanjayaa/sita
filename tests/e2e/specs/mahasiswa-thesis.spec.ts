@@ -72,7 +72,7 @@ test.describe('Mahasiswa title and proposal flow', () => {
             ),
         });
         const adminContext = await browser.newContext({
-            storageState: authStatePath('admin'),
+            storageState: authStatePath('superadmin'),
         });
 
         const titleId =

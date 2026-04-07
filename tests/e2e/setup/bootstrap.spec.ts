@@ -1,7 +1,9 @@
-import { request, type FullConfig } from '@playwright/test';
+import { request, test } from '@playwright/test';
 
-import { captureAuthStates } from './support/auth';
-import { ensurePlaywrightFilesystem, runArtisan } from './support/db';
+import { captureAuthStates } from '../support/auth';
+import { ensurePlaywrightFilesystem, runArtisan } from '../support/db';
+
+test.setTimeout(5 * 60 * 1000);
 
 async function waitForApplication(baseURL: string): Promise<void> {
     const api = await request.newContext({ baseURL });
@@ -27,15 +29,14 @@ async function waitForApplication(baseURL: string): Promise<void> {
     throw new Error(`Laravel app did not become ready at ${baseURL}/up.`);
 }
 
-export default async function globalSetup(config: FullConfig): Promise<void> {
-    const baseURL =
-        (config.projects[0]?.use.baseURL as string | undefined) ??
-        'http://127.0.0.1:9000';
+test('bootstrap Playwright database and auth states', async ({ baseURL }) => {
+    const resolvedBaseUrl = baseURL ?? 'http://127.0.0.1:9010';
 
     ensurePlaywrightFilesystem();
-    runArtisan(['optimize:clear'], baseURL);
-    runArtisan(['migrate:fresh', '--seed', '--force'], baseURL);
+    runArtisan(['optimize:clear'], resolvedBaseUrl);
+    runArtisan(['migrate:fresh', '--seed', '--force'], resolvedBaseUrl);
 
-    await waitForApplication(baseURL);
-    await captureAuthStates(baseURL);
-}
+    await waitForApplication(resolvedBaseUrl);
+    await captureAuthStates(resolvedBaseUrl);
+    await waitForApplication(resolvedBaseUrl);
+});

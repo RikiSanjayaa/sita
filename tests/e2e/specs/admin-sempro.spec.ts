@@ -171,7 +171,7 @@ test.describe('Admin sempro workflow', () => {
         browser,
     }) => {
         const adminContext = await browser.newContext({
-            storageState: authStatePath('admin'),
+            storageState: authStatePath('superadmin'),
         });
         const removedExaminerContext = await browser.newContext({
             storageState: authStatePath('dosen2'),
