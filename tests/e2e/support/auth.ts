@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 import { chromium, expect, request, type Page } from '@playwright/test';
 
+import { isFilamentAccount, newFilamentContext } from './filament-auth';
 import {
     authStatePath,
     playwrightAccounts,
@@ -14,20 +15,11 @@ async function login(
 ): Promise<void> {
     const account = playwrightAccounts[accountKey];
 
-    if (accountKey === 'admin') {
+    if (isFilamentAccount(accountKey)) {
         const browser = await chromium.launch();
 
         try {
-            const context = await browser.newContext();
-            const page = await context.newPage();
-
-            await page.goto(new URL('/admin', baseURL).toString());
-            await page.locator('#form.email').fill(account.email);
-            await page.locator('#form.password').fill(account.password);
-            await page
-                .getByRole('button', { name: /Masuk ke dashboard/i })
-                .click();
-            await page.waitForURL('**/admin', { timeout: 15_000 });
+            const context = await newFilamentContext(browser, accountKey);
             await context.storageState({ path: authStatePath(accountKey) });
             await context.close();
 
@@ -103,10 +95,6 @@ export async function captureAuthStates(baseURL: string): Promise<void> {
     for (const accountKey of Object.keys(
         playwrightAccounts,
     ) as PlaywrightAccountKey[]) {
-        if (accountKey === 'admin') {
-            continue;
-        }
-
         console.log(`[playwright-auth] capturing ${accountKey}`);
         await login(accountKey, baseURL);
         console.log(`[playwright-auth] captured ${accountKey}`);

@@ -15,6 +15,7 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Notifications\RealtimeNotification;
+use App\Support\WitaDateTime;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -136,15 +137,15 @@ test('admin can edit thesis project metadata from a dedicated edit page', functi
         ->assertOk()
         ->assertSee('Koreksi Administratif');
 
-    $completedAt = now()->subDay()->startOfMinute()->format('Y-m-d H:i:s');
-    $startedAt = now()->subDays(12)->startOfMinute()->format('Y-m-d H:i:s');
+    $completedAt = now()->subDay()->startOfMinute();
+    $startedAt = now()->subDays(12)->startOfMinute();
 
     Livewire::test(EditThesisProject::class, ['record' => $project->getRouteKey()])
         ->fillForm([
             'phase' => 'completed',
             'state' => 'completed',
-            'started_at' => $startedAt,
-            'completed_at' => $completedAt,
+            'started_at' => $startedAt->setTimezone(WitaDateTime::TIMEZONE)->format('Y-m-d H:i:s'),
+            'completed_at' => $completedAt->setTimezone(WitaDateTime::TIMEZONE)->format('Y-m-d H:i:s'),
             'notes' => 'Diselesaikan setelah verifikasi administrasi.',
         ])
         ->call('save')
@@ -156,8 +157,8 @@ test('admin can edit thesis project metadata from a dedicated edit page', functi
     expect($project->phase)->toBe('completed')
         ->and($project->state)->toBe('completed')
         ->and($project->notes)->toBe('Diselesaikan setelah verifikasi administrasi.')
-        ->and($project->started_at?->format('Y-m-d H:i:s'))->toBe($startedAt)
-        ->and($project->completed_at?->format('Y-m-d H:i:s'))->toBe($completedAt)
+        ->and($project->started_at?->format('Y-m-d H:i:s'))->toBe($startedAt->format('Y-m-d H:i:s'))
+        ->and($project->completed_at?->format('Y-m-d H:i:s'))->toBe($completedAt->format('Y-m-d H:i:s'))
         ->and($project->cancelled_at)->toBeNull();
 });
 

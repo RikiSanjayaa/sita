@@ -40,6 +40,7 @@ export function playwrightEnvironment(
 
 export function ensurePlaywrightFilesystem(): void {
     fs.mkdirSync(playwrightStoragePath, { recursive: true });
+    fs.rmSync(playwrightAuthPath, { recursive: true, force: true });
     fs.mkdirSync(playwrightAuthPath, { recursive: true });
 
     if (!fs.existsSync(playwrightDatabasePath)) {

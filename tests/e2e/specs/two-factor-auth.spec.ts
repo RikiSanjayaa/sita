@@ -2,11 +2,7 @@ import crypto from 'node:crypto';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import {
-    authStatePath,
-    playwrightAccounts,
-    thesisScenarios,
-} from '../support/thesis-fixtures';
+import { runArtisan } from '../support/db';
 
 function decodeBase32(secret: string): Buffer {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -76,19 +72,48 @@ async function logoutFromUserMenu(page: Page): Promise<void> {
     await expect(page).toHaveURL(/(?:\/$|\/login$)/);
 }
 
+function resetTwoFactorTestUser(email: string, password: string): void {
+    runArtisan([
+        'tinker',
+        `--execute=$role = App\\Models\\Role::query()->where("name", "mahasiswa")->firstOrFail(); $program = App\\Models\\ProgramStudi::query()->where("slug", "ilkom")->firstOrFail(); $user = App\\Models\\User::query()->updateOrCreate(["email" => "${email}"], ["name" => "Playwright Two Factor", "phone_number" => "081234567899", "password" => Illuminate\\Support\\Facades\\Hash::make("${password}"), "last_active_role" => "mahasiswa", "two_factor_secret" => null, "two_factor_recovery_codes" => null, "two_factor_confirmed_at" => null]); $user->roles()->syncWithoutDetaching([$role->id]); App\\Models\\MahasiswaProfile::query()->updateOrCreate(["user_id" => $user->id], ["nim" => "2210519999", "angkatan" => 2022, "program_studi_id" => $program->id, "concentration" => "Jaringan"]);`,
+    ]);
+}
+
+async function loginWithPassword(
+    page: Page,
+    email: string,
+    password: string,
+): Promise<void> {
+    await page.goto('/login');
+    await expect(page).toHaveTitle(/Masuk/i);
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Kata sandi').fill(password);
+    await page.getByRole('button', { name: 'Masuk' }).click();
+}
+
 test.describe('Two-factor authentication flow', () => {
     test('user can enable 2FA from settings and sign in through the authentication-code challenge', async ({
         browser,
     }) => {
-        const studentKey = thesisScenarios.firstSubmission.studentKey;
-        const account = playwrightAccounts[studentKey];
-        const authenticatedContext = await browser.newContext({
-            storageState: authStatePath(studentKey),
-        });
+        const account = {
+            email: 'playwright-2fa@sita.test',
+            password: 'password',
+        };
+
+        resetTwoFactorTestUser(account.email, account.password);
+
+        const authenticatedContext = await browser.newContext();
         const freshLoginContext = await browser.newContext();
 
         try {
             const settingsPage = await authenticatedContext.newPage();
+
+            await loginWithPassword(
+                settingsPage,
+                account.email,
+                account.password,
+            );
+            await expect(settingsPage).toHaveURL(/\/mahasiswa\/dashboard/);
 
             await settingsPage.goto('/settings/two-factor');
             await confirmPasswordIfNeeded(settingsPage, account.password);
@@ -146,11 +171,7 @@ test.describe('Two-factor authentication flow', () => {
             await logoutFromUserMenu(settingsPage);
 
             const loginPage = await freshLoginContext.newPage();
-            await loginPage.goto('/login');
-            await expect(loginPage).toHaveTitle(/Masuk/i);
-            await loginPage.getByLabel('Email').fill(account.email);
-            await loginPage.getByLabel('Kata sandi').fill(account.password);
-            await loginPage.getByRole('button', { name: 'Masuk' }).click();
+            await loginWithPassword(loginPage, account.email, account.password);
 
             await expect(loginPage).toHaveURL(/two-factor-challenge/);
             await expect(loginPage).toHaveTitle(/Two-Factor Authentication/i);
