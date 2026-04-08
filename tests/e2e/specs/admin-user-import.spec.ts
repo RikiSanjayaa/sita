@@ -111,9 +111,32 @@ async function openImportModal(page: Page): Promise<void> {
     ).toBeVisible();
 }
 
-async function selectFilamentOption(page: Page, option: string): Promise<void> {
-    await page.getByRole('button', { name: 'Select an option' }).click();
-    await page.getByRole('option', { name: option, exact: true }).click();
+async function waitForUploadedWorkbook(
+    page: Page,
+    workbookPath: string,
+): Promise<void> {
+    const modal = page.locator('.fi-modal-window').filter({
+        hasText: 'Import user dari Excel',
+    });
+
+    await expect(
+        modal.getByText(path.basename(workbookPath)).first(),
+    ).toBeVisible();
+}
+
+async function selectFilamentOption(
+    page: Page,
+    index: number,
+    value: string,
+): Promise<void> {
+    const modal = page.locator('.fi-modal-window').filter({
+        hasText: 'Import user dari Excel',
+    });
+
+    await modal.locator('.fi-select-input-btn').nth(index).click();
+    await modal
+        .locator(`.fi-select-input-option[data-value="${value}"]`)
+        .click();
 }
 
 async function fillTableSearch(page: Page, query: string): Promise<void> {
@@ -195,7 +218,9 @@ test.describe('Admin user import', () => {
             await page
                 .locator('input[type="file"]')
                 .setInputFiles(workbookPath);
-            await selectFilamentOption(page, 'Mahasiswa');
+            await waitForUploadedWorkbook(page, workbookPath);
+            await selectFilamentOption(page, 0, 'mahasiswa');
+            await selectFilamentOption(page, 1, '1');
             await page.getByRole('button', { name: 'Submit' }).click();
 
             await expect(
@@ -293,7 +318,9 @@ test.describe('Admin user import', () => {
             await page
                 .locator('input[type="file"]')
                 .setInputFiles(workbookPath);
-            await selectFilamentOption(page, 'Mahasiswa');
+            await waitForUploadedWorkbook(page, workbookPath);
+            await selectFilamentOption(page, 0, 'mahasiswa');
+            await selectFilamentOption(page, 1, '1');
             await page.getByRole('button', { name: 'Submit' }).click();
 
             await expect(
