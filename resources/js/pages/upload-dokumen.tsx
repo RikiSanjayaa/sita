@@ -49,7 +49,11 @@ import { cn } from '@/lib/utils';
 import * as routes from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
-type DokumenStatus = 'Menunggu Review' | 'Disetujui' | 'Perlu Revisi';
+type DokumenStatus =
+    | 'Menunggu Review'
+    | 'Disetujui'
+    | 'Perlu Revisi'
+    | 'Tersimpan';
 
 type UploadedDokumenRow = {
     id: number;
@@ -82,6 +86,18 @@ const panduanItems = [
 ];
 
 function StatusBadge({ status }: { status: DokumenStatus }) {
+    if (status === 'Tersimpan') {
+        return (
+            <Badge
+                variant="outline"
+                className="gap-1 border-slate-300 bg-slate-50 whitespace-nowrap text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300"
+            >
+                <Inbox className="size-3" />
+                Tersimpan
+            </Badge>
+        );
+    }
+
     if (status === 'Disetujui') {
         return (
             <Badge className="gap-1 bg-emerald-600 whitespace-nowrap text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
@@ -224,13 +240,13 @@ export default function UploadDokumenPage() {
                     </DialogHeader>
 
                     <form
-                        className="grid gap-5"
+                        className="grid gap-4"
                         onSubmit={(event) => {
                             event.preventDefault();
                             submitUpload();
                         }}
                     >
-                        <div className="grid gap-2">
+                        <div className="grid gap-2 border-b pb-4">
                             <Label htmlFor="title">Judul Dokumen</Label>
                             <Input
                                 id="title"
@@ -247,7 +263,7 @@ export default function UploadDokumenPage() {
                             )}
                         </div>
 
-                        <div className="grid gap-2">
+                        <div className="grid gap-2 border-b pb-4">
                             <Label htmlFor="category">Kategori Dokumen</Label>
                             <Select
                                 value={form.data.category}
@@ -265,11 +281,17 @@ export default function UploadDokumenPage() {
                                     <SelectItem value="proposal">
                                         Proposal
                                     </SelectItem>
+                                    <SelectItem value="final-manuscript">
+                                        Naskah Akhir
+                                    </SelectItem>
                                     <SelectItem value="laporan">
                                         Laporan
                                     </SelectItem>
                                     <SelectItem value="lampiran">
                                         Lampiran
+                                    </SelectItem>
+                                    <SelectItem value="lampiran-sidang">
+                                        Lampiran Sidang
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -361,7 +383,7 @@ export default function UploadDokumenPage() {
 
                 {/* Panduan Upload */}
                 <div className="overflow-hidden rounded-xl border bg-card py-0 shadow-sm">
-                    <div className="border-b bg-muted/20 px-6 py-4">
+                    <div className="border-b px-6 py-4">
                         <h3 className="text-sm font-semibold">
                             Panduan Upload
                         </h3>

@@ -13,11 +13,12 @@ import {
     Languages,
     MapPin,
     Pencil,
+    Search,
     Star,
     Users,
     X,
 } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useMemo, useState } from 'react';
 
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -68,8 +69,36 @@ type AssignedLecturers = {
     pengujiSidang: string | null;
 };
 
+type WorkspaceDocument = {
+    id: number;
+    title: string;
+    category: string;
+    fileName: string;
+    version: string;
+    uploadedAt: string | null;
+    downloadUrl: string;
+};
+
+type DefenseSelection = {
+    defenseId: number;
+    isLocked: boolean;
+    status: string;
+    mainFileName: string | null;
+    mainFileViewUrl: string | null;
+    mainFileDownloadUrl: string | null;
+    supportingDocuments: Array<{
+        id: number;
+        name: string;
+        viewUrl: string;
+        downloadUrl: string;
+    }>;
+};
+
 type TugasAkhirPageProps = {
     submission: Submission | null;
+    workspaceDocuments: WorkspaceDocument[];
+    semproSelection: DefenseSelection | null;
+    sidangSelection: DefenseSelection | null;
     assignedLecturers: AssignedLecturers;
     advisorProfiles: UserProfileSummary[];
     semproExaminerProfiles: UserProfileSummary[];
@@ -117,9 +146,16 @@ type TugasAkhirPageProps = {
             titleId: string;
             titleEn: string | null;
             proposalSummary: string | null;
-            proposalFileName: string | null;
-            proposalFileViewUrl: string | null;
-            proposalFileDownloadUrl: string | null;
+            primaryDocumentLabel: string;
+            primaryDocumentName: string | null;
+            primaryDocumentViewUrl: string | null;
+            primaryDocumentDownloadUrl: string | null;
+            supportingDocuments: Array<{
+                id: number;
+                name: string;
+                viewUrl: string;
+                downloadUrl: string;
+            }>;
             examiners: Array<{
                 id: number;
                 name: string;
@@ -150,9 +186,16 @@ type TugasAkhirPageProps = {
             titleId: string;
             titleEn: string | null;
             proposalSummary: string | null;
-            proposalFileName: string | null;
-            proposalFileViewUrl: string | null;
-            proposalFileDownloadUrl: string | null;
+            primaryDocumentLabel: string;
+            primaryDocumentName: string | null;
+            primaryDocumentViewUrl: string | null;
+            primaryDocumentDownloadUrl: string | null;
+            supportingDocuments: Array<{
+                id: number;
+                name: string;
+                viewUrl: string;
+                downloadUrl: string;
+            }>;
             examiners: Array<{
                 id: number;
                 name: string;
@@ -182,6 +225,11 @@ type FormData = {
     title_en: string;
     proposal_summary: string;
     proposal_file: File | null;
+};
+
+type DefenseDocumentFormData = {
+    workspace_document_id: string;
+    supporting_document_ids: string[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -348,6 +396,479 @@ function SubmissionFields({
                 )}
             </div>
         </div>
+    );
+}
+
+function DocumentSnapshotCard({
+    label,
+    fileName,
+    viewUrl,
+    downloadUrl,
+}: {
+    label: string;
+    fileName: string | null;
+    viewUrl: string | null;
+    downloadUrl: string | null;
+}) {
+    if (!fileName) {
+        return (
+            <div className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                Belum ada {label.toLowerCase()} yang dipilih.
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-2.5 border-l-2 border-primary/30 pl-3">
+            <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
+                <FileText className="size-3.5" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase">
+                    {label}
+                </p>
+                <p className="max-w-[240px] truncate text-xs font-medium">
+                    {fileName}
+                </p>
+            </div>
+            {viewUrl && (
+                <a
+                    href={viewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                    <Eye className="size-3" />
+                    Lihat
+                </a>
+            )}
+            {downloadUrl && (
+                <a
+                    href={downloadUrl}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                    <Download className="size-3" />
+                    Unduh
+                </a>
+            )}
+        </div>
+    );
+}
+
+function DefenseDocumentSelectionSection({
+    title,
+    description,
+    workspaceDocuments,
+    selection,
+    form,
+    onSubmit,
+    allowSupportingFiles,
+}: {
+    title: string;
+    description: string;
+    workspaceDocuments: WorkspaceDocument[];
+    selection: DefenseSelection | null;
+    form: ReturnType<typeof useForm<DefenseDocumentFormData>>;
+    onSubmit: FormEventHandler;
+    allowSupportingFiles: boolean;
+}) {
+    const [mainSearch, setMainSearch] = useState('');
+    const [supportingSearch, setSupportingSearch] = useState('');
+    const filteredMainOptions = useMemo(() => {
+        const needle = mainSearch.trim().toLowerCase();
+
+        if (needle === '') {
+            return workspaceDocuments;
+        }
+
+        return workspaceDocuments.filter((document) =>
+            [
+                document.title,
+                document.fileName,
+                document.category,
+                document.version,
+            ].some((value) => value.toLowerCase().includes(needle)),
+        );
+    }, [mainSearch, workspaceDocuments]);
+    const selectedMainDocument = workspaceDocuments.find(
+        (document) =>
+            document.id.toString() === form.data.workspace_document_id,
+    );
+    const supportingOptions = workspaceDocuments.filter(
+        (document) =>
+            document.id.toString() !== form.data.workspace_document_id,
+    );
+    const filteredSupportingOptions = useMemo(() => {
+        const needle = supportingSearch.trim().toLowerCase();
+
+        if (needle === '') {
+            return supportingOptions;
+        }
+
+        return supportingOptions.filter((document) =>
+            [
+                document.title,
+                document.fileName,
+                document.category,
+                document.version,
+            ].some((value) => value.toLowerCase().includes(needle)),
+        );
+    }, [supportingOptions, supportingSearch]);
+    const selectedSupportingDocuments = supportingOptions.filter((document) =>
+        form.data.supporting_document_ids.includes(document.id.toString()),
+    );
+
+    if (selection === null) {
+        return null;
+    }
+
+    return (
+        <section>
+            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                <SectionHeader title={title} description={description} />
+                <div className="space-y-4 px-5 py-4">
+                    <DocumentSnapshotCard
+                        label={
+                            allowSupportingFiles
+                                ? 'Naskah akhir aktif'
+                                : 'Proposal aktif'
+                        }
+                        fileName={selection.mainFileName}
+                        viewUrl={selection.mainFileViewUrl}
+                        downloadUrl={selection.mainFileDownloadUrl}
+                    />
+
+                    {allowSupportingFiles &&
+                        selection.supportingDocuments.length > 0 && (
+                            <div className="space-y-2 border-t pt-3">
+                                <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">
+                                    Lampiran aktif
+                                </p>
+                                <div className="space-y-2">
+                                    {selection.supportingDocuments.map(
+                                        (document) => (
+                                            <DocumentSnapshotCard
+                                                key={document.id}
+                                                label="Lampiran"
+                                                fileName={document.name}
+                                                viewUrl={document.viewUrl}
+                                                downloadUrl={
+                                                    document.downloadUrl
+                                                }
+                                            />
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                    {selection.isLocked ? (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400">
+                            Dokumen untuk tahap ini sudah dikunci karena hasil
+                            resmi telah ditetapkan.
+                        </div>
+                    ) : workspaceDocuments.length === 0 ? (
+                        <div className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                            Belum ada file di workspace. Unggah file lebih dulu
+                            dari halaman{' '}
+                            <a
+                                href="/mahasiswa/upload-dokumen"
+                                className="font-medium text-primary hover:underline"
+                            >
+                                Upload Dokumen
+                            </a>
+                            .
+                        </div>
+                    ) : (
+                        <form
+                            onSubmit={onSubmit}
+                            className="space-y-4 border-t pt-4"
+                        >
+                            <div className="grid gap-2">
+                                <Label>
+                                    {allowSupportingFiles
+                                        ? 'Pilih naskah akhir'
+                                        : 'Pilih file proposal'}
+                                </Label>
+                                <div className="space-y-3">
+                                    <div className="flex min-h-11 items-center rounded-md border px-3 py-2">
+                                        {selectedMainDocument ? (
+                                            <Badge
+                                                variant="secondary"
+                                                className="gap-1 pr-1"
+                                            >
+                                                <span className="max-w-[240px] truncate">
+                                                    {
+                                                        selectedMainDocument.fileName
+                                                    }
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="rounded-sm p-0.5 hover:bg-black/10"
+                                                    onClick={() => {
+                                                        form.setData(
+                                                            'workspace_document_id',
+                                                            '',
+                                                        );
+                                                    }}
+                                                >
+                                                    <X className="size-3" />
+                                                </button>
+                                            </Badge>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">
+                                                Belum ada file utama dipilih.
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="relative">
+                                        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Input
+                                            value={mainSearch}
+                                            onChange={(event) =>
+                                                setMainSearch(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="Cari file utama..."
+                                            className="pl-9"
+                                        />
+                                    </div>
+
+                                    <div className="max-h-56 overflow-y-auto rounded-md border">
+                                        {filteredMainOptions.length > 0 ? (
+                                            filteredMainOptions.map(
+                                                (document) => {
+                                                    const value =
+                                                        document.id.toString();
+                                                    const selected =
+                                                        form.data
+                                                            .workspace_document_id ===
+                                                        value;
+
+                                                    return (
+                                                        <button
+                                                            key={document.id}
+                                                            type="button"
+                                                            className="flex w-full items-start justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/20"
+                                                            onClick={() => {
+                                                                form.setData(
+                                                                    'workspace_document_id',
+                                                                    value,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <div className="min-w-0">
+                                                                <p className="truncate font-medium">
+                                                                    {
+                                                                        document.title
+                                                                    }
+                                                                </p>
+                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                    {
+                                                                        document.fileName
+                                                                    }{' '}
+                                                                    ·{' '}
+                                                                    {
+                                                                        document.category
+                                                                    }{' '}
+                                                                    ·{' '}
+                                                                    {
+                                                                        document.version
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                            {selected && (
+                                                                <Badge className="shrink-0">
+                                                                    Dipilih
+                                                                </Badge>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                },
+                                            )
+                                        ) : (
+                                            <div className="px-3 py-3 text-sm text-muted-foreground">
+                                                Tidak ada file yang cocok dengan
+                                                pencarian.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                {form.errors.workspace_document_id && (
+                                    <p className="text-xs text-destructive">
+                                        {form.errors.workspace_document_id}
+                                    </p>
+                                )}
+                            </div>
+
+                            {allowSupportingFiles &&
+                                supportingOptions.length > 0 && (
+                                    <div className="grid gap-2">
+                                        <Label>Lampiran pendukung sidang</Label>
+                                        <div className="space-y-3">
+                                            <div className="flex min-h-11 flex-wrap gap-2 rounded-md border px-3 py-2">
+                                                {selectedSupportingDocuments.length >
+                                                0 ? (
+                                                    selectedSupportingDocuments.map(
+                                                        (document) => (
+                                                            <Badge
+                                                                key={
+                                                                    document.id
+                                                                }
+                                                                variant="secondary"
+                                                                className="gap-1 pr-1"
+                                                            >
+                                                                <span className="max-w-[180px] truncate">
+                                                                    {
+                                                                        document.fileName
+                                                                    }
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="rounded-sm p-0.5 hover:bg-black/10"
+                                                                    onClick={() => {
+                                                                        form.setData(
+                                                                            'supporting_document_ids',
+                                                                            form.data.supporting_document_ids.filter(
+                                                                                (
+                                                                                    item,
+                                                                                ) =>
+                                                                                    item !==
+                                                                                    document.id.toString(),
+                                                                            ),
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <X className="size-3" />
+                                                                </button>
+                                                            </Badge>
+                                                        ),
+                                                    )
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Belum ada lampiran
+                                                        dipilih.
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="relative">
+                                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                                <Input
+                                                    value={supportingSearch}
+                                                    onChange={(event) =>
+                                                        setSupportingSearch(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Cari file lampiran..."
+                                                    className="pl-9"
+                                                />
+                                            </div>
+
+                                            <div className="max-h-56 overflow-y-auto rounded-md border">
+                                                {filteredSupportingOptions.length >
+                                                0 ? (
+                                                    filteredSupportingOptions.map(
+                                                        (document) => {
+                                                            const value =
+                                                                document.id.toString();
+                                                            const selected =
+                                                                form.data.supporting_document_ids.includes(
+                                                                    value,
+                                                                );
+
+                                                            return (
+                                                                <button
+                                                                    key={
+                                                                        document.id
+                                                                    }
+                                                                    type="button"
+                                                                    className="flex w-full items-start justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/20"
+                                                                    onClick={() => {
+                                                                        form.setData(
+                                                                            'supporting_document_ids',
+                                                                            selected
+                                                                                ? form.data.supporting_document_ids.filter(
+                                                                                      (
+                                                                                          item,
+                                                                                      ) =>
+                                                                                          item !==
+                                                                                          value,
+                                                                                  )
+                                                                                : [
+                                                                                      ...form
+                                                                                          .data
+                                                                                          .supporting_document_ids,
+                                                                                      value,
+                                                                                  ],
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <div className="min-w-0">
+                                                                        <p className="truncate font-medium">
+                                                                            {
+                                                                                document.title
+                                                                            }
+                                                                        </p>
+                                                                        <p className="truncate text-xs text-muted-foreground">
+                                                                            {
+                                                                                document.fileName
+                                                                            }{' '}
+                                                                            ·{' '}
+                                                                            {
+                                                                                document.category
+                                                                            }{' '}
+                                                                            ·{' '}
+                                                                            {
+                                                                                document.version
+                                                                            }
+                                                                        </p>
+                                                                    </div>
+                                                                    {selected && (
+                                                                        <Badge className="shrink-0">
+                                                                            Dipilih
+                                                                        </Badge>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        },
+                                                    )
+                                                ) : (
+                                                    <div className="px-3 py-3 text-sm text-muted-foreground">
+                                                        Tidak ada file yang
+                                                        cocok dengan pencarian.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                    type="submit"
+                                    disabled={
+                                        form.processing ||
+                                        form.data.workspace_document_id === ''
+                                    }
+                                >
+                                    Simpan Dokumen
+                                </Button>
+                                <a
+                                    href="/mahasiswa/upload-dokumen"
+                                    className="text-sm font-medium text-primary hover:underline"
+                                >
+                                    Kelola file workspace
+                                </a>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </div>
+        </section>
     );
 }
 
@@ -652,6 +1173,7 @@ function DefenseHistoryRow({
                                 <div>
                                     <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-amber-700 uppercase dark:text-amber-400">
                                         <svg
+                                            aria-hidden="true"
                                             className="size-3"
                                             viewBox="0 0 24 24"
                                             fill="none"
@@ -745,19 +1267,24 @@ function DefenseHistoryRow({
 
                             {/* File & catatan admin */}
                             <div className="flex flex-wrap items-center gap-3">
-                                {item.proposalFileName && (
+                                {item.primaryDocumentName && (
                                     <div className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2">
                                         <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
                                             <FileText className="size-3.5" />
                                         </div>
                                         <div className="min-w-0">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase">
+                                                {item.primaryDocumentLabel}
+                                            </p>
                                             <p className="max-w-[200px] truncate text-xs font-medium">
-                                                {item.proposalFileName}
+                                                {item.primaryDocumentName}
                                             </p>
                                         </div>
-                                        {item.proposalFileViewUrl && (
+                                        {item.primaryDocumentViewUrl && (
                                             <a
-                                                href={item.proposalFileViewUrl}
+                                                href={
+                                                    item.primaryDocumentViewUrl
+                                                }
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
@@ -769,10 +1296,10 @@ function DefenseHistoryRow({
                                                 Lihat
                                             </a>
                                         )}
-                                        {item.proposalFileDownloadUrl && (
+                                        {item.primaryDocumentDownloadUrl && (
                                             <a
                                                 href={
-                                                    item.proposalFileDownloadUrl
+                                                    item.primaryDocumentDownloadUrl
                                                 }
                                                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                                                 onClick={(e) =>
@@ -785,6 +1312,42 @@ function DefenseHistoryRow({
                                         )}
                                     </div>
                                 )}
+                                {item.supportingDocuments.map((document) => (
+                                    <div
+                                        key={document.id}
+                                        className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2"
+                                    >
+                                        <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
+                                            <FileText className="size-3.5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase">
+                                                Lampiran
+                                            </p>
+                                            <p className="max-w-[200px] truncate text-xs font-medium">
+                                                {document.name}
+                                            </p>
+                                        </div>
+                                        <a
+                                            href={document.viewUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Eye className="size-3" />
+                                            Lihat
+                                        </a>
+                                        <a
+                                            href={document.downloadUrl}
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Download className="size-3" />
+                                            Unduh
+                                        </a>
+                                    </div>
+                                ))}
                                 {item.officialNotes && (
                                     <p className="text-xs text-muted-foreground">
                                         <span className="font-medium text-foreground">
@@ -864,9 +1427,13 @@ function DefenseHistorySection({
 export default function TugasAkhirSaya() {
     const {
         submission,
+        workspaceDocuments,
+        semproSelection,
+        sidangSelection,
         advisorProfiles,
         semproExaminerProfiles,
         sidangExaminerProfiles,
+        semproResult,
         sidangResult,
         defenseHistory,
         flashMessage,
@@ -875,6 +1442,14 @@ export default function TugasAkhirSaya() {
 
     const [isEditing, setIsEditing] = useState(false);
     const form = useForm<FormData>(submissionDefaults(submission));
+    const semproForm = useForm<DefenseDocumentFormData>({
+        workspace_document_id: '',
+        supporting_document_ids: [],
+    });
+    const sidangForm = useForm<DefenseDocumentFormData>({
+        workspace_document_id: '',
+        supporting_document_ids: [],
+    });
 
     const canEditSubmission = submission?.workflow.can_edit ?? false;
     const label = submission?.workflow.label ?? '';
@@ -900,6 +1475,30 @@ export default function TugasAkhirSaya() {
                 form.setData('proposal_file', null);
             },
         });
+    };
+
+    const updateSemproDocuments: FormEventHandler = (event) => {
+        event.preventDefault();
+        if (submission === null) return;
+
+        semproForm.patch(
+            `/mahasiswa/tugas-akhir/${submission.id}/sempro-documents`,
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
+    const updateSidangDocuments: FormEventHandler = (event) => {
+        event.preventDefault();
+        if (submission === null) return;
+
+        sidangForm.patch(
+            `/mahasiswa/tugas-akhir/${submission.id}/sidang-documents`,
+            {
+                preserveScroll: true,
+            },
+        );
     };
 
     return (
@@ -1172,6 +1771,26 @@ export default function TugasAkhirSaya() {
                             </section>
                         )}
 
+                        <DefenseDocumentSelectionSection
+                            title="Dokumen Seminar Proposal"
+                            description="Pilih file dari workspace untuk dijadikan snapshot resmi pada sempro aktif. File bisa diganti sampai hasil sempro ditetapkan."
+                            workspaceDocuments={workspaceDocuments}
+                            selection={semproSelection}
+                            form={semproForm}
+                            onSubmit={updateSemproDocuments}
+                            allowSupportingFiles={false}
+                        />
+
+                        <DefenseDocumentSelectionSection
+                            title="Dokumen Sidang"
+                            description="Pilih naskah akhir utama dan lampiran pendukung dari workspace. Snapshot ini dipakai untuk sidang aktif dan bisa diperbarui sampai hasil sidang ditetapkan."
+                            workspaceDocuments={workspaceDocuments}
+                            selection={sidangSelection}
+                            form={sidangForm}
+                            onSubmit={updateSidangDocuments}
+                            allowSupportingFiles
+                        />
+
                         {/* ── Dosen Pembimbing & Penguji ── */}
                         <section>
                             <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -1277,6 +1896,13 @@ export default function TugasAkhirSaya() {
                         </section>
 
                         {/* ── Hasil sidang ── */}
+                        {semproResult && (
+                            <DefenseResultSection
+                                title="Hasil Seminar Proposal"
+                                result={semproResult}
+                            />
+                        )}
+
                         {sidangResult && (
                             <DefenseResultSection
                                 title="Hasil Sidang Skripsi"

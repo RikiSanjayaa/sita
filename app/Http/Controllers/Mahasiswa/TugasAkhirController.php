@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Enums\AdvisorType;
 use App\Http\Controllers\Controller;
+use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -74,6 +75,9 @@ class TugasAkhirController extends Controller
                     ])
                     : null,
             ],
+            'workspaceDocuments' => $this->workspaceDocumentsForStudent($student->id),
+            'semproSelection' => $this->mapActiveDefenseSelection($latestSempro, 'sempro'),
+            'sidangSelection' => $this->mapActiveDefenseSelection($latestSidang, 'sidang'),
             'assignedLecturers' => [
                 'pembimbing1' => $primaryAdvisor?->lecturer?->name,
                 'pembimbing2' => $secondaryAdvisor?->lecturer?->name,
@@ -183,6 +187,52 @@ class TugasAkhirController extends Controller
         return back()->with('success', 'Pengajuan Judul & Proposal berhasil diperbarui.');
     }
 
+    public function updateSemproDocuments(Request $request, ThesisProject $project): RedirectResponse
+    {
+        $student = $request->user();
+        abort_if($student === null, 401);
+        abort_unless($project->student_user_id === $student->id, 403);
+
+        $validated = $request->validate([
+            'workspace_document_id' => ['required', 'integer'],
+        ]);
+
+        app(ThesisProjectStudentService::class)->syncDefenseDocumentsFromWorkspace(
+            student: $student,
+            project: $project,
+            type: 'sempro',
+            mainDocumentId: (int) $validated['workspace_document_id'],
+        );
+
+        return back()->with('success', 'Dokumen sempro berhasil diperbarui dari workspace file.');
+    }
+
+    public function updateSidangDocuments(Request $request, ThesisProject $project): RedirectResponse
+    {
+        $student = $request->user();
+        abort_if($student === null, 401);
+        abort_unless($project->student_user_id === $student->id, 403);
+
+        $validated = $request->validate([
+            'workspace_document_id' => ['required', 'integer'],
+            'supporting_document_ids' => ['nullable', 'array'],
+            'supporting_document_ids.*' => ['integer'],
+        ]);
+
+        app(ThesisProjectStudentService::class)->syncDefenseDocumentsFromWorkspace(
+            student: $student,
+            project: $project,
+            type: 'sidang',
+            mainDocumentId: (int) $validated['workspace_document_id'],
+            supportingDocumentIds: array_map(
+                static fn($id): int => (int) $id,
+                $validated['supporting_document_ids'] ?? [],
+            ),
+        );
+
+        return back()->with('success', 'Dokumen sidang berhasil diperbarui dari workspace file.');
+    }
+
     private function resolveProgramStudiForStudent(User $student, ?string $fallback = null): string
     {
         $programStudi = $student->mahasiswaProfile?->programStudi?->name;
@@ -221,7 +271,7 @@ class TugasAkhirController extends Controller
                 'documents',
                 'activeSupervisorAssignments.lecturer',
                 'defenses' => fn($query) => $query
-                    ->with(['examiners.lecturer'])
+                    ->with(['documents', 'examiners.lecturer'])
                     ->orderBy('type')
                     ->orderBy('attempt_no'),
                 'revisions.requestedBy',
@@ -392,11 +442,32 @@ class TugasAkhirController extends Controller
             ->sortByDesc('attempt_no')
             ->map(function (ThesisDefense $defense) use ($project): array {
                 $title = $defense->titleVersion;
-                $proposalDocument = $project->documents
+                $proposalDocument = $defense->documents
+                    ->where('kind', 'proposal')
+                    ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
+                    ->first();
+                $fallbackProposalDocument = $project->documents
                     ->where('kind', 'proposal')
                     ->where('title_version_id', $defense->title_version_id)
                     ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
                     ->first();
+                $primaryDocument = $defense->type === 'sidang'
+                    ? $defense->documents
+                        ->where('kind', 'final_manuscript')
+                        ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
+                        ->first()
+                    : ($proposalDocument instanceof ThesisDocument ? $proposalDocument : $fallbackProposalDocument);
+                $supportingDocuments = $defense->documents
+                    ->where('kind', 'supporting_document')
+                    ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
+                    ->map(fn(ThesisDocument $document): array => [
+                        'id' => $document->id,
+                        'name' => $document->file_name,
+                        'viewUrl' => route('files.thesis-documents.download', ['document' => $document->id, 'inline' => 1]),
+                        'downloadUrl' => route('files.thesis-documents.download', ['document' => $document->id]),
+                    ])
+                    ->values()
+                    ->all();
 
                 return [
                     'id' => $defense->id,
@@ -422,13 +493,15 @@ class TugasAkhirController extends Controller
                     'titleId' => $title?->title_id ?? '-',
                     'titleEn' => $title?->title_en,
                     'proposalSummary' => $title?->proposal_summary,
-                    'proposalFileName' => $proposalDocument?->file_name,
-                    'proposalFileViewUrl' => $proposalDocument?->id !== null
-                        ? route('files.thesis-documents.download', ['document' => $proposalDocument->id, 'inline' => 1])
+                    'primaryDocumentLabel' => $defense->type === 'sidang' ? 'Naskah akhir' : 'Proposal',
+                    'primaryDocumentName' => $primaryDocument?->file_name,
+                    'primaryDocumentViewUrl' => $primaryDocument?->id !== null
+                        ? route('files.thesis-documents.download', ['document' => $primaryDocument->id, 'inline' => 1])
                         : null,
-                    'proposalFileDownloadUrl' => $proposalDocument?->id !== null
-                        ? route('files.thesis-documents.download', ['document' => $proposalDocument->id])
+                    'primaryDocumentDownloadUrl' => $primaryDocument?->id !== null
+                        ? route('files.thesis-documents.download', ['document' => $primaryDocument->id])
                         : null,
+                    'supportingDocuments' => $supportingDocuments,
                     'examiners' => $defense->examiners
                         ->sortBy('order_no')
                         ->map(fn($examiner): array => [
@@ -469,6 +542,76 @@ class TugasAkhirController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function workspaceDocumentsForStudent(int $studentUserId): array
+    {
+        return MentorshipDocument::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('uploaded_by_role', 'mahasiswa')
+            ->latest('created_at')
+            ->get()
+            ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
+            ->map(function ($versions): array {
+                /** @var MentorshipDocument $document */
+                $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
+
+                return [
+                    'id' => $document->id,
+                    'title' => $document->title,
+                    'category' => $document->category ?? '-',
+                    'fileName' => $document->file_name,
+                    'version' => sprintf('v%d', $document->version_number),
+                    'uploadedAt' => $document->created_at?->format('d M Y H:i'),
+                    'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function mapActiveDefenseSelection(?ThesisDefense $defense, string $type): ?array
+    {
+        if (! $defense instanceof ThesisDefense) {
+            return null;
+        }
+
+        $primaryDocument = $defense->documents
+            ->where('kind', $type === 'sidang' ? 'final_manuscript' : 'proposal')
+            ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
+            ->first();
+
+        $supportingDocuments = $defense->documents
+            ->where('kind', 'supporting_document')
+            ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
+            ->map(fn(ThesisDocument $document): array => [
+                'id' => $document->id,
+                'name' => $document->file_name,
+                'viewUrl' => route('files.thesis-documents.download', ['document' => $document->id, 'inline' => 1]),
+                'downloadUrl' => route('files.thesis-documents.download', ['document' => $document->id]),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'defenseId' => $defense->id,
+            'isLocked' => $defense->status === 'completed',
+            'status' => $defense->status,
+            'mainFileName' => $primaryDocument?->file_name,
+            'mainFileViewUrl' => $primaryDocument?->id !== null
+                ? route('files.thesis-documents.download', ['document' => $primaryDocument->id, 'inline' => 1])
+                : null,
+            'mainFileDownloadUrl' => $primaryDocument?->id !== null
+                ? route('files.thesis-documents.download', ['document' => $primaryDocument->id])
+                : null,
+            'supportingDocuments' => $supportingDocuments,
+        ];
     }
 
     private function defenseRoleLabel(string $role, int $orderNo): string

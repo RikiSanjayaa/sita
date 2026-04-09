@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AppRole;
+use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -12,8 +13,10 @@ use App\Models\ThesisRevision;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class ThesisProjectStudentService
@@ -75,6 +78,17 @@ class ThesisProjectStudentService
                 'file_size_kb' => $this->toKilobytes($proposalFile->getSize()),
                 'uploaded_at' => $submittedAt,
             ]);
+
+            $this->createWorkspaceMirror(
+                student: $student,
+                sourceDisk: 'public',
+                sourcePath: $path,
+                fileName: $proposalFile->getClientOriginalName(),
+                mimeType: $proposalFile->getMimeType() ?? 'application/pdf',
+                fileSizeKb: $this->toKilobytes($proposalFile->getSize()),
+                title: 'Proposal Skripsi',
+                category: 'proposal',
+            );
 
             $this->recordEvent(
                 $project,
@@ -140,6 +154,17 @@ class ThesisProjectStudentService
                     'mime_type' => $proposalFile->getMimeType() ?? 'application/pdf',
                     'file_size_kb' => $this->toKilobytes($proposalFile->getSize()),
                 ];
+
+                $this->createWorkspaceMirror(
+                    student: $student,
+                    sourceDisk: 'public',
+                    sourcePath: $newPath,
+                    fileName: $proposalFile->getClientOriginalName(),
+                    mimeType: $proposalFile->getMimeType() ?? 'application/pdf',
+                    fileSizeKb: $this->toKilobytes($proposalFile->getSize()),
+                    title: 'Proposal Skripsi',
+                    category: 'proposal',
+                );
             }
 
             $phase = $mode === 'title_review'
@@ -245,6 +270,109 @@ class ThesisProjectStudentService
             );
 
             return $project;
+        });
+    }
+
+    /**
+     * @param  array<int, int>  $supportingDocumentIds
+     */
+    public function syncDefenseDocumentsFromWorkspace(
+        User $student,
+        ThesisProject $project,
+        string $type,
+        int $mainDocumentId,
+        array $supportingDocumentIds = [],
+    ): ThesisProject {
+        abort_unless($project->student_user_id === $student->id, 403);
+
+        $project->loadMissing(['defenses.documents', 'latestTitle', 'titles']);
+
+        /** @var ThesisDefense|null $defense */
+        $defense = $project->defenses
+            ->where('type', $type)
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if (! $defense instanceof ThesisDefense) {
+            throw new RuntimeException(sprintf('%s belum tersedia untuk proyek ini.', $type === 'sidang' ? 'Sidang' : 'Sempro'));
+        }
+
+        if ($defense->status === 'completed') {
+            throw new RuntimeException(sprintf('Dokumen %s sudah dikunci karena tahap ini telah selesai.', $type));
+        }
+
+        $documentIds = collect([$mainDocumentId])
+            ->merge($supportingDocumentIds)
+            ->filter(static fn($id): bool => is_int($id) || ctype_digit((string) $id))
+            ->map(static fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $workspaceDocuments = MentorshipDocument::query()
+            ->where('student_user_id', $student->id)
+            ->where('uploaded_by_role', 'mahasiswa')
+            ->whereIn('id', $documentIds)
+            ->get()
+            ->keyBy('id');
+
+        if (! $workspaceDocuments->has($mainDocumentId)) {
+            throw new RuntimeException('Dokumen utama yang dipilih tidak ditemukan di workspace mahasiswa.');
+        }
+
+        if ($type === 'sempro' && $supportingDocumentIds !== []) {
+            throw new RuntimeException('Sempro hanya menerima satu dokumen utama.');
+        }
+
+        $titleVersionId = $defense->title_version_id ?? $project->latestTitle?->getKey();
+        $submittedAt = now();
+        $mainDocument = $workspaceDocuments->get($mainDocumentId);
+
+        if (! $mainDocument instanceof MentorshipDocument) {
+            throw new RuntimeException('Dokumen utama tidak valid.');
+        }
+
+        return DB::transaction(function () use ($defense, $mainDocument, $project, $student, $submittedAt, $supportingDocumentIds, $titleVersionId, $type, $workspaceDocuments): ThesisProject {
+            $primaryKind = $type === 'sidang' ? 'final_manuscript' : 'proposal';
+            $primaryTitle = $type === 'sidang' ? 'Naskah Akhir Sidang' : 'Proposal Sempro';
+
+            $this->replaceDefenseDocument(
+                defense: $defense,
+                project: $project,
+                student: $student,
+                source: $mainDocument,
+                kind: $primaryKind,
+                title: $primaryTitle,
+                titleVersionId: $titleVersionId,
+                uploadedAt: $submittedAt,
+            );
+
+            if ($type === 'sidang') {
+                $this->replaceSidangSupportingDocuments(
+                    defense: $defense,
+                    project: $project,
+                    student: $student,
+                    sources: collect($supportingDocumentIds)
+                        ->map(static fn($id): int => (int) $id)
+                        ->reject(static fn(int $id): bool => $id === $mainDocument->getKey())
+                        ->map(fn(int $id): ?MentorshipDocument => $workspaceDocuments->get($id))
+                        ->filter(fn($document): bool => $document instanceof MentorshipDocument)
+                        ->values(),
+                    titleVersionId: $titleVersionId,
+                    uploadedAt: $submittedAt,
+                );
+            }
+
+            $this->recordEvent(
+                $project,
+                actorUserId: $student->id,
+                eventType: $type === 'sidang' ? 'sidang_documents_selected' : 'sempro_document_selected',
+                label: $type === 'sidang' ? 'Dokumen sidang dipilih' : 'Dokumen sempro dipilih',
+                description: $type === 'sidang'
+                    ? 'Mahasiswa memperbarui naskah akhir dan lampiran sidang dari workspace dokumen.'
+                    : 'Mahasiswa memilih dokumen proposal dari workspace untuk sempro aktif.',
+            );
+
+            return $project->fresh(['documents', 'defenses.documents']);
         });
     }
 
@@ -368,5 +496,181 @@ class ThesisProjectStudentService
         }
 
         return (int) ceil($bytes / 1024);
+    }
+
+    private function createWorkspaceMirror(
+        User $student,
+        string $sourceDisk,
+        string $sourcePath,
+        string $fileName,
+        ?string $mimeType,
+        ?int $fileSizeKb,
+        string $title,
+        string $category,
+    ): MentorshipDocument {
+        $workspacePath = sprintf(
+            'documents/mahasiswa/%d/%s/%s-%s',
+            $student->id,
+            trim($category),
+            Str::uuid()->toString(),
+            basename($sourcePath),
+        );
+
+        Storage::disk($sourceDisk)->copy($sourcePath, $workspacePath);
+
+        $groupKey = sprintf('%d:%s', $student->id, strtolower(trim($category)));
+        $nextVersion = ((int) MentorshipDocument::query()
+            ->where('student_user_id', $student->id)
+            ->where('document_group', $groupKey)
+            ->max('version_number')) + 1;
+
+        return MentorshipDocument::query()->create([
+            'student_user_id' => $student->id,
+            'lecturer_user_id' => null,
+            'mentorship_assignment_id' => null,
+            'title' => $title,
+            'category' => $category,
+            'document_group' => $groupKey,
+            'version_number' => $nextVersion,
+            'file_name' => $fileName,
+            'file_url' => null,
+            'storage_disk' => $sourceDisk,
+            'storage_path' => $workspacePath,
+            'stored_file_name' => basename($workspacePath),
+            'mime_type' => $mimeType,
+            'file_size_kb' => $fileSizeKb,
+            'status' => 'submitted',
+            'revision_notes' => null,
+            'reviewed_at' => null,
+            'uploaded_by_user_id' => $student->id,
+            'uploaded_by_role' => 'mahasiswa',
+        ]);
+    }
+
+    private function replaceDefenseDocument(
+        ThesisDefense $defense,
+        ThesisProject $project,
+        User $student,
+        MentorshipDocument $source,
+        string $kind,
+        string $title,
+        ?int $titleVersionId,
+        $uploadedAt,
+    ): ThesisDocument {
+        $existing = ThesisDocument::query()
+            ->where('defense_id', $defense->getKey())
+            ->where('kind', $kind)
+            ->latest('id')
+            ->first();
+
+        $snapshotPath = $this->copyWorkspaceDocumentToThesisStorage($project, $defense, $source, $kind);
+
+        if ($existing instanceof ThesisDocument
+            && $existing->storage_path !== null
+            && Storage::disk($existing->storage_disk)->exists($existing->storage_path)) {
+            Storage::disk($existing->storage_disk)->delete($existing->storage_path);
+        }
+
+        return ThesisDocument::query()->updateOrCreate(
+            [
+                'defense_id' => $defense->getKey(),
+                'kind' => $kind,
+            ],
+            [
+                'project_id' => $project->getKey(),
+                'title_version_id' => $titleVersionId,
+                'revision_id' => null,
+                'uploaded_by_user_id' => $student->id,
+                'status' => 'active',
+                'version_no' => $defense->attempt_no,
+                'title' => $title,
+                'notes' => null,
+                'storage_disk' => $source->storage_disk,
+                'storage_path' => $snapshotPath,
+                'stored_file_name' => basename($snapshotPath),
+                'file_name' => $source->file_name,
+                'mime_type' => $source->mime_type,
+                'file_size_kb' => $source->file_size_kb,
+                'uploaded_at' => $uploadedAt,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, MentorshipDocument>  $sources
+     */
+    private function replaceSidangSupportingDocuments(
+        ThesisDefense $defense,
+        ThesisProject $project,
+        User $student,
+        Collection $sources,
+        ?int $titleVersionId,
+        $uploadedAt,
+    ): void {
+        $existingDocuments = ThesisDocument::query()
+            ->where('defense_id', $defense->getKey())
+            ->where('kind', 'supporting_document')
+            ->get();
+
+        foreach ($existingDocuments as $existingDocument) {
+            if ($existingDocument->storage_path !== null
+                && Storage::disk($existingDocument->storage_disk)->exists($existingDocument->storage_path)) {
+                Storage::disk($existingDocument->storage_disk)->delete($existingDocument->storage_path);
+            }
+
+            $existingDocument->delete();
+        }
+
+        foreach ($sources as $index => $source) {
+            if (! $source instanceof MentorshipDocument) {
+                continue;
+            }
+
+            $snapshotPath = $this->copyWorkspaceDocumentToThesisStorage($project, $defense, $source, 'supporting_document');
+
+            ThesisDocument::query()->create([
+                'project_id' => $project->getKey(),
+                'title_version_id' => $titleVersionId,
+                'defense_id' => $defense->getKey(),
+                'revision_id' => null,
+                'uploaded_by_user_id' => $student->id,
+                'kind' => 'supporting_document',
+                'status' => 'active',
+                'version_no' => $defense->attempt_no + $index,
+                'title' => $source->title,
+                'notes' => null,
+                'storage_disk' => $source->storage_disk,
+                'storage_path' => $snapshotPath,
+                'stored_file_name' => basename($snapshotPath),
+                'file_name' => $source->file_name,
+                'mime_type' => $source->mime_type,
+                'file_size_kb' => $source->file_size_kb,
+                'uploaded_at' => $uploadedAt,
+            ]);
+        }
+    }
+
+    private function copyWorkspaceDocumentToThesisStorage(
+        ThesisProject $project,
+        ThesisDefense $defense,
+        MentorshipDocument $source,
+        string $kind,
+    ): string {
+        if ($source->storage_disk === null || $source->storage_path === null) {
+            throw new RuntimeException('Dokumen workspace tidak memiliki lokasi file yang valid.');
+        }
+
+        $snapshotPath = sprintf(
+            'thesis/defenses/%d/%s/attempt-%d/%s-%s',
+            $project->getKey(),
+            $defense->type,
+            $defense->attempt_no,
+            $kind,
+            Str::uuid()->toString().'-'.($source->stored_file_name ?? basename($source->storage_path)),
+        );
+
+        Storage::disk($source->storage_disk)->copy($source->storage_path, $snapshotPath);
+
+        return $snapshotPath;
     }
 }
