@@ -14,6 +14,8 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
     Route::get('tugas-akhir', [TugasAkhirController::class, 'index'])->name('tugas-akhir');
     Route::post('tugas-akhir', [TugasAkhirController::class, 'store'])->name('tugas-akhir.store');
     Route::patch('tugas-akhir/{project}', [TugasAkhirController::class, 'update'])->name('tugas-akhir.update');
+    Route::patch('tugas-akhir/{project}/sempro-documents', [TugasAkhirController::class, 'updateSemproDocuments'])->name('tugas-akhir.sempro-documents.update');
+    Route::patch('tugas-akhir/{project}/sidang-documents', [TugasAkhirController::class, 'updateSidangDocuments'])->name('tugas-akhir.sidang-documents.update');
 
     Route::get('jadwal-bimbingan', [JadwalBimbinganController::class, 'index'])->name('jadwal-bimbingan');
     Route::post('jadwal-bimbingan', [JadwalBimbinganController::class, 'store'])->name('jadwal-bimbingan.store');

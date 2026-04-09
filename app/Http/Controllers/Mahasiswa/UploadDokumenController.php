@@ -41,7 +41,7 @@ class UploadDokumenController extends Controller
             ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
             ->map(function ($versions): array {
                 /** @var MentorshipDocument $document */
-                $document = $versions->first();
+                $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
 
                 return [
                     'id' => $document->id,
@@ -51,11 +51,13 @@ class UploadDokumenController extends Controller
                     'uploadedAt' => $document->created_at->format('d M Y H:i'),
                     'fileName' => $document->file_name,
                     'size' => sprintf('%d KB', (int) $document->file_size_kb),
-                    'status' => match ($document->status) {
-                        'approved' => 'Disetujui',
-                        'needs_revision' => 'Perlu Revisi',
-                        default => 'Menunggu Review',
-                    },
+                    'status' => $document->lecturer_user_id === null
+                        ? 'Tersimpan'
+                        : match ($document->status) {
+                            'approved' => 'Disetujui',
+                            'needs_revision' => 'Perlu Revisi',
+                            default => 'Menunggu Review',
+                        },
                     'revisionNotes' => $document->revision_notes,
                     'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
                 ];
@@ -88,9 +90,18 @@ class UploadDokumenController extends Controller
             ->where('status', 'active')
             ->get();
 
+        $shouldNotifySidang = in_array(trim((string) $data['category']), ['final-manuscript', 'lampiran-sidang'], true);
         $activeSemproDefenses = $this->activeSemproDefenses($student->id);
         $pengujiThreads = $this->activeSemproThreads($student->id, $activeSemproDefenses);
         $semproExaminerIds = $activeSemproDefenses
+            ->flatMap(fn(ThesisDefense $defense) => $defense->examiners->pluck('lecturer_user_id'))
+            ->filter()
+            ->map(static fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+        $activeSidangDefenses = $shouldNotifySidang ? $this->activeSidangDefenses($student->id) : collect();
+        $sidangThreads = $shouldNotifySidang ? $this->activeSidangThreads($student->id, $activeSidangDefenses) : collect();
+        $sidangExaminerIds = $activeSidangDefenses
             ->flatMap(fn(ThesisDefense $defense) => $defense->examiners->pluck('lecturer_user_id'))
             ->filter()
             ->map(static fn($id): int => (int) $id)
@@ -100,6 +111,7 @@ class UploadDokumenController extends Controller
         $recipientLecturerIds = $assignments
             ->pluck('lecturer_user_id')
             ->merge($semproExaminerIds)
+            ->merge($sidangExaminerIds)
             ->filter()
             ->map(static fn($id): int => (int) $id)
             ->unique()
@@ -124,7 +136,7 @@ class UploadDokumenController extends Controller
         $createdDocuments = collect();
         $assignmentIdsByLecturer = $this->mentorshipAssignmentIdsByLecturer($student->id, $assignments);
 
-        DB::transaction(function () use ($assignmentIdsByLecturer, $assignments, $createdDocuments, $data, $disk, $file, $groupKey, $nextVersion, $pengujiThreads, $recipientLecturerIds, $storedPath, $student): void {
+        DB::transaction(function () use ($assignmentIdsByLecturer, $assignments, $createdDocuments, $data, $disk, $file, $groupKey, $nextVersion, $pengujiThreads, $recipientLecturerIds, $sidangThreads, $storedPath, $student): void {
             foreach ($recipientLecturerIds as $lecturerUserId) {
                 $createdDocuments->push(MentorshipDocument::query()->create([
                     'student_user_id' => $student->id,
@@ -216,6 +228,27 @@ class UploadDokumenController extends Controller
 
                 $this->broadcastChatMessage($pengujiThread->id, $this->mapMessagePayload($pengujiMessage));
             }
+
+            foreach ($sidangThreads as $sidangThread) {
+                $sidangMessage = $sidangThread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'related_document_id' => $createdDocuments->first()?->id,
+                    'attachment_disk' => $disk,
+                    'attachment_path' => $storedPath,
+                    'attachment_name' => $file->getClientOriginalName(),
+                    'attachment_mime' => $file->getClientMimeType(),
+                    'attachment_size_kb' => (int) ceil($file->getSize() / 1024),
+                    'message_type' => 'document_event',
+                    'message' => sprintf(
+                        'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread Sidang).',
+                        trim($data['category']),
+                        $nextVersion,
+                    ),
+                    'sent_at' => now(),
+                ]);
+
+                $this->broadcastChatMessage($sidangThread->id, $this->mapMessagePayload($sidangMessage));
+            }
         });
 
         return redirect()
@@ -260,6 +293,47 @@ class UploadDokumenController extends Controller
         return MentorshipChatThread::query()
             ->where('student_user_id', $studentUserId)
             ->where('type', 'sempro')
+            ->when(
+                $contextIds !== [],
+                fn($query) => $query->whereIn('context_id', $contextIds),
+                fn($query) => $query->whereRaw('1 = 0'),
+            )
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, ThesisDefense>
+     */
+    private function activeSidangDefenses(int $studentUserId): Collection
+    {
+        return ThesisDefense::query()
+            ->with(['examiners' => fn($query) => $query->select(['id', 'defense_id', 'lecturer_user_id'])])
+            ->whereHas('project', fn($query) => $query->where('student_user_id', $studentUserId))
+            ->where('type', 'sidang')
+            ->where(function ($query): void {
+                $query->where('status', 'scheduled')
+                    ->orWhere(function ($nestedQuery): void {
+                        $nestedQuery->where('status', 'completed')
+                            ->where('result', 'pass_with_revision');
+                    });
+            })
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, ThesisDefense>  $defenses
+     * @return Collection<int, MentorshipChatThread>
+     */
+    private function activeSidangThreads(int $studentUserId, Collection $defenses): Collection
+    {
+        $contextIds = $defenses
+            ->map(fn(ThesisDefense $defense): int => $defense->getKey())
+            ->values()
+            ->all();
+
+        return MentorshipChatThread::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('type', 'sidang')
             ->when(
                 $contextIds !== [],
                 fn($query) => $query->whereIn('context_id', $contextIds),
