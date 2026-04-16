@@ -6,6 +6,7 @@ use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 class MentorshipAccessService
 {
@@ -26,8 +27,8 @@ class MentorshipAccessService
         if ($thread->type === 'pembimbing') {
             return ThesisSupervisorAssignment::query()
                 ->where('lecturer_user_id', $user->id)
-                ->where('status', 'active')
-                ->whereHas('project', fn($query) => $query->where('student_user_id', $thread->student_user_id))
+                ->whereIn('status', ['active', 'ended'])
+                ->whereHas('project', fn(Builder $query) => $query->where('student_user_id', $thread->student_user_id))
                 ->exists();
         }
 

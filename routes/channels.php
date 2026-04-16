@@ -1,8 +1,7 @@
 <?php
 
-use App\Enums\AssignmentStatus;
-use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
+use App\Services\MentorshipAccessService;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
@@ -15,30 +14,7 @@ Broadcast::channel('mentorship.thread.{threadId}', function ($user, int $threadI
         return false;
     }
 
-    if ($user->hasRole('admin')) {
-        return true;
-    }
-
-    if ($thread->type === 'pembimbing') {
-        if ($user->hasRole('mahasiswa')) {
-            return $thread->student_user_id === $user->id;
-        }
-
-        if (! $user->hasRole('dosen')) {
-            return false;
-        }
-
-        return MentorshipAssignment::query()
-            ->where('student_user_id', $thread->student_user_id)
-            ->where('lecturer_user_id', $user->id)
-            ->where('status', AssignmentStatus::Active->value)
-            ->exists();
-    }
-
-    return App\Models\MentorshipChatThreadParticipant::query()
-        ->where('thread_id', $thread->id)
-        ->where('user_id', $user->id)
-        ->exists();
+    return app(MentorshipAccessService::class)->canAccessThread($user, $thread);
 });
 
 Broadcast::channel('schedule.user.{userId}', function ($user, int $userId): bool {
