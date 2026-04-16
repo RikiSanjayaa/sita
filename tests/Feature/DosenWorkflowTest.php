@@ -8,6 +8,7 @@ use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
+use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
 use App\Models\ProgramStudi;
@@ -20,6 +21,7 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Notifications\RealtimeNotification;
+use App\Services\MentorshipAccessService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use Filament\Notifications\DatabaseNotification as FilamentDatabaseNotification;
 use Illuminate\Support\Facades\Notification;
@@ -512,6 +514,71 @@ test('dosen can review document and send message to own thread', function () {
             'message' => 'Tidak boleh kirim.',
         ])
         ->assertForbidden();
+});
+
+test('dosen can authenticate mentorship thread broadcast channel through thesis supervisor assignment', function () {
+    $admin = User::factory()->asAdmin()->create();
+    $dosen = createDosenUser();
+    $student = createMahasiswaUser('2210519911');
+
+    $project = createThesisProjectForStudent($student);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $dosen->id,
+        'role' => AdvisorType::Primary->value,
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now(),
+    ]);
+
+    $thread = MentorshipChatThread::factory()->create([
+        'student_user_id' => $student->id,
+        'type' => 'pembimbing',
+    ]);
+
+    $this->actingAs($dosen)
+        ->post('/broadcasting/auth', [
+            'channel_name' => 'private-mentorship.thread.'.$thread->id,
+            'socket_id' => '1234.5678',
+        ])
+        ->assertOk();
+});
+
+test('dosen broadcast auth for sempro and sidang style threads still requires participant membership', function () {
+    $dosen = createDosenUser();
+    $otherDosen = createDosenUser();
+    $student = createMahasiswaUser('2210519912');
+
+    $thread = MentorshipChatThread::factory()->create([
+        'student_user_id' => $student->id,
+        'type' => 'sempro',
+        'label' => 'Sempro',
+    ]);
+
+    MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $thread->id,
+        'user_id' => $student->id,
+        'role' => 'student',
+    ]);
+
+    MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $thread->id,
+        'user_id' => $dosen->id,
+        'role' => 'examiner',
+    ]);
+
+    $accessService = app(MentorshipAccessService::class);
+
+    expect($accessService->canAccessThread($dosen, $thread))->toBeTrue();
+    expect($accessService->canAccessThread($otherDosen, $thread))->toBeFalse();
+
+    $this->actingAs($dosen)
+        ->post('/broadcasting/auth', [
+            'channel_name' => 'private-mentorship.thread.'.$thread->id,
+            'socket_id' => '1234.5678',
+        ])
+        ->assertOk();
 });
 
 test('dosen seminar proposal page shows only assigned sempro and sidang defenses', function () {
