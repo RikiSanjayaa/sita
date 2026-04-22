@@ -15,6 +15,7 @@ class ThesisDocument extends Model
         'title_version_id',
         'defense_id',
         'revision_id',
+        'source_workspace_document_id',
         'uploaded_by_user_id',
         'kind',
         'status',
@@ -57,6 +58,11 @@ class ThesisDocument extends Model
     public function revision(): BelongsTo
     {
         return $this->belongsTo(ThesisRevision::class, 'revision_id');
+    }
+
+    public function sourceWorkspaceDocument(): BelongsTo
+    {
+        return $this->belongsTo(MentorshipDocument::class, 'source_workspace_document_id');
     }
 
     public function uploadedBy(): BelongsTo

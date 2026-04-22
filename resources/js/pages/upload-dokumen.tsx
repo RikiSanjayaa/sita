@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
@@ -44,9 +44,11 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import * as routes from '@/routes';
+import * as mahasiswaUploadDokumenRoutes from '@/routes/mahasiswa/upload-dokumen';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type DokumenStatus =
@@ -66,11 +68,14 @@ type UploadedDokumenRow = {
     status: DokumenStatus;
     revisionNotes?: string | null;
     downloadUrl: string;
+    canDelete: boolean;
+    deleteBlockedReason?: string | null;
 };
 
 type UploadDokumenProps = {
     uploadedDocuments: UploadedDokumenRow[];
     flashMessage?: string | null;
+    errorMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -137,6 +142,8 @@ export default function UploadDokumenPage() {
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const [documentPendingDelete, setDocumentPendingDelete] =
+        useState<UploadedDokumenRow | null>(null);
 
     const form = useForm<{
         title: string;
@@ -151,7 +158,7 @@ export default function UploadDokumenPage() {
     const deleteForm = useForm({});
 
     function submitUpload() {
-        form.post('/mahasiswa/upload-dokumen', {
+        form.post(mahasiswaUploadDokumenRoutes.store().url, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -159,6 +166,20 @@ export default function UploadDokumenPage() {
                 setIsUploadOpen(false);
             },
         });
+    }
+
+    function submitDelete() {
+        if (documentPendingDelete === null) {
+            return;
+        }
+
+        deleteForm.delete(
+            mahasiswaUploadDokumenRoutes.destroy(documentPendingDelete.id).url,
+            {
+                preserveScroll: true,
+                onFinish: () => setDocumentPendingDelete(null),
+            },
+        );
     }
 
     const filteredDocuments = useMemo(() => {
@@ -230,7 +251,16 @@ export default function UploadDokumenPage() {
             <Head title="Upload Dokumen" />
 
             {/* Upload Dialog */}
-            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            <Dialog
+                open={isUploadOpen}
+                onOpenChange={(open) => {
+                    if (form.processing) {
+                        return;
+                    }
+
+                    setIsUploadOpen(open);
+                }}
+            >
                 <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Upload Dokumen</DialogTitle>
@@ -325,12 +355,39 @@ export default function UploadDokumenPage() {
                             )}
                         </div>
 
+                        {form.processing && (
+                            <div className="rounded-lg border bg-muted/40 p-3">
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <Spinner className="size-4" />
+                                        Mengunggah dokumen...
+                                    </div>
+                                    {form.progress && (
+                                        <span className="text-xs text-muted-foreground">
+                                            {form.progress.percentage}%
+                                        </span>
+                                    )}
+                                </div>
+                                {form.progress && (
+                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                                        <div
+                                            className="h-full rounded-full bg-primary transition-[width] duration-200"
+                                            style={{
+                                                width: `${form.progress.percentage}%`,
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
                                 className="w-full sm:w-auto"
                                 onClick={() => setIsUploadOpen(false)}
+                                disabled={form.processing}
                             >
                                 Batal
                             </Button>
@@ -343,10 +400,73 @@ export default function UploadDokumenPage() {
                                     form.data.document === null
                                 }
                             >
-                                Upload
+                                {form.processing ? (
+                                    <>
+                                        <Spinner className="size-4" />
+                                        Mengunggah...
+                                    </>
+                                ) : (
+                                    'Upload'
+                                )}
                             </Button>
                         </div>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={documentPendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteForm.processing) {
+                        setDocumentPendingDelete(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Hapus Dokumen</DialogTitle>
+                        <DialogDescription>
+                            Apakah Anda yakin ingin menghapus dokumen ini?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {documentPendingDelete && (
+                        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                            <p className="font-medium">
+                                {documentPendingDelete.title}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {documentPendingDelete.fileName} -{' '}
+                                {documentPendingDelete.version}
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDocumentPendingDelete(null)}
+                            disabled={deleteForm.processing}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={submitDelete}
+                            disabled={deleteForm.processing}
+                        >
+                            {deleteForm.processing ? (
+                                <>
+                                    <Spinner className="size-4" />
+                                    Menghapus...
+                                </>
+                            ) : (
+                                'Ya, Hapus'
+                            )}
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -372,11 +492,17 @@ export default function UploadDokumenPage() {
                 </div>
 
                 {/* Flash Message */}
-                {page.props.flashMessage && (
-                    <Alert>
-                        <AlertTitle>Berhasil</AlertTitle>
+                {(page.props.flashMessage || page.props.errorMessage) && (
+                    <Alert
+                        variant={
+                            page.props.errorMessage ? 'destructive' : 'default'
+                        }
+                    >
+                        <AlertTitle>
+                            {page.props.errorMessage ? 'Error' : 'Berhasil'}
+                        </AlertTitle>
                         <AlertDescription>
-                            {page.props.flashMessage}
+                            {page.props.errorMessage || page.props.flashMessage}
                         </AlertDescription>
                     </Alert>
                 )}
@@ -551,13 +677,14 @@ export default function UploadDokumenPage() {
                                                                     size="icon"
                                                                     className="size-8 text-muted-foreground hover:text-foreground"
                                                                 >
-                                                                    <Link
+                                                                    <a
                                                                         href={
                                                                             row.downloadUrl
                                                                         }
+                                                                        aria-label={`Unduh dokumen ${row.title}`}
                                                                     >
                                                                         <Download className="size-4" />
-                                                                    </Link>
+                                                                    </a>
                                                                 </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
@@ -568,28 +695,30 @@ export default function UploadDokumenPage() {
                                                             <TooltipTrigger
                                                                 asChild
                                                             >
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                    disabled={
-                                                                        deleteForm.processing
-                                                                    }
-                                                                    onClick={() => {
-                                                                        deleteForm.delete(
-                                                                            `/mahasiswa/upload-dokumen/${row.id}`,
-                                                                            {
-                                                                                preserveScroll: true,
-                                                                            },
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    <Trash2 className="size-4" />
-                                                                </Button>
+                                                                <span>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                        disabled={
+                                                                            deleteForm.processing ||
+                                                                            !row.canDelete
+                                                                        }
+                                                                        aria-label={`Hapus dokumen ${row.title}`}
+                                                                        onClick={() => {
+                                                                            setDocumentPendingDelete(
+                                                                                row,
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="size-4" />
+                                                                    </Button>
+                                                                </span>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                                Hapus Dokumen
+                                                                {row.deleteBlockedReason ??
+                                                                    'Hapus Dokumen'}
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     </div>
