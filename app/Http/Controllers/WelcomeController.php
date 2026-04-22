@@ -373,6 +373,10 @@ class WelcomeController extends Controller
                 'latestTitle',
                 'programStudi',
                 'student.mahasiswaProfile',
+                'semproDefenses' => function ($query): void {
+                    $query->where('status', 'completed')
+                        ->orderByDesc('scheduled_for');
+                },
                 'supervisorAssignments' => function ($query): void {
                     $query->orderBy('role');
                 },
@@ -415,6 +419,7 @@ class WelcomeController extends Controller
             ->orderByDesc('latest_sidang_at')
             ->simplePaginate(perPage: 10, pageName: 'page', page: $page)
             ->through(function (ThesisProject $project): array {
+                $latestSempro = $project->semproDefenses->first();
                 $latestSidang = $project->sidangDefenses->first();
                 $displayAdvisors = $project->supervisorAssignments
                     ->sortByDesc(fn($assignment): int => $assignment->started_at?->getTimestamp() ?? 0)
@@ -432,7 +437,8 @@ class WelcomeController extends Controller
                     'titleEn' => $project->latestTitle?->title_en ?? '-',
                     'summary' => $project->latestTitle?->proposal_summary ?? '-',
                     'year' => $latestSidang?->scheduled_for?->format('Y') ?? '-',
-                    'seminarDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+                    'seminarDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+                    'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
                     'advisors' => $displayAdvisors
                         ->map(fn($assignment): array => [
                             'name' => $assignment->lecturer?->name ?? '-',
