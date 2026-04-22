@@ -877,9 +877,108 @@ test('mahasiswa can select workspace proposal for active sempro snapshot', funct
         ->firstOrFail();
 
     expect($snapshot->file_name)->toBe('source-sempro.pdf')
-        ->and($snapshot->title)->toBe('Proposal Sempro');
+        ->and($snapshot->title)->toBe('Proposal Sempro')
+        ->and($snapshot->source_workspace_document_id)->toBe($workspaceDocument->id);
 
     Storage::disk('public')->assertExists((string) $snapshot->storage_path);
+});
+
+test('mahasiswa cannot delete workspace document version linked to sempro snapshot', function () {
+    Storage::fake('public');
+
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(10),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Dokumen Terkait Sempro',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(9),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDays(8),
+    ]);
+
+    $sempro = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $title->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(4),
+        'location' => 'Ruang Sempro B',
+        'mode' => 'offline',
+        'created_by' => $admin->id,
+    ]);
+
+    $path = 'documents/mahasiswa/'.$student->id.'/proposal/linked-sempro.pdf';
+    Storage::disk('public')->put($path, 'workspace-proposal');
+
+    $workspaceDocument = MentorshipDocument::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => null,
+        'mentorship_assignment_id' => null,
+        'title' => 'Proposal Sempro Terkait',
+        'category' => 'proposal',
+        'document_group' => $student->id.':proposal',
+        'version_number' => 1,
+        'file_name' => 'linked-sempro.pdf',
+        'file_url' => null,
+        'storage_disk' => 'public',
+        'storage_path' => $path,
+        'stored_file_name' => 'linked-sempro.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size_kb' => 1,
+        'status' => 'submitted',
+        'revision_notes' => null,
+        'reviewed_at' => null,
+        'uploaded_by_user_id' => $student->id,
+        'uploaded_by_role' => 'mahasiswa',
+    ]);
+
+    $this->actingAs($student)
+        ->patch('/mahasiswa/tugas-akhir/'.$project->id.'/sempro-documents', [
+            'workspace_document_id' => $workspaceDocument->id,
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($student)
+        ->delete('/mahasiswa/upload-dokumen/'.$workspaceDocument->id)
+        ->assertRedirect('/mahasiswa/upload-dokumen')
+        ->assertSessionHas('error', 'Dokumen ini sedang dipakai untuk Sempro atau Sidang dan tidak dapat dihapus.');
+
+    $this->assertDatabaseHas('mentorship_documents', [
+        'id' => $workspaceDocument->id,
+    ]);
+    $this->assertDatabaseHas('thesis_documents', [
+        'defense_id' => $sempro->id,
+        'source_workspace_document_id' => $workspaceDocument->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/upload-dokumen')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('upload-dokumen')
+            ->where('uploadedDocuments.0.canDelete', false)
+            ->where('uploadedDocuments.0.deleteBlockedReason', 'Dokumen ini sedang dipakai untuk Sempro atau Sidang dan tidak dapat dihapus.'));
 });
 
 test('mahasiswa can select workspace files for active sidang snapshot', function () {
@@ -1009,19 +1108,70 @@ test('mahasiswa can select workspace files for active sidang snapshot', function
         'defense_id' => $sidang->id,
         'kind' => 'final_manuscript',
         'file_name' => 'final-main.pdf',
+        'source_workspace_document_id' => $mainDocument->id,
     ]);
     $this->assertDatabaseHas('thesis_documents', [
         'defense_id' => $sidang->id,
         'kind' => 'supporting_document',
         'file_name' => 'lampiran-a.pdf',
+        'source_workspace_document_id' => $supportingA->id,
     ]);
     $this->assertDatabaseHas('thesis_documents', [
         'defense_id' => $sidang->id,
         'kind' => 'supporting_document',
         'file_name' => 'lampiran-b.pdf',
+        'source_workspace_document_id' => $supportingB->id,
     ]);
 
     expect(ThesisDocument::query()->where('defense_id', $sidang->id)->count())->toBe(3);
+});
+
+test('mahasiswa can delete unlinked upload dokumen version', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $advisor = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'is_active' => true,
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $advisor->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+    syncThesisSupervisor($student, $advisor, $admin, AdvisorType::Primary->value);
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/upload-dokumen', [
+            'title' => 'Draft Untuk Dihapus',
+            'category' => 'draft-tugas-akhir',
+            'document' => UploadedFile::fake()->create('draft-delete.pdf', 400, 'application/pdf'),
+        ])
+        ->assertRedirect('/mahasiswa/upload-dokumen');
+
+    $document = MentorshipDocument::query()
+        ->where('student_user_id', $student->id)
+        ->where('title', 'Draft Untuk Dihapus')
+        ->firstOrFail();
+
+    $storagePath = $document->storage_path;
+
+    $this->actingAs($student)
+        ->delete('/mahasiswa/upload-dokumen/'.$document->id)
+        ->assertRedirect('/mahasiswa/upload-dokumen')
+        ->assertSessionHas('success', 'Dokumen berhasil dihapus.');
+
+    $this->assertDatabaseMissing('mentorship_documents', [
+        'student_user_id' => $student->id,
+        'title' => 'Draft Untuk Dihapus',
+    ]);
+    Storage::disk('public')->assertMissing((string) $storagePath);
 });
 
 test('mahasiswa can update pending thesis project and replace proposal file', function () {

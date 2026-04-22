@@ -8,6 +8,7 @@ use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
+use App\Models\ThesisDocument;
 use App\Models\ThesisSupervisorAssignment;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
@@ -23,6 +24,8 @@ use Throwable;
 
 class UploadDokumenController extends Controller
 {
+    private const LINKED_DOCUMENT_DELETE_MESSAGE = 'Dokumen ini sedang dipakai untuk Sempro atau Sidang dan tidak dapat dihapus.';
+
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
@@ -37,11 +40,24 @@ class UploadDokumenController extends Controller
             ->where('student_user_id', $student->id)
             ->where('uploaded_by_role', 'mahasiswa')
             ->latest('created_at')
-            ->get()
+            ->get();
+
+        $linkedWorkspaceDocumentIds = ThesisDocument::query()
+            ->whereHas('project', fn($query) => $query->where('student_user_id', $student->id))
+            ->whereHas('defense', fn($query) => $query->whereIn('type', ['sempro', 'sidang']))
+            ->whereNotNull('source_workspace_document_id')
+            ->pluck('source_workspace_document_id')
+            ->map(static fn($id): int => (int) $id)
+            ->flip();
+
+        $documents = $documents
             ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
-            ->map(function ($versions): array {
+            ->map(function ($versions) use ($linkedWorkspaceDocumentIds): array {
                 /** @var MentorshipDocument $document */
                 $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
+                $isLinkedToDefense = $versions->contains(
+                    fn(MentorshipDocument $version): bool => $linkedWorkspaceDocumentIds->has($version->getKey()),
+                );
 
                 return [
                     'id' => $document->id,
@@ -60,6 +76,10 @@ class UploadDokumenController extends Controller
                         },
                     'revisionNotes' => $document->revision_notes,
                     'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
+                    'canDelete' => ! $isLinkedToDefense,
+                    'deleteBlockedReason' => $isLinkedToDefense
+                        ? self::LINKED_DOCUMENT_DELETE_MESSAGE
+                        : null,
                 ];
             })
             ->values()
@@ -68,6 +88,7 @@ class UploadDokumenController extends Controller
         return Inertia::render('upload-dokumen', [
             'uploadedDocuments' => $documents,
             'flashMessage' => $request->session()->get('success'),
+            'errorMessage' => $request->session()->get('error'),
         ]);
     }
 
@@ -418,22 +439,52 @@ class UploadDokumenController extends Controller
         abort_if($student === null, 401);
         abort_unless($document->student_user_id === $student->id, 403);
 
+        if ($this->workspaceDocumentIsLinkedToDefense($student->id, $document)) {
+            return redirect()
+                ->route('mahasiswa.upload-dokumen')
+                ->with('error', self::LINKED_DOCUMENT_DELETE_MESSAGE);
+        }
+
+        $documentsToDelete = MentorshipDocument::query()
+            ->where('student_user_id', $student->id)
+            ->where('document_group', $document->document_group)
+            ->where('version_number', $document->version_number)
+            ->get();
+
         try {
-            if ($document->storage_path !== null && $document->storage_disk !== null) {
-                Storage::disk($document->storage_disk)->delete($document->storage_path);
-            }
+            $documentsToDelete
+                ->filter(fn(MentorshipDocument $version): bool => $version->storage_path !== null && $version->storage_disk !== null)
+                ->unique(fn(MentorshipDocument $version): string => sprintf('%s:%s', (string) $version->storage_disk, (string) $version->storage_path))
+                ->each(function (MentorshipDocument $version): void {
+                    Storage::disk($version->storage_disk)->delete($version->storage_path);
+                });
         } catch (Throwable) {
             // noop: keep metadata removal resilient when file already missing.
         }
 
-        MentorshipDocument::query()
-            ->where('student_user_id', $student->id)
-            ->where('document_group', $document->document_group)
-            ->where('version_number', $document->version_number)
-            ->delete();
+        $documentsToDelete->each->delete();
 
         return redirect()
             ->route('mahasiswa.upload-dokumen')
             ->with('success', 'Dokumen berhasil dihapus.');
+    }
+
+    private function workspaceDocumentIsLinkedToDefense(int $studentUserId, MentorshipDocument $document): bool
+    {
+        $relatedDocumentIds = MentorshipDocument::query()
+            ->where('student_user_id', $studentUserId)
+            ->where('document_group', $document->document_group)
+            ->where('version_number', $document->version_number)
+            ->pluck('id');
+
+        if ($relatedDocumentIds->isEmpty()) {
+            return false;
+        }
+
+        return ThesisDocument::query()
+            ->whereHas('project', fn($query) => $query->where('student_user_id', $studentUserId))
+            ->whereHas('defense', fn($query) => $query->whereIn('type', ['sempro', 'sidang']))
+            ->whereIn('source_workspace_document_id', $relatedDocumentIds)
+            ->exists();
     }
 }
