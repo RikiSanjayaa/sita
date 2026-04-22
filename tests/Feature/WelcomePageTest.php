@@ -250,6 +250,8 @@ test('public landing pages show schedules, advisors, and finalized thesis topics
         ->and(data_get($topicsPage, 'props.semproTitles.0.studentNim'))->toBe('2023987654')
         ->and(data_get($topicsPage, 'props.semproTitles.0.titleEn'))->toBe('Seminar Scheduling Optimization Based on Information Systems')
         ->and(data_get($topicsPage, 'props.semproTitles.0.year'))->toBe((string) now()->subDays(2)->format('Y'))
+        ->and(data_get($topicsPage, 'props.semproTitles.0.seminarDate'))->toBe(now()->subMonths(6)->locale('id')->translatedFormat('d F Y, H:i'))
+        ->and(data_get($topicsPage, 'props.semproTitles.0.sidangDate'))->toBe(now()->subDays(2)->locale('id')->translatedFormat('d F Y, H:i'))
         ->and(data_get($topicsPage, 'props.semproTitles.0.advisors.0.name'))->toBe('Dr. Laila Utami');
 });
 

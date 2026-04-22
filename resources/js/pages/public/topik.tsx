@@ -33,6 +33,7 @@ type SemproTitleItem = {
     summary: string;
     year: string;
     seminarDate: string | null;
+    sidangDate: string | null;
     advisors: Array<{
         name: string;
         label: string;
@@ -321,7 +322,7 @@ function PublicTopicsContent({
                                                             </td>
                                                         </tr>
 
-                                                        <tr className="border-t bg-background">
+                                                        <tr className="bg-background">
                                                             <td
                                                                 colSpan={5}
                                                                 className="p-0"
@@ -337,13 +338,13 @@ function PublicTopicsContent({
                                                                     <div className="overflow-hidden">
                                                                         <div
                                                                             className={cn(
-                                                                                'px-6 transition-[padding,transform,opacity] duration-300 ease-out',
+                                                                                'border-t border-b px-6 transition-[padding,transform,opacity] duration-300',
                                                                                 isOpen
                                                                                     ? 'translate-y-0 py-5 opacity-100'
                                                                                     : '-translate-y-2 py-0 opacity-0',
                                                                             )}
                                                                         >
-                                                                            <div className="rounded-b-2xl border-t bg-muted/20 px-5 py-5">
+                                                                            <div className="rounded-b-2xl bg-muted/20">
                                                                                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
                                                                                     <div className="space-y-5">
                                                                                         <div className="space-y-2">
@@ -424,6 +425,14 @@ function PublicTopicsContent({
                                                                                                     selesai:
                                                                                                 </span>{' '}
                                                                                                 {item.seminarDate ||
+                                                                                                    '-'}
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <span className="font-medium text-foreground">
+                                                                                                    Sidang
+                                                                                                    selesai:
+                                                                                                </span>{' '}
+                                                                                                {item.sidangDate ||
                                                                                                     '-'}
                                                                                             </div>
                                                                                         </div>
