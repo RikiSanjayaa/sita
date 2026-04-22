@@ -75,6 +75,7 @@ type ThreadItem = {
     messages: ChatMessage[];
     preview: string;
     lastTime: string;
+    latestActivityAt: string | null;
 };
 
 function messageMatches(message: ChatMessage, query: string) {
@@ -101,8 +102,29 @@ type PesanPageContentProps = Pick<SharedData, 'auth'> & {
 
 function buildThreadStateKey(threads: ThreadItem[]): string {
     return threads
-        .map((thread) => `${thread.id}:${thread.messages.length}`)
+        .map(
+            (thread) =>
+                `${thread.id}:${thread.messages.length}:${thread.latestActivityAt ?? ''}`,
+        )
         .join('|');
+}
+
+function sortThreads(threads: ThreadItem[]): ThreadItem[] {
+    return [...threads].sort((a, b) => {
+        if (a.latestActivityAt === b.latestActivityAt) {
+            return b.id - a.id;
+        }
+
+        if (a.latestActivityAt === null) {
+            return 1;
+        }
+
+        if (b.latestActivityAt === null) {
+            return -1;
+        }
+
+        return b.latestActivityAt.localeCompare(a.latestActivityAt);
+    });
 }
 
 function syncThreadSearchParam(threadId: number | null): void {
@@ -172,6 +194,9 @@ function PesanPageContent({
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
     const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+    const [threadItems, setThreadItems] = useState<ThreadItem[]>(() =>
+        sortThreads(initialThreads),
+    );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ChatMessage[]>
     >(() => Object.fromEntries(initialThreads.map((t) => [t.id, t.messages])));
@@ -191,7 +216,7 @@ function PesanPageContent({
 
     const resolvedActiveThreadId = useMemo(() => {
         if (activeThreadId !== null) {
-            const matchingThread = initialThreads.find(
+            const matchingThread = threadItems.find(
                 (thread) => thread.id === activeThreadId,
             );
 
@@ -200,8 +225,8 @@ function PesanPageContent({
             }
         }
 
-        return initialThreads[0]?.id ?? null;
-    }, [activeThreadId, initialThreads]);
+        return threadItems[0]?.id ?? null;
+    }, [activeThreadId, threadItems]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
@@ -228,7 +253,11 @@ function PesanPageContent({
                             resolvedActiveThreadId === event.threadId &&
                             event.message.senderUserId !== auth.user?.id
                         ) {
-                            setTimeout(() => scrollToBottom(), 50);
+                            setTimeout(() => {
+                                messagesEndRef.current?.scrollIntoView({
+                                    behavior: 'smooth',
+                                });
+                            }, 50);
                         }
 
                         return {
@@ -238,6 +267,33 @@ function PesanPageContent({
                                 event.message,
                             ],
                         };
+                    });
+
+                    setThreadItems((current) => {
+                        const targetThread = current.find(
+                            (thread) => thread.id === event.threadId,
+                        );
+
+                        if (!targetThread) {
+                            return current;
+                        }
+
+                        const updatedThread: ThreadItem = {
+                            ...targetThread,
+                            preview:
+                                event.message.message ||
+                                event.message.documentName ||
+                                targetThread.preview,
+                            lastTime: 'baru saja',
+                            latestActivityAt: new Date().toISOString(),
+                        };
+
+                        return sortThreads([
+                            updatedThread,
+                            ...current.filter(
+                                (thread) => thread.id !== event.threadId,
+                            ),
+                        ]);
                     });
                 },
             );
@@ -253,16 +309,17 @@ function PesanPageContent({
 
     const activeThread = useMemo(
         () =>
-            initialThreads.find(
+            threadItems.find(
                 (thread) => thread.id === resolvedActiveThreadId,
             ) ?? null,
-        [initialThreads, resolvedActiveThreadId],
+        [resolvedActiveThreadId, threadItems],
     );
 
     const activeMessages = useMemo(
         () => (activeThread ? (messagesByThread[activeThread.id] ?? []) : []),
         [activeThread, messagesByThread],
     );
+    const activeMessageCount = activeMessages.length;
 
     const normalizedThreadSearch = threadSearch.trim().toLowerCase();
 
@@ -294,8 +351,12 @@ function PesanPageContent({
             : null;
 
     useEffect(() => {
-        scrollToBottom();
-    }, [activeMessages.length, resolvedActiveThreadId]);
+        if (activeMessageCount < 1 || resolvedActiveThreadId === null) {
+            return;
+        }
+
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [activeMessageCount, resolvedActiveThreadId]);
 
     useEffect(() => {
         if (!activeMatchMessageId) {
@@ -416,8 +477,8 @@ function PesanPageContent({
                     <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
                             <div className="flex flex-col">
-                                {initialThreads.length > 0 ? (
-                                    initialThreads.map((thread) => {
+                                {threadItems.length > 0 ? (
+                                    threadItems.map((thread) => {
                                         const threadMessages =
                                             messagesByThread[thread.id] ??
                                             thread.messages;

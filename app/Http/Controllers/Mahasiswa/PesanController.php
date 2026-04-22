@@ -130,6 +130,7 @@ class PesanController extends Controller
                 'messages' => $messages,
                 'preview' => $thread->latestMessage?->message ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
+                'latestActivityAt' => $thread->latestMessage?->created_at?->toIso8601String(),
             ];
         })
             ->values()
