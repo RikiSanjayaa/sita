@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('defense_id')->constrained('thesis_defenses')->cascadeOnDelete();
             $table->foreignId('lecturer_user_id')->constrained('users')->cascadeOnDelete();
-            $table->unsignedBigInteger('legacy_sempro_examiner_id')->nullable()->unique();
+            $table->unsignedBigInteger('legacy_sempro_examiner_id')->nullable();
             $table->string('role')->default('examiner');
             $table->unsignedTinyInteger('order_no');
             $table->string('decision')->default('pending');
@@ -25,9 +25,10 @@ return new class extends Migration
             $table->foreignId('assigned_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->unique(['defense_id', 'lecturer_user_id']);
-            $table->unique(['defense_id', 'order_no']);
-            $table->index(['lecturer_user_id', 'decision']);
+            $table->unique('legacy_sempro_examiner_id', 'tde_legacy_examiner_unique');
+            $table->unique(['defense_id', 'lecturer_user_id'], 'tde_defense_lecturer_unique');
+            $table->unique(['defense_id', 'order_no'], 'tde_defense_order_unique');
+            $table->index(['lecturer_user_id', 'decision'], 'tde_lecturer_decision_idx');
         });
     }
 
