@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('project_id')->constrained('thesis_projects')->cascadeOnDelete();
             $table->foreignId('lecturer_user_id')->constrained('users')->cascadeOnDelete();
-            $table->unsignedBigInteger('legacy_mentorship_assignment_id')->nullable()->unique();
+            $table->unsignedBigInteger('legacy_mentorship_assignment_id')->nullable();
             $table->string('role');
             $table->string('status')->default('active');
             $table->foreignId('assigned_by')->nullable()->constrained('users')->nullOnDelete();
@@ -27,6 +27,7 @@ return new class extends Migration
             $table->index(['project_id', 'status']);
             $table->index(['lecturer_user_id', 'status']);
             $table->index(['project_id', 'role', 'status']);
+            $table->unique('legacy_mentorship_assignment_id', 'tsa_legacy_assignment_unique');
         });
     }
 
