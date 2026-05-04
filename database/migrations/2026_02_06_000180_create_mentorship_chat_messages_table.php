@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
 
-            $table->index(['mentorship_chat_thread_id', 'created_at']);
+            $table->index(['mentorship_chat_thread_id', 'created_at'], 'mcm_thread_created_idx');
         });
     }
 
