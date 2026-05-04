@@ -30,7 +30,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -249,7 +255,8 @@ export default function JadwalBimbingan() {
                     <DialogHeader>
                         <DialogTitle>Ajukan Jadwal Bimbingan</DialogTitle>
                         <DialogDescription>
-                            Isi formulir untuk mengajukan jadwal bimbingan dengan dosen pembimbing
+                            Isi formulir untuk mengajukan jadwal bimbingan
+                            dengan dosen pembimbing
                         </DialogDescription>
                     </DialogHeader>
 
@@ -269,19 +276,32 @@ export default function JadwalBimbingan() {
                                 placeholder="Contoh: Review Bab 2 - Tinjauan Pustaka"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Tulis fokus diskusi agar pembimbing bisa menyiapkan arahan.
+                                Tulis fokus diskusi agar pembimbing bisa
+                                menyiapkan arahan.
                             </p>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">
-                                <Label htmlFor="tanggal">Tanggal Preferensi</Label>
-                                <Input id="tanggal" name="tanggal" type="date" required />
+                                <Label htmlFor="tanggal">
+                                    Tanggal Preferensi
+                                </Label>
+                                <Input
+                                    id="tanggal"
+                                    name="tanggal"
+                                    type="date"
+                                    required
+                                />
                             </div>
 
                             <div className="grid gap-2">
                                 <Label htmlFor="waktu">Waktu Preferensi</Label>
-                                <Input id="waktu" name="waktu" type="time" required />
+                                <Input
+                                    id="waktu"
+                                    name="waktu"
+                                    type="time"
+                                    required
+                                />
                             </div>
                         </div>
 
@@ -295,7 +315,9 @@ export default function JadwalBimbingan() {
                                     <SelectItem value="offline">
                                         Offline (Tatap Muka)
                                     </SelectItem>
-                                    <SelectItem value="online">Online</SelectItem>
+                                    <SelectItem value="online">
+                                        Online
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -316,7 +338,9 @@ export default function JadwalBimbingan() {
 
                         <Alert className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
                             <AlertDescription className="text-sky-900 dark:text-sky-200">
-                                <span className="font-medium">Catatan:</span> Jadwal akan dikonfirmasi oleh dosen pembimbing dalam 1-2 hari kerja.
+                                <span className="font-medium">Catatan:</span>{' '}
+                                Jadwal akan dikonfirmasi oleh dosen pembimbing
+                                dalam 1-2 hari kerja.
                             </AlertDescription>
                         </Alert>
 
@@ -590,4 +614,3 @@ export default function JadwalBimbingan() {
         </AppLayout>
     );
 }
-

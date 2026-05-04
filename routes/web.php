@@ -1,51 +1,36 @@
 <?php
 
+use App\Http\Controllers\PageController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
-Route::get('/', function () {
-    return Inertia::render('welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
-})->name('home');
+$basePath = trim((string) config('app.base_path'), '/');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+Route::prefix($basePath)->group(function (): void {
+    Route::get('/', [PageController::class, 'home'])->name('home');
 
-    Route::redirect('edit-profile', '/settings/profile')->name('edit-profile');
+    Route::middleware(['auth', 'verified'])->group(function (): void {
+        Route::get('dashboard', [PageController::class, 'dashboard'])->name('dashboard');
 
-    Route::get('settings', function () {
-        return Inertia::render('setting-notifikasi');
-    })->name('setting-notifikasi');
+        Route::get('edit-profile', [PageController::class, 'editProfileRedirect'])->name('edit-profile');
 
-    Route::get('tugas-akhir', function () {
-        return Inertia::render('tugas-akhir');
-    })->name('tugas-akhir');
+        Route::get('settings', [PageController::class, 'settingNotifikasi'])->name('setting-notifikasi');
 
-    Route::get('jadwal-bimbingan', function () {
-        return Inertia::render('jadwal-bimbingan');
-    })->name('jadwal-bimbingan');
+        Route::get('tugas-akhir', [PageController::class, 'tugasAkhir'])->name('tugas-akhir');
 
-    Route::redirect('jadwal-bimbingan/ajukan', '/jadwal-bimbingan?open=ajukan')
-        ->name('jadwal-bimbingan.create');
+        Route::get('jadwal-bimbingan', [PageController::class, 'jadwalBimbingan'])->name('jadwal-bimbingan');
 
-    Route::get('upload-dokumen', function () {
-        return Inertia::render('upload-dokumen');
-    })->name('upload-dokumen');
+        Route::get('jadwal-bimbingan/ajukan', [PageController::class, 'jadwalBimbinganCreateRedirect'])
+            ->name('jadwal-bimbingan.create');
 
-    Route::redirect('upload-dokumen/unggah', '/upload-dokumen?open=unggah')
-        ->name('upload-dokumen.create');
+        Route::get('upload-dokumen', [PageController::class, 'uploadDokumen'])->name('upload-dokumen');
 
-    Route::get('pesan', function () {
-        return Inertia::render('pesan');
-    })->name('pesan');
+        Route::get('upload-dokumen/unggah', [PageController::class, 'uploadDokumenCreateRedirect'])
+            ->name('upload-dokumen.create');
 
-    Route::get('panduan', function () {
-        return Inertia::render('panduan');
-    })->name('panduan');
+        Route::get('pesan', [PageController::class, 'pesan'])->name('pesan');
+
+        Route::get('panduan', [PageController::class, 'panduan'])->name('panduan');
+    });
+
+    require __DIR__.'/settings.php';
 });
-
-require __DIR__.'/settings.php';
