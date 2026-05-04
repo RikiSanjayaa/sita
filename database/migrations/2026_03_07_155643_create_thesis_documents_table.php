@@ -31,10 +31,10 @@ return new class extends Migration
             $table->timestamp('uploaded_at')->nullable();
             $table->timestamps();
 
-            $table->index(['project_id', 'kind', 'status']);
-            $table->index(['defense_id', 'kind']);
-            $table->index('revision_id');
-            $table->unique(['project_id', 'kind', 'version_no', 'storage_path']);
+            $table->index(['project_id', 'kind', 'status'], 'td_project_kind_status_idx');
+            $table->index(['defense_id', 'kind'], 'td_defense_kind_idx');
+            $table->index('revision_id', 'td_revision_idx');
+            $table->unique(['project_id', 'kind', 'version_no', 'storage_path'], 'td_project_kind_version_path_unique');
         });
     }
 

@@ -34,7 +34,7 @@ return new class extends Migration
                 $table->string('role', 30)->default('member'); // student, examiner, advisor
                 $table->timestamps();
 
-                $table->unique(['thread_id', 'user_id']);
+                $table->unique(['thread_id', 'user_id'], 'mctp_thread_user_unique');
             });
         }
     }

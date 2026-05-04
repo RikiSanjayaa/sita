@@ -24,9 +24,9 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['project_id', 'status']);
-            $table->index(['lecturer_user_id', 'status']);
-            $table->index(['project_id', 'role', 'status']);
+            $table->index(['project_id', 'status'], 'tsa_project_status_idx');
+            $table->index(['lecturer_user_id', 'status'], 'tsa_lecturer_status_idx');
+            $table->index(['project_id', 'role', 'status'], 'tsa_project_role_status_idx');
             $table->unique('legacy_mentorship_assignment_id', 'tsa_legacy_assignment_unique');
         });
     }

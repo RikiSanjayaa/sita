@@ -25,9 +25,9 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['student_user_id', 'status']);
-            $table->index(['lecturer_user_id', 'status']);
-            $table->index(['student_user_id', 'advisor_type', 'status']);
+            $table->index(['student_user_id', 'status'], 'ma_student_status_idx');
+            $table->index(['lecturer_user_id', 'status'], 'ma_lecturer_status_idx');
+            $table->index(['student_user_id', 'advisor_type', 'status'], 'ma_student_advisor_status_idx');
         });
     }
 
