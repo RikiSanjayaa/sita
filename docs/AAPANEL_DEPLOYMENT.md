@@ -172,6 +172,14 @@ Gunakan template `deploy/aapanel-nginx.conf`. Ganti:
 
 - `DOMAIN` menjadi domain production.
 - `root /www/wwwroot/DOMAIN/public;` menjadi path production.
+
+Untuk panel admin Filament, pastikan request `/livewire/*` diteruskan ke Laravel. Jika aaPanel masih memakai rule static bawaan untuk `.js`/`.css`, tambahkan blok ini sebelum rule static asset:
+
+```nginx
+location ^~ /livewire {
+    try_files $uri $uri/ /index.php?$query_string;
+}
+```
 - `fastcgi_pass unix:/tmp/php-cgi-84.sock;` sesuai socket PHP aaPanel. Pada beberapa server aaPanel, include bawaan `enable-php-84.conf` bisa dipakai menggantikan blok PHP manual.
 
 Contoh root wajib tetap ke `public/`, bukan folder project utama.
@@ -222,5 +230,6 @@ Catatan: Nginx subpath Laravel butuh konfigurasi rewrite yang lebih teliti diban
 - 404 semua halaman: document root belum mengarah ke `public/` atau `try_files` Nginx belum benar.
 - Blank page setelah deploy: cek `storage/logs/laravel.log`, lalu jalankan `php artisan optimize:clear`.
 - Asset CSS/JS 404: pastikan `npm run build` sukses dan `public/build` ada. Untuk subpath, pastikan `ASSET_URL` sesuai `APP_URL`.
+- Admin login tidak merespons dan console menampilkan `livewire.min.js 404`: tambahkan rule Nginx `/livewire` seperti bagian Nginx di atas, lalu reload Nginx.
 - Login/reset password email tidak terkirim: cek konfigurasi SMTP dan firewall kampus.
 - Migration gagal: cek kredensial DB, permission user DB, dan extension `pdo_mysql`.
