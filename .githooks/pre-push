@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Running CI verification before push..."
+php artisan wayfinder:generate --with-form
+composer run ci:verify
+npm run types
+npm run lint

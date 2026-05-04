@@ -4,14 +4,15 @@ Dokumen ini menjelaskan deployment SITA untuk aaPanel Free, Nginx, PHP-FPM, Mari
 
 ## Ringkasan Audit
 
-- Backend: Laravel 12, PHP minimal 8.2, Fortify untuk auth, Inertia Laravel.
+- Backend: Laravel 12, PHP minimal 8.4 untuk lock dependency saat ini, Fortify untuk auth, Inertia Laravel, Filament untuk admin.
 - Frontend: React 19, Inertia React, Vite 7, Tailwind CSS v4.
 - Build frontend: `npm ci` lalu `npm run build`.
 - Runtime backend: Nginx mengarah ke folder `public/`, PHP-FPM menjalankan `public/index.php`.
 - Database lokal saat audit: SQLite. Production direkomendasikan MariaDB/MySQL dari aaPanel.
 - Queue/cache/session: default repo memakai driver `database`, sehingga tabel `jobs`, `cache`, dan `sessions` harus dimigrasikan.
 - Storage: `storage/` dan `bootstrap/cache/` wajib writable oleh user PHP-FPM. Jalankan `php artisan storage:link`.
-- Scheduler: belum ada schedule khusus selain command contoh Laravel. Cron scheduler tetap disiapkan agar aman saat fitur bertambah.
+- Realtime chat/notifikasi: project memakai Laravel Reverb. Di aaPanel perlu proses Reverb terpisah jika ingin chat realtime seperti Docker.
+- Scheduler: project punya command reminder. Cron scheduler perlu diaktifkan.
 - Email: Fortify reset password dan verifikasi email butuh SMTP production.
 - SSR: repo punya entry SSR, tetapi production aaPanel dibuat default `INERTIA_SSR_ENABLED=false` agar tidak membutuhkan proses Node runtime.
 - Dependency eksternal: font dari `fonts.bunny.net`. Aplikasi tetap punya fallback system font jika akses internet server/client dibatasi.
@@ -57,7 +58,7 @@ Frontend dan backend tidak perlu dipisah subdomain karena Inertia menyajikan Rea
 ## Requirement Server
 
 - aaPanel Free dengan Nginx.
-- PHP 8.2 atau lebih baru. Rekomendasi PHP 8.2/8.3 yang stabil di server kampus.
+- PHP 8.4 atau lebih baru. Samakan PHP CLI, Composer, PHP-FPM site, dan PATH build Vite ke PHP 8.4.
 - Extension PHP: `ctype`, `dom`, `fileinfo`, `filter`, `json`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_mysql`, `session`, `tokenizer`, `xml`.
 - Composer 2.
 - Node.js 20 LTS atau lebih baru untuk build.
@@ -97,6 +98,20 @@ MAIL_PORT=587
 MAIL_USERNAME=isi_user_smtp
 MAIL_PASSWORD=isi_password_smtp
 MAIL_FROM_ADDRESS=noreply@sita.kampus.ac.id
+
+BROADCAST_CONNECTION=reverb
+REVERB_APP_ID=sita-production
+REVERB_APP_KEY=isi_key_panjang
+REVERB_APP_SECRET=isi_secret_panjang
+REVERB_HOST=sita.kampus.ac.id
+REVERB_PORT=8080
+REVERB_SCHEME=https
+REVERB_SERVER_HOST=0.0.0.0
+REVERB_SERVER_PORT=8080
+VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+VITE_REVERB_HOST="${REVERB_HOST}"
+VITE_REVERB_PORT="${REVERB_PORT}"
+VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 ```
 
 Jangan commit `.env`.
@@ -112,7 +127,7 @@ bash deploy/aapanel-doctor.sh
 Jika ingin sekaligus cek kecocokan domain:
 
 ```bash
-DOMAIN=sita.kampus.ac.id bash deploy/aapanel-doctor.sh
+DOMAIN=sita.kampus.ac.id PHP_BIN=/www/server/php/84/bin/php bash deploy/aapanel-doctor.sh
 ```
 
 Semua item `[FAIL]` harus diperbaiki sebelum deploy.
@@ -122,7 +137,7 @@ Semua item `[FAIL]` harus diperbaiki sebelum deploy.
 Deploy normal:
 
 ```bash
-DOMAIN=sita.kampus.ac.id bash deploy/aapanel-deploy.sh
+DOMAIN=sita.kampus.ac.id PHP_BIN=/www/server/php/84/bin/php bash deploy/aapanel-deploy.sh
 ```
 
 Script akan:
@@ -157,24 +172,30 @@ Gunakan template `deploy/aapanel-nginx.conf`. Ganti:
 
 - `DOMAIN` menjadi domain production.
 - `root /www/wwwroot/DOMAIN/public;` menjadi path production.
-- `fastcgi_pass unix:/tmp/php-cgi-82.sock;` sesuai socket PHP aaPanel. Pada beberapa server aaPanel, include bawaan `enable-php-82.conf` bisa dipakai menggantikan blok PHP manual.
+- `fastcgi_pass unix:/tmp/php-cgi-84.sock;` sesuai socket PHP aaPanel. Pada beberapa server aaPanel, include bawaan `enable-php-84.conf` bisa dipakai menggantikan blok PHP manual.
 
 Contoh root wajib tetap ke `public/`, bukan folder project utama.
 
-## Queue dan Cron
+## Reverb, Queue, dan Cron
 
-Saat ini fitur queue belum memproses job khusus, tetapi `QUEUE_CONNECTION=database` sudah disiapkan.
+Chat realtime membutuhkan Laravel Reverb. Jika Reverb tidak jalan, halaman chat masih bisa terbuka tetapi update realtime antar user tidak akan masuk sampai fallback/request berikutnya.
 
-Jika queue mulai dipakai, buat Supervisor di aaPanel atau systemd:
+Jalankan Reverb dengan Supervisor/systemd/PM2 yang tersedia di server:
 
 ```bash
-php /www/wwwroot/sita.kampus.ac.id/artisan queue:work database --sleep=3 --tries=3 --timeout=90
+/www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan reverb:start --host=0.0.0.0 --port=8080
+```
+
+Queue worker tetap direkomendasikan untuk notification/event background:
+
+```bash
+/www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan queue:work database --sleep=3 --tries=3 --timeout=90
 ```
 
 Tambahkan cron scheduler Laravel agar fitur schedule masa depan langsung aktif:
 
 ```cron
-* * * * * cd /www/wwwroot/sita.kampus.ac.id && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /www/wwwroot/sita.kampus.ac.id && /www/server/php/84/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ## Deploy di Subpath

@@ -1,89 +1,109 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
+import { Bell, Lock, Palette, ShieldCheck, Star, User } from 'lucide-react';
 import { type PropsWithChildren } from 'react';
 
-import Heading from '@/components/heading';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { useActiveUrl } from '@/hooks/use-active-url';
-import { cn, toUrl } from '@/lib/utils';
-import { edit as editAppearance } from '@/routes/appearance';
-import { edit } from '@/routes/profile';
-import { show } from '@/routes/two-factor';
-import { edit as editPassword } from '@/routes/user-password';
-import { type NavItem } from '@/types';
+import { cn } from '@/lib/utils';
+import { type SharedData } from '@/types';
 
-const sidebarNavItems: NavItem[] = [
+type SettingsLayoutProps = PropsWithChildren<{
+    width?: 'full' | 'compact';
+}>;
+
+type SettingsNavItem = {
+    title: string;
+    href: string;
+    icon: typeof User;
+    roles?: string[];
+};
+
+const settingsNavItems: SettingsNavItem[] = [
     {
-        title: 'Profile',
-        href: edit().url,
-        icon: null,
+        title: 'Profil',
+        href: '/settings/profile',
+        icon: User,
     },
     {
-        title: 'Password',
-        href: editPassword().url,
-        icon: null,
+        title: 'Keamanan',
+        href: '/settings/password',
+        icon: Lock,
     },
     {
-        title: 'Two-Factor Auth',
-        href: show().url,
-        icon: null,
+        title: 'Dua Faktor',
+        href: '/settings/two-factor',
+        icon: ShieldCheck,
     },
     {
-        title: 'Appearance',
-        href: editAppearance().url,
-        icon: null,
+        title: 'Notifikasi',
+        href: '/settings/notifications',
+        icon: Bell,
+    },
+    {
+        title: 'CSAT',
+        href: '/settings/csat',
+        icon: Star,
+        roles: ['mahasiswa', 'dosen'],
+    },
+    {
+        title: 'Tampilan',
+        href: '/settings/appearance',
+        icon: Palette,
     },
 ];
 
-export default function SettingsLayout({ children }: PropsWithChildren) {
-    const { urlIsActive } = useActiveUrl();
+export default function SettingsLayout({
+    children,
+    width = 'full',
+}: SettingsLayoutProps) {
+    const page = usePage<SharedData>();
+    const { auth } = page.props;
+    const activeRole = auth.activeRole ?? 'mahasiswa';
+    const currentPath = new URL(page.url, 'https://x').pathname;
 
-    // When server-side rendering, we only render the layout on the client...
-    if (typeof window === 'undefined') {
-        return null;
-    }
+    const visibleItems = settingsNavItems.filter(
+        (item) => !item.roles || item.roles.includes(activeRole),
+    );
 
     return (
-        <div className="px-4 py-6">
-            <Heading
-                title="Settings"
-                description="Manage your profile and account settings"
-            />
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 md:px-6">
+            <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
+                {/* Settings sidebar navigation */}
+                <aside className="mt-4 w-full shrink-0 lg:sticky lg:top-16 lg:mt-0 lg:max-h-[calc(100svh-4rem)] lg:w-48 lg:self-start lg:overflow-y-auto lg:pt-6">
+                    <nav className="flex flex-row flex-wrap gap-1 lg:flex-col">
+                        {visibleItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive =
+                                currentPath === item.href ||
+                                currentPath.startsWith(item.href + '/');
 
-            <div className="flex flex-col lg:flex-row lg:space-x-12">
-                <aside className="w-full max-w-xl lg:w-48">
-                    <nav
-                        className="flex flex-col space-y-1 space-x-0"
-                        aria-label="Settings"
-                    >
-                        {sidebarNavItems.map((item, index) => (
-                            <Button
-                                key={`${toUrl(item.href)}-${index}`}
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className={cn('w-full justify-start', {
-                                    'bg-muted': urlIsActive(item.href),
-                                })}
-                            >
-                                <Link href={item.href}>
-                                    {item.icon && (
-                                        <item.icon className="h-4 w-4" />
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    prefetch
+                                    className={cn(
+                                        'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                        isActive
+                                            ? 'bg-accent text-accent-foreground'
+                                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                                     )}
-                                    {item.title}
+                                >
+                                    <Icon className="size-4 shrink-0" />
+                                    <span>{item.title}</span>
                                 </Link>
-                            </Button>
-                        ))}
+                            );
+                        })}
                     </nav>
                 </aside>
 
-                <Separator className="my-6 lg:hidden" />
-
-                <div className="flex-1 md:max-w-2xl">
-                    <section className="max-w-xl space-y-12">
-                        {children}
-                    </section>
-                </div>
+                {/* Settings content */}
+                <section
+                    className={cn(
+                        'min-w-0 flex-1 space-y-8 py-6',
+                        width === 'compact' && 'max-w-xl',
+                    )}
+                >
+                    {children}
+                </section>
             </div>
         </div>
     );

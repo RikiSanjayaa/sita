@@ -1,26 +1,33 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     Calendar,
     CheckCircle2,
     Clock,
+    Inbox,
     MapPin,
     Plus,
+    Repeat,
     Send,
+    Users,
     XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    BimbinganCalendar,
+    type BimbinganEvent,
+} from '@/components/bimbingan-calendar';
+import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+    usePagination,
+} from '@/components/ui/data-table';
 import {
     Dialog,
     DialogContent,
@@ -37,226 +44,339 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { dashboard, jadwalBimbingan } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
-type MeetingType = 'Online' | 'Offline';
-type MeetingStatus = 'Terjadwal' | 'Selesai' | 'Dibatalkan';
+type ScheduleStatus =
+    | 'pending'
+    | 'approved'
+    | 'rescheduled'
+    | 'rejected'
+    | 'completed'
+    | 'cancelled';
 
 type UpcomingMeeting = {
-    id: string;
-    topik: string;
-    pembimbing: {
-        nama: string;
-        avatar?: string | null;
-    };
-    tanggal: string;
-    waktu: string;
-    lokasi: string;
-    tipe: MeetingType;
-    status: Extract<MeetingStatus, 'Terjadwal'>;
+    id: number;
+    topic: string;
+    lecturer: string;
+    relationType: 'pembimbing' | 'penguji';
+    requestedAt: string;
+    scheduledAt: string | null;
+    location: string;
+    status: ScheduleStatus;
+    lecturerNote: string | null;
 };
 
 type HistoryMeeting = {
-    id: string;
-    tanggal: string;
-    waktu: string;
-    topik: string;
-    pembimbing: string;
-    tipe: MeetingType;
-    lokasi: string;
-    status: Exclude<MeetingStatus, 'Terjadwal'>;
-    catatan: string;
+    id: number;
+    topic: string;
+    lecturer: string;
+    relationType: 'pembimbing' | 'penguji';
+    scheduledAt: string;
+    location: string;
+    status: ScheduleStatus;
+    lecturerNote: string | null;
+};
+
+type JadwalPageProps = {
+    hasDosbing: boolean;
+    advisors: Array<{
+        assignmentId: number;
+        lecturerUserId: number;
+        lecturerName: string;
+        advisorType: string;
+    }>;
+    upcomingMeetings: UpcomingMeeting[];
+    historyMeetings: HistoryMeeting[];
+    flashMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-    {
-        title: 'Jadwal Bimbingan',
-        href: jadwalBimbingan().url,
-    },
+    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Jadwal Bimbingan', href: jadwalBimbingan().url },
 ];
 
-const upcomingMeetings: UpcomingMeeting[] = [
-    {
-        id: 'up-1',
-        topik: 'Review Bab 3 - Metodologi Penelitian',
-        pembimbing: {
-            nama: 'Dr. Budi Santoso, M.Kom.',
-            avatar: null,
+function StatusBadge({ status }: { status: ScheduleStatus }) {
+    const map: Record<
+        ScheduleStatus,
+        { label: string; className: string; icon: React.ReactNode }
+    > = {
+        completed: {
+            label: 'Selesai',
+            className: 'bg-blue-600/10 text-blue-600',
+            icon: <CheckCircle2 className="size-3" />,
         },
-        tanggal: '30 Januari 2026',
-        waktu: '10:00 - 11:00',
-        lokasi: 'Ruang Dosen 301',
-        tipe: 'Offline',
-        status: 'Terjadwal',
-    },
-    {
-        id: 'up-2',
-        topik: 'Pembahasan Dataset dan Preprocessing',
-        pembimbing: {
-            nama: 'Dr. Budi Santoso, M.Kom.',
-            avatar: null,
+        cancelled: {
+            label: 'Dibatalkan',
+            className: 'bg-muted text-muted-foreground',
+            icon: <XCircle className="size-3" />,
         },
-        tanggal: '5 Februari 2026',
-        waktu: '14:00 - 15:00',
-        lokasi: 'Google Meet',
-        tipe: 'Online',
-        status: 'Terjadwal',
-    },
-];
+        approved: {
+            label: 'Terjadwal',
+            className: 'bg-emerald-600/10 text-emerald-700',
+            icon: <CheckCircle2 className="size-3" />,
+        },
+        rescheduled: {
+            label: 'Terjadwal',
+            className: 'bg-emerald-600/10 text-emerald-700',
+            icon: <CheckCircle2 className="size-3" />,
+        },
+        pending: {
+            label: 'Menunggu Konfirmasi',
+            className: 'bg-amber-600/10 text-amber-700',
+            icon: <Clock className="size-3" />,
+        },
+        rejected: {
+            label: 'Ditolak',
+            className: 'bg-destructive/10 text-destructive',
+            icon: <XCircle className="size-3" />,
+        },
+    };
 
-const historyMeetings: HistoryMeeting[] = [
-    {
-        id: 'h-1',
-        tanggal: '23 Januari 2026',
-        waktu: '10:00 - 11:00',
-        topik: 'Review Proposal dan Pembahasan Metode',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Offline',
-        lokasi: 'Ruang Dosen 301',
-        status: 'Selesai',
-        catatan:
-            'Proposal disetujui. Lanjutkan ke implementasi. Perbaiki bagian evaluasi dan tuliskan metrik yang digunakan.',
-    },
-    {
-        id: 'h-2',
-        tanggal: '16 Januari 2026',
-        waktu: '14:00 - 15:00',
-        topik: 'Konsultasi Judul dan Outline Proposal',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Online',
-        lokasi: 'Zoom Meeting',
-        status: 'Selesai',
-        catatan:
-            'Judul disetujui. Segera lengkapi proposal dengan tinjauan pustaka dan rencana eksperimen.',
-    },
-    {
-        id: 'h-3',
-        tanggal: '10 Januari 2026',
-        waktu: '10:00 - 11:00',
-        topik: 'Diskusi Awal Topik Penelitian',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Offline',
-        lokasi: 'Ruang Dosen 301',
-        status: 'Selesai',
-        catatan:
-            'Topik IoT dan Machine Learning menarik. Fokuskan ruang lingkup dan tentukan dataset yang relevan.',
-    },
-    {
-        id: 'h-4',
-        tanggal: '8 Januari 2026',
-        waktu: '09:00 - 10:00',
-        topik: 'Bimbingan Pemilihan Topik',
-        pembimbing: 'Dr. Budi Santoso, M.Kom.',
-        tipe: 'Offline',
-        lokasi: 'Ruang Dosen 301',
-        status: 'Dibatalkan',
-        catatan: 'Dibatalkan karena dosen berhalangan.',
-    },
-];
+    const { label, className, icon } = map[status] ?? map.cancelled;
 
-function MeetingTypeBadge({ tipe }: { tipe: MeetingType }) {
+    return (
+        <span
+            className={cn(
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+                className,
+            )}
+        >
+            {icon}
+            {label}
+        </span>
+    );
+}
+
+function RelationTypeBadge({
+    relationType,
+}: {
+    relationType: 'pembimbing' | 'penguji';
+}) {
+    if (relationType === 'penguji') {
+        return (
+            <Badge
+                variant="outline"
+                className="gap-1 rounded-full border-purple-500/50 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-400"
+            >
+                Penguji
+            </Badge>
+        );
+    }
     return (
         <Badge
             variant="outline"
-            className="rounded-full bg-background text-foreground"
+            className="gap-1 rounded-full border-cyan-500/50 bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 dark:text-cyan-400"
         >
-            {tipe}
+            Pembimbing
         </Badge>
     );
 }
 
-function StatusBadge({ status }: { status: MeetingStatus }) {
-    if (status === 'Terjadwal') {
-        return (
-            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">
-                Terjadwal
-            </Badge>
-        );
-    }
-
-    if (status === 'Selesai') {
-        return (
-            <Badge className="gap-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-                <CheckCircle2 className="size-3" />
-                Selesai
-            </Badge>
-        );
-    }
-
-    return (
-        <Badge variant="destructive" className="gap-1 rounded-full">
-            <XCircle className="size-3" />
-            Dibatalkan
-        </Badge>
-    );
-}
-
-function PembimbingLine({
-    nama,
-    avatar,
-}: {
-    nama: string;
-    avatar?: string | null;
-}) {
-    return (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Avatar className="h-6 w-6">
-                <AvatarImage src={avatar ?? undefined} alt={nama} />
-                <AvatarFallback>
-                    {nama
-                        .split(' ')
-                        .slice(0, 2)
-                        .map((p) => p[0])
-                        .join('')}
-                </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{nama}</span>
-        </div>
-    );
-}
-
-function EmptyState() {
-    return (
-        <div className="rounded-lg border bg-muted/40 p-6">
-            <div className="text-sm font-medium">Belum ada jadwal.</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-                Ajukan bimbingan untuk membuat jadwal pertemuan dengan
-                pembimbing.
-            </div>
-        </div>
-    );
-}
-
-export default function JadwalBimbingan() {
-    const page = usePage();
+export default function JadwalBimbinganPage() {
+    const page = usePage<SharedData & JadwalPageProps>();
     const query = page.url.split('?')[1] ?? '';
+    const defaultLecturerUserId = page.props.advisors[0]?.lecturerUserId;
     const [isAjukanOpen, setIsAjukanOpen] = useState(
         new URLSearchParams(query).get('open') === 'ajukan',
     );
+
+    const PAGE_SIZE = 15;
+
+    // Upcoming pagination
+    const upcomingPagination = usePagination(
+        page.props.upcomingMeetings,
+        PAGE_SIZE,
+    );
+
+    // History search + status filter + pagination
+    const [historySearch, setHistorySearch] = useState('');
+    const [historyStatusFilter, setHistoryStatusFilter] = useState<
+        'semua' | ScheduleStatus
+    >('semua');
+    const filteredHistory = useMemo(() => {
+        const q = historySearch.trim().toLowerCase();
+        return page.props.historyMeetings.filter((m) => {
+            const matchesStatus =
+                historyStatusFilter === 'semua' ||
+                m.status === historyStatusFilter;
+            const matchesSearch =
+                !q ||
+                m.topic.toLowerCase().includes(q) ||
+                m.lecturer.toLowerCase().includes(q) ||
+                m.location.toLowerCase().includes(q);
+            return matchesStatus && matchesSearch;
+        });
+    }, [page.props.historyMeetings, historySearch, historyStatusFilter]);
+    const historyPagination = usePagination(filteredHistory, PAGE_SIZE, [
+        historySearch,
+        historyStatusFilter,
+    ]);
+
+    const form = useForm({
+        topic: '',
+        lecturer_user_id:
+            defaultLecturerUserId === undefined
+                ? ''
+                : String(defaultLecturerUserId),
+        requested_for: '',
+        meeting_type: 'offline',
+        student_note: '',
+        is_recurring: false,
+        recurring_pattern: 'weekly',
+        recurring_count: 4,
+    });
+
+    useEffect(() => {
+        const userId = page.props.auth.user?.id;
+        if (typeof window === 'undefined' || !window.Echo || !userId) return;
+
+        const channelName = `schedule.user.${userId}`;
+        const channel = window.Echo.private(channelName).listen(
+            '.schedule.updated',
+            () => {
+                router.reload({
+                    only: ['upcomingMeetings', 'historyMeetings'],
+                });
+            },
+        );
+
+        return () => {
+            channel.stopListening('.schedule.updated');
+            window.Echo.leaveChannel(`private-${channelName}`);
+        };
+    }, [page.props.auth.user?.id]);
+
+    function submitRequest() {
+        form.post('/mahasiswa/jadwal-bimbingan', {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setIsAjukanOpen(false);
+            },
+        });
+    }
+
+    const [selectedEvent, setSelectedEvent] = useState<{
+        id: number;
+        topic: string;
+        person: string;
+        personRole: 'lecturer' | 'student';
+        start: string;
+        end: string;
+        location: string;
+        status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+        notes?: string | null;
+    } | null>(null);
+
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    function formatDateForCalendar(dateInput: string | Date): string {
+        if (typeof dateInput === 'string') return dateInput;
+        if (isNaN(dateInput.getTime())) return '';
+        return dateInput.toISOString();
+    }
+
+    const calendarEvents: BimbinganEvent[] = [
+        ...page.props.upcomingMeetings.flatMap((meeting) => {
+            const startDate = meeting.scheduledAt || meeting.requestedAt;
+            if (!startDate) return [];
+            const start = formatDateForCalendar(startDate);
+            if (!start) return [];
+            const endDate = new Date(
+                new Date(startDate).getTime() + 60 * 60 * 1000,
+            );
+            return [
+                {
+                    id: meeting.id,
+                    title: meeting.topic,
+                    topic: meeting.topic,
+                    person: meeting.lecturer,
+                    start,
+                    end: formatDateForCalendar(endDate),
+                    location: meeting.location,
+                    status: meeting.status as BimbinganEvent['status'],
+                    personRole: 'lecturer' as const,
+                },
+            ];
+        }),
+        ...page.props.historyMeetings.flatMap((meeting) => {
+            if (!meeting.scheduledAt) return [];
+            const start = formatDateForCalendar(meeting.scheduledAt);
+            if (!start) return [];
+            const endDate = new Date(
+                new Date(meeting.scheduledAt).getTime() + 60 * 60 * 1000,
+            );
+            return [
+                {
+                    id: meeting.id,
+                    title: meeting.topic,
+                    topic: meeting.topic,
+                    person: meeting.lecturer,
+                    start,
+                    end: formatDateForCalendar(endDate),
+                    location: meeting.location,
+                    status: meeting.status as BimbinganEvent['status'],
+                    personRole: 'lecturer' as const,
+                },
+            ];
+        }),
+    ];
+
+    function handleEventClick(event: BimbinganEvent) {
+        const fullMeeting = [
+            ...page.props.upcomingMeetings,
+            ...page.props.historyMeetings,
+        ].find((m) => m.id === event.id);
+        if (!fullMeeting) return;
+        setSelectedEvent({
+            id: fullMeeting.id,
+            topic: fullMeeting.topic,
+            person: fullMeeting.lecturer,
+            personRole: 'lecturer',
+            start: event.start,
+            end: event.end,
+            location: fullMeeting.location,
+            status: fullMeeting.status as
+                | 'pending'
+                | 'approved'
+                | 'rejected'
+                | 'completed'
+                | 'cancelled',
+            notes: fullMeeting.lecturerNote,
+        });
+        setIsDetailModalOpen(true);
+    }
 
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Jadwal Bimbingan"
-            subtitle="Kelola jadwal bimbingan tugas akhir dengan dosen pembimbing"
+            subtitle="Kelola jadwal bimbingan skripsi dengan dosen pembimbing"
         >
             <Head title="Jadwal Bimbingan" />
 
+            {/* Request Dialog */}
             <Dialog open={isAjukanOpen} onOpenChange={setIsAjukanOpen}>
                 <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Ajukan Jadwal Bimbingan</DialogTitle>
                         <DialogDescription>
                             Isi formulir untuk mengajukan jadwal bimbingan
-                            dengan dosen pembimbing
                         </DialogDescription>
                     </DialogHeader>
 
@@ -264,52 +384,98 @@ export default function JadwalBimbingan() {
                         className="grid gap-5"
                         onSubmit={(e) => {
                             e.preventDefault();
-                            setIsAjukanOpen(false);
+                            submitRequest();
                         }}
                     >
                         <div className="grid gap-2">
-                            <Label htmlFor="topik">Topik Bimbingan</Label>
+                            <Label htmlFor="topic">Topik Bimbingan</Label>
                             <Input
-                                id="topik"
-                                name="topik"
+                                id="topic"
+                                value={form.data.topic}
+                                onChange={(e) =>
+                                    form.setData('topic', e.target.value)
+                                }
                                 required
-                                placeholder="Contoh: Review Bab 2 - Tinjauan Pustaka"
+                                placeholder="Contoh: Review Bab 3 - Metodologi Penelitian"
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Tulis fokus diskusi agar pembimbing bisa
-                                menyiapkan arahan.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="tanggal">
-                                    Tanggal Preferensi
-                                </Label>
-                                <Input
-                                    id="tanggal"
-                                    name="tanggal"
-                                    type="date"
-                                    required
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="waktu">Waktu Preferensi</Label>
-                                <Input
-                                    id="waktu"
-                                    name="waktu"
-                                    type="time"
-                                    required
-                                />
-                            </div>
+                            {form.errors.topic && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.topic}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="tipe">Tipe Bimbingan</Label>
-                            <Select defaultValue="offline">
-                                <SelectTrigger id="tipe">
-                                    <SelectValue placeholder="Pilih tipe bimbingan" />
+                            <Label htmlFor="lecturer_user_id">
+                                Dosen Tujuan
+                            </Label>
+                            <Select
+                                value={form.data.lecturer_user_id}
+                                onValueChange={(v) =>
+                                    form.setData('lecturer_user_id', v)
+                                }
+                            >
+                                <SelectTrigger id="lecturer_user_id">
+                                    <SelectValue placeholder="Pilih dosen pembimbing" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {page.props.advisors.map((a) => (
+                                        <SelectItem
+                                            key={`${a.assignmentId}-${a.lecturerUserId}`}
+                                            value={String(a.lecturerUserId)}
+                                        >
+                                            {a.lecturerName} (
+                                            {a.advisorType === 'primary' &&
+                                                'Pembimbing 1'}
+                                            {a.advisorType === 'secondary' &&
+                                                'Pembimbing 2'}
+                                            {a.advisorType === 'penguji' &&
+                                                'Penguji'}
+                                            )
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {form.errors.lecturer_user_id && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.lecturer_user_id}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="requested_for">
+                                Tanggal &amp; Waktu Preferensi
+                            </Label>
+                            <Input
+                                id="requested_for"
+                                type="datetime-local"
+                                value={form.data.requested_for}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'requested_for',
+                                        e.target.value,
+                                    )
+                                }
+                                required
+                            />
+                            {form.errors.requested_for && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.requested_for}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="meeting_type">Tipe Bimbingan</Label>
+                            <Select
+                                value={form.data.meeting_type}
+                                onValueChange={(v) =>
+                                    form.setData('meeting_type', v)
+                                }
+                            >
+                                <SelectTrigger id="meeting_type">
+                                    <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="offline">
@@ -322,32 +488,126 @@ export default function JadwalBimbingan() {
                             </Select>
                         </div>
 
+                        <div className="grid gap-3 rounded-lg border p-4">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="is_recurring"
+                                    checked={form.data.is_recurring}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'is_recurring',
+                                            e.target.checked,
+                                        )
+                                    }
+                                    className="size-4 rounded border-input"
+                                />
+                                <Label
+                                    htmlFor="is_recurring"
+                                    className="flex items-center gap-2 font-medium"
+                                >
+                                    <Repeat className="size-4" />
+                                    Jadwalkan Berulang
+                                </Label>
+                            </div>
+
+                            {form.data.is_recurring && (
+                                <div className="grid gap-3 pl-6">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="recurring_pattern">
+                                            Pola Pengulangan
+                                        </Label>
+                                        <Select
+                                            value={form.data.recurring_pattern}
+                                            onValueChange={(v) =>
+                                                form.setData(
+                                                    'recurring_pattern',
+                                                    v,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="recurring_pattern">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="weekly">
+                                                    Mingguan
+                                                </SelectItem>
+                                                <SelectItem value="biweekly">
+                                                    2 Mingguan
+                                                </SelectItem>
+                                                <SelectItem value="monthly">
+                                                    Bulanan
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="recurring_count">
+                                            Jumlah Pertemuan
+                                        </Label>
+                                        <Select
+                                            value={String(
+                                                form.data.recurring_count,
+                                            )}
+                                            onValueChange={(v) =>
+                                                form.setData(
+                                                    'recurring_count',
+                                                    parseInt(v, 10),
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="recurring_count">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {[2, 3, 4, 5, 6, 7, 8].map(
+                                                    (n) => (
+                                                        <SelectItem
+                                                            key={n}
+                                                            value={String(n)}
+                                                        >
+                                                            {n} pertemuan
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Akan dibuat {form.data.recurring_count}{' '}
+                                        jadwal dengan pola{' '}
+                                        {form.data.recurring_pattern ===
+                                            'weekly' && 'mingguan'}
+                                        {form.data.recurring_pattern ===
+                                            'biweekly' && '2 mingguan'}
+                                        {form.data.recurring_pattern ===
+                                            'monthly' && 'bulanan'}
+                                        .
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="grid gap-2">
-                            <Label htmlFor="catatan">
-                                Catatan Tambahan{' '}
-                                <span className="font-normal text-muted-foreground">
-                                    (Opsional)
-                                </span>
+                            <Label htmlFor="student_note">
+                                Catatan Tambahan (Opsional)
                             </Label>
                             <Textarea
-                                id="catatan"
-                                name="catatan"
+                                id="student_note"
+                                value={form.data.student_note}
+                                onChange={(e) =>
+                                    form.setData('student_note', e.target.value)
+                                }
                                 placeholder="Jelaskan hal-hal yang ingin didiskusikan..."
                             />
                         </div>
 
-                        <Alert className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
-                            <AlertDescription className="text-sky-900 dark:text-sky-200">
-                                <span className="font-medium">Catatan:</span>{' '}
-                                Jadwal akan dikonfirmasi oleh dosen pembimbing
-                                dalam 1-2 hari kerja.
-                            </AlertDescription>
-                        </Alert>
-
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={() => setIsAjukanOpen(false)}
                             >
                                 Batal
@@ -355,6 +615,7 @@ export default function JadwalBimbingan() {
                             <Button
                                 type="submit"
                                 className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                disabled={form.processing}
                             >
                                 <Send className="size-4" />
                                 Kirim Permintaan
@@ -364,253 +625,371 @@ export default function JadwalBimbingan() {
                 </DialogContent>
             </Dialog>
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 md:px-6">
+                {/* Page header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             Jadwal Bimbingan
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola jadwal bimbingan tugas akhir dengan dosen
+                            Kelola jadwal bimbingan skripsi dengan dosen
                             pembimbing
                         </p>
                     </div>
-                    <Button
-                        type="button"
-                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
-                        onClick={() => setIsAjukanOpen(true)}
-                    >
-                        <Plus className="size-4" />
-                        Ajukan Bimbingan
-                    </Button>
+                    {page.props.hasDosbing && (
+                        <Button
+                            type="button"
+                            className="h-10 w-full gap-2 sm:w-auto"
+                            onClick={() => setIsAjukanOpen(true)}
+                        >
+                            <Plus className="size-4" />
+                            Ajukan Bimbingan
+                        </Button>
+                    )}
                 </div>
 
-                <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Bimbingan Akan Datang</CardTitle>
-                        <CardDescription>
-                            Jadwal bimbingan yang telah dikonfirmasi
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {upcomingMeetings.length === 0 ? (
-                            <EmptyState />
-                        ) : (
-                            <div className="grid gap-3">
-                                {upcomingMeetings.map((m) => (
-                                    <div
-                                        key={m.id}
-                                        className="rounded-xl border bg-background p-4"
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="min-w-0">
-                                                <div className="truncate text-sm font-semibold">
-                                                    {m.topik}
-                                                </div>
-                                                <div className="mt-1">
-                                                    <PembimbingLine
-                                                        nama={m.pembimbing.nama}
-                                                        avatar={
-                                                            m.pembimbing.avatar
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                            <StatusBadge status={m.status} />
-                                        </div>
-
-                                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                            <div className="grid gap-2 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="size-4" />
-                                                    <span>{m.tanggal}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <MapPin className="size-4" />
-                                                    <span className="truncate">
-                                                        {m.lokasi}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid gap-2 text-sm text-muted-foreground md:justify-items-end">
-                                                <div className="flex items-center gap-2 md:justify-end">
-                                                    <Clock className="size-4" />
-                                                    <span>{m.waktu}</span>
-                                                </div>
-                                                <div className="md:justify-self-end">
-                                                    <MeetingTypeBadge
-                                                        tipe={m.tipe}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                {/* No dosbing state */}
+                {!page.props.auth.activeRole || !page.props.hasDosbing ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center text-muted-foreground">
+                        <Users className="mb-4 size-12 opacity-20" />
+                        <h2 className="mb-2 text-lg font-semibold text-foreground">
+                            Fitur Bimbingan Belum Aktif
+                        </h2>
+                        <p className="max-w-md text-sm">
+                            Anda belum memiliki Dosen Pembimbing yang
+                            ditugaskan. Fitur jadwal bimbingan akan otomatis
+                            aktif setelah admin menetapkan dosen pembimbing
+                            untuk Anda.
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        {page.props.flashMessage && (
+                            <Alert>
+                                <AlertTitle>Berhasil</AlertTitle>
+                                <AlertDescription>
+                                    {page.props.flashMessage}
+                                </AlertDescription>
+                            </Alert>
                         )}
-                    </CardContent>
-                </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Riwayat Bimbingan</CardTitle>
-                        <CardDescription>
-                            Catatan semua sesi bimbingan yang telah dilakukan
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {historyMeetings.length === 0 ? (
-                            <EmptyState />
-                        ) : (
-                            <>
-                                <div className="grid gap-3 md:hidden">
-                                    {historyMeetings.map((row) => (
-                                        <div
-                                            key={row.id}
-                                            className="rounded-xl border bg-background p-4"
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="min-w-0">
-                                                    <div className="text-sm font-semibold">
-                                                        {row.topik}
-                                                    </div>
-                                                    <div className="mt-1 text-sm text-muted-foreground">
-                                                        {row.pembimbing}
-                                                    </div>
-                                                </div>
-                                                <StatusBadge
-                                                    status={row.status}
-                                                />
-                                            </div>
+                        {/* Calendar */}
+                        <section>
+                            <BimbinganCalendar
+                                events={calendarEvents}
+                                onEventClick={handleEventClick}
+                                defaultView="list"
+                            />
+                        </section>
 
-                                            <Separator className="my-4" />
-
-                                            <div className="grid gap-2 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="size-4" />
-                                                    <span>{row.tanggal}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="size-4" />
-                                                    <span>{row.waktu}</span>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <MeetingTypeBadge
-                                                        tipe={row.tipe}
-                                                    />
-                                                    <div className="flex items-center gap-2 truncate">
-                                                        <MapPin className="size-4" />
-                                                        <span className="truncate">
-                                                            {row.lokasi}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="rounded-lg border bg-muted/30 p-3">
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Catatan
-                                                    </div>
-                                                    <div className="mt-1 text-sm text-foreground">
-                                                        {row.catatan}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                        {/* Upcoming — full data table with horizontal scroll + pagination */}
+                        <section>
+                            <div className="mb-1 flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-base font-semibold">
+                                        Bimbingan Akan Datang
+                                    </h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        Jadwal yang diajukan atau telah
+                                        dikonfirmasi
+                                    </p>
                                 </div>
+                                <span className="text-xs text-muted-foreground">
+                                    {page.props.upcomingMeetings.length} jadwal
+                                </span>
+                            </div>
 
-                                <div className="hidden overflow-hidden rounded-lg border md:block">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-background">
-                                            <tr className="border-b">
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tanggal & Waktu
-                                                </th>
-                                                <th className="px-4 py-3 font-medium">
+                            {page.props.upcomingMeetings.length > 0 ? (
+                                <DataTableContainer>
+                                    <table className="w-full min-w-[700px] text-sm">
+                                        <thead>
+                                            <tr className="border-b bg-muted/30">
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                                     Topik
                                                 </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Tipe
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Dosen
                                                 </th>
-                                                <th className="px-4 py-3 font-medium">
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                    Waktu Preferensi
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                    Waktu Terkonfirmasi
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Lokasi
+                                                </th>
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                                     Status
                                                 </th>
-                                                <th className="px-4 py-3 font-medium">
-                                                    Catatan
+                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                    Catatan Dosen
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            {historyMeetings.map((row) => (
-                                                <tr
-                                                    key={row.id}
-                                                    className="border-b last:border-b-0"
-                                                >
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="grid gap-2 text-sm text-muted-foreground">
-                                                            <div className="flex items-center gap-2">
-                                                                <Calendar className="size-4" />
-                                                                <span>
+                                        <tbody className="divide-y">
+                                            {upcomingPagination.paginated.map(
+                                                (meeting) => (
+                                                    <tr
+                                                        key={meeting.id}
+                                                        className="transition-colors hover:bg-muted/20"
+                                                    >
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <p className="max-w-[200px] min-w-[140px] text-xs leading-snug font-medium">
+                                                                {meeting.topic}
+                                                            </p>
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                {
+                                                                    meeting.lecturer
+                                                                }
+                                                            </p>
+                                                            <RelationTypeBadge
+                                                                relationType={
+                                                                    meeting.relationType
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top text-xs whitespace-nowrap text-muted-foreground">
+                                                            {formatDate(
+                                                                meeting.requestedAt,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            {meeting.scheduledAt ? (
+                                                                <span className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                    {formatDate(
+                                                                        meeting.scheduledAt,
+                                                                    )}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
+                                                                    <Clock className="size-3 shrink-0" />
+                                                                    Menunggu
+                                                                    konfirmasi
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                                <MapPin className="size-3 shrink-0" />
+                                                                {
+                                                                    meeting.location
+                                                                }
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            <StatusBadge
+                                                                status={
+                                                                    meeting.status
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-top">
+                                                            {meeting.lecturerNote ? (
+                                                                <p className="max-w-[240px] min-w-[160px] text-xs leading-relaxed text-muted-foreground">
                                                                     {
-                                                                        row.tanggal
+                                                                        meeting.lecturerNote
                                                                     }
+                                                                </p>
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground/40 italic">
+                                                                    —
                                                                 </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Clock className="size-4" />
-                                                                <span>
-                                                                    {row.waktu}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="min-w-0">
-                                                            <div className="text-sm font-medium">
-                                                                {row.topik}
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-muted-foreground">
-                                                                {row.pembimbing}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="grid gap-2">
-                                                            <div>
-                                                                <MeetingTypeBadge
-                                                                    tipe={
-                                                                        row.tipe
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                <MapPin className="size-3.5" />
-                                                                <span className="truncate">
-                                                                    {row.lokasi}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <StatusBadge
-                                                            status={row.status}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <div className="max-w-[360px] text-sm text-muted-foreground">
-                                                            {row.catatan}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
                                         </tbody>
                                     </table>
-                                </div>
-                            </>
-                        )}
-                    </CardContent>
-                </Card>
+                                    <DataTablePagination
+                                        currentPage={upcomingPagination.page}
+                                        totalPages={
+                                            upcomingPagination.totalPages
+                                        }
+                                        totalItems={
+                                            upcomingPagination.totalItems
+                                        }
+                                        pageSize={PAGE_SIZE}
+                                        onPageChange={
+                                            upcomingPagination.setPage
+                                        }
+                                        itemLabel="jadwal"
+                                    />
+                                </DataTableContainer>
+                            ) : (
+                                <DataTableEmptyState
+                                    icon={Inbox}
+                                    title="Belum ada jadwal mendatang"
+                                    description="Ajukan jadwal baru untuk mulai sesi bimbingan berikutnya."
+                                />
+                            )}
+                        </section>
+
+                        {/* History — search + table + pagination */}
+                        <section>
+                            <div className="mb-3">
+                                <h2 className="text-base font-semibold">
+                                    Riwayat Bimbingan
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Sesi bimbingan yang sudah selesai atau
+                                    ditutup
+                                </p>
+                            </div>
+
+                            <DataTableToolbar
+                                search={historySearch}
+                                onSearchChange={setHistorySearch}
+                                searchPlaceholder="Cari topik, dosen, atau lokasi..."
+                                filterGroups={[
+                                    {
+                                        value: historyStatusFilter,
+                                        onChange: (v) =>
+                                            setHistoryStatusFilter(
+                                                v as 'semua' | ScheduleStatus,
+                                            ),
+                                        tabs: [
+                                            {
+                                                label: 'Semua',
+                                                value: 'semua',
+                                            },
+                                            {
+                                                label: 'Selesai',
+                                                value: 'completed',
+                                            },
+                                            {
+                                                label: 'Ditolak',
+                                                value: 'rejected',
+                                            },
+                                            {
+                                                label: 'Dibatalkan',
+                                                value: 'cancelled',
+                                            },
+                                        ],
+                                    },
+                                ]}
+                                className="mb-3"
+                            />
+
+                            {historyPagination.totalItems > 0 ? (
+                                <DataTableContainer>
+                                    <table className="w-full min-w-[600px] text-left text-sm">
+                                        <thead className="border-b bg-muted/30">
+                                            <tr>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Topik
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Dosen
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                    Waktu
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Lokasi
+                                                </th>
+                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                    Status
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y bg-card">
+                                            {historyPagination.paginated.map(
+                                                (row) => (
+                                                    <tr
+                                                        key={row.id}
+                                                        className="transition-colors hover:bg-muted/20"
+                                                    >
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <p className="max-w-[180px] truncate text-sm font-medium">
+                                                                {row.topic}
+                                                            </p>
+                                                            {row.lecturerNote && (
+                                                                <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground italic opacity-70">
+                                                                    {
+                                                                        row.lecturerNote
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                {row.lecturer}
+                                                            </p>
+                                                            <RelationTypeBadge
+                                                                relationType={
+                                                                    row.relationType
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
+                                                            {formatDate(
+                                                                row.scheduledAt,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                                <MapPin className="size-3 shrink-0" />
+                                                                {row.location}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-5 py-3.5 align-middle">
+                                                            <StatusBadge
+                                                                status={
+                                                                    row.status
+                                                                }
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    <DataTablePagination
+                                        currentPage={historyPagination.page}
+                                        totalPages={
+                                            historyPagination.totalPages
+                                        }
+                                        totalItems={
+                                            historyPagination.totalItems
+                                        }
+                                        pageSize={PAGE_SIZE}
+                                        onPageChange={historyPagination.setPage}
+                                        itemLabel="riwayat"
+                                    />
+                                </DataTableContainer>
+                            ) : (
+                                <DataTableEmptyState
+                                    icon={Calendar}
+                                    title={
+                                        historySearch ||
+                                        historyStatusFilter !== 'semua'
+                                            ? 'Tidak ada riwayat yang cocok'
+                                            : 'Belum ada riwayat bimbingan'
+                                    }
+                                    description={
+                                        historySearch ||
+                                        historyStatusFilter !== 'semua'
+                                            ? 'Coba ubah kata kunci atau filter yang dipilih.'
+                                            : 'Riwayat akan muncul setelah sesi pertama selesai.'
+                                    }
+                                />
+                            )}
+                        </section>
+                    </>
+                )}
             </div>
+
+            <ScheduleDetailModal
+                open={isDetailModalOpen}
+                onOpenChange={setIsDetailModalOpen}
+                schedule={selectedEvent}
+                currentUserRole="mahasiswa"
+            />
         </AppLayout>
     );
 }

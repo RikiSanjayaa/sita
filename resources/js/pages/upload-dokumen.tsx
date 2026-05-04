@@ -1,26 +1,28 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     CheckCircle2,
     CircleAlert,
     Clock,
     Download,
-    Eye,
     FileText,
+    Inbox,
     Trash2,
     Upload,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+    type FilterGroup,
+    usePagination,
+} from '@/components/ui/data-table';
 import {
     Dialog,
     DialogContent,
@@ -37,243 +39,228 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import * as routes from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import * as mahasiswaUploadDokumenRoutes from '@/routes/mahasiswa/upload-dokumen';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
-type DokumenStatus = 'Menunggu Review' | 'Disetujui' | 'Perlu Revisi';
+type DokumenStatus =
+    | 'Menunggu Review'
+    | 'Disetujui'
+    | 'Perlu Revisi'
+    | 'Tersimpan';
 
 type UploadedDokumenRow = {
-    nama: string;
-    versi: string;
-    kategori: string;
-    tanggalUpload: string;
-    ukuran: string;
-    status: DokumenStatus;
-};
-
-type GroupDocEvent = {
-    id: string;
-    fileName: string;
+    id: number;
+    title: string;
     category: string;
-    uploadedAt: string;
-    uploadedBy: string;
     version: string;
+    uploadedAt: string;
+    fileName: string;
+    size: string;
+    status: DokumenStatus;
+    revisionNotes?: string | null;
+    downloadUrl: string;
+    canDelete: boolean;
+    deleteBlockedReason?: string | null;
 };
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'pptx'] as const;
-const ACCEPT_ATTR = '.pdf,.docx,.pptx';
-const GROUP_DOC_EVENTS_KEY = 'sita:group-doc-events:v1';
-
-const categoryLabels: Record<string, string> = {
-    'draft-tugas-akhir': 'Draft Tugas Akhir',
-    proposal: 'Proposal',
-    laporan: 'Laporan',
-    'slide-presentasi': 'Slide Presentasi',
-    lampiran: 'Lampiran',
+type UploadDokumenProps = {
+    uploadedDocuments: UploadedDokumenRow[];
+    flashMessage?: string | null;
+    errorMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: routes.dashboard().url,
-    },
-    {
-        title: 'Upload Dokumen',
-        href: routes.uploadDokumen().url,
-    },
+    { title: 'Dashboard', href: routes.dashboard().url },
+    { title: 'Upload Dokumen', href: routes.uploadDokumen().url },
 ];
 
 const panduanItems = [
-    'Format file yang didukung: PDF, DOCX, PPTX',
+    'Format file yang didukung: PDF, DOC, DOCX',
     'Ukuran maksimal file: 10 MB',
-    'Gunakan penamaan file yang jelas dan deskriptif',
-    'Dokumen akan direview oleh pembimbing dalam 2-3 hari kerja',
+    'Setiap upload membuat versi baru dokumen',
+    'Dosen pembimbing mendapat notifikasi realtime di group chat',
 ];
-
-const uploadedDokumen: UploadedDokumenRow[] = [
-    {
-        nama: 'Draft Tugas Akhir v2.0.pdf',
-        versi: 'v2.0',
-        kategori: 'Draft Tugas Akhir',
-        tanggalUpload: '23 Januari 2026',
-        ukuran: '2.4 MB',
-        status: 'Menunggu Review',
-    },
-    {
-        nama: 'Proposal Tugas Akhir.pdf',
-        versi: 'v1.0',
-        kategori: 'Proposal',
-        tanggalUpload: '16 Januari 2026',
-        ukuran: '1.8 MB',
-        status: 'Disetujui',
-    },
-    {
-        nama: 'Slide Presentasi Sidang.pptx',
-        versi: 'v1.0',
-        kategori: 'Slide Presentasi',
-        tanggalUpload: '20 Januari 2026',
-        ukuran: '5.2 MB',
-        status: 'Perlu Revisi',
-    },
-    {
-        nama: 'Draft Tugas Akhir v1.0.pdf',
-        versi: 'v1.0',
-        kategori: 'Draft Tugas Akhir',
-        tanggalUpload: '10 Januari 2026',
-        ukuran: '2.1 MB',
-        status: 'Disetujui',
-    },
-];
-
-function formatBytes(bytes: number) {
-    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    const order = Math.min(
-        Math.floor(Math.log(bytes) / Math.log(1024)),
-        units.length - 1,
-    );
-    const value = bytes / 1024 ** order;
-    const rounded =
-        value >= 10 || order === 0 ? value.toFixed(0) : value.toFixed(1);
-    return `${rounded} ${units[order]}`;
-}
-
-function getExtension(filename: string) {
-    const lastDot = filename.lastIndexOf('.');
-    if (lastDot === -1) return '';
-    return filename.slice(lastDot + 1).toLowerCase();
-}
-
-function validateFile(file: File) {
-    if (file.size > MAX_FILE_BYTES) {
-        return 'Ukuran file melebihi 10 MB. Silakan pilih file lain.';
-    }
-
-    const ext = getExtension(file.name);
-    if (
-        ext &&
-        !ACCEPTED_EXTENSIONS.includes(
-            ext as (typeof ACCEPTED_EXTENSIONS)[number],
-        )
-    ) {
-        return 'Format file tidak didukung. Gunakan PDF, DOCX, atau PPTX.';
-    }
-
-    return null;
-}
-
-function KategoriBadge({ kategori }: { kategori: string }) {
-    return (
-        <Badge
-            variant="outline"
-            className="rounded-full bg-background text-foreground"
-        >
-            {kategori}
-        </Badge>
-    );
-}
 
 function StatusBadge({ status }: { status: DokumenStatus }) {
+    if (status === 'Tersimpan') {
+        return (
+            <Badge
+                variant="outline"
+                className="gap-1 border-slate-300 bg-slate-50 whitespace-nowrap text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300"
+            >
+                <Inbox className="size-3" />
+                Tersimpan
+            </Badge>
+        );
+    }
+
     if (status === 'Disetujui') {
         return (
-            <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
+            <Badge className="gap-1 bg-emerald-600 whitespace-nowrap text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
                 <CheckCircle2 className="size-3" />
                 Disetujui
             </Badge>
         );
     }
-
     if (status === 'Perlu Revisi') {
         return (
-            <Badge variant="destructive" className="gap-1">
+            <Badge variant="destructive" className="gap-1 whitespace-nowrap">
                 <CircleAlert className="size-3" />
                 Perlu Revisi
             </Badge>
         );
     }
-
     return (
-        <Badge variant="secondary" className="gap-1 bg-muted text-foreground">
+        <Badge
+            variant="secondary"
+            className="gap-1 bg-muted whitespace-nowrap text-foreground"
+        >
             <Clock className="size-3 text-muted-foreground" />
             Menunggu Review
         </Badge>
     );
 }
 
-function ActionIconButton({
-    label,
-    tone = 'default',
-    icon: Icon,
-}: {
-    label: string;
-    tone?: 'default' | 'danger';
-    icon: typeof Eye;
-}) {
-    return (
-        <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={
-                tone === 'danger'
-                    ? 'h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                    : 'h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground'
-            }
-            aria-label={label}
-            title={label}
-        >
-            <Icon className="size-4" />
-        </Button>
-    );
-}
+type StatusFilter = 'semua' | DokumenStatus;
+const PAGE_SIZE = 15;
 
-export default function UploadDokumen() {
-    const page = usePage();
+export default function UploadDokumenPage() {
+    const page = usePage<SharedData & UploadDokumenProps>();
     const query = page.url.split('?')[1] ?? '';
     const [isUploadOpen, setIsUploadOpen] = useState(
         new URLSearchParams(query).get('open') === 'unggah',
     );
-    const [kategori, setKategori] = useState<string>('draft-tugas-akhir');
-    const [file, setFile] = useState<File | null>(null);
-    const [fileError, setFileError] = useState<string | null>(null);
-    const [isUploadSuccessOpen, setIsUploadSuccessOpen] = useState(false);
 
-    function publishUploadToGroupChat(
-        nextFile: File,
-        selectedCategory: string,
-    ) {
-        if (typeof window === 'undefined') return;
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const [documentPendingDelete, setDocumentPendingDelete] =
+        useState<UploadedDokumenRow | null>(null);
 
-        const raw = window.localStorage.getItem(GROUP_DOC_EVENTS_KEY);
-        const currentEvents = raw ? (JSON.parse(raw) as GroupDocEvent[]) : [];
+    const form = useForm<{
+        title: string;
+        category: string;
+        document: File | null;
+    }>({
+        title: '',
+        category: 'draft-tugas-akhir',
+        document: null,
+    });
 
-        const nextEvent: GroupDocEvent = {
-            id: `evt-${Date.now()}`,
-            fileName: nextFile.name,
-            category: categoryLabels[selectedCategory] ?? selectedCategory,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: 'Mahasiswa',
-            version: 'v1.0',
-        };
+    const deleteForm = useForm({});
 
-        window.localStorage.setItem(
-            GROUP_DOC_EVENTS_KEY,
-            JSON.stringify([...currentEvents, nextEvent]),
+    function submitUpload() {
+        form.post(mahasiswaUploadDokumenRoutes.store().url, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setIsUploadOpen(false);
+            },
+        });
+    }
+
+    function submitDelete() {
+        if (documentPendingDelete === null) {
+            return;
+        }
+
+        deleteForm.delete(
+            mahasiswaUploadDokumenRoutes.destroy(documentPendingDelete.id).url,
+            {
+                preserveScroll: true,
+                onFinish: () => setDocumentPendingDelete(null),
+            },
         );
     }
+
+    const filteredDocuments = useMemo(() => {
+        const lower = search.toLowerCase();
+        return page.props.uploadedDocuments.filter((doc) => {
+            const matchesStatus =
+                statusFilter === 'semua' || doc.status === statusFilter;
+            const matchesSearch =
+                lower === '' ||
+                doc.title.toLowerCase().includes(lower) ||
+                doc.fileName.toLowerCase().includes(lower) ||
+                doc.category.toLowerCase().includes(lower);
+            return matchesStatus && matchesSearch;
+        });
+    }, [page.props.uploadedDocuments, statusFilter, search]);
+
+    const statusCounts = useMemo(
+        () => ({
+            review: page.props.uploadedDocuments.filter(
+                (d) => d.status === 'Menunggu Review',
+            ).length,
+            revisi: page.props.uploadedDocuments.filter(
+                (d) => d.status === 'Perlu Revisi',
+            ).length,
+            disetujui: page.props.uploadedDocuments.filter(
+                (d) => d.status === 'Disetujui',
+            ).length,
+        }),
+        [page.props.uploadedDocuments],
+    );
+
+    const {
+        page: currentPage,
+        setPage,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(filteredDocuments, PAGE_SIZE, [search, statusFilter]);
+
+    const filterGroups: FilterGroup[] = [
+        {
+            value: statusFilter,
+            onChange: (v) => setStatusFilter(v as StatusFilter),
+            tabs: [
+                { label: 'Semua', value: 'semua' },
+                {
+                    label: 'Menunggu Review',
+                    value: 'Menunggu Review',
+                    count: statusCounts.review,
+                },
+                {
+                    label: 'Perlu Revisi',
+                    value: 'Perlu Revisi',
+                    count: statusCounts.revisi,
+                },
+                { label: 'Disetujui', value: 'Disetujui' },
+            ],
+        },
+    ];
+
+    const pendingRevisiCount = statusCounts.revisi;
 
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Upload Dokumen"
-            subtitle="Kelola dan upload dokumen tugas akhir Anda"
+            subtitle="Kelola dan upload dokumen skripsi Anda"
         >
             <Head title="Upload Dokumen" />
 
-            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            {/* Upload Dialog */}
+            <Dialog
+                open={isUploadOpen}
+                onOpenChange={(open) => {
+                    if (form.processing) {
+                        return;
+                    }
+
+                    setIsUploadOpen(open);
+                }}
+            >
                 <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Upload Dokumen</DialogTitle>
@@ -283,114 +270,144 @@ export default function UploadDokumen() {
                     </DialogHeader>
 
                     <form
-                        className="grid gap-5"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            if (!file || !kategori) return;
-                            publishUploadToGroupChat(file, kategori);
-                            setIsUploadOpen(false);
-                            setIsUploadSuccessOpen(true);
+                        className="grid gap-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            submitUpload();
                         }}
                     >
-                        <div className="grid gap-2">
-                            <Label htmlFor="kategori-dokumen">
-                                Kategori Dokumen
-                            </Label>
+                        <div className="grid gap-2 border-b pb-4">
+                            <Label htmlFor="title">Judul Dokumen</Label>
+                            <Input
+                                id="title"
+                                value={form.data.title}
+                                onChange={(event) =>
+                                    form.setData('title', event.target.value)
+                                }
+                                placeholder="Contoh: Draft Bab 3 Metodologi"
+                            />
+                            {form.errors.title && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.title}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2 border-b pb-4">
+                            <Label htmlFor="category">Kategori Dokumen</Label>
                             <Select
-                                value={kategori}
-                                onValueChange={setKategori}
+                                value={form.data.category}
+                                onValueChange={(value) =>
+                                    form.setData('category', value)
+                                }
                             >
-                                <SelectTrigger id="kategori-dokumen">
+                                <SelectTrigger id="category">
                                     <SelectValue placeholder="Pilih kategori dokumen" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="draft-tugas-akhir">
-                                        Draft Tugas Akhir
+                                        Draft Skripsi
                                     </SelectItem>
                                     <SelectItem value="proposal">
                                         Proposal
                                     </SelectItem>
+                                    <SelectItem value="final-manuscript">
+                                        Naskah Akhir
+                                    </SelectItem>
                                     <SelectItem value="laporan">
                                         Laporan
-                                    </SelectItem>
-                                    <SelectItem value="slide-presentasi">
-                                        Slide Presentasi
                                     </SelectItem>
                                     <SelectItem value="lampiran">
                                         Lampiran
                                     </SelectItem>
+                                    <SelectItem value="lampiran-sidang">
+                                        Lampiran Sidang
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
-                                Pastikan kategori sesuai dengan jenis dokumen
-                                agar proses review lebih cepat.
-                            </p>
+                            {form.errors.category && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.category}
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="file-dokumen">File Dokumen</Label>
+                            <Label htmlFor="document">File Dokumen</Label>
                             <Input
-                                id="file-dokumen"
+                                id="document"
                                 type="file"
-                                accept={ACCEPT_ATTR}
-                                onChange={(e) => {
-                                    const nextFile =
-                                        e.currentTarget.files?.[0] ?? null;
-
-                                    if (!nextFile) {
-                                        setFile(null);
-                                        setFileError(null);
-                                        return;
-                                    }
-
-                                    const error = validateFile(nextFile);
-                                    setFileError(error);
-                                    setFile(error ? null : nextFile);
-                                }}
+                                accept=".pdf,.doc,.docx"
+                                onChange={(event) =>
+                                    form.setData(
+                                        'document',
+                                        event.currentTarget.files?.[0] ?? null,
+                                    )
+                                }
                             />
                             <p className="text-xs text-muted-foreground">
-                                Format: PDF, DOCX, PPTX. Ukuran maksimal: 10 MB.
+                                Format: PDF, DOC, DOCX. Ukuran maksimal: 10 MB.
                             </p>
-                            {file ? (
-                                <p className="text-xs text-muted-foreground">
-                                    File terpilih:{' '}
-                                    <span className="font-medium text-foreground">
-                                        {file.name}
-                                    </span>{' '}
-                                    ({formatBytes(file.size)})
+                            {form.errors.document && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.document}
                                 </p>
-                            ) : null}
-                            {fileError ? (
-                                <Alert variant="destructive">
-                                    <AlertDescription>
-                                        {fileError}
-                                    </AlertDescription>
-                                </Alert>
-                            ) : null}
+                            )}
                         </div>
 
-                        <Alert className="border-sky-100 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
-                            <AlertDescription className="text-sky-900 dark:text-sky-200">
-                                <span className="font-medium">Catatan:</span>{' '}
-                                Pastikan dokumen sudah sesuai dengan format dan
-                                panduan yang diberikan sebelum mengupload.
-                            </AlertDescription>
-                        </Alert>
+                        {form.processing && (
+                            <div className="rounded-lg border bg-muted/40 p-3">
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <Spinner className="size-4" />
+                                        Mengunggah dokumen...
+                                    </div>
+                                    {form.progress && (
+                                        <span className="text-xs text-muted-foreground">
+                                            {form.progress.percentage}%
+                                        </span>
+                                    )}
+                                </div>
+                                {form.progress && (
+                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                                        <div
+                                            className="h-full rounded-full bg-primary transition-[width] duration-200"
+                                            style={{
+                                                width: `${form.progress.percentage}%`,
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={() => setIsUploadOpen(false)}
+                                disabled={form.processing}
                             >
                                 Batal
                             </Button>
                             <Button
                                 type="submit"
                                 className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                disabled={!kategori || !file}
+                                disabled={
+                                    form.processing ||
+                                    form.data.title.trim() === '' ||
+                                    form.data.document === null
+                                }
                             >
-                                Upload
+                                {form.processing ? (
+                                    <>
+                                        <Spinner className="size-4" />
+                                        Mengunggah...
+                                    </>
+                                ) : (
+                                    'Upload'
+                                )}
                             </Button>
                         </div>
                     </form>
@@ -398,50 +415,75 @@ export default function UploadDokumen() {
             </Dialog>
 
             <Dialog
-                open={isUploadSuccessOpen}
-                onOpenChange={setIsUploadSuccessOpen}
+                open={documentPendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteForm.processing) {
+                        setDocumentPendingDelete(null);
+                    }
+                }}
             >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Upload berhasil</DialogTitle>
+                        <DialogTitle>Hapus Dokumen</DialogTitle>
                         <DialogDescription>
-                            Notifikasi dokumen baru sudah dikirim ke Group Chat
-                            Bimbingan. Dosen pembimbing dapat langsung melihat
-                            dan mengunduh dokumen.
+                            Apakah Anda yakin ingin menghapus dokumen ini?
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex items-center justify-end gap-2">
+
+                    {documentPendingDelete && (
+                        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                            <p className="font-medium">
+                                {documentPendingDelete.title}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {documentPendingDelete.fileName} -{' '}
+                                {documentPendingDelete.version}
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setIsUploadSuccessOpen(false)}
+                            onClick={() => setDocumentPendingDelete(null)}
+                            disabled={deleteForm.processing}
                         >
-                            Tutup
+                            Batal
                         </Button>
                         <Button
-                            asChild
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            type="button"
+                            variant="destructive"
+                            onClick={submitDelete}
+                            disabled={deleteForm.processing}
                         >
-                            <Link href={routes.pesan().url}>
-                                Buka Group Chat
-                            </Link>
+                            {deleteForm.processing ? (
+                                <>
+                                    <Spinner className="size-4" />
+                                    Menghapus...
+                                </>
+                            ) : (
+                                'Ya, Hapus'
+                            )}
                         </Button>
                     </div>
                 </DialogContent>
             </Dialog>
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                {/* Page header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             Upload Dokumen
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola dan upload dokumen tugas akhir Anda
+                            Kelola dan upload dokumen skripsi Anda
                         </p>
                     </div>
                     <Button
-                        className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                        type="button"
+                        className="h-10 w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                         onClick={() => setIsUploadOpen(true)}
                     >
                         <Upload className="size-4" />
@@ -449,124 +491,268 @@ export default function UploadDokumen() {
                     </Button>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Panduan Upload</CardTitle>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
-                        <div className="grid gap-3">
-                            {panduanItems.map((item) => (
-                                <div
-                                    key={item}
-                                    className="flex items-start gap-3 text-sm"
-                                >
-                                    <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40">
-                                        <CheckCircle2 className="size-4" />
-                                    </span>
-                                    <span className="text-muted-foreground">
-                                        {item}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Flash Message */}
+                {(page.props.flashMessage || page.props.errorMessage) && (
+                    <Alert
+                        variant={
+                            page.props.errorMessage ? 'destructive' : 'default'
+                        }
+                    >
+                        <AlertTitle>
+                            {page.props.errorMessage ? 'Error' : 'Berhasil'}
+                        </AlertTitle>
+                        <AlertDescription>
+                            {page.props.errorMessage || page.props.flashMessage}
+                        </AlertDescription>
+                    </Alert>
+                )}
 
-                <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Dokumen yang Diupload</CardTitle>
-                        <CardDescription>
-                            Daftar semua dokumen yang telah Anda upload
-                        </CardDescription>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
-                        <div className="overflow-hidden rounded-lg border">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-background">
-                                    <tr className="border-b">
-                                        <th className="px-4 py-3 font-medium">
+                {/* Panduan Upload */}
+                <div className="overflow-hidden rounded-xl border bg-card py-0 shadow-sm">
+                    <div className="border-b px-6 py-4">
+                        <h3 className="text-sm font-semibold">
+                            Panduan Upload
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Hal yang perlu diperhatikan sebelum mengunggah
+                            dokumen.
+                        </p>
+                    </div>
+                    <div className="grid gap-3 px-6 py-4">
+                        {panduanItems.map((item) => (
+                            <div
+                                key={item}
+                                className="flex items-start gap-3 text-sm"
+                            >
+                                <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40">
+                                    <CheckCircle2 className="size-4" />
+                                </span>
+                                <span className="text-muted-foreground">
+                                    {item}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Dokumen Table */}
+                <section>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold">
+                                Dokumen yang Diupload
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Daftar dokumen beserta riwayat versi
+                            </p>
+                        </div>
+                        {pendingRevisiCount > 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-1 text-xs font-bold text-destructive">
+                                <AlertTriangle className="size-3" />
+                                {pendingRevisiCount} perlu revisi
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Toolbar */}
+                    <DataTableToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        searchPlaceholder="Cari judul atau file..."
+                        filterGroups={filterGroups}
+                        className="mb-3"
+                    />
+
+                    {/* Table */}
+                    {totalItems > 0 ? (
+                        <DataTableContainer>
+                            <table className="w-full min-w-[800px] text-left text-sm">
+                                <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
+                                    <tr>
+                                        <th className="px-5 py-3 font-medium">
                                             Nama Dokumen
                                         </th>
-                                        <th className="px-4 py-3 font-medium">
+                                        <th className="px-5 py-3 font-medium">
                                             Kategori
                                         </th>
-                                        <th className="px-4 py-3 font-medium">
+                                        <th className="px-5 py-3 font-medium">
                                             Tanggal Upload
                                         </th>
-                                        <th className="px-4 py-3 font-medium">
+                                        <th className="px-5 py-3 font-medium">
                                             Ukuran
                                         </th>
-                                        <th className="px-4 py-3 font-medium">
+                                        <th className="px-5 py-3 font-medium">
                                             Status
                                         </th>
-                                        <th className="px-4 py-3 text-right font-medium">
+                                        <th className="w-[22%] px-5 py-3 font-medium">
+                                            Catatan Revisi
+                                        </th>
+                                        <th className="px-5 py-3 text-right font-medium">
                                             Aksi
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {uploadedDokumen.map((row) => (
-                                        <tr
-                                            key={`${row.nama}-${row.versi}`}
-                                            className="group border-b transition-colors last:border-b-0 hover:bg-muted/30"
-                                        >
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-start gap-3">
-                                                    <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                                        <FileText className="size-4" />
-                                                    </span>
-                                                    <div className="min-w-0">
-                                                        <div className="text-sm font-medium">
-                                                            {row.nama}
+                                <tbody className="divide-y bg-background">
+                                    {paginated.map((row) => {
+                                        const hasRevision =
+                                            row.status === 'Perlu Revisi';
+                                        return (
+                                            <tr
+                                                key={`${row.id}-${row.version}`}
+                                                className={cn(
+                                                    'transition-colors hover:bg-muted/20',
+                                                    hasRevision &&
+                                                        'bg-destructive/5 dark:bg-destructive/5',
+                                                )}
+                                            >
+                                                {/* Nama Dokumen */}
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                            <FileText className="size-4" />
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {row.versi}
+                                                        <div className="min-w-0">
+                                                            <div className="max-w-[180px] truncate text-sm font-medium">
+                                                                {row.title}
+                                                            </div>
+                                                            <div className="max-w-[180px] truncate text-xs text-muted-foreground">
+                                                                {row.fileName} —{' '}
+                                                                {row.version}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <KategoriBadge
-                                                    kategori={row.kategori}
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {row.tanggalUpload}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {row.ukuran}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <StatusBadge
-                                                    status={row.status}
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex justify-end gap-1">
-                                                    <ActionIconButton
-                                                        label="Lihat"
-                                                        icon={Eye}
+                                                </td>
+
+                                                {/* Kategori */}
+                                                <td className="px-5 py-3.5">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="rounded-full bg-background whitespace-nowrap text-foreground"
+                                                    >
+                                                        {row.category}
+                                                    </Badge>
+                                                </td>
+
+                                                {/* Tanggal */}
+                                                <td className="px-5 py-3.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                    {row.uploadedAt}
+                                                </td>
+
+                                                {/* Ukuran */}
+                                                <td className="px-5 py-3.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                    {row.size}
+                                                </td>
+
+                                                {/* Status */}
+                                                <td className="px-5 py-3.5">
+                                                    <StatusBadge
+                                                        status={row.status}
                                                     />
-                                                    <ActionIconButton
-                                                        label="Unduh"
-                                                        icon={Download}
-                                                    />
-                                                    <ActionIconButton
-                                                        label="Hapus"
-                                                        tone="danger"
-                                                        icon={Trash2}
-                                                    />
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+
+                                                {/* Catatan Revisi */}
+                                                <td className="px-5 py-3.5">
+                                                    {row.revisionNotes ? (
+                                                        <div className="max-h-16 overflow-y-auto rounded border border-amber-200 bg-amber-50/50 p-2 text-xs whitespace-pre-wrap text-muted-foreground dark:border-amber-900/30 dark:bg-amber-950/10 dark:text-amber-200/80">
+                                                            {row.revisionNotes}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* Aksi */}
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Tooltip>
+                                                            <TooltipTrigger
+                                                                asChild
+                                                            >
+                                                                <Button
+                                                                    asChild
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8 text-muted-foreground hover:text-foreground"
+                                                                >
+                                                                    <a
+                                                                        href={
+                                                                            row.downloadUrl
+                                                                        }
+                                                                        aria-label={`Unduh dokumen ${row.title}`}
+                                                                    >
+                                                                        <Download className="size-4" />
+                                                                    </a>
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                Unduh Dokumen
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger
+                                                                asChild
+                                                            >
+                                                                <span>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                        disabled={
+                                                                            deleteForm.processing ||
+                                                                            !row.canDelete
+                                                                        }
+                                                                        aria-label={`Hapus dokumen ${row.title}`}
+                                                                        onClick={() => {
+                                                                            setDocumentPendingDelete(
+                                                                                row,
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="size-4" />
+                                                                    </Button>
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                {row.deleteBlockedReason ??
+                                                                    'Hapus Dokumen'}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <DataTablePagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                totalItems={totalItems}
+                                pageSize={PAGE_SIZE}
+                                onPageChange={setPage}
+                                itemLabel="dokumen"
+                            />
+                        </DataTableContainer>
+                    ) : (
+                        <DataTableEmptyState
+                            icon={Inbox}
+                            title={
+                                search || statusFilter !== 'semua'
+                                    ? 'Tidak ada dokumen yang sesuai'
+                                    : 'Belum ada dokumen yang diupload'
+                            }
+                            description={
+                                search || statusFilter !== 'semua'
+                                    ? 'Coba ubah kata kunci atau filter yang dipilih.'
+                                    : 'Mulai unggah dokumen pertama Anda untuk memulai proses review.'
+                            }
+                        />
+                    )}
+                </section>
             </div>
         </AppLayout>
     );

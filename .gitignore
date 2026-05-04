@@ -26,3 +26,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/playwright-agent
+/playwright-report
+/test-results
+/storage/playwright
+/database/playwright.sqlite

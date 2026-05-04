@@ -17,6 +17,7 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            'phone_number' => ['nullable', 'string', 'max:30'],
         ];
     }
 
