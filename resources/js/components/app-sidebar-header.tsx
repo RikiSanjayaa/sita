@@ -1,13 +1,18 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     Bell,
+    BellOff,
     CalendarClock,
     CheckCircle2,
     ChevronsUpDown,
     Megaphone,
+    MessageSquareText,
     PencilLine,
+    Repeat,
+    Trash2,
     type LucideIcon,
 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +21,9 @@ import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
@@ -23,152 +31,592 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
+import { ROLE_LABELS, UI_ROLES } from '@/lib/roles';
 import {
+    AppRole,
     type BreadcrumbItem as BreadcrumbItemType,
+    type HeaderNotification,
     type SharedData,
 } from '@/types';
 
-type NotificationTone = 'success' | 'warning' | 'info';
-
-type NotificationItem = {
-    title: string;
-    description: string;
-    time: string;
-    icon: LucideIcon;
-    tone: NotificationTone;
-    unread: boolean;
+const notificationIconMap: Record<string, LucideIcon> = {
+    bell: Bell,
+    'calendar-clock': CalendarClock,
+    'check-circle': CheckCircle2,
+    megaphone: Megaphone,
+    'message-square': MessageSquareText,
+    'file-text': PencilLine,
 };
 
-const notifications: NotificationItem[] = [
-    {
-        title: 'Revisi Bimbingan',
-        description: 'Dosen pembimbing memberikan catatan revisi pada BAB II',
-        time: '2 jam lalu',
-        icon: PencilLine,
-        tone: 'warning',
-        unread: true,
-    },
-    {
-        title: 'Jadwal Bimbingan',
-        description: 'Bimbingan dengan Dr. Budi Santoso besok pukul 10.00 WIB',
-        time: '5 jam lalu',
-        icon: CalendarClock,
-        tone: 'info',
-        unread: true,
-    },
-    {
-        title: 'Dokumen Disetujui',
-        description: 'BAB I telah disetujui oleh pembimbing',
-        time: '1 hari lalu',
-        icon: CheckCircle2,
-        tone: 'success',
-        unread: false,
-    },
-    {
-        title: 'Pengumuman',
-        description: 'Pendaftaran seminar proposal gelombang 2 dibuka',
-        time: '2 hari lalu',
-        icon: Megaphone,
-        tone: 'info',
-        unread: false,
-    },
-];
+type IncomingNotification = {
+    id?: string;
+    data?: {
+        title?: string;
+        description?: string;
+        icon?: string;
+        url?: string;
+        createdAt?: string;
+    };
+    read_at?: string | null;
+};
 
-function HeaderNotifications() {
-    const unreadCount = notifications.filter((n) => n.unread).length;
+type NotificationOverride = {
+    deleted?: boolean;
+    unread?: boolean;
+};
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
+    );
+}
+
+function mapIncomingNotification(
+    payload: IncomingNotification,
+): HeaderNotification {
+    const data = (payload.data ?? payload) as Record<string, unknown>;
+    const notificationId =
+        typeof payload.id === 'string'
+            ? payload.id
+            : typeof data.id === 'string'
+              ? data.id
+              : String(Math.random());
+    const readAt =
+        typeof payload.read_at === 'string' || payload.read_at === null
+            ? payload.read_at
+            : typeof data.read_at === 'string' || data.read_at === null
+              ? (data.read_at as string | null)
+              : null;
+
+    return {
+        id: notificationId,
+        title: typeof data.title === 'string' ? data.title : 'Notifikasi baru',
+        description:
+            typeof data.description === 'string' ? data.description : '',
+        icon: typeof data.icon === 'string' ? data.icon : 'bell',
+        url: typeof data.url === 'string' ? data.url : null,
+        time: 'baru saja',
+        unread: readAt === null,
+    };
+}
+
+function applyNotificationOverride(
+    notification: HeaderNotification,
+    override?: NotificationOverride,
+): HeaderNotification | null {
+    if (override?.deleted) {
+        return null;
+    }
+
+    return {
+        ...notification,
+        unread: override?.unread ?? notification.unread,
+    };
+}
+
+function deriveNotificationItems(
+    notifications: HeaderNotification[],
+    sessionNotifications: HeaderNotification[],
+    overrides: Record<string, NotificationOverride>,
+): HeaderNotification[] {
+    const serverIds = new Set(notifications.map((item) => item.id));
+    const sessionById = new Map(
+        sessionNotifications.map((item) => [item.id, item]),
+    );
+
+    const sessionOnlyItems = sessionNotifications
+        .filter((item) => !serverIds.has(item.id))
+        .map((item) => applyNotificationOverride(item, overrides[item.id]))
+        .filter((item): item is HeaderNotification => item !== null);
+
+    const mergedServerItems = notifications
+        .map((item) => {
+            const sessionItem = sessionById.get(item.id);
+            const mergedItem = sessionItem ? { ...item, ...sessionItem } : item;
+
+            return applyNotificationOverride(mergedItem, overrides[item.id]);
+        })
+        .filter((item): item is HeaderNotification => item !== null);
+
+    return [...sessionOnlyItems, ...mergedServerItems].slice(0, 15);
+}
+
+function upsertNotification(
+    notifications: HeaderNotification[],
+    nextNotification: HeaderNotification,
+): HeaderNotification[] {
+    const withoutDuplicate = notifications.filter(
+        (item) => item.id !== nextNotification.id,
+    );
+
+    return [nextNotification, ...withoutDuplicate].slice(0, 15);
+}
+
+function isThreadNotificationOpen(url: string | null): boolean {
+    if (typeof window === 'undefined' || url === null) {
+        return false;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const targetUrl = new URL(url, window.location.origin);
+    const targetThreadId = targetUrl.searchParams.get('thread');
+
+    if (targetThreadId === null) {
+        return false;
+    }
 
     return (
-        <Sheet>
-            <SheetTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="relative h-9 w-9 p-0"
-                    aria-label="Open notifications"
-                >
-                    <Bell className="size-4" />
-                    {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-medium text-destructive-foreground">
-                            {unreadCount}
-                        </span>
-                    )}
-                </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="p-0">
-                <div className="flex h-full flex-col">
-                    <div className="flex items-center justify-between gap-3 p-4 pr-12">
-                        <div className="flex items-center gap-2">
-                            <div className="text-sm leading-tight font-semibold">
-                                Notifikasi
-                            </div>
-                            <Badge variant="destructive" className="px-1.5">
+        currentUrl.pathname === targetUrl.pathname &&
+        currentUrl.searchParams.get('thread') === targetThreadId &&
+        document.visibilityState === 'visible'
+    );
+}
+
+function HeaderNotifications() {
+    const {
+        auth,
+        notifications = [],
+        notificationSettings,
+    } = usePage<SharedData>().props;
+
+    const [sessionNotifications, setSessionNotifications] = useState<
+        HeaderNotification[]
+    >([]);
+    const [notificationOverrides, setNotificationOverrides] = useState<
+        Record<string, NotificationOverride>
+    >({});
+    const [toastNotification, setToastNotification] =
+        useState<HeaderNotification | null>(null);
+    const toastTimeoutRef = useRef<number | null>(null);
+    const notificationItems = useMemo(
+        () =>
+            deriveNotificationItems(
+                notifications,
+                sessionNotifications,
+                notificationOverrides,
+            ),
+        [notifications, notificationOverrides, sessionNotifications],
+    );
+    const unreadCount = useMemo(
+        () => notificationItems.filter((item) => item.unread).length,
+        [notificationItems],
+    );
+    const readCount = useMemo(
+        () => notificationItems.filter((item) => !item.unread).length,
+        [notificationItems],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (toastTimeoutRef.current !== null) {
+                window.clearTimeout(toastTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.Echo || !auth.user?.id) {
+            return;
+        }
+
+        const channelName = `App.Models.User.${auth.user.id}`;
+        const channel = window.Echo.private(channelName);
+
+        channel.notification((payload: IncomingNotification) => {
+            const nextNotification = mapIncomingNotification(payload);
+            const isThreadCurrentlyOpen = isThreadNotificationOpen(
+                nextNotification.url ?? null,
+            );
+
+            if (isThreadCurrentlyOpen) {
+                setSessionNotifications((current) =>
+                    upsertNotification(current, {
+                        ...nextNotification,
+                        unread: false,
+                    }),
+                );
+
+                fetch(`/settings/notifications/${nextNotification.id}/read`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({}),
+                }).catch(console.error);
+                return;
+            }
+
+            setSessionNotifications((current) => {
+                const existing = current.find(
+                    (item) => item.id === nextNotification.id,
+                );
+
+                return upsertNotification(
+                    current,
+                    existing
+                        ? {
+                              ...existing,
+                              ...nextNotification,
+                              unread:
+                                  existing.unread === false
+                                      ? false
+                                      : nextNotification.unread,
+                          }
+                        : nextNotification,
+                );
+            });
+            setToastNotification(nextNotification);
+
+            if (toastTimeoutRef.current !== null) {
+                window.clearTimeout(toastTimeoutRef.current);
+            }
+
+            toastTimeoutRef.current = window.setTimeout(() => {
+                setToastNotification(null);
+            }, 4500);
+
+            if (
+                notificationSettings?.browserNotifications &&
+                'Notification' in window &&
+                window.Notification.permission === 'granted'
+            ) {
+                const nativeNotification = new window.Notification(
+                    nextNotification.title,
+                    {
+                        body: nextNotification.description,
+                    },
+                );
+
+                nativeNotification.onclick = () => {
+                    window.focus();
+
+                    if (nextNotification.url) {
+                        router.visit(nextNotification.url);
+                    }
+                };
+            }
+        });
+
+        return () => {
+            window.Echo.leave(channelName);
+        };
+    }, [auth.user?.id, notificationSettings?.browserNotifications]);
+
+    const markNotificationAsRead = async (notificationId: string) => {
+        await fetch(`/settings/notifications/${notificationId}/read`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleMarkAllAsRead = async () => {
+        if (unreadCount === 0) {
+            return;
+        }
+
+        setNotificationOverrides((current) => {
+            const next = { ...current };
+
+            for (const notification of notificationItems) {
+                next[notification.id] = {
+                    ...next[notification.id],
+                    unread: false,
+                };
+            }
+
+            return next;
+        });
+
+        await fetch('/settings/notifications/read-all', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleDeleteReadNotifications = async () => {
+        if (readCount === 0) {
+            return;
+        }
+
+        const readNotificationIds = new Set(
+            notificationItems
+                .filter((notification) => !notification.unread)
+                .map((notification) => notification.id),
+        );
+
+        setSessionNotifications((current) =>
+            current.filter(
+                (notification) => !readNotificationIds.has(notification.id),
+            ),
+        );
+        setNotificationOverrides((current) => {
+            const next = { ...current };
+
+            for (const notificationId of readNotificationIds) {
+                next[notificationId] = {
+                    ...next[notificationId],
+                    deleted: true,
+                };
+            }
+
+            return next;
+        });
+
+        await fetch('/settings/notifications/read-items', {
+            method: 'DELETE',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleDeleteNotification = async (notificationId: string) => {
+        setSessionNotifications((current) =>
+            current.filter((item) => item.id !== notificationId),
+        );
+        setNotificationOverrides((current) => ({
+            ...current,
+            [notificationId]: {
+                ...current[notificationId],
+                deleted: true,
+            },
+        }));
+
+        if (toastNotification?.id === notificationId) {
+            setToastNotification(null);
+        }
+
+        await fetch(`/settings/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+    };
+
+    const handleNotificationClick = async (
+        notification: HeaderNotification,
+    ) => {
+        if (notification.unread) {
+            setNotificationOverrides((current) => ({
+                ...current,
+                [notification.id]: {
+                    ...current[notification.id],
+                    unread: false,
+                },
+            }));
+
+            await markNotificationAsRead(notification.id);
+        }
+
+        if (notification.url) {
+            router.visit(notification.url);
+        }
+    };
+
+    const toast = toastNotification;
+
+    return (
+        <>
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="relative h-9 w-9 p-0 transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                        aria-label="Open notifications"
+                    >
+                        <Bell className="size-4" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-medium text-destructive-foreground">
                                 {unreadCount}
-                            </Badge>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-8 px-2 text-xs"
-                        >
-                            Tandai Semua Dibaca
-                        </Button>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid flex-1 auto-rows-min gap-3 overflow-auto p-4">
-                        {notifications.map((n) => {
-                            const Icon = n.icon;
-                            const toneClasses =
-                                n.tone === 'success'
-                                    ? 'text-green-600 dark:text-green-300'
-                                    : n.tone === 'warning'
-                                      ? 'text-orange-500 dark:text-orange-300'
-                                      : 'text-primary';
-
-                            return (
-                                <div
-                                    key={n.title}
-                                    className="flex items-start gap-3 rounded-lg border bg-background p-4"
-                                >
-                                    <span
-                                        className={
-                                            'mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted ' +
-                                            toneClasses
-                                        }
-                                    >
-                                        <Icon className="size-4" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <p className="text-sm font-medium">
-                                                {n.title}
-                                            </p>
-                                            {n.unread && (
-                                                <span className="mt-1 size-2 rounded-[3px] bg-primary" />
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {n.description}
-                                        </p>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            {n.time}
-                                        </p>
-                                    </div>
+                            </span>
+                        )}
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="p-0">
+                    <div className="flex h-full flex-col">
+                        <div className="flex flex-col gap-2 p-4 pr-12">
+                            <div className="flex items-center gap-2">
+                                <div className="text-sm leading-tight font-semibold">
+                                    Notifikasi
                                 </div>
-                            );
-                        })}
+                                <Badge variant="destructive" className="px-1.5">
+                                    {unreadCount}
+                                </Badge>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto p-0 text-sm text-primary hover:bg-transparent hover:text-primary/80"
+                                    onClick={handleMarkAllAsRead}
+                                    disabled={unreadCount === 0}
+                                >
+                                    Baca semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto p-0 text-sm text-destructive hover:bg-transparent hover:text-destructive/80"
+                                    onClick={handleDeleteReadNotifications}
+                                    disabled={readCount === 0}
+                                >
+                                    Bersihkan
+                                </Button>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="grid flex-1 auto-rows-min gap-3 overflow-auto p-4">
+                            {notificationItems.length === 0 ? (
+                                <div className="flex h-full min-h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
+                                    <BellOff className="size-5 text-muted-foreground" />
+                                    <p className="text-sm font-medium">
+                                        Belum ada notifikasi baru
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Notifikasi baru akan muncul di sini saat
+                                        ada aktivitas.
+                                    </p>
+                                </div>
+                            ) : (
+                                notificationItems.map(
+                                    (n: HeaderNotification) => {
+                                        const Icon =
+                                            notificationIconMap[n.icon] ?? Bell;
+
+                                        return (
+                                            <div
+                                                key={n.id}
+                                                className="flex items-start gap-3 rounded-lg border bg-background p-4 transition-colors hover:bg-primary/10"
+                                            >
+                                                <span
+                                                    className={
+                                                        'mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted text-primary'
+                                                    }
+                                                >
+                                                    <Icon className="size-4" />
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                    onClick={() =>
+                                                        handleNotificationClick(
+                                                            n,
+                                                        )
+                                                    }
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <p className="text-sm font-medium">
+                                                            {n.title}
+                                                        </p>
+                                                        {n.unread && (
+                                                            <span className="mt-1 size-2 rounded-[3px] bg-primary" />
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {n.description}
+                                                    </p>
+                                                    <p className="mt-2 text-xs text-muted-foreground">
+                                                        {n.time}
+                                                    </p>
+                                                </button>
+                                                {!n.unread && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="mt-0.5 size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                                                        onClick={() =>
+                                                            handleDeleteNotification(
+                                                                n.id,
+                                                            )
+                                                        }
+                                                        aria-label="Hapus notifikasi"
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        );
+                                    },
+                                )
+                            )}
+                        </div>
                     </div>
-                </div>
-            </SheetContent>
-        </Sheet>
+                </SheetContent>
+            </Sheet>
+
+            {toast !== null &&
+                (() => {
+                    const ToastIcon = notificationIconMap[toast.icon] ?? Bell;
+                    return (
+                        <button
+                            type="button"
+                            className="group fixed top-[72px] right-4 z-[100] flex w-[min(380px,calc(100vw-2rem))] animate-in items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8"
+                            onClick={() => handleNotificationClick(toast)}
+                        >
+                            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                <ToastIcon className="size-5" />
+                            </div>
+                            <div className="flex-1 space-y-1 overflow-hidden">
+                                <p className="truncate text-sm font-semibold text-foreground">
+                                    {toast.title}
+                                </p>
+                                <p className="line-clamp-2 text-sm text-muted-foreground">
+                                    {toast.description}
+                                </p>
+                                <p className="pt-1 text-[11px] font-medium tracking-wide text-primary/80 uppercase">
+                                    Lihat detail &rarr;
+                                </p>
+                            </div>
+                            <div className="mt-1.5 shrink-0">
+                                <div className="size-2 rounded-full bg-primary shadow-sm" />
+                            </div>
+                        </button>
+                    );
+                })()}
+        </>
     );
 }
 
 function HeaderUserMenu() {
     const { auth } = usePage<SharedData>().props;
     const getInitials = useInitials();
+    const user = auth.user;
 
     return (
         <DropdownMenu>
@@ -180,22 +628,64 @@ function HeaderUserMenu() {
                     data-test="header-user-menu-trigger"
                 >
                     <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                        <AvatarImage
-                            src={auth.user.avatar}
-                            alt={auth.user.name}
-                        />
+                        <AvatarImage src={user.avatar} alt={user.name} />
                         <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
-                            {getInitials(auth.user.name)}
+                            {getInitials(user.name)}
                         </AvatarFallback>
                     </Avatar>
                     <span className="hidden max-w-40 truncate text-sm font-medium md:inline">
-                        {auth.user.name}
+                        {user.name}
                     </span>
                     <ChevronsUpDown className="size-4 text-muted-foreground" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="min-w-56 rounded-lg" align="end">
-                <UserMenuContent user={auth.user} />
+                <UserMenuContent user={user} />
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
+
+function HeaderRoleSwitcher() {
+    const { auth } = usePage<SharedData>().props;
+    const activeRole = auth.activeRole as AppRole | null;
+    const availableRoles = auth.availableRoles.filter((role) =>
+        UI_ROLES.includes(role),
+    ) as AppRole[];
+
+    if (activeRole === null || availableRoles.length <= 1) {
+        return null;
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-2">
+                    <Repeat className="size-4" />
+                    <span className="hidden sm:inline">
+                        {ROLE_LABELS[activeRole]}
+                    </span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuLabel>Pilih Role Aktif</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {availableRoles.map((role) => (
+                    <DropdownMenuItem
+                        key={role}
+                        className="cursor-pointer"
+                        disabled={role === activeRole}
+                        onClick={() => {
+                            router.post(
+                                '/role/switch',
+                                { role },
+                                { preserveScroll: true },
+                            );
+                        }}
+                    >
+                        {ROLE_LABELS[role]}
+                    </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -203,18 +693,34 @@ function HeaderUserMenu() {
 
 export function AppSidebarHeader({
     breadcrumbs = [],
+    title,
 }: {
     breadcrumbs?: BreadcrumbItemType[];
+    title?: ReactNode;
+    subtitle?: ReactNode;
 }) {
+    const mobileTitle = title ?? breadcrumbs[breadcrumbs.length - 1]?.title;
+
     return (
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
-            <div className="flex min-w-0 items-center gap-2">
+        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
-                <div className="flex min-w-0 items-center gap-3">
-                    <Breadcrumbs breadcrumbs={breadcrumbs} />
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="min-w-0 md:hidden">
+                        {mobileTitle ? (
+                            <h1 className="truncate text-sm font-semibold">
+                                {mobileTitle}
+                            </h1>
+                        ) : null}
+                    </div>
+
+                    <div className="hidden min-w-0 md:block">
+                        <Breadcrumbs breadcrumbs={breadcrumbs} />
+                    </div>
                 </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
+                <HeaderRoleSwitcher />
                 <HeaderNotifications />
                 <Separator orientation="vertical" className="mx-1 h-6" />
                 <HeaderUserMenu />

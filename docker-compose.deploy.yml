@@ -1,0 +1,36 @@
+services:
+  init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
+
+  reverb:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app

@@ -15,20 +15,40 @@ export function Breadcrumbs({
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
-    const currentPage = breadcrumbs[breadcrumbs.length - 1]?.title ?? '-';
-
     return (
         <Breadcrumb>
             <BreadcrumbList>
                 <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                        <Link href="/dashboard">Portal mahasiswa</Link>
+                        <Link href="/">Portal SiTA</Link>
                     </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                    <BreadcrumbPage>{currentPage}</BreadcrumbPage>
-                </BreadcrumbItem>
+
+                {breadcrumbs.map((breadcrumb, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
+
+                    return [
+                        <BreadcrumbSeparator
+                            key={`${breadcrumb.href}-separator`}
+                        />,
+                        <BreadcrumbItem key={breadcrumb.href}>
+                            {isLast ? (
+                                <BreadcrumbPage className="block max-w-[18rem] truncate xl:max-w-none">
+                                    {breadcrumb.title}
+                                </BreadcrumbPage>
+                            ) : (
+                                <BreadcrumbLink asChild>
+                                    <Link
+                                        href={breadcrumb.href}
+                                        className="block max-w-[14rem] truncate xl:max-w-none"
+                                    >
+                                        {breadcrumb.title}
+                                    </Link>
+                                </BreadcrumbLink>
+                            )}
+                        </BreadcrumbItem>,
+                    ];
+                })}
             </BreadcrumbList>
         </Breadcrumb>
     );

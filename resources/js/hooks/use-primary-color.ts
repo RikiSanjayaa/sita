@@ -17,10 +17,11 @@ type ThemeScale = {
 };
 
 export type ThemePreset = {
-    id: 'ubg-blue' | 'emerald' | 'sunset' | 'rose';
+    id: 'ubg-blue' | 'emerald' | 'sunset' | 'rose' | 'indigo' | 'teal';
     label: string;
     description: string;
     primary: string;
+    darkPrimary: string;
     light: ThemeScale;
     dark: ThemeScale;
 };
@@ -30,30 +31,31 @@ export const THEME_PRESETS: ThemePreset[] = [
         id: 'ubg-blue',
         label: 'UBG Blue',
         description: 'Biru akademik resmi',
-        primary: '#1f66ff',
+        primary: '#2563eb',
+        darkPrimary: '#1d4ed8',
         light: {
-            background: '#f1f6ff',
-            foreground: '#102b63',
+            background: '#f8fafc',
+            foreground: '#0f172a',
             card: '#ffffff',
-            muted: '#e1ecff',
-            mutedForeground: '#3d5f98',
-            accent: '#d9e7ff',
-            accentForeground: '#123a87',
-            border: '#c7dbff',
-            sidebar: '#eaf2ff',
-            sidebarForeground: '#11326f',
+            muted: '#f1f5f9',
+            mutedForeground: '#64748b',
+            accent: '#e0ecff',
+            accentForeground: '#1e3a5f',
+            border: '#e2e8f0',
+            sidebar: '#f8fafc',
+            sidebarForeground: '#0f172a',
         },
         dark: {
-            background: '#030816',
-            foreground: '#e8efff',
-            card: '#06102a',
-            muted: '#0a1a3d',
-            mutedForeground: '#8ea9df',
-            accent: '#0d2553',
-            accentForeground: '#cadcff',
-            border: '#17346c',
-            sidebar: '#040c20',
-            sidebarForeground: '#e8efff',
+            background: '#0b0f14',
+            foreground: '#eaf2f7',
+            card: '#11161c',
+            muted: '#151c23',
+            mutedForeground: '#9fb0bd',
+            accent: '#17202a',
+            accentForeground: '#c2d0da',
+            border: '#202a35',
+            sidebar: '#0f141a',
+            sidebarForeground: '#eaf2f7',
         },
     },
     {
@@ -61,29 +63,30 @@ export const THEME_PRESETS: ThemePreset[] = [
         label: 'Emerald',
         description: 'Hijau segar mahasiswa',
         primary: '#059669',
+        darkPrimary: '#047857',
         light: {
-            background: '#f4fbf8',
-            foreground: '#173a32',
+            background: '#f8fcfa',
+            foreground: '#0c1f17',
             card: '#ffffff',
-            muted: '#e7f6ef',
-            mutedForeground: '#4d776c',
-            accent: '#ffe9c5',
-            accentForeground: '#5c4116',
-            border: '#cde8db',
-            sidebar: '#eaf8f1',
-            sidebarForeground: '#173a32',
+            muted: '#ecfdf5',
+            mutedForeground: '#5b8a76',
+            accent: '#d1fae5',
+            accentForeground: '#14432a',
+            border: '#d1e7dd',
+            sidebar: '#f8fcfa',
+            sidebarForeground: '#0c1f17',
         },
         dark: {
-            background: '#06110d',
-            foreground: '#e8f7f1',
-            card: '#0b1c17',
-            muted: '#102a22',
-            mutedForeground: '#9ccdbf',
-            accent: '#163529',
-            accentForeground: '#d6f2e6',
-            border: '#245145',
-            sidebar: '#08150f',
-            sidebarForeground: '#e8f7f1',
+            background: '#0b0f14',
+            foreground: '#e9f3ee',
+            card: '#11171b',
+            muted: '#151d21',
+            mutedForeground: '#a1b5aa',
+            accent: '#16211c',
+            accentForeground: '#c6d7cf',
+            border: '#223129',
+            sidebar: '#0f1518',
+            sidebarForeground: '#e9f3ee',
         },
     },
     {
@@ -91,29 +94,30 @@ export const THEME_PRESETS: ThemePreset[] = [
         label: 'Sunset',
         description: 'Oranye hangat energik',
         primary: '#ea580c',
+        darkPrimary: '#c2410c',
         light: {
-            background: '#fff8f2',
-            foreground: '#4d2a17',
+            background: '#fdfaf7',
+            foreground: '#27150b',
             card: '#ffffff',
-            muted: '#ffe9dc',
-            mutedForeground: '#8f6249',
-            accent: '#ffe7c1',
-            accentForeground: '#5f4318',
-            border: '#f7d8c4',
-            sidebar: '#fff0e3',
-            sidebarForeground: '#4d2a17',
+            muted: '#fff4ed',
+            mutedForeground: '#9a7055',
+            accent: '#ffe6d2',
+            accentForeground: '#4d2a14',
+            border: '#f0ddd0',
+            sidebar: '#fdfaf7',
+            sidebarForeground: '#27150b',
         },
         dark: {
-            background: '#120907',
-            foreground: '#ffefe4',
-            card: '#1c100d',
-            muted: '#2a1712',
-            mutedForeground: '#deb4a0',
-            accent: '#3c2018',
-            accentForeground: '#ffe5d2',
-            border: '#4a2b21',
-            sidebar: '#140b09',
-            sidebarForeground: '#ffefe4',
+            background: '#0b0f14',
+            foreground: '#f1ece7',
+            card: '#15171a',
+            muted: '#1a1d21',
+            mutedForeground: '#b2aaa1',
+            accent: '#211b18',
+            accentForeground: '#d8ccc0',
+            border: '#332923',
+            sidebar: '#121417',
+            sidebarForeground: '#f1ece7',
         },
     },
     {
@@ -121,29 +125,92 @@ export const THEME_PRESETS: ThemePreset[] = [
         label: 'Rose',
         description: 'Magenta modern elegan',
         primary: '#e11d48',
+        darkPrimary: '#be123c',
         light: {
-            background: '#fff6f9',
-            foreground: '#4b1f2d',
+            background: '#fdf8f9',
+            foreground: '#2a0e18',
             card: '#ffffff',
-            muted: '#ffe6ef',
-            mutedForeground: '#8d5a6a',
-            accent: '#ffe6bf',
-            accentForeground: '#5a4017',
-            border: '#f6cfde',
-            sidebar: '#ffebf3',
-            sidebarForeground: '#4b1f2d',
+            muted: '#fff1f3',
+            mutedForeground: '#9f6070',
+            accent: '#ffd6de',
+            accentForeground: '#4a1525',
+            border: '#f1d5db',
+            sidebar: '#fdf8f9',
+            sidebarForeground: '#2a0e18',
         },
         dark: {
-            background: '#130911',
-            foreground: '#ffeaf1',
-            card: '#1d0f1b',
-            muted: '#2a1630',
-            mutedForeground: '#dcb0c1',
-            accent: '#3a1d3a',
-            accentForeground: '#ffe4ef',
-            border: '#4a2750',
-            sidebar: '#150a13',
-            sidebarForeground: '#ffeaf1',
+            background: '#0b0f14',
+            foreground: '#f0e9ed',
+            card: '#15161a',
+            muted: '#1b1c21',
+            mutedForeground: '#b1a6ad',
+            accent: '#211920',
+            accentForeground: '#d4c6cf',
+            border: '#32232c',
+            sidebar: '#121317',
+            sidebarForeground: '#f0e9ed',
+        },
+    },
+    {
+        id: 'indigo',
+        label: 'Indigo',
+        description: 'Violet-biru premium',
+        primary: '#6366f1',
+        darkPrimary: '#4f46e5',
+        light: {
+            background: '#f9f8fd',
+            foreground: '#1a1538',
+            card: '#ffffff',
+            muted: '#f0eeff',
+            mutedForeground: '#7a73a8',
+            accent: '#e0ddff',
+            accentForeground: '#2d2870',
+            border: '#ddd8f0',
+            sidebar: '#f9f8fd',
+            sidebarForeground: '#1a1538',
+        },
+        dark: {
+            background: '#0b0f14',
+            foreground: '#ecebfb',
+            card: '#13151d',
+            muted: '#181b24',
+            mutedForeground: '#a8a8c2',
+            accent: '#1a1d2a',
+            accentForeground: '#c9c8df',
+            border: '#262b3d',
+            sidebar: '#10131b',
+            sidebarForeground: '#ecebfb',
+        },
+    },
+    {
+        id: 'teal',
+        label: 'Teal',
+        description: 'Syan-hijau sejuk profesional',
+        primary: '#0d9488',
+        darkPrimary: '#0f766e',
+        light: {
+            background: '#f7fcfb',
+            foreground: '#0c1e1c',
+            card: '#ffffff',
+            muted: '#ecfcfa',
+            mutedForeground: '#5a8f89',
+            accent: '#ccfbf1',
+            accentForeground: '#134e4a',
+            border: '#c9e6e3',
+            sidebar: '#f7fcfb',
+            sidebarForeground: '#0c1e1c',
+        },
+        dark: {
+            background: '#0b0f14',
+            foreground: '#e7f3f1',
+            card: '#11171a',
+            muted: '#151d20',
+            mutedForeground: '#9eb4b0',
+            accent: '#162220',
+            accentForeground: '#c3d6d3',
+            border: '#213431',
+            sidebar: '#0f1518',
+            sidebarForeground: '#e7f3f1',
         },
     },
 ];
@@ -159,7 +226,11 @@ const subscribe = (callback: () => void) => {
     return () => listeners.delete(callback);
 };
 
-const notify = (): void => listeners.forEach((listener) => listener());
+const notify = (): void => {
+    listeners.forEach((listener) => {
+        listener();
+    });
+};
 
 const setCookie = (name: string, value: string, days = 365): void => {
     if (typeof document === 'undefined') return;
@@ -193,12 +264,13 @@ const applyPresetToCssVariables = (preset: ThemePreset): void => {
     const root = document.documentElement;
     const useDarkScale = root.classList.contains('dark');
     const scale = useDarkScale ? preset.dark : preset.light;
-    const primaryForeground = getContrastForeground(preset.primary);
+    const activePrimary = useDarkScale ? preset.darkPrimary : preset.primary;
+    const primaryForeground = getContrastForeground(activePrimary);
 
-    root.style.setProperty('--primary', preset.primary);
+    root.style.setProperty('--primary', activePrimary);
     root.style.setProperty('--primary-foreground', primaryForeground);
-    root.style.setProperty('--ring', preset.primary);
-    root.style.setProperty('--sidebar-primary', preset.primary);
+    root.style.setProperty('--ring', activePrimary);
+    root.style.setProperty('--sidebar-primary', activePrimary);
     root.style.setProperty('--sidebar-primary-foreground', primaryForeground);
 
     root.style.setProperty('--background', scale.background);

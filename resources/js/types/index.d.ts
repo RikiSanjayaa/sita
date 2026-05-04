@@ -1,8 +1,12 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
+export type AppRole = 'mahasiswa' | 'dosen' | 'admin' | 'penguji';
+
 export interface Auth {
     user: User;
+    activeRole: AppRole | null;
+    availableRoles: AppRole[];
 }
 
 export interface BreadcrumbItem {
@@ -22,18 +26,107 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface RoleScopedNavItem extends NavItem {
+    roles: AppRole[];
+}
+
+export interface MentorshipAssignmentSummary {
+    id: number;
+    studentUserId: number;
+    lecturerUserId: number;
+    advisorType: 'primary' | 'secondary';
+    status: 'active' | 'ended';
+}
+
+export interface SystemActivityEvent {
+    id: string;
+    type: 'assignment' | 'jadwal' | 'dokumen' | 'chat-escalation' | 'status';
+    actor: string;
+    description: string;
+    timestamp: string;
+}
+
 export interface SharedData {
     name: string;
     auth: Auth;
     sidebarOpen: boolean;
+    notificationSettings?: NotificationSettings;
+    notifications?: HeaderNotification[];
+    unreadNotificationCount?: number;
     [key: string]: unknown;
+}
+
+export interface UserProfileSummary {
+    id: number;
+    name: string;
+    email: string;
+    phoneNumber?: string | null;
+    whatsappUrl?: string | null;
+    avatar?: string | null;
+    profileUrl: string;
+    roleKey: string;
+    roleLabel: string;
+    programStudi?: string | null;
+    concentration?: string | null;
+    subtitle?: string | null;
+}
+
+export interface ProfileFieldItem {
+    label: string;
+    value: string;
+}
+
+export interface ThesisProfileSection {
+    title: string | null;
+    statusLabel: string;
+    advisors: UserProfileSummary[];
+    examiners: UserProfileSummary[];
+}
+
+export interface RelatedUserGroup {
+    title: string;
+    emptyMessage: string;
+    users: UserProfileSummary[];
+}
+
+export interface UserProfileDetail extends UserProfileSummary {
+    headline: string;
+    description: string;
+    meta: ProfileFieldItem[];
+    stats: ProfileFieldItem[];
+    thesis: ThesisProfileSection | null;
+    relatedUsers: RelatedUserGroup[];
+}
+
+export interface NotificationSettings {
+    browserNotifications: boolean;
+    pesanBaru: boolean;
+    statusTugasAkhir: boolean;
+    jadwalBimbingan: boolean;
+    feedbackDokumen: boolean;
+    reminderDeadline: boolean;
+    pengumumanSistem: boolean;
+    konfirmasiBimbingan: boolean;
+}
+
+export interface HeaderNotification {
+    id: string;
+    title: string;
+    description: string;
+    time: string;
+    icon: string;
+    unread: boolean;
+    url?: string | null;
 }
 
 export interface User {
     id: number;
     name: string;
     email: string;
+    phone_number?: string | null;
     avatar?: string;
+    roles?: AppRole[];
+    last_active_role?: AppRole | null;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     created_at: string;

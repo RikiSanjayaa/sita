@@ -1,0 +1,345 @@
+import { router, usePage } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
+
+import { PublicLayout } from '@/components/public/public-layout';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    DataTableContainer,
+    DataTableEmptyState,
+    DataTablePagination,
+    DataTableToolbar,
+} from '@/components/ui/data-table';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { type SharedData } from '@/types';
+
+type StudentRow = {
+    id: number;
+    name: string;
+    nim: string;
+    programStudi: string;
+    programSlug: string;
+    stageLabel: string;
+    stageDescription: string;
+    advisors: Array<{
+        name: string;
+        label: string;
+    }>;
+};
+
+type PageProps = {
+    filters: {
+        search: string;
+        program: string;
+    };
+    activeStudents: StudentRow[];
+    studentPagination: {
+        currentPage: number;
+        perPage: number;
+        total: number;
+        lastPage: number;
+        hasMorePages: boolean;
+        nextPage: number | null;
+        previousPage: number | null;
+    };
+    studentPrograms: Array<{
+        slug: string;
+        name: string;
+    }>;
+};
+
+const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+
+export default function PublicStudentsPage() {
+    const { filters, activeStudents, studentPagination, studentPrograms } =
+        usePage<SharedData & PageProps>().props;
+
+    return (
+        <PublicStudentsContent
+            key={`${filters.search}:${filters.program}`}
+            filters={filters}
+            activeStudents={activeStudents}
+            studentPagination={studentPagination}
+            studentPrograms={studentPrograms}
+        />
+    );
+}
+
+function PublicStudentsContent({
+    filters,
+    activeStudents,
+    studentPagination,
+    studentPrograms,
+}: PageProps) {
+    const [search, setSearch] = useState(filters.search);
+    const [programFilter, setProgramFilter] = useState(
+        filters.program || 'semua',
+    );
+    const [stageFilter, setStageFilter] = useState('semua');
+
+    useEffect(() => {
+        const normalizedProgram =
+            programFilter === 'semua' ? '' : programFilter;
+        const timeoutId = window.setTimeout(() => {
+            if (
+                search === filters.search &&
+                normalizedProgram === filters.program
+            ) {
+                return;
+            }
+
+            router.get(
+                '/mahasiswa-aktif',
+                {
+                    search: search || undefined,
+                    program: normalizedProgram || undefined,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                },
+            );
+        }, 250);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [filters.program, filters.search, programFilter, search]);
+
+    const stageTabs = useMemo(() => {
+        const counts = activeStudents.reduce<Record<string, number>>(
+            (carry, student) => {
+                const key = student.stageLabel.toLowerCase();
+                carry[key] = (carry[key] ?? 0) + 1;
+
+                return carry;
+            },
+            {},
+        );
+
+        return [
+            { label: 'Semua', value: 'semua', count: activeStudents.length },
+            ...Object.entries(counts).map(([value, count]) => ({
+                label: value.replace(/\b\w/g, (char) => char.toUpperCase()),
+                value,
+                count,
+            })),
+        ];
+    }, [activeStudents]);
+
+    const filteredStudents = useMemo(() => {
+        if (stageFilter === 'semua') {
+            return activeStudents;
+        }
+
+        return activeStudents.filter(
+            (student) => student.stageLabel.toLowerCase() === stageFilter,
+        );
+    }, [activeStudents, stageFilter]);
+
+    function visitPage(page: number) {
+        router.get(
+            '/mahasiswa-aktif',
+            {
+                page,
+                search: filters.search || undefined,
+                program: filters.program || undefined,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
+
+    const rangeStart =
+        filteredStudents.length === 0
+            ? 0
+            : (studentPagination.currentPage - 1) * studentPagination.perPage +
+              1;
+    const rangeEnd =
+        filteredStudents.length === 0
+            ? 0
+            : rangeStart + filteredStudents.length - 1;
+    const hasActiveFilter =
+        filters.search.trim() !== '' || filters.program.trim() !== '';
+
+    return (
+        <PublicLayout
+            active="mahasiswa"
+            headTitle="Mahasiswa Aktif"
+            pageTitle="Mahasiswa Tugas Akhir Aktif"
+            description="Daftar mahasiswa yang masih aktif menjalani proses tugas akhir, termasuk mahasiswa baru terdaftar, sempro, bimbingan aktif, hingga sidang yang masih berjalan."
+        >
+            <div className="space-y-6">
+                <Card className={sectionCardClass}>
+                    <CardHeader className={sectionCardHeaderClass}>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-1.5">
+                                <CardTitle>Daftar Mahasiswa</CardTitle>
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                    <span>
+                                        Menampilkan {rangeStart}-{rangeEnd} dari{' '}
+                                        {studentPagination.total} mahasiswa
+                                    </span>
+                                    <Badge variant="outline">
+                                        Halaman {studentPagination.currentPage}{' '}
+                                        / {studentPagination.lastPage}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div className="w-full lg:max-w-xs">
+                                <Select
+                                    value={programFilter}
+                                    onValueChange={setProgramFilter}
+                                >
+                                    <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder="Filter prodi" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="semua">
+                                            Semua Prodi
+                                        </SelectItem>
+                                        {studentPrograms.map((program) => (
+                                            <SelectItem
+                                                key={program.slug}
+                                                value={program.slug}
+                                            >
+                                                {program.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4 py-6">
+                        <DataTableToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            searchPlaceholder="Cari nama, NIM, atau prodi..."
+                            filterGroups={[
+                                {
+                                    tabs: stageTabs,
+                                    value: stageFilter,
+                                    onChange: setStageFilter,
+                                },
+                            ]}
+                        />
+
+                        {filteredStudents.length > 0 ? (
+                            <DataTableContainer>
+                                <table className="w-full min-w-[980px] text-sm">
+                                    <thead className="bg-muted/30 text-left">
+                                        <tr>
+                                            <th className="px-4 py-3 font-semibold">
+                                                Mahasiswa
+                                            </th>
+                                            <th className="px-4 py-3 font-semibold">
+                                                Prodi
+                                            </th>
+                                            <th className="px-4 py-3 font-semibold">
+                                                Tahap
+                                            </th>
+                                            <th className="px-4 py-3 font-semibold">
+                                                Pembimbing Aktif
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredStudents.map((student) => (
+                                            <tr
+                                                key={student.id}
+                                                className="border-t align-top"
+                                            >
+                                                <td className="px-4 py-3">
+                                                    <div className="space-y-1">
+                                                        <div className="font-medium text-foreground">
+                                                            {student.name}
+                                                        </div>
+                                                        <div className="text-muted-foreground">
+                                                            {student.nim}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-muted-foreground">
+                                                    {student.programStudi}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="space-y-2">
+                                                        <Badge variant="outline">
+                                                            {student.stageLabel}
+                                                        </Badge>
+                                                        <p className="max-w-xs text-xs leading-5 text-muted-foreground">
+                                                            {
+                                                                student.stageDescription
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {student.advisors.length >
+                                                    0 ? (
+                                                        <div className="flex max-w-xs flex-wrap gap-2">
+                                                            {student.advisors.map(
+                                                                (advisor) => (
+                                                                    <Badge
+                                                                        key={`${student.id}-${advisor.label}-${advisor.name}`}
+                                                                        variant="secondary"
+                                                                    >
+                                                                        {
+                                                                            advisor.label
+                                                                        }
+                                                                        :{' '}
+                                                                        {
+                                                                            advisor.name
+                                                                        }
+                                                                    </Badge>
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">
+                                                            Belum ada pembimbing
+                                                            aktif
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </DataTableContainer>
+                        ) : (
+                            <DataTableEmptyState
+                                title="Tidak ada mahasiswa"
+                                description={
+                                    hasActiveFilter || stageFilter !== 'semua'
+                                        ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
+                                        : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'
+                                }
+                            />
+                        )}
+
+                        <DataTablePagination
+                            currentPage={studentPagination.currentPage}
+                            totalPages={studentPagination.lastPage}
+                            totalItems={studentPagination.total}
+                            pageSize={studentPagination.perPage}
+                            onPageChange={visitPage}
+                            itemLabel="mahasiswa"
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+        </PublicLayout>
+    );
+}

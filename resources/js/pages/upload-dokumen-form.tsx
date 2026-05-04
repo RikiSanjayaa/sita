@@ -106,7 +106,7 @@ export default function UploadDokumenForm() {
                             </CardDescription>
                         </CardHeader>
                         <Separator />
-                        <CardContent className="pt-6">
+                        <CardContent className="pb-6">
                             <form
                                 className="grid gap-5"
                                 onSubmit={(e) => {
@@ -126,7 +126,7 @@ export default function UploadDokumenForm() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="draft-tugas-akhir">
-                                                Draft Tugas Akhir
+                                                Draft Skripsi
                                             </SelectItem>
                                             <SelectItem value="proposal">
                                                 Proposal

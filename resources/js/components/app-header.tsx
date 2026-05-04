@@ -32,7 +32,6 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useActiveUrl } from '@/hooks/use-active-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn, toUrl } from '@/lib/utils';
-import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 
 import AppLogo from './app-logo';
@@ -40,8 +39,8 @@ import AppLogoIcon from './app-logo-icon';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
-        href: dashboard().url,
+        title: 'Beranda',
+        href: '/',
         icon: LayoutGrid,
     },
 ];
@@ -59,7 +58,8 @@ const rightNavItems: NavItem[] = [
     },
 ];
 
-const activeItemStyles = 'bg-primary/10 text-primary dark:bg-primary/15';
+const activeItemStyles =
+    'border border-primary/15 bg-primary/8 text-primary dark:bg-primary/12';
 
 interface AppHeaderProps {
     breadcrumbs?: BreadcrumbItem[];
@@ -70,6 +70,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const { auth } = page.props;
     const getInitials = useInitials();
     const { urlIsActive } = useActiveUrl();
+    const mobileTitle = breadcrumbs[breadcrumbs.length - 1]?.title;
+
     return (
         <>
             <div className="border-b border-sidebar-border/80">
@@ -94,7 +96,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     Navigation Menu
                                 </SheetTitle>
                                 <SheetHeader className="flex justify-start text-left">
-                                    <AppLogoIcon className="h-6 w-6 fill-current text-primary" />
+                                    <AppLogoIcon className="h-10 w-10 fill-current text-primary" />
                                 </SheetHeader>
                                 <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                     <div className="flex h-full flex-col justify-between text-sm">
@@ -136,7 +138,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     </div>
 
                     <Link
-                        href={dashboard().url}
+                        href="/"
                         prefetch
                         className="flex items-center space-x-2"
                     >
@@ -241,7 +243,12 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             {breadcrumbs.length > 1 && (
                 <div className="flex w-full border-b border-sidebar-border/70">
                     <div className="mx-auto flex h-12 w-full items-center justify-start px-4 text-neutral-500 md:max-w-7xl">
-                        <Breadcrumbs breadcrumbs={breadcrumbs} />
+                        <p className="truncate text-sm font-medium text-foreground md:hidden">
+                            {mobileTitle}
+                        </p>
+                        <div className="hidden md:block">
+                            <Breadcrumbs breadcrumbs={breadcrumbs} />
+                        </div>
                     </div>
                 </div>
             )}

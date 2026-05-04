@@ -1,4 +1,5 @@
 import '../css/app.css';
+import './echo';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -8,7 +9,30 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { initializePrimaryColor } from './hooks/use-primary-color';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+type InitialPage = {
+    props?: {
+        name?: string;
+    };
+};
+
+const appName = (() => {
+    const rootElement = document.getElementById('app');
+    const page = rootElement?.dataset.page;
+
+    if (!page) {
+        return 'Laravel';
+    }
+
+    try {
+        const initialPage = JSON.parse(page) as InitialPage;
+
+        return typeof initialPage.props?.name === 'string'
+            ? initialPage.props.name
+            : 'Laravel';
+    } catch {
+        return 'Laravel';
+    }
+})();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

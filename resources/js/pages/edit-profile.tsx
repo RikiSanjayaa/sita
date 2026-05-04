@@ -107,15 +107,14 @@ export default function EditProfile() {
                     </p>
                 </div>
 
-                <Card>
-                    <CardHeader className="gap-1">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <CardTitle>Informasi Pribadi</CardTitle>
                         <CardDescription>
                             Data yang dapat Anda perbarui
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
+                    <CardContent className="pb-6">
                         <form
                             id="edit-profile-form"
                             className="grid gap-6"
@@ -245,15 +244,14 @@ export default function EditProfile() {
                     </CardFooter>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
                         <CardTitle>Informasi Akademik</CardTitle>
                         <CardDescription>
                             Data dari sistem akademik (tidak dapat diubah)
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
+                    <CardContent className="pb-6">
                         <div className="grid gap-6 md:grid-cols-2">
                             <div className="grid gap-1">
                                 <div className="text-xs text-muted-foreground">
@@ -311,19 +309,18 @@ export default function EditProfile() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="gap-1">
-                        <CardTitle>Informasi Tugas Akhir</CardTitle>
+                <Card className="overflow-hidden py-0 shadow-sm">
+                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
+                        <CardTitle>Informasi Skripsi</CardTitle>
                         <CardDescription>
-                            Detail pembimbingan tugas akhir Anda
+                            Detail pembimbingan skripsi Anda
                         </CardDescription>
                     </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-6">
+                    <CardContent className="pb-6">
                         <div className="grid gap-6">
                             <div className="grid gap-1">
                                 <div className="text-xs text-muted-foreground">
-                                    Judul Tugas Akhir
+                                    Judul Skripsi
                                 </div>
                                 <div className="text-sm font-medium">
                                     {tugasAkhir.judul}

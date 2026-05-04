@@ -12,6 +12,8 @@ GIT_PULL="${GIT_PULL:-true}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 RUN_QUEUE_RESTART="${RUN_QUEUE_RESTART:-true}"
 
+export PATH="$(dirname "$PHP_BIN"):$PATH"
+
 APP_WAS_DOWN=0
 
 finish() {
@@ -51,8 +53,12 @@ if [ "$GIT_PULL" = "true" ] && [ -d .git ]; then
 fi
 
 step "Aktifkan maintenance mode"
-"$PHP_BIN" artisan down --render="errors::503" --retry=60 || true
-APP_WAS_DOWN=1
+if [ -f vendor/autoload.php ]; then
+    "$PHP_BIN" artisan down --render="errors::503" --retry=60 || true
+    APP_WAS_DOWN=1
+else
+    printf 'Lewati maintenance mode karena vendor/autoload.php belum ada.\n'
+fi
 
 step "Install dependency PHP production"
 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader --no-interaction
@@ -72,13 +78,18 @@ mkdir -p storage/app/public storage/app/private storage/framework/cache/data sto
 chmod -R ug+rw storage bootstrap/cache
 "$PHP_BIN" artisan storage:link --force
 
-step "Bersihkan cache lama"
-"$PHP_BIN" artisan optimize:clear
+step "Bersihkan cache bootstrap lama"
+"$PHP_BIN" artisan config:clear
+"$PHP_BIN" artisan route:clear
+"$PHP_BIN" artisan view:clear
+"$PHP_BIN" artisan event:clear
 
 if [ "$RUN_MIGRATIONS" = "true" ]; then
     step "Jalankan migrasi database"
     "$PHP_BIN" artisan migrate --force
 fi
+
+"$PHP_BIN" artisan cache:clear || true
 
 step "Cache konfigurasi production"
 "$PHP_BIN" artisan config:cache

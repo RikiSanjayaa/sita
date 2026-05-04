@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     ChevronDown,
@@ -6,10 +6,9 @@ import {
     FileText,
     ListChecks,
     MessageSquareText,
-    Search,
     UploadCloud,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,20 +19,24 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
+import { DataTableToolbar } from '@/components/ui/data-table';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import { dashboard, panduan, pesan, uploadDokumen } from '@/routes';
 import { create as jadwalBimbinganCreate } from '@/routes/jadwal-bimbingan';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type GuidanceCard = {
-    id: 'alur' | 'jadwal' | 'upload' | 'komunikasi';
+    id: string;
     title: string;
     description: string;
     badge: string;
-    icon: typeof ListChecks;
+    icon:
+        | 'calendar-clock'
+        | 'file-text'
+        | 'list-checks'
+        | 'message-square-text'
+        | 'upload-cloud';
+    action: 'none' | 'template' | 'schedule' | 'upload' | 'message';
     bullets: string[];
     keywords: string[];
 };
@@ -50,7 +53,28 @@ type TemplateDoc = {
     title: string;
     description: string;
     format: string;
-    badge?: string;
+    badge?: string | null;
+    fileName?: string | null;
+    downloadUrl?: string | null;
+};
+
+type HelpContent = {
+    title: string;
+    description: string;
+    boxTitle: string;
+    boxDescription: string;
+    messageTemplateTitle: string;
+    messageTemplateSteps: string[];
+};
+
+type PanduanPageProps = {
+    pageTitle: string;
+    pageSubtitle: string;
+    searchHint: string;
+    guidanceCards: GuidanceCard[];
+    faqItems: FaqItem[];
+    templateDocs: TemplateDoc[];
+    helpContent: HelpContent;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -64,125 +88,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const guidanceCards: GuidanceCard[] = [
-    {
-        id: 'alur',
-        title: 'Alur Pengajuan',
-        description: 'Dari ide sampai disetujui, tanpa bolak-balik.',
-        badge: 'Langkah awal',
-        icon: ListChecks,
-        bullets: [
-            'Siapkan judul, ringkasan 3-5 paragraf, dan rencana metode singkat.',
-            'Ajukan judul terlebih dulu, lalu tunggu status (Disetujui/Revisi).',
-            'Jika revisi, fokus ke poin catatan: perbaiki dan ajukan versi berikutnya.',
-            'Jaga penamaan versi: v1, v2, v3 agar riwayat rapi.',
-        ],
-        keywords: ['judul', 'pengajuan', 'revisi', 'status', 'versi'],
-    },
-    {
-        id: 'jadwal',
-        title: 'Jadwal & Bimbingan',
-        description: 'Cara minta bimbingan yang cepat disetujui.',
-        badge: 'Biar cepat',
-        icon: CalendarClock,
-        bullets: [
-            'Tawarkan 2-3 opsi waktu dan cantumkan topik yang spesifik.',
-            'Lampirkan progres terakhir (tautan atau dokumen) sebelum mengajukan.',
-            'Tulis tujuan pertemuan: butuh keputusan, review, atau diskusi.',
-            'Catat hasil bimbingan, lalu tindak lanjuti maksimal 1-3 hari.',
-        ],
-        keywords: ['jadwal', 'bimbingan', 'pertemuan', 'topik', 'waktu'],
-    },
-    {
-        id: 'upload',
-        title: 'Upload & Revisi',
-        description: 'Unggah dokumen dengan rapi dan mudah ditinjau.',
-        badge: 'Dokumen',
-        icon: UploadCloud,
-        bullets: [
-            'Pastikan format sesuai (mis. PDF) dan ukuran file wajar.',
-            'Gunakan nama file konsisten: Bab_1_Nama_v2.pdf.',
-            'Tulis ringkasan perubahan singkat pada revisi (3-5 poin).',
-            'Unggah hanya yang relevan; jangan campur dokumen mentah di final.',
-        ],
-        keywords: ['upload', 'unggah', 'dokumen', 'pdf', 'nama file'],
-    },
-    {
-        id: 'komunikasi',
-        title: 'Komunikasi',
-        description: 'Sopan, jelas, dan enak ditindaklanjuti pembimbing.',
-        badge: 'Etika',
-        icon: MessageSquareText,
-        bullets: [
-            'Mulai dengan konteks 1 kalimat: tahap apa dan tujuan pesan.',
-            'Ajukan pertanyaan yang bisa dijawab ya/tidak atau pilihan A/B.',
-            'Sertakan tautan/dokumen yang dirujuk, jangan hanya "sudah saya kirim".',
-            'Akhiri dengan permintaan tindakan dan tenggat yang realistis.',
-        ],
-        keywords: ['pesan', 'komunikasi', 'pembimbing', 'tenggat', 'konteks'],
-    },
-];
+const iconMap = {
+    'calendar-clock': CalendarClock,
+    'file-text': FileText,
+    'list-checks': ListChecks,
+    'message-square-text': MessageSquareText,
+    'upload-cloud': UploadCloud,
+} as const;
 
-const faqItems: FaqItem[] = [
-    {
-        id: 'faq-1',
-        question: 'Saya harus mulai dari mana?',
-        answer: 'Mulai dari Alur Pengajuan. Siapkan judul dan ringkasan singkat, lalu ajukan judul. Setelah status jelas, baru susun dokumen bab per bab dan ajukan bimbingan berkala.',
-        tags: ['alur', 'judul'],
-    },
-    {
-        id: 'faq-2',
-        question: 'Berapa sering sebaiknya bimbingan?',
-        answer: 'Idealnya 1-2 minggu sekali, atau setiap ada perubahan besar yang butuh keputusan. Yang penting: selalu bawa progres yang bisa ditinjau agar pertemuan efektif.',
-        tags: ['bimbingan', 'jadwal'],
-    },
-    {
-        id: 'faq-3',
-        question: 'Apa yang perlu ditulis saat mengunggah revisi?',
-        answer: 'Tulis ringkasan perubahan 3-5 poin: bagian apa yang diubah, alasan singkat, dan apa yang ingin ditinjau. Ini membuat pembimbing cepat menemukan perbaikan.',
-        tags: ['revisi', 'upload'],
-    },
-    {
-        id: 'faq-4',
-        question: 'Bagaimana kalau pembimbing lama merespons?',
-        answer: 'Kirim follow-up singkat setelah 2-3 hari kerja dengan konteks dan tautan dokumen. Jika tetap belum ada respons, ajukan jadwal bimbingan dengan opsi waktu yang jelas.',
-        tags: ['komunikasi', 'follow-up'],
-    },
-    {
-        id: 'faq-5',
-        question: 'Nama file yang rapi seperti apa?',
-        answer: 'Gunakan pola konsisten: Tahap_Bab_Nama_vX.ext, misalnya Bab_2_MuhammadAkbar_v3.pdf. Hindari spasi ganda dan gunakan versi agar riwayat tidak membingungkan.',
-        tags: ['dokumen', 'versi'],
-    },
-];
-
-const templateDocs: TemplateDoc[] = [
-    {
-        id: 'tpl-1',
-        title: 'Template Proposal',
-        description: 'Kerangka proposal sesuai format kampus.',
-        format: 'DOCX',
-        badge: 'Wajib',
-    },
-    {
-        id: 'tpl-2',
-        title: 'Template Bab 1-3',
-        description: 'Struktur penulisan awal (Pendahuluan sampai Metode).',
-        format: 'DOCX',
-    },
-    {
-        id: 'tpl-3',
-        title: 'Template Logbook Bimbingan',
-        description: 'Catatan pertemuan dan tindak lanjut.',
-        format: 'XLSX',
-    },
-    {
-        id: 'tpl-4',
-        title: 'Template Slide Seminar',
-        description: 'Slide ringkas untuk presentasi proposal/sidang.',
-        format: 'PPTX',
-    },
-];
+const sectionCardClass = 'overflow-hidden border-border/70 py-0 shadow-sm';
+const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
 
 function normalize(text: string) {
     return text.toLowerCase();
@@ -204,13 +119,13 @@ function FaqAccordionItem({
                 <div className="min-w-0">
                     <div className="text-sm font-semibold">{item.question}</div>
                     <div className="mt-1 flex flex-wrap gap-1">
-                        {item.tags.map((t) => (
+                        {item.tags.map((tag) => (
                             <Badge
-                                key={t}
+                                key={tag}
                                 variant="secondary"
                                 className="rounded-full"
                             >
-                                {t}
+                                {tag}
                             </Badge>
                         ))}
                     </div>
@@ -225,12 +140,26 @@ function FaqAccordionItem({
 }
 
 export default function Panduan() {
+    const {
+        faqItems,
+        guidanceCards,
+        helpContent,
+        pageSubtitle,
+        pageTitle,
+        searchHint,
+        templateDocs,
+    } = usePage<SharedData & PanduanPageProps>().props;
+
     const [query, setQuery] = useState('');
+    const [activeSection, setActiveSection] = useState('alur');
 
     const q = query.trim();
 
     const filteredGuidance = useMemo(() => {
-        if (!q) return guidanceCards;
+        if (!q) {
+            return guidanceCards;
+        }
+
         const nq = normalize(q);
 
         return guidanceCards.filter((card) => {
@@ -243,98 +172,190 @@ export default function Panduan() {
                     card.keywords.join(' '),
                 ].join(' '),
             );
+
             return hay.includes(nq);
         });
-    }, [q]);
+    }, [guidanceCards, q]);
 
     const filteredFaq = useMemo(() => {
-        if (!q) return faqItems;
+        if (!q) {
+            return faqItems;
+        }
+
         const nq = normalize(q);
 
         return faqItems.filter((item) => {
             const hay = normalize(
                 [item.question, item.answer, item.tags.join(' ')].join(' '),
             );
+
             return hay.includes(nq);
         });
-    }, [q]);
+    }, [faqItems, q]);
 
-    const hasResults = filteredGuidance.length > 0 || filteredFaq.length > 0;
+    const filteredTemplateDocs = useMemo(() => {
+        if (!q) {
+            return templateDocs;
+        }
+
+        const nq = normalize(q);
+
+        return templateDocs.filter((doc) => {
+            const hay = normalize(
+                [
+                    doc.title,
+                    doc.description,
+                    doc.format,
+                    doc.badge,
+                    doc.fileName,
+                ]
+                    .filter(Boolean)
+                    .join(' '),
+            );
+
+            return hay.includes(nq);
+        });
+    }, [q, templateDocs]);
+
+    const totalSearchResults =
+        filteredGuidance.length +
+        filteredFaq.length +
+        filteredTemplateDocs.length;
+
+    const quickLinks = useMemo(
+        () => [
+            { value: 'alur', label: 'Alur' },
+            { value: 'faq', label: 'FAQ' },
+            { value: 'template', label: 'Dokumen Template' },
+            { value: 'bantuan', label: 'Bantuan' },
+        ],
+        [],
+    );
+
+    useEffect(() => {
+        const syncActiveSection = () => {
+            const nextHash = window.location.hash.replace('#', '');
+            if (nextHash) {
+                setActiveSection(nextHash);
+            }
+        };
+
+        syncActiveSection();
+        window.addEventListener('hashchange', syncActiveSection);
+
+        return () =>
+            window.removeEventListener('hashchange', syncActiveSection);
+    }, []);
+
+    useEffect(() => {
+        const sections = quickLinks
+            .map((link) => document.getElementById(link.value))
+            .filter((section): section is HTMLElement => section !== null);
+
+        if (sections.length === 0) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visibleEntries = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort(
+                        (a, b) =>
+                            b.intersectionRatio - a.intersectionRatio ||
+                            a.boundingClientRect.top - b.boundingClientRect.top,
+                    );
+
+                if (visibleEntries.length > 0) {
+                    setActiveSection(visibleEntries[0].target.id);
+                }
+            },
+            {
+                rootMargin: '-96px 0px -55% 0px',
+                threshold: [0.1, 0.25, 0.5, 0.75],
+            },
+        );
+
+        sections.forEach((section) => observer.observe(section));
+
+        return () => observer.disconnect();
+    }, [quickLinks]);
+
+    const jumpToSection = (section: string) => {
+        setActiveSection(section);
+
+        const target = document.getElementById(section);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.history.replaceState(null, '', `#${section}`);
+        }
+    };
 
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
-            title="Panduan"
-            subtitle="Ringkas, bisa dicari, dan siap membantu kamu bergerak"
+            title={pageTitle}
+            subtitle={pageSubtitle}
         >
-            <Head title="Panduan" />
+            <Head title={pageTitle} />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold">Panduan</h1>
-                        <p className="text-sm text-muted-foreground">
-                            Temukan alur, tips bimbingan, dan FAQ tanpa harus
-                            mencari chat lama.
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                            {pageTitle}
+                        </h1>
+                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                            {pageSubtitle}
                         </p>
                     </div>
 
-                    <div className="w-full sm:max-w-md">
-                        <div className="relative">
-                            <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                            <Input
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Cari panduan atau FAQ..."
-                                aria-label="Cari panduan atau FAQ"
-                                className="pl-9"
+                    <Card className={sectionCardClass}>
+                        <CardContent className="px-6 py-5">
+                            <DataTableToolbar
+                                search={query}
+                                onSearchChange={setQuery}
+                                searchPlaceholder={searchHint}
+                                filterGroups={[
+                                    {
+                                        tabs: quickLinks,
+                                        value: activeSection,
+                                        onChange: jumpToSection,
+                                    },
+                                ]}
+                                alertBadge={
+                                    q ? (
+                                        <div className="flex items-center gap-2">
+                                            <Badge
+                                                variant="outline"
+                                                className="rounded-full"
+                                            >
+                                                {totalSearchResults} hasil
+                                            </Badge>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => setQuery('')}
+                                            >
+                                                Reset
+                                            </Button>
+                                        </div>
+                                    ) : null
+                                }
                             />
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                            <span>
-                                {q
-                                    ? hasResults
-                                        ? `Hasil untuk "${q}"`
-                                        : `Tidak ada hasil untuk "${q}"`
-                                    : 'Ketik kata kunci: revisi, bimbingan, upload, judul'}
-                            </span>
-                            {q && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 px-2 text-xs"
-                                    onClick={() => setQuery('')}
-                                >
-                                    Reset
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="secondary" size="sm" asChild>
-                        <a href="#alur">Alur</a>
-                    </Button>
-                    <Button type="button" variant="secondary" size="sm" asChild>
-                        <a href="#faq">FAQ</a>
-                    </Button>
-                    <Button type="button" variant="secondary" size="sm" asChild>
-                        <a href="#template">Dokumen Template</a>
-                    </Button>
-                    <Button type="button" variant="secondary" size="sm" asChild>
-                        <a href="#bantuan">Bantuan</a>
-                    </Button>
-                </div>
-
-                <section id="alur" className="space-y-3">
-                    <div className="flex items-end justify-between gap-3">
+                <section id="alur" className="scroll-mt-24 space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <div className="text-sm font-semibold">
+                            <div className="text-base font-semibold text-foreground">
                                 Panduan utama
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm leading-6 text-muted-foreground">
                                 Empat hal yang paling sering bikin macet.
                             </div>
                         </div>
@@ -343,20 +364,20 @@ export default function Panduan() {
                         </Badge>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 xl:grid-cols-2">
                         {filteredGuidance.map((card) => {
-                            const Icon = card.icon;
+                            const Icon = iconMap[card.icon] ?? FileText;
+
                             return (
                                 <Card
                                     key={card.id}
-                                    className={cn(
-                                        'scroll-mt-24',
-                                        card.id === 'alur' && 'ring-0',
-                                    )}
+                                    className={`${sectionCardClass} h-full`}
                                 >
-                                    <CardHeader className="gap-2">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="min-w-0">
+                                    <CardHeader
+                                        className={`${sectionCardHeaderClass} gap-3`}
+                                    >
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                                                         <Icon className="size-4" />
@@ -365,96 +386,122 @@ export default function Panduan() {
                                                         {card.title}
                                                     </CardTitle>
                                                 </div>
-                                                <CardDescription className="mt-2">
+                                                <CardDescription className="mt-2 text-sm leading-6">
                                                     {card.description}
                                                 </CardDescription>
                                             </div>
                                             <Badge
                                                 variant="secondary"
-                                                className="shrink-0 rounded-full"
+                                                className="w-fit shrink-0 rounded-full"
                                             >
                                                 {card.badge}
                                             </Badge>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <ul className="grid gap-2 text-sm text-muted-foreground">
-                                            {card.bullets.map((b) => (
+                                    <CardContent className="flex h-full flex-col gap-5 py-6">
+                                        <ul className="grid flex-1 gap-2.5 text-sm text-muted-foreground">
+                                            {card.bullets.map((bullet) => (
                                                 <li
-                                                    key={b}
+                                                    key={bullet}
                                                     className="flex gap-2"
                                                 >
                                                     <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
                                                     <span className="min-w-0">
-                                                        {b}
+                                                        {bullet}
                                                     </span>
                                                 </li>
                                             ))}
                                         </ul>
 
-                                        <Separator />
+                                        <div className="border-t pt-4">
+                                            <div className="mb-3 flex flex-wrap gap-2">
+                                                {card.keywords.map(
+                                                    (keyword) => (
+                                                        <Badge
+                                                            key={keyword}
+                                                            variant="secondary"
+                                                            className="rounded-full"
+                                                        >
+                                                            {keyword}
+                                                        </Badge>
+                                                    ),
+                                                )}
+                                            </div>
 
-                                        <div className="flex flex-wrap gap-2">
-                                            {card.id === 'jadwal' && (
-                                                <Button
-                                                    type="button"
-                                                    className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={
-                                                            jadwalBimbinganCreate()
-                                                                .url
-                                                        }
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                                {card.action === 'schedule' ? (
+                                                    <Button
+                                                        type="button"
+                                                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        asChild
                                                     >
-                                                        <CalendarClock className="size-4" />
-                                                        Ajukan Bimbingan
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                            {card.id === 'upload' && (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-9"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={
-                                                            uploadDokumen().url
-                                                        }
+                                                        <Link
+                                                            href={
+                                                                jadwalBimbinganCreate()
+                                                                    .url
+                                                            }
+                                                            className="w-full sm:w-auto"
+                                                        >
+                                                            <CalendarClock className="size-4" />
+                                                            Ajukan Bimbingan
+                                                        </Link>
+                                                    </Button>
+                                                ) : null}
+
+                                                {card.action === 'upload' ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="h-9"
+                                                        asChild
                                                     >
-                                                        <UploadCloud className="size-4" />
-                                                        Buka Upload Dokumen
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                            {card.id === 'komunikasi' && (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-9"
-                                                    asChild
-                                                >
-                                                    <Link href={pesan().url}>
-                                                        <MessageSquareText className="size-4" />
-                                                        Kirim Pesan
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                            {card.id === 'alur' && (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-9"
-                                                    asChild
-                                                >
-                                                    <a href="#template">
-                                                        <FileText className="size-4" />
-                                                        Lihat Template
-                                                    </a>
-                                                </Button>
-                                            )}
+                                                        <Link
+                                                            href={
+                                                                uploadDokumen()
+                                                                    .url
+                                                            }
+                                                            className="w-full sm:w-auto"
+                                                        >
+                                                            <UploadCloud className="size-4" />
+                                                            Buka Upload Dokumen
+                                                        </Link>
+                                                    </Button>
+                                                ) : null}
+
+                                                {card.action === 'message' ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="h-9"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={pesan().url}
+                                                            className="w-full sm:w-auto"
+                                                        >
+                                                            <MessageSquareText className="size-4" />
+                                                            Kirim Pesan
+                                                        </Link>
+                                                    </Button>
+                                                ) : null}
+
+                                                {card.action === 'template' ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="h-9"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href="#template"
+                                                            className="w-full sm:w-auto"
+                                                        >
+                                                            <FileText className="size-4" />
+                                                            Lihat Template
+                                                        </a>
+                                                    </Button>
+                                                ) : null}
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -463,193 +510,250 @@ export default function Panduan() {
                     </div>
                 </section>
 
-                <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-                    <section id="faq" className="space-y-4">
-                        <Card>
-                            <CardHeader className="gap-1">
+                <section id="faq" className="scroll-mt-24 space-y-4">
+                    <Card className={sectionCardClass}>
+                        <CardHeader
+                            className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
+                        >
+                            <div>
                                 <CardTitle className="text-base">FAQ</CardTitle>
-                                <CardDescription>
+                                <CardDescription className="mt-1">
                                     Jawaban cepat untuk pertanyaan yang sering
                                     muncul.
                                 </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {filteredFaq.length === 0 ? (
-                                    <div className="rounded-xl border bg-muted/30 p-4">
-                                        <div className="text-sm font-medium">
-                                            Tidak ada FAQ yang cocok.
-                                        </div>
-                                        <div className="mt-1 text-sm text-muted-foreground">
-                                            Coba kata kunci lain, atau buka
-                                            kartu Bantuan untuk menghubungi
-                                            admin.
-                                        </div>
+                            </div>
+                            <Badge
+                                variant="outline"
+                                className="w-fit rounded-full"
+                            >
+                                {filteredFaq.length}/{faqItems.length}
+                            </Badge>
+                        </CardHeader>
+                        <CardContent className="space-y-3 py-6">
+                            {filteredFaq.length === 0 ? (
+                                <div className="rounded-xl border bg-muted/30 p-4">
+                                    <div className="text-sm font-medium">
+                                        Tidak ada FAQ yang cocok.
                                     </div>
-                                ) : (
-                                    <div className="grid gap-3">
-                                        {filteredFaq.map((item, idx) => (
-                                            <FaqAccordionItem
-                                                key={item.id}
-                                                item={item}
-                                                defaultOpen={Boolean(
-                                                    q && idx === 0,
-                                                )}
-                                            />
-                                        ))}
+                                    <div className="mt-1 text-sm text-muted-foreground">
+                                        Coba kata kunci lain, atau buka kartu
+                                        Bantuan untuk menghubungi admin.
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </section>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {filteredFaq.map((item, idx) => (
+                                        <FaqAccordionItem
+                                            key={item.id}
+                                            item={item}
+                                            defaultOpen={Boolean(
+                                                q && idx === 0,
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </section>
 
-                    <div className="grid gap-6">
-                        <section id="template" className="space-y-4">
-                            <Card>
-                                <CardHeader className="gap-1">
+                <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+                    <section id="template" className="scroll-mt-24 space-y-4">
+                        <Card className={sectionCardClass}>
+                            <CardHeader
+                                className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
+                            >
+                                <div>
                                     <CardTitle className="text-base">
                                         Dokumen Template
                                     </CardTitle>
-                                    <CardDescription>
+                                    <CardDescription className="mt-1">
                                         Gunakan template agar format konsisten.
                                     </CardDescription>
-                                </CardHeader>
-                                <CardContent>
+                                </div>
+                                <Badge
+                                    variant="outline"
+                                    className="w-fit rounded-full"
+                                >
+                                    {filteredTemplateDocs.length}/
+                                    {templateDocs.length}
+                                </Badge>
+                            </CardHeader>
+                            <CardContent className="space-y-4 py-6">
+                                {filteredTemplateDocs.length === 0 ? (
+                                    <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                                        Tidak ada dokumen template yang cocok
+                                        dengan pencarianmu.
+                                    </div>
+                                ) : (
                                     <div className="grid gap-3">
-                                        {templateDocs.map((doc, idx) => (
-                                            <div key={doc.id}>
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="mt-0.5 size-4 text-muted-foreground" />
+                                        {filteredTemplateDocs.map((doc) => (
+                                            <div
+                                                key={doc.id}
+                                                className="rounded-xl border bg-background p-4"
+                                            >
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                                                                <FileText className="size-4" />
+                                                            </span>
                                                             <div className="min-w-0">
-                                                                <div className="truncate text-sm font-medium">
+                                                                <div className="text-sm font-medium break-words">
                                                                     {doc.title}
                                                                 </div>
-                                                                <div className="text-xs text-muted-foreground">
+                                                                <div className="mt-1 text-sm leading-6 text-muted-foreground">
                                                                     {
                                                                         doc.description
                                                                     }
                                                                 </div>
+                                                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="rounded-full"
+                                                                    >
+                                                                        {
+                                                                            doc.format
+                                                                        }
+                                                                    </Badge>
+                                                                    {doc.badge ? (
+                                                                        <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                                                                            {
+                                                                                doc.badge
+                                                                            }
+                                                                        </Badge>
+                                                                    ) : null}
+                                                                    {doc.fileName ? (
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="max-w-full rounded-full text-left break-all whitespace-normal"
+                                                                        >
+                                                                            {
+                                                                                doc.fileName
+                                                                            }
+                                                                        </Badge>
+                                                                    ) : null}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-2 flex items-center gap-2">
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="rounded-full"
-                                                            >
-                                                                {doc.format}
-                                                            </Badge>
-                                                            {doc.badge && (
-                                                                <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                                                                    {doc.badge}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
                                                     </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8"
-                                                        disabled
-                                                    >
-                                                        <FileDown className="size-4" />
-                                                        Unduh
-                                                    </Button>
+
+                                                    {doc.downloadUrl ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-9 w-full sm:w-auto"
+                                                            asChild
+                                                        >
+                                                            <a
+                                                                href={
+                                                                    doc.downloadUrl
+                                                                }
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                <FileDown className="size-4" />
+                                                                Unduh
+                                                            </a>
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-9 w-full sm:w-auto"
+                                                            disabled
+                                                        >
+                                                            <FileDown className="size-4" />
+                                                            Belum tersedia
+                                                        </Button>
+                                                    )}
                                                 </div>
-                                                {idx !==
-                                                    templateDocs.length - 1 && (
-                                                    <Separator className="my-3" />
-                                                )}
                                             </div>
                                         ))}
                                     </div>
-                                    <div className="mt-4 rounded-xl border bg-muted/30 p-4 text-sm">
-                                        <div className="font-medium">
-                                            Tips: versi itu penting
-                                        </div>
-                                        <div className="mt-1 text-muted-foreground">
-                                            Saat revisi, simpan versi lama dan
-                                            naikkan nomor versi agar mudah
-                                            dibandingkan.
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </section>
+                                )}
 
-                        <section id="bantuan" className="space-y-4">
-                            <Card className="overflow-hidden">
-                                <CardHeader className="gap-1">
-                                    <CardTitle className="text-base">
-                                        Bantuan
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Jika masih bingung, mulai dari sini.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="rounded-xl border bg-background p-4">
-                                        <div className="text-sm font-medium">
-                                            Cek dulu yang paling dekat
-                                        </div>
-                                        <div className="mt-1 text-sm text-muted-foreground">
-                                            Biasanya masalah selesai setelah:
-                                            cari kata kunci, baca FAQ, lalu
-                                            kirim pesan dengan konteks.
-                                        </div>
+                                <div className="rounded-xl border bg-muted/30 p-4 text-sm">
+                                    <div className="font-medium">
+                                        Tips: versi itu penting
                                     </div>
+                                    <div className="mt-1 text-muted-foreground">
+                                        Saat revisi, simpan versi lama dan
+                                        naikkan nomor versi agar mudah
+                                        dibandingkan.
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </section>
 
-                                    <div className="grid gap-2">
-                                        <Button
-                                            type="button"
-                                            className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
-                                            asChild
+                    <section id="bantuan" className="scroll-mt-24 space-y-4">
+                        <Card className={sectionCardClass}>
+                            <CardHeader className={sectionCardHeaderClass}>
+                                <CardTitle className="text-base">
+                                    {helpContent.title}
+                                </CardTitle>
+                                <CardDescription>
+                                    {helpContent.description}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 py-6">
+                                <div className="rounded-xl border bg-background p-4">
+                                    <div className="text-sm font-medium">
+                                        {helpContent.boxTitle}
+                                    </div>
+                                    <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                                        {helpContent.boxDescription}
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Button
+                                        type="button"
+                                        className="h-10 bg-primary text-primary-foreground hover:bg-primary/90"
+                                        asChild
+                                    >
+                                        <Link
+                                            href={pesan().url}
+                                            className="w-full"
                                         >
-                                            <Link href={pesan().url}>
-                                                <MessageSquareText className="size-4" />
-                                                Hubungi Pembimbing/Admin
-                                            </Link>
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="h-9"
-                                            asChild
+                                            <MessageSquareText className="size-4" />
+                                            Hubungi Pembimbing/Admin
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-10"
+                                        asChild
+                                    >
+                                        <Link
+                                            href={uploadDokumen().url}
+                                            className="w-full"
                                         >
-                                            <Link href={uploadDokumen().url}>
-                                                <UploadCloud className="size-4" />
-                                                Lihat Status Dokumen
-                                            </Link>
-                                        </Button>
-                                    </div>
+                                            <UploadCloud className="size-4" />
+                                            Lihat Status Dokumen
+                                        </Link>
+                                    </Button>
+                                </div>
 
-                                    <div className="rounded-xl border bg-muted/30 p-4">
-                                        <div className="text-sm font-medium">
-                                            Format pesan yang efektif
-                                        </div>
-                                        <div className="mt-2 grid gap-2 text-sm text-muted-foreground">
-                                            <div>
-                                                1) Tahap: Bab 2 / Proposal /
-                                                Revisi
-                                            </div>
-                                            <div>
-                                                2) Tujuan: minta review atau
-                                                keputusan
-                                            </div>
-                                            <div>
-                                                3) Tautan: dokumen yang dirujuk
-                                            </div>
-                                            <div>
-                                                4) Pertanyaan: pilihan A/B atau
-                                                ya/tidak
-                                            </div>
-                                        </div>
+                                <div className="rounded-xl border bg-muted/30 p-4">
+                                    <div className="text-sm font-medium">
+                                        {helpContent.messageTemplateTitle}
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </section>
-                    </div>
+                                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+                                        {helpContent.messageTemplateSteps.map(
+                                            (step) => (
+                                                <div key={step}>{step}</div>
+                                            ),
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </section>
                 </div>
             </div>
         </AppLayout>

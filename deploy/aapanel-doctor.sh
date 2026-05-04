@@ -54,10 +54,10 @@ need_cmd bash
 
 if command -v "$PHP_BIN" >/dev/null 2>&1; then
     PHP_VERSION_STR="$("$PHP_BIN" -r 'echo PHP_VERSION;' 2>/dev/null || true)"
-    if "$PHP_BIN" -r 'exit(version_compare(PHP_VERSION, "8.2.0", ">=") ? 0 : 1);' >/dev/null 2>&1; then
-        ok "PHP CLI ${PHP_VERSION_STR} memenuhi minimal 8.2"
+    if "$PHP_BIN" -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") ? 0 : 1);' >/dev/null 2>&1; then
+        ok "PHP CLI ${PHP_VERSION_STR} memenuhi minimal 8.4"
     else
-        fail "PHP CLI ${PHP_VERSION_STR:-unknown} belum memenuhi minimal 8.2"
+        fail "PHP CLI ${PHP_VERSION_STR:-unknown} belum memenuhi minimal 8.4"
     fi
 
     for extension in ctype dom fileinfo filter json mbstring openssl pcre pdo session tokenizer xml; do
