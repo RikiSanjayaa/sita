@@ -169,8 +169,10 @@ const setCookie = (name: string, value: string, days = 365): void => {
 };
 
 const getPresetById = (id: string | null | undefined): ThemePreset => {
-    return THEME_PRESETS.find((preset) => preset.id === id) ??
-        THEME_PRESETS.find((preset) => preset.id === DEFAULT_PRESET_ID)!;
+    return (
+        THEME_PRESETS.find((preset) => preset.id === id) ??
+        THEME_PRESETS.find((preset) => preset.id === DEFAULT_PRESET_ID)!
+    );
 };
 
 const getContrastForeground = (hex: string): string => {
@@ -226,7 +228,8 @@ const applyCurrentPreset = (): void => {
 };
 
 const setupAppearanceObserver = (): void => {
-    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    if (typeof document === 'undefined' || typeof window === 'undefined')
+        return;
     if (classObserver) classObserver.disconnect();
 
     classObserver = new MutationObserver(() => {
@@ -256,14 +259,17 @@ export function usePrimaryColor() {
         () => DEFAULT_PRESET_ID,
     );
 
-    const updatePreset = useCallback((nextPresetId: ThemePreset['id']): void => {
-        const nextPreset = getPresetById(nextPresetId);
-        currentPresetId = nextPreset.id;
-        localStorage.setItem(STORAGE_KEY, nextPreset.id);
-        setCookie(COOKIE_KEY, nextPreset.id);
-        applyPresetToCssVariables(nextPreset);
-        notify();
-    }, []);
+    const updatePreset = useCallback(
+        (nextPresetId: ThemePreset['id']): void => {
+            const nextPreset = getPresetById(nextPresetId);
+            currentPresetId = nextPreset.id;
+            localStorage.setItem(STORAGE_KEY, nextPreset.id);
+            setCookie(COOKIE_KEY, nextPreset.id);
+            applyPresetToCssVariables(nextPreset);
+            notify();
+        },
+        [],
+    );
 
     const resetPreset = useCallback((): void => {
         currentPresetId = DEFAULT_PRESET_ID;

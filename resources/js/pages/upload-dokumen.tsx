@@ -241,13 +241,14 @@ export default function UploadDokumen() {
     const [fileError, setFileError] = useState<string | null>(null);
     const [isUploadSuccessOpen, setIsUploadSuccessOpen] = useState(false);
 
-    function publishUploadToGroupChat(nextFile: File, selectedCategory: string) {
+    function publishUploadToGroupChat(
+        nextFile: File,
+        selectedCategory: string,
+    ) {
         if (typeof window === 'undefined') return;
 
         const raw = window.localStorage.getItem(GROUP_DOC_EVENTS_KEY);
-        const currentEvents = raw
-            ? (JSON.parse(raw) as GroupDocEvent[])
-            : [];
+        const currentEvents = raw ? (JSON.parse(raw) as GroupDocEvent[]) : [];
 
         const nextEvent: GroupDocEvent = {
             id: `evt-${Date.now()}`,
@@ -295,7 +296,10 @@ export default function UploadDokumen() {
                             <Label htmlFor="kategori-dokumen">
                                 Kategori Dokumen
                             </Label>
-                            <Select value={kategori} onValueChange={setKategori}>
+                            <Select
+                                value={kategori}
+                                onValueChange={setKategori}
+                            >
                                 <SelectTrigger id="kategori-dokumen">
                                     <SelectValue placeholder="Pilih kategori dokumen" />
                                 </SelectTrigger>
@@ -318,7 +322,8 @@ export default function UploadDokumen() {
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">
-                                Pastikan kategori sesuai dengan jenis dokumen agar proses review lebih cepat.
+                                Pastikan kategori sesuai dengan jenis dokumen
+                                agar proses review lebih cepat.
                             </p>
                         </div>
 
@@ -357,14 +362,18 @@ export default function UploadDokumen() {
                             ) : null}
                             {fileError ? (
                                 <Alert variant="destructive">
-                                    <AlertDescription>{fileError}</AlertDescription>
+                                    <AlertDescription>
+                                        {fileError}
+                                    </AlertDescription>
                                 </Alert>
                             ) : null}
                         </div>
 
                         <Alert className="border-sky-100 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
                             <AlertDescription className="text-sky-900 dark:text-sky-200">
-                                <span className="font-medium">Catatan:</span> Pastikan dokumen sudah sesuai dengan format dan panduan yang diberikan sebelum mengupload.
+                                <span className="font-medium">Catatan:</span>{' '}
+                                Pastikan dokumen sudah sesuai dengan format dan
+                                panduan yang diberikan sebelum mengupload.
                             </AlertDescription>
                         </Alert>
 
@@ -562,4 +571,3 @@ export default function UploadDokumen() {
         </AppLayout>
     );
 }
-

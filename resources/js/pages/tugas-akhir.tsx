@@ -314,9 +314,7 @@ export default function TugasAkhirSaya() {
     );
 
     return (
-        <AppLayout
-            breadcrumbs={breadcrumbs}
-        >
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tugas Akhir Saya" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
@@ -453,10 +451,10 @@ export default function TugasAkhirSaya() {
                                                 item.tone === 'success'
                                                     ? 'bg-green-50 text-green-700 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40'
                                                     : item.tone === 'warning'
-                                                        ? 'bg-yellow-50 text-yellow-700 ring-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-300 dark:ring-yellow-500/40'
-                                                        : item.tone === 'danger'
-                                                            ? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/40'
-                                                            : 'bg-primary/10 text-primary ring-primary/25';
+                                                      ? 'bg-yellow-50 text-yellow-700 ring-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-300 dark:ring-yellow-500/40'
+                                                      : item.tone === 'danger'
+                                                        ? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/40'
+                                                        : 'bg-primary/10 text-primary ring-primary/25';
 
                                             return (
                                                 <div
@@ -786,7 +784,7 @@ export default function TugasAkhirSaya() {
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         {row.tenggatWaktu ===
-                                                            '-' ? (
+                                                        '-' ? (
                                                             <span className="text-sm text-muted-foreground">
                                                                 -
                                                             </span>
@@ -816,31 +814,31 @@ export default function TugasAkhirSaya() {
                                                             {row.actions.includes(
                                                                 'view',
                                                             ) && (
-                                                                    <ActionIconButton
-                                                                        label="Lihat"
-                                                                        icon={Eye}
-                                                                    />
-                                                                )}
+                                                                <ActionIconButton
+                                                                    label="Lihat"
+                                                                    icon={Eye}
+                                                                />
+                                                            )}
                                                             {row.actions.includes(
                                                                 'download',
                                                             ) && (
-                                                                    <ActionIconButton
-                                                                        label="Unduh"
-                                                                        icon={
-                                                                            Download
-                                                                        }
-                                                                    />
-                                                                )}
+                                                                <ActionIconButton
+                                                                    label="Unduh"
+                                                                    icon={
+                                                                        Download
+                                                                    }
+                                                                />
+                                                            )}
                                                             {row.actions.includes(
                                                                 'upload',
                                                             ) && (
-                                                                    <ActionIconButton
-                                                                        label="Unggah"
-                                                                        icon={
-                                                                            Upload
-                                                                        }
-                                                                    />
-                                                                )}
+                                                                <ActionIconButton
+                                                                    label="Unggah"
+                                                                    icon={
+                                                                        Upload
+                                                                    }
+                                                                />
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -856,4 +854,3 @@ export default function TugasAkhirSaya() {
         </AppLayout>
     );
 }
-

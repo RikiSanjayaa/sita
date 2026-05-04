@@ -113,10 +113,20 @@ function seedThreads(): Thread[] {
             name: 'Group Chat Bimbingan',
             role: 'Group Bimbingan',
             unread: sys.length ? 1 : 0,
-            preview: sys.at(-1)?.text ?? 'Diskusi bersama mahasiswa dan dua dosen pembimbing.',
+            preview:
+                sys.at(-1)?.text ??
+                'Diskusi bersama mahasiswa dan dua dosen pembimbing.',
             time: sys.at(-1)?.time ?? 'Baru saja',
             members: ['Mahasiswa', 'Pembimbing 1', 'Pembimbing 2'],
-            messages: [{ id: 'g1', from: 'them', text: 'Gunakan grup ini untuk koordinasi dokumen dan revisi.', time: '09:10' }, ...sys],
+            messages: [
+                {
+                    id: 'g1',
+                    from: 'them',
+                    text: 'Gunakan grup ini untuk koordinasi dokumen dan revisi.',
+                    time: '09:10',
+                },
+                ...sys,
+            ],
         },
         {
             id: 'p1',
@@ -125,7 +135,14 @@ function seedThreads(): Thread[] {
             unread: 1,
             preview: 'Silakan cek revisi terbaru.',
             time: '2 jam lalu',
-            messages: [{ id: 'p1m1', from: 'them', text: 'Silakan cek revisi terbaru.', time: '10:30' }],
+            messages: [
+                {
+                    id: 'p1m1',
+                    from: 'them',
+                    text: 'Silakan cek revisi terbaru.',
+                    time: '10:30',
+                },
+            ],
         },
         {
             id: 'p2',
@@ -134,7 +151,14 @@ function seedThreads(): Thread[] {
             unread: 0,
             preview: 'Baik, kita lanjut sesuai rencana.',
             time: '1 hari lalu',
-            messages: [{ id: 'p2m1', from: 'them', text: 'Baik, kita lanjut sesuai rencana.', time: '08:14' }],
+            messages: [
+                {
+                    id: 'p2m1',
+                    from: 'them',
+                    text: 'Baik, kita lanjut sesuai rencana.',
+                    time: '08:14',
+                },
+            ],
         },
     ];
 }
@@ -145,15 +169,28 @@ export default function Pesan() {
     const [q, setQ] = useState('');
     const [draft, setDraft] = useState('');
     const [file, setFile] = useState<string | null>(null);
-    const [notice, setNotice] = useState<GroupDocEvent | null>(latestUnseenEvent);
+    const [notice, setNotice] = useState<GroupDocEvent | null>(
+        latestUnseenEvent,
+    );
     const fileRef = useRef<HTMLInputElement | null>(null);
 
-    const active = useMemo(() => threads.find((t) => t.id === activeId) ?? null, [threads, activeId]);
-    const filtered = useMemo(() => threads.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())), [threads, q]);
+    const active = useMemo(
+        () => threads.find((t) => t.id === activeId) ?? null,
+        [threads, activeId],
+    );
+    const filtered = useMemo(
+        () =>
+            threads.filter((t) =>
+                t.name.toLowerCase().includes(q.toLowerCase()),
+            ),
+        [threads, q],
+    );
 
     function openThread(id: string) {
         setActiveId(id);
-        setThreads((c) => c.map((t) => (t.id === id ? { ...t, unread: 0 } : t)));
+        setThreads((c) =>
+            c.map((t) => (t.id === id ? { ...t, unread: 0 } : t)),
+        );
     }
 
     function send() {
@@ -165,7 +202,16 @@ export default function Pesan() {
                           ...t,
                           preview: draft.trim() || file || t.preview,
                           time: 'Baru saja',
-                          messages: [...t.messages, { id: `me-${Date.now()}`, from: 'me', text: draft.trim() || undefined, file: file ?? undefined, time: 'Baru saja' }],
+                          messages: [
+                              ...t.messages,
+                              {
+                                  id: `me-${Date.now()}`,
+                                  from: 'me',
+                                  text: draft.trim() || undefined,
+                                  file: file ?? undefined,
+                                  time: 'Baru saja',
+                              },
+                          ],
                       }
                     : t,
             ),
@@ -176,53 +222,112 @@ export default function Pesan() {
     }
 
     function closeNotice() {
-        if (notice && typeof window !== 'undefined') window.localStorage.setItem(GROUP_DOC_LAST_SEEN_KEY, notice.id);
+        if (notice && typeof window !== 'undefined')
+            window.localStorage.setItem(GROUP_DOC_LAST_SEEN_KEY, notice.id);
         setNotice(null);
     }
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs} title="Pesan" subtitle="Diskusi pembimbing, penguji, dan mahasiswa">
+        <AppLayout
+            breadcrumbs={breadcrumbs}
+            title="Pesan"
+            subtitle="Diskusi pembimbing, penguji, dan mahasiswa"
+        >
             <Head title="Pesan" />
 
             <Dialog open={Boolean(notice)} onOpenChange={closeNotice}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Dokumen Baru di Group Chat</DialogTitle>
-                        <DialogDescription>Upload dokumen terbaru sudah masuk ke grup bimbingan.</DialogDescription>
+                        <DialogDescription>
+                            Upload dokumen terbaru sudah masuk ke grup
+                            bimbingan.
+                        </DialogDescription>
                     </DialogHeader>
-                    {notice && <div className="rounded-lg border bg-muted/30 p-3 text-sm">{notice.fileName}</div>}
+                    {notice && (
+                        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                            {notice.fileName}
+                        </div>
+                    )}
                     <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={closeNotice}>Tutup</Button>
-                        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => { setActiveId('group'); closeNotice(); }}>Buka Grup</Button>
+                        <Button variant="outline" onClick={closeNotice}>
+                            Tutup
+                        </Button>
+                        <Button
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => {
+                                setActiveId('group');
+                                closeNotice();
+                            }}
+                        >
+                            Buka Grup
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
 
-            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[360px_1fr] md:px-6">
+            <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[360px_1fr]">
                 <Card className="h-fit">
                     <CardHeader>
                         <CardTitle>Percakapan</CardTitle>
-                        <CardDescription>Group chat + direct chat dosen</CardDescription>
+                        <CardDescription>
+                            Group chat + direct chat dosen
+                        </CardDescription>
                         <div className="relative">
                             <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
-                            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari..." className="pl-9" />
+                            <Input
+                                value={q}
+                                onChange={(e) => setQ(e.target.value)}
+                                placeholder="Cari..."
+                                className="pl-9"
+                            />
                         </div>
                     </CardHeader>
                     <Separator />
                     <CardContent className="grid gap-2 pt-4">
                         {filtered.map((t) => (
-                            <button key={t.id} type="button" onClick={() => openThread(t.id)} className={cn('flex items-start gap-3 rounded-lg border p-3 text-left hover:bg-muted/50', t.id === activeId && 'border-primary/25 bg-muted/60')}>
-                                <Avatar className="size-9"><AvatarFallback>{t.id === 'group' ? 'GC' : initials(t.name)}</AvatarFallback></Avatar>
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => openThread(t.id)}
+                                className={cn(
+                                    'flex items-start gap-3 rounded-lg border p-3 text-left hover:bg-muted/50',
+                                    t.id === activeId &&
+                                        'border-primary/25 bg-muted/60',
+                                )}
+                            >
+                                <Avatar className="size-9">
+                                    <AvatarFallback>
+                                        {t.id === 'group'
+                                            ? 'GC'
+                                            : initials(t.name)}
+                                    </AvatarFallback>
+                                </Avatar>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex justify-between gap-2">
-                                        <div className="truncate text-sm font-semibold">{t.name}</div>
-                                        <div className="text-xs text-muted-foreground">{t.time}</div>
+                                        <div className="truncate text-sm font-semibold">
+                                            {t.name}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {t.time}
+                                        </div>
                                     </div>
                                     <div className="mt-1 flex items-center gap-2">
-                                        <Badge variant="outline" className="bg-background">{t.role}</Badge>
-                                        {t.unread > 0 && <Badge className="bg-primary text-primary-foreground">{t.unread}</Badge>}
+                                        <Badge
+                                            variant="outline"
+                                            className="bg-background"
+                                        >
+                                            {t.role}
+                                        </Badge>
+                                        {t.unread > 0 && (
+                                            <Badge className="bg-primary text-primary-foreground">
+                                                {t.unread}
+                                            </Badge>
+                                        )}
                                     </div>
-                                    <div className="mt-2 line-clamp-2 text-xs text-muted-foreground">{t.preview}</div>
+                                    <div className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                                        {t.preview}
+                                    </div>
                                 </div>
                             </button>
                         ))}
@@ -235,9 +340,16 @@ export default function Pesan() {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <CardTitle>{active.name}</CardTitle>
-                                    <Badge variant="secondary">{active.role}</Badge>
+                                    <Badge variant="secondary">
+                                        {active.role}
+                                    </Badge>
                                 </div>
-                                {active.members && <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Users className="size-3.5" />{active.members.join(' · ')}</div>}
+                                {active.members && (
+                                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Users className="size-3.5" />
+                                        {active.members.join(' · ')}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardHeader>
@@ -246,17 +358,68 @@ export default function Pesan() {
                         <div className="grid gap-3">
                             {active?.messages.map((m) =>
                                 m.from === 'system' ? (
-                                    <div key={m.id} className="rounded-lg border border-primary/25 bg-primary/10 p-3">
-                                        <div className="text-sm text-primary">{m.text}</div>
-                                        {m.file && <div className="mt-2 rounded border bg-background p-2 text-sm">{m.file}</div>}
-                                        <div className="mt-2 flex justify-end"><Button size="sm" variant="outline" className="h-8 gap-2"><Download className="size-3.5" />Unduh</Button></div>
+                                    <div
+                                        key={m.id}
+                                        className="rounded-lg border border-primary/25 bg-primary/10 p-3"
+                                    >
+                                        <div className="text-sm text-primary">
+                                            {m.text}
+                                        </div>
+                                        {m.file && (
+                                            <div className="mt-2 rounded border bg-background p-2 text-sm">
+                                                {m.file}
+                                            </div>
+                                        )}
+                                        <div className="mt-2 flex justify-end">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 gap-2"
+                                            >
+                                                <Download className="size-3.5" />
+                                                Unduh
+                                            </Button>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div key={m.id} className={cn('flex', m.from === 'me' && 'justify-end')}>
-                                        <div className={cn('max-w-[78%] rounded-2xl border px-3 py-2 text-sm', m.from === 'me' ? 'bg-primary text-primary-foreground' : 'bg-background')}>
-                                            {m.file && <div className={cn('mb-2 rounded border p-2 text-xs', m.from === 'me' ? 'border-primary-foreground/25 bg-primary-foreground/15' : 'bg-muted/30')}>{m.file}</div>}
+                                    <div
+                                        key={m.id}
+                                        className={cn(
+                                            'flex',
+                                            m.from === 'me' && 'justify-end',
+                                        )}
+                                    >
+                                        <div
+                                            className={cn(
+                                                'max-w-[78%] rounded-2xl border px-3 py-2 text-sm',
+                                                m.from === 'me'
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-background',
+                                            )}
+                                        >
+                                            {m.file && (
+                                                <div
+                                                    className={cn(
+                                                        'mb-2 rounded border p-2 text-xs',
+                                                        m.from === 'me'
+                                                            ? 'border-primary-foreground/25 bg-primary-foreground/15'
+                                                            : 'bg-muted/30',
+                                                    )}
+                                                >
+                                                    {m.file}
+                                                </div>
+                                            )}
                                             {m.text && <div>{m.text}</div>}
-                                            <div className={cn('mt-1 text-[11px]', m.from === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{m.time}</div>
+                                            <div
+                                                className={cn(
+                                                    'mt-1 text-[11px]',
+                                                    m.from === 'me'
+                                                        ? 'text-primary-foreground/70'
+                                                        : 'text-muted-foreground',
+                                                )}
+                                            >
+                                                {m.time}
+                                            </div>
                                         </div>
                                     </div>
                                 ),
@@ -265,17 +428,48 @@ export default function Pesan() {
                     </CardContent>
                     <Separator />
                     <CardFooter className="flex-col items-stretch gap-3">
-                        <input ref={fileRef} type="file" className="hidden" onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0]?.name ?? null)} />
+                        <input
+                            ref={fileRef}
+                            type="file"
+                            className="hidden"
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                setFile(e.target.files?.[0]?.name ?? null)
+                            }
+                        />
                         <div className="flex items-center gap-2">
-                            <Button type="button" variant="outline" size="icon" onClick={() => fileRef.current?.click()}><Paperclip className="size-4" /></Button>
-                            <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Tulis pesan..." onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), send())} />
-                            <Button type="button" onClick={send} className="bg-primary text-primary-foreground hover:bg-primary/90"><Send className="size-4" /></Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => fileRef.current?.click()}
+                            >
+                                <Paperclip className="size-4" />
+                            </Button>
+                            <Input
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                placeholder="Tulis pesan..."
+                                onKeyDown={(e) =>
+                                    e.key === 'Enter' &&
+                                    (e.preventDefault(), send())
+                                }
+                            />
+                            <Button
+                                type="button"
+                                onClick={send}
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                <Send className="size-4" />
+                            </Button>
                         </div>
-                        {file && <div className="text-xs text-muted-foreground">Lampiran: {file}</div>}
+                        {file && (
+                            <div className="text-xs text-muted-foreground">
+                                Lampiran: {file}
+                            </div>
+                        )}
                     </CardFooter>
                 </Card>
             </div>
         </AppLayout>
     );
 }
-

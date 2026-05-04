@@ -290,8 +290,8 @@ export default function Dashboard() {
                                                         isDone
                                                             ? 'mt-0.5 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground'
                                                             : isCurrent
-                                                                ? 'mt-0.5 flex size-8 items-center justify-center rounded-full border-2 border-primary bg-background'
-                                                                : 'mt-0.5 flex size-8 items-center justify-center rounded-full border bg-background'
+                                                              ? 'mt-0.5 flex size-8 items-center justify-center rounded-full border-2 border-primary bg-background'
+                                                              : 'mt-0.5 flex size-8 items-center justify-center rounded-full border bg-background'
                                                     }
                                                 >
                                                     {isDone ? (
@@ -329,4 +329,3 @@ export default function Dashboard() {
         </AppLayout>
     );
 }
-
