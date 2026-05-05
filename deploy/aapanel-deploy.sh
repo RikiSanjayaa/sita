@@ -11,6 +11,7 @@ NPM_BIN="${NPM_BIN:-npm}"
 GIT_PULL="${GIT_PULL:-true}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 RUN_QUEUE_RESTART="${RUN_QUEUE_RESTART:-true}"
+INSTALL_SERVICES="${INSTALL_SERVICES:-false}"
 
 export PATH="$(dirname "$PHP_BIN"):$PATH"
 
@@ -100,6 +101,11 @@ step "Cache konfigurasi production"
 if [ "$RUN_QUEUE_RESTART" = "true" ]; then
     step "Restart queue worker Laravel"
     "$PHP_BIN" artisan queue:restart
+fi
+
+if [ "$INSTALL_SERVICES" = "true" ]; then
+    step "Install/restart service Reverb, queue, dan scheduler"
+    DOMAIN="$DOMAIN" PHP_BIN="$PHP_BIN" bash deploy/aapanel-services.sh
 fi
 
 step "Matikan maintenance mode"

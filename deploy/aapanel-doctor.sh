@@ -9,6 +9,7 @@ COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 NODE_BIN="${NODE_BIN:-node}"
 NPM_BIN="${NPM_BIN:-npm}"
 DOMAIN="${DOMAIN:-}"
+CHECK_SERVICES="${CHECK_SERVICES:-false}"
 
 FAILED=0
 
@@ -100,6 +101,12 @@ if [ -f .env ]; then
     APP_KEY_VALUE="$(env_value APP_KEY)"
     DB_CONNECTION_VALUE="$(env_value DB_CONNECTION)"
     QUEUE_CONNECTION_VALUE="$(env_value QUEUE_CONNECTION)"
+    BROADCAST_CONNECTION_VALUE="$(env_value BROADCAST_CONNECTION)"
+    REVERB_HOST_VALUE="$(env_value REVERB_HOST)"
+    REVERB_PORT_VALUE="$(env_value REVERB_PORT)"
+    REVERB_INTERNAL_HOST_VALUE="$(env_value REVERB_INTERNAL_HOST)"
+    REVERB_INTERNAL_PORT_VALUE="$(env_value REVERB_INTERNAL_PORT)"
+    REVERB_INTERNAL_SCHEME_VALUE="$(env_value REVERB_INTERNAL_SCHEME)"
 
     [ "$APP_ENV_VALUE" = "production" ] && ok "APP_ENV=production" || fail "APP_ENV harus production, sekarang: ${APP_ENV_VALUE:-kosong}"
     [ "$APP_DEBUG_VALUE" = "false" ] && ok "APP_DEBUG=false" || fail "APP_DEBUG harus false, sekarang: ${APP_DEBUG_VALUE:-kosong}"
@@ -107,6 +114,15 @@ if [ -f .env ]; then
     [ -n "$APP_URL_VALUE" ] && ok "APP_URL terisi: $APP_URL_VALUE" || fail "APP_URL masih kosong"
     [ -n "$DB_CONNECTION_VALUE" ] && ok "DB_CONNECTION terisi: $DB_CONNECTION_VALUE" || fail "DB_CONNECTION masih kosong"
     [ -n "$QUEUE_CONNECTION_VALUE" ] && ok "QUEUE_CONNECTION terisi: $QUEUE_CONNECTION_VALUE" || fail "QUEUE_CONNECTION masih kosong"
+    [ -n "$BROADCAST_CONNECTION_VALUE" ] && ok "BROADCAST_CONNECTION terisi: $BROADCAST_CONNECTION_VALUE" || warn "BROADCAST_CONNECTION kosong"
+
+    if [ "$BROADCAST_CONNECTION_VALUE" = "reverb" ]; then
+        [ -n "$REVERB_HOST_VALUE" ] && ok "REVERB_HOST terisi: $REVERB_HOST_VALUE" || fail "REVERB_HOST wajib untuk Reverb"
+        [ "$REVERB_PORT_VALUE" = "443" ] && ok "REVERB_PORT=443 untuk browser HTTPS" || warn "REVERB_PORT sebaiknya 443 saat proxy lewat Nginx HTTPS, sekarang: ${REVERB_PORT_VALUE:-kosong}"
+        [ "$REVERB_INTERNAL_HOST_VALUE" = "127.0.0.1" ] && ok "REVERB_INTERNAL_HOST=127.0.0.1" || warn "REVERB_INTERNAL_HOST sebaiknya 127.0.0.1, sekarang: ${REVERB_INTERNAL_HOST_VALUE:-kosong}"
+        [ "$REVERB_INTERNAL_PORT_VALUE" = "8080" ] && ok "REVERB_INTERNAL_PORT=8080" || warn "REVERB_INTERNAL_PORT sebaiknya 8080, sekarang: ${REVERB_INTERNAL_PORT_VALUE:-kosong}"
+        [ "$REVERB_INTERNAL_SCHEME_VALUE" = "http" ] && ok "REVERB_INTERNAL_SCHEME=http" || warn "REVERB_INTERNAL_SCHEME sebaiknya http, sekarang: ${REVERB_INTERNAL_SCHEME_VALUE:-kosong}"
+    fi
 
     if [ "$DB_CONNECTION_VALUE" = "mysql" ] || [ "$DB_CONNECTION_VALUE" = "mariadb" ]; then
         if "$PHP_BIN" -m | grep -qi '^pdo_mysql$'; then
@@ -150,6 +166,21 @@ if [ -d vendor ] && [ -f artisan ] && [ -f .env ]; then
     fi
 else
     warn "Lewati cek Artisan/database karena vendor, artisan, atau .env belum lengkap."
+fi
+
+if [ "$CHECK_SERVICES" = "true" ]; then
+    if command -v systemctl >/dev/null 2>&1 && [ -n "$DOMAIN" ]; then
+        SERVICE_SLUG="$(printf '%s' "$DOMAIN" | tr -cs 'A-Za-z0-9' '-')"
+        for service in "sita-${SERVICE_SLUG}-reverb.service" "sita-${SERVICE_SLUG}-queue.service" "sita-${SERVICE_SLUG}-schedule.timer"; do
+            if systemctl is-active "$service" >/dev/null 2>&1; then
+                ok "Service aktif: $service"
+            else
+                warn "Service belum aktif: $service"
+            fi
+        done
+    else
+        warn "Lewati cek service karena systemctl tidak ada atau DOMAIN kosong."
+    fi
 fi
 
 if [ "$FAILED" -eq 0 ]; then
