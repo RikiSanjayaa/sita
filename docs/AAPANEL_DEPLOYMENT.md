@@ -157,6 +157,18 @@ Script akan:
 - restart queue worker Laravel;
 - keluar dari maintenance mode.
 
+Deploy lengkap sekaligus memasang service Reverb, queue worker, dan scheduler systemd:
+
+```bash
+DOMAIN=sita.kampus.ac.id \
+PHP_BIN=/www/server/php/84/bin/php \
+COMPOSER_BIN=/tmp/composer84 \
+INSTALL_SERVICES=true \
+bash deploy/aapanel-deploy.sh
+```
+
+Mode ini membutuhkan `sudo` karena membuat file service di `/etc/systemd/system`. Jika server kampus tidak mengizinkan systemd service dari SSH, pakai aaPanel Process Manager/Supervisor dengan command di bagian "Reverb, Queue, dan Cron".
+
 Untuk deploy tanpa pull:
 
 ```bash
@@ -209,16 +221,37 @@ Contoh root wajib tetap ke `public/`, bukan folder project utama.
 
 Chat realtime membutuhkan Laravel Reverb. Jika Reverb tidak jalan, halaman chat masih bisa terbuka tetapi update realtime antar user tidak akan masuk sampai fallback/request berikutnya.
 
-Jalankan Reverb dengan Supervisor/systemd/PM2 yang tersedia di server:
+Cara otomatis yang direkomendasikan:
+
+```bash
+DOMAIN=sita.kampus.ac.id PHP_BIN=/www/server/php/84/bin/php bash deploy/aapanel-services.sh
+```
+
+Script ini membuat dan menyalakan:
+
+- `sita-DOMAIN-reverb.service`
+- `sita-DOMAIN-queue.service`
+- `sita-DOMAIN-schedule.timer`
+
+Cek status:
+
+```bash
+systemctl list-units 'sita-*'
+systemctl status sita-sita-kampus-ac-id-reverb.service
+systemctl status sita-sita-kampus-ac-id-queue.service
+systemctl status sita-sita-kampus-ac-id-schedule.timer
+```
+
+Jika memakai aaPanel Process Manager/Supervisor manual, gunakan command Reverb:
 
 ```bash
 /www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan reverb:start --host=127.0.0.1 --port=8080
 ```
 
-Queue worker tetap direkomendasikan untuk notification/event background:
+Command queue:
 
 ```bash
-/www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan queue:work database --sleep=3 --tries=3 --timeout=90
+/www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan queue:work database --sleep=1 --tries=3 --timeout=90
 ```
 
 Tambahkan cron scheduler Laravel agar fitur schedule masa depan langsung aktif:
@@ -252,5 +285,7 @@ Catatan: Nginx subpath Laravel butuh konfigurasi rewrite yang lebih teliti diban
 - Blank page setelah deploy: cek `storage/logs/laravel.log`, lalu jalankan `php artisan optimize:clear`.
 - Asset CSS/JS 404: pastikan `npm run build` sukses dan `public/build` ada. Untuk subpath, pastikan `ASSET_URL` sesuai `APP_URL`.
 - Admin login tidak merespons dan console menampilkan `livewire.min.js 404`: tambahkan rule Nginx `/livewire` seperti bagian Nginx di atas, lalu reload Nginx.
+- Chat terkirim tetapi harus refresh: Reverb belum aktif, service Reverb mati, atau Nginx belum punya proxy `location ~ ^/(app|apps)`.
+- Chat 500 tetapi pesan muncul setelah refresh: Laravel gagal broadcast ke Reverb. Cek `.env` agar `REVERB_INTERNAL_HOST=127.0.0.1`, `REVERB_INTERNAL_PORT=8080`, dan `REVERB_INTERNAL_SCHEME=http`.
 - Login/reset password email tidak terkirim: cek konfigurasi SMTP dan firewall kampus.
 - Migration gagal: cek kredensial DB, permission user DB, dan extension `pdo_mysql`.
