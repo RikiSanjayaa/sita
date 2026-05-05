@@ -104,9 +104,10 @@ REVERB_APP_ID=sita-production
 REVERB_APP_KEY=isi_key_panjang
 REVERB_APP_SECRET=isi_secret_panjang
 REVERB_HOST=sita.kampus.ac.id
-REVERB_PORT=8080
+REVERB_PORT=443
 REVERB_SCHEME=https
-REVERB_SERVER_HOST=0.0.0.0
+REVERB_INTERNAL_HOST=127.0.0.1
+REVERB_SERVER_HOST=127.0.0.1
 REVERB_SERVER_PORT=8080
 VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
 VITE_REVERB_HOST="${REVERB_HOST}"
@@ -180,6 +181,24 @@ location ^~ /livewire {
     try_files $uri $uri/ /index.php?$query_string;
 }
 ```
+
+Untuk Reverb realtime, proxy websocket ke proses lokal Reverb:
+
+```nginx
+location ~ ^/(app|apps) {
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_read_timeout 60;
+    proxy_send_timeout 60;
+    proxy_pass http://127.0.0.1:8080;
+}
+```
 - `fastcgi_pass unix:/tmp/php-cgi-84.sock;` sesuai socket PHP aaPanel. Pada beberapa server aaPanel, include bawaan `enable-php-84.conf` bisa dipakai menggantikan blok PHP manual.
 
 Contoh root wajib tetap ke `public/`, bukan folder project utama.
@@ -191,7 +210,7 @@ Chat realtime membutuhkan Laravel Reverb. Jika Reverb tidak jalan, halaman chat 
 Jalankan Reverb dengan Supervisor/systemd/PM2 yang tersedia di server:
 
 ```bash
-/www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan reverb:start --host=0.0.0.0 --port=8080
+/www/server/php/84/bin/php /www/wwwroot/sita.kampus.ac.id/artisan reverb:start --host=127.0.0.1 --port=8080
 ```
 
 Queue worker tetap direkomendasikan untuk notification/event background:
