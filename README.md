@@ -33,18 +33,20 @@ Stack Docker sudah disiapkan agar langsung jalan dengan sekali perintah, termasu
 Jalankan:
 
 ```bash
+cp .env.docker .env
+# isi APP_KEY di .env, misalnya dari: php artisan key:generate --show
 docker compose up --build -d
 ```
 
 Layanan utama:
 
-- App HTTP: `http://localhost`
+- App HTTP: `http://localhost:8088`
 - Reverb WS: `ws://localhost:8089`
 
 Catatan penting:
 
 - Konfigurasi container memakai `.env`.
-- File `.env.docker` tersedia sebagai referensi/contoh konfigurasi khusus Docker.
+- File `.env.docker` tersedia sebagai referensi/contoh konfigurasi khusus Docker lokal. Salin ke `.env`, isi `APP_KEY`, lalu jalankan build.
 - Nilai `VITE_REVERB_*` di `.env` ikut dipakai saat image build, jadi frontend tidak kehilangan app key Pusher/Reverb.
 - Seeder bisa diaktifkan tanpa mengubah `APP_ENV`: set `RUN_DB_SEED=true` di `.env` (akan dijalankan saat service `init`).
 - Default `SEED_IF_EMPTY_ONLY=true` agar `docker compose up --build -d` tidak gagal saat data sudah ada; set `false` kalau memang ingin memaksa re-seed.

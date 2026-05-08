@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
+import { MentorshipChatFrame } from '@/components/mentorship-chat-layout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -111,13 +112,7 @@ function buildThreadStateKey(
     threads: ThreadItem[],
     tab: 'aktif' | 'arsip',
 ): string {
-    return [
-        tab,
-        ...threads.map(
-            (thread) =>
-                `${thread.id}:${thread.messages.length}:${thread.unread}:${thread.latestActivityAt ?? ''}`,
-        ),
-    ].join('|');
+    return [tab, ...threads.map((thread) => String(thread.id))].join('|');
 }
 
 function syncThreadSearchParam(threadId: number | null): void {
@@ -199,6 +194,23 @@ function resolveInitialThreadId(initialThreads: ThreadItem[]): number | null {
     return fallbackThreadId;
 }
 
+function resolveInitialMobileView(
+    initialThreads: ThreadItem[],
+): 'threads' | 'chat' {
+    if (typeof window === 'undefined') {
+        return 'threads';
+    }
+
+    const queryThread = Number(
+        new URLSearchParams(window.location.search).get('thread'),
+    );
+
+    return Number.isInteger(queryThread) &&
+        initialThreads.some((thread) => thread.id === queryThread)
+        ? 'chat'
+        : 'threads';
+}
+
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
@@ -227,7 +239,9 @@ function DosenPesanBimbinganContent({
     const getInitials = useInitials();
     const isMobile = useIsMobile();
 
-    const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
+    const [mobileView, setMobileView] = useState<'threads' | 'chat'>(() =>
+        resolveInitialMobileView(initialThreads),
+    );
     const [search, setSearch] = useState('');
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
@@ -239,11 +253,7 @@ function DosenPesanBimbinganContent({
     );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ThreadMessage[]>
-    >(() =>
-        Object.fromEntries(
-            initialThreads.map((thread) => [thread.id, thread.messages]),
-        ),
-    );
+    >({});
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -309,8 +319,27 @@ function DosenPesanBimbinganContent({
     const activeThread =
         visibleThreads.find((t) => t.id === evaluatedActiveThreadId) ?? null;
 
+    function mergedMessages(thread: ThreadItem): ThreadMessage[] {
+        const localMessages = messagesByThread[thread.id] ?? [];
+
+        if (localMessages.length === 0) {
+            return thread.messages;
+        }
+
+        const serverMessageIds = new Set(
+            thread.messages.map((message) => message.id),
+        );
+
+        return [
+            ...thread.messages,
+            ...localMessages.filter(
+                (message) => !serverMessageIds.has(message.id),
+            ),
+        ];
+    }
+
     const activeMessages =
-        activeThread === null ? [] : (messagesByThread[activeThread.id] ?? []);
+        activeThread === null ? [] : mergedMessages(activeThread);
 
     const normalizedThreadSearch = threadSearch.trim().toLowerCase();
 
@@ -353,20 +382,20 @@ function DosenPesanBimbinganContent({
                 '.chat.message.created',
                 (event: { threadId: number; message: ThreadMessage }) => {
                     setMessagesByThread((current) => {
+                        const currentThread = initialThreads.find(
+                            (thread) => thread.id === event.threadId,
+                        );
+                        const serverMessages = currentThread?.messages ?? [];
                         const currentMessages = current[event.threadId] ?? [];
-                        if (
-                            currentMessages.some(
-                                (message) => message.id === event.message.id,
-                            )
-                        ) {
-                            return current;
-                        }
+                        const knownMessageIds = new Set([
+                            ...serverMessages.map((message) => message.id),
+                            ...currentMessages.map((message) => message.id),
+                        ]);
 
                         if (
-                            evaluatedActiveThreadId === event.threadId &&
-                            event.message.senderUserId !== auth.user?.id
+                            knownMessageIds.has(event.message.id)
                         ) {
-                            setTimeout(() => scrollToBottom(), 50);
+                            return current;
                         }
 
                         return {
@@ -520,9 +549,13 @@ function DosenPesanBimbinganContent({
             return;
         }
 
+        syncThreadSearchParam(evaluatedActiveThreadId);
+        const trimmedMessage = form.data.message.trim();
+        const currentAttachmentName = attachmentName;
+
         form.transform((data) => ({
             ...data,
-            message: data.message.trim(),
+            message: trimmedMessage,
         }));
 
         form.post(
@@ -531,13 +564,31 @@ function DosenPesanBimbinganContent({
                 preserveScroll: true,
                 forceFormData: true,
                 onSuccess: () => {
+                    setThreadItems((current) =>
+                        sortThreads(
+                            current.map((thread) =>
+                                thread.id === evaluatedActiveThreadId
+                                    ? {
+                                          ...thread,
+                                          preview:
+                                              trimmedMessage ||
+                                              currentAttachmentName ||
+                                              thread.preview,
+                                          lastTime: 'baru saja',
+                                          latestActivityAt:
+                                              new Date().toISOString(),
+                                      }
+                                    : thread,
+                            ),
+                        ),
+                    );
                     form.reset('message', 'attachment');
                     setAttachmentName(null);
                     if (fileRef.current) {
                         fileRef.current.value = '';
                     }
 
-                    setTimeout(() => scrollToBottom(), 50);
+                    setMobileView('chat');
                 },
             },
         );
@@ -571,16 +622,11 @@ function DosenPesanBimbinganContent({
         >
             <Head title="Pesan Bimbingan Dosen" />
 
-            <div
-                className={cn(
-                    'mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-7xl flex-1 lg:grid lg:h-[calc(100dvh-4rem-3rem)] lg:grid-cols-[340px_1fr]',
-                    isMobile ? 'gap-0 px-0 py-0' : 'gap-6 px-4 py-6 md:px-6',
-                )}
-            >
+            <MentorshipChatFrame isMobile={isMobile}>
                 {/* Thread List / Side Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
+                        'flex min-h-0 min-w-0 flex-col !gap-0 overflow-hidden !p-0 lg:h-full lg:w-[340px] lg:shrink-0',
                         isMobile && 'rounded-none border-0 shadow-none',
                         mobileView === 'chat' && 'hidden lg:flex',
                         mobileView === 'threads' && 'flex-1 lg:flex-initial',
@@ -639,8 +685,7 @@ function DosenPesanBimbinganContent({
                                 {visibleThreads.length > 0 ? (
                                     visibleThreads.map((thread) => {
                                         const threadMessages =
-                                            messagesByThread[thread.id] ??
-                                            thread.messages;
+                                            mergedMessages(thread);
                                         const latestMessage =
                                             threadMessages.at(-1);
 
@@ -736,7 +781,7 @@ function DosenPesanBimbinganContent({
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
+                        'flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
                         isMobile && 'rounded-none border-0 shadow-none',
                         mobileView === 'threads' && 'hidden lg:flex',
                     )}
@@ -749,8 +794,8 @@ function DosenPesanBimbinganContent({
                     >
                         {activeThread ? (
                             <>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
+                                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                                         <Button
                                             type="button"
                                             variant="ghost"
@@ -820,9 +865,9 @@ function DosenPesanBimbinganContent({
                                             </TooltipProvider>
                                         ) : null}
 
-                                        <div className="flex min-w-0 flex-col gap-0.5">
-                                            <div className="flex items-center gap-2">
-                                                <CardTitle className="truncate">
+                                        <div className="min-w-0 flex-1 overflow-hidden">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <CardTitle className="min-w-0 truncate">
                                                     {activeThread.studentProfile ? (
                                                         <Link
                                                             href={
@@ -845,7 +890,7 @@ function DosenPesanBimbinganContent({
                                                 <Badge
                                                     variant="soft"
                                                     className={cn(
-                                                        'font-medium',
+                                                        'shrink-0 font-medium',
                                                         activeThread.threadType ===
                                                             'pembimbing'
                                                             ? 'bg-primary/10 text-primary hover:bg-primary/20'
@@ -955,12 +1000,7 @@ function DosenPesanBimbinganContent({
                     </CardHeader>
                     <Separator />
 
-                    <CardContent
-                        className={cn(
-                            'relative flex-1 overflow-hidden',
-                            isMobile ? 'pb-3' : 'pb-6',
-                        )}
-                    >
+                    <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
                             <div
                                 className={cn(
@@ -1105,7 +1145,7 @@ function DosenPesanBimbinganContent({
                         </CardFooter>
                     )}
                 </Card>
-            </div>
+            </MentorshipChatFrame>
         </DosenLayout>
     );
 }

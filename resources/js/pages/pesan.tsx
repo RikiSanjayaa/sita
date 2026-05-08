@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
+import { MentorshipChatFrame } from '@/components/mentorship-chat-layout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -101,12 +102,7 @@ type PesanPageContentProps = Pick<SharedData, 'auth'> & {
 };
 
 function buildThreadStateKey(threads: ThreadItem[]): string {
-    return threads
-        .map(
-            (thread) =>
-                `${thread.id}:${thread.messages.length}:${thread.latestActivityAt ?? ''}`,
-        )
-        .join('|');
+    return threads.map((thread) => String(thread.id)).join('|');
 }
 
 function sortThreads(threads: ThreadItem[]): ThreadItem[] {
@@ -162,6 +158,21 @@ function resolveInitialThreadId(threads: ThreadItem[]): number | null {
     return threads[0]?.id ?? null;
 }
 
+function resolveInitialMobileView(threads: ThreadItem[]): 'threads' | 'chat' {
+    if (typeof window === 'undefined') {
+        return 'threads';
+    }
+
+    const queryThread = Number(
+        new URLSearchParams(window.location.search).get('thread'),
+    );
+
+    return Number.isInteger(queryThread) &&
+        threads.some((thread) => thread.id === queryThread)
+        ? 'chat'
+        : 'threads';
+}
+
 export default function PesanPage() {
     const {
         threads: initialThreads,
@@ -187,7 +198,9 @@ function PesanPageContent({
     const getInitials = useInitials();
     const isMobile = useIsMobile();
 
-    const [mobileView, setMobileView] = useState<'threads' | 'chat'>('threads');
+    const [mobileView, setMobileView] = useState<'threads' | 'chat'>(() =>
+        resolveInitialMobileView(initialThreads),
+    );
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
         resolveInitialThreadId(initialThreads),
     );
@@ -199,15 +212,11 @@ function PesanPageContent({
     );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ChatMessage[]>
-    >(() => Object.fromEntries(initialThreads.map((t) => [t.id, t.messages])));
+    >({});
     const [attachmentName, setAttachmentName] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
 
     const form = useForm<{ message: string; attachment: File | null }>({
         message: '',
@@ -240,24 +249,20 @@ function PesanPageContent({
                 '.chat.message.created',
                 (event: { threadId: number; message: ChatMessage }) => {
                     setMessagesByThread((current) => {
+                        const currentThread = initialThreads.find(
+                            (thread) => thread.id === event.threadId,
+                        );
+                        const serverMessages = currentThread?.messages ?? [];
                         const currentMessages = current[event.threadId] ?? [];
-                        if (
-                            currentMessages.some(
-                                (m) => m.id === event.message.id,
-                            )
-                        ) {
-                            return current;
-                        }
+                        const knownMessageIds = new Set([
+                            ...serverMessages.map((message) => message.id),
+                            ...currentMessages.map((message) => message.id),
+                        ]);
 
                         if (
-                            resolvedActiveThreadId === event.threadId &&
-                            event.message.senderUserId !== auth.user?.id
+                            knownMessageIds.has(event.message.id)
                         ) {
-                            setTimeout(() => {
-                                messagesEndRef.current?.scrollIntoView({
-                                    behavior: 'smooth',
-                                });
-                            }, 50);
+                            return current;
                         }
 
                         return {
@@ -315,10 +320,47 @@ function PesanPageContent({
         [resolvedActiveThreadId, threadItems],
     );
 
-    const activeMessages = useMemo(
-        () => (activeThread ? (messagesByThread[activeThread.id] ?? []) : []),
-        [activeThread, messagesByThread],
-    );
+    function mergedMessages(thread: ThreadItem): ChatMessage[] {
+        const localMessages = messagesByThread[thread.id] ?? [];
+
+        if (localMessages.length === 0) {
+            return thread.messages;
+        }
+
+        const serverMessageIds = new Set(
+            thread.messages.map((message) => message.id),
+        );
+
+        return [
+            ...thread.messages,
+            ...localMessages.filter(
+                (message) => !serverMessageIds.has(message.id),
+            ),
+        ];
+    }
+
+    const activeMessages = useMemo(() => {
+        if (activeThread === null) {
+            return [];
+        }
+
+        const localMessages = messagesByThread[activeThread.id] ?? [];
+
+        if (localMessages.length === 0) {
+            return activeThread.messages;
+        }
+
+        const serverMessageIds = new Set(
+            activeThread.messages.map((message) => message.id),
+        );
+
+        return [
+            ...activeThread.messages,
+            ...localMessages.filter(
+                (message) => !serverMessageIds.has(message.id),
+            ),
+        ];
+    }, [activeThread, messagesByThread]);
     const activeMessageCount = activeMessages.length;
 
     const normalizedThreadSearch = threadSearch.trim().toLowerCase();
@@ -405,19 +447,41 @@ function PesanPageContent({
     function sendMessage() {
         if (!canSend || activeThread === null) return;
 
+        syncThreadSearchParam(activeThread.id);
+        const trimmedMessage = form.data.message.trim();
+        const currentAttachmentName = attachmentName;
+
         form.transform((data) => ({
             ...data,
-            message: data.message.trim(),
+            message: trimmedMessage,
         }));
 
         form.post(`/mahasiswa/pesan/${activeThread.id}/messages`, {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
+                setThreadItems((current) =>
+                    sortThreads(
+                        current.map((thread) =>
+                            thread.id === activeThread.id
+                                ? {
+                                      ...thread,
+                                      preview:
+                                          trimmedMessage ||
+                                          currentAttachmentName ||
+                                          thread.preview,
+                                      lastTime: 'baru saja',
+                                      latestActivityAt:
+                                          new Date().toISOString(),
+                                  }
+                                : thread,
+                        ),
+                    ),
+                );
                 form.reset('message', 'attachment');
                 setAttachmentName(null);
                 if (fileRef.current) fileRef.current.value = '';
-                setTimeout(() => scrollToBottom(), 50);
+                setMobileView('chat');
             },
         });
     }
@@ -446,16 +510,11 @@ function PesanPageContent({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pesan" />
 
-            <div
-                className={cn(
-                    'mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-7xl flex-1 lg:grid lg:h-[calc(100dvh-4rem-3rem)] lg:grid-cols-[340px_1fr]',
-                    isMobile ? 'gap-0 px-0 py-0' : 'gap-6 px-4 py-6 md:px-6',
-                )}
-            >
+            <MentorshipChatFrame isMobile={isMobile}>
                 {/* Thread List */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-col lg:h-full lg:w-[340px] lg:shrink-0',
+                        'flex min-h-0 min-w-0 flex-col lg:h-full lg:w-[340px] lg:shrink-0',
                         isMobile
                             ? 'rounded-none border-0 shadow-none'
                             : panelCardClass,
@@ -480,8 +539,7 @@ function PesanPageContent({
                                 {threadItems.length > 0 ? (
                                     threadItems.map((thread) => {
                                         const threadMessages =
-                                            messagesByThread[thread.id] ??
-                                            thread.messages;
+                                            mergedMessages(thread);
                                         const latestMessage =
                                             threadMessages.at(-1);
 
@@ -573,7 +631,7 @@ function PesanPageContent({
                 {/* Chat Panel */}
                 <Card
                     className={cn(
-                        'flex min-h-0 flex-1 flex-col lg:h-full',
+                        'flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
                         isMobile
                             ? 'rounded-none border-0 shadow-none'
                             : panelCardClass,
@@ -588,8 +646,8 @@ function PesanPageContent({
                     >
                         {activeThread ? (
                             <>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
+                                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                                         <Button
                                             type="button"
                                             variant="ghost"
@@ -659,15 +717,15 @@ function PesanPageContent({
                                             </TooltipProvider>
                                         ) : null}
 
-                                        <div className="flex min-w-0 flex-col gap-0.5">
-                                            <div className="flex items-center gap-2">
-                                                <CardTitle className="truncate">
+                                        <div className="min-w-0 flex-1 overflow-hidden">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <CardTitle className="min-w-0 truncate">
                                                     {activeThread.name}
                                                 </CardTitle>
                                                 <Badge
                                                     variant="soft"
                                                     className={cn(
-                                                        'font-medium',
+                                                        'shrink-0 font-medium',
                                                         activeThread.threadType ===
                                                             'pembimbing'
                                                             ? 'bg-primary/10 text-primary hover:bg-primary/20'
@@ -925,7 +983,7 @@ function PesanPageContent({
                         )}
                     </CardFooter>
                 </Card>
-            </div>
+            </MentorshipChatFrame>
         </AppLayout>
     );
 }
