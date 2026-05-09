@@ -259,9 +259,7 @@ function PesanPageContent({
                             ...currentMessages.map((message) => message.id),
                         ]);
 
-                        if (
-                            knownMessageIds.has(event.message.id)
-                        ) {
+                        if (knownMessageIds.has(event.message.id)) {
                             return current;
                         }
 
