@@ -35,7 +35,7 @@ class ViewThesisProject extends ViewRecord
                 ->label('Jadwalkan Sempro')
                 ->icon('heroicon-m-calendar')
                 ->color('info')
-                ->visible(fn(): bool => $record->state === 'active' && in_array($record->phase, ['title_review', 'sempro'], true))
+                ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     DateTimePicker::make('scheduled_for')
                         ->label('Jadwal')
@@ -159,7 +159,7 @@ class ViewThesisProject extends ViewRecord
                 ->label('Tetapkan Pembimbing')
                 ->icon('heroicon-m-user-plus')
                 ->color('primary')
-                ->visible(fn(): bool => $record->state === 'active' && in_array($record->phase, ['research', 'sidang'], true))
+                ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     Select::make('pembimbing_1')
                         ->label('Pembimbing 1')
@@ -214,7 +214,7 @@ class ViewThesisProject extends ViewRecord
                 ->label('Jadwalkan Sidang')
                 ->icon('heroicon-m-clipboard-document-check')
                 ->color('warning')
-                ->visible(fn(): bool => $record->state === 'active' && in_array($record->phase, ['research', 'sidang'], true))
+                ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     DateTimePicker::make('scheduled_for')
                         ->label('Jadwal Sidang')
@@ -235,7 +235,7 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Textarea::make('active_supervisors')
                         ->label('Pembimbing Aktif')
-                        ->default(fn(): string => $this->activeSupervisorSummary($record))
+                        ->default(fn(): string => $this->activeSupervisorSummary($record) ?: 'Belum ada pembimbing aktif')
                         ->disabled()
                         ->dehydrated(false)
                         ->rows(2),
@@ -247,8 +247,12 @@ class ViewThesisProject extends ViewRecord
                         ->searchable()
                         ->preload()
                         ->required()
-                        ->minItems(1)
-                        ->helperText('Pembimbing aktif otomatis masuk panel sidang. Pilih minimal satu dosen penguji tambahan.')
+                        ->minItems(fn(): int => $this->requiredSidangPanelUserIds($record) === [] ? 2 : 1)
+                        ->helperText(
+                            $this->requiredSidangPanelUserIds($record) === []
+                                ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel sidang.'
+                                : 'Pembimbing aktif otomatis masuk panel sidang. Pilih minimal satu dosen penguji tambahan.'
+                        )
                         ->native(false),
                     Textarea::make('notes')
                         ->label('Catatan')
@@ -387,14 +391,11 @@ class ViewThesisProject extends ViewRecord
      */
     private function supervisorOptions(ThesisProject $project): array
     {
-        $studentConcentration = $project->student?->mahasiswaProfile?->concentration;
-
         return User::query()
             ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('dosenProfile', function ($query) use ($project, $studentConcentration): void {
+            ->whereHas('dosenProfile', function ($query) use ($project): void {
                 $query->where('program_studi_id', $project->program_studi_id)
-                    ->where('is_active', true)
-                    ->where('concentration', $studentConcentration);
+                    ->where('is_active', true);
             })
             ->with('dosenProfile')
             ->orderBy('name')

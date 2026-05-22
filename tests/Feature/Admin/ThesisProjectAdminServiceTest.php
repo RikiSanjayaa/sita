@@ -248,7 +248,7 @@ test('admin service assigns supervisors through thesis supervisor assignments on
     });
 });
 
-test('admin service rejects supervisor assignment when concentration does not match', function (): void {
+test('admin service allows supervisor assignment even when concentration does not match', function (): void {
     $admin = User::factory()->asAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
     $lecturer = User::factory()->asDosen()->create();
@@ -281,13 +281,16 @@ test('admin service rejects supervisor assignment when concentration does not ma
         'created_by' => $student->id,
     ]);
 
-    expect(fn() => app(ThesisProjectAdminService::class)->assignSupervisors(
+    app(ThesisProjectAdminService::class)->assignSupervisors(
         project: $project,
         assignedBy: $admin->id,
         primaryLecturerUserId: $lecturer->id,
         secondaryLecturerUserId: null,
-        notes: 'Harus ditolak karena beda konsentrasi.',
-    ))->toThrow(\RuntimeException::class);
+        notes: 'Diterima meski beda konsentrasi.',
+    );
+
+    expect(ThesisSupervisorAssignment::query()->where('project_id', $project->id)->where('status', 'active')->count())->toBe(1)
+        ->and(ThesisSupervisorAssignment::query()->where('project_id', $project->id)->where('lecturer_user_id', $lecturer->id)->exists())->toBeTrue();
 });
 
 test('admin service respects configurable lecturer quota when assigning supervisors', function (): void {

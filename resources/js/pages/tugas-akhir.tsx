@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
+import { DeadlineBadge } from '@/components/deadline-badge';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -1223,10 +1224,7 @@ function DefenseHistoryRow({
                                                         </span>
                                                         {rev.dueAt &&
                                                             !isDone && (
-                                                                <span className="text-xs text-amber-600 dark:text-amber-400">
-                                                                    · Batas:{' '}
-                                                                    {rev.dueAt}
-                                                                </span>
+                                                                <DeadlineBadge dueAt={rev.dueAt} status={isDone ? 'resolved' : undefined} />
                                                             )}
                                                         {rev.resolvedAt && (
                                                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
