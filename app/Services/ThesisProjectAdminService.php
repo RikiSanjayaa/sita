@@ -709,10 +709,11 @@ class ThesisProjectAdminService
         $normalizedPanelIds = collect($panelUserIds)
             ->map(static fn($id): int => (int) $id)
             ->filter(static fn(int $id): bool => $id > 0)
+            ->unique()
             ->values();
 
-        if ($normalizedPanelIds->isEmpty() || $normalizedPanelIds->count() !== $normalizedPanelIds->unique()->count()) {
-            throw new RuntimeException('Panel sidang harus berisi dosen yang berbeda.');
+        if ($normalizedPanelIds->isEmpty() || $normalizedPanelIds->count() < 2) {
+            throw new RuntimeException('Panel sidang harus berisi minimal dua dosen yang berbeda.');
         }
 
         $activeSupervisors = $project->activeSupervisorAssignments
@@ -724,27 +725,17 @@ class ThesisProjectAdminService
             ->map(static fn($id): int => (int) $id)
             ->values();
 
-        if ($supervisorIds->isEmpty()) {
-            throw new RuntimeException('Sidang memerlukan pembimbing aktif sebelum dapat dijadwalkan.');
-        }
-
+        // If supervisors exist, ensure they are included in the panel
         foreach ($supervisorIds as $index => $supervisorId) {
             if (! $normalizedPanelIds->contains($supervisorId)) {
                 throw new RuntimeException(sprintf('Panel sidang harus menyertakan Pembimbing %d.', $index + 1));
             }
         }
 
-        $additionalExaminerIds = $normalizedPanelIds
-            ->reject(fn(int $id): bool => $supervisorIds->contains($id))
-            ->values();
-
-        if ($additionalExaminerIds->isEmpty()) {
-            throw new RuntimeException('Sidang harus memiliki minimal satu penguji tambahan di luar pembimbing aktif.');
-        }
-
-        $orderedPanelIds = $supervisorIds
-            ->concat($additionalExaminerIds)
-            ->values();
+        // Order: supervisors first (if any), then additional examiners
+        $orderedPanelIds = $supervisorIds->isNotEmpty()
+            ? $supervisorIds->concat($normalizedPanelIds->reject(fn(int $id): bool => $supervisorIds->contains($id)))->values()
+            : $normalizedPanelIds;
 
         foreach ($orderedPanelIds as $index => $lecturerUserId) {
             $this->assertDefenseExaminerEligible($project, $lecturerUserId, sprintf('Panel sidang #%d', $index + 1));
@@ -972,14 +963,6 @@ class ThesisProjectAdminService
 
     private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label): void
     {
-        $project->loadMissing('student.mahasiswaProfile');
-
-        $studentConcentration = $project->student?->mahasiswaProfile?->concentration;
-
-        if (! is_string($studentConcentration) || trim($studentConcentration) === '') {
-            throw new RuntimeException('Konsentrasi mahasiswa belum diatur. Perbarui profil mahasiswa terlebih dahulu.');
-        }
-
         $lecturer = User::query()
             ->with('dosenProfile')
             ->find($lecturerUserId);
@@ -996,14 +979,6 @@ class ThesisProjectAdminService
 
         if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
             throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
-        }
-
-        if ($lecturerProfile->concentration !== $studentConcentration) {
-            throw new RuntimeException(sprintf(
-                '%s harus memiliki konsentrasi yang sama dengan mahasiswa (%s).',
-                $label,
-                $studentConcentration,
-            ));
         }
 
         $quota = max(1, (int) ($lecturerProfile->supervision_quota ?? 14));

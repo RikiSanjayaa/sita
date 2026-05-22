@@ -20,6 +20,7 @@ import {
     BimbinganCalendar,
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
+import { DeadlineBadge } from '@/components/deadline-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -557,10 +558,8 @@ function DefenseDetailSheet({
                                                 <span className="text-xs text-amber-700 dark:text-amber-300">
                                                     {rev.requestedBy}
                                                 </span>
-                                                {rev.dueAt && (
-                                                    <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                                                        Batas: {rev.dueAt}
-                                                    </span>
+                                                {rev.dueAt && rev.status !== 'resolved' && (
+                                                    <DeadlineBadge dueAt={rev.dueAt} status={rev.status} />
                                                 )}
                                             </div>
                                             <p className="mt-2 text-xs leading-relaxed text-amber-900 dark:text-amber-100">
