@@ -53,4 +53,5 @@ Route::middleware(['auth', 'verified', 'role:admin|super_admin'])->group(functio
 
 require __DIR__.'/mahasiswa.php';
 require __DIR__.'/dosen.php';
+require __DIR__.'/kaprodi.php';
 require __DIR__.'/settings.php';

@@ -64,6 +64,11 @@ class ProgramStudi extends Model
         return $this->hasMany(AdminProfile::class, 'program_studi_id');
     }
 
+    public function kaprodiAssignments(): HasMany
+    {
+        return $this->hasMany(KaprodiAssignment::class, 'program_studi_id');
+    }
+
     public function thesisSubmissions(): HasMany
     {
         return $this->hasMany(ThesisSubmission::class, 'program_studi_id');

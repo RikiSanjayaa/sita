@@ -30,8 +30,24 @@ class ProgramStudisTable
                     ->toggleable(),
                 TextColumn::make('concentrations')
                     ->label('Konsentrasi')
-                    ->state(fn(ProgramStudi $record): string => implode(', ', $record->concentrationList()))
+                    ->state(fn(ProgramStudi $record): array => $record->concentrationList())
+                    ->badge()
+                    ->color('success')
                     ->searchable()
+                    ->wrap()
+                    ->toggleable(),
+                TextColumn::make('kaprodi')
+                    ->label('Kaprodi')
+                    ->state(fn(ProgramStudi $record): array => self::kaprodiNames($record))
+                    ->badge()
+                    ->color(fn(string $state, ProgramStudi $record): string => self::kaprodiBadgeColor($state, $record))
+                    ->searchable(query: function ($query, string $search) {
+                        return $query->whereHas('kaprodiAssignments.user', function ($userQuery) use ($search): void {
+                            $userQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                        });
+                    })
+                    ->placeholder('Belum ditetapkan')
                     ->wrap()
                     ->toggleable(),
                 TextColumn::make('created_at')
@@ -75,5 +91,27 @@ class ProgramStudisTable
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function kaprodiNames(ProgramStudi $record): array
+    {
+        return $record->kaprodiAssignments
+            ->sortByDesc('is_primary')
+            ->map(fn($assignment): string => $assignment->user?->name ?? '-')
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private static function kaprodiBadgeColor(string $name, ProgramStudi $record): string
+    {
+        $primaryName = $record->kaprodiAssignments
+            ->firstWhere('is_primary', true)
+            ?->user?->name;
+
+        return $name === $primaryName ? 'danger' : 'info';
     }
 }
