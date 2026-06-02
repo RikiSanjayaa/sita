@@ -28,7 +28,6 @@ class KaprodiPortalService
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
-            'summaryCards' => $this->summaryCards($students, $projects),
             'workSummary' => [
                 'label' => $attentionItems->isNotEmpty() ? 'Perlu Dipantau' : 'Terkendali',
                 'headline' => $attentionItems->isNotEmpty()
@@ -326,35 +325,6 @@ class KaprodiPortalService
     }
 
     /**
-     * @return array<int, array{label: string, value: string, description: string}>
-     */
-    private function summaryCards(EloquentCollection $students, EloquentCollection $projects): array
-    {
-        return [
-            [
-                'label' => 'Mahasiswa',
-                'value' => (string) $students->count(),
-                'description' => $students->where('is_active', true)->count().' aktif',
-            ],
-            [
-                'label' => 'Proyek Aktif',
-                'value' => (string) $projects->where('state', 'active')->count(),
-                'description' => $projects->whereIn('state', ['completed', 'cancelled'])->count().' arsip',
-            ],
-            [
-                'label' => 'Sempro',
-                'value' => (string) $this->defenseCount($projects, 'sempro'),
-                'description' => 'Semua attempt dalam prodi',
-            ],
-            [
-                'label' => 'Sidang',
-                'value' => (string) $this->defenseCount($projects, 'sidang'),
-                'description' => 'Termasuk riwayat selesai',
-            ],
-        ];
-    }
-
-    /**
      * @return array<int, array{key: string, label: string, count: int}>
      */
     private function phaseDistribution(EloquentCollection $projects): array
@@ -586,14 +556,6 @@ class KaprodiPortalService
                 ->values()
                 ->all(),
         ];
-    }
-
-    private function defenseCount(EloquentCollection $projects, string $type): int
-    {
-        return $projects
-            ->flatMap(fn(ThesisProject $project): EloquentCollection => $project->defenses)
-            ->where('type', $type)
-            ->count();
     }
 
     private function phaseLabel(?string $phase): string

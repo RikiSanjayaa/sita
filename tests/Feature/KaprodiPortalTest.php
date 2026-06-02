@@ -88,7 +88,8 @@ test('kaprodi can only access own prodi read only portal data', function (): voi
             ->component('kaprodi/dashboard')
             ->where('programStudi.name', 'Ilmu Komputer')
             ->missing('students')
-            ->where('summaryCards.0.value', '1'));
+            ->missing('summaryCards')
+            ->where('workSummary.metrics.0.value', '1'));
 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/mahasiswa')
@@ -253,8 +254,8 @@ test('dashboard counts active and archived data and detail returns full project 
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('kaprodi/dashboard')
-            ->where('summaryCards.1.value', '1')
-            ->where('summaryCards.1.description', '1 arsip')
+            ->missing('summaryCards')
+            ->where('workSummary.metrics.1.value', '1')
             ->where('defenseProgress.0.count', 1)
             ->where('upcomingAgenda.0.title', 'Mahasiswa Arsip')
             ->missing('students'));
