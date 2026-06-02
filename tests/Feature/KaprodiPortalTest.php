@@ -14,6 +14,7 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\KaprodiAssignmentService;
+use Database\Seeders\S2SasingSeeder;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -307,4 +308,18 @@ test('dashboard counts active and archived data and detail returns full project 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/mahasiswa/'.$student->id)
         ->assertRedirect('/profil/'.$student->id);
+});
+
+test('s2 sasing seeder creates a primary kaprodi account', function (): void {
+    $this->seed(S2SasingSeeder::class);
+
+    $kaprodi = User::query()
+        ->where('email', 'kaprodi.s2.sasing@gmail.com')
+        ->with(['kaprodiAssignment.programStudi', 'roles'])
+        ->firstOrFail();
+
+    expect($kaprodi->hasRole(AppRole::Kaprodi))->toBeTrue()
+        ->and($kaprodi->last_active_role)->toBe(AppRole::Kaprodi->value)
+        ->and($kaprodi->kaprodiAssignment?->is_primary)->toBeTrue()
+        ->and($kaprodi->kaprodiAssignment?->programStudi?->slug)->toBe('s2-sastra-inggris');
 });

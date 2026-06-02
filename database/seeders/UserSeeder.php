@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\AppRole;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
+use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\Role;
@@ -291,6 +292,7 @@ class UserSeeder extends Seeder
     {
         $adminRole = $roles[AppRole::Admin->value];
         $dosenRole = $roles[AppRole::Dosen->value];
+        $kaprodiRole = $roles[AppRole::Kaprodi->value];
         $mahasiswaRole = $roles[AppRole::Mahasiswa->value];
 
         // Admin for Ilmu Komputer
@@ -307,6 +309,17 @@ class UserSeeder extends Seeder
             ['user_id' => $admin->id],
             ['program_studi_id' => $prodi->id],
         );
+
+        $kaprodi = User::query()->updateOrCreate([
+            'email' => 'kaprodi@sita.test',
+        ], [
+            'name' => 'Kaprodi Ilmu Komputer',
+            'phone_number' => $this->generatedPhoneNumber('kaprodi@sita.test'),
+            'password' => Hash::make('password'),
+            'last_active_role' => AppRole::Kaprodi->value,
+        ]);
+        $kaprodi->roles()->syncWithoutDetaching([$kaprodiRole->id]);
+        $this->setPrimaryKaprodi($prodi, $kaprodi);
 
         // Known dosen accounts
         foreach (self::ILKOM_DOSEN as $account) {
@@ -447,6 +460,28 @@ class UserSeeder extends Seeder
                 ],
             );
         }
+    }
+
+    private function setPrimaryKaprodi(ProgramStudi $prodi, User $kaprodi): void
+    {
+        KaprodiAssignment::query()
+            ->where('program_studi_id', $prodi->id)
+            ->where('user_id', '!=', $kaprodi->id)
+            ->where('is_primary', true)
+            ->update([
+                'is_primary' => false,
+                'primary_guard' => null,
+            ]);
+
+        KaprodiAssignment::query()->updateOrCreate(
+            [
+                'program_studi_id' => $prodi->id,
+                'user_id' => $kaprodi->id,
+            ],
+            [
+                'is_primary' => true,
+            ],
+        );
     }
 
     private function generatedPhoneNumber(string $key): string

@@ -21,6 +21,7 @@ Informasi program studi:
 Format email:
 
 - admin: `admin.s2.sasing@gmail.com`
+- kaprodi: `kaprodi.s2.sasing@gmail.com`
 - super admin: `superadmin.s2.sasing@gmail.com`
 - dosen menggunakan email berurutan: `dosen1` sampai `dosen8`
 - mahasiswa menggunakan email berurutan: `siswa1` sampai `siswa15`
@@ -32,6 +33,7 @@ Format email:
 | ----------- | ----------------------- | -------------------------------- | -------------------------------------- |
 | Super Admin | Super Admin SiTA        | `superadmin.s2.sasing@gmail.com` | Akses penuh ke seluruh aplikasi        |
 | Admin Prodi | Admin S2 Sastra Inggris | `admin.s2.sasing@gmail.com`      | Akses admin khusus `S2 Sastra Inggris` |
+| Kaprodi     | Kaprodi S2 Sastra Inggris | `kaprodi.s2.sasing@gmail.com`  | Portal monitoring read-only prodi      |
 
 ## Akun Dosen
 
@@ -77,6 +79,7 @@ Format email:
 | Alur mahasiswa selesai                 | `siswa13.s2.sasing@gmail.com`                                 |
 | Dashboard dosen dengan mahasiswa aktif | `dosen1.s2.sasing@gmail.com`                                  |
 | Dosen sebagai penguji/reviewer         | `dosen5.s2.sasing@gmail.com`                                  |
+| Monitoring kaprodi                     | `kaprodi.s2.sasing@gmail.com`                                |
 | Dashboard admin dan operasi tesis      | `admin.s2.sasing@gmail.com`                                   |
 | Akses admin penuh                      | `superadmin.s2.sasing@gmail.com`                              |
 
