@@ -20,7 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 
 type ScheduleDetail = {
-    id: number;
+    id: number | string;
     topic: string;
     person: string;
     personRole: 'lecturer' | 'student';
@@ -127,7 +127,7 @@ export function ScheduleDetailModal({
                         <span className="truncate">{schedule.topic}</span>
                     </DialogTitle>
                     <DialogDescription className="sr-only">
-                        Schedule details
+                        Detail jadwal
                     </DialogDescription>
                 </DialogHeader>
 
@@ -161,7 +161,7 @@ export function ScheduleDetailModal({
                                     {formatDate(schedule.start)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    to {formatDate(schedule.end)}
+                                    sampai {formatDate(schedule.end)}
                                 </p>
                             </div>
                         </div>
@@ -174,7 +174,7 @@ export function ScheduleDetailModal({
                         {schedule.notes && (
                             <div className="rounded-lg bg-muted/30 p-3">
                                 <p className="text-xs font-medium text-muted-foreground">
-                                    Notes
+                                    Catatan
                                 </p>
                                 <p className="mt-1 text-sm">{schedule.notes}</p>
                             </div>
@@ -189,7 +189,7 @@ export function ScheduleDetailModal({
                             variant="outline"
                             onClick={() => onOpenChange(false)}
                         >
-                            Close
+                            Tutup
                         </Button>
                         {onReschedule && (
                             <Button
@@ -200,7 +200,7 @@ export function ScheduleDetailModal({
                                     onReschedule();
                                 }}
                             >
-                                Reschedule
+                                Jadwalkan Ulang
                             </Button>
                         )}
                         {onCancel && (
@@ -212,7 +212,7 @@ export function ScheduleDetailModal({
                                     onCancel();
                                 }}
                             >
-                                Cancel
+                                Batalkan
                             </Button>
                         )}
                     </DialogFooter>

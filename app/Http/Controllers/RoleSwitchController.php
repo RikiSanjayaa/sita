@@ -33,6 +33,7 @@ class RoleSwitchController extends Controller
             description: 'Pengguna beralih ke peran '.match (AppRole::from($role)) {
                 AppRole::Mahasiswa => 'Mahasiswa',
                 AppRole::Dosen => 'Dosen',
+                AppRole::Kaprodi => 'Kaprodi',
                 AppRole::Admin => 'Admin',
                 AppRole::SuperAdmin => 'Super Admin',
                 AppRole::Penguji => 'Penguji',
@@ -45,7 +46,7 @@ class RoleSwitchController extends Controller
 
         $dashboardRouteName = AppRole::from($role)->dashboardRouteName();
 
-        if ($role === AppRole::Admin->value) {
+        if (AppRole::from($role)->isAdminRole()) {
             return \Inertia\Inertia::location(filament()->getPanel('admin')?->getUrl() ?? url('/admin'));
         }
 

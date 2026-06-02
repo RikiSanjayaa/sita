@@ -67,6 +67,7 @@ test('super admin can access admin area', function () {
 test('dashboard resolver sends authenticated user to active role dashboard', function () {
     $mahasiswa = createUserWithRoles([AppRole::Mahasiswa->value], AppRole::Mahasiswa->value);
     $dosen = createUserWithRoles([AppRole::Dosen->value], AppRole::Dosen->value);
+    $kaprodi = createUserWithRoles([AppRole::Kaprodi->value], AppRole::Kaprodi->value);
     $admin = createUserWithRoles([AppRole::Admin->value], AppRole::Admin->value);
     $superAdmin = createUserWithRoles([AppRole::SuperAdmin->value], AppRole::SuperAdmin->value);
 
@@ -77,6 +78,10 @@ test('dashboard resolver sends authenticated user to active role dashboard', fun
     $this->actingAs($dosen)
         ->get('/dashboard')
         ->assertRedirect('/dosen/dashboard');
+
+    $this->actingAs($kaprodi)
+        ->get('/dashboard')
+        ->assertRedirect('/kaprodi/dashboard');
 
     $this->actingAs($admin)
         ->get('/dashboard')

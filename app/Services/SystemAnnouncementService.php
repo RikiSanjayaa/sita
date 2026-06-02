@@ -96,6 +96,9 @@ class SystemAnnouncementService
             AppRole::Admin->value => $query->whereHas('adminProfile', function (Builder $profileQuery) use ($announcement): void {
                 $profileQuery->where('program_studi_id', $announcement->program_studi_id);
             }),
+            AppRole::Kaprodi->value => $query->whereHas('kaprodiAssignment', function (Builder $assignmentQuery) use ($announcement): void {
+                $assignmentQuery->where('program_studi_id', $announcement->program_studi_id);
+            }),
             default => $query,
         };
     }
