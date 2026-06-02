@@ -1,7 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
-    Archive,
     ArrowUpRight,
     CalendarClock,
     ChevronRight,
@@ -33,12 +32,6 @@ type ProgramStudi = {
     id: number;
     name: string;
     slug: string;
-};
-
-type SummaryCard = {
-    label: string;
-    value: string;
-    description: string;
 };
 
 type WorkSummary = {
@@ -91,7 +84,6 @@ type DefenseProgressItem = {
 
 type DashboardProps = {
     programStudi: ProgramStudi;
-    summaryCards: SummaryCard[];
     workSummary: WorkSummary;
     attentionItems: AttentionItem[];
     upcomingAgenda: AgendaItem[];
@@ -102,13 +94,11 @@ type DashboardProps = {
 
 const sectionCardClass = 'overflow-hidden gap-0 py-0 shadow-sm';
 const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
-const summaryIcons = [UsersRound, GraduationCap, ClipboardCheck, Archive];
 
 export default function KaprodiDashboardPage() {
     const {
         auth,
         programStudi,
-        summaryCards,
         workSummary,
         attentionItems,
         upcomingAgenda,
@@ -284,36 +274,6 @@ export default function KaprodiDashboardPage() {
                         </div>
                     </CardContent>
                 </Card>
-
-                <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {summaryCards.map((card, index) => {
-                        const Icon = summaryIcons[index] ?? AlertCircle;
-
-                        return (
-                            <Card
-                                key={card.label}
-                                className="border-border/70 shadow-sm"
-                            >
-                                <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
-                                    <CardDescription className="font-medium">
-                                        {card.label}
-                                    </CardDescription>
-                                    <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                        <Icon className="size-4" />
-                                    </span>
-                                </CardHeader>
-                                <CardContent>
-                                    <CardTitle className="text-3xl">
-                                        {card.value}
-                                    </CardTitle>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        {card.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </section>
 
                 <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
                     <div className="grid content-start gap-6">
