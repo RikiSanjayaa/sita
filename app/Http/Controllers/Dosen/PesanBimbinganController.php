@@ -129,7 +129,7 @@ class PesanBimbinganController extends Controller
                     'isEscalated' => $thread->is_escalated,
                     'isArchived' => $tab === 'arsip',
                     'threadType' => $thread->type,
-                    'threadLabel' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji'),
+                    'threadLabel' => $this->threadLabel($thread),
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
@@ -291,6 +291,16 @@ class PesanBimbinganController extends Controller
             ->where('thread_id', $thread->id)
             ->where('user_id', $lecturer->id)
             ->exists();
+    }
+
+    private function threadLabel(MentorshipChatThread $thread): string
+    {
+        return match ($thread->type) {
+            'pembimbing' => 'Bimbingan',
+            'sempro' => 'Penguji Sempro',
+            'sidang' => 'Penguji Sidang',
+            default => $thread->label ?? 'Penguji',
+        };
     }
 
     private function notifyStudent(MentorshipChatThread $thread, User $lecturer, string $messageType): void
