@@ -1,4 +1,9 @@
-import { AlertCircle, AlertTriangle, CalendarClock, CheckCircle2 } from 'lucide-react';
+import {
+    AlertCircle,
+    AlertTriangle,
+    CalendarClock,
+    CheckCircle2,
+} from 'lucide-react';
 import { useMemo } from 'react';
 
 interface DeadlineBadgeProps {
@@ -10,7 +15,10 @@ interface DeadlineBadgeProps {
 
 type DeadlineState = 'safe' | 'warning' | 'overdue' | 'resolved' | null;
 
-function getDeadlineState(dueAt: string | null, status?: string): DeadlineState {
+function getDeadlineState(
+    dueAt: string | null,
+    status?: string,
+): DeadlineState {
     if (!dueAt || status === 'resolved') {
         return null;
     }
@@ -39,7 +47,9 @@ function getDaysLabel(dueAt: string): string {
 
     if (diffDays < 0) {
         const overdueDays = Math.abs(diffDays);
-        return overdueDays === 1 ? 'Terlewat 1 hari' : `Terlewat ${overdueDays} hari`;
+        return overdueDays === 1
+            ? 'Terlewat 1 hari'
+            : `Terlewat ${overdueDays} hari`;
     }
 
     if (diffDays === 0) {
@@ -51,7 +61,13 @@ function getDaysLabel(dueAt: string): string {
 
 const stateConfig: Record<
     'safe' | 'warning' | 'overdue',
-    { bg: string; text: string; border: string; icon: typeof CheckCircle2; label: string }
+    {
+        bg: string;
+        text: string;
+        border: string;
+        icon: typeof CheckCircle2;
+        label: string;
+    }
 > = {
     safe: {
         bg: 'bg-emerald-50 dark:bg-emerald-950/30',
@@ -76,8 +92,16 @@ const stateConfig: Record<
     },
 };
 
-export function DeadlineBadge({ dueAt, status, className = '', showLabel = true }: DeadlineBadgeProps) {
-    const state = useMemo(() => getDeadlineState(dueAt, status), [dueAt, status]);
+export function DeadlineBadge({
+    dueAt,
+    status,
+    className = '',
+    showLabel = true,
+}: DeadlineBadgeProps) {
+    const state = useMemo(
+        () => getDeadlineState(dueAt, status),
+        [dueAt, status],
+    );
 
     if (!state || state === 'resolved' || !dueAt) {
         return null;
@@ -97,8 +121,19 @@ export function DeadlineBadge({ dueAt, status, className = '', showLabel = true 
     );
 }
 
-export function DeadlineBanner({ dueAt, status, revisionNotes }: { dueAt: string | null; status?: string; revisionNotes?: string }) {
-    const state = useMemo(() => getDeadlineState(dueAt, status), [dueAt, status]);
+export function DeadlineBanner({
+    dueAt,
+    status,
+    revisionNotes,
+}: {
+    dueAt: string | null;
+    status?: string;
+    revisionNotes?: string;
+}) {
+    const state = useMemo(
+        () => getDeadlineState(dueAt, status),
+        [dueAt, status],
+    );
 
     if (!state || state === 'safe' || state === 'resolved' || !dueAt) {
         return null;
@@ -109,13 +144,22 @@ export function DeadlineBanner({ dueAt, status, revisionNotes }: { dueAt: string
     const daysLabel = getDaysLabel(dueAt);
 
     return (
-        <div className={`flex items-start gap-3 rounded-lg border p-3 ${config.bg} ${config.border}`}>
+        <div
+            className={`flex items-start gap-3 rounded-lg border p-3 ${config.bg} ${config.border}`}
+        >
             <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${config.text}`} />
             <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium ${config.text}`}>
-                    {state === 'overdue' ? 'Batas revisi telah terlewat' : 'Batas revisi mendekati'} - {daysLabel}
+                    {state === 'overdue'
+                        ? 'Batas revisi telah terlewat'
+                        : 'Batas revisi mendekati'}{' '}
+                    - {daysLabel}
                 </p>
-                {revisionNotes && <p className="text-muted-foreground mt-0.5 text-xs">{revisionNotes}</p>}
+                {revisionNotes && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {revisionNotes}
+                    </p>
+                )}
             </div>
         </div>
     );
