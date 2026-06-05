@@ -261,6 +261,68 @@ test('dosen pages only show data from assigned mahasiswa', function () {
         );
 });
 
+test('dosen mahasiswa page includes students tested by lecturer', function () {
+    $admin = User::factory()->asAdmin()->create();
+    $dosen = createDosenUser();
+    $student = createMahasiswaUser('2210519977');
+    $project = createThesisProjectForStudent($student);
+
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle?->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'scheduled_for' => now()->addWeek(),
+        'created_by' => $admin->id,
+    ]);
+
+    assignDefenseExaminer($defense, $dosen, 'examiner', 1);
+
+    $thread = MentorshipChatThread::factory()->create([
+        'student_user_id' => $student->id,
+        'type' => 'sempro',
+        'context_id' => $defense->id,
+        'label' => 'Seminar Proposal',
+    ]);
+
+    MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $thread->id,
+        'user_id' => $student->id,
+        'role' => 'student',
+    ]);
+
+    MentorshipChatThreadParticipant::query()->create([
+        'thread_id' => $thread->id,
+        'user_id' => $dosen->id,
+        'role' => 'examiner',
+    ]);
+
+    $this->actingAs($dosen)
+        ->get(route('dosen.mahasiswa-bimbingan'))
+        ->assertInertia(
+            fn (Assert $page) => $page
+                ->component('dosen/mahasiswa-bimbingan')
+                ->has('mahasiswaRows', 1)
+                ->where('mahasiswaRows.0.name', $student->name)
+                ->where('mahasiswaRows.0.relationType', 'penguji')
+                ->where('mahasiswaRows.0.roleLabel', 'Penguji 1')
+                ->where('mahasiswaRows.0.contextLabel', 'Sempro')
+                ->where('mahasiswaRows.0.chatUrl', "/dosen/pesan-bimbingan?thread={$thread->id}")
+        );
+
+    $this->actingAs($dosen)
+        ->get(route('dosen.pesan-bimbingan'))
+        ->assertInertia(
+            fn (Assert $page) => $page
+                ->component('dosen/pesan-bimbingan')
+                ->has('threads', 1)
+                ->where('threads.0.student', $student->name)
+                ->where('threads.0.threadType', 'sempro')
+                ->where('threads.0.threadLabel', 'Penguji Sempro')
+        );
+});
+
 test('dosen can decide schedule only for own assignment', function () {
     $admin = User::factory()->asAdmin()->create();
     $dosen = createDosenUser();

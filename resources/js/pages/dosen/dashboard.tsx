@@ -67,9 +67,9 @@ export default function DosenDashboardPage() {
 
     const quickActions = [
         {
-            title: 'Mahasiswa Bimbingan',
+            title: 'Mahasiswa Dosen',
             description:
-                'Lihat mahasiswa aktif, tahap mereka, dan buka chat dengan cepat.',
+                'Lihat mahasiswa bimbingan dan mahasiswa yang Anda uji.',
             href: '/dosen/mahasiswa-bimbingan',
             icon: Users,
             primary: true,
