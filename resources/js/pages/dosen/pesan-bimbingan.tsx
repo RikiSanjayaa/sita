@@ -84,17 +84,14 @@ type ThreadItem = {
     messages: ThreadMessage[];
 };
 
-type ThreadFilter = 'semua' | 'bimbingan' | 'penguji';
+type ThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang';
 
 const threadFilterTabs: { label: string; value: ThreadFilter }[] = [
     { label: 'Semua', value: 'semua' },
-    { label: 'Bimbingan', value: 'bimbingan' },
-    { label: 'Penguji', value: 'penguji' },
+    { label: 'Bimbingan', value: 'pembimbing' },
+    { label: 'Sempro', value: 'sempro' },
+    { label: 'Sidang', value: 'sidang' },
 ];
-
-function isExamThread(thread: ThreadItem): boolean {
-    return thread.threadType !== 'pembimbing';
-}
 
 function messageMatches(message: ThreadMessage, query: string) {
     if (!query) {
@@ -110,21 +107,16 @@ function messageMatches(message: ThreadMessage, query: string) {
 
 type PesanBimbinganProps = {
     threads: ThreadItem[];
-    tab: 'aktif' | 'arsip';
     flashMessage?: string | null;
 };
 
 type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {
     initialThreads: ThreadItem[];
-    tab: 'aktif' | 'arsip';
     flashMessage?: string | null;
 };
 
-function buildThreadStateKey(
-    threads: ThreadItem[],
-    tab: 'aktif' | 'arsip',
-): string {
-    return [tab, ...threads.map((thread) => String(thread.id))].join('|');
+function buildThreadStateKey(threads: ThreadItem[]): string {
+    return threads.map((thread) => String(thread.id)).join('|');
 }
 
 function syncThreadSearchParam(threadId: number | null): void {
@@ -139,6 +131,8 @@ function syncThreadSearchParam(threadId: number | null): void {
     } else {
         nextUrl.searchParams.set('thread', String(threadId));
     }
+
+    nextUrl.searchParams.delete('tab');
 
     window.history.replaceState(
         window.history.state,
@@ -181,9 +175,7 @@ function getVisibleThreads(
         })
         .filter((thread) => {
             const matchesFilter =
-                filter === 'semua' ||
-                (filter === 'bimbingan' && !isExamThread(thread)) ||
-                (filter === 'penguji' && isExamThread(thread));
+                filter === 'semua' || thread.threadType === filter;
 
             return (
                 matchesFilter &&
@@ -235,16 +227,14 @@ function resolveInitialMobileView(
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
-        tab,
         flashMessage,
         auth,
     } = usePage<SharedData & PesanBimbinganProps>().props;
 
     return (
         <DosenPesanBimbinganContent
-            key={buildThreadStateKey(initialThreads, tab)}
+            key={buildThreadStateKey(initialThreads)}
             initialThreads={initialThreads}
-            tab={tab}
             flashMessage={flashMessage}
             auth={auth}
         />
@@ -253,7 +243,6 @@ export default function DosenPesanBimbinganPage() {
 
 function DosenPesanBimbinganContent({
     initialThreads,
-    tab,
     flashMessage,
     auth,
 }: PesanBimbinganContentProps) {
@@ -699,29 +688,7 @@ function DosenPesanBimbinganContent({
                                 Pilih grup bimbingan atau ujian mahasiswa
                             </CardDescription>
                         </div>
-                        <div className="flex w-full items-center rounded-lg bg-muted p-1 text-sm font-medium">
-                            <Link
-                                href="/dosen/pesan-bimbingan?tab=aktif"
-                                className={cn(
-                                    'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
-                                    tab === 'aktif' &&
-                                        'bg-background text-foreground shadow-sm',
-                                )}
-                            >
-                                Aktif
-                            </Link>
-                            <Link
-                                href="/dosen/pesan-bimbingan?tab=arsip"
-                                className={cn(
-                                    'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
-                                    tab === 'arsip' &&
-                                        'bg-background text-foreground shadow-sm',
-                                )}
-                            >
-                                Arsip
-                            </Link>
-                        </div>
-                        <div className="flex w-full items-center gap-1 rounded-lg bg-background p-1 text-xs font-medium">
+                        <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1 text-xs font-medium">
                             {threadFilterTabs.map((filter) => (
                                 <button
                                     key={filter.value}

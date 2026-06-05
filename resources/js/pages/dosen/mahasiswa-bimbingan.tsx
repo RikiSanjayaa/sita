@@ -21,8 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Mahasiswa Dosen', href: '/dosen/mahasiswa-bimbingan' },
 ];
 
-type RelationFilter = 'semua' | 'pembimbing' | 'penguji';
-type AdvisorFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2';
+type RoleFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2' | 'penguji';
 
 type MahasiswaRow = {
     nim: string;
@@ -51,16 +50,11 @@ type MahasiswaBimbinganProps = {
     capacityLimit: number;
 };
 
-const relationTabs: { label: string; value: RelationFilter }[] = [
-    { label: 'Semua', value: 'semua' },
-    { label: 'Pembimbing', value: 'pembimbing' },
-    { label: 'Penguji', value: 'penguji' },
-];
-
-const advisorTabs: { label: string; value: AdvisorFilter }[] = [
+const roleTabs: { label: string; value: RoleFilter }[] = [
     { label: 'Semua', value: 'semua' },
     { label: 'Pembimbing 1', value: 'Pembimbing 1' },
     { label: 'Pembimbing 2', value: 'Pembimbing 2' },
+    { label: 'Penguji', value: 'penguji' },
 ];
 
 function RelationBadge({ row }: { row: MahasiswaRow }) {
@@ -89,9 +83,7 @@ function StudentTable({
 }) {
     const getInitials = useInitials();
     const [search, setSearch] = useState('');
-    const [relationFilter, setRelationFilter] =
-        useState<RelationFilter>('semua');
-    const [advisorFilter, setAdvisorFilter] = useState<AdvisorFilter>('semua');
+    const [roleFilter, setRoleFilter] = useState<RoleFilter>('semua');
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -104,17 +96,15 @@ function StudentTable({
                 row.stageLabel.toLowerCase().includes(q) ||
                 row.roleLabel.toLowerCase().includes(q) ||
                 row.contextLabel.toLowerCase().includes(q);
-            const matchRelation =
-                relationFilter === 'semua' ||
-                row.relationType === relationFilter;
-            const matchAdvisor =
-                relationFilter === 'penguji' ||
-                advisorFilter === 'semua' ||
-                row.advisorType === advisorFilter;
+            const matchRole =
+                roleFilter === 'semua' ||
+                (roleFilter === 'penguji' && row.relationType === 'penguji') ||
+                (row.relationType === 'pembimbing' &&
+                    row.advisorType === roleFilter);
 
-            return matchSearch && matchRelation && matchAdvisor;
+            return matchSearch && matchRole;
         });
-    }, [advisorFilter, relationFilter, rows, search]);
+    }, [roleFilter, rows, search]);
 
     return (
         <div className="space-y-3">
@@ -128,49 +118,22 @@ function StudentTable({
                         className="h-8 pl-8 text-sm"
                     />
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div className="flex gap-1">
-                        {relationTabs.map((tab) => (
-                            <button
-                                key={tab.value}
-                                type="button"
-                                onClick={() => {
-                                    setRelationFilter(tab.value);
-
-                                    if (tab.value === 'penguji') {
-                                        setAdvisorFilter('semua');
-                                    }
-                                }}
-                                className={cn(
-                                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                    relationFilter === tab.value
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="flex gap-1">
-                        {advisorTabs.map((tab) => (
-                            <button
-                                key={tab.value}
-                                type="button"
-                                disabled={relationFilter === 'penguji'}
-                                onClick={() => setAdvisorFilter(tab.value)}
-                                className={cn(
-                                    'rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45',
-                                    advisorFilter === tab.value &&
-                                        relationFilter !== 'penguji'
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex flex-wrap gap-1">
+                    {roleTabs.map((tab) => (
+                        <button
+                            key={tab.value}
+                            type="button"
+                            onClick={() => setRoleFilter(tab.value)}
+                            className={cn(
+                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                roleFilter === tab.value
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                            )}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
