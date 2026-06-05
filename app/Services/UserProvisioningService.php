@@ -42,6 +42,16 @@ class UserProvisioningService
             }
         }
 
+        if ($role === AppRole::Kaprodi->value) {
+            if (! $user->kaprodiAssignment()->exists()) {
+                throw ValidationException::withMessages([
+                    'role' => ['Akun kaprodi wajib ditempatkan melalui resource Program Studi.'],
+                ]);
+            }
+
+            return;
+        }
+
         if ($role === AppRole::Admin->value) {
             $user->adminProfile()->updateOrCreate(
                 ['user_id' => $user->id],

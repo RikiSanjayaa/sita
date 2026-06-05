@@ -6,6 +6,7 @@ enum AppRole: string
 {
     case Mahasiswa = 'mahasiswa';
     case Dosen = 'dosen';
+    case Kaprodi = 'kaprodi';
     case Admin = 'admin';
     case SuperAdmin = 'super_admin';
     case Penguji = 'penguji';
@@ -29,6 +30,7 @@ enum AppRole: string
         return [
             self::Mahasiswa->value,
             self::Dosen->value,
+            self::Kaprodi->value,
             self::Admin->value,
             self::SuperAdmin->value,
         ];
@@ -54,6 +56,7 @@ enum AppRole: string
         return match ($this) {
             self::Mahasiswa => 'mahasiswa.dashboard',
             self::Dosen => 'dosen.dashboard',
+            self::Kaprodi => 'kaprodi.dashboard',
             self::Admin, self::SuperAdmin => 'filament.admin.pages.dashboard',
             self::Penguji => 'mahasiswa.dashboard',
         };

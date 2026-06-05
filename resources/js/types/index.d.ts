@@ -1,7 +1,7 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
-export type AppRole = 'mahasiswa' | 'dosen' | 'admin' | 'penguji';
+export type AppRole = 'mahasiswa' | 'dosen' | 'kaprodi' | 'admin' | 'penguji';
 
 export interface Auth {
     user: User;

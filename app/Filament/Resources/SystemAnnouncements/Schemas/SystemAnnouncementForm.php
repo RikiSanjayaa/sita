@@ -92,6 +92,7 @@ class SystemAnnouncementForm
         $options = [
             AppRole::Mahasiswa->value => 'Mahasiswa',
             AppRole::Dosen->value => 'Dosen',
+            AppRole::Kaprodi->value => 'Kaprodi',
             AppRole::Admin->value => 'Admin',
             AppRole::SuperAdmin->value => 'Super Admin',
         ];

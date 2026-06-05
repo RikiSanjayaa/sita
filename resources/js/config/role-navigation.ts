@@ -101,6 +101,40 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             icon: Settings,
         },
     },
+    kaprodi: {
+        main: [
+            {
+                title: 'Dashboard',
+                href: '/kaprodi/dashboard',
+                icon: LayoutGrid,
+            },
+            {
+                title: 'Mahasiswa Prodi',
+                href: '/kaprodi/mahasiswa',
+                icon: UsersRound,
+            },
+            {
+                title: 'Sempro & Sidang',
+                href: '/kaprodi/sempro-sidang',
+                icon: ClipboardCheck,
+            },
+            {
+                title: 'Dokumen',
+                href: '/kaprodi/dokumen',
+                icon: FileStack,
+            },
+            {
+                title: 'Dosen Prodi',
+                href: '/kaprodi/dosen-prodi',
+                icon: UserCog,
+            },
+        ],
+        settings: {
+            title: 'Settings',
+            href: '/settings',
+            icon: Settings,
+        },
+    },
     admin: {
         main: [
             {

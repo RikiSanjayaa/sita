@@ -40,6 +40,8 @@ class ThesisDocumentDownloadController extends Controller
                 ->exists();
 
             abort_unless($isSupervisor || $isExaminer, 403);
+        } elseif ($user->hasRole('kaprodi')) {
+            abort_unless($project->program_studi_id === $user->kaprodiProgramStudiId(), 403);
         } else {
             abort(403);
         }

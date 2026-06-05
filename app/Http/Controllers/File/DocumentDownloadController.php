@@ -21,6 +21,13 @@ class DocumentDownloadController extends Controller
             abort_unless($document->student_user_id === $user->id, 403);
         } elseif ($user->hasRole('dosen')) {
             abort_unless($document->lecturer_user_id === $user->id, 403);
+        } elseif ($user->hasRole('kaprodi')) {
+            $document->loadMissing('student.mahasiswaProfile');
+
+            abort_unless(
+                $document->student?->mahasiswaProfile?->program_studi_id === $user->kaprodiProgramStudiId(),
+                403,
+            );
         } else {
             abort(403);
         }

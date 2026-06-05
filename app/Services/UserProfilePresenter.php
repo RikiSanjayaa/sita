@@ -24,6 +24,7 @@ class UserProfilePresenter
             'roles',
             'adminProfile.programStudi',
             'dosenProfile.programStudi',
+            'kaprodiAssignment.programStudi',
             'mahasiswaProfile.programStudi',
         ]);
 
@@ -75,7 +76,7 @@ class UserProfilePresenter
             'mahasiswaProfile.programStudi',
         ]);
 
-        $project = ThesisProject::query()
+        $projects = ThesisProject::query()
             ->with([
                 'latestTitle',
                 'activeSupervisorAssignments.lecturer.roles',
@@ -86,9 +87,11 @@ class UserProfilePresenter
                     ->orderByDesc('attempt_no'),
             ])
             ->where('student_user_id', $user->getKey())
-            ->where('state', 'active')
             ->latest('started_at')
-            ->first();
+            ->get();
+
+        $project = $projects->firstWhere('state', 'active') ?? $projects->first();
+        $allDefenses = $projects->flatMap(fn(ThesisProject $item) => $item->defenses);
 
         $latestSempro = $project?->defenses
             ->where('type', 'sempro')
@@ -136,6 +139,9 @@ class UserProfilePresenter
                 ['label' => 'Status Skripsi', 'value' => $this->projectStatusLabel($project)],
                 ['label' => 'Pembimbing Aktif', 'value' => (string) count($advisors)],
                 ['label' => 'Penguji Aktif', 'value' => (string) count($examiners)],
+                ['label' => 'Total Proyek', 'value' => (string) $projects->count()],
+                ['label' => 'Arsip Proyek', 'value' => (string) $projects->whereIn('state', ['completed', 'cancelled'])->count()],
+                ['label' => 'Total Ujian', 'value' => (string) $allDefenses->count()],
             ],
             'thesis' => [
                 'title' => $project?->latestTitle?->title_id,
@@ -259,6 +265,7 @@ class UserProfilePresenter
         return match ($roleKey) {
             AppRole::Mahasiswa->value => 'Mahasiswa',
             AppRole::Dosen->value => 'Dosen',
+            AppRole::Kaprodi->value => 'Kaprodi',
             AppRole::Admin->value => 'Admin',
             AppRole::SuperAdmin->value => 'Super Admin',
             default => 'Pengguna',
@@ -270,6 +277,7 @@ class UserProfilePresenter
         return match ($roleKey) {
             AppRole::Mahasiswa->value => $user->mahasiswaProfile?->programStudi?->name,
             AppRole::Dosen->value => $user->dosenProfile?->programStudi?->name,
+            AppRole::Kaprodi->value => $user->kaprodiAssignment?->programStudi?->name,
             AppRole::Admin->value, AppRole::SuperAdmin->value => $user->adminProfile?->programStudi?->name,
             default => null,
         };

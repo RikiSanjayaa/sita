@@ -6,6 +6,7 @@ use App\Enums\AdvisorType;
 use App\Enums\AppRole;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
+use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
@@ -84,6 +85,7 @@ class S2SasingSeeder extends Seeder
         $programStudi = $this->upsertProgramStudi();
         $superAdmin = $this->upsertSuperAdmin($roles[AppRole::SuperAdmin->value]);
         $admin = $this->upsertAdmin($roles[AppRole::Admin->value], $programStudi);
+        $this->upsertKaprodi($roles[AppRole::Kaprodi->value], $programStudi);
         $lecturers = $this->seedLecturers($roles[AppRole::Dosen->value], $programStudi);
         $students = $this->seedStudents($roles[AppRole::Mahasiswa->value], $programStudi);
 
@@ -155,6 +157,20 @@ class S2SasingSeeder extends Seeder
             ['user_id' => $user->id],
             ['program_studi_id' => $programStudi->id],
         );
+
+        return $user;
+    }
+
+    private function upsertKaprodi(Role $role, ProgramStudi $programStudi): User
+    {
+        $user = $this->upsertUser(
+            name: 'Kaprodi S2 Sastra Inggris',
+            email: 'kaprodi.s2.sasing@gmail.com',
+            lastActiveRole: AppRole::Kaprodi->value,
+        );
+
+        $user->roles()->syncWithoutDetaching([$role->id]);
+        $this->setPrimaryKaprodi($programStudi, $user);
 
         return $user;
     }
@@ -1132,6 +1148,28 @@ class S2SasingSeeder extends Seeder
                 'action_url' => '/jadwal',
                 'created_by' => $admin->id,
                 'updated_by' => $admin->id,
+            ],
+        );
+    }
+
+    private function setPrimaryKaprodi(ProgramStudi $programStudi, User $kaprodi): void
+    {
+        KaprodiAssignment::query()
+            ->where('program_studi_id', $programStudi->id)
+            ->where('user_id', '!=', $kaprodi->id)
+            ->where('is_primary', true)
+            ->update([
+                'is_primary' => false,
+                'primary_guard' => null,
+            ]);
+
+        KaprodiAssignment::query()->updateOrCreate(
+            [
+                'program_studi_id' => $programStudi->id,
+                'user_id' => $kaprodi->id,
+            ],
+            [
+                'is_primary' => true,
             ],
         );
     }

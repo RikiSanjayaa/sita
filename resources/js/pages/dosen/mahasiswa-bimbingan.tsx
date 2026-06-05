@@ -25,6 +25,7 @@ type MahasiswaRow = {
     nim: string;
     name: string;
     avatar: string | null;
+    profileUrl: string | null;
     advisorType: string;
     otherAdvisors: string[];
     stageLabel: string;
@@ -142,7 +143,14 @@ function StudentTable({
                                 >
                                     {/* Mahasiswa */}
                                     <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2.5">
+                                        <Link
+                                            href={row.profileUrl ?? '#'}
+                                            className={cn(
+                                                'flex items-center gap-2.5',
+                                                !row.profileUrl &&
+                                                    'pointer-events-none',
+                                            )}
+                                        >
                                             <Avatar className="size-7 shrink-0 border">
                                                 <AvatarImage
                                                     src={
@@ -177,7 +185,7 @@ function StudentTable({
                                                     </Badge>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </Link>
                                     </td>
 
                                     {/* Peran */}
