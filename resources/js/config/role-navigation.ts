@@ -75,7 +75,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: ClipboardCheck,
             },
             {
-                title: 'Mahasiswa Bimbingan',
+                title: 'Mahasiswa Dosen',
                 href: '/dosen/mahasiswa-bimbingan',
                 icon: UsersRound,
             },
