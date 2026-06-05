@@ -32,6 +32,7 @@ class BadgeStyles
         return match ($role) {
             'mahasiswa' => 'info',
             'dosen' => 'success',
+            'kaprodi' => 'primary',
             'admin' => 'warning',
             'super_admin' => 'primary',
             'penguji' => 'danger',
@@ -44,6 +45,7 @@ class BadgeStyles
         return match ($role) {
             'mahasiswa' => 'heroicon-m-user',
             'dosen' => 'heroicon-m-user-group',
+            'kaprodi' => 'heroicon-m-academic-cap',
             'admin' => 'heroicon-m-shield-check',
             'super_admin' => 'heroicon-m-star',
             'penguji' => 'heroicon-m-check-badge',

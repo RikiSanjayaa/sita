@@ -90,6 +90,13 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function asKaprodi(): static
+    {
+        return $this->state(fn(): array => [
+            'last_active_role' => AppRole::Kaprodi->value,
+        ]);
+    }
+
     public function asAdmin(): static
     {
         return $this->state(fn(): array => [

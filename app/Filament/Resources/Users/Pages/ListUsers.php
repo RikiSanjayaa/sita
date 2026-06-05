@@ -124,6 +124,8 @@ class ListUsers extends ListRecords
                 ->modifyQueryUsing(fn(Builder $query): Builder => $query->whereHas('roles', static fn(Builder $roleQuery): Builder => $roleQuery->where('name', 'mahasiswa'))),
             'dosen' => Tab::make('Dosen')
                 ->modifyQueryUsing(fn(Builder $query): Builder => $query->whereHas('roles', static fn(Builder $roleQuery): Builder => $roleQuery->where('name', 'dosen'))),
+            'kaprodi' => Tab::make('Kaprodi')
+                ->modifyQueryUsing(fn(Builder $query): Builder => $query->whereHas('roles', static fn(Builder $roleQuery): Builder => $roleQuery->where('name', 'kaprodi'))),
             'admin' => Tab::make('Admin')
                 ->modifyQueryUsing(fn(Builder $query): Builder => $query->whereHas('roles', static fn(Builder $roleQuery): Builder => $roleQuery->where('name', 'admin'))),
         ];

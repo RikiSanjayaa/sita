@@ -113,6 +113,7 @@ class MahasiswaBimbinganController extends Controller
             'nim' => $profile?->nim ?? '-',
             'name' => $student?->name ?? '-',
             'avatar' => $studentSummary['avatar'] ?? null,
+            'profileUrl' => $studentSummary['profileUrl'] ?? null,
             'advisorType' => $assignment->role === AdvisorType::Primary->value ? 'Pembimbing 1' : 'Pembimbing 2',
             'otherAdvisors' => $project?->activeSupervisorAssignments
                 ->filter(fn (ThesisSupervisorAssignment $a): bool => $a->lecturer_user_id !== $assignment->lecturer_user_id)

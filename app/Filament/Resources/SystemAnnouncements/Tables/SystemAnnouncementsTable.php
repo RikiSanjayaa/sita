@@ -32,6 +32,7 @@ class SystemAnnouncementsTable
                         ->map(fn(string $role): string => match ($role) {
                             AppRole::Mahasiswa->value => 'Mahasiswa',
                             AppRole::Dosen->value => 'Dosen',
+                            AppRole::Kaprodi->value => 'Kaprodi',
                             AppRole::Admin->value => 'Admin',
                             AppRole::SuperAdmin->value => 'Super Admin',
                             default => $role,

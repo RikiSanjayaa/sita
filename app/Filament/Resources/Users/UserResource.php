@@ -57,6 +57,7 @@ class UserResource extends Resource
                 'mahasiswaProfile.programStudi',
                 'dosenProfile.programStudi',
                 'adminProfile.programStudi',
+                'kaprodiAssignment.programStudi',
             ])
             ->withCount([
                 'thesisSupervisorAssignments as active_primary_supervision_count' => static fn(Builder $query): Builder => $query
@@ -87,7 +88,8 @@ class UserResource extends Resource
             $query->where(function (Builder $q) use ($prodiId): void {
                 $q->whereHas('mahasiswaProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
                     ->orWhereHas('dosenProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
-                    ->orWhereHas('adminProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId));
+                    ->orWhereHas('adminProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
+                    ->orWhereHas('kaprodiAssignment', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId));
             });
         }
 
@@ -114,6 +116,7 @@ class UserResource extends Resource
             'mahasiswaProfile.programStudi.name',
             'dosenProfile.programStudi.name',
             'adminProfile.programStudi.name',
+            'kaprodiAssignment.programStudi.name',
         ];
     }
 
@@ -125,7 +128,8 @@ class UserResource extends Resource
             'Identitas' => $record->mahasiswaProfile?->nim ?? $record->dosenProfile?->nik,
             'Prodi' => $record->mahasiswaProfile?->programStudi?->name
                 ?? $record->dosenProfile?->programStudi?->name
-                ?? $record->adminProfile?->programStudi?->name,
+                ?? $record->adminProfile?->programStudi?->name
+                ?? $record->kaprodiAssignment?->programStudi?->name,
         ]);
     }
 

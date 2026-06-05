@@ -24,22 +24,26 @@ class UserForm
                     ->schema([
                         Select::make('role')
                             ->label('Role')
-                            ->options(function () {
+                            ->options(function (?User $record): array {
                                 /** @var User|null $user */
                                 $user = Auth::user();
-                                $allRoles = AppRole::uiValues();
+                                $allRoles = self::manageableRoles();
 
                                 if ($user?->hasRole(AppRole::SuperAdmin)) {
-                                    return array_combine($allRoles, $allRoles);
+                                    return self::roleOptions($allRoles, $record);
                                 }
 
                                 // Non-super admins cannot create admins or super admins
                                 $restrictedRoles = array_filter($allRoles, fn(string $role) => ! in_array($role, [AppRole::Admin->value, AppRole::SuperAdmin->value], true));
 
-                                return array_combine($restrictedRoles, $restrictedRoles);
+                                return self::roleOptions($restrictedRoles, $record);
                             })
                             ->required()
-                            ->live(),
+                            ->live()
+                            ->disabled(fn(?User $record): bool => $record?->hasRole(AppRole::Kaprodi) ?? false)
+                            ->helperText(fn(?User $record): ?string => ($record?->hasRole(AppRole::Kaprodi) ?? false)
+                                ? 'Assignment kaprodi dikelola dari resource Program Studi.'
+                                : null),
                     ]),
                 Section::make('User Account')
                     ->visible(fn(Get $get): bool => filled($get('role')))
@@ -159,5 +163,32 @@ class UserForm
         $user = Auth::user();
 
         return $user !== null && $record !== null && $record->is($user);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function manageableRoles(): array
+    {
+        return array_values(array_filter(
+            AppRole::uiValues(),
+            static fn(string $role): bool => $role !== AppRole::Kaprodi->value,
+        ));
+    }
+
+    /**
+     * @param  array<int, string>  $roles
+     * @return array<string, string>
+     */
+    private static function roleOptions(array $roles, ?User $record): array
+    {
+        if ($record?->hasRole(AppRole::Kaprodi) ?? false) {
+            $roles[] = AppRole::Kaprodi->value;
+        }
+
+        return collect($roles)
+            ->unique()
+            ->mapWithKeys(fn(string $role): array => [$role => str($role)->replace('_', ' ')->headline()->toString()])
+            ->all();
     }
 }

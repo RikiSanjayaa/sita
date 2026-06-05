@@ -135,6 +135,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(AdminProfile::class);
     }
 
+    public function kaprodiAssignment(): HasOne
+    {
+        return $this->hasOne(KaprodiAssignment::class);
+    }
+
+    public function kaprodiProgramStudiId(): ?int
+    {
+        return $this->kaprodiAssignment?->program_studi_id;
+    }
+
     /**
      * Returns the admin's program studi ID for scoping.
      * Returns null for super_admin (sees all data).

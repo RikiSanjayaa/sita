@@ -1,9 +1,11 @@
 <?php
 
+use App\Enums\AppRole;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
+use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\Role;
@@ -12,6 +14,8 @@ use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\UserProvisioningService;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 test('admin can only see users from their prodi', function (): void {
@@ -110,6 +114,49 @@ test('super admin can filter users by program studi in filament users page', fun
         ->filterTable('program_studi_id', $prodiA->id)
         ->assertCanSeeTableRecords([$studentA])
         ->assertCanNotSeeTableRecords([$studentB]);
+});
+
+test('super admin users page has kaprodi tab and prodi filter includes kaprodi assignment', function (): void {
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+    $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $prodiB = ProgramStudi::factory()->create(['name' => 'Teknologi Informasi']);
+    $kaprodiA = User::factory()->asKaprodi()->create(['name' => 'Kaprodi Ilkom']);
+    $kaprodiB = User::factory()->asKaprodi()->create(['name' => 'Kaprodi TI']);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodiA->id,
+        'user_id' => $kaprodiA->id,
+        'is_primary' => true,
+    ]);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodiB->id,
+        'user_id' => $kaprodiB->id,
+        'is_primary' => true,
+    ]);
+
+    $this->actingAs($superAdmin);
+
+    $component = Livewire::test(ListUsers::class);
+
+    expect(array_keys($component->instance()->getTabs()))->toContain('kaprodi');
+
+    $component
+        ->set('activeTab', 'kaprodi')
+        ->filterTable('program_studi_id', $prodiA->id)
+        ->assertCanSeeTableRecords([$kaprodiA])
+        ->assertCanNotSeeTableRecords([$kaprodiB]);
+});
+
+test('kaprodi role cannot be provisioned without program studi assignment', function (): void {
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+    $user = User::factory()->create(['name' => 'Kaprodi Tanpa Prodi']);
+
+    $this->actingAs($superAdmin);
+
+    expect(fn() => app(UserProvisioningService::class)->syncRoleAndProfiles($user, [
+        'role' => AppRole::Kaprodi->value,
+    ]))->toThrow(ValidationException::class);
 });
 
 test('mahasiswa cannot open filament users management page', function (): void {
