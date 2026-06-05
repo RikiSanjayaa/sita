@@ -558,9 +558,14 @@ function DefenseDetailSheet({
                                                 <span className="text-xs text-amber-700 dark:text-amber-300">
                                                     {rev.requestedBy}
                                                 </span>
-                                                {rev.dueAt && rev.status !== 'resolved' && (
-                                                    <DeadlineBadge dueAt={rev.dueAt} status={rev.status} />
-                                                )}
+                                                {rev.dueAt &&
+                                                    rev.status !==
+                                                        'resolved' && (
+                                                        <DeadlineBadge
+                                                            dueAt={rev.dueAt}
+                                                            status={rev.status}
+                                                        />
+                                                    )}
                                             </div>
                                             <p className="mt-2 text-xs leading-relaxed text-amber-900 dark:text-amber-100">
                                                 {rev.notes}

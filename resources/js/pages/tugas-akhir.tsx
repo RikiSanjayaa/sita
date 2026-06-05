@@ -1224,7 +1224,16 @@ function DefenseHistoryRow({
                                                         </span>
                                                         {rev.dueAt &&
                                                             !isDone && (
-                                                                <DeadlineBadge dueAt={rev.dueAt} status={isDone ? 'resolved' : undefined} />
+                                                                <DeadlineBadge
+                                                                    dueAt={
+                                                                        rev.dueAt
+                                                                    }
+                                                                    status={
+                                                                        isDone
+                                                                            ? 'resolved'
+                                                                            : undefined
+                                                                    }
+                                                                />
                                                             )}
                                                         {rev.resolvedAt && (
                                                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
