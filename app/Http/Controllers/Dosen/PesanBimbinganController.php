@@ -8,6 +8,7 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
+use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
@@ -34,12 +35,9 @@ class PesanBimbinganController extends Controller
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $tab = $request->query('tab', 'aktif');
-
-        // Bimbingan threads (existing: by student IDs from assignment)
-        $studentIds = $tab === 'arsip'
-            ? $this->dosenBimbinganService->archivedStudentIds($lecturer)
-            : $this->dosenBimbinganService->activeStudentIds($lecturer);
+        $activeStudentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
+        $archivedStudentIds = $this->dosenBimbinganService->archivedStudentIds($lecturer);
+        $studentIds = array_values(array_unique(array_merge($activeStudentIds, $archivedStudentIds)));
 
         $bimbinganThreads = MentorshipChatThread::query()
             ->ofType('pembimbing')
@@ -78,8 +76,19 @@ class PesanBimbinganController extends Controller
             ->get()
             ->keyBy('mentorship_chat_thread_id');
 
+        $defensesById = ThesisDefense::query()
+            ->with('project')
+            ->whereIn('id', $threads
+                ->whereIn('type', ['sempro', 'sidang'])
+                ->pluck('context_id')
+                ->filter()
+                ->unique()
+                ->values())
+            ->get()
+            ->keyBy('id');
+
         $threads = $threads
-            ->map(function (MentorshipChatThread $thread) use ($lecturer, $readsByThread, $tab): array {
+            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $defensesById, $lecturer, $readsByThread): array {
                 $latestMessage = $thread->latestMessage;
                 $lastReadAt = $readsByThread->get($thread->id)?->last_read_at;
                 $unreadCount = MentorshipChatMessage::query()
@@ -127,7 +136,7 @@ class PesanBimbinganController extends Controller
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
                     'latestActivityAt' => $latestMessage?->created_at?->toIso8601String(),
                     'isEscalated' => $thread->is_escalated,
-                    'isArchived' => $tab === 'arsip',
+                    'isArchived' => $this->isArchivedThread($thread, $activeStudentIds, $archivedStudentIds, $defensesById),
                     'threadType' => $thread->type,
                     'threadLabel' => $this->threadLabel($thread),
                     'messages' => $thread->messages
@@ -161,7 +170,6 @@ class PesanBimbinganController extends Controller
 
         return Inertia::render('dosen/pesan-bimbingan', [
             'threads' => $threads,
-            'tab' => $tab,
             'flashMessage' => $request->session()->get('success'),
         ]);
     }
@@ -301,6 +309,32 @@ class PesanBimbinganController extends Controller
             'sidang' => 'Penguji Sidang',
             default => $thread->label ?? 'Penguji',
         };
+    }
+
+    /**
+     * @param  array<int, int>  $activeStudentIds
+     * @param  array<int, int>  $archivedStudentIds
+     * @param  \Illuminate\Support\Collection<int, ThesisDefense>  $defensesById
+     */
+    private function isArchivedThread(
+        MentorshipChatThread $thread,
+        array $activeStudentIds,
+        array $archivedStudentIds,
+        mixed $defensesById,
+    ): bool {
+        if ($thread->type === 'pembimbing') {
+            return ! in_array($thread->student_user_id, $activeStudentIds, true)
+                && in_array($thread->student_user_id, $archivedStudentIds, true);
+        }
+
+        $defense = $thread->context_id === null ? null : $defensesById->get($thread->context_id);
+
+        if (! $defense instanceof ThesisDefense) {
+            return false;
+        }
+
+        return $defense->status === 'completed'
+            || $defense->project?->state !== 'active';
     }
 
     private function notifyStudent(MentorshipChatThread $thread, User $lecturer, string $messageType): void
