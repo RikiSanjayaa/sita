@@ -84,6 +84,15 @@ type ThreadItem = {
     messages: ThreadMessage[];
 };
 
+type ThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang';
+
+const threadFilterTabs: { label: string; value: ThreadFilter }[] = [
+    { label: 'Semua', value: 'semua' },
+    { label: 'Bimbingan', value: 'pembimbing' },
+    { label: 'Sempro', value: 'sempro' },
+    { label: 'Sidang', value: 'sidang' },
+];
+
 function messageMatches(message: ThreadMessage, query: string) {
     if (!query) {
         return false;
@@ -98,21 +107,16 @@ function messageMatches(message: ThreadMessage, query: string) {
 
 type PesanBimbinganProps = {
     threads: ThreadItem[];
-    tab: 'aktif' | 'arsip';
     flashMessage?: string | null;
 };
 
 type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {
     initialThreads: ThreadItem[];
-    tab: 'aktif' | 'arsip';
     flashMessage?: string | null;
 };
 
-function buildThreadStateKey(
-    threads: ThreadItem[],
-    tab: 'aktif' | 'arsip',
-): string {
-    return [tab, ...threads.map((thread) => String(thread.id))].join('|');
+function buildThreadStateKey(threads: ThreadItem[]): string {
+    return threads.map((thread) => String(thread.id)).join('|');
 }
 
 function syncThreadSearchParam(threadId: number | null): void {
@@ -127,6 +131,8 @@ function syncThreadSearchParam(threadId: number | null): void {
     } else {
         nextUrl.searchParams.set('thread', String(threadId));
     }
+
+    nextUrl.searchParams.delete('tab');
 
     window.history.replaceState(
         window.history.state,
@@ -156,6 +162,7 @@ function sortThreads(threads: ThreadItem[]): ThreadItem[] {
 function getVisibleThreads(
     threads: ThreadItem[],
     search: string,
+    filter: ThreadFilter,
     activeThreadId: number | null,
 ): ThreadItem[] {
     return sortThreads(threads)
@@ -167,9 +174,15 @@ function getVisibleThreads(
             return thread;
         })
         .filter((thread) => {
-            return thread.student
-                .toLowerCase()
-                .includes(search.trim().toLowerCase());
+            const matchesFilter =
+                filter === 'semua' || thread.threadType === filter;
+
+            return (
+                matchesFilter &&
+                thread.student
+                    .toLowerCase()
+                    .includes(search.trim().toLowerCase())
+            );
         });
 }
 
@@ -214,16 +227,14 @@ function resolveInitialMobileView(
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
-        tab,
         flashMessage,
         auth,
     } = usePage<SharedData & PesanBimbinganProps>().props;
 
     return (
         <DosenPesanBimbinganContent
-            key={buildThreadStateKey(initialThreads, tab)}
+            key={buildThreadStateKey(initialThreads)}
             initialThreads={initialThreads}
-            tab={tab}
             flashMessage={flashMessage}
             auth={auth}
         />
@@ -232,7 +243,6 @@ export default function DosenPesanBimbinganPage() {
 
 function DosenPesanBimbinganContent({
     initialThreads,
-    tab,
     flashMessage,
     auth,
 }: PesanBimbinganContentProps) {
@@ -243,6 +253,7 @@ function DosenPesanBimbinganContent({
         resolveInitialMobileView(initialThreads),
     );
     const [search, setSearch] = useState('');
+    const [threadFilter, setThreadFilter] = useState<ThreadFilter>('semua');
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
     const [activeMatchIndex, setActiveMatchIndex] = useState(0);
@@ -297,8 +308,14 @@ function DosenPesanBimbinganContent({
     }
 
     const visibleThreads = useMemo(
-        () => getVisibleThreads(threadItems, search, activeThreadId),
-        [activeThreadId, search, threadItems],
+        () =>
+            getVisibleThreads(
+                threadItems,
+                search,
+                threadFilter,
+                activeThreadId,
+            ),
+        [activeThreadId, search, threadFilter, threadItems],
     );
 
     const evaluatedActiveThreadId = useMemo(() => {
@@ -504,6 +521,7 @@ function DosenPesanBimbinganContent({
         const nextVisibleThreads = getVisibleThreads(
             threadItems,
             nextSearch,
+            threadFilter,
             activeThreadId,
         );
         const nextActiveThreadId = nextVisibleThreads.some(
@@ -530,6 +548,34 @@ function DosenPesanBimbinganContent({
     function handleThreadSearchChange(value: string) {
         setThreadSearch(value);
         setActiveMatchIndex(0);
+    }
+
+    function handleThreadFilterChange(nextFilter: ThreadFilter) {
+        const nextVisibleThreads = getVisibleThreads(
+            threadItems,
+            search,
+            nextFilter,
+            activeThreadId,
+        );
+        const nextActiveThreadId = nextVisibleThreads.some(
+            (thread) => thread.id === activeThreadId,
+        )
+            ? activeThreadId
+            : (nextVisibleThreads[0]?.id ?? null);
+
+        setThreadFilter(nextFilter);
+
+        if (nextActiveThreadId !== activeThreadId) {
+            setActiveThreadId(nextActiveThreadId);
+            setThreadSearch('');
+            setIsThreadSearchOpen(false);
+            setActiveMatchIndex(0);
+            syncThreadSearchParam(nextActiveThreadId);
+
+            if (nextActiveThreadId !== null) {
+                void markThreadAsRead(nextActiveThreadId);
+            }
+        }
     }
 
     function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
@@ -639,30 +685,26 @@ function DosenPesanBimbinganContent({
                         <div>
                             <CardTitle>Ruang Bimbingan</CardTitle>
                             <CardDescription>
-                                Pilih grup mahasiswa untuk mulai berdiskusi
+                                Pilih grup bimbingan atau ujian mahasiswa
                             </CardDescription>
                         </div>
-                        <div className="flex w-full items-center rounded-lg bg-muted p-1 text-sm font-medium">
-                            <Link
-                                href="/dosen/pesan-bimbingan?tab=aktif"
-                                className={cn(
-                                    'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
-                                    tab === 'aktif' &&
-                                        'bg-background text-foreground shadow-sm',
-                                )}
-                            >
-                                Aktif
-                            </Link>
-                            <Link
-                                href="/dosen/pesan-bimbingan?tab=arsip"
-                                className={cn(
-                                    'flex flex-1 items-center justify-center rounded-md px-3 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
-                                    tab === 'arsip' &&
-                                        'bg-background text-foreground shadow-sm',
-                                )}
-                            >
-                                Arsip
-                            </Link>
+                        <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1 text-xs font-medium">
+                            {threadFilterTabs.map((filter) => (
+                                <button
+                                    key={filter.value}
+                                    type="button"
+                                    onClick={() =>
+                                        handleThreadFilterChange(filter.value)
+                                    }
+                                    className={cn(
+                                        'flex flex-1 items-center justify-center rounded-md px-2 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
+                                        threadFilter === filter.value &&
+                                            'bg-primary text-primary-foreground shadow-sm',
+                                    )}
+                                >
+                                    {filter.label}
+                                </button>
+                            ))}
                         </div>
                         <div className="relative">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />

@@ -18,8 +18,10 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
-    { title: 'Mahasiswa Bimbingan', href: '/dosen/mahasiswa-bimbingan' },
+    { title: 'Mahasiswa Dosen', href: '/dosen/mahasiswa-bimbingan' },
 ];
+
+type RoleFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2' | 'penguji';
 
 type MahasiswaRow = {
     nim: string;
@@ -27,6 +29,10 @@ type MahasiswaRow = {
     avatar: string | null;
     profileUrl: string | null;
     advisorType: string;
+    relationType: 'pembimbing' | 'penguji';
+    roleLabel: string;
+    contextLabel: string;
+    contextDescription: string;
     otherAdvisors: string[];
     stageLabel: string;
     stageDescription: string;
@@ -40,10 +46,31 @@ type MahasiswaBimbinganProps = {
     mahasiswaRows: MahasiswaRow[];
     historyRows: MahasiswaRow[];
     activeCount: number;
+    relatedCount: number;
     capacityLimit: number;
 };
 
-type AdvisorFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2';
+const roleTabs: { label: string; value: RoleFilter }[] = [
+    { label: 'Semua', value: 'semua' },
+    { label: 'Pembimbing 1', value: 'Pembimbing 1' },
+    { label: 'Pembimbing 2', value: 'Pembimbing 2' },
+    { label: 'Penguji', value: 'penguji' },
+];
+
+function RelationBadge({ row }: { row: MahasiswaRow }) {
+    return (
+        <Badge
+            variant="outline"
+            className={cn(
+                'rounded-full text-xs',
+                row.relationType === 'penguji' &&
+                    'border-amber-200 bg-amber-50 text-amber-700',
+            )}
+        >
+            {row.roleLabel}
+        </Badge>
+    );
+}
 
 function StudentTable({
     rows,
@@ -56,32 +83,32 @@ function StudentTable({
 }) {
     const getInitials = useInitials();
     const [search, setSearch] = useState('');
-    const [advisorFilter, setAdvisorFilter] = useState<AdvisorFilter>('semua');
-
-    const advisorTabs: { label: string; value: AdvisorFilter }[] = [
-        { label: 'Semua', value: 'semua' },
-        { label: 'Pembimbing 1', value: 'Pembimbing 1' },
-        { label: 'Pembimbing 2', value: 'Pembimbing 2' },
-    ];
+    const [roleFilter, setRoleFilter] = useState<RoleFilter>('semua');
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
+
         return rows.filter((row) => {
             const matchSearch =
                 !q ||
                 row.name.toLowerCase().includes(q) ||
                 row.nim.toLowerCase().includes(q) ||
-                row.stageLabel.toLowerCase().includes(q);
-            const matchAdvisor =
-                advisorFilter === 'semua' || row.advisorType === advisorFilter;
-            return matchSearch && matchAdvisor;
+                row.stageLabel.toLowerCase().includes(q) ||
+                row.roleLabel.toLowerCase().includes(q) ||
+                row.contextLabel.toLowerCase().includes(q);
+            const matchRole =
+                roleFilter === 'semua' ||
+                (roleFilter === 'penguji' && row.relationType === 'penguji') ||
+                (row.relationType === 'pembimbing' &&
+                    row.advisorType === roleFilter);
+
+            return matchSearch && matchRole;
         });
-    }, [rows, search, advisorFilter]);
+    }, [roleFilter, rows, search]);
 
     return (
         <div className="space-y-3">
-            {/* Toolbar */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="relative max-w-xs flex-1">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -91,15 +118,15 @@ function StudentTable({
                         className="h-8 pl-8 text-sm"
                     />
                 </div>
-                <div className="flex gap-1">
-                    {advisorTabs.map((tab) => (
+                <div className="flex flex-wrap gap-1">
+                    {roleTabs.map((tab) => (
                         <button
                             key={tab.value}
                             type="button"
-                            onClick={() => setAdvisorFilter(tab.value)}
+                            onClick={() => setRoleFilter(tab.value)}
                             className={cn(
                                 'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                advisorFilter === tab.value
+                                roleFilter === tab.value
                                     ? 'bg-primary text-primary-foreground shadow-sm'
                                     : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
                             )}
@@ -110,7 +137,6 @@ function StudentTable({
                 </div>
             </div>
 
-            {/* Table */}
             {filtered.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
                     <table className="w-full text-sm">
@@ -138,10 +164,9 @@ function StudentTable({
                         <tbody className="divide-y">
                             {filtered.map((row) => (
                                 <tr
-                                    key={`${row.nim}-${row.advisorType}`}
+                                    key={`${row.nim}-${row.relationType}-${row.roleLabel}-${row.contextLabel}`}
                                     className="transition-colors hover:bg-muted/20"
                                 >
-                                    {/* Mahasiswa */}
                                     <td className="px-4 py-3">
                                         <Link
                                             href={row.profileUrl ?? '#'}
@@ -169,51 +194,46 @@ function StudentTable({
                                                 <p className="text-xs text-muted-foreground">
                                                     {row.nim}
                                                 </p>
-                                                {/* Mobile: show extras inline */}
                                                 <div className="mt-1 flex flex-wrap gap-1 md:hidden">
+                                                    <RelationBadge row={row} />
                                                     <Badge
-                                                        variant="outline"
+                                                        variant="secondary"
                                                         className="rounded-full text-xs"
                                                     >
-                                                        {row.advisorType}
-                                                    </Badge>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="rounded-full text-xs"
-                                                    >
-                                                        {row.stageLabel}
+                                                        {row.contextLabel}
                                                     </Badge>
                                                 </div>
                                             </div>
                                         </Link>
                                     </td>
 
-                                    {/* Peran */}
                                     <td className="hidden px-4 py-3 md:table-cell">
-                                        <Badge
-                                            variant="outline"
-                                            className="rounded-full text-xs"
-                                        >
-                                            {row.advisorType}
-                                        </Badge>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <RelationBadge row={row} />
+                                            <Badge
+                                                variant="secondary"
+                                                className="rounded-full text-xs"
+                                            >
+                                                {row.contextLabel}
+                                            </Badge>
+                                        </div>
                                     </td>
 
-                                    {/* Tahap */}
                                     <td className="hidden px-4 py-3 lg:table-cell">
                                         <p className="text-xs font-medium">
-                                            {row.stageLabel}
+                                            {row.relationType === 'penguji'
+                                                ? row.contextDescription
+                                                : row.stageLabel}
                                         </p>
-                                        <p className="mt-0.5 max-w-[200px] truncate text-xs text-muted-foreground">
+                                        <p className="mt-0.5 max-w-[220px] truncate text-xs text-muted-foreground">
                                             {row.stageDescription}
                                         </p>
                                     </td>
 
-                                    {/* Aktivitas */}
                                     <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
                                         {row.lastUpdate}
                                     </td>
 
-                                    {/* Aksi */}
                                     {showActions && (
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-1.5">
@@ -284,20 +304,23 @@ function StudentTable({
 }
 
 export default function DosenMahasiswaBimbinganPage() {
-    const { mahasiswaRows, historyRows, activeCount, capacityLimit } = usePage<
-        SharedData & MahasiswaBimbinganProps
-    >().props;
+    const {
+        mahasiswaRows,
+        historyRows,
+        activeCount,
+        relatedCount,
+        capacityLimit,
+    } = usePage<SharedData & MahasiswaBimbinganProps>().props;
 
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
-            title="Mahasiswa Bimbingan"
-            subtitle="Daftar mahasiswa aktif dan riwayat bimbingan"
+            title="Mahasiswa Dosen"
+            subtitle="Daftar mahasiswa bimbingan dan mahasiswa yang Anda uji"
         >
-            <Head title="Mahasiswa Bimbingan" />
+            <Head title="Mahasiswa Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-6 md:px-6 lg:py-8">
-                {/* ── Mahasiswa Aktif ── */}
                 <section>
                     <div className="mb-4 flex items-center justify-between border-b pb-3">
                         <div>
@@ -305,7 +328,7 @@ export default function DosenMahasiswaBimbinganPage() {
                                 Mahasiswa Aktif
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Menangani{' '}
+                                Membimbing{' '}
                                 <span className="font-semibold text-foreground">
                                     {activeCount}
                                 </span>{' '}
@@ -313,7 +336,11 @@ export default function DosenMahasiswaBimbinganPage() {
                                 <span className="font-semibold text-foreground">
                                     {capacityLimit}
                                 </span>{' '}
-                                kuota
+                                kuota, dengan{' '}
+                                <span className="font-semibold text-foreground">
+                                    {relatedCount}
+                                </span>{' '}
+                                relasi mahasiswa aktif.
                             </p>
                         </div>
                     </div>
@@ -324,19 +351,18 @@ export default function DosenMahasiswaBimbinganPage() {
                     />
                 </section>
 
-                {/* ── Riwayat Bimbingan ── */}
                 <section>
                     <div className="mb-4 border-b pb-3">
                         <h2 className="text-base font-semibold">
-                            Riwayat Bimbingan
+                            Riwayat Mahasiswa
                         </h2>
                         <p className="text-sm text-muted-foreground">
-                            Mahasiswa yang sudah tidak aktif atau sudah lulus
+                            Riwayat bimbingan dan ujian yang sudah selesai
                         </p>
                     </div>
                     <StudentTable
                         rows={historyRows}
-                        emptyText="Belum ada riwayat mahasiswa bimbingan"
+                        emptyText="Belum ada riwayat mahasiswa"
                         showActions={false}
                     />
                 </section>
