@@ -194,7 +194,7 @@ class KaprodiPortalService
     {
         $workspaceDocuments = MentorshipDocument::query()
             ->whereHas('student.mahasiswaProfile', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with(['student', 'lecturer'])
+            ->with(['student.mahasiswaProfile', 'lecturer'])
             ->latest('created_at')
             ->get()
             ->groupBy(fn(MentorshipDocument $document): string => $this->workspaceDocumentGroupKey($document))
@@ -207,6 +207,7 @@ class KaprodiPortalService
                     'id' => 'workspace-'.md5($key),
                     'source' => 'Workspace',
                     'mahasiswa' => $document->student?->name ?? '-',
+                    'nim' => $document->student?->mahasiswaProfile?->nim,
                     'title' => $document->title,
                     'file' => $document->file_name,
                     'uploadedAt' => $document->created_at?->format('d M Y H:i') ?? '-',
@@ -248,6 +249,7 @@ class KaprodiPortalService
                     'id' => 'thesis-'.$document->id,
                     'source' => 'Tugas Akhir',
                     'mahasiswa' => $document->project?->student?->name ?? '-',
+                    'nim' => $document->project?->student?->mahasiswaProfile?->nim,
                     'title' => $document->title,
                     'file' => $document->file_name,
                     'uploadedAt' => WitaDateTime::format($document->uploaded_at),

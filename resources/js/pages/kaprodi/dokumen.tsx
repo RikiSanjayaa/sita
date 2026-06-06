@@ -60,6 +60,7 @@ type DocumentQueueItem = {
     id: string;
     source: 'Workspace' | 'Tugas Akhir';
     mahasiswa: string;
+    nim: string | null;
     title: string;
     file: string | null;
     uploadedAt: string;
@@ -97,6 +98,7 @@ export default function KaprodiDokumenPage() {
             const matchesSearch =
                 lower === '' ||
                 doc.mahasiswa.toLowerCase().includes(lower) ||
+                (doc.nim ?? '').toLowerCase().includes(lower) ||
                 (doc.file ?? '').toLowerCase().includes(lower) ||
                 doc.title.toLowerCase().includes(lower) ||
                 doc.reviews.some(
@@ -186,7 +188,7 @@ export default function KaprodiDokumenPage() {
                     <DataTableToolbar
                         search={search}
                         onSearchChange={setSearch}
-                        searchPlaceholder="Cari mahasiswa, file, atau dosen..."
+                        searchPlaceholder="Cari mahasiswa, NIM, file, atau dosen..."
                         filterGroups={filterTabs}
                         className="mb-3"
                     />
@@ -260,8 +262,7 @@ export default function KaprodiDokumenPage() {
                                                         {doc.mahasiswa}
                                                     </Link>
                                                     <p className="mt-0.5 text-xs text-muted-foreground">
-                                                        Klik baris untuk detail
-                                                        review
+                                                        {doc.nim ?? '-'}
                                                     </p>
                                                 </td>
 
