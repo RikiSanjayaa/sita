@@ -129,6 +129,14 @@ const resultLabel: Record<string, string> = {
     fail: 'Tidak Lulus',
 };
 
+function initialSearchFromQuery() {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return new URLSearchParams(window.location.search).get('search') ?? '';
+}
+
 function resolveDefenseRoleLabel(role: string) {
     if (role === 'primary_supervisor') return 'Pembimbing 1';
     if (role === 'secondary_supervisor') return 'Pembimbing 2';
@@ -635,7 +643,7 @@ export default function DosenSeminarProposalPage() {
         SharedData & PageProps
     >().props;
 
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(initialSearchFromQuery);
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
     const [workspaceFilter, setWorkspaceFilter] =
@@ -866,7 +874,7 @@ export default function DosenSeminarProposalPage() {
                                     setSearch(e.target.value);
                                     resetPage();
                                 }}
-                                placeholder="Cari nama atau judul..."
+                                placeholder="Cari nama, NIM, atau judul..."
                                 className="h-8 pl-8 text-sm"
                             />
                         </div>

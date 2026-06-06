@@ -1,5 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
+    CalendarClock,
+    FileText,
     MessageCircle,
     MessageSquareText,
     Search,
@@ -56,6 +58,10 @@ const roleTabs: { label: string; value: RoleFilter }[] = [
     { label: 'Pembimbing 2', value: 'Pembimbing 2' },
     { label: 'Penguji', value: 'penguji' },
 ];
+
+function searchUrl(path: string, value: string) {
+    return `${path}?search=${encodeURIComponent(value)}`;
+}
 
 function RelationBadge({ row }: { row: MahasiswaRow }) {
     return (
@@ -237,6 +243,38 @@ function StudentTable({
                                     {showActions && (
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-1.5">
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 px-2.5 text-xs"
+                                                >
+                                                    <Link
+                                                        href={searchUrl(
+                                                            '/dosen/dokumen-revisi',
+                                                            row.nim,
+                                                        )}
+                                                    >
+                                                        <FileText className="size-3.5" />
+                                                        Dokumen
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 px-2.5 text-xs"
+                                                >
+                                                    <Link
+                                                        href={searchUrl(
+                                                            '/dosen/seminar-proposal',
+                                                            row.nim,
+                                                        )}
+                                                    >
+                                                        <CalendarClock className="size-3.5" />
+                                                        Ujian
+                                                    </Link>
+                                                </Button>
                                                 {row.chatUrl ? (
                                                     <Button
                                                         asChild
