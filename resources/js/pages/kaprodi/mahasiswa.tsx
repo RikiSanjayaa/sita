@@ -160,13 +160,12 @@ function ActiveStudentTable({
     const [concentrationFilter, setConcentrationFilter] = useState('semua');
     const [page, setPage] = useState(1);
 
-    const phaseTabs: { label: string; value: ActivePhaseFilter }[] = [
-        { label: 'Semua', value: 'semua' },
-        { label: 'Review', value: 'title_review' },
+    const phaseOptions: { label: string; value: ActivePhaseFilter }[] = [
+        { label: 'Review Judul', value: 'title_review' },
         { label: 'Sempro', value: 'sempro' },
         { label: 'Penelitian', value: 'research' },
         { label: 'Sidang', value: 'sidang' },
-        { label: 'Tanpa Proyek', value: 'none' },
+        { label: 'Belum Ada Proyek', value: 'none' },
     ];
 
     const riskOptions: { label: string; value: RiskFilter }[] = [
@@ -203,7 +202,7 @@ function ActiveStudentTable({
                 (riskFilter === 'semua' ||
                     row.progressRisk.level === riskFilter) &&
                 (angkatanFilter === 'semua' ||
-                    row.angkatan === angkatanFilter) &&
+                    String(row.angkatan ?? '') === angkatanFilter) &&
                 (concentrationFilter === 'semua' ||
                     row.concentration === concentrationFilter)
             );
@@ -246,27 +245,16 @@ function ActiveStudentTable({
                     />
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    <div className="flex flex-wrap gap-1">
-                        {phaseTabs.map((tab) => (
-                            <button
-                                key={tab.value}
-                                type="button"
-                                onClick={() => {
-                                    setPhaseFilter(tab.value);
-                                    resetPage();
-                                }}
-                                className={cn(
-                                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                    phaseFilter === tab.value
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <FilterSelect
+                        value={phaseFilter}
+                        onChange={(value) => {
+                            setPhaseFilter(value as ActivePhaseFilter);
+                            resetPage();
+                        }}
+                        options={phaseOptions}
+                        placeholder="Semua Tahap"
+                    />
                     <FilterSelect
                         value={riskFilter}
                         onChange={(value) => {
@@ -283,7 +271,7 @@ function ActiveStudentTable({
                             resetPage();
                         }}
                         options={filters.angkatan}
-                        placeholder="Angkatan"
+                        placeholder="Semua Angkatan"
                     />
                     <FilterSelect
                         value={concentrationFilter}
@@ -292,8 +280,26 @@ function ActiveStudentTable({
                             resetPage();
                         }}
                         options={filters.concentrations}
-                        placeholder="Konsentrasi"
+                        placeholder="Semua Konsentrasi"
                     />
+                    {riskFilter !== 'semua' ||
+                    angkatanFilter !== 'semua' ||
+                    concentrationFilter !== 'semua' ||
+                    phaseFilter !== 'semua' ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setPhaseFilter('semua');
+                                setRiskFilter('semua');
+                                setAngkatanFilter('semua');
+                                setConcentrationFilter('semua');
+                                resetPage();
+                            }}
+                            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                        >
+                            Reset filter
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -673,9 +679,18 @@ function FilterSelect({
 }: {
     value: string;
     onChange: (value: string) => void;
-    options: string[] | { label: string; value: string }[];
+    options: (string | number | { label: string; value: string | number })[];
     placeholder: string;
 }) {
+    const normalizedOptions = options.map((option) =>
+        typeof option === 'string' || typeof option === 'number'
+            ? { label: String(option), value: String(option) }
+            : {
+                  label: option.label,
+                  value: String(option.value),
+              },
+    );
+
     return (
         <select
             value={value}
@@ -683,12 +698,9 @@ function FilterSelect({
             className="h-7 rounded-full border border-transparent bg-muted px-3 text-xs font-medium text-muted-foreground transition-colors outline-none hover:bg-muted/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
             <option value="semua">{placeholder}</option>
-            {options.map((option) => (
-                <option
-                    key={typeof option === 'string' ? option : option.value}
-                    value={typeof option === 'string' ? option : option.value}
-                >
-                    {typeof option === 'string' ? option : option.label}
+            {normalizedOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                    {option.label}
                 </option>
             ))}
         </select>
