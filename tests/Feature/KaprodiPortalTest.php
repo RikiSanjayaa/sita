@@ -288,6 +288,7 @@ test('dashboard counts active and archived data and detail returns full project 
             ->component('kaprodi/dokumen')
             ->has('documentQueue', 2)
             ->where('documentQueue.0.mahasiswa', 'Mahasiswa Arsip')
+            ->where('documentQueue.0.nim', $student->mahasiswaProfile?->nim)
             ->where('documentQueue.0.status', 'Perlu Revisi')
             ->where('documentQueue.0.reviewCount', 2)
             ->where('documentQueue.0.revisionCount', 1)
