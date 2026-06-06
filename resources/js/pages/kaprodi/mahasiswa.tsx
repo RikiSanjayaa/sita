@@ -605,9 +605,6 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                             >
                                                 {row.state}
                                             </Badge>
-                                            <Badge variant="outline">
-                                                {row.phase}
-                                            </Badge>
                                         </div>
                                     </td>
                                     <td className="hidden px-4 py-3 lg:table-cell">
