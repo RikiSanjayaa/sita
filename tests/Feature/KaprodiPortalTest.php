@@ -4,6 +4,8 @@ use App\Enums\AppRole;
 use App\Models\DosenProfile;
 use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
+use App\Models\MentorshipChatMessage;
+use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
 use App\Models\Role;
@@ -309,6 +311,109 @@ test('dashboard counts active and archived data and detail returns full project 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/mahasiswa/'.$student->id)
         ->assertRedirect('/profil/'.$student->id);
+});
+
+test('kaprodi mahasiswa page exposes progress risk from project and chat activity', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser();
+    $lecturer = User::factory()->asDosen()->create();
+
+    DosenProfile::factory()->create([
+        'user_id' => $lecturer->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $staleStudent = kaprodiStudent($prodi, 'Ayu Risiko');
+    $recentStudent = kaprodiStudent($prodi, 'Bima Terkendali');
+    $documentStudent = kaprodiStudent($prodi, 'Citra Dokumen');
+
+    $staleProject = kaprodiProject($staleStudent, $prodi);
+    $staleProject->forceFill([
+        'started_at' => now()->subDays(90),
+        'updated_at' => now()->subDays(60),
+    ])->save();
+
+    $recentProject = kaprodiProject($recentStudent, $prodi);
+    $recentProject->forceFill([
+        'started_at' => now()->subDays(20),
+        'updated_at' => now()->subDays(30),
+    ])->save();
+
+    $documentProject = kaprodiProject($documentStudent, $prodi);
+    $documentProject->forceFill([
+        'started_at' => now()->subDays(80),
+        'updated_at' => now()->subDays(50),
+    ])->save();
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $recentProject->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => 'primary',
+        'status' => 'active',
+        'assigned_by' => $kaprodi->id,
+        'started_at' => now()->subDays(20),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $documentProject->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => 'primary',
+        'status' => 'active',
+        'assigned_by' => $kaprodi->id,
+        'started_at' => now()->subDays(80),
+    ]);
+
+    $thread = MentorshipChatThread::factory()->create([
+        'student_user_id' => $recentStudent->id,
+        'type' => 'pembimbing',
+    ]);
+
+    MentorshipChatMessage::factory()->create([
+        'mentorship_chat_thread_id' => $thread->id,
+        'sender_user_id' => $recentStudent->id,
+        'message' => 'Update progres terbaru.',
+        'sent_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    MentorshipDocument::query()->create([
+        'student_user_id' => $documentStudent->id,
+        'lecturer_user_id' => $lecturer->id,
+        'title' => 'Draft Bab 3',
+        'category' => 'laporan',
+        'document_group' => $documentStudent->id.':laporan',
+        'version_number' => 1,
+        'file_name' => 'draft-bab-3.pdf',
+        'file_url' => 'https://example.test/draft-bab-3.pdf',
+        'status' => 'needs_revision',
+        'revision_notes' => 'Lengkapi metode penelitian.',
+        'reviewed_at' => now(),
+        'uploaded_by_user_id' => $documentStudent->id,
+        'uploaded_by_role' => 'mahasiswa',
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->get('/kaprodi/mahasiswa')
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('kaprodi/mahasiswa')
+            ->where('students.0.name', 'Ayu Risiko')
+            ->where('students.0.progressRisk.level', 'high')
+            ->where('students.0.progressRisk.label', 'Risiko Telat')
+            ->where('students.1.name', 'Bima Terkendali')
+            ->where('students.1.progressRisk.level', 'low')
+            ->where('students.1.progressRisk.label', 'Terkendali')
+            ->where('students.1.progressRisk.lastActivityLabel', 'Chat terakhir')
+            ->where('students.2.name', 'Citra Dokumen')
+            ->where('students.2.progressRisk.level', 'low')
+            ->where('students.2.progressRisk.lastActivityLabel', 'Dokumen bimbingan'));
 });
 
 test('s2 sasing seeder creates a primary kaprodi account', function (): void {

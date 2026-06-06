@@ -1,5 +1,11 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight, FileArchive, Search, UserRound } from 'lucide-react';
+import {
+    AlertCircle,
+    ChevronRight,
+    FileArchive,
+    Search,
+    UserRound,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,6 +36,15 @@ type StudentRow = {
     projectStateKey: string;
     title: string;
     advisors: string[];
+    progressRisk: {
+        level: 'high' | 'medium' | 'low';
+        label: string;
+        description: string;
+        lastActivityAt: string;
+        lastActivityLabel: string;
+        daysIdle: number | null;
+        signals: string[];
+    };
     profileUrl: string;
 };
 
@@ -63,6 +78,8 @@ type ActivePhaseFilter =
     | 'research'
     | 'sidang'
     | 'none';
+
+type RiskFilter = 'semua' | 'high' | 'medium' | 'low';
 
 type ArchiveFilter = 'semua' | 'Selesai' | 'Dibatalkan';
 
@@ -138,6 +155,7 @@ function ActiveStudentTable({
     const getInitials = useInitials();
     const [search, setSearch] = useState('');
     const [phaseFilter, setPhaseFilter] = useState<ActivePhaseFilter>('semua');
+    const [riskFilter, setRiskFilter] = useState<RiskFilter>('semua');
     const [angkatanFilter, setAngkatanFilter] = useState('semua');
     const [concentrationFilter, setConcentrationFilter] = useState('semua');
     const [page, setPage] = useState(1);
@@ -149,6 +167,12 @@ function ActiveStudentTable({
         { label: 'Penelitian', value: 'research' },
         { label: 'Sidang', value: 'sidang' },
         { label: 'Tanpa Proyek', value: 'none' },
+    ];
+
+    const riskOptions: { label: string; value: RiskFilter }[] = [
+        { label: 'Risiko Telat', value: 'high' },
+        { label: 'Perlu Dipantau', value: 'medium' },
+        { label: 'Terkendali', value: 'low' },
     ];
 
     const filtered = useMemo(() => {
@@ -163,6 +187,10 @@ function ActiveStudentTable({
                     row.phase,
                     row.title,
                     row.concentration ?? '',
+                    row.progressRisk.label,
+                    row.progressRisk.description,
+                    row.progressRisk.lastActivityLabel,
+                    ...row.progressRisk.signals,
                     ...row.advisors,
                 ]
                     .join(' ')
@@ -172,13 +200,22 @@ function ActiveStudentTable({
             return (
                 matchesSearch &&
                 (phaseFilter === 'semua' || row.phaseKey === phaseFilter) &&
+                (riskFilter === 'semua' ||
+                    row.progressRisk.level === riskFilter) &&
                 (angkatanFilter === 'semua' ||
                     row.angkatan === angkatanFilter) &&
                 (concentrationFilter === 'semua' ||
                     row.concentration === concentrationFilter)
             );
         });
-    }, [angkatanFilter, concentrationFilter, phaseFilter, rows, search]);
+    }, [
+        angkatanFilter,
+        concentrationFilter,
+        phaseFilter,
+        riskFilter,
+        rows,
+        search,
+    ]);
 
     const safePage = Math.min(
         page,
@@ -231,6 +268,15 @@ function ActiveStudentTable({
                         ))}
                     </div>
                     <FilterSelect
+                        value={riskFilter}
+                        onChange={(value) => {
+                            setRiskFilter(value as RiskFilter);
+                            resetPage();
+                        }}
+                        options={riskOptions}
+                        placeholder="Semua Risiko"
+                    />
+                    <FilterSelect
                         value={angkatanFilter}
                         onChange={(value) => {
                             setAngkatanFilter(value);
@@ -266,9 +312,12 @@ function ActiveStudentTable({
                                     Tahap
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                    Judul
+                                    Risiko
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
+                                    Judul
+                                </th>
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground 2xl:table-cell">
                                     Pembimbing
                                 </th>
                                 <th className="w-8 px-4 py-2.5" />
@@ -315,14 +364,25 @@ function ActiveStudentTable({
                                         </p>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge>{row.phase}</Badge>
+                                        <div className="flex flex-col items-start gap-1.5">
+                                            <Badge>{row.phase}</Badge>
+                                            <ProgressRiskBadge
+                                                risk={row.progressRisk}
+                                                className="lg:hidden"
+                                            />
+                                        </div>
                                     </td>
-                                    <td className="hidden max-w-[260px] px-4 py-3 lg:table-cell">
+                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                        <ProgressRiskBadge
+                                            risk={row.progressRisk}
+                                        />
+                                    </td>
+                                    <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
                                         <p className="line-clamp-2 text-xs leading-relaxed">
                                             {row.title}
                                         </p>
                                     </td>
-                                    <td className="hidden px-4 py-3 xl:table-cell">
+                                    <td className="hidden px-4 py-3 2xl:table-cell">
                                         <p className="max-w-xs truncate text-xs text-muted-foreground">
                                             {row.advisors.length > 0
                                                 ? row.advisors.join(', ')
@@ -345,8 +405,38 @@ function ActiveStudentTable({
                     />
                 </div>
             ) : (
-                <EmptyBlock icon={UserRound} text={emptyText} />
+                <EmptyBlock icon={AlertCircle} text={emptyText} />
             )}
+        </div>
+    );
+}
+
+function ProgressRiskBadge({
+    risk,
+    className,
+}: {
+    risk: StudentRow['progressRisk'];
+    className?: string;
+}) {
+    return (
+        <div className={cn('flex min-w-[150px] flex-col gap-1', className)}>
+            <Badge
+                variant="outline"
+                className={cn(
+                    'w-fit',
+                    risk.level === 'high' &&
+                        'border-red-200 bg-red-50 text-red-700',
+                    risk.level === 'medium' &&
+                        'border-amber-200 bg-amber-50 text-amber-700',
+                    risk.level === 'low' &&
+                        'border-emerald-200 bg-emerald-50 text-emerald-700',
+                )}
+            >
+                {risk.label}
+            </Badge>
+            <p className="text-xs text-muted-foreground">
+                {risk.lastActivityLabel} - {risk.lastActivityAt}
+            </p>
         </div>
     );
 }
@@ -583,7 +673,7 @@ function FilterSelect({
 }: {
     value: string;
     onChange: (value: string) => void;
-    options: string[];
+    options: string[] | { label: string; value: string }[];
     placeholder: string;
 }) {
     return (
@@ -594,8 +684,11 @@ function FilterSelect({
         >
             <option value="semua">{placeholder}</option>
             {options.map((option) => (
-                <option key={option} value={option}>
-                    {option}
+                <option
+                    key={typeof option === 'string' ? option : option.value}
+                    value={typeof option === 'string' ? option : option.value}
+                >
+                    {typeof option === 'string' ? option : option.label}
                 </option>
             ))}
         </select>
