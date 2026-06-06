@@ -81,6 +81,7 @@ export interface ThesisProfileSection {
     statusLabel: string;
     advisors: UserProfileSummary[];
     examiners: UserProfileSummary[];
+    examinerGroups?: RelatedUserGroup[];
 }
 
 export interface RelatedUserGroup {
