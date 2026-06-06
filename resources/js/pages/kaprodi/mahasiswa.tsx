@@ -54,6 +54,9 @@ type ArchiveRow = {
     id: number;
     student: string;
     nim: string | null;
+    avatar: string | null;
+    angkatan: string | null;
+    concentration: string | null;
     title: string;
     state: string;
     phase: string;
@@ -142,7 +145,7 @@ export default function KaprodiMahasiswaPage() {
                             dari profil mahasiswa.
                         </p>
                     </div>
-                    <ArchiveTable rows={archives} />
+                    <ArchiveTable rows={archives} filters={filters} />
                 </section>
             </div>
         </KaprodiLayout>
@@ -479,9 +482,18 @@ function ProgressRiskBadge({
     );
 }
 
-function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
+function ArchiveTable({
+    rows,
+    filters,
+}: {
+    rows: ArchiveRow[];
+    filters: MahasiswaProps['filters'];
+}) {
+    const getInitials = useInitials();
     const [search, setSearch] = useState('');
     const [stateFilter, setStateFilter] = useState<ArchiveFilter>('semua');
+    const [angkatanFilter, setAngkatanFilter] = useState('semua');
+    const [concentrationFilter, setConcentrationFilter] = useState('semua');
     const [page, setPage] = useState(1);
 
     const filtered = useMemo(() => {
@@ -490,17 +502,29 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
         return rows.filter((row) => {
             const matchesSearch =
                 !query ||
-                [row.student, row.nim ?? '', row.title, row.phase, row.state]
+                [
+                    row.student,
+                    row.nim ?? '',
+                    row.title,
+                    row.phase,
+                    row.state,
+                    row.angkatan ?? '',
+                    row.concentration ?? '',
+                ]
                     .join(' ')
                     .toLowerCase()
                     .includes(query);
 
             return (
                 matchesSearch &&
-                (stateFilter === 'semua' || row.state === stateFilter)
+                (stateFilter === 'semua' || row.state === stateFilter) &&
+                (angkatanFilter === 'semua' ||
+                    String(row.angkatan ?? '') === angkatanFilter) &&
+                (concentrationFilter === 'semua' ||
+                    row.concentration === concentrationFilter)
             );
         });
-    }, [rows, search, stateFilter]);
+    }, [angkatanFilter, concentrationFilter, rows, search, stateFilter]);
 
     const safePage = Math.min(
         page,
@@ -513,7 +537,7 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
 
     return (
         <div className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div className="relative max-w-xs flex-1">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -526,27 +550,53 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                         className="h-8 pl-8 text-sm"
                     />
                 </div>
-                <div className="flex gap-1">
-                    {(
-                        ['semua', 'Selesai', 'Dibatalkan'] as ArchiveFilter[]
-                    ).map((value) => (
+                <div className="flex flex-wrap items-center gap-2">
+                    <FilterSelect
+                        value={stateFilter}
+                        onChange={(value) => {
+                            setStateFilter(value as ArchiveFilter);
+                            setPage(1);
+                        }}
+                        options={[
+                            { label: 'Selesai', value: 'Selesai' },
+                            { label: 'Dibatalkan', value: 'Dibatalkan' },
+                        ]}
+                        placeholder="Semua Status"
+                    />
+                    <FilterSelect
+                        value={angkatanFilter}
+                        onChange={(value) => {
+                            setAngkatanFilter(value);
+                            setPage(1);
+                        }}
+                        options={filters.angkatan}
+                        placeholder="Semua Angkatan"
+                    />
+                    <FilterSelect
+                        value={concentrationFilter}
+                        onChange={(value) => {
+                            setConcentrationFilter(value);
+                            setPage(1);
+                        }}
+                        options={filters.concentrations}
+                        placeholder="Semua Konsentrasi"
+                    />
+                    {stateFilter !== 'semua' ||
+                    angkatanFilter !== 'semua' ||
+                    concentrationFilter !== 'semua' ? (
                         <button
-                            key={value}
                             type="button"
                             onClick={() => {
-                                setStateFilter(value);
+                                setStateFilter('semua');
+                                setAngkatanFilter('semua');
+                                setConcentrationFilter('semua');
                                 setPage(1);
                             }}
-                            className={cn(
-                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                stateFilter === value
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                            )}
+                            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
-                            {value === 'semua' ? 'Semua' : value}
+                            Reset filter
                         </button>
-                    ))}
+                    ) : null}
                 </div>
             </div>
 
@@ -559,13 +609,13 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                     Mahasiswa
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                    Judul
+                                    Angkatan
                                 </th>
                                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                     Status
                                 </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                    Dokumen & Ujian
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
+                                    Judul
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
                                     Tanggal
@@ -580,18 +630,37 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                     className="transition-colors hover:bg-muted/20"
                                 >
                                     <td className="px-4 py-3">
-                                        <Link href={row.profileUrl}>
-                                            <p className="leading-snug font-medium">
-                                                {row.student}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {row.nim ?? '-'}
-                                            </p>
+                                        <Link
+                                            href={row.profileUrl}
+                                            className="flex items-center gap-2.5"
+                                        >
+                                            <Avatar className="size-7 shrink-0 border">
+                                                <AvatarImage
+                                                    src={
+                                                        row.avatar ?? undefined
+                                                    }
+                                                    alt={row.student}
+                                                />
+                                                <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                                                    {getInitials(row.student)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0">
+                                                <p className="truncate leading-snug font-medium">
+                                                    {row.student}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {row.nim ?? '-'}
+                                                </p>
+                                            </div>
                                         </Link>
                                     </td>
-                                    <td className="hidden max-w-[320px] px-4 py-3 md:table-cell">
-                                        <p className="line-clamp-2 text-xs leading-relaxed">
-                                            {row.title}
+                                    <td className="hidden px-4 py-3 md:table-cell">
+                                        <p className="text-xs font-medium">
+                                            {row.angkatan ?? '-'}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                            {row.concentration ?? '-'}
                                         </p>
                                     </td>
                                     <td className="px-4 py-3">
@@ -607,10 +676,9 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                             </Badge>
                                         </div>
                                     </td>
-                                    <td className="hidden px-4 py-3 lg:table-cell">
-                                        <p className="text-xs text-muted-foreground">
-                                            {row.documentCount} dokumen -{' '}
-                                            {row.defenseCount} ujian
+                                    <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
+                                        <p className="line-clamp-2 text-xs leading-relaxed">
+                                            {row.title}
                                         </p>
                                     </td>
                                     <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
