@@ -98,6 +98,14 @@ const statusColor: Record<string, string> = {
     cancelled: 'bg-destructive/10 text-destructive',
 };
 
+function initialSearchFromQuery() {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return new URLSearchParams(window.location.search).get('search') ?? '';
+}
+
 function DecisionBadge({ decision }: { decision: string }) {
     if (decision === '-' || decision === 'Menunggu') {
         return (
@@ -138,7 +146,7 @@ export default function KaprodiSemproSidangPage() {
     const { programStudi, exams, calendarEvents } = usePage<
         SharedData & SemproSidangProps
     >().props;
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(initialSearchFromQuery);
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
     const [selected, setSelected] = useState<ExamRow | null>(null);
@@ -254,7 +262,7 @@ export default function KaprodiSemproSidangPage() {
                                 onChange={(event) =>
                                     setSearch(event.target.value)
                                 }
-                                placeholder="Cari nama, judul, atau dosen..."
+                                placeholder="Cari nama, NIM, judul, atau dosen..."
                                 className="h-8 pl-8 text-sm"
                             />
                         </div>

@@ -1,8 +1,10 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
+    CalendarClock,
     ChevronRight,
     FileArchive,
+    FileText,
     Search,
     UserRound,
 } from 'lucide-react';
@@ -87,6 +89,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
     { title: 'Mahasiswa Prodi', href: '/kaprodi/mahasiswa' },
 ];
+
+function searchUrl(path: string, value: string) {
+    return `${path}?search=${encodeURIComponent(value)}`;
+}
 
 export default function KaprodiMahasiswaPage() {
     const { programStudi, filters, students, archives } = usePage<
@@ -396,9 +402,35 @@ function ActiveStudentTable({
                                         </p>
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        <Link href={row.profileUrl}>
-                                            <ChevronRight className="size-4" />
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/dokumen',
+                                                    row.nim,
+                                                )}
+                                                title="Lihat dokumen mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <FileText className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/sempro-sidang',
+                                                    row.nim,
+                                                )}
+                                                title="Lihat jadwal sempro dan sidang"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <CalendarClock className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={row.profileUrl}
+                                                title="Buka profil mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <ChevronRight className="size-4" />
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -588,9 +620,35 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                         {row.completedAt}
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        <Link href={row.profileUrl}>
-                                            <ChevronRight className="size-4" />
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/dokumen',
+                                                    row.nim ?? '',
+                                                )}
+                                                title="Lihat dokumen mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <FileText className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/sempro-sidang',
+                                                    row.nim ?? '',
+                                                )}
+                                                title="Lihat jadwal sempro dan sidang"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <CalendarClock className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={row.profileUrl}
+                                                title="Buka profil mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <ChevronRight className="size-4" />
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

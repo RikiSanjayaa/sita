@@ -45,6 +45,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type DocumentQueueItem = {
     id: number;
     mahasiswa: string;
+    nim: string;
     title: string;
     file: string;
     uploadedAt: string;
@@ -62,12 +63,20 @@ type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
 
 const PAGE_SIZE = 15;
 
+function initialSearchFromQuery() {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return new URLSearchParams(window.location.search).get('search') ?? '';
+}
+
 export default function DosenDokumenRevisiPage() {
     const { documentQueue, flashMessage } = usePage<
         SharedData & DokumenRevisiProps
     >().props;
 
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(initialSearchFromQuery);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
     const [revisiDocDialog, setRevisiDocDialog] =
         useState<DocumentQueueItem | null>(null);
@@ -115,6 +124,7 @@ export default function DosenDokumenRevisiPage() {
             const matchesSearch =
                 lower === '' ||
                 doc.mahasiswa.toLowerCase().includes(lower) ||
+                doc.nim.toLowerCase().includes(lower) ||
                 doc.file.toLowerCase().includes(lower) ||
                 doc.title.toLowerCase().includes(lower);
             return matchesStatus && matchesSearch;
@@ -202,7 +212,7 @@ export default function DosenDokumenRevisiPage() {
                     <DataTableToolbar
                         search={search}
                         onSearchChange={setSearch}
-                        searchPlaceholder="Cari mahasiswa atau file..."
+                        searchPlaceholder="Cari mahasiswa, NIM, atau file..."
                         filterGroups={filterTabs}
                         className="mb-3"
                     />
@@ -248,9 +258,14 @@ export default function DosenDokumenRevisiPage() {
                                             >
                                                 {/* Mahasiswa */}
                                                 <td className="px-5 py-3.5 align-middle">
-                                                    <span className="text-[14px] font-semibold">
-                                                        {doc.mahasiswa}
-                                                    </span>
+                                                    <div>
+                                                        <p className="text-[14px] font-semibold">
+                                                            {doc.mahasiswa}
+                                                        </p>
+                                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                                            {doc.nim}
+                                                        </p>
+                                                    </div>
                                                 </td>
 
                                                 {/* File / Judul */}

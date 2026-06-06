@@ -24,7 +24,7 @@ class DokumenRevisiController extends Controller
         $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
 
         $documentQueue = MentorshipDocument::query()
-            ->with('student')
+            ->with('student.mahasiswaProfile')
             ->where('lecturer_user_id', $lecturer->id)
             ->whereIn('student_user_id', $studentIds)
             ->latest('created_at')
@@ -34,6 +34,7 @@ class DokumenRevisiController extends Controller
                 return [
                     'id' => $document->id,
                     'mahasiswa' => $document->student?->name ?? '-',
+                    'nim' => $document->student?->mahasiswaProfile?->nim ?? '-',
                     'title' => $document->title,
                     'file' => $document->file_name,
                     'uploadedAt' => $document->created_at->format('d M Y H:i'),

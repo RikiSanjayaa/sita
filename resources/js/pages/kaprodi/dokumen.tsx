@@ -81,10 +81,18 @@ type DokumenProps = {
 
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
 
+function initialSearchFromQuery() {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return new URLSearchParams(window.location.search).get('search') ?? '';
+}
+
 export default function KaprodiDokumenPage() {
     const { programStudi, documentQueue } = usePage<SharedData & DokumenProps>()
         .props;
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(initialSearchFromQuery);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
     const [selectedDocument, setSelectedDocument] =
         useState<DocumentQueueItem | null>(null);
