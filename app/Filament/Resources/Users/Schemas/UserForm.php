@@ -5,9 +5,11 @@ namespace App\Filament\Resources\Users\Schemas;
 use App\Enums\AppRole;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -80,16 +82,16 @@ class UserForm
                             ->preload()
                             ->live()
                             ->afterStateUpdated(fn(Set $set): mixed => $set('concentration', null))
-                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value, AppRole::Admin->value], true))
-                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value, AppRole::Admin->value], true)),
+                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Admin->value], true))
+                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Admin->value], true)),
                         Select::make('concentration')
                             ->label('Konsentrasi')
                             ->options(fn(Get $get): array => self::concentrationOptions($get))
                             ->searchable()
                             ->preload()
                             ->native(false)
-                            ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true))
-                            ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Dosen->value], true))
+                            ->required(fn(Get $get): bool => $get('role') === AppRole::Mahasiswa->value)
+                            ->visible(fn(Get $get): bool => $get('role') === AppRole::Mahasiswa->value)
                             ->disabled(fn(Get $get): bool => blank($get('prodi')))
                             ->helperText('Konsentrasi mengikuti daftar yang diatur pada Program Studi.'),
                     ]),
@@ -113,6 +115,7 @@ class UserForm
                     ]),
                 Section::make('Dosen Profile')
                     ->visible(fn(Get $get): bool => $get('role') === AppRole::Dosen->value)
+                    ->columnSpanFull()
                     ->columns(2)
                     ->schema([
                         TextInput::make('nik')
@@ -129,6 +132,64 @@ class UserForm
                         Toggle::make('is_active')
                             ->default(true)
                             ->required(),
+                        Repeater::make('academic_assignments')
+                            ->label('Penempatan Prodi & Konsentrasi')
+                            ->schema([
+                                Grid::make(12)
+                                    ->schema([
+                                        Select::make('program_studi_id')
+                                            ->label('Program Studi')
+                                            ->options(ProgramStudi::query()->orderBy('name')->pluck('name', 'id'))
+                                            ->searchable()
+                                            ->preload()
+                                            ->live()
+                                            ->afterStateUpdated(fn(Set $set): mixed => $set('concentration', null))
+                                            ->required()
+                                            ->native(false)
+                                            ->columnSpan([
+                                                'default' => 12,
+                                                'lg' => 4,
+                                                'xl' => 5,
+                                            ]),
+                                        Select::make('concentration')
+                                            ->label('Konsentrasi')
+                                            ->options(fn(Get $get): array => self::assignmentConcentrationOptions($get))
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->native(false)
+                                            ->disabled(fn(Get $get): bool => blank($get('program_studi_id')))
+                                            ->columnSpan([
+                                                'default' => 12,
+                                                'lg' => 4,
+                                                'xl' => 5,
+                                            ]),
+                                        Toggle::make('is_primary')
+                                            ->label('Utama')
+                                            ->inline(false)
+                                            ->columnSpan([
+                                                'default' => 12,
+                                                'sm' => 6,
+                                                'lg' => 2,
+                                                'xl' => 1,
+                                            ]),
+                                        Toggle::make('is_active')
+                                            ->label('Aktif')
+                                            ->inline(false)
+                                            ->default(true)
+                                            ->columnSpan([
+                                                'default' => 12,
+                                                'sm' => 6,
+                                                'lg' => 2,
+                                                'xl' => 1,
+                                            ]),
+                                    ]),
+                            ])
+                            ->minItems(1)
+                            ->reorderable(false)
+                            ->addActionLabel('Tambah Penempatan')
+                            ->columnSpanFull()
+                            ->helperText('Dosen dapat ditempatkan di lebih dari satu prodi dan konsentrasi.'),
                     ]),
             ]);
     }
@@ -140,12 +201,34 @@ class UserForm
     {
         $programStudiId = $get('prodi');
 
+        return self::programStudiConcentrationOptions($programStudiId);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function assignmentConcentrationOptions(Get $get): array
+    {
+        return self::programStudiConcentrationOptions($get('program_studi_id'));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function programStudiConcentrationOptions(mixed $programStudiId): array
+    {
         if (blank($programStudiId)) {
             return [];
         }
 
+        $id = is_array($programStudiId) ? null : (int) $programStudiId;
+
+        if ($id === null) {
+            return [];
+        }
+
         return ProgramStudi::query()
-            ->find((int) $programStudiId)
+            ->find($id)
             ?->concentrationOptions() ?? [];
     }
 

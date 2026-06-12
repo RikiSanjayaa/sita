@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AppRole;
+use App\Models\DosenProgramStudiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
@@ -16,6 +17,11 @@ test('excel import service imports users from the xlsx template', function (): v
         'name' => 'Ilmu Komputer',
         'slug' => 'ilkom',
         'concentrations' => ['Jaringan', 'Sistem Cerdas', 'Computer Vision'],
+    ]);
+    $otherProgramStudi = ProgramStudi::query()->create([
+        'name' => 'Teknologi Informasi',
+        'slug' => 'ti',
+        'concentrations' => ['Data'],
     ]);
 
     $response = $this->actingAs($superAdmin)
@@ -46,4 +52,10 @@ test('excel import service imports users from the xlsx template', function (): v
         ->and(User::query()->where('email', 'akbar@sita.test')->exists())->toBeTrue()
         ->and(User::query()->where('email', 'budi@sita.test')->exists())->toBeTrue()
         ->and(User::query()->where('email', 'admin2@sita.test')->exists())->toBeTrue();
+
+    $budi = User::query()->where('email', 'budi@sita.test')->firstOrFail();
+
+    expect(DosenProgramStudiAssignment::query()->where('user_id', $budi->id)->count())->toBe(2)
+        ->and($budi->teachesInProgramStudi($programStudi->id, 'Jaringan'))->toBeTrue()
+        ->and($budi->teachesInProgramStudi($otherProgramStudi->id, 'Data'))->toBeTrue();
 });

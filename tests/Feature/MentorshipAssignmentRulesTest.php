@@ -4,6 +4,7 @@ use App\Enums\AdvisorType;
 use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
 use App\Models\DosenProfile;
+use App\Models\DosenProgramStudiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\ProgramStudi;
@@ -20,13 +21,30 @@ function createRoleUser(string $role): User
     $user = User::factory()->create(['last_active_role' => $role]);
     $roleModel = Role::query()->firstOrCreate(['name' => $role]);
     $user->roles()->sync([$roleModel->id]);
+    $programStudi = ProgramStudi::query()->firstOrCreate(
+        ['slug' => 'test-prodi'],
+        [
+            'name' => 'Test Prodi',
+            'concentrations' => ['Umum', 'Jaringan', 'Computer Vision'],
+        ],
+    );
 
     if ($role === AppRole::Mahasiswa->value) {
-        MahasiswaProfile::factory()->create(['user_id' => $user->id, 'is_active' => true]);
+        MahasiswaProfile::factory()->create([
+            'user_id' => $user->id,
+            'program_studi_id' => $programStudi->id,
+            'concentration' => 'Umum',
+            'is_active' => true,
+        ]);
     }
 
     if ($role === AppRole::Dosen->value) {
-        DosenProfile::factory()->create(['user_id' => $user->id, 'is_active' => true]);
+        DosenProfile::factory()->create([
+            'user_id' => $user->id,
+            'program_studi_id' => $programStudi->id,
+            'concentration' => 'Umum',
+            'is_active' => true,
+        ]);
     }
 
     return $user;
@@ -148,6 +166,35 @@ test('lecturer concentration must match mahasiswa concentration', function () {
     })->toThrow(ValidationException::class);
 });
 
+test('lecturer can advise student through additional academic assignment', function () {
+    $admin = createRoleUser(AppRole::Admin->value);
+    $student = createRoleUser(AppRole::Mahasiswa->value);
+    $lecturer = createRoleUser(AppRole::Dosen->value);
+    $programStudiId = $student->mahasiswaProfile?->program_studi_id;
+
+    $student->mahasiswaProfile()->update([
+        'concentration' => 'Jaringan',
+    ]);
+
+    DosenProgramStudiAssignment::query()->create([
+        'user_id' => $lecturer->id,
+        'program_studi_id' => $programStudiId,
+        'concentration' => 'Jaringan',
+        'is_primary' => false,
+        'is_active' => true,
+    ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $lecturer->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+
+    expect(MentorshipAssignment::query()->where('student_user_id', $student->id)->count())->toBe(1);
+});
+
 test('sync student advisors no longer backfills thesis project supervisor snapshot', function () {
     $admin = createRoleUser(AppRole::Admin->value);
     $student = createRoleUser(AppRole::Mahasiswa->value);
@@ -158,6 +205,16 @@ test('sync student advisors no longer backfills thesis project supervisor snapsh
     $student->mahasiswaProfile()->update([
         'program_studi_id' => $prodi->id,
     ]);
+
+    foreach ([$lecturerOne, $lecturerTwo] as $lecturer) {
+        DosenProgramStudiAssignment::query()->create([
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $prodi->id,
+            'concentration' => $student->mahasiswaProfile?->concentration ?? 'Umum',
+            'is_primary' => false,
+            'is_active' => true,
+        ]);
+    }
 
     ThesisSubmission::query()->create([
         'student_user_id' => $student->id,

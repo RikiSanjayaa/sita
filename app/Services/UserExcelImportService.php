@@ -136,6 +136,15 @@ class UserExcelImportService
             'prodi' => $programStudiId,
         ];
 
+        if ($role === AppRole::Dosen->value) {
+            $data['academic_assignments'] = $this->dosenAcademicAssignments(
+                rawAssignments: $raw['penempatan_dosen'] ?? ($raw['academic_assignments'] ?? ''),
+                fallbackProgramStudiId: $programStudiId,
+                fallbackConcentration: (string) $data['concentration'],
+            );
+            $data['concentration'] = $data['concentration'] ?: ($data['academic_assignments'][0]['concentration'] ?? '');
+        }
+
         $validator = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
@@ -148,6 +157,7 @@ class UserExcelImportService
             'nik' => ['nullable', 'required_if:role,dosen', 'string', 'max:255'],
             'supervision_quota' => ['nullable', 'integer', 'min:1'],
             'prodi' => ['required', 'integer'],
+            'academic_assignments' => ['nullable', 'array'],
         ], [
             'nim.required_if' => 'NIM wajib diisi untuk role mahasiswa.',
             'angkatan.required_if' => 'Angkatan wajib diisi untuk role mahasiswa.',
@@ -164,6 +174,64 @@ class UserExcelImportService
         }
 
         return Arr::map($validated, fn(mixed $value): mixed => $value === '' ? null : $value);
+    }
+
+    /**
+     * @return array<int, array{program_studi_id: int, concentration: string, is_primary: bool, is_active: bool}>
+     */
+    private function dosenAcademicAssignments(string $rawAssignments, int $fallbackProgramStudiId, string $fallbackConcentration): array
+    {
+        if (trim($rawAssignments) === '') {
+            return [
+                [
+                    'program_studi_id' => $fallbackProgramStudiId,
+                    'concentration' => $fallbackConcentration,
+                    'is_primary' => true,
+                    'is_active' => true,
+                ],
+            ];
+        }
+
+        $programStudiByName = ProgramStudi::query()
+            ->get()
+            ->flatMap(fn(ProgramStudi $programStudi): array => [
+                $this->normalizeLookupKey($programStudi->name) => $programStudi,
+                $this->normalizeLookupKey($programStudi->slug) => $programStudi,
+            ]);
+
+        return collect(preg_split('/[|;]/', $rawAssignments) ?: [])
+            ->map(fn(string $entry): string => trim($entry))
+            ->filter()
+            ->values()
+            ->map(function (string $entry, int $index) use ($programStudiByName): array {
+                [$programStudiName, $concentration] = array_pad(array_map('trim', explode(':', $entry, 2)), 2, '');
+                $programStudi = $programStudiByName->get($this->normalizeLookupKey($programStudiName));
+
+                if (! $programStudi instanceof ProgramStudi) {
+                    throw ValidationException::withMessages([
+                        'penempatan_dosen' => ["Program studi '{$programStudiName}' tidak ditemukan."],
+                    ]);
+                }
+
+                if ($concentration === '') {
+                    throw ValidationException::withMessages([
+                        'penempatan_dosen' => ["Konsentrasi wajib ditulis untuk '{$programStudiName}'."],
+                    ]);
+                }
+
+                return [
+                    'program_studi_id' => (int) $programStudi->id,
+                    'concentration' => $concentration,
+                    'is_primary' => $index === 0,
+                    'is_active' => true,
+                ];
+            })
+            ->all();
+    }
+
+    private function normalizeLookupKey(string $value): string
+    {
+        return str($value)->lower()->squish()->toString();
     }
 
     /**

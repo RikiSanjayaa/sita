@@ -56,6 +56,7 @@ class UserResource extends Resource
                 'roles',
                 'mahasiswaProfile.programStudi',
                 'dosenProfile.programStudi',
+                'dosenProgramStudiAssignments.programStudi',
                 'adminProfile.programStudi',
                 'kaprodiAssignment.programStudi',
             ])
@@ -87,7 +88,7 @@ class UserResource extends Resource
         if ($prodiId !== null) {
             $query->where(function (Builder $q) use ($prodiId): void {
                 $q->whereHas('mahasiswaProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
-                    ->orWhereHas('dosenProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
+                    ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
                     ->orWhereHas('adminProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
                     ->orWhereHas('kaprodiAssignment', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId));
             });
@@ -114,7 +115,7 @@ class UserResource extends Resource
             'mahasiswaProfile.nim',
             'dosenProfile.nik',
             'mahasiswaProfile.programStudi.name',
-            'dosenProfile.programStudi.name',
+            'dosenProgramStudiAssignments.programStudi.name',
             'adminProfile.programStudi.name',
             'kaprodiAssignment.programStudi.name',
         ];

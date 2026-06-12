@@ -24,6 +24,7 @@ class UserProfilePresenter
             'roles',
             'adminProfile.programStudi',
             'dosenProfile.programStudi',
+            'activeDosenProgramStudiAssignments.programStudi',
             'kaprodiAssignment.programStudi',
             'mahasiswaProfile.programStudi',
         ]);
@@ -184,6 +185,7 @@ class UserProfilePresenter
         $user->loadMissing([
             'roles',
             'dosenProfile.programStudi',
+            'activeDosenProgramStudiAssignments.programStudi',
         ]);
 
         $activeAssignments = ThesisSupervisorAssignment::query()
@@ -222,8 +224,8 @@ class UserProfilePresenter
             'description' => 'Informasi akademik, kuota bimbingan, dan ringkasan mahasiswa bimbingan aktif.',
             'meta' => [
                 ['label' => 'NIK', 'value' => $user->dosenProfile?->nik ?? '-'],
-                ['label' => 'Program Studi', 'value' => $user->dosenProfile?->programStudi?->name ?? '-'],
-                ['label' => 'Konsentrasi', 'value' => $user->dosenProfile?->concentration ?? '-'],
+                ['label' => 'Program Studi', 'value' => $this->dosenProgramStudiSummary($user) ?? '-'],
+                ['label' => 'Konsentrasi', 'value' => $this->dosenConcentrationSummary($user) ?? '-'],
                 ['label' => 'Kuota Bimbingan', 'value' => (string) $quota],
                 ['label' => 'Status', 'value' => $user->dosenProfile?->is_active ? 'Aktif' : 'Nonaktif'],
                 ['label' => 'Email', 'value' => $user->email],
@@ -299,7 +301,7 @@ class UserProfilePresenter
     {
         return match ($roleKey) {
             AppRole::Mahasiswa->value => $user->mahasiswaProfile?->programStudi?->name,
-            AppRole::Dosen->value => $user->dosenProfile?->programStudi?->name,
+            AppRole::Dosen->value => $this->dosenProgramStudiSummary($user),
             AppRole::Kaprodi->value => $user->kaprodiAssignment?->programStudi?->name,
             AppRole::Admin->value, AppRole::SuperAdmin->value => $user->adminProfile?->programStudi?->name,
             default => null,
@@ -310,9 +312,33 @@ class UserProfilePresenter
     {
         return match ($roleKey) {
             AppRole::Mahasiswa->value => $user->mahasiswaProfile?->concentration,
-            AppRole::Dosen->value => $user->dosenProfile?->concentration,
+            AppRole::Dosen->value => $this->dosenConcentrationSummary($user),
             default => null,
         };
+    }
+
+    private function dosenProgramStudiSummary(User $user): ?string
+    {
+        $summary = $user->activeDosenProgramStudiAssignments
+            ->pluck('programStudi.name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : $user->dosenProfile?->programStudi?->name;
+    }
+
+    private function dosenConcentrationSummary(User $user): ?string
+    {
+        $summary = $user->activeDosenProgramStudiAssignments
+            ->pluck('concentration')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : $user->dosenProfile?->concentration;
     }
 
     private function projectStatusLabel(?ThesisProject $project): string

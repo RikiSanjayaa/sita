@@ -28,6 +28,7 @@ type LecturerRow = {
     avatar: string | null;
     nik: string;
     concentration: string | null;
+    concentrations: string[];
     status: string;
     quota: number;
     primaryCount: number;
@@ -68,6 +69,11 @@ export default function KaprodiDosenProdiPage() {
                 new Set(
                     lecturers
                         .map((lecturer) => lecturer.concentration)
+                        .concat(
+                            lecturers.flatMap(
+                                (lecturer) => lecturer.concentrations ?? [],
+                            ),
+                        )
                         .filter((item): item is string => Boolean(item)),
                 ),
             ).sort(),
@@ -84,6 +90,7 @@ export default function KaprodiDosenProdiPage() {
                     lecturer.name,
                     lecturer.nik,
                     lecturer.concentration ?? '',
+                    ...(lecturer.concentrations ?? []),
                     lecturer.status,
                     ...lecturer.activeStudents,
                 ]
@@ -93,6 +100,7 @@ export default function KaprodiDosenProdiPage() {
 
             const matchesFilter =
                 concentrationFilter === 'semua' ||
+                (lecturer.concentrations ?? []).includes(concentrationFilter) ||
                 lecturer.concentration === concentrationFilter;
 
             return matchesSearch && matchesFilter;
@@ -230,13 +238,33 @@ export default function KaprodiDosenProdiPage() {
                                                     </Link>
                                                 </td>
                                                 <td className="hidden px-4 py-3 md:table-cell">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="rounded-full"
-                                                    >
-                                                        {lecturer.concentration ??
-                                                            '-'}
-                                                    </Badge>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {(lecturer
+                                                            .concentrations
+                                                            ?.length ?? 0) >
+                                                        0 ? (
+                                                            lecturer.concentrations.map(
+                                                                (item) => (
+                                                                    <Badge
+                                                                        key={
+                                                                            item
+                                                                        }
+                                                                        variant="outline"
+                                                                        className="rounded-full"
+                                                                    >
+                                                                        {item}
+                                                                    </Badge>
+                                                                ),
+                                                            )
+                                                        ) : (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="rounded-full"
+                                                            >
+                                                                -
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex flex-wrap gap-1.5">

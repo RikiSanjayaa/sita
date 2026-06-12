@@ -373,15 +373,15 @@ class ViewThesisProject extends ViewRecord
     {
         return User::query()
             ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('dosenProfile', function ($query) use ($project): void {
+            ->whereHas('activeDosenProgramStudiAssignments', function ($query) use ($project): void {
                 $query->where('program_studi_id', $project->program_studi_id)
                     ->where('is_active', true);
             })
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
-                $user->id => sprintf('%s (%s) - %s', $user->name, $user->dosenProfile?->nik ?? '-', $user->dosenProfile?->concentration ?? '-'),
+                $user->id => sprintf('%s (%s) - %s', $user->name, $user->dosenProfile?->nik ?? '-', $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id)),
             ])
             ->all();
     }
@@ -393,11 +393,11 @@ class ViewThesisProject extends ViewRecord
     {
         return User::query()
             ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('dosenProfile', function ($query) use ($project): void {
+            ->whereHas('activeDosenProgramStudiAssignments', function ($query) use ($project): void {
                 $query->where('program_studi_id', $project->program_studi_id)
                     ->where('is_active', true);
             })
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
@@ -405,12 +405,23 @@ class ViewThesisProject extends ViewRecord
                     '%s (%s) - %s - %d/%d aktif',
                     $user->name,
                     $user->dosenProfile?->nik ?? '-',
-                    $user->dosenProfile?->concentration ?? '-',
+                    $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id),
                     $this->activeThesisStudentCountForLecturer($user->id),
                     max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14)),
                 ),
             ])
             ->all();
+    }
+
+    private function lecturerConcentrationSummary(User $user, int $programStudiId): string
+    {
+        return $user->activeDosenProgramStudiAssignments
+            ->where('program_studi_id', $programStudiId)
+            ->pluck('concentration')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ') ?: '-';
     }
 
     /**

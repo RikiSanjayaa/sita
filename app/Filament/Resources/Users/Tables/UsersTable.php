@@ -58,23 +58,23 @@ class UsersTable
                     ->toggleable(),
                 TextColumn::make('prodi')
                     ->label('Prodi')
-                    ->state(fn(?User $record): string => $record?->mahasiswaProfile?->programStudi?->name ?? $record?->dosenProfile?->programStudi?->name ?? $record?->adminProfile?->programStudi?->name ?? $record?->kaprodiAssignment?->programStudi?->name ?? '-')
+                    ->state(fn(?User $record): string => self::programStudiState($record))
                     ->badge()
                     ->icon(BadgeStyles::programStudiIcon())
                     ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('mahasiswaProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
-                            ->orWhereHas('dosenProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('dosenProgramStudiAssignments.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
                             ->orWhereHas('adminProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
                             ->orWhereHas('kaprodiAssignment.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"));
                     })
                     ->toggleable(),
                 TextColumn::make('concentration')
                     ->label('Konsentrasi')
-                    ->state(fn(?User $record): string => $record?->mahasiswaProfile?->concentration ?? $record?->dosenProfile?->concentration ?? '-')
+                    ->state(fn(?User $record): string => self::concentrationState($record))
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', 'like', "%{$search}%"))
-                            ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', 'like', "%{$search}%"));
+                            ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('concentration', 'like', "%{$search}%"));
                     })
                     ->visible(fn(HasTable $livewire): bool => in_array($livewire->activeTab ?? null, ['mahasiswa', 'dosen'], true))
                     ->toggleable(),
@@ -157,7 +157,7 @@ class UsersTable
 
                         return $query->where(function (Builder $subQuery) use ($value): void {
                             $subQuery->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('program_studi_id', $value))
-                                ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('program_studi_id', $value))
+                                ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('program_studi_id', $value))
                                 ->orWhereHas('adminProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('program_studi_id', $value))
                                 ->orWhereHas('kaprodiAssignment', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('program_studi_id', $value));
                         });
@@ -177,7 +177,7 @@ class UsersTable
 
                         return $query->where(function (Builder $subQuery) use ($value): void {
                             $subQuery->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', $value))
-                                ->orWhereHas('dosenProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', $value));
+                                ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('concentration', $value));
                         });
                     }),
                 Filter::make('active_profiles')
@@ -214,6 +214,52 @@ class UsersTable
         $activeTab = $livewire->activeTab ?? null;
 
         return $activeTab === $tab;
+    }
+
+    private static function programStudiState(?User $record): string
+    {
+        if ($record === null) {
+            return '-';
+        }
+
+        if ($record->mahasiswaProfile?->programStudi?->name !== null) {
+            return $record->mahasiswaProfile->programStudi->name;
+        }
+
+        if ($record->dosenProgramStudiAssignments->isNotEmpty()) {
+            return $record->dosenProgramStudiAssignments
+                ->pluck('programStudi.name')
+                ->filter()
+                ->unique()
+                ->values()
+                ->implode(', ');
+        }
+
+        return $record->adminProfile?->programStudi?->name
+            ?? $record->kaprodiAssignment?->programStudi?->name
+            ?? '-';
+    }
+
+    private static function concentrationState(?User $record): string
+    {
+        if ($record === null) {
+            return '-';
+        }
+
+        if ($record->mahasiswaProfile?->concentration !== null) {
+            return $record->mahasiswaProfile->concentration;
+        }
+
+        if ($record->dosenProgramStudiAssignments->isNotEmpty()) {
+            return $record->dosenProgramStudiAssignments
+                ->pluck('concentration')
+                ->filter()
+                ->unique()
+                ->values()
+                ->implode(', ');
+        }
+
+        return '-';
     }
 
     /**
