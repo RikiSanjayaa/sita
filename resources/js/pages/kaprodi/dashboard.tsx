@@ -126,8 +126,7 @@ export default function KaprodiDashboardPage() {
         },
         {
             title: 'Dokumen',
-            description:
-                'Pantau upload mahasiswa dan status review dosen secara read-only.',
+            description: 'Pantau upload mahasiswa dan status review dosen.',
             href: '/kaprodi/dokumen',
             icon: FileStack,
             primary: false,
@@ -140,21 +139,13 @@ export default function KaprodiDashboardPage() {
             icon: GraduationCap,
             primary: false,
         },
-        {
-            title: 'Arsip Mahasiswa',
-            description:
-                'Buka proyek selesai/dibatalkan beserta dokumen akhirnya.',
-            href: '/kaprodi/mahasiswa',
-            icon: FileArchive,
-            primary: false,
-        },
     ];
 
     return (
         <KaprodiLayout
             breadcrumbs={breadcrumbs}
             title="Dashboard Kaprodi"
-            subtitle={`Monitoring read-only untuk ${programStudi.name}`}
+            subtitle={`Monitoring program studi ${programStudi.name}`}
         >
             <Head title="Dashboard Kaprodi" />
 
@@ -172,7 +163,6 @@ export default function KaprodiDashboardPage() {
                                     <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
                                         {programStudi.name}
                                     </Badge>
-                                    <Badge variant="outline">Read-only</Badge>
                                 </div>
 
                                 <div>

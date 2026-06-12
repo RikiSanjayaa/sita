@@ -39,6 +39,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -191,10 +192,16 @@ export default function DosenJadwalBimbinganPage() {
         auth,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
 
-    const [workspaceFilter, setWorkspaceFilter] =
-        useState<WorkspaceFilter>('bimbingan');
-    const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('semua');
-    const [historySearch, setHistorySearch] = useState('');
+    const [workspaceFilter, setWorkspaceFilter] = useUrlState<WorkspaceFilter>(
+        'calendar',
+        'bimbingan',
+    );
+    const [historyFilter, setHistoryFilter] = useUrlState<HistoryFilter>(
+        'historyStatus',
+        'semua',
+    );
+    const [historySearch, setHistorySearch] = useUrlState('historySearch', '');
+    const historyPageState = useUrlState('historyPage', 1);
     const HISTORY_PAGE_SIZE = 15;
 
     // Sheet state for upcoming schedule actions
@@ -490,6 +497,7 @@ export default function DosenJadwalBimbinganPage() {
         filteredHistorySchedules,
         HISTORY_PAGE_SIZE,
         [historyFilter, historySearch],
+        historyPageState,
     );
 
     function handleEventClick(event: BimbinganEvent) {

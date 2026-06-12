@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTablePagination, usePagination } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
+import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -54,8 +55,12 @@ export default function KaprodiDosenProdiPage() {
     const { programStudi, lecturers } = usePage<SharedData & DosenProdiProps>()
         .props;
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [concentrationFilter, setConcentrationFilter] = useState('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [concentrationFilter, setConcentrationFilter] = useUrlState(
+        'concentration',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
 
     const concentrations = useMemo(
         () =>
@@ -98,6 +103,7 @@ export default function KaprodiDosenProdiPage() {
         filtered,
         PAGE_SIZE,
         [search, concentrationFilter],
+        pageState,
     );
 
     return (

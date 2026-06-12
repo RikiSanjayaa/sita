@@ -30,6 +30,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import {
     type AcademicGrade,
@@ -98,14 +99,6 @@ const statusColor: Record<string, string> = {
     cancelled: 'bg-destructive/10 text-destructive',
 };
 
-function initialSearchFromQuery() {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    return new URLSearchParams(window.location.search).get('search') ?? '';
-}
-
 function DecisionBadge({ decision }: { decision: string }) {
     if (decision === '-' || decision === 'Menunggu') {
         return (
@@ -146,9 +139,16 @@ export default function KaprodiSemproSidangPage() {
     const { programStudi, exams, calendarEvents } = usePage<
         SharedData & SemproSidangProps
     >().props;
-    const [search, setSearch] = useState(initialSearchFromQuery);
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [typeFilter, setTypeFilter] = useUrlState<TypeFilter>(
+        'type',
+        'semua',
+    );
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
@@ -186,6 +186,7 @@ export default function KaprodiSemproSidangPage() {
         filtered,
         PAGE_SIZE,
         [search, typeFilter, statusFilter],
+        pageState,
     );
 
     const typeTabs: { label: string; value: TypeFilter }[] = [

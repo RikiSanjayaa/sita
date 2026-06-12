@@ -247,12 +247,22 @@ export function usePagination<T>(
     data: T[],
     pageSize: number,
     resetDeps: React.DependencyList = [],
+    pageState?: [number, (page: number) => void],
 ) {
-    const [page, setPage] = React.useState(1);
+    const internalPageState = React.useState(1);
+    const [page, setPage] = pageState ?? internalPageState;
+    const didMount = React.useRef(false);
 
     // Reset to page 1 when any dep changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    React.useEffect(() => setPage(1), resetDeps);
+    React.useEffect(() => {
+        if (!didMount.current) {
+            didMount.current = true;
+            return;
+        }
+
+        setPage(1);
+    }, resetDeps);
 
     const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
     const safePage = Math.min(page, totalPages);

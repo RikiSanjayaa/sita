@@ -36,6 +36,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import {
     academicGradeClassName,
@@ -128,14 +129,6 @@ const resultLabel: Record<string, string> = {
     pass_with_revision: 'Lulus Revisi',
     fail: 'Tidak Lulus',
 };
-
-function initialSearchFromQuery() {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    return new URLSearchParams(window.location.search).get('search') ?? '';
-}
 
 function resolveDefenseRoleLabel(role: string) {
     if (role === 'primary_supervisor') return 'Pembimbing 1';
@@ -643,14 +636,22 @@ export default function DosenSeminarProposalPage() {
         SharedData & PageProps
     >().props;
 
-    const [search, setSearch] = useState(initialSearchFromQuery);
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
-    const [workspaceFilter, setWorkspaceFilter] =
-        useState<WorkspaceFilter>('ujian');
+    const [search, setSearch] = useUrlState('search', '');
+    const [typeFilter, setTypeFilter] = useUrlState<TypeFilter>(
+        'type',
+        'semua',
+    );
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const [workspaceFilter, setWorkspaceFilter] = useUrlState<WorkspaceFilter>(
+        'calendar',
+        'ujian',
+    );
     const [selectedItem, setSelectedItem] = useState<DefenseItem | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useUrlState('page', 1);
     const PAGE_SIZE = 15;
 
     const [selectedEvent, setSelectedEvent] = useState<{
@@ -716,7 +717,7 @@ export default function DosenSeminarProposalPage() {
         1,
         Math.ceil(filteredDefenses.length / PAGE_SIZE),
     );
-    const safePage = Math.min(page, totalPages);
+    const safePage = Math.max(1, Math.min(page, totalPages));
     const paginatedDefenses = filteredDefenses.slice(
         (safePage - 1) * PAGE_SIZE,
         safePage * PAGE_SIZE,
