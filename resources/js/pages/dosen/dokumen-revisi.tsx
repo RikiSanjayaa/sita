@@ -33,6 +33,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -63,21 +64,17 @@ type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
 
 const PAGE_SIZE = 15;
 
-function initialSearchFromQuery() {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    return new URLSearchParams(window.location.search).get('search') ?? '';
-}
-
 export default function DosenDokumenRevisiPage() {
     const { documentQueue, flashMessage } = usePage<
         SharedData & DokumenRevisiProps
     >().props;
 
-    const [search, setSearch] = useState(initialSearchFromQuery);
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
     const [revisiDocDialog, setRevisiDocDialog] =
         useState<DocumentQueueItem | null>(null);
 
@@ -135,6 +132,7 @@ export default function DosenDokumenRevisiPage() {
         filteredDocuments,
         PAGE_SIZE,
         [search, statusFilter],
+        pageState,
     );
 
     const statusCounts = useMemo(

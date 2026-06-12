@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -82,14 +83,19 @@ function StudentTable({
     rows,
     emptyText,
     showActions = true,
+    queryPrefix,
 }: {
     rows: MahasiswaRow[];
     emptyText: string;
     showActions?: boolean;
+    queryPrefix: string;
 }) {
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [roleFilter, setRoleFilter] = useState<RoleFilter>('semua');
+    const [search, setSearch] = useUrlState(`${queryPrefix}Search`, '');
+    const [roleFilter, setRoleFilter] = useUrlState<RoleFilter>(
+        `${queryPrefix}Role`,
+        'semua',
+    );
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -386,6 +392,7 @@ export default function DosenMahasiswaBimbinganPage() {
                         rows={mahasiswaRows}
                         emptyText="Belum ada mahasiswa aktif"
                         showActions
+                        queryPrefix="active"
                     />
                 </section>
 
@@ -402,6 +409,7 @@ export default function DosenMahasiswaBimbinganPage() {
                         rows={historyRows}
                         emptyText="Belum ada riwayat mahasiswa"
                         showActions={false}
+                        queryPrefix="history"
                     />
                 </section>
             </div>

@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
+import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -162,12 +163,24 @@ function ActiveStudentTable({
     emptyText: string;
 }) {
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [phaseFilter, setPhaseFilter] = useState<ActivePhaseFilter>('semua');
-    const [riskFilter, setRiskFilter] = useState<RiskFilter>('semua');
-    const [angkatanFilter, setAngkatanFilter] = useState('semua');
-    const [concentrationFilter, setConcentrationFilter] = useState('semua');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useUrlState('activeSearch', '');
+    const [phaseFilter, setPhaseFilter] = useUrlState<ActivePhaseFilter>(
+        'activePhase',
+        'semua',
+    );
+    const [riskFilter, setRiskFilter] = useUrlState<RiskFilter>(
+        'activeRisk',
+        'semua',
+    );
+    const [angkatanFilter, setAngkatanFilter] = useUrlState(
+        'activeAngkatan',
+        'semua',
+    );
+    const [concentrationFilter, setConcentrationFilter] = useUrlState(
+        'activeKonsentrasi',
+        'semua',
+    );
+    const [page, setPage] = useUrlState('activePage', 1);
 
     const phaseOptions: { label: string; value: ActivePhaseFilter }[] = [
         { label: 'Review Judul', value: 'title_review' },
@@ -225,9 +238,9 @@ function ActiveStudentTable({
         search,
     ]);
 
-    const safePage = Math.min(
-        page,
-        Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    const safePage = Math.max(
+        1,
+        Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))),
     );
     const paginated = filtered.slice(
         (safePage - 1) * PAGE_SIZE,
@@ -490,11 +503,20 @@ function ArchiveTable({
     filters: MahasiswaProps['filters'];
 }) {
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [stateFilter, setStateFilter] = useState<ArchiveFilter>('semua');
-    const [angkatanFilter, setAngkatanFilter] = useState('semua');
-    const [concentrationFilter, setConcentrationFilter] = useState('semua');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useUrlState('archiveSearch', '');
+    const [stateFilter, setStateFilter] = useUrlState<ArchiveFilter>(
+        'archiveStatus',
+        'semua',
+    );
+    const [angkatanFilter, setAngkatanFilter] = useUrlState(
+        'archiveAngkatan',
+        'semua',
+    );
+    const [concentrationFilter, setConcentrationFilter] = useUrlState(
+        'archiveKonsentrasi',
+        'semua',
+    );
+    const [page, setPage] = useUrlState('archivePage', 1);
 
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -526,9 +548,9 @@ function ArchiveTable({
         });
     }, [angkatanFilter, concentrationFilter, rows, search, stateFilter]);
 
-    const safePage = Math.min(
-        page,
-        Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    const safePage = Math.max(
+        1,
+        Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))),
     );
     const paginated = filtered.slice(
         (safePage - 1) * PAGE_SIZE,
