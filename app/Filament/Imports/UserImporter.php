@@ -12,6 +12,7 @@ use Filament\Actions\Imports\Models\Import;
 use Filament\Forms\Components\Select;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Number;
+use Illuminate\Validation\ValidationException;
 
 class UserImporter extends Importer
 {
@@ -100,7 +101,13 @@ class UserImporter extends Importer
                 ->examples(['Jaringan'])
                 ->guess(['concentration', 'konsentrasi'])
                 ->fillRecordUsing(fn(): null => null)
-                ->rules(['nullable', 'required_if:role,mahasiswa', 'required_if:role,dosen', 'string', 'max:255']),
+                ->rules(['nullable', 'required_if:role,mahasiswa', 'string', 'max:255']),
+            ImportColumn::make('academic_assignments')
+                ->exampleHeader('penempatan_dosen')
+                ->examples(['Ilmu Komputer:Jaringan|Teknologi Informasi:Data'])
+                ->guess(['academic_assignments', 'penempatan_dosen', 'penempatan'])
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'string', 'max:1000']),
 
             ImportColumn::make('nik')
                 ->exampleHeader('nik')
@@ -153,6 +160,14 @@ class UserImporter extends Importer
         $data = $this->data;
         $data['prodi'] = $this->options['program_studi_id'] ?? null;
 
+        if (($data['role'] ?? null) === AppRole::Dosen->value) {
+            $data['academic_assignments'] = $this->dosenAcademicAssignments(
+                rawAssignments: (string) ($data['academic_assignments'] ?? ''),
+                fallbackProgramStudiId: (int) ($this->options['program_studi_id'] ?? 0),
+                fallbackConcentration: (string) ($data['concentration'] ?? ''),
+            );
+        }
+
         app(UserProvisioningService::class)->syncRoleAndProfiles(
             $user,
             $data,
@@ -184,5 +199,63 @@ class UserImporter extends Importer
         $user = Auth::user();
 
         return $user?->adminProgramStudiId();
+    }
+
+    /**
+     * @return array<int, array{program_studi_id: int, concentration: string, is_primary: bool, is_active: bool}>
+     */
+    private function dosenAcademicAssignments(string $rawAssignments, int $fallbackProgramStudiId, string $fallbackConcentration): array
+    {
+        if (trim($rawAssignments) === '') {
+            return [
+                [
+                    'program_studi_id' => $fallbackProgramStudiId,
+                    'concentration' => $fallbackConcentration,
+                    'is_primary' => true,
+                    'is_active' => true,
+                ],
+            ];
+        }
+
+        $programStudiByName = ProgramStudi::query()
+            ->get()
+            ->flatMap(fn(ProgramStudi $programStudi): array => [
+                $this->normalizeLookupKey($programStudi->name) => $programStudi,
+                $this->normalizeLookupKey($programStudi->slug) => $programStudi,
+            ]);
+
+        return collect(preg_split('/[|;]/', $rawAssignments) ?: [])
+            ->map(fn(string $entry): string => trim($entry))
+            ->filter()
+            ->values()
+            ->map(function (string $entry, int $index) use ($programStudiByName): array {
+                [$programStudiName, $concentration] = array_pad(array_map('trim', explode(':', $entry, 2)), 2, '');
+                $programStudi = $programStudiByName->get($this->normalizeLookupKey($programStudiName));
+
+                if (! $programStudi instanceof ProgramStudi) {
+                    throw ValidationException::withMessages([
+                        'academic_assignments' => ["Program studi '{$programStudiName}' tidak ditemukan."],
+                    ]);
+                }
+
+                if ($concentration === '') {
+                    throw ValidationException::withMessages([
+                        'academic_assignments' => ["Konsentrasi wajib ditulis untuk '{$programStudiName}'."],
+                    ]);
+                }
+
+                return [
+                    'program_studi_id' => (int) $programStudi->id,
+                    'concentration' => $concentration,
+                    'is_primary' => $index === 0,
+                    'is_active' => true,
+                ];
+            })
+            ->all();
+    }
+
+    private function normalizeLookupKey(string $value): string
+    {
+        return str($value)->lower()->squish()->toString();
     }
 }

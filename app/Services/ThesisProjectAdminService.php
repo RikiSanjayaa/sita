@@ -964,7 +964,7 @@ class ThesisProjectAdminService
     private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label): void
     {
         $lecturer = User::query()
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->find($lecturerUserId);
 
         if (! $lecturer instanceof User || ! $lecturer->hasRole('dosen')) {
@@ -977,7 +977,7 @@ class ThesisProjectAdminService
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
         }
 
-        if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
+        if (! $lecturer->teachesInProgramStudi((int) $project->program_studi_id)) {
             throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
         }
 
@@ -996,7 +996,7 @@ class ThesisProjectAdminService
     private function assertDefenseExaminerEligible(ThesisProject $project, int $lecturerUserId, string $label): void
     {
         $lecturer = User::query()
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->find($lecturerUserId);
 
         if (! $lecturer instanceof User || ! $lecturer->hasRole('dosen')) {
@@ -1009,7 +1009,7 @@ class ThesisProjectAdminService
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
         }
 
-        if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
+        if (! $lecturer->teachesInProgramStudi((int) $project->program_studi_id)) {
             throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
         }
     }

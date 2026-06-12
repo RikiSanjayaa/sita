@@ -8,6 +8,7 @@ use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\MentorshipSchedule;
 use App\Models\ThesisDefenseExaminer;
+use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\UserProfilePresenter;
@@ -28,6 +29,7 @@ class DashboardController extends Controller
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
+        $lecturer->loadMissing('activeDosenProgramStudiAssignments.programStudi');
 
         $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
         $threadIds = MentorshipChatThread::query()
@@ -113,8 +115,8 @@ class DashboardController extends Controller
         return Inertia::render('dosen/dashboard', [
             'summary' => [
                 'lecturerName' => $lecturer->name,
-                'programStudi' => $lecturer->dosenProfile?->programStudi?->name,
-                'concentration' => $lecturer->dosenProfile?->concentration,
+                'programStudi' => $this->programStudiSummary($lecturer),
+                'concentration' => $this->concentrationSummary($lecturer),
                 'quotaLabel' => sprintf('%d/%d mahasiswa', $activeStudentCount, $capacityLimit),
                 'status' => [
                     'label' => match ($summaryKey) {
@@ -143,5 +145,29 @@ class DashboardController extends Controller
                 ->values()
                 ->all(),
         ]);
+    }
+
+    private function programStudiSummary(User $lecturer): ?string
+    {
+        $summary = $lecturer->activeDosenProgramStudiAssignments
+            ->pluck('programStudi.name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : $lecturer->dosenProfile?->programStudi?->name;
+    }
+
+    private function concentrationSummary(User $lecturer): ?string
+    {
+        $summary = $lecturer->activeDosenProgramStudiAssignments
+            ->pluck('concentration')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : $lecturer->dosenProfile?->concentration;
     }
 }

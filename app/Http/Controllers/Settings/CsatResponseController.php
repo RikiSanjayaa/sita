@@ -68,14 +68,18 @@ class CsatResponseController extends Controller
         $user = $request->user();
         abort_if($user === null, 401);
 
-        $user->loadMissing(['mahasiswaProfile.programStudi', 'dosenProfile.programStudi']);
+        $user->loadMissing([
+            'mahasiswaProfile.programStudi',
+            'dosenProfile.programStudi',
+            'primaryDosenProgramStudiAssignment.programStudi',
+        ]);
 
         $activeRole = $user->resolveActiveRole($request->session()->get('active_role'));
         abort_unless(in_array($activeRole, [AppRole::Mahasiswa->value, AppRole::Dosen->value], true), 403);
 
         $programStudi = match ($activeRole) {
             AppRole::Mahasiswa->value => $user->mahasiswaProfile?->programStudi,
-            AppRole::Dosen->value => $user->dosenProfile?->programStudi,
+            AppRole::Dosen->value => $user->primaryDosenProgramStudiAssignment?->programStudi ?? $user->dosenProfile?->programStudi,
             default => null,
         };
 

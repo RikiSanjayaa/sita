@@ -13,17 +13,17 @@ class UserImportTemplateDownloadController extends Controller
         abort_unless($format === 'xlsx', 404);
 
         $templateRows = [
-            ['nama', 'email', 'no_hp', 'role', 'password', 'nim', 'angkatan', 'konsentrasi', 'nik', 'kuota_bimbingan'],
-            ['Muhammad Akbar', 'akbar@sita.test', '081234567890', 'mahasiswa', 'Rahasia123!', '2210510001', '2022', 'Jaringan', '', ''],
-            ['Dr. Budi Santoso', 'budi@sita.test', '081298765432', 'dosen', 'Rahasia123!', '', '', 'Sistem Cerdas', '7301010101010001', '12'],
-            ['Admin SITA', 'admin2@sita.test', '', 'admin', 'Rahasia123!', '', '', '', '', ''],
+            ['nama', 'email', 'no_hp', 'role', 'password', 'nim', 'angkatan', 'konsentrasi', 'penempatan_dosen', 'nik', 'kuota_bimbingan'],
+            ['Muhammad Akbar', 'akbar@sita.test', '081234567890', 'mahasiswa', 'Rahasia123!', '2210510001', '2022', 'Jaringan', '', '', ''],
+            ['Dr. Budi Santoso', 'budi@sita.test', '081298765432', 'dosen', 'Rahasia123!', '', '', '', 'Ilmu Komputer:Jaringan|Teknologi Informasi:Data', '7301010101010001', '12'],
+            ['Admin SITA', 'admin2@sita.test', '', 'admin', 'Rahasia123!', '', '', '', '', '', ''],
         ];
 
         $guideRows = [
             ['Panduan Import User', '', ''],
             ['Peran', 'Field wajib', 'Catatan'],
             ['Mahasiswa', 'nama, email, password, nim, angkatan, konsentrasi', 'NIK dan kuota bimbingan dikosongkan. Program Studi dipilih dari dropdown import.'],
-            ['Dosen', 'nama, email, password, nik, konsentrasi', 'NIM dan angkatan dikosongkan. Kuota bimbingan boleh diisi jika diperlukan.'],
+            ['Dosen', 'nama, email, password, nik, konsentrasi atau penempatan_dosen', 'Isi penempatan_dosen untuk multi prodi dengan format Prodi:Konsentrasi|Prodi 2:Konsentrasi 2. Jika kosong, konsentrasi memakai Program Studi dari dropdown import.'],
             ['Admin', 'nama, email, password', 'Kolom NIM, angkatan, konsentrasi, NIK, dan kuota bimbingan dikosongkan.'],
             ['Nilai role', 'mahasiswa, dosen, admin', 'Gunakan salah satu nilai role ini agar data masuk ke profil yang sesuai.'],
         ];

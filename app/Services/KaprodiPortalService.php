@@ -1021,11 +1021,21 @@ class KaprodiPortalService
     private function lecturerRows(ProgramStudi $programStudi): Collection
     {
         return User::query()
-            ->whereHas('dosenProfile', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with('dosenProfile')
+            ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->orderBy('name')
             ->get()
             ->map(function (User $lecturer) use ($programStudi): array {
+                $assignments = $lecturer->activeDosenProgramStudiAssignments
+                    ->where('program_studi_id', $programStudi->id)
+                    ->sortBy('concentration')
+                    ->values();
+                $concentrations = $assignments
+                    ->pluck('concentration')
+                    ->filter()
+                    ->unique()
+                    ->values();
+
                 $supervisorAssignments = ThesisSupervisorAssignment::query()
                     ->where('lecturer_user_id', $lecturer->id)
                     ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
@@ -1050,7 +1060,8 @@ class KaprodiPortalService
                     'name' => $lecturer->name,
                     'avatar' => $lecturer->avatar,
                     'nik' => $lecturer->dosenProfile?->nik ?? '-',
-                    'concentration' => $lecturer->dosenProfile?->concentration,
+                    'concentration' => $concentrations->first(),
+                    'concentrations' => $concentrations->all(),
                     'status' => ($lecturer->dosenProfile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
                     'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 0),
                     'primaryCount' => $supervisorAssignments->where('role', 'primary')->count(),
