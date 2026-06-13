@@ -98,6 +98,7 @@ type DefenseSelection = {
 
 type TugasAkhirPageProps = {
     submission: Submission | null;
+    canCreateSubmission: boolean;
     workspaceDocuments: WorkspaceDocument[];
     semproSelection: DefenseSelection | null;
     sidangSelection: DefenseSelection | null;
@@ -1443,6 +1444,7 @@ function DefenseHistorySection({
 export default function TugasAkhirSaya() {
     const {
         submission,
+        canCreateSubmission,
         workspaceDocuments,
         semproSelection,
         sidangSelection,
@@ -1535,16 +1537,17 @@ export default function TugasAkhirSaya() {
                     </Alert>
                 )}
 
-                {/* ── No submission yet ── */}
-                {submission === null && (
+                {/* ── Create submission ── */}
+                {canCreateSubmission && (
                     <section>
                         <div className="mb-3">
                             <h2 className="text-base font-semibold">
                                 Ajukan Judul & Proposal
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Isi formulir di bawah ini untuk memulai
-                                pengajuan skripsi Anda.
+                                {submission === null
+                                    ? 'Isi formulir di bawah ini untuk memulai pengajuan skripsi Anda.'
+                                    : 'Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan proposal baru dari formulir ini.'}
                             </p>
                         </div>
                         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">

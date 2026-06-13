@@ -75,6 +75,7 @@ class TugasAkhirController extends Controller
                     ])
                     : null,
             ],
+            'canCreateSubmission' => ! ($project instanceof ThesisProject) || $project->state !== 'active',
             'workspaceDocuments' => $this->workspaceDocumentsForStudent($student->id),
             'semproSelection' => $this->mapActiveDefenseSelection($latestSempro, 'sempro'),
             'sidangSelection' => $this->mapActiveDefenseSelection($latestSidang, 'sidang'),
