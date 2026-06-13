@@ -7,6 +7,7 @@ export interface Auth {
     user: User;
     activeRole: AppRole | null;
     availableRoles: AppRole[];
+    kaprodiCapabilities?: Record<string, boolean> | null;
 }
 
 export interface BreadcrumbItem {
@@ -81,6 +82,7 @@ export interface ThesisProfileSection {
     statusLabel: string;
     advisors: UserProfileSummary[];
     examiners: UserProfileSummary[];
+    examinerGroups?: RelatedUserGroup[];
 }
 
 export interface RelatedUserGroup {

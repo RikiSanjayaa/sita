@@ -17,9 +17,11 @@ import {
     Star,
     Users,
     X,
+    XCircle,
 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
+import { DeadlineBadge } from '@/components/deadline-badge';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +98,7 @@ type DefenseSelection = {
 
 type TugasAkhirPageProps = {
     submission: Submission | null;
+    canCreateSubmission: boolean;
     workspaceDocuments: WorkspaceDocument[];
     semproSelection: DefenseSelection | null;
     sidangSelection: DefenseSelection | null;
@@ -260,17 +263,25 @@ function WorkflowBadge({
     label: string;
 }) {
     const isReview = workflowKey === 'title_review_pending';
+    const isRejected = ['title_rejected', 'project_cancelled'].includes(
+        workflowKey,
+    );
+
     return (
         <span
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
                 isReview
                     ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                    : 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
+                    : isRejected
+                      ? 'bg-destructive/10 text-destructive'
+                      : 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
             )}
         >
             {isReview ? (
                 <Clock className="size-3" />
+            ) : isRejected ? (
+                <XCircle className="size-3" />
             ) : (
                 <CheckCircle2 className="size-3" />
             )}
@@ -1223,10 +1234,16 @@ function DefenseHistoryRow({
                                                         </span>
                                                         {rev.dueAt &&
                                                             !isDone && (
-                                                                <span className="text-xs text-amber-600 dark:text-amber-400">
-                                                                    · Batas:{' '}
-                                                                    {rev.dueAt}
-                                                                </span>
+                                                                <DeadlineBadge
+                                                                    dueAt={
+                                                                        rev.dueAt
+                                                                    }
+                                                                    status={
+                                                                        isDone
+                                                                            ? 'resolved'
+                                                                            : undefined
+                                                                    }
+                                                                />
                                                             )}
                                                         {rev.resolvedAt && (
                                                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
@@ -1427,6 +1444,7 @@ function DefenseHistorySection({
 export default function TugasAkhirSaya() {
     const {
         submission,
+        canCreateSubmission,
         workspaceDocuments,
         semproSelection,
         sidangSelection,
@@ -1519,16 +1537,17 @@ export default function TugasAkhirSaya() {
                     </Alert>
                 )}
 
-                {/* ── No submission yet ── */}
-                {submission === null && (
+                {/* ── Create submission ── */}
+                {canCreateSubmission && (
                     <section>
                         <div className="mb-3">
                             <h2 className="text-base font-semibold">
                                 Ajukan Judul & Proposal
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Isi formulir di bawah ini untuk memulai
-                                pengajuan skripsi Anda.
+                                {submission === null
+                                    ? 'Isi formulir di bawah ini untuk memulai pengajuan skripsi Anda.'
+                                    : 'Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan proposal baru dari formulir ini.'}
                             </p>
                         </div>
                         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -1577,6 +1596,11 @@ export default function TugasAkhirSaya() {
                                     {submission.workflow.key ===
                                     'title_review_pending' ? (
                                         <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                                    ) : [
+                                          'title_rejected',
+                                          'project_cancelled',
+                                      ].includes(submission.workflow.key) ? (
+                                        <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
                                     ) : (
                                         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                                     )}

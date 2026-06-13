@@ -49,6 +49,11 @@ const STAT_CONFIGS: Record<string, StatConfig> = {
         wrapperClass: 'bg-primary/10',
         iconClass: 'text-primary',
     },
+    'Mahasiswa Bimbingan Aktif': {
+        icon: Users,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
     'Sisa Kuota': {
         icon: Gauge,
         wrapperClass: 'bg-primary/10',
@@ -206,8 +211,7 @@ export function ProfileDetailsSections({
                             </Badge>
                         </div>
 
-                        {/* Advisors & examiners */}
-                        <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="space-y-6">
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                                     <GraduationCap
@@ -243,8 +247,46 @@ export function ProfileDetailsSections({
                                     />
                                     Dosen Penguji
                                 </div>
-                                {profile.thesis.examiners.length > 0 ? (
-                                    <div className="grid gap-3">
+                                {(profile.thesis.examinerGroups?.length ?? 0) >
+                                0 ? (
+                                    <div className="grid gap-4 lg:grid-cols-2">
+                                        {profile.thesis.examinerGroups?.map(
+                                            (group) => (
+                                                <div
+                                                    key={group.title}
+                                                    className="space-y-2"
+                                                >
+                                                    <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                                                        {group.title}
+                                                    </p>
+                                                    {group.users.length > 0 ? (
+                                                        <div className="grid gap-3">
+                                                            {group.users.map(
+                                                                (
+                                                                    person,
+                                                                    index,
+                                                                ) => (
+                                                                    <PersonCardLink
+                                                                        key={`${group.title}-${person.id}-${index}`}
+                                                                        person={
+                                                                            person
+                                                                        }
+                                                                        label={`${group.title} ${index + 1}`}
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {group.emptyMessage}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                ) : profile.thesis.examiners.length > 0 ? (
+                                    <div className="grid gap-3 lg:grid-cols-2">
                                         {profile.thesis.examiners.map(
                                             (person, index) => (
                                                 <PersonCardLink

@@ -130,6 +130,35 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(DosenProfile::class);
     }
 
+    public function dosenProgramStudiAssignments(): HasMany
+    {
+        return $this->hasMany(DosenProgramStudiAssignment::class);
+    }
+
+    public function activeDosenProgramStudiAssignments(): HasMany
+    {
+        return $this->dosenProgramStudiAssignments()->where('is_active', true);
+    }
+
+    public function primaryDosenProgramStudiAssignment(): HasOne
+    {
+        return $this->hasOne(DosenProgramStudiAssignment::class)
+            ->where('is_primary', true)
+            ->where('is_active', true);
+    }
+
+    public function teachesInProgramStudi(?int $programStudiId, ?string $concentration = null): bool
+    {
+        if ($programStudiId === null) {
+            return false;
+        }
+
+        return $this->activeDosenProgramStudiAssignments()
+            ->where('program_studi_id', $programStudiId)
+            ->when($concentration !== null && $concentration !== '', fn($query) => $query->where('concentration', $concentration))
+            ->exists();
+    }
+
     public function adminProfile(): HasOne
     {
         return $this->hasOne(AdminProfile::class);

@@ -20,6 +20,7 @@ import {
     BimbinganCalendar,
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
+import { DeadlineBadge } from '@/components/deadline-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import {
     academicGradeClassName,
@@ -557,11 +559,14 @@ function DefenseDetailSheet({
                                                 <span className="text-xs text-amber-700 dark:text-amber-300">
                                                     {rev.requestedBy}
                                                 </span>
-                                                {rev.dueAt && (
-                                                    <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                                                        Batas: {rev.dueAt}
-                                                    </span>
-                                                )}
+                                                {rev.dueAt &&
+                                                    rev.status !==
+                                                        'resolved' && (
+                                                        <DeadlineBadge
+                                                            dueAt={rev.dueAt}
+                                                            status={rev.status}
+                                                        />
+                                                    )}
                                             </div>
                                             <p className="mt-2 text-xs leading-relaxed text-amber-900 dark:text-amber-100">
                                                 {rev.notes}
@@ -631,14 +636,22 @@ export default function DosenSeminarProposalPage() {
         SharedData & PageProps
     >().props;
 
-    const [search, setSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
-    const [workspaceFilter, setWorkspaceFilter] =
-        useState<WorkspaceFilter>('ujian');
+    const [search, setSearch] = useUrlState('search', '');
+    const [typeFilter, setTypeFilter] = useUrlState<TypeFilter>(
+        'type',
+        'semua',
+    );
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const [workspaceFilter, setWorkspaceFilter] = useUrlState<WorkspaceFilter>(
+        'calendar',
+        'ujian',
+    );
     const [selectedItem, setSelectedItem] = useState<DefenseItem | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useUrlState('page', 1);
     const PAGE_SIZE = 15;
 
     const [selectedEvent, setSelectedEvent] = useState<{
@@ -704,7 +717,7 @@ export default function DosenSeminarProposalPage() {
         1,
         Math.ceil(filteredDefenses.length / PAGE_SIZE),
     );
-    const safePage = Math.min(page, totalPages);
+    const safePage = Math.max(1, Math.min(page, totalPages));
     const paginatedDefenses = filteredDefenses.slice(
         (safePage - 1) * PAGE_SIZE,
         safePage * PAGE_SIZE,
@@ -862,7 +875,7 @@ export default function DosenSeminarProposalPage() {
                                     setSearch(e.target.value);
                                     resetPage();
                                 }}
-                                placeholder="Cari nama atau judul..."
+                                placeholder="Cari nama, NIM, atau judul..."
                                 className="h-8 pl-8 text-sm"
                             />
                         </div>

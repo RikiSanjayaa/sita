@@ -33,6 +33,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -45,6 +46,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type DocumentQueueItem = {
     id: number;
     mahasiswa: string;
+    nim: string;
     title: string;
     file: string;
     uploadedAt: string;
@@ -67,8 +69,12 @@ export default function DosenDokumenRevisiPage() {
         SharedData & DokumenRevisiProps
     >().props;
 
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
     const [revisiDocDialog, setRevisiDocDialog] =
         useState<DocumentQueueItem | null>(null);
 
@@ -115,6 +121,7 @@ export default function DosenDokumenRevisiPage() {
             const matchesSearch =
                 lower === '' ||
                 doc.mahasiswa.toLowerCase().includes(lower) ||
+                doc.nim.toLowerCase().includes(lower) ||
                 doc.file.toLowerCase().includes(lower) ||
                 doc.title.toLowerCase().includes(lower);
             return matchesStatus && matchesSearch;
@@ -125,6 +132,7 @@ export default function DosenDokumenRevisiPage() {
         filteredDocuments,
         PAGE_SIZE,
         [search, statusFilter],
+        pageState,
     );
 
     const statusCounts = useMemo(
@@ -202,7 +210,7 @@ export default function DosenDokumenRevisiPage() {
                     <DataTableToolbar
                         search={search}
                         onSearchChange={setSearch}
-                        searchPlaceholder="Cari mahasiswa atau file..."
+                        searchPlaceholder="Cari mahasiswa, NIM, atau file..."
                         filterGroups={filterTabs}
                         className="mb-3"
                     />
@@ -248,9 +256,14 @@ export default function DosenDokumenRevisiPage() {
                                             >
                                                 {/* Mahasiswa */}
                                                 <td className="px-5 py-3.5 align-middle">
-                                                    <span className="text-[14px] font-semibold">
-                                                        {doc.mahasiswa}
-                                                    </span>
+                                                    <div>
+                                                        <p className="text-[14px] font-semibold">
+                                                            {doc.mahasiswa}
+                                                        </p>
+                                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                                            {doc.nim}
+                                                        </p>
+                                                    </div>
                                                 </td>
 
                                                 {/* File / Judul */}

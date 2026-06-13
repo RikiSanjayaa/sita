@@ -2,6 +2,7 @@
 
 use App\Filament\Resources\ThesisProjects\Pages\EditThesisProject;
 use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
 use App\Models\MahasiswaProfile;
@@ -280,6 +281,127 @@ test('admin can override title and proposal anytime and student receives notific
             && $data['title'] === 'Judul / proposal diperbarui admin'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
+});
+
+test('admin can approve title review from workflow action', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = User::factory()->asMahasiswa()->create(['name' => 'Mahasiswa Review']);
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510303',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subDay(),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Menunggu Review',
+        'proposal_summary' => 'Ringkasan pengajuan.',
+        'status' => 'submitted',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($admin);
+
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->callAction('approve_title', [
+            'notes' => 'Layak lanjut ke sempro.',
+        ]);
+
+    $project->refresh();
+    $title->refresh();
+
+    expect($title->status)->toBe('approved')
+        ->and($title->decision_notes)->toBe('Layak lanjut ke sempro.')
+        ->and($project->phase)->toBe('sempro')
+        ->and($project->state)->toBe('active');
+
+    $this->assertDatabaseHas('thesis_project_events', [
+        'project_id' => $project->id,
+        'event_type' => 'title_approved',
+        'label' => 'Judul disetujui',
+    ]);
+});
+
+test('admin can reject title review from workflow action', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = User::factory()->asMahasiswa()->create(['name' => 'Mahasiswa Ditolak']);
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510304',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subDay(),
+        'created_by' => $student->id,
+    ]);
+
+    $title = ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Belum Layak',
+        'proposal_summary' => 'Ringkasan pengajuan.',
+        'status' => 'submitted',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($admin);
+
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->callAction('reject_title', [
+            'notes' => 'Topik perlu difokuskan ulang.',
+        ]);
+
+    $project->refresh();
+    $title->refresh();
+
+    expect($title->status)->toBe('rejected')
+        ->and($title->decision_notes)->toBe('Topik perlu difokuskan ulang.')
+        ->and($project->phase)->toBe('cancelled')
+        ->and($project->state)->toBe('cancelled')
+        ->and($project->cancelled_at)->not->toBeNull();
+
+    $this->assertDatabaseHas('thesis_project_events', [
+        'project_id' => $project->id,
+        'event_type' => 'title_rejected',
+        'label' => 'Judul tidak disetujui',
+    ]);
 });
 
 test('admin can use workflow tabs and filters in thesis projects list', function (): void {

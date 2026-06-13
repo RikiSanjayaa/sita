@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\AppRole;
+use App\Models\KaprodiAssignment;
+use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
 
@@ -35,4 +37,28 @@ test('user cannot switch to unassigned role', function () {
     $this->actingAs($user)
         ->post('/role/switch', ['role' => AppRole::Admin->value])
         ->assertForbidden();
+});
+
+test('kaprodi can switch to dosen portal', function () {
+    $programStudi = ProgramStudi::factory()->create();
+    $kaprodi = User::factory()->asKaprodi()->create([
+        'last_active_role' => AppRole::Kaprodi->value,
+    ]);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $programStudi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->post('/role/switch', ['role' => AppRole::Dosen->value])
+        ->assertRedirect('/dosen/dashboard');
+
+    $kaprodi->refresh();
+
+    expect(session('active_role'))->toBe(AppRole::Dosen->value);
+    expect($kaprodi->last_active_role)->toBe(AppRole::Dosen->value);
+    expect($kaprodi->hasRole(AppRole::Kaprodi))->toBeTrue();
+    expect($kaprodi->hasRole(AppRole::Dosen))->toBeTrue();
 });

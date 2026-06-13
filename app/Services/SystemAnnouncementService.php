@@ -90,8 +90,8 @@ class SystemAnnouncementService
             AppRole::Mahasiswa->value => $query->whereHas('mahasiswaProfile', function (Builder $profileQuery) use ($announcement): void {
                 $profileQuery->where('program_studi_id', $announcement->program_studi_id);
             }),
-            AppRole::Dosen->value => $query->whereHas('dosenProfile', function (Builder $profileQuery) use ($announcement): void {
-                $profileQuery->where('program_studi_id', $announcement->program_studi_id);
+            AppRole::Dosen->value => $query->whereHas('activeDosenProgramStudiAssignments', function (Builder $assignmentQuery) use ($announcement): void {
+                $assignmentQuery->where('program_studi_id', $announcement->program_studi_id);
             }),
             AppRole::Admin->value => $query->whereHas('adminProfile', function (Builder $profileQuery) use ($announcement): void {
                 $profileQuery->where('program_studi_id', $announcement->program_studi_id);

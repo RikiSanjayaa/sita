@@ -76,7 +76,7 @@ class DashboardController extends Controller
                 'progress' => $this->workflowProgress($workflow['key']),
                 'startedAt' => $project?->started_at?->locale('id')->translatedFormat('d F Y'),
                 'advisors' => $advisorProfiles,
-                'hasProject' => $project instanceof ThesisProject,
+                'hasProject' => $project instanceof ThesisProject && $project->state === 'active',
             ],
             'stats' => [
                 [
@@ -105,7 +105,7 @@ class DashboardController extends Controller
                 ],
             ],
             'quickActionState' => [
-                'canSubmitTitle' => ! ($project instanceof ThesisProject),
+                'canSubmitTitle' => ! ($project instanceof ThesisProject) || $project->state !== 'active',
                 'canScheduleMeeting' => $advisorLecturerIds->isNotEmpty() || $examinerUserIds->isNotEmpty(),
                 'canUploadDocument' => $advisorLecturerIds->isNotEmpty() || $this->activeSemproDefenses($student->id)->isNotEmpty(),
                 'hasThreads' => $threadIds->isNotEmpty(),
@@ -322,14 +322,16 @@ class DashboardController extends Controller
             [
                 'title' => 'Pengajuan Judul',
                 'description' => $project instanceof ThesisProject
-                    ? $workflow['key'] === 'title_review_pending'
-                    ? $workflow['description']
-                    : 'Judul dan proposal sudah masuk ke alur tugas akhir.'
+                    ? (in_array($workflow['key'], ['title_review_pending', 'title_approved', 'title_rejected', 'project_cancelled'], true)
+                        ? $workflow['description']
+                        : 'Judul dan proposal sudah masuk ke alur tugas akhir.')
                     : 'Mulai dari pengajuan judul dan proposal tugas akhir.',
                 'date' => $project?->latestTitle?->submitted_at?->locale('id')->translatedFormat('d M Y')
                     ?? $project?->started_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $project instanceof ThesisProject
-                    ? ($workflow['key'] === 'title_review_pending' ? 'current' : 'done')
+                    ? (in_array($workflow['key'], ['title_review_pending', 'title_approved'], true)
+                        ? 'current'
+                        : (in_array($workflow['key'], ['title_rejected', 'project_cancelled'], true) ? 'current' : 'done'))
                     : 'upcoming',
             ],
             [
@@ -398,6 +400,20 @@ class DashboardController extends Controller
      */
     private function resolveProjectWorkflow(ThesisProject $project): array
     {
+        $project->loadMissing('latestTitle');
+
+        if ($project->state === 'cancelled') {
+            $key = $project->latestTitle?->status === 'rejected'
+                ? 'title_rejected'
+                : 'project_cancelled';
+
+            return [
+                'key' => $key,
+                'label' => $this->workflowLabel($key),
+                'description' => $this->workflowDescription($key),
+            ];
+        }
+
         $latestSidang = $project->defenses
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
@@ -452,6 +468,8 @@ class DashboardController extends Controller
             }
         } elseif ($project->phase === 'title_review') {
             $key = 'title_review_pending';
+        } elseif ($project->latestTitle?->status === 'approved') {
+            $key = 'title_approved';
         } elseif ($project->activeSupervisorAssignments->isNotEmpty()) {
             $key = 'research_in_progress';
         }
@@ -467,6 +485,9 @@ class DashboardController extends Controller
     {
         return match ($key) {
             'title_review_pending' => 'Menunggu Persetujuan',
+            'title_approved' => 'Judul Disetujui',
+            'title_rejected' => 'Judul Tidak Disetujui',
+            'project_cancelled' => 'Proyek Dibatalkan',
             'sempro_scheduled' => 'Sempro Dijadwalkan',
             'sempro_waiting_result' => 'Menunggu Hasil Sempro',
             'sempro_revision' => 'Revisi Sempro',
@@ -486,6 +507,9 @@ class DashboardController extends Controller
     {
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
+            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan sempro.',
+            'title_rejected' => 'Pengajuan judul dan proposal tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
+            'project_cancelled' => 'Proyek tugas akhir ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => 'Sempro sudah dijadwalkan. Siapkan proposal dan presentasi terbaik Anda.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
             'sempro_revision' => 'Sempro selesai dengan revisi. Cek catatan penguji dan unggah dokumen perbaikan.',
@@ -505,6 +529,8 @@ class DashboardController extends Controller
     {
         return match ($key) {
             'title_review_pending' => 20,
+            'title_approved' => 30,
+            'title_rejected', 'project_cancelled' => 0,
             'sempro_scheduled' => 40,
             'sempro_waiting_result' => 50,
             'sempro_revision' => 55,

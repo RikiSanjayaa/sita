@@ -30,7 +30,7 @@ test('s2 sastra inggris deployment seeder seeds the expected showcase accounts a
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::SuperAdmin->value))->count())->toBe(1)
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Admin->value))->count())->toBe(1)
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Kaprodi->value))->count())->toBe(1)
-        ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Dosen->value))->count())->toBe(8)
+        ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Dosen->value))->count())->toBe(9)
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Mahasiswa->value))->count())->toBe(15)
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Penguji->value))->count())->toBe(0)
         ->and(SystemAnnouncement::query()->where('program_studi_id', $programStudi->id)->where('status', SystemAnnouncement::STATUS_PUBLISHED)->count())->toBe(1);

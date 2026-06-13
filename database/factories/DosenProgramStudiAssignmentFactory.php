@@ -2,28 +2,28 @@
 
 namespace Database\Factories;
 
-use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\KaprodiAssignment>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\DosenProgramStudiAssignment>
  */
-class KaprodiAssignmentFactory extends Factory
+class DosenProgramStudiAssignmentFactory extends Factory
 {
-    protected $model = KaprodiAssignment::class;
-
     /**
+     * Define the model's default state.
+     *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
+            'user_id' => User::factory()->asDosen(),
             'program_studi_id' => ProgramStudi::factory(),
-            'user_id' => User::factory()->state(['last_active_role' => 'kaprodi']),
+            'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
             'is_primary' => true,
-            'capabilities' => KaprodiAssignment::defaultCapabilities(),
+            'is_active' => true,
         ];
     }
 }

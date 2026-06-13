@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\DosenProfile;
+use App\Models\DosenProgramStudiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -11,6 +13,27 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class DosenProfileFactory extends Factory
 {
+    public function configure(): static
+    {
+        return $this->afterCreating(function (DosenProfile $profile): void {
+            if ($profile->program_studi_id === null || $profile->concentration === null) {
+                return;
+            }
+
+            DosenProgramStudiAssignment::query()->updateOrCreate(
+                [
+                    'user_id' => $profile->user_id,
+                    'program_studi_id' => $profile->program_studi_id,
+                    'concentration' => $profile->concentration,
+                ],
+                [
+                    'is_primary' => true,
+                    'is_active' => $profile->is_active,
+                ],
+            );
+        });
+    }
+
     /**
      * Define the model's default state.
      *

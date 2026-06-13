@@ -137,7 +137,7 @@ class MentorshipAssignmentService
     private function ensureLecturerHasCapacity(MentorshipAssignment $assignment): void
     {
         $lecturer = User::query()
-            ->with('dosenProfile')
+            ->with('activeDosenProgramStudiAssignments')
             ->find($assignment->lecturer_user_id);
 
         $quota = max(1, (int) ($lecturer?->dosenProfile?->supervision_quota ?? 14));
@@ -175,7 +175,8 @@ class MentorshipAssignmentService
             ->find($assignment->lecturer_user_id);
 
         $studentConcentration = $student?->mahasiswaProfile?->concentration;
-        $lecturerConcentration = $lecturer?->dosenProfile?->concentration;
+        $studentProgramStudiId = $student?->mahasiswaProfile?->program_studi_id;
+        $hasMatchingAssignment = $lecturer?->teachesInProgramStudi($studentProgramStudiId, $studentConcentration) ?? false;
 
         if (! filled($studentConcentration)) {
             throw ValidationException::withMessages([
@@ -183,13 +184,13 @@ class MentorshipAssignmentService
             ]);
         }
 
-        if (! filled($lecturerConcentration)) {
+        if (($lecturer?->activeDosenProgramStudiAssignments?->isEmpty() ?? true)) {
             throw ValidationException::withMessages([
                 'lecturer_user_id' => ['Dosen concentration must be configured before assigning advisors.'],
             ]);
         }
 
-        if ($studentConcentration === $lecturerConcentration) {
+        if ($hasMatchingAssignment) {
             return;
         }
 

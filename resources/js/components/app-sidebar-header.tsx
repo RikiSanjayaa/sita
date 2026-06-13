@@ -8,7 +8,6 @@ import {
     Megaphone,
     MessageSquareText,
     PencilLine,
-    Repeat,
     Trash2,
     type LucideIcon,
 } from 'lucide-react';
@@ -21,9 +20,6 @@ import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
@@ -31,9 +27,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
-import { ROLE_LABELS, UI_ROLES } from '@/lib/roles';
 import {
-    AppRole,
     type BreadcrumbItem as BreadcrumbItemType,
     type HeaderNotification,
     type SharedData,
@@ -646,51 +640,6 @@ function HeaderUserMenu() {
     );
 }
 
-function HeaderRoleSwitcher() {
-    const { auth } = usePage<SharedData>().props;
-    const activeRole = auth.activeRole as AppRole | null;
-    const availableRoles = auth.availableRoles.filter((role) =>
-        UI_ROLES.includes(role),
-    ) as AppRole[];
-
-    if (activeRole === null || availableRoles.length <= 1) {
-        return null;
-    }
-
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 gap-2">
-                    <Repeat className="size-4" />
-                    <span className="hidden sm:inline">
-                        {ROLE_LABELS[activeRole]}
-                    </span>
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuLabel>Pilih Role Aktif</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableRoles.map((role) => (
-                    <DropdownMenuItem
-                        key={role}
-                        className="cursor-pointer"
-                        disabled={role === activeRole}
-                        onClick={() => {
-                            router.post(
-                                '/role/switch',
-                                { role },
-                                { preserveScroll: true },
-                            );
-                        }}
-                    >
-                        {ROLE_LABELS[role]}
-                    </DropdownMenuItem>
-                ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
-
 export function AppSidebarHeader({
     breadcrumbs = [],
     title,
@@ -720,7 +669,6 @@ export function AppSidebarHeader({
                 </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
-                <HeaderRoleSwitcher />
                 <HeaderNotifications />
                 <Separator orientation="vertical" className="mx-1 h-6" />
                 <HeaderUserMenu />

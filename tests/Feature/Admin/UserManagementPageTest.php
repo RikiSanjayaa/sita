@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AppRole;
+use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\AdminProfile;
@@ -360,4 +361,37 @@ test('admin sees thesis-native dosen load counts in users resource', function ()
         ->assertSee('Sempro Terjadwal')
         ->assertSee('Sidang Terjadwal')
         ->assertSee('Kuota pembimbing dapat diatur oleh superadmin.');
+});
+
+test('super admin can open dosen edit form with academic assignments', function (): void {
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+    $prodi = ProgramStudi::factory()->create([
+        'name' => 'Ilmu Komputer',
+        'slug' => 'ilkom',
+        'concentrations' => ['Jaringan', 'Sistem Cerdas'],
+    ]);
+    $lecturer = User::factory()->asDosen()->create(['name' => 'Dosen Multi']);
+
+    DosenProfile::query()->create([
+        'user_id' => $lecturer->id,
+        'nik' => '1987002',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Jaringan',
+        'supervision_quota' => 12,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($superAdmin);
+
+    $component = Livewire::test(EditUser::class, ['record' => $lecturer->getKey()])
+        ->assertFormSet([
+            'role' => AppRole::Dosen->value,
+        ]);
+
+    expect(collect($component->get('data.academic_assignments')))
+        ->contains(fn(array $assignment): bool => (int) $assignment['program_studi_id'] === $prodi->id
+            && $assignment['concentration'] === 'Jaringan'
+            && $assignment['is_primary'] === true
+            && $assignment['is_active'] === true)
+        ->toBeTrue();
 });

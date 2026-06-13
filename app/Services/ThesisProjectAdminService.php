@@ -24,6 +24,92 @@ class ThesisProjectAdminService
         private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
+    public function approveTitleReview(ThesisProject $project, int $decidedBy, ?string $notes = null): ThesisProject
+    {
+        $title = $this->resolveSubmittedTitleForReview($project);
+        $notes = $notes ?: 'Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.';
+
+        $updatedProject = DB::transaction(function () use ($decidedBy, $notes, $project, $title): ThesisProject {
+            $title->forceFill([
+                'status' => 'approved',
+                'decided_by_user_id' => $decidedBy,
+                'decided_at' => now(),
+                'decision_notes' => $notes,
+            ])->save();
+
+            $project->forceFill([
+                'phase' => 'sempro',
+                'state' => 'active',
+                'cancelled_at' => null,
+                'closed_by' => null,
+            ])->save();
+
+            $freshProject = $project->fresh(['student', 'latestTitle', 'titles']);
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $decidedBy,
+                eventType: 'title_approved',
+                label: 'Judul disetujui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
+
+        $this->notifyStudentAboutTitleReviewDecision(
+            project: $updatedProject,
+            approved: true,
+            notes: $notes,
+        );
+
+        return $updatedProject;
+    }
+
+    public function rejectTitleReview(ThesisProject $project, int $decidedBy, string $notes): ThesisProject
+    {
+        $title = $this->resolveSubmittedTitleForReview($project);
+
+        $updatedProject = DB::transaction(function () use ($decidedBy, $notes, $project, $title): ThesisProject {
+            $title->forceFill([
+                'status' => 'rejected',
+                'decided_by_user_id' => $decidedBy,
+                'decided_at' => now(),
+                'decision_notes' => $notes,
+            ])->save();
+
+            $project->forceFill([
+                'phase' => 'cancelled',
+                'state' => 'cancelled',
+                'cancelled_at' => now(),
+                'closed_by' => $decidedBy,
+                'notes' => $notes,
+            ])->save();
+
+            $freshProject = $project->fresh(['student', 'latestTitle', 'titles']);
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $decidedBy,
+                eventType: 'title_rejected',
+                label: 'Judul tidak disetujui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
+
+        $this->notifyStudentAboutTitleReviewDecision(
+            project: $updatedProject,
+            approved: false,
+            notes: $notes,
+        );
+
+        return $updatedProject;
+    }
+
     /**
      * @param  array<int, int>  $examinerUserIds
      */
@@ -608,6 +694,27 @@ class ThesisProjectAdminService
         return $approvedTitle ?? $project->latestTitle;
     }
 
+    private function resolveSubmittedTitleForReview(ThesisProject $project): ThesisProjectTitle
+    {
+        $project->loadMissing(['latestTitle', 'titles', 'defenses', 'activeSupervisorAssignments']);
+
+        if ($project->state !== 'active' || $project->phase !== 'title_review') {
+            throw new RuntimeException('Proyek tidak sedang berada pada tahap review judul.');
+        }
+
+        if ($project->defenses->isNotEmpty() || $project->activeSupervisorAssignments->isNotEmpty()) {
+            throw new RuntimeException('Review judul tidak dapat diubah karena proyek sudah masuk tahap lanjutan.');
+        }
+
+        $title = $project->latestTitle;
+
+        if (! $title instanceof ThesisProjectTitle || $title->status !== 'submitted') {
+            throw new RuntimeException('Tidak ada pengajuan judul yang menunggu keputusan.');
+        }
+
+        return $title;
+    }
+
     private function closeDefenseRevisions(ThesisDefense $defense, int $resolvedBy, string $resolutionNotes): void
     {
         ThesisRevision::query()
@@ -709,10 +816,11 @@ class ThesisProjectAdminService
         $normalizedPanelIds = collect($panelUserIds)
             ->map(static fn($id): int => (int) $id)
             ->filter(static fn(int $id): bool => $id > 0)
+            ->unique()
             ->values();
 
-        if ($normalizedPanelIds->isEmpty() || $normalizedPanelIds->count() !== $normalizedPanelIds->unique()->count()) {
-            throw new RuntimeException('Panel sidang harus berisi dosen yang berbeda.');
+        if ($normalizedPanelIds->isEmpty() || $normalizedPanelIds->count() < 2) {
+            throw new RuntimeException('Panel sidang harus berisi minimal dua dosen yang berbeda.');
         }
 
         $activeSupervisors = $project->activeSupervisorAssignments
@@ -724,27 +832,17 @@ class ThesisProjectAdminService
             ->map(static fn($id): int => (int) $id)
             ->values();
 
-        if ($supervisorIds->isEmpty()) {
-            throw new RuntimeException('Sidang memerlukan pembimbing aktif sebelum dapat dijadwalkan.');
-        }
-
+        // If supervisors exist, ensure they are included in the panel
         foreach ($supervisorIds as $index => $supervisorId) {
             if (! $normalizedPanelIds->contains($supervisorId)) {
                 throw new RuntimeException(sprintf('Panel sidang harus menyertakan Pembimbing %d.', $index + 1));
             }
         }
 
-        $additionalExaminerIds = $normalizedPanelIds
-            ->reject(fn(int $id): bool => $supervisorIds->contains($id))
-            ->values();
-
-        if ($additionalExaminerIds->isEmpty()) {
-            throw new RuntimeException('Sidang harus memiliki minimal satu penguji tambahan di luar pembimbing aktif.');
-        }
-
-        $orderedPanelIds = $supervisorIds
-            ->concat($additionalExaminerIds)
-            ->values();
+        // Order: supervisors first (if any), then additional examiners
+        $orderedPanelIds = $supervisorIds->isNotEmpty()
+            ? $supervisorIds->concat($normalizedPanelIds->reject(fn(int $id): bool => $supervisorIds->contains($id)))->values()
+            : $normalizedPanelIds;
 
         foreach ($orderedPanelIds as $index => $lecturerUserId) {
             $this->assertDefenseExaminerEligible($project, $lecturerUserId, sprintf('Panel sidang #%d', $index + 1));
@@ -972,16 +1070,8 @@ class ThesisProjectAdminService
 
     private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label): void
     {
-        $project->loadMissing('student.mahasiswaProfile');
-
-        $studentConcentration = $project->student?->mahasiswaProfile?->concentration;
-
-        if (! is_string($studentConcentration) || trim($studentConcentration) === '') {
-            throw new RuntimeException('Konsentrasi mahasiswa belum diatur. Perbarui profil mahasiswa terlebih dahulu.');
-        }
-
         $lecturer = User::query()
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->find($lecturerUserId);
 
         if (! $lecturer instanceof User || ! $lecturer->hasRole('dosen')) {
@@ -994,16 +1084,8 @@ class ThesisProjectAdminService
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
         }
 
-        if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
+        if (! $lecturer->teachesInProgramStudi((int) $project->program_studi_id)) {
             throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
-        }
-
-        if ($lecturerProfile->concentration !== $studentConcentration) {
-            throw new RuntimeException(sprintf(
-                '%s harus memiliki konsentrasi yang sama dengan mahasiswa (%s).',
-                $label,
-                $studentConcentration,
-            ));
         }
 
         $quota = max(1, (int) ($lecturerProfile->supervision_quota ?? 14));
@@ -1021,7 +1103,7 @@ class ThesisProjectAdminService
     private function assertDefenseExaminerEligible(ThesisProject $project, int $lecturerUserId, string $label): void
     {
         $lecturer = User::query()
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->find($lecturerUserId);
 
         if (! $lecturer instanceof User || ! $lecturer->hasRole('dosen')) {
@@ -1034,7 +1116,7 @@ class ThesisProjectAdminService
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
         }
 
-        if ($lecturerProfile->program_studi_id !== $project->program_studi_id) {
+        if (! $lecturer->teachesInProgramStudi((int) $project->program_studi_id)) {
             throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
         }
     }
@@ -1221,6 +1303,26 @@ class ThesisProjectAdminService
             'description' => $notes,
             'url' => '/tugas-akhir',
             'icon' => 'check-circle',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+    }
+
+    private function notifyStudentAboutTitleReviewDecision(
+        ThesisProject $project,
+        bool $approved,
+        string $notes,
+    ): void {
+        $project->loadMissing('student');
+
+        if (! $project->student instanceof User) {
+            return;
+        }
+
+        $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+            'title' => $approved ? 'Judul disetujui' : 'Judul tidak disetujui',
+            'description' => $notes,
+            'url' => '/tugas-akhir',
+            'icon' => $approved ? 'check-circle' : 'x-circle',
             'createdAt' => now()->toIso8601String(),
         ]);
     }

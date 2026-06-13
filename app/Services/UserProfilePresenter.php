@@ -24,6 +24,7 @@ class UserProfilePresenter
             'roles',
             'adminProfile.programStudi',
             'dosenProfile.programStudi',
+            'activeDosenProgramStudiAssignments.programStudi',
             'kaprodiAssignment.programStudi',
             'mahasiswaProfile.programStudi',
         ]);
@@ -109,16 +110,38 @@ class UserProfilePresenter
             ->values()
             ->all() ?? [];
 
-        $currentDefense = $latestSidang instanceof ThesisDefense
-            ? $latestSidang
-            : $latestSempro;
-
-        $examiners = $currentDefense?->examiners
+        $semproExaminers = $latestSempro?->examiners
             ->sortBy('order_no')
             ->map(fn(ThesisDefenseExaminer $examiner): ?array => $this->summary($examiner->lecturer))
             ->filter()
             ->values()
             ->all() ?? [];
+
+        $sidangExaminers = $latestSidang?->examiners
+            ->sortBy('order_no')
+            ->map(fn(ThesisDefenseExaminer $examiner): ?array => $this->summary($examiner->lecturer))
+            ->filter()
+            ->values()
+            ->all() ?? [];
+
+        $examiners = collect($sidangExaminers)
+            ->merge($semproExaminers)
+            ->unique('id')
+            ->values()
+            ->all();
+
+        $examinerGroups = collect([
+            [
+                'title' => 'Penguji Sempro',
+                'emptyMessage' => 'Belum ada penguji sempro.',
+                'users' => $semproExaminers,
+            ],
+            [
+                'title' => 'Penguji Sidang',
+                'emptyMessage' => 'Belum ada penguji sidang.',
+                'users' => $sidangExaminers,
+            ],
+        ])->filter(fn(array $group): bool => $group['users'] !== [])->values()->all();
 
         $summary = $this->summary($user);
 
@@ -148,6 +171,7 @@ class UserProfilePresenter
                 'statusLabel' => $this->projectStatusLabel($project),
                 'advisors' => $advisors,
                 'examiners' => $examiners,
+                'examinerGroups' => $examinerGroups,
             ],
             'relatedUsers' => [],
         ];
@@ -161,6 +185,7 @@ class UserProfilePresenter
         $user->loadMissing([
             'roles',
             'dosenProfile.programStudi',
+            'activeDosenProgramStudiAssignments.programStudi',
         ]);
 
         $activeAssignments = ThesisSupervisorAssignment::query()
@@ -196,26 +221,26 @@ class UserProfilePresenter
         return [
             ...($summary ?? []),
             'headline' => 'Profil dosen',
-            'description' => 'Informasi akademik, kuota bimbingan, dan ringkasan mahasiswa aktif.',
+            'description' => 'Informasi akademik, kuota bimbingan, dan ringkasan mahasiswa bimbingan aktif.',
             'meta' => [
                 ['label' => 'NIK', 'value' => $user->dosenProfile?->nik ?? '-'],
-                ['label' => 'Program Studi', 'value' => $user->dosenProfile?->programStudi?->name ?? '-'],
-                ['label' => 'Konsentrasi', 'value' => $user->dosenProfile?->concentration ?? '-'],
+                ['label' => 'Program Studi', 'value' => $this->dosenProgramStudiSummary($user) ?? '-'],
+                ['label' => 'Konsentrasi', 'value' => $this->dosenConcentrationSummary($user) ?? '-'],
                 ['label' => 'Kuota Bimbingan', 'value' => (string) $quota],
                 ['label' => 'Status', 'value' => $user->dosenProfile?->is_active ? 'Aktif' : 'Nonaktif'],
                 ['label' => 'Email', 'value' => $user->email],
                 ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
             ],
             'stats' => [
-                ['label' => 'Mahasiswa Aktif', 'value' => (string) $activeStudents->count()],
+                ['label' => 'Mahasiswa Bimbingan Aktif', 'value' => (string) $activeStudents->count()],
                 ['label' => 'Sempro Terjadwal', 'value' => (string) $scheduledSemproCount],
                 ['label' => 'Sidang Terjadwal', 'value' => (string) $scheduledSidangCount],
             ],
             'thesis' => null,
             'relatedUsers' => [
                 [
-                    'title' => 'Mahasiswa aktif',
-                    'emptyMessage' => 'Belum ada mahasiswa aktif pada dosen ini.',
+                    'title' => 'Mahasiswa bimbingan aktif',
+                    'emptyMessage' => 'Belum ada mahasiswa bimbingan aktif pada dosen ini.',
                     'users' => $activeStudents
                         ->map(fn(User $student): ?array => $this->summary($student))
                         ->filter()
@@ -276,7 +301,7 @@ class UserProfilePresenter
     {
         return match ($roleKey) {
             AppRole::Mahasiswa->value => $user->mahasiswaProfile?->programStudi?->name,
-            AppRole::Dosen->value => $user->dosenProfile?->programStudi?->name,
+            AppRole::Dosen->value => $this->dosenProgramStudiSummary($user),
             AppRole::Kaprodi->value => $user->kaprodiAssignment?->programStudi?->name,
             AppRole::Admin->value, AppRole::SuperAdmin->value => $user->adminProfile?->programStudi?->name,
             default => null,
@@ -287,9 +312,33 @@ class UserProfilePresenter
     {
         return match ($roleKey) {
             AppRole::Mahasiswa->value => $user->mahasiswaProfile?->concentration,
-            AppRole::Dosen->value => $user->dosenProfile?->concentration,
+            AppRole::Dosen->value => $this->dosenConcentrationSummary($user),
             default => null,
         };
+    }
+
+    private function dosenProgramStudiSummary(User $user): ?string
+    {
+        $summary = $user->activeDosenProgramStudiAssignments
+            ->pluck('programStudi.name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : $user->dosenProfile?->programStudi?->name;
+    }
+
+    private function dosenConcentrationSummary(User $user): ?string
+    {
+        $summary = $user->activeDosenProgramStudiAssignments
+            ->pluck('concentration')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : $user->dosenProfile?->concentration;
     }
 
     private function projectStatusLabel(?ThesisProject $project): string

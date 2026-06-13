@@ -1,11 +1,31 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight, FileArchive, Search, UserRound } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import {
+    AlertCircle,
+    CalendarClock,
+    ChevronRight,
+    FileArchive,
+    FileText,
+    Search,
+    UserCog,
+    UserRound,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useInitials } from '@/hooks/use-initials';
+import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -18,6 +38,8 @@ type ProgramStudi = {
 
 type StudentRow = {
     id: number;
+    projectId: number | null;
+    canManageSupervisors: boolean;
     name: string;
     nim: string;
     avatar: string | null;
@@ -30,6 +52,29 @@ type StudentRow = {
     projectStateKey: string;
     title: string;
     advisors: string[];
+    supervisorAssignments: {
+        lecturerUserId: number;
+        name: string;
+        role: string;
+    }[];
+    progressRisk: {
+        level: 'high' | 'medium' | 'low';
+        label: string;
+        description: string;
+        lastActivityAt: string;
+        lastActivityLabel: string;
+        daysIdle: number | null;
+        signals: string[];
+    };
+    profileUrl: string;
+};
+
+type LecturerOption = {
+    id: number;
+    name: string;
+    nik: string | null;
+    quota: number;
+    concentrations: string[];
     profileUrl: string;
 };
 
@@ -37,6 +82,9 @@ type ArchiveRow = {
     id: number;
     student: string;
     nim: string | null;
+    avatar: string | null;
+    angkatan: string | null;
+    concentration: string | null;
     title: string;
     state: string;
     phase: string;
@@ -54,6 +102,7 @@ type MahasiswaProps = {
     };
     students: StudentRow[];
     archives: ArchiveRow[];
+    lecturerOptions: LecturerOption[];
 };
 
 type ActivePhaseFilter =
@@ -64,6 +113,8 @@ type ActivePhaseFilter =
     | 'sidang'
     | 'none';
 
+type RiskFilter = 'semua' | 'high' | 'medium' | 'low';
+
 type ArchiveFilter = 'semua' | 'Selesai' | 'Dibatalkan';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -71,10 +122,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Mahasiswa Prodi', href: '/kaprodi/mahasiswa' },
 ];
 
+function searchUrl(path: string, value: string) {
+    return `${path}?search=${encodeURIComponent(value)}`;
+}
+
 export default function KaprodiMahasiswaPage() {
-    const { programStudi, filters, students, archives } = usePage<
-        SharedData & MahasiswaProps
-    >().props;
+    const { auth } = usePage<SharedData>().props;
+    const { programStudi, filters, students, archives, lecturerOptions } =
+        usePage<SharedData & MahasiswaProps>().props;
+    const canManageSupervisors =
+        auth.kaprodiCapabilities?.manage_supervisors ?? true;
 
     const activeRows = students.filter(
         (student) =>
@@ -107,6 +164,8 @@ export default function KaprodiMahasiswaPage() {
                     <ActiveStudentTable
                         rows={activeRows}
                         filters={filters}
+                        lecturerOptions={lecturerOptions}
+                        canManageSupervisors={canManageSupervisors}
                         emptyText="Belum ada mahasiswa aktif"
                     />
                 </section>
@@ -119,7 +178,7 @@ export default function KaprodiMahasiswaPage() {
                             dari profil mahasiswa.
                         </p>
                     </div>
-                    <ArchiveTable rows={archives} />
+                    <ArchiveTable rows={archives} filters={filters} />
                 </section>
             </div>
         </KaprodiLayout>
@@ -129,26 +188,51 @@ export default function KaprodiMahasiswaPage() {
 function ActiveStudentTable({
     rows,
     filters,
+    lecturerOptions,
+    canManageSupervisors,
     emptyText,
 }: {
     rows: StudentRow[];
     filters: MahasiswaProps['filters'];
+    lecturerOptions: LecturerOption[];
+    canManageSupervisors: boolean;
     emptyText: string;
 }) {
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [phaseFilter, setPhaseFilter] = useState<ActivePhaseFilter>('semua');
-    const [angkatanFilter, setAngkatanFilter] = useState('semua');
-    const [concentrationFilter, setConcentrationFilter] = useState('semua');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useUrlState('activeSearch', '');
+    const [phaseFilter, setPhaseFilter] = useUrlState<ActivePhaseFilter>(
+        'activePhase',
+        'semua',
+    );
+    const [riskFilter, setRiskFilter] = useUrlState<RiskFilter>(
+        'activeRisk',
+        'semua',
+    );
+    const [angkatanFilter, setAngkatanFilter] = useUrlState(
+        'activeAngkatan',
+        'semua',
+    );
+    const [concentrationFilter, setConcentrationFilter] = useUrlState(
+        'activeKonsentrasi',
+        'semua',
+    );
+    const [page, setPage] = useUrlState('activePage', 1);
+    const [supervisorDialog, setSupervisorDialog] = useState<StudentRow | null>(
+        null,
+    );
 
-    const phaseTabs: { label: string; value: ActivePhaseFilter }[] = [
-        { label: 'Semua', value: 'semua' },
-        { label: 'Review', value: 'title_review' },
+    const phaseOptions: { label: string; value: ActivePhaseFilter }[] = [
+        { label: 'Review Judul', value: 'title_review' },
         { label: 'Sempro', value: 'sempro' },
         { label: 'Penelitian', value: 'research' },
         { label: 'Sidang', value: 'sidang' },
-        { label: 'Tanpa Proyek', value: 'none' },
+        { label: 'Belum Ada Proyek', value: 'none' },
+    ];
+
+    const riskOptions: { label: string; value: RiskFilter }[] = [
+        { label: 'Risiko Telat', value: 'high' },
+        { label: 'Perlu Dipantau', value: 'medium' },
+        { label: 'Terkendali', value: 'low' },
     ];
 
     const filtered = useMemo(() => {
@@ -163,6 +247,10 @@ function ActiveStudentTable({
                     row.phase,
                     row.title,
                     row.concentration ?? '',
+                    row.progressRisk.label,
+                    row.progressRisk.description,
+                    row.progressRisk.lastActivityLabel,
+                    ...row.progressRisk.signals,
                     ...row.advisors,
                 ]
                     .join(' ')
@@ -172,17 +260,26 @@ function ActiveStudentTable({
             return (
                 matchesSearch &&
                 (phaseFilter === 'semua' || row.phaseKey === phaseFilter) &&
+                (riskFilter === 'semua' ||
+                    row.progressRisk.level === riskFilter) &&
                 (angkatanFilter === 'semua' ||
-                    row.angkatan === angkatanFilter) &&
+                    String(row.angkatan ?? '') === angkatanFilter) &&
                 (concentrationFilter === 'semua' ||
                     row.concentration === concentrationFilter)
             );
         });
-    }, [angkatanFilter, concentrationFilter, phaseFilter, rows, search]);
+    }, [
+        angkatanFilter,
+        concentrationFilter,
+        phaseFilter,
+        riskFilter,
+        rows,
+        search,
+    ]);
 
-    const safePage = Math.min(
-        page,
-        Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    const safePage = Math.max(
+        1,
+        Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))),
     );
     const paginated = filtered.slice(
         (safePage - 1) * PAGE_SIZE,
@@ -209,27 +306,25 @@ function ActiveStudentTable({
                     />
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    <div className="flex flex-wrap gap-1">
-                        {phaseTabs.map((tab) => (
-                            <button
-                                key={tab.value}
-                                type="button"
-                                onClick={() => {
-                                    setPhaseFilter(tab.value);
-                                    resetPage();
-                                }}
-                                className={cn(
-                                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                    phaseFilter === tab.value
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <FilterSelect
+                        value={phaseFilter}
+                        onChange={(value) => {
+                            setPhaseFilter(value as ActivePhaseFilter);
+                            resetPage();
+                        }}
+                        options={phaseOptions}
+                        placeholder="Semua Tahap"
+                    />
+                    <FilterSelect
+                        value={riskFilter}
+                        onChange={(value) => {
+                            setRiskFilter(value as RiskFilter);
+                            resetPage();
+                        }}
+                        options={riskOptions}
+                        placeholder="Semua Risiko"
+                    />
                     <FilterSelect
                         value={angkatanFilter}
                         onChange={(value) => {
@@ -237,7 +332,7 @@ function ActiveStudentTable({
                             resetPage();
                         }}
                         options={filters.angkatan}
-                        placeholder="Angkatan"
+                        placeholder="Semua Angkatan"
                     />
                     <FilterSelect
                         value={concentrationFilter}
@@ -246,8 +341,26 @@ function ActiveStudentTable({
                             resetPage();
                         }}
                         options={filters.concentrations}
-                        placeholder="Konsentrasi"
+                        placeholder="Semua Konsentrasi"
                     />
+                    {riskFilter !== 'semua' ||
+                    angkatanFilter !== 'semua' ||
+                    concentrationFilter !== 'semua' ||
+                    phaseFilter !== 'semua' ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setPhaseFilter('semua');
+                                setRiskFilter('semua');
+                                setAngkatanFilter('semua');
+                                setConcentrationFilter('semua');
+                                resetPage();
+                            }}
+                            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                        >
+                            Reset filter
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -266,9 +379,12 @@ function ActiveStudentTable({
                                     Tahap
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                    Judul
+                                    Risiko
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
+                                    Judul
+                                </th>
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground 2xl:table-cell">
                                     Pembimbing
                                 </th>
                                 <th className="w-8 px-4 py-2.5" />
@@ -315,14 +431,25 @@ function ActiveStudentTable({
                                         </p>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge>{row.phase}</Badge>
+                                        <div className="flex flex-col items-start gap-1.5">
+                                            <Badge>{row.phase}</Badge>
+                                            <ProgressRiskBadge
+                                                risk={row.progressRisk}
+                                                className="lg:hidden"
+                                            />
+                                        </div>
                                     </td>
-                                    <td className="hidden max-w-[260px] px-4 py-3 lg:table-cell">
+                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                        <ProgressRiskBadge
+                                            risk={row.progressRisk}
+                                        />
+                                    </td>
+                                    <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
                                         <p className="line-clamp-2 text-xs leading-relaxed">
                                             {row.title}
                                         </p>
                                     </td>
-                                    <td className="hidden px-4 py-3 xl:table-cell">
+                                    <td className="hidden px-4 py-3 2xl:table-cell">
                                         <p className="max-w-xs truncate text-xs text-muted-foreground">
                                             {row.advisors.length > 0
                                                 ? row.advisors.join(', ')
@@ -330,9 +457,49 @@ function ActiveStudentTable({
                                         </p>
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        <Link href={row.profileUrl}>
-                                            <ChevronRight className="size-4" />
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/dokumen',
+                                                    row.nim,
+                                                )}
+                                                title="Lihat dokumen mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <FileText className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/sempro-sidang',
+                                                    row.nim,
+                                                )}
+                                                title="Lihat jadwal sempro dan sidang"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <CalendarClock className="size-4" />
+                                            </Link>
+                                            {canManageSupervisors &&
+                                            row.canManageSupervisors &&
+                                            row.projectId !== null ? (
+                                                <button
+                                                    type="button"
+                                                    title="Atur pembimbing"
+                                                    onClick={() =>
+                                                        setSupervisorDialog(row)
+                                                    }
+                                                    className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                                >
+                                                    <UserCog className="size-4" />
+                                                </button>
+                                            ) : null}
+                                            <Link
+                                                href={row.profileUrl}
+                                                title="Buka profil mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <ChevronRight className="size-4" />
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -345,16 +512,248 @@ function ActiveStudentTable({
                     />
                 </div>
             ) : (
-                <EmptyBlock icon={UserRound} text={emptyText} />
+                <EmptyBlock icon={AlertCircle} text={emptyText} />
             )}
+            <SupervisorDialog
+                student={supervisorDialog}
+                lecturerOptions={lecturerOptions}
+                open={supervisorDialog !== null}
+                onOpenChange={(open) => {
+                    if (!open) setSupervisorDialog(null);
+                }}
+            />
         </div>
     );
 }
 
-function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
-    const [search, setSearch] = useState('');
-    const [stateFilter, setStateFilter] = useState<ArchiveFilter>('semua');
-    const [page, setPage] = useState(1);
+function SupervisorDialog({
+    student,
+    lecturerOptions,
+    open,
+    onOpenChange,
+}: {
+    student: StudentRow | null;
+    lecturerOptions: LecturerOption[];
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const primary = student?.supervisorAssignments.find((assignment) =>
+        assignment.role.includes('1'),
+    );
+    const secondary = student?.supervisorAssignments.find((assignment) =>
+        assignment.role.includes('2'),
+    );
+    const form = useForm({
+        primary_lecturer_user_id: primary?.lecturerUserId
+            ? String(primary.lecturerUserId)
+            : '',
+        secondary_lecturer_user_id: secondary?.lecturerUserId
+            ? String(secondary.lecturerUserId)
+            : '',
+        notes: '',
+    });
+
+    useEffect(() => {
+        form.setData({
+            primary_lecturer_user_id: primary?.lecturerUserId
+                ? String(primary.lecturerUserId)
+                : '',
+            secondary_lecturer_user_id: secondary?.lecturerUserId
+                ? String(secondary.lecturerUserId)
+                : '',
+            notes: '',
+        });
+        form.clearErrors();
+    }, [student?.projectId]);
+
+    if (!student || student.projectId === null) return null;
+
+    const activeStudent = student;
+    const submitDisabled =
+        form.processing ||
+        form.data.primary_lecturer_user_id === '' ||
+        form.data.secondary_lecturer_user_id === '' ||
+        form.data.primary_lecturer_user_id ===
+            form.data.secondary_lecturer_user_id;
+
+    function submit() {
+        form.post(`/kaprodi/projects/${activeStudent.projectId}/supervisors`, {
+            preserveScroll: true,
+            onSuccess: () => onOpenChange(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Atur Pembimbing</DialogTitle>
+                    <DialogDescription>
+                        Tetapkan pembimbing aktif untuk {activeStudent.name} (
+                        {activeStudent.nim}).
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Judul Saat Ini
+                        </p>
+                        <p className="mt-1 text-sm font-medium">
+                            {activeStudent.title}
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <LecturerSelect
+                            label="Pembimbing 1"
+                            value={form.data.primary_lecturer_user_id}
+                            onChange={(value) =>
+                                form.setData('primary_lecturer_user_id', value)
+                            }
+                            lecturerOptions={lecturerOptions}
+                            error={form.errors.primary_lecturer_user_id}
+                        />
+                        <LecturerSelect
+                            label="Pembimbing 2"
+                            value={form.data.secondary_lecturer_user_id}
+                            onChange={(value) =>
+                                form.setData(
+                                    'secondary_lecturer_user_id',
+                                    value,
+                                )
+                            }
+                            lecturerOptions={lecturerOptions}
+                            error={form.errors.secondary_lecturer_user_id}
+                        />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <label className="text-sm font-medium">Catatan</label>
+                        <Textarea
+                            value={form.data.notes}
+                            onChange={(event) =>
+                                form.setData('notes', event.target.value)
+                            }
+                            placeholder="Opsional, misalnya alasan pergantian pembimbing."
+                        />
+                    </div>
+                    {(form.errors as Record<string, string>).project ? (
+                        <p className="text-sm text-destructive">
+                            {(form.errors as Record<string, string>).project}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={submitDisabled}
+                        onClick={submit}
+                    >
+                        Simpan Pembimbing
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function LecturerSelect({
+    label,
+    value,
+    onChange,
+    lecturerOptions,
+    error,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    lecturerOptions: LecturerOption[];
+    error?: string;
+}) {
+    return (
+        <div className="grid min-w-0 gap-1.5">
+            <label className="text-sm font-medium">{label}</label>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+                <option value="">Pilih dosen</option>
+                {lecturerOptions.map((lecturer) => (
+                    <option key={lecturer.id} value={lecturer.id}>
+                        {lecturer.name}
+                        {lecturer.concentrations.length > 0
+                            ? ` - ${lecturer.concentrations.join(', ')}`
+                            : ''}
+                    </option>
+                ))}
+            </select>
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        </div>
+    );
+}
+
+function ProgressRiskBadge({
+    risk,
+    className,
+}: {
+    risk: StudentRow['progressRisk'];
+    className?: string;
+}) {
+    return (
+        <div className={cn('flex min-w-[150px] flex-col gap-1', className)}>
+            <Badge
+                variant="outline"
+                className={cn(
+                    'w-fit',
+                    risk.level === 'high' &&
+                        'border-red-200 bg-red-50 text-red-700',
+                    risk.level === 'medium' &&
+                        'border-amber-200 bg-amber-50 text-amber-700',
+                    risk.level === 'low' &&
+                        'border-emerald-200 bg-emerald-50 text-emerald-700',
+                )}
+            >
+                {risk.label}
+            </Badge>
+            <p className="text-xs text-muted-foreground">
+                {risk.lastActivityLabel} - {risk.lastActivityAt}
+            </p>
+        </div>
+    );
+}
+
+function ArchiveTable({
+    rows,
+    filters,
+}: {
+    rows: ArchiveRow[];
+    filters: MahasiswaProps['filters'];
+}) {
+    const getInitials = useInitials();
+    const [search, setSearch] = useUrlState('archiveSearch', '');
+    const [stateFilter, setStateFilter] = useUrlState<ArchiveFilter>(
+        'archiveStatus',
+        'semua',
+    );
+    const [angkatanFilter, setAngkatanFilter] = useUrlState(
+        'archiveAngkatan',
+        'semua',
+    );
+    const [concentrationFilter, setConcentrationFilter] = useUrlState(
+        'archiveKonsentrasi',
+        'semua',
+    );
+    const [page, setPage] = useUrlState('archivePage', 1);
 
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -362,21 +761,33 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
         return rows.filter((row) => {
             const matchesSearch =
                 !query ||
-                [row.student, row.nim ?? '', row.title, row.phase, row.state]
+                [
+                    row.student,
+                    row.nim ?? '',
+                    row.title,
+                    row.phase,
+                    row.state,
+                    row.angkatan ?? '',
+                    row.concentration ?? '',
+                ]
                     .join(' ')
                     .toLowerCase()
                     .includes(query);
 
             return (
                 matchesSearch &&
-                (stateFilter === 'semua' || row.state === stateFilter)
+                (stateFilter === 'semua' || row.state === stateFilter) &&
+                (angkatanFilter === 'semua' ||
+                    String(row.angkatan ?? '') === angkatanFilter) &&
+                (concentrationFilter === 'semua' ||
+                    row.concentration === concentrationFilter)
             );
         });
-    }, [rows, search, stateFilter]);
+    }, [angkatanFilter, concentrationFilter, rows, search, stateFilter]);
 
-    const safePage = Math.min(
-        page,
-        Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    const safePage = Math.max(
+        1,
+        Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))),
     );
     const paginated = filtered.slice(
         (safePage - 1) * PAGE_SIZE,
@@ -385,7 +796,7 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
 
     return (
         <div className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div className="relative max-w-xs flex-1">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -398,27 +809,53 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                         className="h-8 pl-8 text-sm"
                     />
                 </div>
-                <div className="flex gap-1">
-                    {(
-                        ['semua', 'Selesai', 'Dibatalkan'] as ArchiveFilter[]
-                    ).map((value) => (
+                <div className="flex flex-wrap items-center gap-2">
+                    <FilterSelect
+                        value={stateFilter}
+                        onChange={(value) => {
+                            setStateFilter(value as ArchiveFilter);
+                            setPage(1);
+                        }}
+                        options={[
+                            { label: 'Selesai', value: 'Selesai' },
+                            { label: 'Dibatalkan', value: 'Dibatalkan' },
+                        ]}
+                        placeholder="Semua Status"
+                    />
+                    <FilterSelect
+                        value={angkatanFilter}
+                        onChange={(value) => {
+                            setAngkatanFilter(value);
+                            setPage(1);
+                        }}
+                        options={filters.angkatan}
+                        placeholder="Semua Angkatan"
+                    />
+                    <FilterSelect
+                        value={concentrationFilter}
+                        onChange={(value) => {
+                            setConcentrationFilter(value);
+                            setPage(1);
+                        }}
+                        options={filters.concentrations}
+                        placeholder="Semua Konsentrasi"
+                    />
+                    {stateFilter !== 'semua' ||
+                    angkatanFilter !== 'semua' ||
+                    concentrationFilter !== 'semua' ? (
                         <button
-                            key={value}
                             type="button"
                             onClick={() => {
-                                setStateFilter(value);
+                                setStateFilter('semua');
+                                setAngkatanFilter('semua');
+                                setConcentrationFilter('semua');
                                 setPage(1);
                             }}
-                            className={cn(
-                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                stateFilter === value
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                            )}
+                            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
-                            {value === 'semua' ? 'Semua' : value}
+                            Reset filter
                         </button>
-                    ))}
+                    ) : null}
                 </div>
             </div>
 
@@ -431,13 +868,13 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                     Mahasiswa
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                    Judul
+                                    Angkatan
                                 </th>
                                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                     Status
                                 </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                    Dokumen & Ujian
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
+                                    Judul
                                 </th>
                                 <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
                                     Tanggal
@@ -452,18 +889,37 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                     className="transition-colors hover:bg-muted/20"
                                 >
                                     <td className="px-4 py-3">
-                                        <Link href={row.profileUrl}>
-                                            <p className="leading-snug font-medium">
-                                                {row.student}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {row.nim ?? '-'}
-                                            </p>
+                                        <Link
+                                            href={row.profileUrl}
+                                            className="flex items-center gap-2.5"
+                                        >
+                                            <Avatar className="size-7 shrink-0 border">
+                                                <AvatarImage
+                                                    src={
+                                                        row.avatar ?? undefined
+                                                    }
+                                                    alt={row.student}
+                                                />
+                                                <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                                                    {getInitials(row.student)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0">
+                                                <p className="truncate leading-snug font-medium">
+                                                    {row.student}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {row.nim ?? '-'}
+                                                </p>
+                                            </div>
                                         </Link>
                                     </td>
-                                    <td className="hidden max-w-[320px] px-4 py-3 md:table-cell">
-                                        <p className="line-clamp-2 text-xs leading-relaxed">
-                                            {row.title}
+                                    <td className="hidden px-4 py-3 md:table-cell">
+                                        <p className="text-xs font-medium">
+                                            {row.angkatan ?? '-'}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                            {row.concentration ?? '-'}
                                         </p>
                                     </td>
                                     <td className="px-4 py-3">
@@ -477,24 +933,46 @@ function ArchiveTable({ rows }: { rows: ArchiveRow[] }) {
                                             >
                                                 {row.state}
                                             </Badge>
-                                            <Badge variant="outline">
-                                                {row.phase}
-                                            </Badge>
                                         </div>
                                     </td>
-                                    <td className="hidden px-4 py-3 lg:table-cell">
-                                        <p className="text-xs text-muted-foreground">
-                                            {row.documentCount} dokumen -{' '}
-                                            {row.defenseCount} ujian
+                                    <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
+                                        <p className="line-clamp-2 text-xs leading-relaxed">
+                                            {row.title}
                                         </p>
                                     </td>
                                     <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
                                         {row.completedAt}
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        <Link href={row.profileUrl}>
-                                            <ChevronRight className="size-4" />
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/dokumen',
+                                                    row.nim ?? '',
+                                                )}
+                                                title="Lihat dokumen mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <FileText className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={searchUrl(
+                                                    '/kaprodi/sempro-sidang',
+                                                    row.nim ?? '',
+                                                )}
+                                                title="Lihat jadwal sempro dan sidang"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <CalendarClock className="size-4" />
+                                            </Link>
+                                            <Link
+                                                href={row.profileUrl}
+                                                title="Buka profil mahasiswa"
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <ChevronRight className="size-4" />
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -583,9 +1061,18 @@ function FilterSelect({
 }: {
     value: string;
     onChange: (value: string) => void;
-    options: string[];
+    options: (string | number | { label: string; value: string | number })[];
     placeholder: string;
 }) {
+    const normalizedOptions = options.map((option) =>
+        typeof option === 'string' || typeof option === 'number'
+            ? { label: String(option), value: String(option) }
+            : {
+                  label: option.label,
+                  value: String(option.value),
+              },
+    );
+
     return (
         <select
             value={value}
@@ -593,9 +1080,9 @@ function FilterSelect({
             className="h-7 rounded-full border border-transparent bg-muted px-3 text-xs font-medium text-muted-foreground transition-colors outline-none hover:bg-muted/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
             <option value="semua">{placeholder}</option>
-            {options.map((option) => (
-                <option key={option} value={option}>
-                    {option}
+            {normalizedOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                    {option.label}
                 </option>
             ))}
         </select>

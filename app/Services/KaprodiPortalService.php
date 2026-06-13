@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MahasiswaProfile;
+use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
@@ -24,7 +25,9 @@ class KaprodiPortalService
     {
         $projects = $this->projects($programStudi);
         $students = $this->studentProfiles($programStudi);
-        $attentionItems = $this->attentionItems($programStudi, $projects, $students);
+        $latestChatByStudent = $this->latestChatActivityByStudent($students->pluck('user_id'));
+        $latestDocumentByStudent = $this->latestMentorshipDocumentActivityByStudent($students->pluck('user_id'));
+        $attentionItems = $this->attentionItems($programStudi, $projects, $students, $latestChatByStudent, $latestDocumentByStudent);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
@@ -62,6 +65,9 @@ class KaprodiPortalService
     {
         $projects = $this->projects($programStudi);
         $students = $this->studentProfiles($programStudi);
+        $latestChatByStudent = $this->latestChatActivityByStudent($students->pluck('user_id'));
+        $latestDocumentByStudent = $this->latestMentorshipDocumentActivityByStudent($students->pluck('user_id'));
+        $studentRows = $this->studentRows($students, $projects, $latestChatByStudent, $latestDocumentByStudent);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
@@ -69,13 +75,14 @@ class KaprodiPortalService
                 'phases' => $this->phaseDistribution($projects),
                 'statuses' => collect(['Aktif', 'Nonaktif'])->map(fn(string $status): array => [
                     'label' => $status,
-                    'count' => $this->studentRows($students, $projects)->where('status', $status)->count(),
+                    'count' => $studentRows->where('status', $status)->count(),
                 ])->values()->all(),
                 'angkatan' => $students->pluck('angkatan')->filter()->unique()->sort()->values()->all(),
                 'concentrations' => $students->pluck('concentration')->filter()->unique()->sort()->values()->all(),
             ],
-            'students' => $this->studentRows($students, $projects)->values()->all(),
+            'students' => $studentRows->values()->all(),
             'archives' => $this->archiveRows($programStudi, null)->values()->all(),
+            'lecturerOptions' => $this->lecturerOptions($programStudi)->values()->all(),
         ];
     }
 
@@ -108,6 +115,7 @@ class KaprodiPortalService
             'progress' => $this->defenseProgress($programStudi)->values()->all(),
             'exams' => $defenses->map(fn(ThesisDefense $defense): array => [
                 'id' => $defense->id,
+                'projectId' => $defense->project_id,
                 'type' => $this->defenseTypeLabel($defense->type),
                 'typeKey' => $defense->type,
                 'status' => $this->statusLabel($defense->status),
@@ -120,7 +128,10 @@ class KaprodiPortalService
                 'title' => $defense->project?->latestTitle?->title_id ?? '-',
                 'attempt' => $defense->attempt_no,
                 'scheduledFor' => WitaDateTime::format($defense->scheduled_for),
+                'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
                 'location' => $defense->location,
+                'mode' => $defense->mode ?? 'offline',
+                'canManageSchedule' => $this->canManageDefenseSchedule($defense),
                 'examiners' => $defense->examiners
                     ->sortBy('order_no')
                     ->map(fn($examiner): array => [
@@ -136,6 +147,8 @@ class KaprodiPortalService
                 'revisionCount' => $defense->revisions->count(),
                 'studentProfileUrl' => route('users.profile.show', ['user' => $defense->project?->student_user_id]),
             ])->values()->all(),
+            'schedulableProjects' => $this->schedulableProjects($programStudi)->values()->all(),
+            'lecturerOptions' => $this->lecturerOptions($programStudi)->values()->all(),
             'calendarEvents' => $defenses
                 ->filter(fn(ThesisDefense $defense): bool => $defense->scheduled_for !== null)
                 ->map(fn(ThesisDefense $defense): array => [
@@ -188,7 +201,7 @@ class KaprodiPortalService
     {
         $workspaceDocuments = MentorshipDocument::query()
             ->whereHas('student.mahasiswaProfile', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with(['student', 'lecturer'])
+            ->with(['student.mahasiswaProfile', 'lecturer'])
             ->latest('created_at')
             ->get()
             ->groupBy(fn(MentorshipDocument $document): string => $this->workspaceDocumentGroupKey($document))
@@ -201,6 +214,7 @@ class KaprodiPortalService
                     'id' => 'workspace-'.md5($key),
                     'source' => 'Workspace',
                     'mahasiswa' => $document->student?->name ?? '-',
+                    'nim' => $document->student?->mahasiswaProfile?->nim,
                     'title' => $document->title,
                     'file' => $document->file_name,
                     'uploadedAt' => $document->created_at?->format('d M Y H:i') ?? '-',
@@ -242,6 +256,7 @@ class KaprodiPortalService
                     'id' => 'thesis-'.$document->id,
                     'source' => 'Tugas Akhir',
                     'mahasiswa' => $document->project?->student?->name ?? '-',
+                    'nim' => $document->project?->student?->mahasiswaProfile?->nim,
                     'title' => $document->title,
                     'file' => $document->file_name,
                     'uploadedAt' => WitaDateTime::format($document->uploaded_at),
@@ -450,11 +465,11 @@ class KaprodiPortalService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function studentRows(EloquentCollection $students, EloquentCollection $projects): Collection
+    private function studentRows(EloquentCollection $students, EloquentCollection $projects, Collection $latestChatByStudent, Collection $latestDocumentByStudent): Collection
     {
         return $students
             ->sortBy(fn(MahasiswaProfile $profile): string => $profile->user?->name ?? '')
-            ->map(function (MahasiswaProfile $profile) use ($projects): array {
+            ->map(function (MahasiswaProfile $profile) use ($latestChatByStudent, $latestDocumentByStudent, $projects): array {
                 $project = $projects
                     ->where('student_user_id', $profile->user_id)
                     ->sortByDesc('started_at')
@@ -462,6 +477,8 @@ class KaprodiPortalService
 
                 return [
                     'id' => $profile->user_id,
+                    'projectId' => $project?->id,
+                    'canManageSupervisors' => $project instanceof ThesisProject && $project->state === 'active',
                     'name' => $profile->user?->name ?? '-',
                     'nim' => $profile->nim,
                     'avatar' => $profile->user?->avatar,
@@ -477,6 +494,20 @@ class KaprodiPortalService
                         ->map(fn($assignment): string => $assignment->lecturer?->name ?? '-')
                         ->values()
                         ->all() ?? [],
+                    'supervisorAssignments' => $project?->activeSupervisorAssignments
+                        ->sortBy('role')
+                        ->map(fn($assignment): array => [
+                            'lecturerUserId' => $assignment->lecturer_user_id,
+                            'name' => $assignment->lecturer?->name ?? '-',
+                            'role' => $assignment->role === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
+                        ])
+                        ->values()
+                        ->all() ?? [],
+                    'progressRisk' => $this->progressRisk(
+                        $project,
+                        $latestChatByStudent->get((int) $profile->user_id),
+                        $latestDocumentByStudent->get((int) $profile->user_id),
+                    ),
                     'profileUrl' => route('users.profile.show', ['user' => $profile->user_id]),
                 ];
             })
@@ -556,6 +587,143 @@ class KaprodiPortalService
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function progressRisk(?ThesisProject $project, ?MentorshipChatMessage $latestChat, ?MentorshipDocument $latestMentorshipDocument): array
+    {
+        if (! $project instanceof ThesisProject) {
+            return [
+                'level' => 'medium',
+                'label' => 'Perlu Data',
+                'description' => 'Mahasiswa belum memiliki proyek tugas akhir yang tercatat.',
+                'lastActivityAt' => '-',
+                'lastActivityLabel' => 'Belum ada proyek',
+                'daysIdle' => null,
+                'signals' => ['Belum ada proyek'],
+            ];
+        }
+
+        if (in_array($project->state, ['completed', 'cancelled'], true)) {
+            return [
+                'level' => 'low',
+                'label' => 'Arsip',
+                'description' => 'Proyek sudah masuk arsip prodi.',
+                'lastActivityAt' => WitaDateTime::format($project->completed_at ?? $project->cancelled_at ?? $project->updated_at, 'd M Y', false),
+                'lastActivityLabel' => 'Proyek selesai/diarsipkan',
+                'daysIdle' => null,
+                'signals' => ['Proyek arsip'],
+            ];
+        }
+
+        $latestActivity = $this->latestProjectActivity($project, $latestChat, $latestMentorshipDocument);
+        $daysIdle = $latestActivity['at'] === null
+            ? null
+            : ($latestActivity['at']->isFuture() ? 0 : (int) $latestActivity['at']->diffInDays(now()));
+        $thresholds = $this->progressRiskThresholds($project->phase);
+        $signals = [];
+
+        if ($project->activeSupervisorAssignments->isEmpty()) {
+            $signals[] = 'Belum ada pembimbing aktif';
+        }
+
+        $openRevisions = $project->defenses
+            ->flatMap(fn(ThesisDefense $defense): Collection => $defense->revisions)
+            ->whereNull('resolved_at')
+            ->count();
+
+        if ($openRevisions > 0) {
+            $signals[] = "{$openRevisions} revisi terbuka";
+        }
+
+        if ($daysIdle === null) {
+            $level = 'high';
+            $label = 'Risiko Telat';
+            $description = 'Belum ada aktivitas progres yang dapat dibaca dari log.';
+            $signals[] = 'Belum ada aktivitas';
+        } elseif ($daysIdle >= $thresholds['high']) {
+            $level = 'high';
+            $label = 'Risiko Telat';
+            $description = "Tidak ada aktivitas progres selama {$daysIdle} hari.";
+        } elseif ($daysIdle >= $thresholds['medium'] || $signals !== []) {
+            $level = 'medium';
+            $label = 'Perlu Dipantau';
+            $description = $daysIdle >= $thresholds['medium']
+                ? "Aktivitas terakhir {$daysIdle} hari lalu."
+                : 'Ada sinyal progres yang perlu dipantau.';
+        } else {
+            $level = 'low';
+            $label = 'Terkendali';
+            $description = 'Aktivitas progres masih relatif baru.';
+        }
+
+        if ($signals === []) {
+            $signals[] = $latestActivity['label'];
+        }
+
+        return [
+            'level' => $level,
+            'label' => $label,
+            'description' => $description,
+            'lastActivityAt' => $latestActivity['at'] === null
+                ? '-'
+                : WitaDateTime::format($latestActivity['at'], 'd M Y', false),
+            'lastActivityLabel' => $latestActivity['label'],
+            'daysIdle' => $daysIdle,
+            'signals' => array_values(array_unique($signals)),
+        ];
+    }
+
+    /**
+     * @return array{at: mixed, label: string}
+     */
+    private function latestProjectActivity(ThesisProject $project, ?MentorshipChatMessage $latestChat, ?MentorshipDocument $latestMentorshipDocument): array
+    {
+        $candidates = collect([
+            [
+                'at' => $project->updated_at ?? $project->started_at,
+                'label' => 'Update proyek',
+            ],
+            [
+                'at' => $project->events->max('occurred_at'),
+                'label' => 'Log progres',
+            ],
+            [
+                'at' => $project->documents->max('uploaded_at'),
+                'label' => 'Dokumen terakhir',
+            ],
+            [
+                'at' => $project->defenses->max('scheduled_for'),
+                'label' => 'Jadwal ujian',
+            ],
+            [
+                'at' => $latestChat?->created_at,
+                'label' => 'Chat terakhir',
+            ],
+            [
+                'at' => $latestMentorshipDocument?->reviewed_at ?? $latestMentorshipDocument?->updated_at ?? $latestMentorshipDocument?->created_at,
+                'label' => 'Dokumen bimbingan',
+            ],
+        ])->filter(fn(array $candidate): bool => $candidate['at'] !== null);
+
+        if ($candidates->isEmpty()) {
+            return ['at' => null, 'label' => 'Belum ada aktivitas'];
+        }
+
+        return $candidates
+            ->sortByDesc(fn(array $candidate): int => $candidate['at']->getTimestamp())
+            ->first();
+    }
+
+    /**
+     * @return array{medium: int, high: int}
+     */
+    private function progressRiskThresholds(?string $phase): array
+    {
+        return match ($phase) {
+            'research' => ['medium' => 30, 'high' => 60],
+            'title_review', 'sempro', 'sidang' => ['medium' => 21, 'high' => 45],
+            default => ['medium' => 21, 'high' => 45],
+        };
     }
 
     private function phaseLabel(?string $phase): string
@@ -664,6 +832,108 @@ class KaprodiPortalService
         return round($scores->average(), 2);
     }
 
+    private function canManageDefenseSchedule(ThesisDefense $defense): bool
+    {
+        return $defense->project?->state === 'active'
+            && ! in_array($defense->status, ['awaiting_finalization', 'completed', 'cancelled'], true);
+    }
+
+    private function lecturerOptions(ProgramStudi $programStudi): Collection
+    {
+        return User::query()
+            ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $lecturer) use ($programStudi): array {
+                $assignments = $lecturer->activeDosenProgramStudiAssignments
+                    ->where('program_studi_id', $programStudi->id)
+                    ->sortBy('concentration')
+                    ->values();
+
+                return [
+                    'id' => $lecturer->id,
+                    'name' => $lecturer->name,
+                    'nik' => $lecturer->dosenProfile?->nik,
+                    'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 14),
+                    'concentrations' => $assignments
+                        ->pluck('concentration')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all(),
+                    'profileUrl' => route('users.profile.show', ['user' => $lecturer->id]),
+                ];
+            })
+            ->values();
+    }
+
+    private function schedulableProjects(ProgramStudi $programStudi): Collection
+    {
+        return ThesisProject::query()
+            ->where('program_studi_id', $programStudi->id)
+            ->where('state', 'active')
+            ->with([
+                'student.mahasiswaProfile',
+                'latestTitle',
+                'activeSupervisorAssignments.lecturer',
+                'defenses.examiners.lecturer',
+            ])
+            ->latest('updated_at')
+            ->get()
+            ->map(fn(ThesisProject $project): array => [
+                'id' => $project->id,
+                'student' => $project->student?->name ?? 'Mahasiswa',
+                'nim' => $project->student?->mahasiswaProfile?->nim,
+                'title' => $project->latestTitle?->title_id ?? '-',
+                'phase' => $this->phaseLabel($project->phase),
+                'supervisors' => $project->activeSupervisorAssignments
+                    ->sortBy('role')
+                    ->map(fn($assignment): array => [
+                        'id' => $assignment->lecturer_user_id,
+                        'name' => $assignment->lecturer?->name ?? '-',
+                        'role' => $assignment->role === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
+                    ])
+                    ->values()
+                    ->all(),
+                'latestSempro' => $this->latestDefenseSummary($project, 'sempro'),
+                'latestSidang' => $this->latestDefenseSummary($project, 'sidang'),
+            ])
+            ->values();
+    }
+
+    private function latestDefenseSummary(ThesisProject $project, string $type): ?array
+    {
+        $defense = $project->defenses
+            ->where('type', $type)
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if (! $defense instanceof ThesisDefense) {
+            return null;
+        }
+
+        return [
+            'id' => $defense->id,
+            'status' => $this->statusLabel($defense->status),
+            'statusKey' => $defense->status,
+            'scheduledFor' => WitaDateTime::format($defense->scheduled_for),
+            'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
+            'location' => $defense->location,
+            'mode' => $defense->mode ?? 'offline',
+            'canManageSchedule' => $this->canManageDefenseSchedule($defense),
+            'examiners' => $defense->examiners
+                ->sortBy('order_no')
+                ->map(fn($examiner): array => [
+                    'id' => $examiner->lecturer_user_id,
+                    'name' => $examiner->lecturer?->name ?? '-',
+                    'role' => $this->examinerRoleLabel($examiner->role),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
     private function grade(?float $score): ?string
     {
         if ($score === null) {
@@ -705,6 +975,7 @@ class KaprodiPortalService
                 'defenses.examiners.lecturer',
                 'defenses.revisions',
                 'documents',
+                'events',
             ])
             ->latest('updated_at')
             ->get();
@@ -718,7 +989,53 @@ class KaprodiPortalService
             ->get();
     }
 
-    private function attentionItems(ProgramStudi $programStudi, EloquentCollection $projects, EloquentCollection $students): Collection
+    private function latestChatActivityByStudent(Collection $studentIds): Collection
+    {
+        $ids = $studentIds
+            ->filter()
+            ->map(fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return MentorshipChatMessage::query()
+            ->whereHas('thread', fn($query) => $query->whereIn('student_user_id', $ids->all()))
+            ->with('thread:id,student_user_id')
+            ->latest('created_at')
+            ->get()
+            ->filter(fn(MentorshipChatMessage $message): bool => $message->thread?->student_user_id !== null)
+            ->unique(fn(MentorshipChatMessage $message): int => (int) $message->thread->student_user_id)
+            ->mapWithKeys(fn(MentorshipChatMessage $message): array => [
+                (int) $message->thread->student_user_id => $message,
+            ]);
+    }
+
+    private function latestMentorshipDocumentActivityByStudent(Collection $studentIds): Collection
+    {
+        $ids = $studentIds
+            ->filter()
+            ->map(fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return MentorshipDocument::query()
+            ->whereIn('student_user_id', $ids->all())
+            ->latest('updated_at')
+            ->get()
+            ->unique(fn(MentorshipDocument $document): int => (int) $document->student_user_id)
+            ->mapWithKeys(fn(MentorshipDocument $document): array => [
+                (int) $document->student_user_id => $document,
+            ]);
+    }
+
+    private function attentionItems(ProgramStudi $programStudi, EloquentCollection $projects, EloquentCollection $students, Collection $latestChatByStudent, Collection $latestDocumentByStudent): Collection
     {
         $unfinalizedDefenses = ThesisDefense::query()
             ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
@@ -738,7 +1055,19 @@ class KaprodiPortalService
             ->filter(fn(ThesisProject $project): bool => $project->state === 'active' && $project->activeSupervisorAssignments->isEmpty())
             ->count();
 
+        $riskStudents = $this->studentRows($students, $projects, $latestChatByStudent, $latestDocumentByStudent)
+            ->where('status', 'Aktif')
+            ->where('progressRisk.level', 'high')
+            ->count();
+
         return collect([
+            [
+                'id' => 'progress-risk',
+                'label' => 'Risiko telat',
+                'value' => $riskStudents,
+                'description' => 'Mahasiswa aktif dengan jeda progres panjang.',
+                'href' => route('kaprodi.mahasiswa.index'),
+            ],
             [
                 'id' => 'unfinalized-defenses',
                 'label' => 'Ujian belum final',
@@ -795,6 +1124,9 @@ class KaprodiPortalService
                 'studentId' => $project->student_user_id,
                 'student' => $project->student?->name ?? 'Mahasiswa',
                 'nim' => $project->student?->mahasiswaProfile?->nim,
+                'avatar' => $project->student?->avatar,
+                'angkatan' => $project->student?->mahasiswaProfile?->angkatan,
+                'concentration' => $project->student?->mahasiswaProfile?->concentration,
                 'title' => $project->latestTitle?->title_id ?? '-',
                 'state' => $this->statusLabel($project->state),
                 'phase' => $this->phaseLabel($project->phase),
@@ -809,11 +1141,21 @@ class KaprodiPortalService
     private function lecturerRows(ProgramStudi $programStudi): Collection
     {
         return User::query()
-            ->whereHas('dosenProfile', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with('dosenProfile')
+            ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->orderBy('name')
             ->get()
             ->map(function (User $lecturer) use ($programStudi): array {
+                $assignments = $lecturer->activeDosenProgramStudiAssignments
+                    ->where('program_studi_id', $programStudi->id)
+                    ->sortBy('concentration')
+                    ->values();
+                $concentrations = $assignments
+                    ->pluck('concentration')
+                    ->filter()
+                    ->unique()
+                    ->values();
+
                 $supervisorAssignments = ThesisSupervisorAssignment::query()
                     ->where('lecturer_user_id', $lecturer->id)
                     ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
@@ -838,9 +1180,11 @@ class KaprodiPortalService
                     'name' => $lecturer->name,
                     'avatar' => $lecturer->avatar,
                     'nik' => $lecturer->dosenProfile?->nik ?? '-',
-                    'concentration' => $lecturer->dosenProfile?->concentration,
+                    'concentration' => $concentrations->first(),
+                    'concentrations' => $concentrations->all(),
                     'status' => ($lecturer->dosenProfile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
                     'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 0),
+                    'activeSupervisionCount' => $activeStudents->count(),
                     'primaryCount' => $supervisorAssignments->where('role', 'primary')->count(),
                     'secondaryCount' => $supervisorAssignments->where('role', 'secondary')->count(),
                     'semproCount' => $examinerDefenses->where('type', 'sempro')->count(),

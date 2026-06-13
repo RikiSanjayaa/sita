@@ -26,6 +26,29 @@ class EditUser extends EditRecord
             ?? $this->record->dosenProfile?->program_studi_id
             ?? $this->record->adminProfile?->program_studi_id;
         $data['concentration'] = $this->record->mahasiswaProfile?->concentration ?? $this->record->dosenProfile?->concentration;
+        $data['academic_assignments'] = $this->record
+            ->dosenProgramStudiAssignments()
+            ->orderByDesc('is_primary')
+            ->orderBy('program_studi_id')
+            ->get()
+            ->map(fn($assignment): array => [
+                'program_studi_id' => $assignment->program_studi_id,
+                'concentration' => $assignment->concentration,
+                'is_primary' => $assignment->is_primary,
+                'is_active' => $assignment->is_active,
+            ])
+            ->all();
+
+        if ($data['academic_assignments'] === [] && $this->record->dosenProfile?->program_studi_id !== null) {
+            $data['academic_assignments'] = [
+                [
+                    'program_studi_id' => $this->record->dosenProfile->program_studi_id,
+                    'concentration' => $this->record->dosenProfile->concentration,
+                    'is_primary' => true,
+                    'is_active' => $this->record->dosenProfile->is_active,
+                ],
+            ];
+        }
         $data['angkatan'] = $this->record->mahasiswaProfile?->angkatan;
         $data['nik'] = $this->record->dosenProfile?->nik;
         $data['supervision_quota'] = $this->record->dosenProfile?->supervision_quota;
@@ -48,6 +71,7 @@ class EditUser extends EditRecord
             'nim' => $data['nim'] ?? null,
             'prodi' => $data['prodi'] ?? null,
             'concentration' => $data['concentration'] ?? null,
+            'academic_assignments' => $data['academic_assignments'] ?? [],
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
             'supervision_quota' => $data['supervision_quota'] ?? null,
@@ -59,6 +83,7 @@ class EditUser extends EditRecord
             $data['nim'],
             $data['prodi'],
             $data['concentration'],
+            $data['academic_assignments'],
             $data['angkatan'],
             $data['nik'],
             $data['supervision_quota'],
