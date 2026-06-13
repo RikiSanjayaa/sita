@@ -147,7 +147,12 @@ test('kaprodi assignment rules are enforced', function (): void {
 
     expect(KaprodiAssignment::query()->where('program_studi_id', $prodiA->id)->count())->toBe(3)
         ->and(KaprodiAssignment::query()->where('program_studi_id', $prodiA->id)->where('is_primary', true)->count())->toBe(1)
-        ->and($kaprodi->refresh()->last_active_role)->toBe(AppRole::Kaprodi->value);
+        ->and($kaprodi->refresh()->last_active_role)->toBe(AppRole::Kaprodi->value)
+        ->and($kaprodi->hasRole(AppRole::Kaprodi))->toBeTrue()
+        ->and($kaprodi->hasRole(AppRole::Dosen))->toBeTrue()
+        ->and($kaprodi->dosenProfile?->program_studi_id)->toBe($prodiA->id)
+        ->and($kaprodi->dosenProfile?->is_active)->toBeTrue()
+        ->and($kaprodi->teachesInProgramStudi($prodiA->id))->toBeTrue();
 
     expect(fn() => app(KaprodiAssignmentService::class)->syncForProgramStudi($prodiB, [
         ['user_id' => $kaprodi->id, 'is_primary' => true],
@@ -190,6 +195,29 @@ test('kaprodi assignment service persists custom capabilities', function (): voi
         ->and($assignment->hasCapability('view_documents'))->toBeTrue()
         ->and($assignment->hasCapability('schedule_sempro'))->toBeFalse()
         ->and($assignment->hasCapability('manage_lecturer_quota'))->toBeFalse();
+});
+
+test('kaprodi has both kaprodi and dosen portal access', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser(['name' => 'Kaprodi Dosen Aktif']);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->get('/kaprodi/dashboard')
+        ->assertOk();
+
+    $this->actingAs($kaprodi)
+        ->get('/dosen/dashboard')
+        ->assertOk();
+
+    expect($kaprodi->refresh()->availableRoles())
+        ->toContain(AppRole::Kaprodi->value)
+        ->toContain(AppRole::Dosen->value);
 });
 
 test('dashboard counts active and archived data and detail returns full project data', function (): void {
@@ -328,8 +356,10 @@ test('dashboard counts active and archived data and detail returns full project 
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('kaprodi/dosen-prodi')
-            ->where('lecturers.0.name', 'Dosen Pembimbing')
-            ->where('lecturers.0.primaryCount', 1));
+            ->where('lecturers', fn($lecturers): bool => collect($lecturers)->contains(
+                fn(array $lecturer): bool => $lecturer['name'] === 'Dosen Pembimbing'
+                    && $lecturer['primaryCount'] === 1,
+            )));
 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/arsip')
@@ -338,6 +368,31 @@ test('dashboard counts active and archived data and detail returns full project 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/mahasiswa/'.$student->id)
         ->assertRedirect('/profil/'.$student->id);
+});
+
+test('kaprodi appears as an eligible lecturer option for own prodi', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser(['name' => 'Kaprodi Merangkap Dosen']);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->get('/kaprodi/mahasiswa')
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('kaprodi/mahasiswa')
+            ->where('lecturerOptions.0.name', 'Kaprodi Merangkap Dosen'));
+
+    $this->actingAs($kaprodi)
+        ->get('/kaprodi/dosen-prodi')
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('kaprodi/dosen-prodi')
+            ->where('lecturers.0.name', 'Kaprodi Merangkap Dosen'));
 });
 
 test('kaprodi mahasiswa page exposes progress risk from project and chat activity', function (): void {
@@ -457,9 +512,8 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
     $project = kaprodiProject($student, $prodi, 'sempro', 'active');
     $primary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Satu']);
     $secondary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Dua']);
-    $examiner = User::factory()->asDosen()->create(['name' => 'Dosen Penguji Tambahan']);
 
-    foreach ([$primary, $secondary, $examiner] as $lecturer) {
+    foreach ([$primary, $secondary] as $lecturer) {
         DosenProfile::factory()->create([
             'user_id' => $lecturer->id,
             'program_studi_id' => $prodi->id,
@@ -491,7 +545,7 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
             'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
             'location' => 'Ruang Sempro',
             'mode' => 'offline',
-            'examiner_1_user_id' => $primary->id,
+            'examiner_1_user_id' => $kaprodi->id,
             'examiner_2_user_id' => $secondary->id,
         ])
         ->assertRedirect()
@@ -503,7 +557,8 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
         ->firstOrFail();
 
     expect($sempro->status)->toBe('scheduled')
-        ->and($sempro->examiners()->count())->toBe(2);
+        ->and($sempro->examiners()->count())->toBe(2)
+        ->and($sempro->examiners()->where('lecturer_user_id', $kaprodi->id)->exists())->toBeTrue();
 
     $this->assertDatabaseHas('system_audit_logs', [
         'user_id' => $kaprodi->id,
@@ -516,7 +571,7 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
             'scheduled_for' => now()->addWeeks(3)->format('Y-m-d H:i:s'),
             'location' => 'Ruang Sidang',
             'mode' => 'hybrid',
-            'additional_examiner_user_ids' => [$examiner->id],
+            'additional_examiner_user_ids' => [$kaprodi->id],
             'notes' => 'Jadwal sidang dari kaprodi.',
         ])
         ->assertRedirect()
@@ -530,12 +585,48 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
     expect($sidang->status)->toBe('scheduled')
         ->and($sidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
         ->and($sidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
-        ->and($sidang->examiners()->where('role', 'examiner')->where('lecturer_user_id', $examiner->id)->exists())->toBeTrue();
+        ->and($sidang->examiners()->where('role', 'examiner')->where('lecturer_user_id', $kaprodi->id)->exists())->toBeTrue();
 
     $this->assertDatabaseHas('system_audit_logs', [
         'user_id' => $kaprodi->id,
         'event_type' => 'kaprodi_sidang_scheduled',
         'label' => 'Kaprodi memperbarui jadwal sidang',
+    ]);
+});
+
+test('kaprodi can be assigned as thesis supervisor for own prodi project', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser(['name' => 'Kaprodi Pembimbing']);
+    $secondary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Dua']);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $secondary->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = kaprodiStudent($prodi, 'Mahasiswa Kaprodi Pembimbing');
+    $project = kaprodiProject($student, $prodi, 'sempro', 'active');
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/supervisors", [
+            'primary_lecturer_user_id' => $kaprodi->id,
+            'secondary_lecturer_user_id' => $secondary->id,
+            'notes' => 'Kaprodi ikut membimbing.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('thesis_supervisor_assignments', [
+        'project_id' => $project->id,
+        'lecturer_user_id' => $kaprodi->id,
+        'role' => 'primary',
+        'status' => 'active',
     ]);
 });
 

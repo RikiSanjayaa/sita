@@ -39,7 +39,7 @@ class DosenProfile extends Model
                 ],
                 [
                     'is_primary' => true,
-                    'is_active' => $profile->is_active,
+                    'is_active' => $profile->is_active ?? true,
                 ],
             );
         });

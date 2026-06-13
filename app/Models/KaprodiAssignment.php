@@ -107,7 +107,7 @@ class KaprodiAssignment extends Model
         });
 
         static::saved(function (self $assignment): void {
-            self::ensureUserHasKaprodiRole($assignment->user);
+            self::ensureUserHasKaprodiLecturerIdentity($assignment);
         });
     }
 
@@ -170,14 +170,44 @@ class KaprodiAssignment extends Model
         }
     }
 
-    private static function ensureUserHasKaprodiRole(?User $user): void
+    private static function ensureUserHasKaprodiLecturerIdentity(self $assignment): void
     {
+        $user = $assignment->user;
+
         if (! $user instanceof User) {
             return;
         }
 
-        $role = Role::query()->firstOrCreate(['name' => AppRole::Kaprodi->value]);
-        $user->roles()->syncWithoutDetaching([$role->id]);
+        $roleIds = collect([AppRole::Kaprodi->value, AppRole::Dosen->value])
+            ->map(fn(string $role): int => Role::query()->firstOrCreate(['name' => $role])->id)
+            ->all();
+
+        $user->roles()->syncWithoutDetaching($roleIds);
+
+        $programStudi = $assignment->programStudi;
+        $concentration = $programStudi?->concentrationList()[0] ?? ProgramStudi::DEFAULT_GENERAL_CONCENTRATION;
+
+        $user->dosenProfile()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'program_studi_id' => $assignment->program_studi_id,
+                'concentration' => $concentration,
+                'supervision_quota' => $user->dosenProfile?->supervision_quota ?? 14,
+                'is_active' => true,
+            ],
+        );
+
+        DosenProgramStudiAssignment::query()->updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'program_studi_id' => $assignment->program_studi_id,
+                'concentration' => $concentration,
+            ],
+            [
+                'is_primary' => true,
+                'is_active' => true,
+            ],
+        );
 
         $user->forceFill(['last_active_role' => AppRole::Kaprodi->value])->save();
     }
