@@ -3,6 +3,7 @@
 use App\Http\Controllers\Kaprodi\DashboardController;
 use App\Http\Controllers\Kaprodi\DokumenController;
 use App\Http\Controllers\Kaprodi\DosenTerlibatController;
+use App\Http\Controllers\Kaprodi\LecturerQuotaController;
 use App\Http\Controllers\Kaprodi\MahasiswaController;
 use App\Http\Controllers\Kaprodi\MahasiswaDetailController;
 use App\Http\Controllers\Kaprodi\ProjectWorkflowController;
@@ -20,5 +21,6 @@ Route::middleware(['auth', 'verified', 'role:kaprodi'])->prefix('kaprodi')->name
     Route::get('dokumen', DokumenController::class)->name('dokumen');
     Route::redirect('dosen-terlibat', '/kaprodi/dosen-prodi')->name('dosen-terlibat.redirect');
     Route::get('dosen-prodi', DosenTerlibatController::class)->name('dosen-prodi');
+    Route::patch('dosen-prodi/{lecturer}/quota', LecturerQuotaController::class)->name('dosen-prodi.quota');
     Route::redirect('arsip', '/kaprodi/mahasiswa')->name('arsip');
 });

@@ -1184,6 +1184,7 @@ class KaprodiPortalService
                     'concentrations' => $concentrations->all(),
                     'status' => ($lecturer->dosenProfile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
                     'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 0),
+                    'activeSupervisionCount' => $activeStudents->count(),
                     'primaryCount' => $supervisorAssignments->where('role', 'primary')->count(),
                     'secondaryCount' => $supervisorAssignments->where('role', 'secondary')->count(),
                     'semproCount' => $examinerDefenses->where('type', 'sempro')->count(),

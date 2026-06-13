@@ -454,6 +454,12 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
         ->where('status', 'active')
         ->count())->toBe(2);
 
+    $this->assertDatabaseHas('system_audit_logs', [
+        'user_id' => $kaprodi->id,
+        'event_type' => 'kaprodi_supervisors_updated',
+        'label' => 'Kaprodi memperbarui pembimbing',
+    ]);
+
     $this->actingAs($kaprodi)
         ->post("/kaprodi/projects/{$project->id}/sempro", [
             'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
@@ -472,6 +478,12 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
 
     expect($sempro->status)->toBe('scheduled')
         ->and($sempro->examiners()->count())->toBe(2);
+
+    $this->assertDatabaseHas('system_audit_logs', [
+        'user_id' => $kaprodi->id,
+        'event_type' => 'kaprodi_sempro_scheduled',
+        'label' => 'Kaprodi memperbarui jadwal sempro',
+    ]);
 
     $this->actingAs($kaprodi)
         ->post("/kaprodi/projects/{$project->id}/sidang", [
@@ -493,6 +505,12 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
         ->and($sidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
         ->and($sidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
         ->and($sidang->examiners()->where('role', 'examiner')->where('lecturer_user_id', $examiner->id)->exists())->toBeTrue();
+
+    $this->assertDatabaseHas('system_audit_logs', [
+        'user_id' => $kaprodi->id,
+        'event_type' => 'kaprodi_sidang_scheduled',
+        'label' => 'Kaprodi memperbarui jadwal sidang',
+    ]);
 });
 
 test('kaprodi workflow mutations are scoped to own prodi and active mutable exams', function (): void {
@@ -585,6 +603,70 @@ test('kaprodi workflow rejects lecturers outside project prodi', function (): vo
             'secondary_lecturer_user_id' => $lecturerB->id,
         ])
         ->assertSessionHasErrors('primary_lecturer_user_id');
+});
+
+test('kaprodi can update own prodi lecturer supervision quota safely', function (): void {
+    $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $prodiB = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+    $kaprodi = kaprodiRoleUser();
+    $lecturer = User::factory()->asDosen()->create();
+    $otherLecturer = User::factory()->asDosen()->create();
+    $student = kaprodiStudent($prodiA, 'Mahasiswa Bimbingan Aktif');
+    $project = kaprodiProject($student, $prodiA, 'research', 'active');
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodiA->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $lecturer->id,
+        'program_studi_id' => $prodiA->id,
+        'supervision_quota' => 14,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $otherLecturer->id,
+        'program_studi_id' => $prodiB->id,
+        'supervision_quota' => 14,
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => 'primary',
+        'status' => 'active',
+        'assigned_by' => $kaprodi->id,
+        'started_at' => now(),
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->patch("/kaprodi/dosen-prodi/{$lecturer->id}/quota", [
+            'supervision_quota' => 20,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($lecturer->dosenProfile?->refresh()->supervision_quota)->toBe(20);
+
+    $this->assertDatabaseHas('system_audit_logs', [
+        'user_id' => $kaprodi->id,
+        'event_type' => 'kaprodi_lecturer_quota_updated',
+        'label' => 'Kaprodi memperbarui kuota bimbingan',
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->patch("/kaprodi/dosen-prodi/{$lecturer->id}/quota", [
+            'supervision_quota' => 0,
+        ])
+        ->assertSessionHasErrors('supervision_quota');
+
+    $this->actingAs($kaprodi)
+        ->patch("/kaprodi/dosen-prodi/{$otherLecturer->id}/quota", [
+            'supervision_quota' => 20,
+        ])
+        ->assertNotFound();
 });
 
 test('s2 sasing seeder creates a primary kaprodi account', function (): void {

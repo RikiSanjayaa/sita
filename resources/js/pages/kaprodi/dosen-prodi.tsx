@@ -1,16 +1,27 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     ChevronRight,
+    Gauge,
     GraduationCap,
+    Pencil,
     Search,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/empty-state';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DataTablePagination, usePagination } from '@/components/ui/data-table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -31,6 +42,7 @@ type LecturerRow = {
     concentrations: string[];
     status: string;
     quota: number;
+    activeSupervisionCount: number;
     primaryCount: number;
     secondaryCount: number;
     semproCount: number;
@@ -62,6 +74,7 @@ export default function KaprodiDosenProdiPage() {
         'semua',
     );
     const pageState = useUrlState('page', 1);
+    const [quotaDialog, setQuotaDialog] = useState<LecturerRow | null>(null);
 
     const concentrations = useMemo(
         () =>
@@ -284,6 +297,18 @@ export default function KaprodiDosenProdiPage() {
                                                             Kuota{' '}
                                                             {lecturer.quota}
                                                         </Badge>
+                                                        <button
+                                                            type="button"
+                                                            title="Atur kuota bimbingan"
+                                                            onClick={() =>
+                                                                setQuotaDialog(
+                                                                    lecturer,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:bg-muted"
+                                                        >
+                                                            <Pencil className="size-3" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                                 <td className="hidden px-4 py-3 lg:table-cell">
@@ -359,6 +384,120 @@ export default function KaprodiDosenProdiPage() {
                     </div>
                 </section>
             </div>
+            <QuotaDialog
+                lecturer={quotaDialog}
+                open={quotaDialog !== null}
+                onOpenChange={(open) => {
+                    if (!open) setQuotaDialog(null);
+                }}
+            />
         </KaprodiLayout>
+    );
+}
+
+function QuotaDialog({
+    lecturer,
+    open,
+    onOpenChange,
+}: {
+    lecturer: LecturerRow | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const form = useForm({
+        supervision_quota: lecturer ? String(lecturer.quota) : '',
+    });
+
+    useEffect(() => {
+        form.setData({
+            supervision_quota: lecturer ? String(lecturer.quota) : '',
+        });
+        form.clearErrors();
+    }, [lecturer?.id]);
+
+    if (!lecturer) return null;
+
+    const activeLecturer = lecturer;
+    const quota = Number(form.data.supervision_quota);
+    const minimum = activeLecturer.activeSupervisionCount;
+    const invalid =
+        form.processing ||
+        form.data.supervision_quota === '' ||
+        !Number.isFinite(quota) ||
+        quota < Math.max(1, minimum);
+
+    function submit() {
+        form.patch(`/kaprodi/dosen-prodi/${activeLecturer.id}/quota`, {
+            preserveScroll: true,
+            onSuccess: () => onOpenChange(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Atur Kuota Bimbingan</DialogTitle>
+                    <DialogDescription>
+                        Perbarui batas mahasiswa bimbingan aktif untuk{' '}
+                        {activeLecturer.name}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4">
+                    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Gauge className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">
+                                {activeLecturer.activeSupervisionCount}{' '}
+                                mahasiswa bimbingan aktif
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Kuota baru tidak boleh lebih kecil dari jumlah
+                                ini.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <label className="text-sm font-medium">
+                            Kuota Bimbingan
+                        </label>
+                        <Input
+                            type="number"
+                            min={Math.max(1, minimum)}
+                            max={100}
+                            value={form.data.supervision_quota}
+                            onChange={(event) =>
+                                form.setData(
+                                    'supervision_quota',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {form.errors.supervision_quota ? (
+                            <p className="text-xs text-destructive">
+                                {form.errors.supervision_quota}
+                            </p>
+                        ) : null}
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        Batal
+                    </Button>
+                    <Button type="button" disabled={invalid} onClick={submit}>
+                        Simpan Kuota
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
