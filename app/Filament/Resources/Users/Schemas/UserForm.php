@@ -97,6 +97,7 @@ class UserForm
                     ]),
                 Section::make('Mahasiswa Profile')
                     ->visible(fn(Get $get): bool => $get('role') === AppRole::Mahasiswa->value)
+                    ->columnSpanFull()
                     ->columns(2)
                     ->schema([
                         TextInput::make('nim')
