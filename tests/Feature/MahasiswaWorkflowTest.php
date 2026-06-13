@@ -567,6 +567,94 @@ test('tugas akhir page renders thesis project snapshot data', function () {
             ->where('submission.proposal_file_name', 'proposal-project-view.pdf'));
 });
 
+test('tugas akhir page shows rejected title review instead of pending approval', function () {
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'cancelled',
+        'state' => 'cancelled',
+        'started_at' => now()->subDay(),
+        'cancelled_at' => now(),
+        'closed_by' => $admin->id,
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Ditolak Admin',
+        'title_en' => 'Rejected Title',
+        'proposal_summary' => 'Ringkasan pengajuan ditolak.',
+        'status' => 'rejected',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDay(),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now(),
+        'decision_notes' => 'Topik perlu difokuskan ulang.',
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('tugas-akhir')
+            ->where('submission.workflow.key', 'title_rejected')
+            ->where('submission.workflow.label', 'Judul Tidak Disetujui')
+            ->where('submission.workflow.can_edit', false));
+});
+
+test('mahasiswa dashboard shows cancelled project instead of pending approval', function () {
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'cancelled',
+        'state' => 'cancelled',
+        'started_at' => now()->subDay(),
+        'cancelled_at' => now(),
+        'closed_by' => $admin->id,
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Judul Dibatalkan Admin',
+        'title_en' => 'Cancelled Title',
+        'proposal_summary' => 'Ringkasan pengajuan dibatalkan.',
+        'status' => 'submitted',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/dashboard')
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('dashboard')
+            ->where('summary.workflow.key', 'project_cancelled')
+            ->where('summary.workflow.label', 'Proyek Dibatalkan')
+            ->where('quickActionState.canSubmitTitle', true)
+            ->where('timeline.0.status', 'current'));
+});
+
 test('tugas akhir page shows completed sempro and sidang results', function () {
     $student = createUserWithRole(AppRole::Mahasiswa->value);
     $admin = createUserWithRole(AppRole::Admin->value);

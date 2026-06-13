@@ -17,6 +17,7 @@ import {
     Star,
     Users,
     X,
+    XCircle,
 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
@@ -261,17 +262,25 @@ function WorkflowBadge({
     label: string;
 }) {
     const isReview = workflowKey === 'title_review_pending';
+    const isRejected = ['title_rejected', 'project_cancelled'].includes(
+        workflowKey,
+    );
+
     return (
         <span
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
                 isReview
                     ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                    : 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
+                    : isRejected
+                      ? 'bg-destructive/10 text-destructive'
+                      : 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
             )}
         >
             {isReview ? (
                 <Clock className="size-3" />
+            ) : isRejected ? (
+                <XCircle className="size-3" />
             ) : (
                 <CheckCircle2 className="size-3" />
             )}
@@ -1584,6 +1593,11 @@ export default function TugasAkhirSaya() {
                                     {submission.workflow.key ===
                                     'title_review_pending' ? (
                                         <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                                    ) : [
+                                          'title_rejected',
+                                          'project_cancelled',
+                                      ].includes(submission.workflow.key) ? (
+                                        <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
                                     ) : (
                                         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                                     )}

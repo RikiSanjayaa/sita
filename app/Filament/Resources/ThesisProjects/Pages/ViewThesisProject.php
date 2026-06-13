@@ -31,6 +31,87 @@ class ViewThesisProject extends ViewRecord
         $record = $this->record;
 
         $workflowActions = [
+            Action::make('approve_title')
+                ->label('Setujui Judul')
+                ->icon('heroicon-m-check-circle')
+                ->color('success')
+                ->visible(fn(): bool => $this->canDecideTitleReview($record))
+                ->form([
+                    Textarea::make('notes')
+                        ->label('Catatan')
+                        ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
+                        ->rows(3),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        app(ThesisProjectAdminService::class)->approveTitleReview(
+                            project: $record,
+                            decidedBy: $userId,
+                            notes: $data['notes'] ?? null,
+                        );
+
+                        Notification::make()
+                            ->title('Judul berhasil disetujui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal menyetujui judul')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+            Action::make('reject_title')
+                ->label('Tidak Setujui Judul')
+                ->icon('heroicon-m-x-circle')
+                ->color('danger')
+                ->visible(fn(): bool => $this->canDecideTitleReview($record))
+                ->requiresConfirmation()
+                ->modalHeading('Tolak pengajuan judul?')
+                ->modalDescription('Proyek akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
+                ->form([
+                    Textarea::make('notes')
+                        ->label('Alasan')
+                        ->required()
+                        ->rows(3),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        app(ThesisProjectAdminService::class)->rejectTitleReview(
+                            project: $record,
+                            decidedBy: $userId,
+                            notes: (string) $data['notes'],
+                        );
+
+                        Notification::make()
+                            ->title('Judul ditandai tidak disetujui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal menolak judul')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
             Action::make('schedule_sempro')
                 ->label('Jadwalkan Sempro')
                 ->icon('heroicon-m-calendar')
@@ -520,6 +601,17 @@ class ViewThesisProject extends ViewRecord
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
             ->first();
+    }
+
+    private function canDecideTitleReview(ThesisProject $project): bool
+    {
+        $project->loadMissing(['latestTitle', 'defenses', 'activeSupervisorAssignments']);
+
+        return $project->state === 'active'
+            && $project->phase === 'title_review'
+            && $project->latestTitle?->status === 'submitted'
+            && $project->defenses->isEmpty()
+            && $project->activeSupervisorAssignments->isEmpty();
     }
 
     private function finalizeSemproTooltip(ThesisProject $project): ?string
