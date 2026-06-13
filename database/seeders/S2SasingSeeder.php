@@ -85,7 +85,11 @@ class S2SasingSeeder extends Seeder
         $programStudi = $this->upsertProgramStudi();
         $superAdmin = $this->upsertSuperAdmin($roles[AppRole::SuperAdmin->value]);
         $admin = $this->upsertAdmin($roles[AppRole::Admin->value], $programStudi);
-        $this->upsertKaprodi($roles[AppRole::Kaprodi->value], $programStudi);
+        $this->upsertKaprodi(
+            $roles[AppRole::Kaprodi->value],
+            $roles[AppRole::Dosen->value],
+            $programStudi,
+        );
         $lecturers = $this->seedLecturers($roles[AppRole::Dosen->value], $programStudi);
         $students = $this->seedStudents($roles[AppRole::Mahasiswa->value], $programStudi);
 
@@ -161,7 +165,7 @@ class S2SasingSeeder extends Seeder
         return $user;
     }
 
-    private function upsertKaprodi(Role $role, ProgramStudi $programStudi): User
+    private function upsertKaprodi(Role $kaprodiRole, Role $dosenRole, ProgramStudi $programStudi): User
     {
         $user = $this->upsertUser(
             name: 'Kaprodi S2 Sastra Inggris',
@@ -169,7 +173,7 @@ class S2SasingSeeder extends Seeder
             lastActiveRole: AppRole::Kaprodi->value,
         );
 
-        $user->roles()->syncWithoutDetaching([$role->id]);
+        $user->roles()->syncWithoutDetaching([$kaprodiRole->id, $dosenRole->id]);
         $this->setPrimaryKaprodi($programStudi, $user);
 
         return $user;

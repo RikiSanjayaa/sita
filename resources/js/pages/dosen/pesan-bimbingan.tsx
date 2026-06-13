@@ -36,6 +36,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import {
@@ -252,8 +253,11 @@ function DosenPesanBimbinganContent({
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>(() =>
         resolveInitialMobileView(initialThreads),
     );
-    const [search, setSearch] = useState('');
-    const [threadFilter, setThreadFilter] = useState<ThreadFilter>('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [threadFilter, setThreadFilter] = useUrlState<ThreadFilter>(
+        'filter',
+        'semua',
+    );
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
     const [activeMatchIndex, setActiveMatchIndex] = useState(0);

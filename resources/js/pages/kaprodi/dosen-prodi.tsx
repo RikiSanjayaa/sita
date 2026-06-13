@@ -1,18 +1,30 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     ChevronRight,
+    Gauge,
     GraduationCap,
+    Pencil,
     Search,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/empty-state';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DataTablePagination, usePagination } from '@/components/ui/data-table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
+import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -27,8 +39,10 @@ type LecturerRow = {
     avatar: string | null;
     nik: string;
     concentration: string | null;
+    concentrations: string[];
     status: string;
     quota: number;
+    activeSupervisionCount: number;
     primaryCount: number;
     secondaryCount: number;
     semproCount: number;
@@ -51,11 +65,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function KaprodiDosenProdiPage() {
-    const { programStudi, lecturers } = usePage<SharedData & DosenProdiProps>()
-        .props;
+    const { auth, programStudi, lecturers } = usePage<
+        SharedData & DosenProdiProps
+    >().props;
+    const canManageQuota =
+        auth.kaprodiCapabilities?.manage_lecturer_quota ?? true;
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [concentrationFilter, setConcentrationFilter] = useState('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [concentrationFilter, setConcentrationFilter] = useUrlState(
+        'concentration',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
+    const [quotaDialog, setQuotaDialog] = useState<LecturerRow | null>(null);
 
     const concentrations = useMemo(
         () =>
@@ -63,6 +85,11 @@ export default function KaprodiDosenProdiPage() {
                 new Set(
                     lecturers
                         .map((lecturer) => lecturer.concentration)
+                        .concat(
+                            lecturers.flatMap(
+                                (lecturer) => lecturer.concentrations ?? [],
+                            ),
+                        )
                         .filter((item): item is string => Boolean(item)),
                 ),
             ).sort(),
@@ -79,6 +106,7 @@ export default function KaprodiDosenProdiPage() {
                     lecturer.name,
                     lecturer.nik,
                     lecturer.concentration ?? '',
+                    ...(lecturer.concentrations ?? []),
                     lecturer.status,
                     ...lecturer.activeStudents,
                 ]
@@ -88,6 +116,7 @@ export default function KaprodiDosenProdiPage() {
 
             const matchesFilter =
                 concentrationFilter === 'semua' ||
+                (lecturer.concentrations ?? []).includes(concentrationFilter) ||
                 lecturer.concentration === concentrationFilter;
 
             return matchesSearch && matchesFilter;
@@ -98,6 +127,7 @@ export default function KaprodiDosenProdiPage() {
         filtered,
         PAGE_SIZE,
         [search, concentrationFilter],
+        pageState,
     );
 
     return (
@@ -224,13 +254,33 @@ export default function KaprodiDosenProdiPage() {
                                                     </Link>
                                                 </td>
                                                 <td className="hidden px-4 py-3 md:table-cell">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="rounded-full"
-                                                    >
-                                                        {lecturer.concentration ??
-                                                            '-'}
-                                                    </Badge>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {(lecturer
+                                                            .concentrations
+                                                            ?.length ?? 0) >
+                                                        0 ? (
+                                                            lecturer.concentrations.map(
+                                                                (item) => (
+                                                                    <Badge
+                                                                        key={
+                                                                            item
+                                                                        }
+                                                                        variant="outline"
+                                                                        className="rounded-full"
+                                                                    >
+                                                                        {item}
+                                                                    </Badge>
+                                                                ),
+                                                            )
+                                                        ) : (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="rounded-full"
+                                                            >
+                                                                -
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex flex-wrap gap-1.5">
@@ -250,6 +300,20 @@ export default function KaprodiDosenProdiPage() {
                                                             Kuota{' '}
                                                             {lecturer.quota}
                                                         </Badge>
+                                                        {canManageQuota ? (
+                                                            <button
+                                                                type="button"
+                                                                title="Atur kuota bimbingan"
+                                                                onClick={() =>
+                                                                    setQuotaDialog(
+                                                                        lecturer,
+                                                                    )
+                                                                }
+                                                                className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:bg-muted"
+                                                            >
+                                                                <Pencil className="size-3" />
+                                                            </button>
+                                                        ) : null}
                                                     </div>
                                                 </td>
                                                 <td className="hidden px-4 py-3 lg:table-cell">
@@ -325,6 +389,120 @@ export default function KaprodiDosenProdiPage() {
                     </div>
                 </section>
             </div>
+            <QuotaDialog
+                lecturer={quotaDialog}
+                open={quotaDialog !== null}
+                onOpenChange={(open) => {
+                    if (!open) setQuotaDialog(null);
+                }}
+            />
         </KaprodiLayout>
+    );
+}
+
+function QuotaDialog({
+    lecturer,
+    open,
+    onOpenChange,
+}: {
+    lecturer: LecturerRow | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const form = useForm({
+        supervision_quota: lecturer ? String(lecturer.quota) : '',
+    });
+
+    useEffect(() => {
+        form.setData({
+            supervision_quota: lecturer ? String(lecturer.quota) : '',
+        });
+        form.clearErrors();
+    }, [lecturer?.id]);
+
+    if (!lecturer) return null;
+
+    const activeLecturer = lecturer;
+    const quota = Number(form.data.supervision_quota);
+    const minimum = activeLecturer.activeSupervisionCount;
+    const invalid =
+        form.processing ||
+        form.data.supervision_quota === '' ||
+        !Number.isFinite(quota) ||
+        quota < Math.max(1, minimum);
+
+    function submit() {
+        form.patch(`/kaprodi/dosen-prodi/${activeLecturer.id}/quota`, {
+            preserveScroll: true,
+            onSuccess: () => onOpenChange(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Atur Kuota Bimbingan</DialogTitle>
+                    <DialogDescription>
+                        Perbarui batas mahasiswa bimbingan aktif untuk{' '}
+                        {activeLecturer.name}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4">
+                    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Gauge className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">
+                                {activeLecturer.activeSupervisionCount}{' '}
+                                mahasiswa bimbingan aktif
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Kuota baru tidak boleh lebih kecil dari jumlah
+                                ini.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <label className="text-sm font-medium">
+                            Kuota Bimbingan
+                        </label>
+                        <Input
+                            type="number"
+                            min={Math.max(1, minimum)}
+                            max={100}
+                            value={form.data.supervision_quota}
+                            onChange={(event) =>
+                                form.setData(
+                                    'supervision_quota',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {form.errors.supervision_quota ? (
+                            <p className="text-xs text-destructive">
+                                {form.errors.supervision_quota}
+                            </p>
+                        ) : null}
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        Batal
+                    </Button>
+                    <Button type="button" disabled={invalid} onClick={submit}>
+                        Simpan Kuota
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -45,6 +45,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useUrlState } from '@/hooks/use-url-state';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard, jadwalBimbingan } from '@/routes';
@@ -187,16 +188,20 @@ export default function JadwalBimbinganPage() {
     const PAGE_SIZE = 15;
 
     // Upcoming pagination
+    const upcomingPageState = useUrlState('upcomingPage', 1);
     const upcomingPagination = usePagination(
         page.props.upcomingMeetings,
         PAGE_SIZE,
+        [],
+        upcomingPageState,
     );
 
     // History search + status filter + pagination
-    const [historySearch, setHistorySearch] = useState('');
-    const [historyStatusFilter, setHistoryStatusFilter] = useState<
+    const [historySearch, setHistorySearch] = useUrlState('historySearch', '');
+    const [historyStatusFilter, setHistoryStatusFilter] = useUrlState<
         'semua' | ScheduleStatus
-    >('semua');
+    >('historyStatus', 'semua');
+    const historyPageState = useUrlState('historyPage', 1);
     const filteredHistory = useMemo(() => {
         const q = historySearch.trim().toLowerCase();
         return page.props.historyMeetings.filter((m) => {
@@ -211,10 +216,12 @@ export default function JadwalBimbinganPage() {
             return matchesStatus && matchesSearch;
         });
     }, [page.props.historyMeetings, historySearch, historyStatusFilter]);
-    const historyPagination = usePagination(filteredHistory, PAGE_SIZE, [
-        historySearch,
-        historyStatusFilter,
-    ]);
+    const historyPagination = usePagination(
+        filteredHistory,
+        PAGE_SIZE,
+        [historySearch, historyStatusFilter],
+        historyPageState,
+    );
 
     const form = useForm({
         topic: '',

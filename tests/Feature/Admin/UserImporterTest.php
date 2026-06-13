@@ -2,6 +2,7 @@
 
 use App\Enums\AppRole;
 use App\Filament\Imports\UserImporter;
+use App\Models\DosenProgramStudiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
@@ -33,6 +34,7 @@ function makeUserImporter(User $admin, int $programStudiId): UserImporter
             'prodi' => 'prodi',
             'angkatan' => 'angkatan',
             'concentration' => 'concentration',
+            'academic_assignments' => 'academic_assignments',
             'nik' => 'nik',
             'supervision_quota' => 'supervision_quota',
             'is_active' => 'is_active',
@@ -118,6 +120,7 @@ test('importer updates existing dosen without overwriting password when blank', 
             'prodi' => 'prodi',
             'angkatan' => 'angkatan',
             'concentration' => 'concentration',
+            'academic_assignments' => 'academic_assignments',
             'nik' => 'nik',
             'supervision_quota' => 'supervision_quota',
             'is_active' => 'is_active',
@@ -156,4 +159,45 @@ test('importer updates existing dosen without overwriting password when blank', 
     expect($existing->dosenProfile?->concentration)->toBe('Umum');
     expect($existing->dosenProfile?->supervision_quota)->toBe(8);
     expect($existing->dosenProfile?->is_active)->toBeFalse();
+});
+
+test('importer creates multi prodi dosen assignments from academic assignment column', function () {
+    $adminRole = Role::query()->firstOrCreate(['name' => AppRole::Admin->value]);
+    $admin = User::factory()->asAdmin()->create();
+    $admin->roles()->syncWithoutDetaching([$adminRole->id]);
+
+    $ilkom = ProgramStudi::factory()->create([
+        'name' => 'Ilmu Komputer',
+        'slug' => 'ilkom',
+        'concentrations' => ['Jaringan'],
+    ]);
+    $ti = ProgramStudi::factory()->create([
+        'name' => 'Teknologi Informasi',
+        'slug' => 'ti',
+        'concentrations' => ['Data'],
+    ]);
+
+    $importer = makeUserImporter($admin, $ilkom->id);
+
+    $importer([
+        'name' => 'Dosen Multi Prodi',
+        'email' => 'dosen-multi@sita.test',
+        'phone_number' => '',
+        'role' => AppRole::Dosen->value,
+        'password' => 'secret123',
+        'nim' => '',
+        'prodi' => '',
+        'angkatan' => '',
+        'concentration' => '',
+        'academic_assignments' => 'Ilmu Komputer:Jaringan|Teknologi Informasi:Data',
+        'nik' => '7301010101010010',
+        'supervision_quota' => '12',
+        'is_active' => '1',
+    ]);
+
+    $user = User::query()->where('email', 'dosen-multi@sita.test')->firstOrFail();
+
+    expect(DosenProgramStudiAssignment::query()->where('user_id', $user->id)->count())->toBe(2)
+        ->and($user->teachesInProgramStudi($ilkom->id, 'Jaringan'))->toBeTrue()
+        ->and($user->teachesInProgramStudi($ti->id, 'Data'))->toBeTrue();
 });

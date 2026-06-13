@@ -45,6 +45,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useUrlState } from '@/hooks/use-url-state';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import * as routes from '@/routes';
@@ -140,8 +141,12 @@ export default function UploadDokumenPage() {
         new URLSearchParams(query).get('open') === 'unggah',
     );
 
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const [search, setSearch] = useUrlState('search', '');
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
     const [documentPendingDelete, setDocumentPendingDelete] =
         useState<UploadedDokumenRow | null>(null);
 
@@ -217,7 +222,12 @@ export default function UploadDokumenPage() {
         totalPages,
         paginated,
         totalItems,
-    } = usePagination(filteredDocuments, PAGE_SIZE, [search, statusFilter]);
+    } = usePagination(
+        filteredDocuments,
+        PAGE_SIZE,
+        [search, statusFilter],
+        pageState,
+    );
 
     const filterGroups: FilterGroup[] = [
         {

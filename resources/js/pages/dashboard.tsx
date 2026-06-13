@@ -146,10 +146,12 @@ export default function DashboardPage() {
         color: ColorKey;
     }> = [
         {
-            title: summary.hasProject ? 'Buka Tugas Akhir' : 'Ajukan Judul',
-            description: summary.hasProject
-                ? 'Lihat status proposal, dosen, dan detail tugas akhir.'
-                : 'Mulai pengajuan judul dan proposal pertama Anda.',
+            title: quickActionState.canSubmitTitle
+                ? 'Ajukan Judul'
+                : 'Buka Tugas Akhir',
+            description: quickActionState.canSubmitTitle
+                ? 'Mulai pengajuan judul dan proposal tugas akhir.'
+                : 'Lihat status proposal, dosen, dan detail tugas akhir.',
             href: tugasAkhir().url,
             icon: FileText,
             enabled: true,

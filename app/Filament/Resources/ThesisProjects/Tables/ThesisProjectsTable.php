@@ -6,11 +6,14 @@ use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
+use App\Services\ThesisProjectAdminService;
 use App\Support\Filament\BadgeStyles;
 use App\Support\WitaDateTime;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\ToggleButtons;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\ColumnManagerResetActionPosition;
@@ -19,6 +22,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class ThesisProjectsTable
 {
@@ -32,6 +36,11 @@ class ThesisProjectsTable
                     ->searchable()
                     ->sortable()
                     ->description(fn(?ThesisProject $record): string => $record?->student?->mahasiswaProfile?->nim ?? '-')
+                    ->toggleable(),
+                TextColumn::make('student.email')
+                    ->label('Email Mahasiswa')
+                    ->searchable()
+                    ->copyable()
                     ->toggleable(),
                 TextColumn::make('programStudi.name')
                     ->label('Program Studi')
@@ -177,6 +186,83 @@ class ThesisProjectsTable
             ->columnManagerColumns(2)
             ->columnManagerResetActionPosition(ColumnManagerResetActionPosition::Footer)
             ->recordActions([
+                Action::make('approve_title')
+                    ->label('Setujui')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->visible(fn(ThesisProject $record): bool => self::canDecideTitleReview($record))
+                    ->form([
+                        Textarea::make('notes')
+                            ->label('Catatan')
+                            ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
+                            ->rows(3),
+                    ])
+                    ->action(function (ThesisProject $record, array $data): void {
+                        $userId = Auth::id();
+
+                        if ($userId === null) {
+                            return;
+                        }
+
+                        try {
+                            app(ThesisProjectAdminService::class)->approveTitleReview(
+                                project: $record,
+                                decidedBy: $userId,
+                                notes: $data['notes'] ?? null,
+                            );
+
+                            Notification::make()
+                                ->title('Judul berhasil disetujui')
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $exception) {
+                            Notification::make()
+                                ->title('Gagal menyetujui judul')
+                                ->body($exception->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+                Action::make('reject_title')
+                    ->label('Tolak')
+                    ->icon('heroicon-m-x-circle')
+                    ->color('danger')
+                    ->visible(fn(ThesisProject $record): bool => self::canDecideTitleReview($record))
+                    ->requiresConfirmation()
+                    ->modalHeading('Tolak pengajuan judul?')
+                    ->modalDescription('Proyek akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
+                    ->form([
+                        Textarea::make('notes')
+                            ->label('Alasan')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->action(function (ThesisProject $record, array $data): void {
+                        $userId = Auth::id();
+
+                        if ($userId === null) {
+                            return;
+                        }
+
+                        try {
+                            app(ThesisProjectAdminService::class)->rejectTitleReview(
+                                project: $record,
+                                decidedBy: $userId,
+                                notes: (string) $data['notes'],
+                            );
+
+                            Notification::make()
+                                ->title('Judul ditandai tidak disetujui')
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $exception) {
+                            Notification::make()
+                                ->title('Gagal menolak judul')
+                                ->body($exception->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
                 Action::make('edit')
                     ->label('Edit')
                     ->icon('heroicon-m-pencil-square')
@@ -256,6 +342,15 @@ class ThesisProjectsTable
         }
 
         return $record->latestTitle;
+    }
+
+    private static function canDecideTitleReview(ThesisProject $record): bool
+    {
+        return $record->state === 'active'
+            && $record->phase === 'title_review'
+            && $record->latestTitle?->status === 'submitted'
+            && $record->defenses->isEmpty()
+            && $record->activeSupervisorAssignments->isEmpty();
     }
 
     private static function formatNextAgenda(ThesisProject $record): string

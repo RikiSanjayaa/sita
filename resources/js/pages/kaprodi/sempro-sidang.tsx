@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     CheckCircle2,
@@ -7,12 +7,14 @@ import {
     FileWarning,
     Inbox,
     MapPin,
+    Pencil,
+    Plus,
     Search,
     Star,
     User,
     XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
     BimbinganCalendar,
@@ -20,7 +22,16 @@ import {
 } from '@/components/bimbingan-calendar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DataTablePagination, usePagination } from '@/components/ui/data-table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -30,6 +41,8 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
+import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import {
     type AcademicGrade,
@@ -53,6 +66,7 @@ type ExaminerRow = {
 
 type ExamRow = {
     id: number;
+    projectId: number;
     type: string;
     typeKey: string;
     status: string;
@@ -65,15 +79,60 @@ type ExamRow = {
     title: string;
     attempt: number;
     scheduledFor: string;
+    scheduledForInput: string;
     location: string | null;
+    mode: string;
+    canManageSchedule: boolean;
     examiners: ExaminerRow[];
     revisionCount: number;
     studentProfileUrl: string;
 };
 
+type LecturerOption = {
+    id: number;
+    name: string;
+    nik: string | null;
+    quota: number;
+    concentrations: string[];
+    profileUrl: string;
+};
+
+type SchedulableProject = {
+    id: number;
+    student: string;
+    nim: string | null;
+    title: string;
+    phase: string;
+    supervisors: {
+        id: number;
+        name: string;
+        role: string;
+    }[];
+    latestSempro: DefenseSummary | null;
+    latestSidang: DefenseSummary | null;
+};
+
+type DefenseSummary = {
+    id: number;
+    status: string;
+    statusKey: string;
+    scheduledFor: string;
+    scheduledForInput: string;
+    location: string | null;
+    mode: string;
+    canManageSchedule: boolean;
+    examiners: {
+        id: number;
+        name: string;
+        role: string;
+    }[];
+};
+
 type SemproSidangProps = {
     programStudi: ProgramStudi;
     exams: ExamRow[];
+    schedulableProjects: SchedulableProject[];
+    lecturerOptions: LecturerOption[];
     calendarEvents: BimbinganEvent[];
 };
 
@@ -83,6 +142,11 @@ type StatusFilter =
     | 'scheduled'
     | 'awaiting_finalization'
     | 'completed';
+type ScheduleDialogState = {
+    type: 'sempro' | 'sidang';
+    project?: SchedulableProject;
+    exam?: ExamRow;
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
@@ -135,16 +199,32 @@ function DecisionBadge({ decision }: { decision: string }) {
 }
 
 export default function KaprodiSemproSidangPage() {
-    const { programStudi, exams, calendarEvents } = usePage<
-        SharedData & SemproSidangProps
-    >().props;
-    const [search, setSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
+    const {
+        auth,
+        programStudi,
+        exams,
+        schedulableProjects,
+        lecturerOptions,
+        calendarEvents,
+    } = usePage<SharedData & SemproSidangProps>().props;
+    const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
+    const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
+    const [search, setSearch] = useUrlState('search', '');
+    const [typeFilter, setTypeFilter] = useUrlState<TypeFilter>(
+        'type',
+        'semua',
+    );
+    const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
+        'status',
+        'semua',
+    );
+    const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
+    const [scheduleDialog, setScheduleDialog] =
+        useState<ScheduleDialogState | null>(null);
 
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -178,6 +258,7 @@ export default function KaprodiSemproSidangPage() {
         filtered,
         PAGE_SIZE,
         [search, typeFilter, statusFilter],
+        pageState,
     );
 
     const typeTabs: { label: string; value: TypeFilter }[] = [
@@ -237,13 +318,51 @@ export default function KaprodiSemproSidangPage() {
 
                 <section>
                     <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">
-                            Monitoring Ujian
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Kaprodi dapat membaca jadwal, dosen terlibat, nilai,
-                            hasil, dan revisi tanpa melakukan penilaian.
-                        </p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold">
+                                    Monitoring Ujian
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Kaprodi dapat mengatur jadwal dan dosen
+                                    terlibat tanpa melakukan penilaian.
+                                </p>
+                            </div>
+                            {canScheduleSempro || canScheduleSidang ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {canScheduleSempro ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                setScheduleDialog({
+                                                    type: 'sempro',
+                                                })
+                                            }
+                                        >
+                                            <Plus className="size-4" />
+                                            Jadwalkan Sempro
+                                        </Button>
+                                    ) : null}
+                                    {canScheduleSidang ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                setScheduleDialog({
+                                                    type: 'sidang',
+                                                })
+                                            }
+                                        >
+                                            <Plus className="size-4" />
+                                            Jadwalkan Sidang
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
                     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -254,7 +373,7 @@ export default function KaprodiSemproSidangPage() {
                                 onChange={(event) =>
                                     setSearch(event.target.value)
                                 }
-                                placeholder="Cari nama, judul, atau dosen..."
+                                placeholder="Cari nama, NIM, judul, atau dosen..."
                                 className="h-8 pl-8 text-sm"
                             />
                         </div>
@@ -347,7 +466,7 @@ export default function KaprodiSemproSidangPage() {
                                         <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
                                             Status
                                         </th>
-                                        <th className="w-8 px-4 py-2.5" />
+                                        <th className="w-24 px-4 py-2.5" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -451,7 +570,37 @@ export default function KaprodiSemproSidangPage() {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
-                                                <ChevronRight className="size-4" />
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {item.canManageSchedule &&
+                                                    ((item.typeKey ===
+                                                        'sempro' &&
+                                                        canScheduleSempro) ||
+                                                        (item.typeKey ===
+                                                            'sidang' &&
+                                                            canScheduleSidang)) ? (
+                                                        <button
+                                                            type="button"
+                                                            title="Ubah jadwal"
+                                                            onClick={(
+                                                                event,
+                                                            ) => {
+                                                                event.stopPropagation();
+                                                                setScheduleDialog(
+                                                                    {
+                                                                        type: item.typeKey as
+                                                                            | 'sempro'
+                                                                            | 'sidang',
+                                                                        exam: item,
+                                                                    },
+                                                                );
+                                                            }}
+                                                            className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </button>
+                                                    ) : null}
+                                                    <ChevronRight className="size-4" />
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -484,6 +633,15 @@ export default function KaprodiSemproSidangPage() {
                 }}
                 schedule={selectedEvent}
                 currentUserRole="dosen"
+            />
+            <ScheduleDialog
+                state={scheduleDialog}
+                projects={schedulableProjects}
+                lecturerOptions={lecturerOptions}
+                open={scheduleDialog !== null}
+                onOpenChange={(open) => {
+                    if (!open) setScheduleDialog(null);
+                }}
             />
         </KaprodiLayout>
     );
@@ -610,6 +768,384 @@ function ExamDetailSheet({
                 </ScrollArea>
             </SheetContent>
         </Sheet>
+    );
+}
+
+function ScheduleDialog({
+    state,
+    projects,
+    lecturerOptions,
+    open,
+    onOpenChange,
+}: {
+    state: ScheduleDialogState | null;
+    projects: SchedulableProject[];
+    lecturerOptions: LecturerOption[];
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const selectedProject =
+        state?.project ??
+        projects.find((project) => project.id === state?.exam?.projectId) ??
+        null;
+    const examiners = state?.exam?.examiners ?? [];
+    const additionalExaminerIds = examiners
+        .filter((examiner) => examiner.role === 'Penguji')
+        .map((examiner) => String(examiner.id));
+    const form = useForm({
+        project_id: selectedProject ? String(selectedProject.id) : '',
+        scheduled_for: state?.exam?.scheduledForInput ?? '',
+        location: state?.exam?.location ?? '',
+        mode: state?.exam?.mode ?? 'offline',
+        examiner_1_user_id:
+            state?.type === 'sempro' && examiners[0]?.id
+                ? String(examiners[0].id)
+                : '',
+        examiner_2_user_id:
+            state?.type === 'sempro' && examiners[1]?.id
+                ? String(examiners[1].id)
+                : '',
+        additional_examiner_user_ids:
+            state?.type === 'sidang' ? additionalExaminerIds : [],
+        notes: '',
+    });
+
+    useEffect(() => {
+        const project =
+            state?.project ??
+            projects.find((item) => item.id === state?.exam?.projectId);
+        const currentExaminers = state?.exam?.examiners ?? [];
+
+        form.setData({
+            project_id: project ? String(project.id) : '',
+            scheduled_for: state?.exam?.scheduledForInput ?? '',
+            location: state?.exam?.location ?? '',
+            mode: state?.exam?.mode ?? 'offline',
+            examiner_1_user_id:
+                state?.type === 'sempro' && currentExaminers[0]?.id
+                    ? String(currentExaminers[0].id)
+                    : '',
+            examiner_2_user_id:
+                state?.type === 'sempro' && currentExaminers[1]?.id
+                    ? String(currentExaminers[1].id)
+                    : '',
+            additional_examiner_user_ids:
+                state?.type === 'sidang'
+                    ? currentExaminers
+                          .filter((examiner) => examiner.role === 'Penguji')
+                          .map((examiner) => String(examiner.id))
+                    : [],
+            notes: '',
+        });
+        form.clearErrors();
+    }, [state?.type, state?.exam?.id, state?.project?.id]);
+
+    if (!state) return null;
+
+    const activeState = state;
+    const currentProject = projects.find(
+        (project) => String(project.id) === form.data.project_id,
+    );
+    const title =
+        activeState.type === 'sempro'
+            ? activeState.exam
+                ? 'Ubah Jadwal Sempro'
+                : 'Jadwalkan Sempro'
+            : activeState.exam
+              ? 'Ubah Jadwal Sidang'
+              : 'Jadwalkan Sidang';
+    const submitDisabled =
+        form.processing ||
+        form.data.project_id === '' ||
+        form.data.scheduled_for === '' ||
+        form.data.location === '' ||
+        (activeState.type === 'sempro' &&
+            (form.data.examiner_1_user_id === '' ||
+                form.data.examiner_2_user_id === '' ||
+                form.data.examiner_1_user_id ===
+                    form.data.examiner_2_user_id)) ||
+        (activeState.type === 'sidang' &&
+            form.data.additional_examiner_user_ids.length === 0);
+
+    function toggleAdditionalExaminer(id: number, checked: boolean) {
+        const value = String(id);
+        const next = checked
+            ? [...form.data.additional_examiner_user_ids, value]
+            : form.data.additional_examiner_user_ids.filter(
+                  (item) => item !== value,
+              );
+
+        form.setData('additional_examiner_user_ids', Array.from(new Set(next)));
+    }
+
+    function submit() {
+        const projectId = Number(form.data.project_id);
+        const endpoint =
+            activeState.type === 'sempro'
+                ? `/kaprodi/projects/${projectId}/sempro`
+                : `/kaprodi/projects/${projectId}/sidang`;
+
+        form.post(endpoint, {
+            preserveScroll: true,
+            onSuccess: () => onOpenChange(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                    <DialogDescription>
+                        Atur jadwal dan dosen terlibat untuk mahasiswa prodi.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4">
+                    <div className="grid min-w-0 gap-1.5">
+                        <label className="text-sm font-medium">Mahasiswa</label>
+                        <select
+                            value={form.data.project_id}
+                            disabled={activeState.exam !== undefined}
+                            onChange={(event) =>
+                                form.setData('project_id', event.target.value)
+                            }
+                            className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
+                        >
+                            <option value="">Pilih mahasiswa</option>
+                            {projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                    {project.student} ({project.nim ?? '-'})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {currentProject ? (
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Proyek
+                            </p>
+                            <p className="mt-1 text-sm font-medium">
+                                {currentProject.title}
+                            </p>
+                            {activeState.type === 'sidang' ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {currentProject.supervisors.length > 0 ? (
+                                        currentProject.supervisors.map(
+                                            (supervisor) => (
+                                                <Badge
+                                                    key={supervisor.id}
+                                                    variant="outline"
+                                                >
+                                                    {supervisor.role}:{' '}
+                                                    {supervisor.name}
+                                                </Badge>
+                                            ),
+                                        )
+                                    ) : (
+                                        <Badge variant="outline">
+                                            Belum ada pembimbing aktif
+                                        </Badge>
+                                    )}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid min-w-0 gap-1.5 sm:col-span-1">
+                            <label className="text-sm font-medium">
+                                Jadwal
+                            </label>
+                            <Input
+                                type="datetime-local"
+                                value={form.data.scheduled_for}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'scheduled_for',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            {(form.errors as Record<string, string>)
+                                .scheduled_for ? (
+                                <p className="text-xs text-destructive">
+                                    {
+                                        (form.errors as Record<string, string>)
+                                            .scheduled_for
+                                    }
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="grid min-w-0 gap-1.5 sm:col-span-1">
+                            <label className="text-sm font-medium">
+                                Lokasi
+                            </label>
+                            <Input
+                                value={form.data.location}
+                                onChange={(event) =>
+                                    form.setData('location', event.target.value)
+                                }
+                                placeholder="Ruang sidang / tautan meeting"
+                            />
+                        </div>
+                        <div className="grid min-w-0 gap-1.5 sm:col-span-1">
+                            <label className="text-sm font-medium">Mode</label>
+                            <select
+                                value={form.data.mode}
+                                onChange={(event) =>
+                                    form.setData('mode', event.target.value)
+                                }
+                                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            >
+                                <option value="offline">Offline</option>
+                                <option value="online">Online</option>
+                                <option value="hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {activeState.type === 'sempro' ? (
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                            <LecturerSelect
+                                label="Penguji Sempro 1"
+                                value={form.data.examiner_1_user_id}
+                                onChange={(value) =>
+                                    form.setData('examiner_1_user_id', value)
+                                }
+                                lecturerOptions={lecturerOptions}
+                                error={form.errors.examiner_1_user_id}
+                            />
+                            <LecturerSelect
+                                label="Penguji Sempro 2"
+                                value={form.data.examiner_2_user_id}
+                                onChange={(value) =>
+                                    form.setData('examiner_2_user_id', value)
+                                }
+                                lecturerOptions={lecturerOptions}
+                                error={form.errors.examiner_2_user_id}
+                            />
+                        </div>
+                    ) : (
+                        <div className="grid gap-2">
+                            <p className="text-sm font-medium">
+                                Penguji Sidang Tambahan
+                            </p>
+                            <div className="grid max-h-48 gap-2 overflow-y-auto rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                                {lecturerOptions.map((lecturer) => (
+                                    <label
+                                        key={lecturer.id}
+                                        className="flex min-w-0 items-start gap-2 rounded-md p-2 text-sm transition-colors hover:bg-muted/50"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1"
+                                            checked={form.data.additional_examiner_user_ids.includes(
+                                                String(lecturer.id),
+                                            )}
+                                            onChange={(event) =>
+                                                toggleAdditionalExaminer(
+                                                    lecturer.id,
+                                                    event.target.checked,
+                                                )
+                                            }
+                                        />
+                                        <span className="min-w-0">
+                                            <span className="block truncate font-medium">
+                                                {lecturer.name}
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {lecturer.concentrations.join(
+                                                    ', ',
+                                                ) || 'Tanpa konsentrasi'}
+                                            </span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                            {(form.errors as Record<string, string>)
+                                .additional_examiner_user_ids ? (
+                                <p className="text-xs text-destructive">
+                                    {
+                                        (form.errors as Record<string, string>)
+                                            .additional_examiner_user_ids
+                                    }
+                                </p>
+                            ) : null}
+                        </div>
+                    )}
+
+                    {activeState.type === 'sidang' ? (
+                        <div className="grid min-w-0 gap-1.5">
+                            <label className="text-sm font-medium">
+                                Catatan
+                            </label>
+                            <Textarea
+                                value={form.data.notes}
+                                onChange={(event) =>
+                                    form.setData('notes', event.target.value)
+                                }
+                                placeholder="Opsional, misalnya catatan kebutuhan jadwal."
+                            />
+                        </div>
+                    ) : null}
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={submitDisabled}
+                        onClick={submit}
+                    >
+                        Simpan Jadwal
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function LecturerSelect({
+    label,
+    value,
+    onChange,
+    lecturerOptions,
+    error,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    lecturerOptions: LecturerOption[];
+    error?: string;
+}) {
+    return (
+        <div className="grid min-w-0 gap-1.5">
+            <label className="text-sm font-medium">{label}</label>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+                <option value="">Pilih dosen</option>
+                {lecturerOptions.map((lecturer) => (
+                    <option key={lecturer.id} value={lecturer.id}>
+                        {lecturer.name}
+                        {lecturer.concentrations.length > 0
+                            ? ` - ${lecturer.concentrations.join(', ')}`
+                            : ''}
+                    </option>
+                ))}
+            </select>
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        </div>
     );
 }
 

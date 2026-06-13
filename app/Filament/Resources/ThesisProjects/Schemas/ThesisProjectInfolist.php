@@ -32,6 +32,10 @@ class ThesisProjectInfolist
                     ->schema([
                         TextEntry::make('student.name')
                             ->label('Mahasiswa'),
+                        TextEntry::make('student.email')
+                            ->label('Email Mahasiswa')
+                            ->copyable()
+                            ->placeholder('-'),
                         TextEntry::make('student.mahasiswaProfile.nim')
                             ->label('NIM')
                             ->placeholder('-'),

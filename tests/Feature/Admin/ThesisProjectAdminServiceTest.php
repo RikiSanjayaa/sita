@@ -110,6 +110,75 @@ test('admin service schedules sempro from thesis project aggregate without creat
         ->and($supervisor->notifications()->latest()->first()?->data['title'] ?? null)->toBe('Sempro mahasiswa dijadwalkan');
 });
 
+test('admin service schedules sempro even when supervisors are not assigned yet', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $examinerOne = User::factory()->asDosen()->create();
+    $examinerTwo = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510308',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subDays(2),
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Sempro Tanpa Pembimbing Awal',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subDays(2),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subDay(),
+    ]);
+
+    app(ThesisProjectAdminService::class)->scheduleSempro(
+        project: $project,
+        scheduledBy: $admin->id,
+        scheduledFor: now()->addDays(5)->format('Y-m-d H:i:s'),
+        location: 'Ruang Seminar Tanpa Pembimbing',
+        mode: 'offline',
+        examinerUserIds: [$examinerOne->id, $examinerTwo->id],
+    );
+
+    $semproDefense = ThesisDefense::query()
+        ->where('project_id', $project->id)
+        ->where('type', 'sempro')
+        ->firstOrFail();
+
+    $semproThread = MentorshipChatThread::query()
+        ->where('student_user_id', $student->id)
+        ->where('type', 'sempro')
+        ->firstOrFail();
+
+    expect(ThesisSupervisorAssignment::query()->where('project_id', $project->id)->count())->toBe(0)
+        ->and($semproDefense->status)->toBe('scheduled')
+        ->and($semproDefense->examiners()->count())->toBe(2)
+        ->and($semproThread->context_id)->toBe($semproDefense->id)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $semproThread->id)->where('role', 'student')->count())->toBe(1)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $semproThread->id)->where('role', 'examiner')->count())->toBe(2)
+        ->and($project->fresh()->phase)->toBe('sempro');
+
+    Notification::assertSentTo($student, RealtimeNotification::class);
+    Notification::assertSentTo($examinerOne, RealtimeNotification::class);
+    Notification::assertSentTo($examinerTwo, RealtimeNotification::class);
+});
+
 test('admin service notifies mahasiswa when sempro is scheduled', function (): void {
     Notification::fake();
 
@@ -248,7 +317,7 @@ test('admin service assigns supervisors through thesis supervisor assignments on
     });
 });
 
-test('admin service rejects supervisor assignment when concentration does not match', function (): void {
+test('admin service allows supervisor assignment even when concentration does not match', function (): void {
     $admin = User::factory()->asAdmin()->create();
     $student = User::factory()->asMahasiswa()->create();
     $lecturer = User::factory()->asDosen()->create();
@@ -281,13 +350,16 @@ test('admin service rejects supervisor assignment when concentration does not ma
         'created_by' => $student->id,
     ]);
 
-    expect(fn() => app(ThesisProjectAdminService::class)->assignSupervisors(
+    app(ThesisProjectAdminService::class)->assignSupervisors(
         project: $project,
         assignedBy: $admin->id,
         primaryLecturerUserId: $lecturer->id,
         secondaryLecturerUserId: null,
-        notes: 'Harus ditolak karena beda konsentrasi.',
-    ))->toThrow(\RuntimeException::class);
+        notes: 'Diterima meski beda konsentrasi.',
+    );
+
+    expect(ThesisSupervisorAssignment::query()->where('project_id', $project->id)->where('status', 'active')->count())->toBe(1)
+        ->and(ThesisSupervisorAssignment::query()->where('project_id', $project->id)->where('lecturer_user_id', $lecturer->id)->exists())->toBeTrue();
 });
 
 test('admin service respects configurable lecturer quota when assigning supervisors', function (): void {

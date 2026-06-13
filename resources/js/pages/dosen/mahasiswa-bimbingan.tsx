@@ -1,17 +1,20 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
+    CalendarClock,
+    FileText,
     MessageCircle,
     MessageSquareText,
     Search,
     UserRound,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
+import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -57,6 +60,10 @@ const roleTabs: { label: string; value: RoleFilter }[] = [
     { label: 'Penguji', value: 'penguji' },
 ];
 
+function searchUrl(path: string, value: string) {
+    return `${path}?search=${encodeURIComponent(value)}`;
+}
+
 function RelationBadge({ row }: { row: MahasiswaRow }) {
     return (
         <Badge
@@ -76,14 +83,19 @@ function StudentTable({
     rows,
     emptyText,
     showActions = true,
+    queryPrefix,
 }: {
     rows: MahasiswaRow[];
     emptyText: string;
     showActions?: boolean;
+    queryPrefix: string;
 }) {
     const getInitials = useInitials();
-    const [search, setSearch] = useState('');
-    const [roleFilter, setRoleFilter] = useState<RoleFilter>('semua');
+    const [search, setSearch] = useUrlState(`${queryPrefix}Search`, '');
+    const [roleFilter, setRoleFilter] = useUrlState<RoleFilter>(
+        `${queryPrefix}Role`,
+        'semua',
+    );
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -237,6 +249,38 @@ function StudentTable({
                                     {showActions && (
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-1.5">
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 px-2.5 text-xs"
+                                                >
+                                                    <Link
+                                                        href={searchUrl(
+                                                            '/dosen/dokumen-revisi',
+                                                            row.nim,
+                                                        )}
+                                                    >
+                                                        <FileText className="size-3.5" />
+                                                        Dokumen
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 px-2.5 text-xs"
+                                                >
+                                                    <Link
+                                                        href={searchUrl(
+                                                            '/dosen/seminar-proposal',
+                                                            row.nim,
+                                                        )}
+                                                    >
+                                                        <CalendarClock className="size-3.5" />
+                                                        Ujian
+                                                    </Link>
+                                                </Button>
                                                 {row.chatUrl ? (
                                                     <Button
                                                         asChild
@@ -348,6 +392,7 @@ export default function DosenMahasiswaBimbinganPage() {
                         rows={mahasiswaRows}
                         emptyText="Belum ada mahasiswa aktif"
                         showActions
+                        queryPrefix="active"
                     />
                 </section>
 
@@ -364,6 +409,7 @@ export default function DosenMahasiswaBimbinganPage() {
                         rows={historyRows}
                         emptyText="Belum ada riwayat mahasiswa"
                         showActions={false}
+                        queryPrefix="history"
                     />
                 </section>
             </div>

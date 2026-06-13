@@ -318,7 +318,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password'),
             'last_active_role' => AppRole::Kaprodi->value,
         ]);
-        $kaprodi->roles()->syncWithoutDetaching([$kaprodiRole->id]);
+        $kaprodi->roles()->syncWithoutDetaching([$kaprodiRole->id, $dosenRole->id]);
         $this->setPrimaryKaprodi($prodi, $kaprodi);
 
         // Known dosen accounts

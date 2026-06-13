@@ -31,11 +31,92 @@ class ViewThesisProject extends ViewRecord
         $record = $this->record;
 
         $workflowActions = [
+            Action::make('approve_title')
+                ->label('Setujui Judul')
+                ->icon('heroicon-m-check-circle')
+                ->color('success')
+                ->visible(fn(): bool => $this->canDecideTitleReview($record))
+                ->form([
+                    Textarea::make('notes')
+                        ->label('Catatan')
+                        ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
+                        ->rows(3),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        app(ThesisProjectAdminService::class)->approveTitleReview(
+                            project: $record,
+                            decidedBy: $userId,
+                            notes: $data['notes'] ?? null,
+                        );
+
+                        Notification::make()
+                            ->title('Judul berhasil disetujui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal menyetujui judul')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+            Action::make('reject_title')
+                ->label('Tidak Setujui Judul')
+                ->icon('heroicon-m-x-circle')
+                ->color('danger')
+                ->visible(fn(): bool => $this->canDecideTitleReview($record))
+                ->requiresConfirmation()
+                ->modalHeading('Tolak pengajuan judul?')
+                ->modalDescription('Proyek akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
+                ->form([
+                    Textarea::make('notes')
+                        ->label('Alasan')
+                        ->required()
+                        ->rows(3),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        app(ThesisProjectAdminService::class)->rejectTitleReview(
+                            project: $record,
+                            decidedBy: $userId,
+                            notes: (string) $data['notes'],
+                        );
+
+                        Notification::make()
+                            ->title('Judul ditandai tidak disetujui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal menolak judul')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
             Action::make('schedule_sempro')
                 ->label('Jadwalkan Sempro')
                 ->icon('heroicon-m-calendar')
                 ->color('info')
-                ->visible(fn(): bool => $record->state === 'active' && in_array($record->phase, ['title_review', 'sempro'], true))
+                ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     DateTimePicker::make('scheduled_for')
                         ->label('Jadwal')
@@ -159,7 +240,7 @@ class ViewThesisProject extends ViewRecord
                 ->label('Tetapkan Pembimbing')
                 ->icon('heroicon-m-user-plus')
                 ->color('primary')
-                ->visible(fn(): bool => $record->state === 'active' && in_array($record->phase, ['research', 'sidang'], true))
+                ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     Select::make('pembimbing_1')
                         ->label('Pembimbing 1')
@@ -214,7 +295,7 @@ class ViewThesisProject extends ViewRecord
                 ->label('Jadwalkan Sidang')
                 ->icon('heroicon-m-clipboard-document-check')
                 ->color('warning')
-                ->visible(fn(): bool => $record->state === 'active' && in_array($record->phase, ['research', 'sidang'], true))
+                ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     DateTimePicker::make('scheduled_for')
                         ->label('Jadwal Sidang')
@@ -235,7 +316,7 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Textarea::make('active_supervisors')
                         ->label('Pembimbing Aktif')
-                        ->default(fn(): string => $this->activeSupervisorSummary($record))
+                        ->default(fn(): string => $this->activeSupervisorSummary($record) ?: 'Belum ada pembimbing aktif')
                         ->disabled()
                         ->dehydrated(false)
                         ->rows(2),
@@ -247,8 +328,12 @@ class ViewThesisProject extends ViewRecord
                         ->searchable()
                         ->preload()
                         ->required()
-                        ->minItems(1)
-                        ->helperText('Pembimbing aktif otomatis masuk panel sidang. Pilih minimal satu dosen penguji tambahan.')
+                        ->minItems(fn(): int => $this->requiredSidangPanelUserIds($record) === [] ? 2 : 1)
+                        ->helperText(
+                            $this->requiredSidangPanelUserIds($record) === []
+                                ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel sidang.'
+                                : 'Pembimbing aktif otomatis masuk panel sidang. Pilih minimal satu dosen penguji tambahan.'
+                        )
                         ->native(false),
                     Textarea::make('notes')
                         ->label('Catatan')
@@ -369,15 +454,15 @@ class ViewThesisProject extends ViewRecord
     {
         return User::query()
             ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('dosenProfile', function ($query) use ($project): void {
+            ->whereHas('activeDosenProgramStudiAssignments', function ($query) use ($project): void {
                 $query->where('program_studi_id', $project->program_studi_id)
                     ->where('is_active', true);
             })
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
-                $user->id => sprintf('%s (%s) - %s', $user->name, $user->dosenProfile?->nik ?? '-', $user->dosenProfile?->concentration ?? '-'),
+                $user->id => sprintf('%s (%s) - %s', $user->name, $user->dosenProfile?->nik ?? '-', $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id)),
             ])
             ->all();
     }
@@ -387,16 +472,13 @@ class ViewThesisProject extends ViewRecord
      */
     private function supervisorOptions(ThesisProject $project): array
     {
-        $studentConcentration = $project->student?->mahasiswaProfile?->concentration;
-
         return User::query()
             ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('dosenProfile', function ($query) use ($project, $studentConcentration): void {
+            ->whereHas('activeDosenProgramStudiAssignments', function ($query) use ($project): void {
                 $query->where('program_studi_id', $project->program_studi_id)
-                    ->where('is_active', true)
-                    ->where('concentration', $studentConcentration);
+                    ->where('is_active', true);
             })
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
@@ -404,12 +486,23 @@ class ViewThesisProject extends ViewRecord
                     '%s (%s) - %s - %d/%d aktif',
                     $user->name,
                     $user->dosenProfile?->nik ?? '-',
-                    $user->dosenProfile?->concentration ?? '-',
+                    $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id),
                     $this->activeThesisStudentCountForLecturer($user->id),
                     max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14)),
                 ),
             ])
             ->all();
+    }
+
+    private function lecturerConcentrationSummary(User $user, int $programStudiId): string
+    {
+        return $user->activeDosenProgramStudiAssignments
+            ->where('program_studi_id', $programStudiId)
+            ->pluck('concentration')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ') ?: '-';
     }
 
     /**
@@ -508,6 +601,17 @@ class ViewThesisProject extends ViewRecord
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
             ->first();
+    }
+
+    private function canDecideTitleReview(ThesisProject $project): bool
+    {
+        $project->loadMissing(['latestTitle', 'defenses', 'activeSupervisorAssignments']);
+
+        return $project->state === 'active'
+            && $project->phase === 'title_review'
+            && $project->latestTitle?->status === 'submitted'
+            && $project->defenses->isEmpty()
+            && $project->activeSupervisorAssignments->isEmpty();
     }
 
     private function finalizeSemproTooltip(ThesisProject $project): ?string
