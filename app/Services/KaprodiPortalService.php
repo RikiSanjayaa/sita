@@ -82,6 +82,7 @@ class KaprodiPortalService
             ],
             'students' => $studentRows->values()->all(),
             'archives' => $this->archiveRows($programStudi, null)->values()->all(),
+            'lecturerOptions' => $this->lecturerOptions($programStudi)->values()->all(),
         ];
     }
 
@@ -114,6 +115,7 @@ class KaprodiPortalService
             'progress' => $this->defenseProgress($programStudi)->values()->all(),
             'exams' => $defenses->map(fn(ThesisDefense $defense): array => [
                 'id' => $defense->id,
+                'projectId' => $defense->project_id,
                 'type' => $this->defenseTypeLabel($defense->type),
                 'typeKey' => $defense->type,
                 'status' => $this->statusLabel($defense->status),
@@ -126,7 +128,10 @@ class KaprodiPortalService
                 'title' => $defense->project?->latestTitle?->title_id ?? '-',
                 'attempt' => $defense->attempt_no,
                 'scheduledFor' => WitaDateTime::format($defense->scheduled_for),
+                'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
                 'location' => $defense->location,
+                'mode' => $defense->mode ?? 'offline',
+                'canManageSchedule' => $this->canManageDefenseSchedule($defense),
                 'examiners' => $defense->examiners
                     ->sortBy('order_no')
                     ->map(fn($examiner): array => [
@@ -142,6 +147,8 @@ class KaprodiPortalService
                 'revisionCount' => $defense->revisions->count(),
                 'studentProfileUrl' => route('users.profile.show', ['user' => $defense->project?->student_user_id]),
             ])->values()->all(),
+            'schedulableProjects' => $this->schedulableProjects($programStudi)->values()->all(),
+            'lecturerOptions' => $this->lecturerOptions($programStudi)->values()->all(),
             'calendarEvents' => $defenses
                 ->filter(fn(ThesisDefense $defense): bool => $defense->scheduled_for !== null)
                 ->map(fn(ThesisDefense $defense): array => [
@@ -470,6 +477,8 @@ class KaprodiPortalService
 
                 return [
                     'id' => $profile->user_id,
+                    'projectId' => $project?->id,
+                    'canManageSupervisors' => $project instanceof ThesisProject && $project->state === 'active',
                     'name' => $profile->user?->name ?? '-',
                     'nim' => $profile->nim,
                     'avatar' => $profile->user?->avatar,
@@ -483,6 +492,15 @@ class KaprodiPortalService
                     'title' => $project?->latestTitle?->title_id ?? '-',
                     'advisors' => $project?->activeSupervisorAssignments
                         ->map(fn($assignment): string => $assignment->lecturer?->name ?? '-')
+                        ->values()
+                        ->all() ?? [],
+                    'supervisorAssignments' => $project?->activeSupervisorAssignments
+                        ->sortBy('role')
+                        ->map(fn($assignment): array => [
+                            'lecturerUserId' => $assignment->lecturer_user_id,
+                            'name' => $assignment->lecturer?->name ?? '-',
+                            'role' => $assignment->role === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
+                        ])
                         ->values()
                         ->all() ?? [],
                     'progressRisk' => $this->progressRisk(
@@ -812,6 +830,108 @@ class KaprodiPortalService
         }
 
         return round($scores->average(), 2);
+    }
+
+    private function canManageDefenseSchedule(ThesisDefense $defense): bool
+    {
+        return $defense->project?->state === 'active'
+            && ! in_array($defense->status, ['awaiting_finalization', 'completed', 'cancelled'], true);
+    }
+
+    private function lecturerOptions(ProgramStudi $programStudi): Collection
+    {
+        return User::query()
+            ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $lecturer) use ($programStudi): array {
+                $assignments = $lecturer->activeDosenProgramStudiAssignments
+                    ->where('program_studi_id', $programStudi->id)
+                    ->sortBy('concentration')
+                    ->values();
+
+                return [
+                    'id' => $lecturer->id,
+                    'name' => $lecturer->name,
+                    'nik' => $lecturer->dosenProfile?->nik,
+                    'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 14),
+                    'concentrations' => $assignments
+                        ->pluck('concentration')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all(),
+                    'profileUrl' => route('users.profile.show', ['user' => $lecturer->id]),
+                ];
+            })
+            ->values();
+    }
+
+    private function schedulableProjects(ProgramStudi $programStudi): Collection
+    {
+        return ThesisProject::query()
+            ->where('program_studi_id', $programStudi->id)
+            ->where('state', 'active')
+            ->with([
+                'student.mahasiswaProfile',
+                'latestTitle',
+                'activeSupervisorAssignments.lecturer',
+                'defenses.examiners.lecturer',
+            ])
+            ->latest('updated_at')
+            ->get()
+            ->map(fn(ThesisProject $project): array => [
+                'id' => $project->id,
+                'student' => $project->student?->name ?? 'Mahasiswa',
+                'nim' => $project->student?->mahasiswaProfile?->nim,
+                'title' => $project->latestTitle?->title_id ?? '-',
+                'phase' => $this->phaseLabel($project->phase),
+                'supervisors' => $project->activeSupervisorAssignments
+                    ->sortBy('role')
+                    ->map(fn($assignment): array => [
+                        'id' => $assignment->lecturer_user_id,
+                        'name' => $assignment->lecturer?->name ?? '-',
+                        'role' => $assignment->role === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
+                    ])
+                    ->values()
+                    ->all(),
+                'latestSempro' => $this->latestDefenseSummary($project, 'sempro'),
+                'latestSidang' => $this->latestDefenseSummary($project, 'sidang'),
+            ])
+            ->values();
+    }
+
+    private function latestDefenseSummary(ThesisProject $project, string $type): ?array
+    {
+        $defense = $project->defenses
+            ->where('type', $type)
+            ->sortByDesc('attempt_no')
+            ->first();
+
+        if (! $defense instanceof ThesisDefense) {
+            return null;
+        }
+
+        return [
+            'id' => $defense->id,
+            'status' => $this->statusLabel($defense->status),
+            'statusKey' => $defense->status,
+            'scheduledFor' => WitaDateTime::format($defense->scheduled_for),
+            'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
+            'location' => $defense->location,
+            'mode' => $defense->mode ?? 'offline',
+            'canManageSchedule' => $this->canManageDefenseSchedule($defense),
+            'examiners' => $defense->examiners
+                ->sortBy('order_no')
+                ->map(fn($examiner): array => [
+                    'id' => $examiner->lecturer_user_id,
+                    'name' => $examiner->lecturer?->name ?? '-',
+                    'role' => $this->examinerRoleLabel($examiner->role),
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     private function grade(?float $score): ?string

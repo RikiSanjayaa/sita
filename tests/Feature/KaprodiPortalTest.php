@@ -417,6 +417,176 @@ test('kaprodi mahasiswa page exposes progress risk from project and chat activit
             ->where('students.2.progressRisk.lastActivityLabel', 'Dokumen bimbingan'));
 });
 
+test('kaprodi can assign supervisors and schedule exams for own active prodi project', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $student = kaprodiStudent($prodi, 'Mahasiswa Workflow');
+    $project = kaprodiProject($student, $prodi, 'sempro', 'active');
+    $primary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Satu']);
+    $secondary = User::factory()->asDosen()->create(['name' => 'Dosen Pembimbing Dua']);
+    $examiner = User::factory()->asDosen()->create(['name' => 'Dosen Penguji Tambahan']);
+
+    foreach ([$primary, $secondary, $examiner] as $lecturer) {
+        DosenProfile::factory()->create([
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $prodi->id,
+        ]);
+    }
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/supervisors", [
+            'primary_lecturer_user_id' => $primary->id,
+            'secondary_lecturer_user_id' => $secondary->id,
+            'notes' => 'Penetapan dari kaprodi.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(ThesisSupervisorAssignment::query()
+        ->where('project_id', $project->id)
+        ->where('status', 'active')
+        ->count())->toBe(2);
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sempro", [
+            'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
+            'location' => 'Ruang Sempro',
+            'mode' => 'offline',
+            'examiner_1_user_id' => $primary->id,
+            'examiner_2_user_id' => $secondary->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $sempro = ThesisDefense::query()
+        ->where('project_id', $project->id)
+        ->where('type', 'sempro')
+        ->firstOrFail();
+
+    expect($sempro->status)->toBe('scheduled')
+        ->and($sempro->examiners()->count())->toBe(2);
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sidang", [
+            'scheduled_for' => now()->addWeeks(3)->format('Y-m-d H:i:s'),
+            'location' => 'Ruang Sidang',
+            'mode' => 'hybrid',
+            'additional_examiner_user_ids' => [$examiner->id],
+            'notes' => 'Jadwal sidang dari kaprodi.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $sidang = ThesisDefense::query()
+        ->where('project_id', $project->id)
+        ->where('type', 'sidang')
+        ->firstOrFail();
+
+    expect($sidang->status)->toBe('scheduled')
+        ->and($sidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
+        ->and($sidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
+        ->and($sidang->examiners()->where('role', 'examiner')->where('lecturer_user_id', $examiner->id)->exists())->toBeTrue();
+});
+
+test('kaprodi workflow mutations are scoped to own prodi and active mutable exams', function (): void {
+    $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $prodiB = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+    $kaprodi = kaprodiRoleUser();
+    $studentA = kaprodiStudent($prodiA, 'Mahasiswa Prodi A');
+    $studentB = kaprodiStudent($prodiB, 'Mahasiswa Prodi B');
+    $projectA = kaprodiProject($studentA, $prodiA, 'sempro', 'active');
+    $projectB = kaprodiProject($studentB, $prodiB, 'sempro', 'active');
+    $lecturerA = User::factory()->asDosen()->create();
+    $lecturerB = User::factory()->asDosen()->create();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodiA->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    foreach ([$lecturerA, $lecturerB] as $lecturer) {
+        DosenProfile::factory()->create([
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $prodiA->id,
+        ]);
+    }
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$projectB->id}/supervisors", [
+            'primary_lecturer_user_id' => $lecturerA->id,
+            'secondary_lecturer_user_id' => $lecturerB->id,
+        ])
+        ->assertNotFound();
+
+    ThesisDefense::query()->create([
+        'project_id' => $projectA->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'awaiting_finalization',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDay(),
+        'location' => 'Ruang Sempro',
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$projectA->id}/sempro", [
+            'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
+            'location' => 'Ruang Baru',
+            'mode' => 'offline',
+            'examiner_1_user_id' => $lecturerA->id,
+            'examiner_2_user_id' => $lecturerB->id,
+        ])
+        ->assertSessionHasErrors('scheduled_for');
+
+    $this->actingAs(User::factory()->asMahasiswa()->create())
+        ->post("/kaprodi/projects/{$projectA->id}/supervisors", [
+            'primary_lecturer_user_id' => $lecturerA->id,
+            'secondary_lecturer_user_id' => $lecturerB->id,
+        ])
+        ->assertForbidden();
+});
+
+test('kaprodi workflow rejects lecturers outside project prodi', function (): void {
+    $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $prodiB = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+    $kaprodi = kaprodiRoleUser();
+    $student = kaprodiStudent($prodiA, 'Mahasiswa Scope Dosen');
+    $project = kaprodiProject($student, $prodiA, 'research', 'active');
+    $lecturerA = User::factory()->asDosen()->create();
+    $lecturerB = User::factory()->asDosen()->create();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodiA->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $lecturerA->id,
+        'program_studi_id' => $prodiA->id,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $lecturerB->id,
+        'program_studi_id' => $prodiB->id,
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/supervisors", [
+            'primary_lecturer_user_id' => $lecturerA->id,
+            'secondary_lecturer_user_id' => $lecturerB->id,
+        ])
+        ->assertSessionHasErrors('primary_lecturer_user_id');
+});
+
 test('s2 sasing seeder creates a primary kaprodi account', function (): void {
     $this->seed(S2SasingSeeder::class);
 
