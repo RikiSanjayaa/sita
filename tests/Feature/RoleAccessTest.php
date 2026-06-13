@@ -2,6 +2,8 @@
 
 use App\Enums\AppRole;
 use App\Http\Responses\LoginResponse;
+use App\Models\KaprodiAssignment;
+use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -62,6 +64,23 @@ test('super admin can access admin area', function () {
     $this->followingRedirects()->get('/admin')->assertOk();
     $this->get('/mahasiswa/dashboard')->assertForbidden();
     $this->get('/dosen/dashboard')->assertForbidden();
+});
+
+test('kaprodi can access kaprodi and dosen areas after assignment', function () {
+    $programStudi = ProgramStudi::factory()->create();
+    $kaprodi = createUserWithRoles([AppRole::Kaprodi->value], AppRole::Kaprodi->value);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $programStudi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $this->actingAs($kaprodi);
+
+    $this->get('/kaprodi/dashboard')->assertOk();
+    $this->get('/dosen/dashboard')->assertOk();
+    $this->get('/mahasiswa/dashboard')->assertForbidden();
 });
 
 test('dashboard resolver sends authenticated user to active role dashboard', function () {

@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Enums\AppRole;
+use App\Models\DosenProgramStudiAssignment;
 use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,12 +23,10 @@ class KaprodiAssignmentService
         DB::transaction(function () use ($programStudi, $normalizedAssignments): void {
             $programStudi->kaprodiAssignments()->delete();
 
-            $role = Role::query()->firstOrCreate(['name' => AppRole::Kaprodi->value]);
-
             foreach ($normalizedAssignments as $assignment) {
                 /** @var KaprodiAssignment $kaprodiAssignment */
                 $kaprodiAssignment = $programStudi->kaprodiAssignments()->create($assignment);
-                $kaprodiAssignment->user?->roles()->syncWithoutDetaching([$role->id]);
+                $this->ensureKaprodiIsActiveLecturer($kaprodiAssignment->user, $programStudi);
             }
         });
     }
@@ -67,5 +67,42 @@ class KaprodiAssignmentService
         }
 
         return $normalized->all();
+    }
+
+    private function ensureKaprodiIsActiveLecturer(?User $user, ProgramStudi $programStudi): void
+    {
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $roleIds = collect([AppRole::Kaprodi->value, AppRole::Dosen->value])
+            ->map(fn(string $role): int => Role::query()->firstOrCreate(['name' => $role])->id)
+            ->all();
+
+        $user->roles()->syncWithoutDetaching($roleIds);
+
+        $concentration = $programStudi->concentrationList()[0] ?? ProgramStudi::DEFAULT_GENERAL_CONCENTRATION;
+
+        $user->dosenProfile()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'program_studi_id' => $programStudi->id,
+                'concentration' => $concentration,
+                'supervision_quota' => $user->dosenProfile?->supervision_quota ?? 14,
+                'is_active' => true,
+            ],
+        );
+
+        DosenProgramStudiAssignment::query()->updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'program_studi_id' => $programStudi->id,
+                'concentration' => $concentration,
+            ],
+            [
+                'is_primary' => true,
+                'is_active' => true,
+            ],
+        );
     }
 }

@@ -5,6 +5,7 @@ use App\Enums\AppRole;
 use App\Enums\AssignmentStatus;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
+use App\Models\DosenProgramStudiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
@@ -60,8 +61,53 @@ function ensureActiveThesisProject(User $student): ThesisProject
     );
 }
 
+function ensureLecturerTeachesStudent(User $lecturer, User $student): void
+{
+    $profile = $student->mahasiswaProfile;
+
+    if ($profile === null || $profile->program_studi_id === null || $profile->concentration === null) {
+        return;
+    }
+
+    $lecturer->dosenProfile()->updateOrCreate(
+        ['user_id' => $lecturer->id],
+        [
+            'program_studi_id' => $profile->program_studi_id,
+            'concentration' => $profile->concentration,
+            'is_active' => true,
+        ],
+    );
+
+    DosenProgramStudiAssignment::query()->updateOrCreate(
+        [
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $profile->program_studi_id,
+            'concentration' => $profile->concentration,
+        ],
+        [
+            'is_primary' => true,
+            'is_active' => true,
+        ],
+    );
+}
+
+function createActiveMentorshipAssignment(User $student, User $lecturer, User $admin, AdvisorType $advisorType): void
+{
+    ensureLecturerTeachesStudent($lecturer, $student);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $lecturer->id,
+        'advisor_type' => $advisorType->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+}
+
 function syncThesisSupervisor(User $student, User $lecturer, User $admin, string $role): void
 {
+    ensureLecturerTeachesStudent($lecturer, $student);
+
     $project = ensureActiveThesisProject($student);
 
     ThesisSupervisorAssignment::query()->updateOrCreate(
@@ -89,22 +135,10 @@ test('mahasiswa can request schedule to selected active advisor', function () {
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $dosen1->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $dosen1, $admin, AdvisorType::Primary);
     syncThesisSupervisor($student, $dosen1, $admin, AdvisorType::Primary->value);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $dosen2->id,
-        'advisor_type' => AdvisorType::Secondary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $dosen2, $admin, AdvisorType::Secondary);
     syncThesisSupervisor($student, $dosen2, $admin, AdvisorType::Secondary->value);
 
     $this->actingAs($student)
@@ -135,13 +169,7 @@ test('mahasiswa cannot request schedule to lecturer outside active advisors', fu
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $activeDosen->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $activeDosen, $admin, AdvisorType::Primary);
     syncThesisSupervisor($student, $activeDosen, $admin, AdvisorType::Primary->value);
 
     $this->actingAs($student)
@@ -172,22 +200,10 @@ test('mahasiswa upload creates document version rows and chat event', function (
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $dosen1->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $dosen1, $admin, AdvisorType::Primary);
     syncThesisSupervisor($student, $dosen1, $admin, AdvisorType::Primary->value);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $dosen2->id,
-        'advisor_type' => AdvisorType::Secondary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $dosen2, $admin, AdvisorType::Secondary);
     syncThesisSupervisor($student, $dosen2, $admin, AdvisorType::Secondary->value);
 
     $file = UploadedFile::fake()->create('draft-bab3.pdf', 600, 'application/pdf');
@@ -267,13 +283,7 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $dosen->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $dosen, $admin, AdvisorType::Primary);
     syncThesisSupervisor($student, $dosen, $admin, AdvisorType::Primary->value);
 
     // Create the pembimbing thread first
@@ -1245,13 +1255,7 @@ test('mahasiswa can delete unlinked upload dokumen version', function () {
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $advisor->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $advisor, $admin, AdvisorType::Primary);
     syncThesisSupervisor($student, $advisor, $admin, AdvisorType::Primary->value);
 
     $this->actingAs($student)
@@ -1698,13 +1702,7 @@ test('mahasiswa upload dokumen uses valid mentorship assignment id for advisor r
         'is_active' => true,
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $advisor->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $advisor, $admin, AdvisorType::Primary);
 
     $otherProject = ensureActiveThesisProject($otherStudent);
     ThesisSupervisorAssignment::query()->create([
@@ -1785,13 +1783,7 @@ test('mahasiswa chat attachment is mirrored into active sempro thread', function
         'submitted_at' => now()->subDays(4),
     ]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $advisor->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $advisor, $admin, AdvisorType::Primary);
 
     $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
     $otherAdvisor = createUserWithRole(AppRole::Dosen->value);
@@ -2008,13 +2000,7 @@ test('download permissions enforce ownership and escalation rules', function () 
     MahasiswaProfile::factory()->create(['user_id' => $student->id, 'is_active' => true]);
     MahasiswaProfile::factory()->create(['user_id' => $otherStudent->id, 'is_active' => true]);
 
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $dosen->id,
-        'advisor_type' => AdvisorType::Primary->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
+    createActiveMentorshipAssignment($student, $dosen, $admin, AdvisorType::Primary);
 
     Storage::disk('public')->put('chat/revisi/revisi-v1.pdf', 'revision-file');
 
