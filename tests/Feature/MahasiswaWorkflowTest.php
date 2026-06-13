@@ -568,6 +568,8 @@ test('tugas akhir page renders thesis project snapshot data', function () {
 });
 
 test('tugas akhir page shows rejected title review instead of pending approval', function () {
+    Storage::fake('public');
+
     $student = createUserWithRole(AppRole::Mahasiswa->value);
     $admin = createUserWithRole(AppRole::Admin->value);
     $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
@@ -607,9 +609,26 @@ test('tugas akhir page shows rejected title review instead of pending approval',
         ->get('/mahasiswa/tugas-akhir')
         ->assertInertia(fn(Assert $page) => $page
             ->component('tugas-akhir')
+            ->where('canCreateSubmission', true)
             ->where('submission.workflow.key', 'title_rejected')
             ->where('submission.workflow.label', 'Judul Tidak Disetujui')
             ->where('submission.workflow.can_edit', false));
+
+    $this->actingAs($student)
+        ->post('/mahasiswa/tugas-akhir', [
+            'title_id' => 'Judul Pengajuan Ulang',
+            'title_en' => 'Resubmitted Title',
+            'proposal_summary' => 'Ringkasan proposal pengajuan ulang.',
+            'proposal_file' => UploadedFile::fake()->create('proposal-ulang.pdf', 512, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    expect(ThesisProject::query()->where('student_user_id', $student->id)->count())->toBe(2)
+        ->and(ThesisProject::query()
+            ->where('student_user_id', $student->id)
+            ->where('state', 'active')
+            ->where('phase', 'title_review')
+            ->exists())->toBeTrue();
 });
 
 test('mahasiswa dashboard shows cancelled project instead of pending approval', function () {
