@@ -4,11 +4,13 @@ namespace App\Filament\Resources\ProgramStudis\Pages;
 
 use App\Enums\AppRole;
 use App\Filament\Resources\ProgramStudis\ProgramStudiResource;
+use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\User;
 use App\Services\KaprodiAssignmentService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -38,6 +40,10 @@ class EditProgramStudi extends EditRecord
                         ->map(fn($assignment): array => [
                             'user_id' => $assignment->user_id,
                             'is_primary' => $assignment->is_primary,
+                            'capabilities' => collect(KaprodiAssignment::normalizeCapabilities($assignment->capabilities))
+                                ->filter()
+                                ->keys()
+                                ->all(),
                         ])
                         ->all(),
                 ])
@@ -89,6 +95,14 @@ class EditProgramStudi extends EditRecord
                             Toggle::make('is_primary')
                                 ->label('Kaprodi Utama')
                                 ->helperText('Harus tepat satu akun utama.'),
+                            CheckboxList::make('capabilities')
+                                ->label('Kapabilitas')
+                                ->options(KaprodiAssignment::capabilityLabels())
+                                ->default(array_keys(KaprodiAssignment::defaultCapabilities()))
+                                ->columns(2)
+                                ->bulkToggleable()
+                                ->helperText('Superadmin dapat membatasi aksi operasional kaprodi.')
+                                ->columnSpanFull(),
                         ])
                         ->columns(2)
                         ->minItems(1)

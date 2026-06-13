@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\KaprodiAssignment;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +43,7 @@ class HandleInertiaRequests extends Middleware
         $notificationSettings = null;
         $notifications = [];
         $unreadNotificationCount = 0;
+        $kaprodiCapabilities = null;
 
         if ($user !== null) {
             $user->loadMissing('roles');
@@ -76,6 +78,13 @@ class HandleInertiaRequests extends Middleware
                 ->all();
 
             $unreadNotificationCount = $user->unreadNotifications()->count();
+
+            if ($activeRole === 'kaprodi') {
+                $user->loadMissing('kaprodiAssignment');
+                $kaprodiCapabilities = $user->kaprodiAssignment instanceof KaprodiAssignment
+                    ? KaprodiAssignment::normalizeCapabilities($user->kaprodiAssignment->capabilities)
+                    : KaprodiAssignment::defaultCapabilities();
+            }
         }
 
         return [
@@ -85,6 +94,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $userPayload,
                 'activeRole' => $activeRole,
                 'availableRoles' => $availableRoles,
+                'kaprodiCapabilities' => $kaprodiCapabilities,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'notificationSettings' => $notificationSettings,

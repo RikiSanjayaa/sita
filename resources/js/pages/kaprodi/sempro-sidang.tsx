@@ -200,12 +200,15 @@ function DecisionBadge({ decision }: { decision: string }) {
 
 export default function KaprodiSemproSidangPage() {
     const {
+        auth,
         programStudi,
         exams,
         schedulableProjects,
         lecturerOptions,
         calendarEvents,
     } = usePage<SharedData & SemproSidangProps>().props;
+    const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
+    const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
     const [search, setSearch] = useUrlState('search', '');
     const [typeFilter, setTypeFilter] = useUrlState<TypeFilter>(
         'type',
@@ -325,30 +328,40 @@ export default function KaprodiSemproSidangPage() {
                                     terlibat tanpa melakukan penilaian.
                                 </p>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                        setScheduleDialog({ type: 'sempro' })
-                                    }
-                                >
-                                    <Plus className="size-4" />
-                                    Jadwalkan Sempro
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                        setScheduleDialog({ type: 'sidang' })
-                                    }
-                                >
-                                    <Plus className="size-4" />
-                                    Jadwalkan Sidang
-                                </Button>
-                            </div>
+                            {canScheduleSempro || canScheduleSidang ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {canScheduleSempro ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                setScheduleDialog({
+                                                    type: 'sempro',
+                                                })
+                                            }
+                                        >
+                                            <Plus className="size-4" />
+                                            Jadwalkan Sempro
+                                        </Button>
+                                    ) : null}
+                                    {canScheduleSidang ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                setScheduleDialog({
+                                                    type: 'sidang',
+                                                })
+                                            }
+                                        >
+                                            <Plus className="size-4" />
+                                            Jadwalkan Sidang
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
@@ -558,7 +571,13 @@ export default function KaprodiSemproSidangPage() {
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {item.canManageSchedule ? (
+                                                    {item.canManageSchedule &&
+                                                    ((item.typeKey ===
+                                                        'sempro' &&
+                                                        canScheduleSempro) ||
+                                                        (item.typeKey ===
+                                                            'sidang' &&
+                                                            canScheduleSidang)) ? (
                                                         <button
                                                             type="button"
                                                             title="Ubah jadwal"

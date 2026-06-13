@@ -31,6 +31,16 @@ export function AppSidebar({ role }: AppSidebarProps) {
     const { currentUrl } = useActiveUrl();
     const activeRole = role ?? auth.activeRole ?? 'mahasiswa';
     const navigation = roleNavigationConfig[activeRole];
+    const mainNavigation =
+        activeRole === 'kaprodi'
+            ? navigation.main.filter((item) => {
+                  if (item.href === '/kaprodi/dokumen') {
+                      return auth.kaprodiCapabilities?.view_documents ?? true;
+                  }
+
+                  return true;
+              })
+            : navigation.main;
     const settingsIsActive = currentUrl.startsWith('/settings');
 
     return (
@@ -48,7 +58,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={navigation.main} />
+                <NavMain items={mainNavigation} />
             </SidebarContent>
 
             <SidebarFooter>

@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 class KaprodiAssignmentService
 {
     /**
-     * @param  array<int, array{user_id?: mixed, is_primary?: mixed}>  $assignments
+     * @param  array<int, array{user_id?: mixed, is_primary?: mixed, capabilities?: mixed}>  $assignments
      */
     public function syncForProgramStudi(ProgramStudi $programStudi, array $assignments): void
     {
@@ -32,8 +32,8 @@ class KaprodiAssignmentService
     }
 
     /**
-     * @param  array<int, array{user_id?: mixed, is_primary?: mixed}>  $assignments
-     * @return array<int, array{user_id: int, is_primary: bool}>
+     * @param  array<int, array{user_id?: mixed, is_primary?: mixed, capabilities?: mixed}>  $assignments
+     * @return array<int, array{user_id: int, is_primary: bool, capabilities: array<string, bool>}>
      */
     private function normalizeAssignments(array $assignments): array
     {
@@ -41,6 +41,9 @@ class KaprodiAssignmentService
             ->map(static fn(array $assignment): array => [
                 'user_id' => (int) ($assignment['user_id'] ?? 0),
                 'is_primary' => (bool) ($assignment['is_primary'] ?? false),
+                'capabilities' => KaprodiAssignment::normalizeCapabilities(
+                    is_array($assignment['capabilities'] ?? null) ? $assignment['capabilities'] : null,
+                ),
             ])
             ->filter(static fn(array $assignment): bool => $assignment['user_id'] > 0)
             ->values();
