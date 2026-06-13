@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
     CalendarClock,
@@ -6,13 +6,24 @@ import {
     FileArchive,
     FileText,
     Search,
+    UserCog,
     UserRound,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
@@ -27,6 +38,8 @@ type ProgramStudi = {
 
 type StudentRow = {
     id: number;
+    projectId: number | null;
+    canManageSupervisors: boolean;
     name: string;
     nim: string;
     avatar: string | null;
@@ -39,6 +52,11 @@ type StudentRow = {
     projectStateKey: string;
     title: string;
     advisors: string[];
+    supervisorAssignments: {
+        lecturerUserId: number;
+        name: string;
+        role: string;
+    }[];
     progressRisk: {
         level: 'high' | 'medium' | 'low';
         label: string;
@@ -48,6 +66,15 @@ type StudentRow = {
         daysIdle: number | null;
         signals: string[];
     };
+    profileUrl: string;
+};
+
+type LecturerOption = {
+    id: number;
+    name: string;
+    nik: string | null;
+    quota: number;
+    concentrations: string[];
     profileUrl: string;
 };
 
@@ -75,6 +102,7 @@ type MahasiswaProps = {
     };
     students: StudentRow[];
     archives: ArchiveRow[];
+    lecturerOptions: LecturerOption[];
 };
 
 type ActivePhaseFilter =
@@ -99,9 +127,8 @@ function searchUrl(path: string, value: string) {
 }
 
 export default function KaprodiMahasiswaPage() {
-    const { programStudi, filters, students, archives } = usePage<
-        SharedData & MahasiswaProps
-    >().props;
+    const { programStudi, filters, students, archives, lecturerOptions } =
+        usePage<SharedData & MahasiswaProps>().props;
 
     const activeRows = students.filter(
         (student) =>
@@ -134,6 +161,7 @@ export default function KaprodiMahasiswaPage() {
                     <ActiveStudentTable
                         rows={activeRows}
                         filters={filters}
+                        lecturerOptions={lecturerOptions}
                         emptyText="Belum ada mahasiswa aktif"
                     />
                 </section>
@@ -156,10 +184,12 @@ export default function KaprodiMahasiswaPage() {
 function ActiveStudentTable({
     rows,
     filters,
+    lecturerOptions,
     emptyText,
 }: {
     rows: StudentRow[];
     filters: MahasiswaProps['filters'];
+    lecturerOptions: LecturerOption[];
     emptyText: string;
 }) {
     const getInitials = useInitials();
@@ -181,6 +211,9 @@ function ActiveStudentTable({
         'semua',
     );
     const [page, setPage] = useUrlState('activePage', 1);
+    const [supervisorDialog, setSupervisorDialog] = useState<StudentRow | null>(
+        null,
+    );
 
     const phaseOptions: { label: string; value: ActivePhaseFilter }[] = [
         { label: 'Review Judul', value: 'title_review' },
@@ -439,6 +472,19 @@ function ActiveStudentTable({
                                             >
                                                 <CalendarClock className="size-4" />
                                             </Link>
+                                            {row.canManageSupervisors &&
+                                            row.projectId !== null ? (
+                                                <button
+                                                    type="button"
+                                                    title="Atur pembimbing"
+                                                    onClick={() =>
+                                                        setSupervisorDialog(row)
+                                                    }
+                                                    className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                                >
+                                                    <UserCog className="size-4" />
+                                                </button>
+                                            ) : null}
                                             <Link
                                                 href={row.profileUrl}
                                                 title="Buka profil mahasiswa"
@@ -461,6 +507,190 @@ function ActiveStudentTable({
             ) : (
                 <EmptyBlock icon={AlertCircle} text={emptyText} />
             )}
+            <SupervisorDialog
+                student={supervisorDialog}
+                lecturerOptions={lecturerOptions}
+                open={supervisorDialog !== null}
+                onOpenChange={(open) => {
+                    if (!open) setSupervisorDialog(null);
+                }}
+            />
+        </div>
+    );
+}
+
+function SupervisorDialog({
+    student,
+    lecturerOptions,
+    open,
+    onOpenChange,
+}: {
+    student: StudentRow | null;
+    lecturerOptions: LecturerOption[];
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const primary = student?.supervisorAssignments.find((assignment) =>
+        assignment.role.includes('1'),
+    );
+    const secondary = student?.supervisorAssignments.find((assignment) =>
+        assignment.role.includes('2'),
+    );
+    const form = useForm({
+        primary_lecturer_user_id: primary?.lecturerUserId
+            ? String(primary.lecturerUserId)
+            : '',
+        secondary_lecturer_user_id: secondary?.lecturerUserId
+            ? String(secondary.lecturerUserId)
+            : '',
+        notes: '',
+    });
+
+    useEffect(() => {
+        form.setData({
+            primary_lecturer_user_id: primary?.lecturerUserId
+                ? String(primary.lecturerUserId)
+                : '',
+            secondary_lecturer_user_id: secondary?.lecturerUserId
+                ? String(secondary.lecturerUserId)
+                : '',
+            notes: '',
+        });
+        form.clearErrors();
+    }, [student?.projectId]);
+
+    if (!student || student.projectId === null) return null;
+
+    const activeStudent = student;
+    const submitDisabled =
+        form.processing ||
+        form.data.primary_lecturer_user_id === '' ||
+        form.data.secondary_lecturer_user_id === '' ||
+        form.data.primary_lecturer_user_id ===
+            form.data.secondary_lecturer_user_id;
+
+    function submit() {
+        form.post(`/kaprodi/projects/${activeStudent.projectId}/supervisors`, {
+            preserveScroll: true,
+            onSuccess: () => onOpenChange(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Atur Pembimbing</DialogTitle>
+                    <DialogDescription>
+                        Tetapkan pembimbing aktif untuk {activeStudent.name} (
+                        {activeStudent.nim}).
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Judul Saat Ini
+                        </p>
+                        <p className="mt-1 text-sm font-medium">
+                            {activeStudent.title}
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <LecturerSelect
+                            label="Pembimbing 1"
+                            value={form.data.primary_lecturer_user_id}
+                            onChange={(value) =>
+                                form.setData('primary_lecturer_user_id', value)
+                            }
+                            lecturerOptions={lecturerOptions}
+                            error={form.errors.primary_lecturer_user_id}
+                        />
+                        <LecturerSelect
+                            label="Pembimbing 2"
+                            value={form.data.secondary_lecturer_user_id}
+                            onChange={(value) =>
+                                form.setData(
+                                    'secondary_lecturer_user_id',
+                                    value,
+                                )
+                            }
+                            lecturerOptions={lecturerOptions}
+                            error={form.errors.secondary_lecturer_user_id}
+                        />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <label className="text-sm font-medium">Catatan</label>
+                        <Textarea
+                            value={form.data.notes}
+                            onChange={(event) =>
+                                form.setData('notes', event.target.value)
+                            }
+                            placeholder="Opsional, misalnya alasan pergantian pembimbing."
+                        />
+                    </div>
+                    {(form.errors as Record<string, string>).project ? (
+                        <p className="text-sm text-destructive">
+                            {(form.errors as Record<string, string>).project}
+                        </p>
+                    ) : null}
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={submitDisabled}
+                        onClick={submit}
+                    >
+                        Simpan Pembimbing
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function LecturerSelect({
+    label,
+    value,
+    onChange,
+    lecturerOptions,
+    error,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    lecturerOptions: LecturerOption[];
+    error?: string;
+}) {
+    return (
+        <div className="grid min-w-0 gap-1.5">
+            <label className="text-sm font-medium">{label}</label>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+                <option value="">Pilih dosen</option>
+                {lecturerOptions.map((lecturer) => (
+                    <option key={lecturer.id} value={lecturer.id}>
+                        {lecturer.name}
+                        {lecturer.concentrations.length > 0
+                            ? ` - ${lecturer.concentrations.join(', ')}`
+                            : ''}
+                    </option>
+                ))}
+            </select>
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </div>
     );
 }
