@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Kaprodi\AssignProjectSupervisorsRequest;
 use App\Http\Requests\Kaprodi\ScheduleProjectSemproRequest;
 use App\Http\Requests\Kaprodi\ScheduleProjectSidangRequest;
+use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
@@ -26,6 +27,7 @@ class ProjectWorkflowController extends Controller
     public function assignSupervisors(AssignProjectSupervisorsRequest $request, ThesisProject $project): RedirectResponse
     {
         $this->ensureProjectCanBeManaged($request, $project);
+        $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_MANAGE_SUPERVISORS);
 
         try {
             $this->thesisProjectAdminService->assignSupervisors(
@@ -59,6 +61,7 @@ class ProjectWorkflowController extends Controller
     public function scheduleSempro(ScheduleProjectSemproRequest $request, ThesisProject $project): RedirectResponse
     {
         $this->ensureProjectCanBeManaged($request, $project);
+        $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_SCHEDULE_SEMPRO);
         $this->ensureDefenseCanBeScheduled($project, 'sempro');
 
         try {
@@ -102,6 +105,7 @@ class ProjectWorkflowController extends Controller
     public function scheduleSidang(ScheduleProjectSidangRequest $request, ThesisProject $project): RedirectResponse
     {
         $this->ensureProjectCanBeManaged($request, $project);
+        $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_SCHEDULE_SIDANG);
         $this->ensureDefenseCanBeScheduled($project, 'sidang');
 
         $project->loadMissing('activeSupervisorAssignments');
@@ -179,6 +183,13 @@ class ProjectWorkflowController extends Controller
                 'scheduled_for' => 'Jadwal tidak dapat diubah karena ujian sudah selesai atau menunggu finalisasi.',
             ]);
         }
+    }
+
+    private function ensureKaprodiCapability(Request $request, string $capability): void
+    {
+        $assignment = $request->user()?->kaprodiAssignment;
+
+        abort_unless($assignment instanceof KaprodiAssignment && $assignment->hasCapability($capability), 403);
     }
 
     /**

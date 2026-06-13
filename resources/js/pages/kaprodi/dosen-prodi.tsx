@@ -65,8 +65,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function KaprodiDosenProdiPage() {
-    const { programStudi, lecturers } = usePage<SharedData & DosenProdiProps>()
-        .props;
+    const { auth, programStudi, lecturers } = usePage<
+        SharedData & DosenProdiProps
+    >().props;
+    const canManageQuota =
+        auth.kaprodiCapabilities?.manage_lecturer_quota ?? true;
     const getInitials = useInitials();
     const [search, setSearch] = useUrlState('search', '');
     const [concentrationFilter, setConcentrationFilter] = useUrlState(
@@ -297,18 +300,20 @@ export default function KaprodiDosenProdiPage() {
                                                             Kuota{' '}
                                                             {lecturer.quota}
                                                         </Badge>
-                                                        <button
-                                                            type="button"
-                                                            title="Atur kuota bimbingan"
-                                                            onClick={() =>
-                                                                setQuotaDialog(
-                                                                    lecturer,
-                                                                )
-                                                            }
-                                                            className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:bg-muted"
-                                                        >
-                                                            <Pencil className="size-3" />
-                                                        </button>
+                                                        {canManageQuota ? (
+                                                            <button
+                                                                type="button"
+                                                                title="Atur kuota bimbingan"
+                                                                onClick={() =>
+                                                                    setQuotaDialog(
+                                                                        lecturer,
+                                                                    )
+                                                                }
+                                                                className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:bg-muted"
+                                                            >
+                                                                <Pencil className="size-3" />
+                                                            </button>
+                                                        ) : null}
                                                     </div>
                                                 </td>
                                                 <td className="hidden px-4 py-3 lg:table-cell">

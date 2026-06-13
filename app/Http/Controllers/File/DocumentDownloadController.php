@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\File;
 
 use App\Http\Controllers\Controller;
+use App\Models\KaprodiAssignment;
 use App\Models\MentorshipDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -23,8 +24,12 @@ class DocumentDownloadController extends Controller
             abort_unless($document->lecturer_user_id === $user->id, 403);
         } elseif ($user->hasRole('kaprodi')) {
             $document->loadMissing('student.mahasiswaProfile');
+            $assignment = $user->kaprodiAssignment;
 
             abort_unless(
+                $assignment instanceof KaprodiAssignment
+                && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_DOWNLOAD_DOCUMENTS)
+                &&
                 $document->student?->mahasiswaProfile?->program_studi_id === $user->kaprodiProgramStudiId(),
                 403,
             );

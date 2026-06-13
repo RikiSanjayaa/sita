@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Kaprodi;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kaprodi\UpdateLecturerQuotaRequest;
+use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
@@ -20,8 +21,10 @@ class LecturerQuotaController extends Controller
     public function __invoke(UpdateLecturerQuotaRequest $request, User $lecturer): RedirectResponse
     {
         $programStudi = $request->user()?->kaprodiAssignment?->programStudi;
+        $assignment = $request->user()?->kaprodiAssignment;
 
         abort_unless($programStudi instanceof ProgramStudi, 403);
+        abort_unless($assignment instanceof KaprodiAssignment && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_MANAGE_LECTURER_QUOTA), 403);
         abort_unless($lecturer->hasRole('dosen'), 404);
         abort_unless($lecturer->teachesInProgramStudi((int) $programStudi->id), 404);
 

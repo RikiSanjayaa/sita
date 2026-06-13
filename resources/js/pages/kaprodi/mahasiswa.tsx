@@ -127,8 +127,11 @@ function searchUrl(path: string, value: string) {
 }
 
 export default function KaprodiMahasiswaPage() {
+    const { auth } = usePage<SharedData>().props;
     const { programStudi, filters, students, archives, lecturerOptions } =
         usePage<SharedData & MahasiswaProps>().props;
+    const canManageSupervisors =
+        auth.kaprodiCapabilities?.manage_supervisors ?? true;
 
     const activeRows = students.filter(
         (student) =>
@@ -162,6 +165,7 @@ export default function KaprodiMahasiswaPage() {
                         rows={activeRows}
                         filters={filters}
                         lecturerOptions={lecturerOptions}
+                        canManageSupervisors={canManageSupervisors}
                         emptyText="Belum ada mahasiswa aktif"
                     />
                 </section>
@@ -185,11 +189,13 @@ function ActiveStudentTable({
     rows,
     filters,
     lecturerOptions,
+    canManageSupervisors,
     emptyText,
 }: {
     rows: StudentRow[];
     filters: MahasiswaProps['filters'];
     lecturerOptions: LecturerOption[];
+    canManageSupervisors: boolean;
     emptyText: string;
 }) {
     const getInitials = useInitials();
@@ -472,7 +478,8 @@ function ActiveStudentTable({
                                             >
                                                 <CalendarClock className="size-4" />
                                             </Link>
-                                            {row.canManageSupervisors &&
+                                            {canManageSupervisors &&
+                                            row.canManageSupervisors &&
                                             row.projectId !== null ? (
                                                 <button
                                                     type="button"

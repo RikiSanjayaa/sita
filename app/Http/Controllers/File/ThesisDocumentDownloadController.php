@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\File;
 
 use App\Http\Controllers\Controller;
+use App\Models\KaprodiAssignment;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -41,7 +42,14 @@ class ThesisDocumentDownloadController extends Controller
 
             abort_unless($isSupervisor || $isExaminer, 403);
         } elseif ($user->hasRole('kaprodi')) {
-            abort_unless($project->program_studi_id === $user->kaprodiProgramStudiId(), 403);
+            $assignment = $user->kaprodiAssignment;
+
+            abort_unless(
+                $assignment instanceof KaprodiAssignment
+                && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_DOWNLOAD_DOCUMENTS)
+                && $project->program_studi_id === $user->kaprodiProgramStudiId(),
+                403,
+            );
         } else {
             abort(403);
         }

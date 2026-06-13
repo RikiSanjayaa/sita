@@ -23,6 +23,7 @@ class KaprodiAssignmentFactory extends Factory
             'program_studi_id' => ProgramStudi::factory(),
             'user_id' => User::factory()->state(['last_active_role' => 'kaprodi']),
             'is_primary' => true,
+            'capabilities' => KaprodiAssignment::defaultCapabilities(),
         ];
     }
 }

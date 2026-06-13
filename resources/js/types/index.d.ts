@@ -7,6 +7,7 @@ export interface Auth {
     user: User;
     activeRole: AppRole | null;
     availableRoles: AppRole[];
+    kaprodiCapabilities?: Record<string, boolean> | null;
 }
 
 export interface BreadcrumbItem {

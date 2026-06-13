@@ -107,6 +107,7 @@ export default function KaprodiDashboardPage() {
         defenseProgress,
     } = usePage<SharedData & DashboardProps>().props;
 
+    const canViewDocuments = auth.kaprodiCapabilities?.view_documents ?? true;
     const quickActions = [
         {
             title: 'Mahasiswa Prodi',
@@ -130,6 +131,7 @@ export default function KaprodiDashboardPage() {
             href: '/kaprodi/dokumen',
             icon: FileStack,
             primary: false,
+            visible: canViewDocuments,
         },
         {
             title: 'Dosen Prodi',
@@ -139,7 +141,7 @@ export default function KaprodiDashboardPage() {
             icon: GraduationCap,
             primary: false,
         },
-    ];
+    ].filter((action) => action.visible ?? true);
 
     return (
         <KaprodiLayout

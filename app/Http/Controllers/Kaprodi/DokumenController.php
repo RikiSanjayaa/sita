@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Kaprodi;
 
 use App\Http\Controllers\Controller;
+use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Services\KaprodiPortalService;
 use Illuminate\Http\Request;
@@ -18,8 +19,10 @@ class DokumenController extends Controller
     public function __invoke(Request $request): Response
     {
         $programStudi = $request->user()?->kaprodiAssignment?->programStudi;
+        $assignment = $request->user()?->kaprodiAssignment;
 
         abort_unless($programStudi instanceof ProgramStudi, 403);
+        abort_unless($assignment instanceof KaprodiAssignment && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_VIEW_DOCUMENTS), 403);
 
         return Inertia::render('kaprodi/dokumen', $this->kaprodiPortalService->documents($programStudi));
     }

@@ -83,8 +83,11 @@ type DokumenProps = {
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
 
 export default function KaprodiDokumenPage() {
-    const { programStudi, documentQueue } = usePage<SharedData & DokumenProps>()
-        .props;
+    const { auth, programStudi, documentQueue } = usePage<
+        SharedData & DokumenProps
+    >().props;
+    const canDownloadDocuments =
+        auth.kaprodiCapabilities?.download_documents ?? true;
     const [search, setSearch] = useUrlState('search', '');
     const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
         'status',
@@ -368,39 +371,42 @@ export default function KaprodiDokumenPage() {
 
                                                 <td className="px-5 py-3.5 align-middle">
                                                     <div className="flex items-center justify-end gap-1">
-                                                        <Tooltip>
-                                                            <TooltipTrigger
-                                                                asChild
-                                                            >
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    className="size-8 text-muted-foreground hover:text-foreground"
-                                                                    disabled={
-                                                                        !doc.fileUrl
-                                                                    }
-                                                                    onClick={(
-                                                                        event,
-                                                                    ) => {
-                                                                        event.stopPropagation();
-                                                                        if (
-                                                                            doc.fileUrl
-                                                                        ) {
-                                                                            window.open(
-                                                                                doc.fileUrl,
-                                                                                '_blank',
-                                                                                'noopener,noreferrer',
-                                                                            );
-                                                                        }
-                                                                    }}
+                                                        {canDownloadDocuments ? (
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
                                                                 >
-                                                                    <Download className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Unduh Dokumen
-                                                            </TooltipContent>
-                                                        </Tooltip>
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        className="size-8 text-muted-foreground hover:text-foreground"
+                                                                        disabled={
+                                                                            !doc.fileUrl
+                                                                        }
+                                                                        onClick={(
+                                                                            event,
+                                                                        ) => {
+                                                                            event.stopPropagation();
+                                                                            if (
+                                                                                doc.fileUrl
+                                                                            ) {
+                                                                                window.open(
+                                                                                    doc.fileUrl,
+                                                                                    '_blank',
+                                                                                    'noopener,noreferrer',
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Download className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Unduh
+                                                                    Dokumen
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        ) : null}
                                                         <Tooltip>
                                                             <TooltipTrigger
                                                                 asChild
@@ -551,7 +557,8 @@ export default function KaprodiDokumenPage() {
                                         </div>
 
                                         <div className="flex flex-wrap gap-2 border-t px-4 py-3">
-                                            {selectedDocument.fileUrl ? (
+                                            {canDownloadDocuments &&
+                                            selectedDocument.fileUrl ? (
                                                 <Button
                                                     size="sm"
                                                     onClick={() => {
