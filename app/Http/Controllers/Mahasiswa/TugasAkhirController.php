@@ -280,6 +280,21 @@ class TugasAkhirController extends Controller
 
     private function resolveProjectWorkflow(ThesisProject $project): array
     {
+        $project->loadMissing('latestTitle');
+
+        if ($project->state === 'cancelled') {
+            $key = $project->latestTitle?->status === 'rejected'
+                ? 'title_rejected'
+                : 'project_cancelled';
+
+            return [
+                'key' => $key,
+                'label' => $this->workflowLabel($key),
+                'description' => $this->workflowDescription($key),
+                'can_edit' => $this->canEditProjectSubmission($project),
+            ];
+        }
+
         /** @var ThesisDefense|null $latestSidang */
         $latestSidang = $project->defenses
             ->where('type', 'sidang')
@@ -337,6 +352,8 @@ class TugasAkhirController extends Controller
             }
         } elseif ($project->phase === 'title_review') {
             $key = 'title_review_pending';
+        } elseif ($project->latestTitle?->status === 'approved') {
+            $key = 'title_approved';
         } elseif ($project->activeSupervisorAssignments->isNotEmpty()) {
             $key = 'research_in_progress';
         }
@@ -353,6 +370,9 @@ class TugasAkhirController extends Controller
     {
         return match ($key) {
             'title_review_pending' => 'Menunggu Persetujuan',
+            'title_approved' => 'Judul Disetujui',
+            'title_rejected' => 'Judul Tidak Disetujui',
+            'project_cancelled' => 'Proyek Dibatalkan',
             'sempro_scheduled' => 'Sempro Dijadwalkan',
             'sempro_waiting_result' => 'Menunggu Hasil Sempro',
             'sempro_revision' => 'Revisi Sempro',
@@ -372,6 +392,9 @@ class TugasAkhirController extends Controller
     {
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
+            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan sempro.',
+            'title_rejected' => 'Pengajuan judul dan proposal tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
+            'project_cancelled' => 'Proyek tugas akhir ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => 'Sempro sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
             'sempro_revision' => 'Sempro selesai dengan revisi. Periksa catatan revisi dari penguji.',

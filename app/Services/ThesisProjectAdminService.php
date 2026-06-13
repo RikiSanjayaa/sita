@@ -24,6 +24,92 @@ class ThesisProjectAdminService
         private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
+    public function approveTitleReview(ThesisProject $project, int $decidedBy, ?string $notes = null): ThesisProject
+    {
+        $title = $this->resolveSubmittedTitleForReview($project);
+        $notes = $notes ?: 'Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.';
+
+        $updatedProject = DB::transaction(function () use ($decidedBy, $notes, $project, $title): ThesisProject {
+            $title->forceFill([
+                'status' => 'approved',
+                'decided_by_user_id' => $decidedBy,
+                'decided_at' => now(),
+                'decision_notes' => $notes,
+            ])->save();
+
+            $project->forceFill([
+                'phase' => 'sempro',
+                'state' => 'active',
+                'cancelled_at' => null,
+                'closed_by' => null,
+            ])->save();
+
+            $freshProject = $project->fresh(['student', 'latestTitle', 'titles']);
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $decidedBy,
+                eventType: 'title_approved',
+                label: 'Judul disetujui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
+
+        $this->notifyStudentAboutTitleReviewDecision(
+            project: $updatedProject,
+            approved: true,
+            notes: $notes,
+        );
+
+        return $updatedProject;
+    }
+
+    public function rejectTitleReview(ThesisProject $project, int $decidedBy, string $notes): ThesisProject
+    {
+        $title = $this->resolveSubmittedTitleForReview($project);
+
+        $updatedProject = DB::transaction(function () use ($decidedBy, $notes, $project, $title): ThesisProject {
+            $title->forceFill([
+                'status' => 'rejected',
+                'decided_by_user_id' => $decidedBy,
+                'decided_at' => now(),
+                'decision_notes' => $notes,
+            ])->save();
+
+            $project->forceFill([
+                'phase' => 'cancelled',
+                'state' => 'cancelled',
+                'cancelled_at' => now(),
+                'closed_by' => $decidedBy,
+                'notes' => $notes,
+            ])->save();
+
+            $freshProject = $project->fresh(['student', 'latestTitle', 'titles']);
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $decidedBy,
+                eventType: 'title_rejected',
+                label: 'Judul tidak disetujui',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+            );
+
+            return $freshProject;
+        });
+
+        $this->notifyStudentAboutTitleReviewDecision(
+            project: $updatedProject,
+            approved: false,
+            notes: $notes,
+        );
+
+        return $updatedProject;
+    }
+
     /**
      * @param  array<int, int>  $examinerUserIds
      */
@@ -606,6 +692,27 @@ class ThesisProjectAdminService
             ->first();
 
         return $approvedTitle ?? $project->latestTitle;
+    }
+
+    private function resolveSubmittedTitleForReview(ThesisProject $project): ThesisProjectTitle
+    {
+        $project->loadMissing(['latestTitle', 'titles', 'defenses', 'activeSupervisorAssignments']);
+
+        if ($project->state !== 'active' || $project->phase !== 'title_review') {
+            throw new RuntimeException('Proyek tidak sedang berada pada tahap review judul.');
+        }
+
+        if ($project->defenses->isNotEmpty() || $project->activeSupervisorAssignments->isNotEmpty()) {
+            throw new RuntimeException('Review judul tidak dapat diubah karena proyek sudah masuk tahap lanjutan.');
+        }
+
+        $title = $project->latestTitle;
+
+        if (! $title instanceof ThesisProjectTitle || $title->status !== 'submitted') {
+            throw new RuntimeException('Tidak ada pengajuan judul yang menunggu keputusan.');
+        }
+
+        return $title;
     }
 
     private function closeDefenseRevisions(ThesisDefense $defense, int $resolvedBy, string $resolutionNotes): void
@@ -1196,6 +1303,26 @@ class ThesisProjectAdminService
             'description' => $notes,
             'url' => '/tugas-akhir',
             'icon' => 'check-circle',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+    }
+
+    private function notifyStudentAboutTitleReviewDecision(
+        ThesisProject $project,
+        bool $approved,
+        string $notes,
+    ): void {
+        $project->loadMissing('student');
+
+        if (! $project->student instanceof User) {
+            return;
+        }
+
+        $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+            'title' => $approved ? 'Judul disetujui' : 'Judul tidak disetujui',
+            'description' => $notes,
+            'url' => '/tugas-akhir',
+            'icon' => $approved ? 'check-circle' : 'x-circle',
             'createdAt' => now()->toIso8601String(),
         ]);
     }
