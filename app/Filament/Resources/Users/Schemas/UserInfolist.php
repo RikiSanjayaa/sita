@@ -83,6 +83,7 @@ class UserInfolist
                     ]),
                 Section::make('Beban Tugas Akhir')
                     ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)
+                    ->columnSpanFull()
                     ->columns(2)
                     ->schema([
                         TextEntry::make('active_primary_supervision_count')

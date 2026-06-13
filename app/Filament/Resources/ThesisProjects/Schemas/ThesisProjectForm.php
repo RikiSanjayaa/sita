@@ -113,6 +113,7 @@ class ThesisProjectForm
                     ]),
                 Section::make('Override Judul & Proposal')
                     ->description('Admin dapat memperbarui judul dan proposal aktif kapan saja. Mahasiswa akan menerima notifikasi otomatis ketika data inti ini diubah.')
+                    ->columnSpanFull()
                     ->columns(2)
                     ->schema([
                         TextInput::make('title_id')
