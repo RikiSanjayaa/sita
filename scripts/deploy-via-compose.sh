@@ -12,7 +12,7 @@ build_args=(
 )
 
 echo "Building images locally..."
-docker compose "${compose_files[@]}" build "${build_args[@]}" --no-cache app web
+docker compose "${compose_files[@]}" build "${build_args[@]}" --no-cache app web init
 
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
