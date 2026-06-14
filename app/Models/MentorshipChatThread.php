@@ -22,6 +22,7 @@ class MentorshipChatThread extends Model
         'type',
         'context_id',
         'label',
+        'private_key',
         'is_escalated',
         'escalated_at',
     ];

@@ -31,6 +31,7 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
         ->name('upload-dokumen.create');
 
     Route::get('pesan', [PesanController::class, 'index'])->name('pesan');
+    Route::post('pesan/private', [PesanController::class, 'storePrivateThread'])->name('pesan.private.store');
     Route::post('pesan/{thread}/messages', [PesanController::class, 'storeMessage'])->name('pesan.messages.store');
 
     Route::get('panduan', PanduanController::class)->name('panduan');

@@ -7,6 +7,7 @@ import {
     Paperclip,
     Search,
     Send,
+    UserPlus,
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -27,6 +28,13 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import {
     Tooltip,
@@ -79,6 +87,16 @@ type ThreadItem = {
     latestActivityAt: string | null;
 };
 
+type PrivateRecipient = {
+    id: number;
+    name: string;
+    subtitle: string | null;
+    avatar: string | null;
+    profileUrl: string | null;
+};
+
+type ThreadMode = 'group' | 'private';
+
 function messageMatches(message: ChatMessage, query: string) {
     if (!query) {
         return false;
@@ -94,11 +112,13 @@ function messageMatches(message: ChatMessage, query: string) {
 type PesanPageProps = {
     hasDosbing: boolean;
     threads: ThreadItem[];
+    privateRecipients: PrivateRecipient[];
 };
 
 type PesanPageContentProps = Pick<SharedData, 'auth'> & {
     hasDosbing: boolean;
     initialThreads: ThreadItem[];
+    privateRecipients: PrivateRecipient[];
 };
 
 function buildThreadStateKey(threads: ThreadItem[]): string {
@@ -177,6 +197,7 @@ export default function PesanPage() {
     const {
         threads: initialThreads,
         hasDosbing,
+        privateRecipients,
         auth,
     } = usePage<SharedData & PesanPageProps>().props;
 
@@ -185,6 +206,7 @@ export default function PesanPage() {
             key={buildThreadStateKey(initialThreads)}
             initialThreads={initialThreads}
             hasDosbing={hasDosbing}
+            privateRecipients={privateRecipients}
             auth={auth}
         />
     );
@@ -193,6 +215,7 @@ export default function PesanPage() {
 function PesanPageContent({
     initialThreads,
     hasDosbing,
+    privateRecipients,
     auth,
 }: PesanPageContentProps) {
     const getInitials = useInitials();
@@ -201,6 +224,19 @@ function PesanPageContent({
     const [mobileView, setMobileView] = useState<'threads' | 'chat'>(() =>
         resolveInitialMobileView(initialThreads),
     );
+    const [threadMode, setThreadMode] = useState<ThreadMode>(() => {
+        const queryThread =
+            typeof window === 'undefined'
+                ? null
+                : Number(
+                      new URLSearchParams(window.location.search).get('thread'),
+                  );
+        const initialThread = initialThreads.find(
+            (thread) => thread.id === queryThread,
+        );
+
+        return initialThread?.threadType === 'private' ? 'private' : 'group';
+    });
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
         resolveInitialThreadId(initialThreads),
     );
@@ -222,10 +258,23 @@ function PesanPageContent({
         message: '',
         attachment: null,
     });
+    const privateThreadForm = useForm<{ recipient_id: string }>({
+        recipient_id: '',
+    });
+
+    const visibleThreadItems = useMemo(
+        () =>
+            threadItems.filter((thread) =>
+                threadMode === 'private'
+                    ? thread.threadType === 'private'
+                    : thread.threadType !== 'private',
+            ),
+        [threadItems, threadMode],
+    );
 
     const resolvedActiveThreadId = useMemo(() => {
         if (activeThreadId !== null) {
-            const matchingThread = threadItems.find(
+            const matchingThread = visibleThreadItems.find(
                 (thread) => thread.id === activeThreadId,
             );
 
@@ -234,8 +283,8 @@ function PesanPageContent({
             }
         }
 
-        return threadItems[0]?.id ?? null;
-    }, [activeThreadId, threadItems]);
+        return visibleThreadItems[0]?.id ?? null;
+    }, [activeThreadId, visibleThreadItems]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
@@ -431,6 +480,29 @@ function PesanPageContent({
         setMobileView('chat');
     }
 
+    function changeThreadMode(nextMode: ThreadMode) {
+        const nextThread = threadItems.find((thread) =>
+            nextMode === 'private'
+                ? thread.threadType === 'private'
+                : thread.threadType !== 'private',
+        );
+
+        setThreadMode(nextMode);
+        setActiveThreadId(nextThread?.id ?? null);
+        syncThreadSearchParam(nextThread?.id ?? null);
+        setMobileView('threads');
+    }
+
+    function startPrivateThread() {
+        if (privateThreadForm.data.recipient_id === '') {
+            return;
+        }
+
+        privateThreadForm.post('/mahasiswa/pesan/private', {
+            preserveScroll: true,
+        });
+    }
+
     function handleThreadSearchChange(value: string) {
         setThreadSearch(value);
         setActiveMatchIndex(0);
@@ -528,14 +600,75 @@ function PesanPageContent({
                     >
                         <CardTitle>Pesan</CardTitle>
                         <CardDescription>
-                            Thread bimbingan dan sempro Anda
+                            Grup akademik dan chat pribadi
                         </CardDescription>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                            {[
+                                ['group', 'Grup'],
+                                ['private', 'Pribadi'],
+                            ].map(([value, label]) => (
+                                <Button
+                                    key={value}
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        threadMode === value
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        changeThreadMode(value as ThreadMode)
+                                    }
+                                >
+                                    {label}
+                                </Button>
+                            ))}
+                        </div>
+                        {threadMode === 'private' ? (
+                            <div className="mt-3 flex items-center gap-2">
+                                <Select
+                                    value={privateThreadForm.data.recipient_id}
+                                    onValueChange={(value) =>
+                                        privateThreadForm.setData(
+                                            'recipient_id',
+                                            value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger className="min-w-0 flex-1">
+                                        <SelectValue placeholder="Pilih kontak" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {privateRecipients.map((recipient) => (
+                                            <SelectItem
+                                                key={recipient.id}
+                                                value={String(recipient.id)}
+                                            >
+                                                {recipient.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    onClick={startPrivateThread}
+                                    disabled={
+                                        privateThreadForm.processing ||
+                                        privateThreadForm.data.recipient_id ===
+                                            ''
+                                    }
+                                >
+                                    <UserPlus className="size-4" />
+                                </Button>
+                            </div>
+                        ) : null}
                     </CardHeader>
                     <CardContent className="relative flex-1 overflow-hidden p-0">
                         <ScrollArea className="h-full w-full">
                             <div className="flex flex-col">
-                                {threadItems.length > 0 ? (
-                                    threadItems.map((thread) => {
+                                {visibleThreadItems.length > 0 ? (
+                                    visibleThreadItems.map((thread) => {
                                         const threadMessages =
                                             mergedMessages(thread);
                                         const latestMessage =
@@ -616,8 +749,9 @@ function PesanPageContent({
                                             Belum ada thread
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Thread akan muncul setelah dosen
-                                            pembimbing atau penguji ditetapkan.
+                                            {threadMode === 'private'
+                                                ? 'Pilih kontak untuk memulai chat pribadi.'
+                                                : 'Thread akan muncul setelah dosen pembimbing atau penguji ditetapkan.'}
                                         </p>
                                     </div>
                                 )}
