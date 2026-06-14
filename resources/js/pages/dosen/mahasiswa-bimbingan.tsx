@@ -1,9 +1,11 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    ChevronDown,
     FileText,
     MessageCircle,
     MessageSquareText,
+    MessagesSquare,
     Search,
     UserRound,
 } from 'lucide-react';
@@ -12,6 +14,14 @@ import { useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
@@ -27,6 +37,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type RoleFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2' | 'penguji';
 
 type MahasiswaRow = {
+    studentUserId: number | null;
     nim: string;
     name: string;
     avatar: string | null;
@@ -96,6 +107,18 @@ function StudentTable({
         `${queryPrefix}Role`,
         'semua',
     );
+
+    function openPrivateChat(row: MahasiswaRow) {
+        if (row.studentUserId === null) {
+            return;
+        }
+
+        router.post(
+            '/dosen/pesan-bimbingan/private',
+            { recipient_id: row.studentUserId },
+            { preserveScroll: true },
+        );
+    }
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -281,29 +304,71 @@ function StudentTable({
                                                         Ujian
                                                     </Link>
                                                 </Button>
-                                                {row.chatUrl ? (
-                                                    <Button
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
                                                         asChild
-                                                        size="sm"
-                                                        className="h-7 px-2.5 text-xs"
                                                     >
-                                                        <Link
-                                                            href={row.chatUrl}
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-7 px-2.5 text-xs"
+                                                            disabled={
+                                                                row.studentUserId ===
+                                                                    null &&
+                                                                row.chatUrl ===
+                                                                    null
+                                                            }
                                                         >
                                                             <MessageSquareText className="size-3.5" />
                                                             Chat
-                                                        </Link>
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        size="sm"
-                                                        disabled
-                                                        className="h-7 px-2.5 text-xs"
+                                                            <ChevronDown className="size-3" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent
+                                                        align="end"
+                                                        className="w-48"
                                                     >
-                                                        <MessageSquareText className="size-3.5" />
-                                                        Chat
-                                                    </Button>
-                                                )}
+                                                        <DropdownMenuLabel>
+                                                            Pilih jenis chat
+                                                        </DropdownMenuLabel>
+                                                        {row.chatUrl ? (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={
+                                                                        row.chatUrl
+                                                                    }
+                                                                >
+                                                                    <MessagesSquare className="size-4" />
+                                                                    Chat grup
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        ) : (
+                                                            <DropdownMenuItem
+                                                                disabled
+                                                            >
+                                                                <MessagesSquare className="size-4" />
+                                                                Chat grup belum
+                                                                ada
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            disabled={
+                                                                row.studentUserId ===
+                                                                null
+                                                            }
+                                                            onClick={() =>
+                                                                openPrivateChat(
+                                                                    row,
+                                                                )
+                                                            }
+                                                        >
+                                                            <MessageSquareText className="size-4" />
+                                                            Chat pribadi
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                                 {row.whatsappUrl && (
                                                     <Button
                                                         asChild

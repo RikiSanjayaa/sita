@@ -167,6 +167,7 @@ class MahasiswaBimbinganController extends Controller
 
         return [
             'nim' => $profile?->nim ?? '-',
+            'studentUserId' => $student?->id,
             'name' => $student?->name ?? '-',
             'avatar' => $studentSummary['avatar'] ?? null,
             'profileUrl' => $studentSummary['profileUrl'] ?? null,
@@ -225,6 +226,7 @@ class MahasiswaBimbinganController extends Controller
 
         return [
             'nim' => $profile?->nim ?? '-',
+            'studentUserId' => $student?->id,
             'name' => $student?->name ?? '-',
             'avatar' => $studentSummary['avatar'] ?? null,
             'profileUrl' => $studentSummary['profileUrl'] ?? null,
