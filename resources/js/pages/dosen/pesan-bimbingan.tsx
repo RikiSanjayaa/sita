@@ -7,13 +7,16 @@ import {
     Paperclip,
     Search,
     Send,
-    UserPlus,
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { MentorshipChatFrame } from '@/components/mentorship-chat-layout';
+import {
+    PrivateRecipientCombobox,
+    type PrivateRecipientOption,
+} from '@/components/private-recipient-combobox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +37,6 @@ import {
 } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -93,22 +89,14 @@ type ThreadItem = {
     messages: ThreadMessage[];
 };
 
-type PrivateRecipient = {
-    id: number;
-    name: string;
-    subtitle: string | null;
-    avatar: string | null;
-    profileUrl: string | null;
-};
+type ThreadMode = 'group' | 'private';
+type GroupThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang';
 
-type ThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang' | 'private';
-
-const threadFilterTabs: { label: string; value: ThreadFilter }[] = [
-    { label: 'Grup', value: 'semua' },
+const groupThreadFilterTabs: { label: string; value: GroupThreadFilter }[] = [
+    { label: 'Semua', value: 'semua' },
     { label: 'Bimbingan', value: 'pembimbing' },
     { label: 'Sempro', value: 'sempro' },
     { label: 'Sidang', value: 'sidang' },
-    { label: 'Pribadi', value: 'private' },
 ];
 
 function messageMatches(message: ThreadMessage, query: string) {
@@ -125,13 +113,13 @@ function messageMatches(message: ThreadMessage, query: string) {
 
 type PesanBimbinganProps = {
     threads: ThreadItem[];
-    privateRecipients: PrivateRecipient[];
+    privateRecipients: PrivateRecipientOption[];
     flashMessage?: string | null;
 };
 
 type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {
     initialThreads: ThreadItem[];
-    privateRecipients: PrivateRecipient[];
+    privateRecipients: PrivateRecipientOption[];
     flashMessage?: string | null;
 };
 
@@ -182,7 +170,8 @@ function sortThreads(threads: ThreadItem[]): ThreadItem[] {
 function getVisibleThreads(
     threads: ThreadItem[],
     search: string,
-    filter: ThreadFilter,
+    mode: ThreadMode,
+    groupFilter: GroupThreadFilter,
     activeThreadId: number | null,
 ): ThreadItem[] {
     return sortThreads(threads)
@@ -195,9 +184,11 @@ function getVisibleThreads(
         })
         .filter((thread) => {
             const matchesFilter =
-                filter === 'semua'
-                    ? thread.threadType !== 'private'
-                    : thread.threadType === filter;
+                mode === 'private'
+                    ? thread.threadType === 'private'
+                    : thread.threadType !== 'private' &&
+                      (groupFilter === 'semua' ||
+                          thread.threadType === groupFilter);
 
             return (
                 matchesFilter &&
@@ -278,10 +269,16 @@ function DosenPesanBimbinganContent({
         resolveInitialMobileView(initialThreads),
     );
     const [search, setSearch] = useUrlState('search', '');
-    const [threadFilter, setThreadFilter] = useUrlState<ThreadFilter>(
-        'filter',
-        'semua',
+    const [threadMode, setThreadMode] = useUrlState<ThreadMode>(
+        'mode',
+        typeof window !== 'undefined' &&
+            new URLSearchParams(window.location.search).get('filter') ===
+                'private'
+            ? 'private'
+            : 'group',
     );
+    const [groupThreadFilter, setGroupThreadFilter] =
+        useUrlState<GroupThreadFilter>('filter', 'semua');
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
     const [activeMatchIndex, setActiveMatchIndex] = useState(0);
@@ -343,10 +340,11 @@ function DosenPesanBimbinganContent({
             getVisibleThreads(
                 threadItems,
                 search,
-                threadFilter,
+                threadMode,
+                groupThreadFilter,
                 activeThreadId,
             ),
-        [activeThreadId, search, threadFilter, threadItems],
+        [activeThreadId, groupThreadFilter, search, threadItems, threadMode],
     );
 
     const evaluatedActiveThreadId = useMemo(() => {
@@ -552,7 +550,8 @@ function DosenPesanBimbinganContent({
         const nextVisibleThreads = getVisibleThreads(
             threadItems,
             nextSearch,
-            threadFilter,
+            threadMode,
+            groupThreadFilter,
             activeThreadId,
         );
         const nextActiveThreadId = nextVisibleThreads.some(
@@ -581,10 +580,40 @@ function DosenPesanBimbinganContent({
         setActiveMatchIndex(0);
     }
 
-    function handleThreadFilterChange(nextFilter: ThreadFilter) {
+    function changeThreadMode(nextMode: ThreadMode) {
         const nextVisibleThreads = getVisibleThreads(
             threadItems,
             search,
+            nextMode,
+            groupThreadFilter,
+            activeThreadId,
+        );
+        const nextActiveThreadId = nextVisibleThreads.some(
+            (thread) => thread.id === activeThreadId,
+        )
+            ? activeThreadId
+            : (nextVisibleThreads[0]?.id ?? null);
+
+        setThreadMode(nextMode);
+
+        if (nextActiveThreadId !== activeThreadId) {
+            setActiveThreadId(nextActiveThreadId);
+            setThreadSearch('');
+            setIsThreadSearchOpen(false);
+            setActiveMatchIndex(0);
+            syncThreadSearchParam(nextActiveThreadId);
+
+            if (nextActiveThreadId !== null) {
+                void markThreadAsRead(nextActiveThreadId);
+            }
+        }
+    }
+
+    function handleGroupThreadFilterChange(nextFilter: GroupThreadFilter) {
+        const nextVisibleThreads = getVisibleThreads(
+            threadItems,
+            search,
+            threadMode,
             nextFilter,
             activeThreadId,
         );
@@ -594,7 +623,7 @@ function DosenPesanBimbinganContent({
             ? activeThreadId
             : (nextVisibleThreads[0]?.id ?? null);
 
-        setThreadFilter(nextFilter);
+        setGroupThreadFilter(nextFilter);
 
         if (nextActiveThreadId !== activeThreadId) {
             setActiveThreadId(nextActiveThreadId);
@@ -729,63 +758,65 @@ function DosenPesanBimbinganContent({
                                 Pisahkan grup akademik dan chat pribadi
                             </CardDescription>
                         </div>
-                        <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1 text-xs font-medium">
-                            {threadFilterTabs.map((filter) => (
-                                <button
-                                    key={filter.value}
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                ['group', 'Grup'],
+                                ['private', 'Pribadi'],
+                            ].map(([value, label]) => (
+                                <Button
+                                    key={value}
                                     type="button"
-                                    onClick={() =>
-                                        handleThreadFilterChange(filter.value)
+                                    size="sm"
+                                    variant={
+                                        threadMode === value
+                                            ? 'default'
+                                            : 'outline'
                                     }
-                                    className={cn(
-                                        'flex flex-1 items-center justify-center rounded-md px-2 py-1.5 whitespace-nowrap text-muted-foreground transition-all',
-                                        threadFilter === filter.value &&
-                                            'bg-primary text-primary-foreground shadow-sm',
-                                    )}
+                                    onClick={() =>
+                                        changeThreadMode(value as ThreadMode)
+                                    }
                                 >
-                                    {filter.label}
-                                </button>
+                                    {label}
+                                </Button>
                             ))}
                         </div>
-                        {threadFilter === 'private' ? (
-                            <div className="flex items-center gap-2">
-                                <Select
-                                    value={privateThreadForm.data.recipient_id}
-                                    onValueChange={(value) =>
-                                        privateThreadForm.setData(
-                                            'recipient_id',
-                                            value,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger className="min-w-0 flex-1">
-                                        <SelectValue placeholder="Pilih kontak" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {privateRecipients.map((recipient) => (
-                                            <SelectItem
-                                                key={recipient.id}
-                                                value={String(recipient.id)}
-                                            >
-                                                {recipient.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    onClick={startPrivateThread}
-                                    disabled={
-                                        privateThreadForm.processing ||
-                                        privateThreadForm.data.recipient_id ===
-                                            ''
-                                    }
-                                >
-                                    <UserPlus className="size-4" />
-                                </Button>
+
+                        {threadMode === 'group' ? (
+                            <div className="flex flex-wrap gap-1">
+                                {groupThreadFilterTabs.map((filter) => (
+                                    <button
+                                        key={filter.value}
+                                        type="button"
+                                        onClick={() =>
+                                            handleGroupThreadFilterChange(
+                                                filter.value,
+                                            )
+                                        }
+                                        className={cn(
+                                            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                            groupThreadFilter === filter.value
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                                        )}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                ))}
                             </div>
-                        ) : null}
+                        ) : (
+                            <PrivateRecipientCombobox
+                                recipients={privateRecipients}
+                                value={privateThreadForm.data.recipient_id}
+                                onValueChange={(value) =>
+                                    privateThreadForm.setData(
+                                        'recipient_id',
+                                        value,
+                                    )
+                                }
+                                onSubmit={startPrivateThread}
+                                disabled={privateThreadForm.processing}
+                            />
+                        )}
                         <div className="relative">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -795,7 +826,7 @@ function DosenPesanBimbinganContent({
                                 }
                                 className="pl-9"
                                 placeholder={
-                                    threadFilter === 'private'
+                                    threadMode === 'private'
                                         ? 'Cari kontak...'
                                         : 'Cari mahasiswa...'
                                 }
@@ -892,12 +923,12 @@ function DosenPesanBimbinganContent({
                                             <Inbox className="size-5" />
                                         </span>
                                         <p className="text-sm font-medium">
-                                            {threadFilter === 'private'
+                                            {threadMode === 'private'
                                                 ? 'Belum ada chat pribadi'
                                                 : 'Tidak ada grup yang sesuai'}
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            {threadFilter === 'private'
+                                            {threadMode === 'private'
                                                 ? 'Pilih kontak untuk memulai chat pribadi.'
                                                 : 'Coba kata kunci lain atau ubah filter percakapan.'}
                                         </p>

@@ -7,13 +7,16 @@ import {
     Paperclip,
     Search,
     Send,
-    UserPlus,
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { MentorshipChatFrame } from '@/components/mentorship-chat-layout';
+import {
+    PrivateRecipientCombobox,
+    type PrivateRecipientOption,
+} from '@/components/private-recipient-combobox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -28,13 +31,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import {
     Tooltip,
@@ -87,14 +83,6 @@ type ThreadItem = {
     latestActivityAt: string | null;
 };
 
-type PrivateRecipient = {
-    id: number;
-    name: string;
-    subtitle: string | null;
-    avatar: string | null;
-    profileUrl: string | null;
-};
-
 type ThreadMode = 'group' | 'private';
 
 function messageMatches(message: ChatMessage, query: string) {
@@ -112,13 +100,13 @@ function messageMatches(message: ChatMessage, query: string) {
 type PesanPageProps = {
     hasDosbing: boolean;
     threads: ThreadItem[];
-    privateRecipients: PrivateRecipient[];
+    privateRecipients: PrivateRecipientOption[];
 };
 
 type PesanPageContentProps = Pick<SharedData, 'auth'> & {
     hasDosbing: boolean;
     initialThreads: ThreadItem[];
-    privateRecipients: PrivateRecipient[];
+    privateRecipients: PrivateRecipientOption[];
 };
 
 function buildThreadStateKey(threads: ThreadItem[]): string {
@@ -625,8 +613,9 @@ function PesanPageContent({
                             ))}
                         </div>
                         {threadMode === 'private' ? (
-                            <div className="mt-3 flex items-center gap-2">
-                                <Select
+                            <div className="mt-3">
+                                <PrivateRecipientCombobox
+                                    recipients={privateRecipients}
                                     value={privateThreadForm.data.recipient_id}
                                     onValueChange={(value) =>
                                         privateThreadForm.setData(
@@ -634,33 +623,9 @@ function PesanPageContent({
                                             value,
                                         )
                                     }
-                                >
-                                    <SelectTrigger className="min-w-0 flex-1">
-                                        <SelectValue placeholder="Pilih kontak" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {privateRecipients.map((recipient) => (
-                                            <SelectItem
-                                                key={recipient.id}
-                                                value={String(recipient.id)}
-                                            >
-                                                {recipient.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    onClick={startPrivateThread}
-                                    disabled={
-                                        privateThreadForm.processing ||
-                                        privateThreadForm.data.recipient_id ===
-                                            ''
-                                    }
-                                >
-                                    <UserPlus className="size-4" />
-                                </Button>
+                                    onSubmit={startPrivateThread}
+                                    disabled={privateThreadForm.processing}
+                                />
                             </div>
                         ) : null}
                     </CardHeader>

@@ -1,4 +1,5 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { MessageSquareText } from 'lucide-react';
 
 import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +17,8 @@ import {
 type ProfileShowProps = {
     profile: UserProfileDetail;
     canEditProfile: boolean;
+    canStartPrivateChat: boolean;
+    privateChatEndpoint: string | null;
 };
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -30,10 +33,17 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 export default function ProfileShowPage() {
-    const { auth, canEditProfile, profile } = usePage<
-        SharedData & ProfileShowProps
-    >().props;
+    const {
+        auth,
+        canEditProfile,
+        canStartPrivateChat,
+        privateChatEndpoint,
+        profile,
+    } = usePage<SharedData & ProfileShowProps>().props;
     const getInitials = useInitials();
+    const privateChatForm = useForm<{ recipient_id: number }>({
+        recipient_id: profile.id,
+    });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: dashboard().url },
@@ -89,6 +99,22 @@ export default function ProfileShowPage() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
+                            {canStartPrivateChat && privateChatEndpoint ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={privateChatForm.processing}
+                                    onClick={() =>
+                                        privateChatForm.post(
+                                            privateChatEndpoint,
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    <MessageSquareText className="mr-1.5 size-4" />
+                                    Chat Pribadi
+                                </Button>
+                            ) : null}
                             {profile.whatsappUrl ? (
                                 <Button
                                     asChild

@@ -104,6 +104,16 @@ class PrivateChatService
                     'subtitle' => $summary['subtitle'] ?? implode(', ', $candidate->roleNames()),
                     'avatar' => $summary['avatar'] ?? null,
                     'profileUrl' => $summary['profileUrl'] ?? null,
+                    'roleLabel' => $summary['roleLabel'] ?? 'Pengguna',
+                    'identifier' => $this->identifierFor($candidate),
+                    'searchText' => collect([
+                        $candidate->name,
+                        $candidate->email,
+                        $this->identifierFor($candidate),
+                        $summary['roleLabel'] ?? null,
+                        $summary['programStudi'] ?? null,
+                        $summary['concentration'] ?? null,
+                    ])->filter()->implode(' '),
                 ];
             })
             ->values()
@@ -130,5 +140,20 @@ class PrivateChatService
         }
 
         return 'lecturer';
+    }
+
+    private function identifierFor(User $user): ?string
+    {
+        $user->loadMissing(['mahasiswaProfile', 'dosenProfile']);
+
+        if ($user->mahasiswaProfile?->nim !== null) {
+            return $user->mahasiswaProfile->nim;
+        }
+
+        if ($user->dosenProfile?->nik !== null) {
+            return $user->dosenProfile->nik;
+        }
+
+        return null;
     }
 }
