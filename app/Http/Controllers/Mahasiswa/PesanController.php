@@ -12,6 +12,7 @@ use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
 use Illuminate\Database\Eloquent\Collection;
@@ -26,6 +27,7 @@ use Throwable;
 class PesanController extends Controller
 {
     public function __construct(
+        private readonly PrivateChatService $privateChatService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
@@ -51,9 +53,17 @@ class PesanController extends Controller
             ->all();
 
         $allThreadIds = array_unique(array_merge([$pembimbingThread->id], $pengujiThreadIds));
+        $privateThreadIds = $this->privateChatService->threadsFor($student)
+            ->pluck('id')
+            ->all();
+
+        $allThreadIds = array_unique(array_merge($allThreadIds, $privateThreadIds));
 
         $threads = MentorshipChatThread::query()
             ->with([
+                'participants.user.roles',
+                'participants.user.mahasiswaProfile.programStudi',
+                'participants.user.dosenProfile.programStudi',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
                 'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->orderBy('created_at')->limit(50),
@@ -90,43 +100,42 @@ class PesanController extends Controller
                     ...$advisors,
                 ]));
             } else {
-                // Load participants for penguji threads
-                $participantNames = MentorshipChatThreadParticipant::query()
-                    ->where('thread_id', $thread->id)
-                    ->with('user')
-                    ->get()
-                    ->map(fn(MentorshipChatThreadParticipant $p): string => $p->user?->name ?? '-')
+                $members = $thread->participants
+                    ->map(fn(MentorshipChatThreadParticipant $participant): string => $participant->user?->name ?? '-')
                     ->all();
-                $members = $participantNames;
             }
+
+            $memberProfiles = $thread->type === 'pembimbing'
+                ? array_values(array_filter([
+                    $this->userProfilePresenter->summary($student),
+                    ...ThesisSupervisorAssignment::query()
+                        ->with(['lecturer.roles', 'lecturer.dosenProfile.programStudi'])
+                        ->whereHas('project', fn($query) => $query
+                            ->where('student_user_id', $student->id)
+                            ->where('state', 'active'))
+                        ->where('status', 'active')
+                        ->get()
+                        ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->userProfilePresenter->summary($assignment->lecturer))
+                        ->all(),
+                ]))
+                : $thread->participants
+                    ->map(fn(MentorshipChatThreadParticipant $participant): ?array => $this->userProfilePresenter->summary($participant->user))
+                    ->filter()
+                    ->values()
+                    ->all();
+            $privatePartnerProfile = $thread->type === 'private'
+                ? collect($memberProfiles)->firstWhere('id', '!=', $student->id)
+                : null;
 
             return [
                 'id' => $thread->id,
-                'name' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Group Chat Bimbingan' : 'Group Chat Penguji'),
+                'name' => $privatePartnerProfile['name'] ?? $thread->label ?? ($thread->type === 'pembimbing' ? 'Group Chat Bimbingan' : 'Group Chat Penguji'),
                 'threadType' => $thread->type,
-                'threadLabel' => $thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji'),
+                'threadLabel' => $thread->type === 'private'
+                    ? 'Pribadi'
+                    : ($thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji')),
                 'members' => $members,
-                'memberProfiles' => $thread->type === 'pembimbing'
-                    ? array_values(array_filter([
-                        $this->userProfilePresenter->summary($student),
-                        ...ThesisSupervisorAssignment::query()
-                            ->with(['lecturer.roles', 'lecturer.dosenProfile.programStudi'])
-                            ->whereHas('project', fn($query) => $query
-                                ->where('student_user_id', $student->id)
-                                ->where('state', 'active'))
-                            ->where('status', 'active')
-                            ->get()
-                            ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->userProfilePresenter->summary($assignment->lecturer))
-                            ->all(),
-                    ]))
-                    : MentorshipChatThreadParticipant::query()
-                        ->where('thread_id', $thread->id)
-                        ->with(['user.roles', 'user.mahasiswaProfile.programStudi', 'user.dosenProfile.programStudi'])
-                        ->get()
-                        ->map(fn(MentorshipChatThreadParticipant $participant): ?array => $this->userProfilePresenter->summary($participant->user))
-                        ->filter()
-                        ->values()
-                        ->all(),
+                'memberProfiles' => $memberProfiles,
                 'messages' => $messages,
                 'preview' => $thread->latestMessage?->message ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
@@ -139,8 +148,24 @@ class PesanController extends Controller
         return Inertia::render('pesan', [
             'hasDosbing' => ! empty($advisors),
             'threads' => $threadsData,
+            'privateRecipients' => $this->privateChatService->recipientOptionsFor($student),
             'flashMessage' => $request->session()->get('success'),
         ]);
+    }
+
+    public function storePrivateThread(Request $request): RedirectResponse
+    {
+        $student = $request->user();
+        abort_if($student === null, 401);
+
+        $data = $request->validate([
+            'recipient_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $recipient = User::query()->findOrFail($data['recipient_id']);
+        $thread = $this->privateChatService->findOrCreateThread($student, $recipient);
+
+        return redirect()->route('mahasiswa.pesan', ['thread' => $thread->id]);
     }
 
     public function storeMessage(Request $request, MentorshipChatThread $thread): RedirectResponse
@@ -149,7 +174,12 @@ class PesanController extends Controller
         abort_if($student === null, 401);
 
         // Validate student has access to thread
-        $canAccess = $thread->student_user_id === $student->id;
+        $canAccess = $thread->type === 'private'
+            ? MentorshipChatThreadParticipant::query()
+                ->where('thread_id', $thread->id)
+                ->where('user_id', $student->id)
+                ->exists()
+            : $thread->student_user_id === $student->id;
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
         $data = $request->validate([
@@ -159,6 +189,65 @@ class PesanController extends Controller
 
         $attachment = $data['attachment'] ?? null;
         $trimmedMessage = trim((string) ($data['message'] ?? ''));
+
+        if ($thread->type === 'private') {
+            $messages = DB::transaction(function () use ($attachment, $student, $thread, $trimmedMessage) {
+                $attachmentPath = null;
+                $attachmentDisk = null;
+                $attachmentName = null;
+                $attachmentMime = null;
+                $attachmentSizeKb = null;
+
+                if ($attachment !== null) {
+                    $attachmentDisk = 'public';
+                    $attachmentPath = $attachment->store(sprintf('chat/private/%d/thread/%d', $student->id, $thread->id), $attachmentDisk);
+                    $attachmentName = $attachment->getClientOriginalName();
+                    $attachmentMime = $attachment->getClientMimeType();
+                    $attachmentSizeKb = (int) ceil($attachment->getSize() / 1024);
+                }
+
+                $createdMessages = collect();
+
+                if ($attachment !== null) {
+                    $createdMessages->push($thread->messages()->create([
+                        'sender_user_id' => $student->id,
+                        'attachment_disk' => $attachmentDisk,
+                        'attachment_path' => $attachmentPath,
+                        'attachment_name' => $attachmentName,
+                        'attachment_mime' => $attachmentMime,
+                        'attachment_size_kb' => $attachmentSizeKb,
+                        'message_type' => 'attachment',
+                        'message' => 'Mengirim lampiran',
+                        'sent_at' => now(),
+                    ]));
+                }
+
+                if ($trimmedMessage !== '') {
+                    $createdMessages->push($thread->messages()->create([
+                        'sender_user_id' => $student->id,
+                        'attachment_disk' => $attachmentDisk,
+                        'attachment_path' => $attachmentPath,
+                        'attachment_name' => $attachmentName,
+                        'attachment_mime' => $attachmentMime,
+                        'attachment_size_kb' => $attachmentSizeKb,
+                        'message_type' => 'text',
+                        'message' => $trimmedMessage,
+                        'sent_at' => now()->addSecond(),
+                    ]));
+                }
+
+                return $createdMessages;
+            });
+
+            foreach ($messages as $message) {
+                $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+            }
+
+            $this->notifyThreadMembers($student, $thread);
+
+            return back();
+        }
+
         $activeSemproDefenses = $this->activeSemproDefenses($student->id);
         $semproThreads = $this->activeSemproThreads($student->id, $activeSemproDefenses);
 
@@ -397,6 +486,30 @@ class PesanController extends Controller
     {
         if ($thread->type === 'pembimbing') {
             $this->notifyLecturers($student, $thread->id);
+        } elseif ($thread->type === 'private') {
+            $participants = MentorshipChatThreadParticipant::query()
+                ->where('thread_id', $thread->id)
+                ->where('user_id', '!=', $student->id)
+                ->with('user')
+                ->get();
+
+            foreach ($participants as $participant) {
+                if (! $participant->user instanceof User) {
+                    continue;
+                }
+
+                $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
+                    'title' => 'Pesan pribadi baru',
+                    'description' => sprintf('%s mengirim pesan pribadi.', $student->name),
+                    'url' => $participant->user->hasRole('mahasiswa')
+                        ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
+                        : sprintf('/dosen/pesan-bimbingan?thread=%d&filter=private', $thread->id),
+                    'icon' => 'message-square',
+                    'createdAt' => now()->toIso8601String(),
+                ]);
+            }
+
+            return;
         } else {
             // Notify all participants except self
             $participants = MentorshipChatThreadParticipant::query()

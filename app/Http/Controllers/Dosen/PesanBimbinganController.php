@@ -12,6 +12,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
+use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +27,7 @@ class PesanBimbinganController extends Controller
 {
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
+        private readonly PrivateChatService $privateChatService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
@@ -53,6 +55,11 @@ class PesanBimbinganController extends Controller
             ->all();
 
         $allThreadIds = array_unique(array_merge($bimbinganThreads, $pengujiThreadIds));
+        $privateThreadIds = $this->privateChatService->threadsFor($lecturer)
+            ->pluck('id')
+            ->all();
+
+        $allThreadIds = array_unique(array_merge($allThreadIds, $privateThreadIds));
 
         $threads = MentorshipChatThread::query()
             ->with([
@@ -119,6 +126,10 @@ class PesanBimbinganController extends Controller
                         ->values()
                         ->all();
 
+                $privatePartnerProfile = $thread->type === 'private'
+                    ? collect($memberProfiles)->firstWhere('id', '!=', $lecturer->id)
+                    : null;
+
                 $members = collect($memberProfiles)
                     ->pluck('name')
                     ->filter()
@@ -127,8 +138,8 @@ class PesanBimbinganController extends Controller
 
                 return [
                     'id' => $thread->id,
-                    'student' => $thread->student?->name ?? '-',
-                    'studentProfile' => $this->userProfilePresenter->summary($thread->student),
+                    'student' => $privatePartnerProfile['name'] ?? $thread->student?->name ?? '-',
+                    'studentProfile' => $privatePartnerProfile ?? $this->userProfilePresenter->summary($thread->student),
                     'members' => $members,
                     'memberProfiles' => $memberProfiles,
                     'unread' => $unreadCount,
@@ -170,8 +181,24 @@ class PesanBimbinganController extends Controller
 
         return Inertia::render('dosen/pesan-bimbingan', [
             'threads' => $threads,
+            'privateRecipients' => $this->privateChatService->recipientOptionsFor($lecturer),
             'flashMessage' => $request->session()->get('success'),
         ]);
+    }
+
+    public function storePrivateThread(Request $request): RedirectResponse
+    {
+        $lecturer = $request->user();
+        abort_if($lecturer === null, 401);
+
+        $data = $request->validate([
+            'recipient_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $recipient = User::query()->findOrFail($data['recipient_id']);
+        $thread = $this->privateChatService->findOrCreateThread($lecturer, $recipient);
+
+        return redirect()->route('dosen.pesan-bimbingan', ['thread' => $thread->id, 'filter' => 'private']);
     }
 
     public function markAsRead(Request $request, MentorshipChatThread $thread): JsonResponse
@@ -180,8 +207,7 @@ class PesanBimbinganController extends Controller
         abort_if($lecturer === null, 401);
 
         // Allow marking as read for bimbingan threads (by student assignment) or penguji threads (by participant)
-        $canAccess = $this->canAccessThread($lecturer, $thread);
-        abort_unless($canAccess, 403);
+        abort_unless($this->canAccessThread($lecturer, $thread), 403);
 
         $lastMessageAt = $thread->messages()->max('created_at');
 
@@ -221,7 +247,7 @@ class PesanBimbinganController extends Controller
         if ($attachment !== null) {
             $attachmentDisk = 'public';
             $attachmentPath = $attachment->store(
-                sprintf('chat/dosen/%d/student/%d', $lecturer->id, $thread->student_user_id),
+                sprintf('chat/dosen/%d/thread/%d', $lecturer->id, $thread->id),
                 $attachmentDisk,
             );
             $attachmentName = $attachment->getClientOriginalName();
@@ -278,7 +304,7 @@ class PesanBimbinganController extends Controller
                     : route('files.chat-attachments.download', ['message' => $message->id]),
             ]);
 
-            $this->notifyStudent($thread, $lecturer, $message->message_type);
+            $this->notifyThreadMembers($thread, $lecturer, $message->message_type);
         }
 
         return back();
@@ -286,6 +312,13 @@ class PesanBimbinganController extends Controller
 
     private function canAccessThread(User $lecturer, MentorshipChatThread $thread): bool
     {
+        if ($thread->type === 'private') {
+            return MentorshipChatThreadParticipant::query()
+                ->where('thread_id', $thread->id)
+                ->where('user_id', $lecturer->id)
+                ->exists();
+        }
+
         // Bimbingan thread: check student assignment
         if ($thread->type === 'pembimbing') {
             $activeIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
@@ -307,6 +340,7 @@ class PesanBimbinganController extends Controller
             'pembimbing' => 'Bimbingan',
             'sempro' => 'Penguji Sempro',
             'sidang' => 'Penguji Sidang',
+            'private' => 'Pribadi',
             default => $thread->label ?? 'Penguji',
         };
     }
@@ -337,8 +371,34 @@ class PesanBimbinganController extends Controller
             || $defense->project?->state !== 'active';
     }
 
-    private function notifyStudent(MentorshipChatThread $thread, User $lecturer, string $messageType): void
+    private function notifyThreadMembers(MentorshipChatThread $thread, User $lecturer, string $messageType): void
     {
+        if ($thread->type === 'private') {
+            $participants = MentorshipChatThreadParticipant::query()
+                ->where('thread_id', $thread->id)
+                ->where('user_id', '!=', $lecturer->id)
+                ->with('user')
+                ->get();
+
+            foreach ($participants as $participant) {
+                if (! $participant->user instanceof User) {
+                    continue;
+                }
+
+                $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
+                    'title' => 'Pesan pribadi baru',
+                    'description' => sprintf('%s mengirim pesan pribadi.', $lecturer->name),
+                    'url' => $participant->user->hasRole('mahasiswa')
+                        ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
+                        : sprintf('/dosen/pesan-bimbingan?thread=%d&filter=private', $thread->id),
+                    'icon' => 'message-square',
+                    'createdAt' => now()->toIso8601String(),
+                ]);
+            }
+
+            return;
+        }
+
         $student = $thread->student;
 
         if (! $student instanceof User) {

@@ -30,6 +30,8 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
         ->name('dokumen-revisi.review');
 
     Route::get('pesan-bimbingan', [PesanBimbinganController::class, 'index'])->name('pesan-bimbingan');
+    Route::post('pesan-bimbingan/private', [PesanBimbinganController::class, 'storePrivateThread'])
+        ->name('pesan-bimbingan.private.store');
     Route::post('pesan-bimbingan/{thread}/messages', [PesanBimbinganController::class, 'storeMessage'])
         ->name('pesan-bimbingan.messages.store');
     Route::post('pesan-bimbingan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])

@@ -17,6 +17,13 @@ class MentorshipAccessService
         }
 
         if ($user->hasRole('mahasiswa')) {
+            if ($thread->type === 'private') {
+                return MentorshipChatThreadParticipant::query()
+                    ->where('thread_id', $thread->id)
+                    ->where('user_id', $user->id)
+                    ->exists();
+            }
+
             return $thread->student_user_id === $user->id;
         }
 

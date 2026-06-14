@@ -7,6 +7,7 @@ import {
     Paperclip,
     Search,
     Send,
+    UserPlus,
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -33,6 +34,13 @@ import {
 } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -85,13 +93,22 @@ type ThreadItem = {
     messages: ThreadMessage[];
 };
 
-type ThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang';
+type PrivateRecipient = {
+    id: number;
+    name: string;
+    subtitle: string | null;
+    avatar: string | null;
+    profileUrl: string | null;
+};
+
+type ThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang' | 'private';
 
 const threadFilterTabs: { label: string; value: ThreadFilter }[] = [
-    { label: 'Semua', value: 'semua' },
+    { label: 'Grup', value: 'semua' },
     { label: 'Bimbingan', value: 'pembimbing' },
     { label: 'Sempro', value: 'sempro' },
     { label: 'Sidang', value: 'sidang' },
+    { label: 'Pribadi', value: 'private' },
 ];
 
 function messageMatches(message: ThreadMessage, query: string) {
@@ -108,11 +125,13 @@ function messageMatches(message: ThreadMessage, query: string) {
 
 type PesanBimbinganProps = {
     threads: ThreadItem[];
+    privateRecipients: PrivateRecipient[];
     flashMessage?: string | null;
 };
 
 type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {
     initialThreads: ThreadItem[];
+    privateRecipients: PrivateRecipient[];
     flashMessage?: string | null;
 };
 
@@ -176,7 +195,9 @@ function getVisibleThreads(
         })
         .filter((thread) => {
             const matchesFilter =
-                filter === 'semua' || thread.threadType === filter;
+                filter === 'semua'
+                    ? thread.threadType !== 'private'
+                    : thread.threadType === filter;
 
             return (
                 matchesFilter &&
@@ -228,6 +249,7 @@ function resolveInitialMobileView(
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
+        privateRecipients,
         flashMessage,
         auth,
     } = usePage<SharedData & PesanBimbinganProps>().props;
@@ -236,6 +258,7 @@ export default function DosenPesanBimbinganPage() {
         <DosenPesanBimbinganContent
             key={buildThreadStateKey(initialThreads)}
             initialThreads={initialThreads}
+            privateRecipients={privateRecipients}
             flashMessage={flashMessage}
             auth={auth}
         />
@@ -244,6 +267,7 @@ export default function DosenPesanBimbinganPage() {
 
 function DosenPesanBimbinganContent({
     initialThreads,
+    privateRecipients,
     flashMessage,
     auth,
 }: PesanBimbinganContentProps) {
@@ -284,6 +308,9 @@ function DosenPesanBimbinganContent({
     }>({
         message: '',
         attachment: null,
+    });
+    const privateThreadForm = useForm<{ recipient_id: string }>({
+        recipient_id: '',
     });
 
     async function markThreadAsRead(threadId: number) {
@@ -582,6 +609,16 @@ function DosenPesanBimbinganContent({
         }
     }
 
+    function startPrivateThread() {
+        if (privateThreadForm.data.recipient_id === '') {
+            return;
+        }
+
+        privateThreadForm.post('/dosen/pesan-bimbingan/private', {
+            preserveScroll: true,
+        });
+    }
+
     function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
         const nextFile = event.target.files?.[0] ?? null;
         form.setData('attachment', nextFile);
@@ -666,7 +703,7 @@ function DosenPesanBimbinganContent({
         <DosenLayout
             breadcrumbs={breadcrumbs}
             title="Pesan Bimbingan"
-            subtitle="Kelola group chat bimbingan per mahasiswa"
+            subtitle="Kelola group chat akademik dan chat pribadi"
         >
             <Head title="Pesan Bimbingan Dosen" />
 
@@ -687,9 +724,9 @@ function DosenPesanBimbinganContent({
                         )}
                     >
                         <div>
-                            <CardTitle>Ruang Bimbingan</CardTitle>
+                            <CardTitle>Ruang Chat</CardTitle>
                             <CardDescription>
-                                Pilih grup bimbingan atau ujian mahasiswa
+                                Pisahkan grup akademik dan chat pribadi
                             </CardDescription>
                         </div>
                         <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1 text-xs font-medium">
@@ -710,6 +747,45 @@ function DosenPesanBimbinganContent({
                                 </button>
                             ))}
                         </div>
+                        {threadFilter === 'private' ? (
+                            <div className="flex items-center gap-2">
+                                <Select
+                                    value={privateThreadForm.data.recipient_id}
+                                    onValueChange={(value) =>
+                                        privateThreadForm.setData(
+                                            'recipient_id',
+                                            value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger className="min-w-0 flex-1">
+                                        <SelectValue placeholder="Pilih kontak" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {privateRecipients.map((recipient) => (
+                                            <SelectItem
+                                                key={recipient.id}
+                                                value={String(recipient.id)}
+                                            >
+                                                {recipient.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    onClick={startPrivateThread}
+                                    disabled={
+                                        privateThreadForm.processing ||
+                                        privateThreadForm.data.recipient_id ===
+                                            ''
+                                    }
+                                >
+                                    <UserPlus className="size-4" />
+                                </Button>
+                            </div>
+                        ) : null}
                         <div className="relative">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -718,7 +794,11 @@ function DosenPesanBimbinganContent({
                                     handleSearchChange(event.target.value)
                                 }
                                 className="pl-9"
-                                placeholder="Cari mahasiswa..."
+                                placeholder={
+                                    threadFilter === 'private'
+                                        ? 'Cari kontak...'
+                                        : 'Cari mahasiswa...'
+                                }
                             />
                         </div>
                     </CardHeader>
@@ -782,7 +862,10 @@ function DosenPesanBimbinganContent({
                                                                 thread.threadType ===
                                                                     'pembimbing'
                                                                     ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                                                                    : thread.threadType ===
+                                                                        'private'
+                                                                      ? 'bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20 dark:text-emerald-400'
+                                                                      : 'bg-muted text-muted-foreground hover:bg-muted/80',
                                                             )}
                                                         >
                                                             {thread.threadLabel}
@@ -809,11 +892,14 @@ function DosenPesanBimbinganContent({
                                             <Inbox className="size-5" />
                                         </span>
                                         <p className="text-sm font-medium">
-                                            Tidak ada grup yang sesuai
+                                            {threadFilter === 'private'
+                                                ? 'Belum ada chat pribadi'
+                                                : 'Tidak ada grup yang sesuai'}
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Coba kata kunci lain atau ubah
-                                            filter percakapan.
+                                            {threadFilter === 'private'
+                                                ? 'Pilih kontak untuk memulai chat pribadi.'
+                                                : 'Coba kata kunci lain atau ubah filter percakapan.'}
                                         </p>
                                     </div>
                                 )}
