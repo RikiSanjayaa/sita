@@ -615,9 +615,6 @@ function PesanPageContent({
                         )}
                     >
                         <CardTitle>Pesan</CardTitle>
-                        <CardDescription>
-                            Grup akademik dan chat pribadi
-                        </CardDescription>
                         <div className="mt-3 grid grid-cols-2 gap-2">
                             {[
                                 ['group', 'Grup'],
@@ -652,7 +649,7 @@ function PesanPageContent({
                                     className="pl-9"
                                     placeholder={
                                         threadMode === 'private'
-                                            ? 'Cari room pribadi...'
+                                            ? 'Cari chat pribadi...'
                                             : 'Cari grup...'
                                     }
                                 />
@@ -778,12 +775,12 @@ function PesanPageContent({
                                             <Inbox className="size-5" />
                                         </span>
                                         <p className="text-sm font-semibold text-foreground">
-                                            Belum ada thread
+                                            Belum ada percakapan
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
                                             {threadMode === 'private'
-                                                ? 'Pilih kontak untuk memulai chat pribadi.'
-                                                : 'Thread akan muncul setelah dosen pembimbing atau penguji ditetapkan.'}
+                                                ? 'Mulai dari tombol tambah kontak.'
+                                                : 'Grup akan tampil setelah dosen pembimbing atau penguji ditetapkan.'}
                                         </p>
                                     </div>
                                 )}
@@ -1032,12 +1029,8 @@ function PesanPageContent({
                                     >
                                         <ArrowLeft className="size-5" />
                                     </Button>
-                                    <CardTitle>Pilih Thread</CardTitle>
+                                    <CardTitle>Pilih Percakapan</CardTitle>
                                 </div>
-                                <CardDescription>
-                                    Buka salah satu percakapan untuk melihat
-                                    chat.
-                                </CardDescription>
                             </>
                         )}
                     </CardHeader>
@@ -1114,11 +1107,10 @@ function PesanPageContent({
                                             <Users className="size-5" />
                                         </span>
                                         <p className="text-sm font-semibold text-foreground">
-                                            Belum ada thread yang dipilih
+                                            Pilih percakapan
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Pilih thread di panel kiri untuk
-                                            mulai berdiskusi.
+                                            Chat akan tampil di sini.
                                         </p>
                                     </div>
                                 )}

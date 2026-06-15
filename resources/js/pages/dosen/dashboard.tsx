@@ -100,7 +100,7 @@ export default function DosenDashboardPage() {
         },
         {
             title: 'Pesan',
-            description: 'Buka percakapan mahasiswa dan cek pesan terbaru.',
+            description: 'Percakapan grup dan pribadi.',
             href: '/dosen/pesan',
             icon: MessageSquareText,
             primary: false,

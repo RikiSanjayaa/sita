@@ -1589,7 +1589,7 @@ class S2SasingSeeder extends Seeder
             $thread->messages()->create([
                 'sender_user_id' => null,
                 'message_type' => 'text',
-                'message' => 'Thread Seminar Proposal telah dibuat. Gunakan thread ini untuk koordinasi sempro.',
+                'message' => 'Ruang Seminar Proposal siap digunakan.',
                 'sent_at' => $createdAt,
             ]);
         }
@@ -1619,7 +1619,7 @@ class S2SasingSeeder extends Seeder
             $thread->messages()->create([
                 'sender_user_id' => null,
                 'message_type' => 'text',
-                'message' => 'Thread Sidang telah dibuat. Gunakan thread ini untuk koordinasi sidang.',
+                'message' => 'Ruang Sidang siap digunakan.',
                 'sent_at' => $createdAt,
             ]);
         }
