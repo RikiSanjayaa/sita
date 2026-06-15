@@ -143,7 +143,7 @@ class PesanBimbinganController extends Controller
                     'members' => $members,
                     'memberProfiles' => $memberProfiles,
                     'unread' => $unreadCount,
-                    'preview' => $latestMessage?->message ?? 'Belum ada pesan',
+                    'preview' => $this->displayMessageText($latestMessage?->message) ?? 'Belum ada pesan',
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
                     'latestActivityAt' => $latestMessage?->created_at?->toIso8601String(),
                     'isEscalated' => $thread->is_escalated,
@@ -164,7 +164,7 @@ class PesanBimbinganController extends Controller
                                 'author' => $message->sender?->name ?? 'Sistem',
                                 'authorAvatar' => $author['avatar'] ?? null,
                                 'authorProfileUrl' => $author['profileUrl'] ?? null,
-                                'message' => $message->message,
+                                'message' => $this->displayMessageText($message->message),
                                 'time' => $message->created_at->format('d M Y H:i'),
                                 'type' => $message->message_type,
                                 'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
@@ -344,6 +344,17 @@ class PesanBimbinganController extends Controller
             'sidang' => 'Penguji Sidang',
             'private' => 'Pribadi',
             default => $thread->label ?? 'Penguji',
+        };
+    }
+
+    private function displayMessageText(?string $message): ?string
+    {
+        return match ($message) {
+            'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
+            'Thread Seminar Proposal telah dibuat. Gunakan thread ini untuk koordinasi sempro.' => 'Ruang Seminar Proposal siap digunakan.',
+            'Thread Sidang telah dibuat. Silahkan berdiskusi mengenai sidang di sini.',
+            'Thread Sidang telah dibuat. Gunakan thread ini untuk koordinasi sidang.' => 'Ruang Sidang siap digunakan.',
+            default => $message,
         };
     }
 

@@ -755,7 +755,7 @@ function DosenPesanBimbinganContent({
         <DosenLayout
             breadcrumbs={breadcrumbs}
             title="Pesan"
-            subtitle="Kelola grup akademik dan chat pribadi"
+            subtitle="Percakapan akademik"
         >
             <Head title="Pesan Dosen" />
 
@@ -777,9 +777,6 @@ function DosenPesanBimbinganContent({
                     >
                         <div>
                             <CardTitle>Ruang Chat</CardTitle>
-                            <CardDescription>
-                                Pisahkan grup akademik dan chat pribadi
-                            </CardDescription>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             {[
@@ -815,7 +812,7 @@ function DosenPesanBimbinganContent({
                                     className="pl-9"
                                     placeholder={
                                         threadMode === 'private'
-                                            ? 'Cari room pribadi...'
+                                            ? 'Cari chat pribadi...'
                                             : 'Cari grup...'
                                     }
                                 />
@@ -980,8 +977,8 @@ function DosenPesanBimbinganContent({
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
                                             {threadMode === 'private'
-                                                ? 'Pilih kontak untuk memulai chat pribadi.'
-                                                : 'Coba kata kunci lain atau ubah filter percakapan.'}
+                                                ? 'Mulai dari tombol tambah kontak.'
+                                                : 'Cek pencarian atau filter grup.'}
                                         </p>
                                     </div>
                                 )}
@@ -1245,10 +1242,6 @@ function DosenPesanBimbinganContent({
                                     </Button>
                                     <CardTitle>Pilih Grup Bimbingan</CardTitle>
                                 </div>
-                                <CardDescription>
-                                    Buka salah satu percakapan untuk melihat
-                                    detail chat.
-                                </CardDescription>
                             </>
                         )}
                     </CardHeader>
@@ -1310,11 +1303,10 @@ function DosenPesanBimbinganContent({
                                             <Users className="size-5" />
                                         </span>
                                         <p className="text-sm font-medium">
-                                            Belum ada grup yang dipilih
+                                            Pilih percakapan
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Pilih salah satu mahasiswa di panel
-                                            kiri untuk mulai berdiskusi.
+                                            Chat akan tampil di sini.
                                         </p>
                                     </div>
                                 )}

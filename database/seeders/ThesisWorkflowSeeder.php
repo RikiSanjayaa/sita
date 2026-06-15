@@ -838,7 +838,7 @@ class ThesisWorkflowSeeder extends Seeder
             $thread->messages()->create([
                 'sender_user_id' => null,
                 'message_type' => 'text',
-                'message' => 'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
+                'message' => 'Ruang Seminar Proposal siap digunakan.',
                 'sent_at' => $createdAt,
             ]);
         }
@@ -866,7 +866,7 @@ class ThesisWorkflowSeeder extends Seeder
             $thread->messages()->create([
                 'sender_user_id' => null,
                 'message_type' => 'text',
-                'message' => 'Thread Sidang telah dibuat. Silahkan berdiskusi mengenai sidang di sini.',
+                'message' => 'Ruang Sidang siap digunakan.',
                 'sent_at' => $createdAt,
             ]);
         }
