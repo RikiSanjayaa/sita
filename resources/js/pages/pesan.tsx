@@ -7,6 +7,7 @@ import {
     Paperclip,
     Search,
     Send,
+    UserPlus,
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -181,6 +182,20 @@ function resolveInitialMobileView(threads: ThreadItem[]): 'threads' | 'chat' {
         : 'threads';
 }
 
+function privateTargetProfile(
+    thread: ThreadItem | null,
+    currentUserId?: number | null,
+): UserProfileSummary | null {
+    if (thread?.threadType !== 'private') {
+        return null;
+    }
+
+    return (
+        thread.memberProfiles.find((member) => member.id !== currentUserId) ??
+        null
+    );
+}
+
 export default function PesanPage() {
     const {
         threads: initialThreads,
@@ -228,8 +243,10 @@ function PesanPageContent({
     const [activeThreadId, setActiveThreadId] = useState<number | null>(
         resolveInitialThreadId(initialThreads),
     );
+    const [threadListSearch, setThreadListSearch] = useState('');
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
+    const [isPrivatePickerOpen, setIsPrivatePickerOpen] = useState(false);
     const [activeMatchIndex, setActiveMatchIndex] = useState(0);
     const [threadItems, setThreadItems] = useState<ThreadItem[]>(() =>
         sortThreads(initialThreads),
@@ -252,12 +269,18 @@ function PesanPageContent({
 
     const visibleThreadItems = useMemo(
         () =>
-            threadItems.filter((thread) =>
-                threadMode === 'private'
-                    ? thread.threadType === 'private'
-                    : thread.threadType !== 'private',
-            ),
-        [threadItems, threadMode],
+            threadItems
+                .filter((thread) =>
+                    threadMode === 'private'
+                        ? thread.threadType === 'private'
+                        : thread.threadType !== 'private',
+                )
+                .filter((thread) =>
+                    thread.name
+                        .toLowerCase()
+                        .includes(threadListSearch.trim().toLowerCase()),
+                ),
+        [threadItems, threadListSearch, threadMode],
     );
 
     const resolvedActiveThreadId = useMemo(() => {
@@ -353,6 +376,10 @@ function PesanPageContent({
                 (thread) => thread.id === resolvedActiveThreadId,
             ) ?? null,
         [resolvedActiveThreadId, threadItems],
+    );
+    const activePrivateTarget = privateTargetProfile(
+        activeThread,
+        auth.user?.id,
     );
 
     function mergedMessages(thread: ThreadItem): ChatMessage[] {
@@ -476,6 +503,7 @@ function PesanPageContent({
         );
 
         setThreadMode(nextMode);
+        setIsPrivatePickerOpen(false);
         setActiveThreadId(nextThread?.id ?? null);
         syncThreadSearchParam(nextThread?.id ?? null);
         setMobileView('threads');
@@ -612,8 +640,47 @@ function PesanPageContent({
                                 </Button>
                             ))}
                         </div>
+
+                        <div className="mt-3 flex items-center gap-2">
+                            <div className="relative min-w-0 flex-1">
+                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={threadListSearch}
+                                    onChange={(event) =>
+                                        setThreadListSearch(event.target.value)
+                                    }
+                                    className="pl-9"
+                                    placeholder={
+                                        threadMode === 'private'
+                                            ? 'Cari room pribadi...'
+                                            : 'Cari grup...'
+                                    }
+                                />
+                            </div>
+                            {threadMode === 'private' ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="size-9 shrink-0"
+                                    onClick={() =>
+                                        setIsPrivatePickerOpen(
+                                            (current) => !current,
+                                        )
+                                    }
+                                >
+                                    <UserPlus className="size-4" />
+                                </Button>
+                            ) : null}
+                        </div>
+
                         {threadMode === 'private' ? (
-                            <div className="mt-3">
+                            <div
+                                className={cn(
+                                    'mt-3',
+                                    !isPrivatePickerOpen && 'hidden',
+                                )}
+                            >
                                 <PrivateRecipientCombobox
                                     recipients={privateRecipients}
                                     value={privateThreadForm.data.recipient_id}
@@ -757,8 +824,33 @@ function PesanPageContent({
                                             <ArrowLeft className="size-5" />
                                         </Button>
 
-                                        {activeThread.memberProfiles.length >
-                                        0 ? (
+                                        {activeThread.threadType ===
+                                            'private' && activePrivateTarget ? (
+                                            <Link
+                                                href={
+                                                    activePrivateTarget.profileUrl
+                                                }
+                                                className="hidden shrink-0 sm:block"
+                                            >
+                                                <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
+                                                    <AvatarImage
+                                                        src={
+                                                            activePrivateTarget.avatar ??
+                                                            undefined
+                                                        }
+                                                        alt={
+                                                            activePrivateTarget.name
+                                                        }
+                                                    />
+                                                    <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                                                        {getInitials(
+                                                            activePrivateTarget.name,
+                                                        )}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            </Link>
+                                        ) : activeThread.memberProfiles.length >
+                                          0 ? (
                                             <TooltipProvider delayDuration={0}>
                                                 <div className="hidden shrink-0 items-center -space-x-3 sm:flex">
                                                     {activeThread.memberProfiles.map(
@@ -817,7 +909,22 @@ function PesanPageContent({
                                         <div className="min-w-0 flex-1 overflow-hidden">
                                             <div className="flex min-w-0 items-center gap-2">
                                                 <CardTitle className="min-w-0 truncate">
-                                                    {activeThread.name}
+                                                    {activeThread.threadType ===
+                                                        'private' &&
+                                                    activePrivateTarget ? (
+                                                        <Link
+                                                            href={
+                                                                activePrivateTarget.profileUrl
+                                                            }
+                                                            className="transition hover:text-primary"
+                                                        >
+                                                            {
+                                                                activePrivateTarget.name
+                                                            }
+                                                        </Link>
+                                                    ) : (
+                                                        activeThread.name
+                                                    )}
                                                 </CardTitle>
                                                 <Badge
                                                     variant="soft"
@@ -833,9 +940,13 @@ function PesanPageContent({
                                                 </Badge>
                                             </div>
                                             <CardDescription className="truncate">
-                                                {activeThread.members.join(
-                                                    ', ',
-                                                )}
+                                                {activeThread.threadType ===
+                                                    'private' &&
+                                                activePrivateTarget
+                                                    ? activePrivateTarget.email
+                                                    : activeThread.members.join(
+                                                          ', ',
+                                                      )}
                                             </CardDescription>
                                         </div>
                                     </div>

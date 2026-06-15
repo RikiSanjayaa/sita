@@ -90,8 +90,8 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: FileStack,
             },
             {
-                title: 'Pesan Bimbingan',
-                href: '/dosen/pesan-bimbingan',
+                title: 'Pesan',
+                href: '/dosen/pesan',
                 icon: MessageSquareText,
             },
         ],

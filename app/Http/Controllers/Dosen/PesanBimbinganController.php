@@ -149,7 +149,9 @@ class PesanBimbinganController extends Controller
                     'isEscalated' => $thread->is_escalated,
                     'isArchived' => $this->isArchivedThread($thread, $activeStudentIds, $archivedStudentIds, $defensesById),
                     'threadType' => $thread->type,
-                    'threadLabel' => $this->threadLabel($thread),
+                    'threadLabel' => $thread->type === 'private'
+                        ? ($privatePartnerProfile['roleLabel'] ?? 'Pribadi')
+                        : $this->threadLabel($thread),
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
@@ -198,7 +200,7 @@ class PesanBimbinganController extends Controller
         $recipient = User::query()->findOrFail($data['recipient_id']);
         $thread = $this->privateChatService->findOrCreateThread($lecturer, $recipient);
 
-        return redirect()->route('dosen.pesan-bimbingan', ['thread' => $thread->id, 'filter' => 'private']);
+        return redirect()->route('dosen.pesan', ['thread' => $thread->id, 'mode' => 'private']);
     }
 
     public function markAsRead(Request $request, MentorshipChatThread $thread): JsonResponse
@@ -390,7 +392,7 @@ class PesanBimbinganController extends Controller
                     'description' => sprintf('%s mengirim pesan pribadi.', $lecturer->name),
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
-                        : sprintf('/dosen/pesan-bimbingan?thread=%d&filter=private', $thread->id),
+                        : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);

@@ -32,7 +32,7 @@ it('allows mahasiswa to start a private chat with another mahasiswa', function (
                 ->component('pesan')
                 ->has('threads', 2)
                 ->where('threads.1.threadType', 'private')
-                ->where('threads.1.threadLabel', 'Pribadi')
+                ->where('threads.1.threadLabel', 'Mahasiswa')
                 ->where('threads.1.name', 'Mahasiswa A')
         );
 });
@@ -46,7 +46,7 @@ it('reuses the same private thread for the same pair', function (): void {
         ->assertRedirect();
 
     $this->actingAs($lecturer)
-        ->post(route('dosen.pesan-bimbingan.private.store'), ['recipient_id' => $student->id])
+        ->post(route('dosen.pesan.private.store'), ['recipient_id' => $student->id])
         ->assertRedirect();
 
     expect(MentorshipChatThread::query()->where('type', 'private')->count())->toBe(1);
@@ -57,7 +57,7 @@ it('allows dosen to use private chat with another dosen', function (): void {
     $recipient = User::factory()->asDosen()->create(['name' => 'Dosen B']);
 
     $this->actingAs($lecturer)
-        ->post(route('dosen.pesan-bimbingan.private.store'), [
+        ->post(route('dosen.pesan.private.store'), [
             'recipient_id' => $recipient->id,
         ])
         ->assertRedirect();
@@ -70,7 +70,7 @@ it('allows dosen to use private chat with another dosen', function (): void {
     expect($thread->student_user_id)->toBeNull();
 
     $this->actingAs($recipient)
-        ->post(route('dosen.pesan-bimbingan.messages.store', $thread), [
+        ->post(route('dosen.pesan.messages.store', $thread), [
             'message' => 'Halo sesama dosen.',
         ])
         ->assertRedirect();
@@ -87,14 +87,14 @@ it('prevents non participants from posting to a private chat', function (): void
     $outsider = User::factory()->asDosen()->create();
 
     $this->actingAs($lecturer)
-        ->post(route('dosen.pesan-bimbingan.private.store'), [
+        ->post(route('dosen.pesan.private.store'), [
             'recipient_id' => $recipient->id,
         ]);
 
     $thread = MentorshipChatThread::query()->where('type', 'private')->firstOrFail();
 
     $this->actingAs($outsider)
-        ->post(route('dosen.pesan-bimbingan.messages.store', $thread), [
+        ->post(route('dosen.pesan.messages.store', $thread), [
             'message' => 'Saya seharusnya tidak bisa masuk.',
         ])
         ->assertForbidden();

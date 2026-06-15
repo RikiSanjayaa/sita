@@ -7,6 +7,8 @@ import {
     Paperclip,
     Search,
     Send,
+    SlidersHorizontal,
+    UserPlus,
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -51,7 +53,7 @@ import {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
-    { title: 'Pesan Bimbingan', href: '/dosen/pesan-bimbingan' },
+    { title: 'Pesan', href: '/dosen/pesan' },
 ];
 
 type ThreadMessage = {
@@ -141,6 +143,7 @@ function syncThreadSearchParam(threadId: number | null): void {
     }
 
     nextUrl.searchParams.delete('tab');
+    nextUrl.searchParams.delete('filter');
 
     window.history.replaceState(
         window.history.state,
@@ -237,6 +240,21 @@ function resolveInitialMobileView(
         : 'threads';
 }
 
+function privateTargetProfile(
+    thread: ThreadItem | null,
+    currentUserId?: number | null,
+): UserProfileSummary | null {
+    if (thread?.threadType !== 'private') {
+        return null;
+    }
+
+    return (
+        thread.memberProfiles.find((member) => member.id !== currentUserId) ??
+        thread.studentProfile ??
+        null
+    );
+}
+
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
@@ -279,6 +297,8 @@ function DosenPesanBimbinganContent({
     );
     const [groupThreadFilter, setGroupThreadFilter] =
         useUrlState<GroupThreadFilter>('filter', 'semua');
+    const [isGroupFilterOpen, setIsGroupFilterOpen] = useState(false);
+    const [isPrivatePickerOpen, setIsPrivatePickerOpen] = useState(false);
     const [threadSearch, setThreadSearch] = useState('');
     const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
     const [activeMatchIndex, setActiveMatchIndex] = useState(0);
@@ -322,7 +342,7 @@ function DosenPesanBimbinganContent({
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute('content') ?? '';
 
-        await fetch(`/dosen/pesan-bimbingan/${threadId}/read`, {
+        await fetch(`/dosen/pesan/${threadId}/read`, {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -364,6 +384,10 @@ function DosenPesanBimbinganContent({
 
     const activeThread =
         visibleThreads.find((t) => t.id === evaluatedActiveThreadId) ?? null;
+    const activePrivateTarget = privateTargetProfile(
+        activeThread,
+        auth.user?.id,
+    );
 
     function mergedMessages(thread: ThreadItem): ThreadMessage[] {
         const localMessages = messagesByThread[thread.id] ?? [];
@@ -595,6 +619,8 @@ function DosenPesanBimbinganContent({
             : (nextVisibleThreads[0]?.id ?? null);
 
         setThreadMode(nextMode);
+        setIsGroupFilterOpen(false);
+        setIsPrivatePickerOpen(false);
 
         if (nextActiveThreadId !== activeThreadId) {
             setActiveThreadId(nextActiveThreadId);
@@ -643,7 +669,7 @@ function DosenPesanBimbinganContent({
             return;
         }
 
-        privateThreadForm.post('/dosen/pesan-bimbingan/private', {
+        privateThreadForm.post('/dosen/pesan/private', {
             preserveScroll: true,
         });
     }
@@ -672,40 +698,37 @@ function DosenPesanBimbinganContent({
             message: trimmedMessage,
         }));
 
-        form.post(
-            `/dosen/pesan-bimbingan/${evaluatedActiveThreadId}/messages`,
-            {
-                preserveScroll: true,
-                forceFormData: true,
-                onSuccess: () => {
-                    setThreadItems((current) =>
-                        sortThreads(
-                            current.map((thread) =>
-                                thread.id === evaluatedActiveThreadId
-                                    ? {
-                                          ...thread,
-                                          preview:
-                                              trimmedMessage ||
-                                              currentAttachmentName ||
-                                              thread.preview,
-                                          lastTime: 'baru saja',
-                                          latestActivityAt:
-                                              new Date().toISOString(),
-                                      }
-                                    : thread,
-                            ),
+        form.post(`/dosen/pesan/${evaluatedActiveThreadId}/messages`, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                setThreadItems((current) =>
+                    sortThreads(
+                        current.map((thread) =>
+                            thread.id === evaluatedActiveThreadId
+                                ? {
+                                      ...thread,
+                                      preview:
+                                          trimmedMessage ||
+                                          currentAttachmentName ||
+                                          thread.preview,
+                                      lastTime: 'baru saja',
+                                      latestActivityAt:
+                                          new Date().toISOString(),
+                                  }
+                                : thread,
                         ),
-                    );
-                    form.reset('message', 'attachment');
-                    setAttachmentName(null);
-                    if (fileRef.current) {
-                        fileRef.current.value = '';
-                    }
+                    ),
+                );
+                form.reset('message', 'attachment');
+                setAttachmentName(null);
+                if (fileRef.current) {
+                    fileRef.current.value = '';
+                }
 
-                    setMobileView('chat');
-                },
+                setMobileView('chat');
             },
-        );
+        });
     }
 
     function stepMatch(direction: 1 | -1) {
@@ -731,10 +754,10 @@ function DosenPesanBimbinganContent({
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
-            title="Pesan Bimbingan"
-            subtitle="Kelola group chat akademik dan chat pribadi"
+            title="Pesan"
+            subtitle="Kelola grup akademik dan chat pribadi"
         >
-            <Head title="Pesan Bimbingan Dosen" />
+            <Head title="Pesan Dosen" />
 
             <MentorshipChatFrame isMobile={isMobile}>
                 {/* Thread List / Side Panel */}
@@ -781,7 +804,48 @@ function DosenPesanBimbinganContent({
                             ))}
                         </div>
 
-                        {threadMode === 'group' ? (
+                        <div className="flex items-center gap-2">
+                            <div className="relative min-w-0 flex-1">
+                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(event) =>
+                                        handleSearchChange(event.target.value)
+                                    }
+                                    className="pl-9"
+                                    placeholder={
+                                        threadMode === 'private'
+                                            ? 'Cari room pribadi...'
+                                            : 'Cari grup...'
+                                    }
+                                />
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="size-9 shrink-0"
+                                onClick={() => {
+                                    if (threadMode === 'group') {
+                                        setIsGroupFilterOpen(
+                                            (current) => !current,
+                                        );
+                                    } else {
+                                        setIsPrivatePickerOpen(
+                                            (current) => !current,
+                                        );
+                                    }
+                                }}
+                            >
+                                {threadMode === 'group' ? (
+                                    <SlidersHorizontal className="size-4" />
+                                ) : (
+                                    <UserPlus className="size-4" />
+                                )}
+                            </Button>
+                        </div>
+
+                        {threadMode === 'group' && isGroupFilterOpen ? (
                             <div className="flex flex-wrap gap-1">
                                 {groupThreadFilterTabs.map((filter) => (
                                     <button
@@ -803,7 +867,9 @@ function DosenPesanBimbinganContent({
                                     </button>
                                 ))}
                             </div>
-                        ) : (
+                        ) : null}
+
+                        {threadMode === 'private' && isPrivatePickerOpen ? (
                             <PrivateRecipientCombobox
                                 recipients={privateRecipients}
                                 value={privateThreadForm.data.recipient_id}
@@ -816,22 +882,7 @@ function DosenPesanBimbinganContent({
                                 onSubmit={startPrivateThread}
                                 disabled={privateThreadForm.processing}
                             />
-                        )}
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={(event) =>
-                                    handleSearchChange(event.target.value)
-                                }
-                                className="pl-9"
-                                placeholder={
-                                    threadMode === 'private'
-                                        ? 'Cari kontak...'
-                                        : 'Cari mahasiswa...'
-                                }
-                            />
-                        </div>
+                        ) : null}
                     </CardHeader>
                     <Separator />
                     <CardContent className="relative flex-1 overflow-hidden p-0">
@@ -969,8 +1020,33 @@ function DosenPesanBimbinganContent({
                                             <ArrowLeft className="size-5" />
                                         </Button>
 
-                                        {activeThread.memberProfiles.length >
-                                        0 ? (
+                                        {activeThread.threadType ===
+                                            'private' && activePrivateTarget ? (
+                                            <Link
+                                                href={
+                                                    activePrivateTarget.profileUrl
+                                                }
+                                                className="hidden shrink-0 sm:block"
+                                            >
+                                                <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
+                                                    <AvatarImage
+                                                        src={
+                                                            activePrivateTarget.avatar ??
+                                                            undefined
+                                                        }
+                                                        alt={
+                                                            activePrivateTarget.name
+                                                        }
+                                                    />
+                                                    <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                                                        {getInitials(
+                                                            activePrivateTarget.name,
+                                                        )}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            </Link>
+                                        ) : activeThread.memberProfiles.length >
+                                          0 ? (
                                             <TooltipProvider delayDuration={0}>
                                                 <div className="hidden shrink-0 items-center -space-x-3 sm:flex">
                                                     {activeThread.memberProfiles.map(
@@ -1029,7 +1105,20 @@ function DosenPesanBimbinganContent({
                                         <div className="min-w-0 flex-1 overflow-hidden">
                                             <div className="flex min-w-0 items-center gap-2">
                                                 <CardTitle className="min-w-0 truncate">
-                                                    {activeThread.studentProfile ? (
+                                                    {activeThread.threadType ===
+                                                        'private' &&
+                                                    activePrivateTarget ? (
+                                                        <Link
+                                                            href={
+                                                                activePrivateTarget.profileUrl
+                                                            }
+                                                            className="transition hover:text-primary"
+                                                        >
+                                                            {
+                                                                activePrivateTarget.name
+                                                            }
+                                                        </Link>
+                                                    ) : activeThread.studentProfile ? (
                                                         <Link
                                                             href={
                                                                 activeThread
@@ -1062,9 +1151,13 @@ function DosenPesanBimbinganContent({
                                                 </Badge>
                                             </div>
                                             <CardDescription className="truncate">
-                                                {activeThread.members.join(
-                                                    ', ',
-                                                )}
+                                                {activeThread.threadType ===
+                                                    'private' &&
+                                                activePrivateTarget
+                                                    ? activePrivateTarget.email
+                                                    : activeThread.members.join(
+                                                          ', ',
+                                                      )}
                                             </CardDescription>
                                         </div>
                                     </div>

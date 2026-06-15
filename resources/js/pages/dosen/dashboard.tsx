@@ -99,9 +99,9 @@ export default function DosenDashboardPage() {
             primary: false,
         },
         {
-            title: 'Pesan Bimbingan',
+            title: 'Pesan',
             description: 'Buka percakapan mahasiswa dan cek pesan terbaru.',
-            href: '/dosen/pesan-bimbingan',
+            href: '/dosen/pesan',
             icon: MessageSquareText,
             primary: false,
         },
