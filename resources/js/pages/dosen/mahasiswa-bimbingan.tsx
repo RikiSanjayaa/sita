@@ -114,7 +114,7 @@ function StudentTable({
         }
 
         router.post(
-            '/dosen/pesan-bimbingan/private',
+            '/dosen/pesan/private',
             { recipient_id: row.studentUserId },
             { preserveScroll: true },
         );

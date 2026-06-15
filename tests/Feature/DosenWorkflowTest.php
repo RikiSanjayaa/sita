@@ -238,7 +238,7 @@ test('dosen pages only show data from assigned mahasiswa', function () {
         );
 
     $this->actingAs($dosen)
-        ->get(route('dosen.pesan-bimbingan'))
+        ->get(route('dosen.pesan'))
         ->assertInertia(
             fn(Assert $page) => $page
                 ->component('dosen/pesan-bimbingan')
@@ -308,11 +308,11 @@ test('dosen mahasiswa page includes students tested by lecturer', function () {
                 ->where('mahasiswaRows.0.relationType', 'penguji')
                 ->where('mahasiswaRows.0.roleLabel', 'Penguji 1')
                 ->where('mahasiswaRows.0.contextLabel', 'Sempro')
-                ->where('mahasiswaRows.0.chatUrl', "/dosen/pesan-bimbingan?thread={$thread->id}")
+                ->where('mahasiswaRows.0.chatUrl', "/dosen/pesan?thread={$thread->id}")
         );
 
     $this->actingAs($dosen)
-        ->get(route('dosen.pesan-bimbingan'))
+        ->get(route('dosen.pesan'))
         ->assertInertia(
             fn (Assert $page) => $page
                 ->component('dosen/pesan-bimbingan')
@@ -560,7 +560,7 @@ test('dosen can review document and send message to own thread', function () {
         ->assertForbidden();
 
     $this->actingAs($dosen)
-        ->post(route('dosen.pesan-bimbingan.messages.store', $ownThread), [
+        ->post(route('dosen.pesan.messages.store', $ownThread), [
             'message' => 'Mohon cek revisi bab 3.',
         ])
         ->assertRedirect();
@@ -572,7 +572,7 @@ test('dosen can review document and send message to own thread', function () {
     ]);
 
     $this->actingAs($dosen)
-        ->post(route('dosen.pesan-bimbingan.messages.store', $otherThread), [
+        ->post(route('dosen.pesan.messages.store', $otherThread), [
             'message' => 'Tidak boleh kirim.',
         ])
         ->assertForbidden();

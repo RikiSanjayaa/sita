@@ -192,7 +192,7 @@ class MahasiswaBimbinganController extends Controller
             'lastUpdate' => $latestDocument?->updated_at?->diffForHumans()
                 ?? $latestSchedule?->updated_at?->diffForHumans()
                 ?? 'Belum ada aktivitas',
-            'chatUrl' => $threadId === null ? null : "/dosen/pesan-bimbingan?thread={$threadId}",
+            'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
         ];
     }
@@ -252,7 +252,7 @@ class MahasiswaBimbinganController extends Controller
                 ?? $latestDocument?->updated_at?->diffForHumans()
                 ?? $latestSchedule?->updated_at?->diffForHumans()
                 ?? 'Belum ada aktivitas',
-            'chatUrl' => $threadId === null ? null : "/dosen/pesan-bimbingan?thread={$threadId}",
+            'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
         ];
     }

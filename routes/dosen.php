@@ -6,6 +6,7 @@ use App\Http\Controllers\Dosen\JadwalBimbinganController;
 use App\Http\Controllers\Dosen\MahasiswaBimbinganController;
 use App\Http\Controllers\Dosen\PesanBimbinganController;
 use App\Http\Controllers\Dosen\SeminarProposalController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('dosen.')->group(function () {
@@ -29,11 +30,18 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
     Route::post('dokumen-revisi/{document}/review', [DokumenRevisiController::class, 'review'])
         ->name('dokumen-revisi.review');
 
-    Route::get('pesan-bimbingan', [PesanBimbinganController::class, 'index'])->name('pesan-bimbingan');
-    Route::post('pesan-bimbingan/private', [PesanBimbinganController::class, 'storePrivateThread'])
-        ->name('pesan-bimbingan.private.store');
-    Route::post('pesan-bimbingan/{thread}/messages', [PesanBimbinganController::class, 'storeMessage'])
-        ->name('pesan-bimbingan.messages.store');
-    Route::post('pesan-bimbingan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])
-        ->name('pesan-bimbingan.read');
+    Route::get('pesan', [PesanBimbinganController::class, 'index'])->name('pesan');
+    Route::post('pesan/private', [PesanBimbinganController::class, 'storePrivateThread'])
+        ->name('pesan.private.store');
+    Route::post('pesan/{thread}/messages', [PesanBimbinganController::class, 'storeMessage'])
+        ->name('pesan.messages.store');
+    Route::post('pesan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])
+        ->name('pesan.read');
+
+    Route::get('pesan-bimbingan', function (Request $request) {
+        return redirect()->to('/dosen/pesan'.($request->getQueryString() ? '?'.$request->getQueryString() : ''));
+    })->name('pesan-bimbingan');
+    Route::post('pesan-bimbingan/private', [PesanBimbinganController::class, 'storePrivateThread']);
+    Route::post('pesan-bimbingan/{thread}/messages', [PesanBimbinganController::class, 'storeMessage']);
+    Route::post('pesan-bimbingan/{thread}/read', [PesanBimbinganController::class, 'markAsRead']);
 });

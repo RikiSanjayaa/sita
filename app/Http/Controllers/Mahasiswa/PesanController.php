@@ -132,7 +132,7 @@ class PesanController extends Controller
                 'name' => $privatePartnerProfile['name'] ?? $thread->label ?? ($thread->type === 'pembimbing' ? 'Group Chat Bimbingan' : 'Group Chat Penguji'),
                 'threadType' => $thread->type,
                 'threadLabel' => $thread->type === 'private'
-                    ? 'Pribadi'
+                    ? ($privatePartnerProfile['roleLabel'] ?? 'Pribadi')
                     : ($thread->label ?? ($thread->type === 'pembimbing' ? 'Bimbingan' : 'Penguji')),
                 'members' => $members,
                 'memberProfiles' => $memberProfiles,
@@ -503,7 +503,7 @@ class PesanController extends Controller
                     'description' => sprintf('%s mengirim pesan pribadi.', $student->name),
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
-                        : sprintf('/dosen/pesan-bimbingan?thread=%d&filter=private', $thread->id),
+                        : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);
@@ -533,7 +533,7 @@ class PesanController extends Controller
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
                     'title' => 'Pesan sempro baru',
                     'description' => sprintf('%s mengirim pesan di thread Sempro.', $student->name),
-                    'url' => '/dosen/pesan-bimbingan',
+                    'url' => '/dosen/pesan',
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);
@@ -558,7 +558,7 @@ class PesanController extends Controller
             $this->realtimeNotificationService->notifyUser($lecturer, 'pesanBaru', [
                 'title' => 'Pesan bimbingan baru',
                 'description' => sprintf('%s mengirim pesan baru.', $student->name),
-                'url' => sprintf('/dosen/pesan-bimbingan?thread=%d', $threadId),
+                'url' => sprintf('/dosen/pesan?thread=%d', $threadId),
                 'icon' => 'message-square',
                 'createdAt' => now()->toIso8601String(),
             ]);

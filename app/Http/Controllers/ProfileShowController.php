@@ -35,7 +35,7 @@ class ProfileShowController extends Controller
             'privateChatEndpoint' => $viewer->hasRole(AppRole::Mahasiswa)
                 ? route('mahasiswa.pesan.private.store')
                 : ($viewer->hasAnyRole([AppRole::Dosen->value, AppRole::Kaprodi->value])
-                    ? route('dosen.pesan-bimbingan.private.store')
+                    ? route('dosen.pesan.private.store')
                     : null),
         ]);
     }
