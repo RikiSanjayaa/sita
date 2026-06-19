@@ -25,7 +25,9 @@ class EditUser extends EditRecord
         $data['prodi'] = $this->record->mahasiswaProfile?->program_studi_id
             ?? $this->record->dosenProfile?->program_studi_id
             ?? $this->record->adminProfile?->program_studi_id;
+        $data['degree_level'] = $this->record->mahasiswaProfile?->degree_level;
         $data['concentration'] = $this->record->mahasiswaProfile?->concentration ?? $this->record->dosenProfile?->concentration;
+        $data['expertise_field_ids'] = $this->record->expertiseFields()->pluck('expertise_fields.id')->all();
         $data['academic_assignments'] = $this->record
             ->dosenProgramStudiAssignments()
             ->orderByDesc('is_primary')
@@ -70,7 +72,9 @@ class EditUser extends EditRecord
             'role' => $data['role'] ?? null,
             'nim' => $data['nim'] ?? null,
             'prodi' => $data['prodi'] ?? null,
+            'degree_level' => $data['degree_level'] ?? null,
             'concentration' => $data['concentration'] ?? null,
+            'expertise_field_ids' => $data['expertise_field_ids'] ?? [],
             'academic_assignments' => $data['academic_assignments'] ?? [],
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
@@ -82,7 +86,9 @@ class EditUser extends EditRecord
             $data['role'],
             $data['nim'],
             $data['prodi'],
+            $data['degree_level'],
             $data['concentration'],
+            $data['expertise_field_ids'],
             $data['academic_assignments'],
             $data['angkatan'],
             $data['nik'],

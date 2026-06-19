@@ -2,6 +2,7 @@
 
 use App\Enums\AppRole;
 use App\Models\DosenProgramStudiAssignment;
+use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
@@ -21,7 +22,15 @@ test('excel import service imports users from the xlsx template', function (): v
     $otherProgramStudi = ProgramStudi::query()->create([
         'name' => 'Teknologi Informasi',
         'slug' => 'ti',
-        'concentrations' => ['Data'],
+        'concentrations' => ['Umum'],
+    ]);
+    ExpertiseField::factory()->create([
+        'name' => 'Jaringan Komputer',
+        'slug' => 'jaringan-komputer',
+    ]);
+    ExpertiseField::factory()->create([
+        'name' => 'Keamanan Siber',
+        'slug' => 'keamanan-siber',
     ]);
 
     $response = $this->actingAs($superAdmin)
@@ -57,5 +66,11 @@ test('excel import service imports users from the xlsx template', function (): v
 
     expect(DosenProgramStudiAssignment::query()->where('user_id', $budi->id)->count())->toBe(2)
         ->and($budi->teachesInProgramStudi($programStudi->id, 'Jaringan'))->toBeTrue()
-        ->and($budi->teachesInProgramStudi($otherProgramStudi->id, 'Data'))->toBeTrue();
+        ->and($budi->teachesInProgramStudi($otherProgramStudi->id, 'Umum'))->toBeTrue()
+        ->and($budi->expertiseFields()->pluck('name')->all())
+        ->toEqualCanonicalizing(['Jaringan Komputer', 'Keamanan Siber']);
+
+    $akbar = User::query()->where('email', 'akbar@sita.test')->firstOrFail();
+
+    expect($akbar->mahasiswaProfile?->degree_level)->toBe('s1');
 });

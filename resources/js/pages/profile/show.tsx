@@ -89,11 +89,21 @@ export default function ProfileShowPage() {
                                             {profile.programStudi}
                                         </Badge>
                                     ) : null}
+                                    {profile.degreeLevel ? (
+                                        <Badge variant="secondary">
+                                            {profile.degreeLevel}
+                                        </Badge>
+                                    ) : null}
                                     {profile.concentration ? (
                                         <Badge variant="outline">
                                             {profile.concentration}
                                         </Badge>
                                     ) : null}
+                                    {profile.expertiseFields?.map((field) => (
+                                        <Badge key={field} variant="secondary">
+                                            {field}
+                                        </Badge>
+                                    ))}
                                 </div>
                             </div>
                         </div>

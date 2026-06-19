@@ -54,6 +54,7 @@ class UserResource extends Resource
         $query = parent::getEloquentQuery()
             ->with([
                 'roles',
+                'expertiseFields',
                 'mahasiswaProfile.programStudi',
                 'dosenProfile.programStudi',
                 'dosenProgramStudiAssignments.programStudi',

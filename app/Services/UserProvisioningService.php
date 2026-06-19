@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enums\AppRole;
+use App\Enums\DegreeLevel;
 use App\Models\DosenProgramStudiAssignment;
+use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\User;
@@ -72,6 +74,11 @@ class UserProvisioningService
                 [
                     'nim' => $this->nullableString($data['nim'] ?? null),
                     'program_studi_id' => $programStudiId,
+                    'degree_level' => $this->resolveDegreeLevel(
+                        programStudiId: $programStudiId,
+                        degreeLevel: $data['degree_level'] ?? null,
+                        currentValue: $user->mahasiswaProfile?->degree_level,
+                    ),
                     'concentration' => $this->resolveConcentration(
                         programStudiId: $programStudiId,
                         concentration: $data['concentration'] ?? null,
@@ -103,7 +110,55 @@ class UserProvisioningService
             );
 
             $this->syncDosenAssignments($user, $assignments);
+            $this->syncExpertiseFields($user, $data);
         }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function resolveExpertiseFieldIds(mixed $value): array
+    {
+        $values = is_array($value)
+            ? $value
+            : (preg_split('/[|;,]/', trim((string) $value)) ?: []);
+
+        $normalizedValues = collect($values)
+            ->map(fn($item): string => trim((string) $item))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($normalizedValues->isEmpty()) {
+            return [];
+        }
+
+        $fields = ExpertiseField::query()
+            ->where('is_active', true)
+            ->get();
+
+        return $normalizedValues
+            ->map(function (string $value) use ($fields): int {
+                $field = ctype_digit($value)
+                    ? $fields->firstWhere('id', (int) $value)
+                    : $fields->first(function (ExpertiseField $field) use ($value): bool {
+                        $lookup = str($value)->lower()->squish()->toString();
+
+                        return str($field->name)->lower()->squish()->toString() === $lookup
+                            || str($field->slug)->lower()->squish()->toString() === $lookup;
+                    });
+
+                if (! $field instanceof ExpertiseField) {
+                    throw ValidationException::withMessages([
+                        'expertise_field_ids' => ["Bidang keilmuan '{$value}' tidak ditemukan atau tidak aktif."],
+                    ]);
+                }
+
+                return (int) $field->id;
+            })
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -198,6 +253,61 @@ class UserProvisioningService
                 'is_active' => false,
                 'is_primary' => false,
             ]);
+    }
+
+    private function syncExpertiseFields(User $user, array $data): void
+    {
+        if (! array_key_exists('expertise_field_ids', $data) && ! array_key_exists('expertise_fields', $data)) {
+            return;
+        }
+
+        $fieldIds = $this->resolveExpertiseFieldIds(
+            $data['expertise_field_ids'] ?? $data['expertise_fields'] ?? [],
+        );
+        $assignedBy = Auth::id();
+
+        $user->expertiseFields()->sync(
+            collect($fieldIds)
+                ->mapWithKeys(fn(int $fieldId): array => [
+                    $fieldId => ['assigned_by_user_id' => $assignedBy],
+                ])
+                ->all(),
+        );
+    }
+
+    private function resolveDegreeLevel(?int $programStudiId, mixed $degreeLevel, ?string $currentValue): string
+    {
+        $programStudi = $programStudiId === null
+            ? null
+            : ProgramStudi::query()->find($programStudiId);
+
+        if (! $programStudi instanceof ProgramStudi) {
+            throw ValidationException::withMessages([
+                'prodi' => ['Program studi wajib dipilih sebelum menentukan jenjang.'],
+            ]);
+        }
+
+        $normalizedDegreeLevel = strtolower(
+            $this->nullableString($degreeLevel) ?? $currentValue ?? '',
+        );
+        $availableLevels = $programStudi->degreeLevelList();
+
+        if ($normalizedDegreeLevel === '' && count($availableLevels) === 1) {
+            return $availableLevels[0];
+        }
+
+        if (! in_array($normalizedDegreeLevel, $availableLevels, true)) {
+            throw ValidationException::withMessages([
+                'degree_level' => [sprintf(
+                    'Jenjang wajib dipilih dari jenjang yang tersedia: %s.',
+                    collect($availableLevels)
+                        ->map(fn(string $level): string => DegreeLevel::from($level)->label())
+                        ->implode(', '),
+                )],
+            ]);
+        }
+
+        return $normalizedDegreeLevel;
     }
 
     private function resolveConcentration(?int $programStudiId, mixed $concentration, ?string $currentValue): string

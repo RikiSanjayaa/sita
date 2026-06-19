@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AppRole;
+use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\User;
 use Filament\Forms\Components\Repeater;
@@ -77,11 +78,14 @@ class UserForm
                             ->maxLength(255),
                         Select::make('prodi')
                             ->label('Prodi')
-                            ->options(ProgramStudi::query()->orderBy('name')->pluck('name', 'id'))
+                            ->options(fn(): array => self::manageableProgramStudiOptions())
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->afterStateUpdated(fn(Set $set): mixed => $set('concentration', null))
+                            ->afterStateUpdated(function (Set $set): void {
+                                $set('concentration', null);
+                                $set('degree_level', null);
+                            })
                             ->required(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Admin->value], true))
                             ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Admin->value], true)),
                         Select::make('concentration')
@@ -104,6 +108,13 @@ class UserForm
                             ->label('NIM')
                             ->required()
                             ->maxLength(255),
+                        Select::make('degree_level')
+                            ->label('Jenjang')
+                            ->options(fn(Get $get): array => self::degreeLevelOptions($get))
+                            ->required()
+                            ->native(false)
+                            ->disabled(fn(Get $get): bool => blank($get('prodi')))
+                            ->helperText('Pilihan jenjang mengikuti Program Studi yang dipilih.'),
                         TextInput::make('angkatan')
                             ->numeric()
                             ->required()
@@ -133,6 +144,19 @@ class UserForm
                         Toggle::make('is_active')
                             ->default(true)
                             ->required(),
+                        Select::make('expertise_field_ids')
+                            ->label('Bidang Keilmuan')
+                            ->options(fn(): array => ExpertiseField::query()
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->columnSpanFull()
+                            ->helperText('Pilih satu atau beberapa bidang yang menggambarkan keahlian dosen.'),
                         Repeater::make('academic_assignments')
                             ->label('Penempatan Prodi & Konsentrasi')
                             ->schema([
@@ -140,7 +164,7 @@ class UserForm
                                     ->schema([
                                         Select::make('program_studi_id')
                                             ->label('Program Studi')
-                                            ->options(ProgramStudi::query()->orderBy('name')->pluck('name', 'id'))
+                                            ->options(fn(): array => self::manageableProgramStudiOptions())
                                             ->searchable()
                                             ->preload()
                                             ->live()
@@ -216,6 +240,22 @@ class UserForm
     /**
      * @return array<string, string>
      */
+    private static function degreeLevelOptions(Get $get): array
+    {
+        $programStudiId = $get('prodi');
+
+        if (blank($programStudiId) || is_array($programStudiId)) {
+            return [];
+        }
+
+        return ProgramStudi::query()
+            ->find((int) $programStudiId)
+            ?->degreeLevelOptions() ?? [];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     private static function programStudiConcentrationOptions(mixed $programStudiId): array
     {
         if (blank($programStudiId)) {
@@ -239,6 +279,37 @@ class UserForm
         $user = Auth::user();
 
         return $user?->hasRole(AppRole::SuperAdmin) ?? false;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function manageableProgramStudiOptions(): array
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+        $query = ProgramStudi::query()
+            ->with('faculty')
+            ->orderBy('name');
+
+        if (! ($user?->hasRole(AppRole::SuperAdmin) ?? false)) {
+            $programStudiId = $user?->adminProgramStudiId();
+
+            if ($programStudiId !== null) {
+                $query->whereKey($programStudiId);
+            }
+        }
+
+        return $query->get()
+            ->mapWithKeys(fn(ProgramStudi $programStudi): array => [
+                $programStudi->id => sprintf(
+                    '%s (%s) - %s',
+                    $programStudi->name,
+                    implode('/', array_values($programStudi->degreeLevelOptions())),
+                    $programStudi->faculty?->name ?? 'Tanpa Fakultas',
+                ),
+            ])
+            ->all();
     }
 
     private static function isCurrentUserRecord(?User $record): bool

@@ -465,11 +465,17 @@ class ViewThesisProject extends ViewRecord
                 $query->where('program_studi_id', $project->program_studi_id)
                     ->where('is_active', true);
             })
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
-                $user->id => sprintf('%s (%s) - %s', $user->name, $user->dosenProfile?->nik ?? '-', $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id)),
+                $user->id => sprintf(
+                    '%s (%s) - %s - %s',
+                    $user->name,
+                    $user->dosenProfile?->nik ?? '-',
+                    $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id),
+                    $this->lecturerExpertiseSummary($user),
+                ),
             ])
             ->all();
     }
@@ -485,20 +491,31 @@ class ViewThesisProject extends ViewRecord
                 $query->where('program_studi_id', $project->program_studi_id)
                     ->where('is_active', true);
             })
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn(User $user): array => [
                 $user->id => sprintf(
-                    '%s (%s) - %s - %d/%d aktif',
+                    '%s (%s) - %s - %s - %d/%d aktif',
                     $user->name,
                     $user->dosenProfile?->nik ?? '-',
                     $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id),
+                    $this->lecturerExpertiseSummary($user),
                     $this->activeThesisStudentCountForLecturer($user->id),
                     max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14)),
                 ),
             ])
             ->all();
+    }
+
+    private function lecturerExpertiseSummary(User $user): string
+    {
+        $summary = $user->expertiseFields
+            ->pluck('name')
+            ->sort()
+            ->implode(', ');
+
+        return $summary !== '' ? $summary : 'Bidang keilmuan belum diatur';
     }
 
     private function lecturerConcentrationSummary(User $user, int $programStudiId): string

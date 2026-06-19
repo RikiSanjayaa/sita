@@ -68,7 +68,9 @@ export interface UserProfileSummary {
     roleKey: string;
     roleLabel: string;
     programStudi?: string | null;
+    degreeLevel?: string | null;
     concentration?: string | null;
+    expertiseFields?: string[];
     subtitle?: string | null;
 }
 

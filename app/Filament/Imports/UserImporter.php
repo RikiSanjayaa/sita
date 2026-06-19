@@ -96,6 +96,13 @@ class UserImporter extends Importer
                 ->integer()
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'required_if:role,mahasiswa', 'integer', 'between:1990,2100']),
+            ImportColumn::make('degree_level')
+                ->label('Jenjang')
+                ->exampleHeader('jenjang')
+                ->examples(['s1'])
+                ->guess(['degree_level', 'jenjang'])
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'in:d3,s1,s2']),
             ImportColumn::make('concentration')
                 ->exampleHeader('konsentrasi')
                 ->examples(['Jaringan'])
@@ -122,6 +129,13 @@ class UserImporter extends Importer
                 ->integer()
                 ->fillRecordUsing(fn(): null => null)
                 ->rules(['nullable', 'integer', 'min:1']),
+            ImportColumn::make('expertise_fields')
+                ->label('Bidang Keilmuan')
+                ->exampleHeader('bidang_keilmuan')
+                ->examples(['Kecerdasan Buatan|Pembelajaran Mesin'])
+                ->guess(['expertise_fields', 'bidang_keilmuan', 'keahlian'])
+                ->fillRecordUsing(fn(): null => null)
+                ->rules(['nullable', 'string', 'max:2000']),
 
         ];
     }
@@ -159,6 +173,7 @@ class UserImporter extends Importer
 
         $data = $this->data;
         $data['prodi'] = $this->options['program_studi_id'] ?? null;
+        $data['expertise_field_ids'] = $data['expertise_fields'] ?? '';
 
         if (($data['role'] ?? null) === AppRole::Dosen->value) {
             $data['academic_assignments'] = $this->dosenAcademicAssignments(
