@@ -22,6 +22,7 @@ class MahasiswaProfileFactory extends Factory
             'user_id' => User::factory()->asMahasiswa(),
             'nim' => fake()->unique()->numerify('##########'),
             'program_studi_id' => ProgramStudi::factory(),
+            'degree_level' => 's1',
             'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
             'angkatan' => (int) now()->format('Y'),
             'is_active' => true,

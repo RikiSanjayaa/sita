@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DegreeLevel;
 use App\Support\StudentGuideContent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,9 +28,11 @@ class ProgramStudi extends Model
     protected $table = 'program_studis';
 
     protected $fillable = [
+        'faculty_id',
         'name',
         'slug',
         'concentrations',
+        'degree_levels',
         'student_guide_content',
         'student_guide_updated_by',
         'student_guide_updated_at',
@@ -39,9 +42,27 @@ class ProgramStudi extends Model
     {
         return [
             'concentrations' => 'array',
+            'degree_levels' => 'array',
             'student_guide_content' => 'array',
             'student_guide_updated_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $programStudi): void {
+            $programStudi->faculty_id ??= Faculty::placeholderId();
+            $programStudi->degree_levels = self::normalizeDegreeLevels($programStudi->degree_levels);
+        });
+
+        static::saving(function (self $programStudi): void {
+            $programStudi->degree_levels = self::normalizeDegreeLevels($programStudi->degree_levels);
+        });
+    }
+
+    public function faculty(): BelongsTo
+    {
+        return $this->belongsTo(Faculty::class);
     }
 
     public function studentGuideUpdatedBy(): BelongsTo
@@ -119,6 +140,26 @@ class ProgramStudi extends Model
     /**
      * @return array<int, string>
      */
+    public function degreeLevelList(): array
+    {
+        return self::normalizeDegreeLevels($this->degree_levels);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function degreeLevelOptions(): array
+    {
+        return collect($this->degreeLevelList())
+            ->mapWithKeys(static fn(string $level): array => [
+                $level => DegreeLevel::from($level)->label(),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
     public static function defaultConcentrationsForSlug(?string $slug): array
     {
         if ($slug === 'ilkom') {
@@ -126,5 +167,21 @@ class ProgramStudi extends Model
         }
 
         return [self::DEFAULT_GENERAL_CONCENTRATION];
+    }
+
+    /**
+     * @param  mixed  $levels
+     * @return array<int, string>
+     */
+    private static function normalizeDegreeLevels($levels): array
+    {
+        $normalized = collect(is_array($levels) ? $levels : [])
+            ->map(static fn($level): string => strtolower(trim((string) $level)))
+            ->filter(static fn(string $level): bool => in_array($level, DegreeLevel::values(), true))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $normalized !== [] ? $normalized : [DegreeLevel::S1->value];
     }
 }

@@ -19,6 +19,7 @@ class MahasiswaProfile extends Model
         'user_id',
         'nim',
         'program_studi_id',
+        'degree_level',
         'concentration',
         'angkatan',
         'is_active',

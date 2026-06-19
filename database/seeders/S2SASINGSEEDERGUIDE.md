@@ -14,9 +14,14 @@ Password semua akun seed:
 
 Informasi program studi:
 
-- nama: `S2 Sastra Inggris`
+- nama: `Sastra Inggris`
 - slug: `s2-sastra-inggris`
+- fakultas: `Program Pascasarjana`
+- jenjang: `S2`
 - konsentrasi default: `Umum`
+
+Struktur fakultas dan program studi berasal dari satu sumber, yaitu
+`Database\Seeders\AcademicStructureSeeder`.
 
 Format email:
 
@@ -32,7 +37,7 @@ Format email:
 | Peran       | Nama                    | Email                            | Keterangan                             |
 | ----------- | ----------------------- | -------------------------------- | -------------------------------------- |
 | Super Admin | Super Admin SiTA        | `superadmin.s2.sasing@gmail.com` | Akses penuh ke seluruh aplikasi        |
-| Admin Prodi | Admin S2 Sastra Inggris | `admin.s2.sasing@gmail.com`      | Akses admin khusus `S2 Sastra Inggris` |
+| Admin Prodi | Admin S2 Sastra Inggris | `admin.s2.sasing@gmail.com`      | Akses admin khusus Sastra Inggris S2   |
 | Kaprodi     | Kaprodi S2 Sastra Inggris | `kaprodi.s2.sasing@gmail.com`  | Portal monitoring read-only prodi      |
 
 ## Akun Dosen
@@ -85,7 +90,7 @@ Format email:
 
 ## Data Tambahan Yang Juga Diseed
 
-- 1 pengumuman terbit untuk `S2 Sastra Inggris`
+- 1 pengumuman terbit untuk Sastra Inggris S2
 - dokumen tesis dan naskah akhir
 - dokumen mentorship
 - jadwal mentorship

@@ -23,6 +23,8 @@ class ProgramStudiResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
+    protected static ?int $navigationSort = 3;
+
     public static function getNavigationGroup(): ?string
     {
         return 'System Management';
@@ -73,7 +75,7 @@ class ProgramStudiResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with('kaprodiAssignments.user');
+            ->with(['faculty', 'kaprodiAssignments.user']);
     }
 
     public static function getPages(): array
@@ -87,13 +89,15 @@ class ProgramStudiResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'slug'];
+        return ['name', 'slug', 'faculty.name'];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
     {
         /** @var ProgramStudi $record */
         return [
+            'Fakultas' => $record->faculty?->name ?? '-',
+            'Jenjang' => implode(', ', array_values($record->degreeLevelOptions())),
             'Konsentrasi' => implode(', ', $record->concentrationList()),
         ];
     }

@@ -2,7 +2,11 @@
 
 namespace App\Filament\Resources\ProgramStudis\Schemas;
 
+use App\Enums\DegreeLevel;
+use App\Models\Faculty;
 use App\Models\ProgramStudi;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
@@ -16,6 +20,18 @@ class ProgramStudiForm
     {
         return $schema
             ->components([
+                Select::make('faculty_id')
+                    ->label('Fakultas')
+                    ->options(fn(): array => Faculty::query()
+                        ->where('is_active', true)
+                        ->where('is_placeholder', false)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->preload()
+                    ->required()
+                    ->helperText('Satu program studi berada di bawah satu fakultas.'),
                 TextInput::make('name')
                     ->required()
                     ->live(onBlur: true)
@@ -39,6 +55,13 @@ class ProgramStudiForm
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
+                CheckboxList::make('degree_levels')
+                    ->label('Jenjang Tersedia')
+                    ->options(DegreeLevel::options())
+                    ->required()
+                    ->minItems(1)
+                    ->columns(3)
+                    ->helperText('Jenjang mahasiswa yang dapat dipilih pada program studi ini.'),
                 TagsInput::make('concentrations')
                     ->label('Konsentrasi')
                     ->required()
