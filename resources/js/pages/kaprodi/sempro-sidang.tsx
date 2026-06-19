@@ -94,6 +94,7 @@ type LecturerOption = {
     nik: string | null;
     quota: number;
     concentrations: string[];
+    expertiseFields: string[];
     profileUrl: string;
 };
 
@@ -1072,6 +1073,22 @@ function ScheduleDialog({
                                                     ', ',
                                                 ) || 'Tanpa konsentrasi'}
                                             </span>
+                                            {lecturer.expertiseFields.length >
+                                            0 ? (
+                                                <span className="mt-1 flex flex-wrap gap-1">
+                                                    {lecturer.expertiseFields.map(
+                                                        (field) => (
+                                                            <Badge
+                                                                key={field}
+                                                                variant="secondary"
+                                                                className="text-[10px]"
+                                                            >
+                                                                {field}
+                                                            </Badge>
+                                                        ),
+                                                    )}
+                                                </span>
+                                            ) : null}
                                         </span>
                                     </label>
                                 ))}
@@ -1138,6 +1155,10 @@ function LecturerSelect({
     lecturerOptions: LecturerOption[];
     error?: string;
 }) {
+    const selectedLecturer = lecturerOptions.find(
+        (lecturer) => String(lecturer.id) === value,
+    );
+
     return (
         <div className="grid min-w-0 gap-1.5">
             <label className="text-sm font-medium">{label}</label>
@@ -1153,9 +1174,21 @@ function LecturerSelect({
                         {lecturer.concentrations.length > 0
                             ? ` - ${lecturer.concentrations.join(', ')}`
                             : ''}
+                        {lecturer.expertiseFields.length > 0
+                            ? ` [${lecturer.expertiseFields.join(', ')}]`
+                            : ''}
                     </option>
                 ))}
             </select>
+            {selectedLecturer?.expertiseFields.length ? (
+                <div className="flex flex-wrap gap-1">
+                    {selectedLecturer.expertiseFields.map((field) => (
+                        <Badge key={field} variant="secondary">
+                            {field}
+                        </Badge>
+                    ))}
+                </div>
+            ) : null}
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </div>
     );

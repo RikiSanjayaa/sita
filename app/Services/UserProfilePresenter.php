@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AppRole;
+use App\Enums\DegreeLevel;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
@@ -24,6 +25,7 @@ class UserProfilePresenter
             'roles',
             'adminProfile.programStudi',
             'dosenProfile.programStudi',
+            'expertiseFields',
             'activeDosenProgramStudiAssignments.programStudi',
             'kaprodiAssignment.programStudi',
             'mahasiswaProfile.programStudi',
@@ -32,6 +34,12 @@ class UserProfilePresenter
         $roleKey = $this->primaryRoleKey($user);
         $programStudi = $this->programStudiName($user, $roleKey);
         $concentration = $this->concentration($user, $roleKey);
+        $degreeLevel = $roleKey === AppRole::Mahasiswa->value
+            ? DegreeLevel::tryFrom((string) $user->mahasiswaProfile?->degree_level)?->label()
+            : null;
+        $expertiseFields = $roleKey === AppRole::Dosen->value
+            ? $user->expertiseFields->pluck('name')->sort()->values()->all()
+            : [];
 
         return [
             'id' => $user->getKey(),
@@ -44,10 +52,13 @@ class UserProfilePresenter
             'roleKey' => $roleKey,
             'roleLabel' => $this->roleLabel($roleKey),
             'programStudi' => $programStudi,
+            'degreeLevel' => $degreeLevel,
             'concentration' => $concentration,
+            'expertiseFields' => $expertiseFields,
             'subtitle' => collect([
                 $this->roleLabel($roleKey),
                 $programStudi,
+                $degreeLevel,
                 $concentration,
             ])->filter()->implode(' · '),
         ];
@@ -152,6 +163,7 @@ class UserProfilePresenter
             'meta' => [
                 ['label' => 'NIM', 'value' => $user->mahasiswaProfile?->nim ?? '-'],
                 ['label' => 'Program Studi', 'value' => $user->mahasiswaProfile?->programStudi?->name ?? '-'],
+                ['label' => 'Jenjang', 'value' => DegreeLevel::tryFrom((string) $user->mahasiswaProfile?->degree_level)?->label() ?? '-'],
                 ['label' => 'Konsentrasi', 'value' => $user->mahasiswaProfile?->concentration ?? '-'],
                 ['label' => 'Angkatan', 'value' => (string) ($user->mahasiswaProfile?->angkatan ?? '-')],
                 ['label' => 'Status', 'value' => $user->mahasiswaProfile?->is_active ? 'Aktif' : 'Nonaktif'],
@@ -186,6 +198,7 @@ class UserProfilePresenter
             'roles',
             'dosenProfile.programStudi',
             'activeDosenProgramStudiAssignments.programStudi',
+            'expertiseFields',
         ]);
 
         $activeAssignments = ThesisSupervisorAssignment::query()
@@ -226,6 +239,7 @@ class UserProfilePresenter
                 ['label' => 'NIK', 'value' => $user->dosenProfile?->nik ?? '-'],
                 ['label' => 'Program Studi', 'value' => $this->dosenProgramStudiSummary($user) ?? '-'],
                 ['label' => 'Konsentrasi', 'value' => $this->dosenConcentrationSummary($user) ?? '-'],
+                ['label' => 'Bidang Keilmuan', 'value' => $user->expertiseFields->pluck('name')->sort()->implode(', ') ?: '-'],
                 ['label' => 'Kuota Bimbingan', 'value' => (string) $quota],
                 ['label' => 'Status', 'value' => $user->dosenProfile?->is_active ? 'Aktif' : 'Nonaktif'],
                 ['label' => 'Email', 'value' => $user->email],

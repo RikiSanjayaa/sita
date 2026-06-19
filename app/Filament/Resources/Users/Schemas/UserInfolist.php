@@ -44,6 +44,11 @@ class UserInfolist
                             ->badge()
                             ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
                             ->icon(BadgeStyles::programStudiIcon()),
+                        TextEntry::make('mahasiswaProfile.degree_level')
+                            ->label('Jenjang')
+                            ->badge()
+                            ->formatStateUsing(fn(?string $state): string => strtoupper($state ?? '-'))
+                            ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.concentration')
                             ->label('Konsentrasi')
                             ->placeholder('-'),
@@ -71,6 +76,11 @@ class UserInfolist
                         TextEntry::make('dosenProfile.concentration')
                             ->label('Konsentrasi')
                             ->placeholder('-'),
+                        TextEntry::make('expertiseFields.name')
+                            ->label('Bidang Keilmuan')
+                            ->badge()
+                            ->placeholder('-')
+                            ->columnSpanFull(),
                         TextEntry::make('dosenProfile.supervision_quota')
                             ->label('Kuota Bimbingan')
                             ->placeholder('-'),

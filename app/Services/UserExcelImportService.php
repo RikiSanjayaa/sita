@@ -130,9 +130,11 @@ class UserExcelImportService
             'password' => $raw['password'] ?? '',
             'nim' => $raw['nim'] ?? '',
             'angkatan' => $raw['angkatan'] ?? '',
+            'degree_level' => strtolower($raw['jenjang'] ?? ($raw['degree_level'] ?? '')),
             'concentration' => $raw['konsentrasi'] ?? ($raw['concentration'] ?? ''),
             'nik' => $raw['nik'] ?? '',
             'supervision_quota' => $raw['kuota_bimbingan'] ?? ($raw['supervision_quota'] ?? ''),
+            'expertise_fields' => $raw['bidang_keilmuan'] ?? ($raw['expertise_fields'] ?? ''),
             'prodi' => $programStudiId,
         ];
 
@@ -153,9 +155,11 @@ class UserExcelImportService
             'password' => ['required', 'string', 'min:8'],
             'nim' => ['nullable', 'required_if:role,mahasiswa', 'string', 'max:255'],
             'angkatan' => ['nullable', 'required_if:role,mahasiswa', 'integer', 'between:1990,2100'],
+            'degree_level' => ['nullable', 'in:d3,s1,s2'],
             'concentration' => ['nullable', 'required_if:role,mahasiswa', 'required_if:role,dosen', 'string', 'max:255'],
             'nik' => ['nullable', 'required_if:role,dosen', 'string', 'max:255'],
             'supervision_quota' => ['nullable', 'integer', 'min:1'],
+            'expertise_fields' => ['nullable', 'string', 'max:2000'],
             'prodi' => ['required', 'integer'],
             'academic_assignments' => ['nullable', 'array'],
         ], [

@@ -45,6 +45,7 @@ type StudentRow = {
     avatar: string | null;
     status: string;
     angkatan: string | null;
+    degreeLevel: string;
     concentration: string | null;
     phase: string;
     phaseKey: string;
@@ -75,6 +76,7 @@ type LecturerOption = {
     nik: string | null;
     quota: number;
     concentrations: string[];
+    expertiseFields: string[];
     profileUrl: string;
 };
 
@@ -84,6 +86,7 @@ type ArchiveRow = {
     nim: string | null;
     avatar: string | null;
     angkatan: string | null;
+    degreeLevel: string;
     concentration: string | null;
     title: string;
     state: string;
@@ -246,6 +249,7 @@ function ActiveStudentTable({
                     row.nim,
                     row.phase,
                     row.title,
+                    row.degreeLevel,
                     row.concentration ?? '',
                     row.progressRisk.label,
                     row.progressRisk.description,
@@ -424,6 +428,7 @@ function ActiveStudentTable({
                                     </td>
                                     <td className="hidden px-4 py-3 md:table-cell">
                                         <p className="text-xs font-medium">
+                                            {row.degreeLevel} ·{' '}
                                             {row.angkatan ?? '-'}
                                         </p>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -679,6 +684,10 @@ function LecturerSelect({
     lecturerOptions: LecturerOption[];
     error?: string;
 }) {
+    const selectedLecturer = lecturerOptions.find(
+        (lecturer) => String(lecturer.id) === value,
+    );
+
     return (
         <div className="grid min-w-0 gap-1.5">
             <label className="text-sm font-medium">{label}</label>
@@ -694,9 +703,21 @@ function LecturerSelect({
                         {lecturer.concentrations.length > 0
                             ? ` - ${lecturer.concentrations.join(', ')}`
                             : ''}
+                        {lecturer.expertiseFields.length > 0
+                            ? ` [${lecturer.expertiseFields.join(', ')}]`
+                            : ''}
                     </option>
                 ))}
             </select>
+            {selectedLecturer?.expertiseFields.length ? (
+                <div className="flex flex-wrap gap-1">
+                    {selectedLecturer.expertiseFields.map((field) => (
+                        <Badge key={field} variant="secondary">
+                            {field}
+                        </Badge>
+                    ))}
+                </div>
+            ) : null}
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </div>
     );
@@ -768,6 +789,7 @@ function ArchiveTable({
                     row.phase,
                     row.state,
                     row.angkatan ?? '',
+                    row.degreeLevel,
                     row.concentration ?? '',
                 ]
                     .join(' ')
@@ -916,6 +938,7 @@ function ArchiveTable({
                                     </td>
                                     <td className="hidden px-4 py-3 md:table-cell">
                                         <p className="text-xs font-medium">
+                                            {row.degreeLevel} ·{' '}
                                             {row.angkatan ?? '-'}
                                         </p>
                                         <p className="mt-0.5 text-xs text-muted-foreground">

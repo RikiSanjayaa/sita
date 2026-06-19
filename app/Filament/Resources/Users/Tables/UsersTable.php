@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Users\Tables;
 
 use App\Enums\AppRole;
+use App\Enums\DegreeLevel;
 use App\Filament\Resources\Users\Actions\SendPasswordResetLinkAction;
+use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\User;
 use App\Support\Filament\BadgeStyles;
@@ -51,6 +53,12 @@ class UsersTable
                     ->searchable()
                     ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa'))
                     ->toggleable(),
+                TextColumn::make('mahasiswaProfile.degree_level')
+                    ->label('Jenjang')
+                    ->badge()
+                    ->formatStateUsing(fn(?string $state): string => strtoupper($state ?? '-'))
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa'))
+                    ->toggleable(),
                 TextColumn::make('dosenProfile.nik')
                     ->label('NIK')
                     ->searchable()
@@ -77,6 +85,13 @@ class UsersTable
                             ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('concentration', 'like', "%{$search}%"));
                     })
                     ->visible(fn(HasTable $livewire): bool => in_array($livewire->activeTab ?? null, ['mahasiswa', 'dosen'], true))
+                    ->toggleable(),
+                TextColumn::make('expertiseFields.name')
+                    ->label('Bidang Keilmuan')
+                    ->badge()
+                    ->searchable()
+                    ->wrap()
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
                     ->toggleable(),
                 TextColumn::make('active_primary_supervision_count')
                     ->label('B1 Aktif')
@@ -179,6 +194,32 @@ class UsersTable
                             $subQuery->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', $value))
                                 ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('concentration', $value));
                         });
+                    }),
+                SelectFilter::make('degree_level')
+                    ->label('Jenjang')
+                    ->options(DegreeLevel::options())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        return filled($value)
+                            ? $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('degree_level', $value))
+                            : $query;
+                    }),
+                SelectFilter::make('expertise_field_id')
+                    ->label('Bidang Keilmuan')
+                    ->options(fn(): array => ExpertiseField::query()
+                        ->where('is_active', true)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->preload()
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        return filled($value)
+                            ? $query->whereHas('expertiseFields', fn(Builder $fieldQuery): Builder => $fieldQuery->whereKey($value))
+                            : $query;
                     }),
                 Filter::make('active_profiles')
                     ->label('Hanya profil aktif')

@@ -40,6 +40,7 @@ type LecturerRow = {
     nik: string;
     concentration: string | null;
     concentrations: string[];
+    expertiseFields: string[];
     status: string;
     quota: number;
     activeSupervisionCount: number;
@@ -107,6 +108,7 @@ export default function KaprodiDosenProdiPage() {
                     lecturer.nik,
                     lecturer.concentration ?? '',
                     ...(lecturer.concentrations ?? []),
+                    ...(lecturer.expertiseFields ?? []),
                     lecturer.status,
                     ...lecturer.activeStudents,
                 ]
@@ -279,6 +281,17 @@ export default function KaprodiDosenProdiPage() {
                                                             >
                                                                 -
                                                             </Badge>
+                                                        )}
+                                                        {lecturer.expertiseFields.map(
+                                                            (field) => (
+                                                                <Badge
+                                                                    key={field}
+                                                                    variant="secondary"
+                                                                    className="rounded-full"
+                                                                >
+                                                                    {field}
+                                                                </Badge>
+                                                            ),
                                                         )}
                                                     </div>
                                                 </td>

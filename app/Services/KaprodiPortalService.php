@@ -332,6 +332,7 @@ class KaprodiPortalService
                 'avatar' => $student->avatar,
                 'nim' => $profile->nim,
                 'angkatan' => $profile->angkatan,
+                'degreeLevel' => strtoupper((string) $profile->degree_level),
                 'concentration' => $profile->concentration,
                 'status' => $profile->is_active ? 'Aktif' : 'Nonaktif',
             ],
@@ -484,6 +485,7 @@ class KaprodiPortalService
                     'avatar' => $profile->user?->avatar,
                     'status' => $profile->is_active ? 'Aktif' : 'Nonaktif',
                     'angkatan' => $profile->angkatan,
+                    'degreeLevel' => strtoupper((string) $profile->degree_level),
                     'concentration' => $profile->concentration,
                     'phase' => $this->phaseLabel($project?->phase),
                     'phaseKey' => $project?->phase ?? 'none',
@@ -842,7 +844,7 @@ class KaprodiPortalService
     {
         return User::query()
             ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
             ->orderBy('name')
             ->get()
             ->map(function (User $lecturer) use ($programStudi): array {
@@ -860,6 +862,11 @@ class KaprodiPortalService
                         ->pluck('concentration')
                         ->filter()
                         ->unique()
+                        ->values()
+                        ->all(),
+                    'expertiseFields' => $lecturer->expertiseFields
+                        ->pluck('name')
+                        ->sort()
                         ->values()
                         ->all(),
                     'profileUrl' => route('users.profile.show', ['user' => $lecturer->id]),
@@ -1126,6 +1133,7 @@ class KaprodiPortalService
                 'nim' => $project->student?->mahasiswaProfile?->nim,
                 'avatar' => $project->student?->avatar,
                 'angkatan' => $project->student?->mahasiswaProfile?->angkatan,
+                'degreeLevel' => strtoupper((string) $project->student?->mahasiswaProfile?->degree_level),
                 'concentration' => $project->student?->mahasiswaProfile?->concentration,
                 'title' => $project->latestTitle?->title_id ?? '-',
                 'state' => $this->statusLabel($project->state),
@@ -1142,7 +1150,7 @@ class KaprodiPortalService
     {
         return User::query()
             ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
             ->orderBy('name')
             ->get()
             ->map(function (User $lecturer) use ($programStudi): array {
@@ -1182,6 +1190,11 @@ class KaprodiPortalService
                     'nik' => $lecturer->dosenProfile?->nik ?? '-',
                     'concentration' => $concentrations->first(),
                     'concentrations' => $concentrations->all(),
+                    'expertiseFields' => $lecturer->expertiseFields
+                        ->pluck('name')
+                        ->sort()
+                        ->values()
+                        ->all(),
                     'status' => ($lecturer->dosenProfile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
                     'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 0),
                     'activeSupervisionCount' => $activeStudents->count(),
