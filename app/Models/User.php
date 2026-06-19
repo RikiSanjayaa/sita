@@ -111,6 +111,13 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsToMany(Role::class)->withTimestamps();
     }
 
+    public function expertiseFields(): BelongsToMany
+    {
+        return $this->belongsToMany(ExpertiseField::class)
+            ->withPivot('assigned_by_user_id')
+            ->withTimestamps();
+    }
+
     public function getAvatarAttribute(): ?string
     {
         if (! is_string($this->avatar_path) || trim($this->avatar_path) === '') {

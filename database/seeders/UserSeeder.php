@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\AppRole;
+use App\Enums\DegreeLevel;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\KaprodiAssignment;
@@ -15,31 +16,6 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
-    /**
-     * All 17 program studi with their slugs (used for email generation).
-     *
-     * @var array<int, array{name: string, slug: string}>
-     */
-    private const PRODI_LIST = [
-        ['name' => 'Ilmu Komputer', 'slug' => 'ilkom'],
-        ['name' => 'Teknologi Informasi', 'slug' => 'ti'],
-        ['name' => 'Rekayasa Perangkat Lunak', 'slug' => 'rpl'],
-        ['name' => 'Sistem Informasi', 'slug' => 'si'],
-        ['name' => 'Teknologi Pangan', 'slug' => 'tpangan'],
-        ['name' => 'Desain Komunikasi Visual', 'slug' => 'dkv'],
-        ['name' => 'Seni Pertunjukan', 'slug' => 'sp'],
-        ['name' => 'Gizi', 'slug' => 'gizi'],
-        ['name' => 'Farmasi', 'slug' => 'farmasi'],
-        ['name' => 'Sastra Inggris', 'slug' => 'sasingg'],
-        ['name' => 'Pariwisata', 'slug' => 'pariwisata'],
-        ['name' => 'Hukum', 'slug' => 'hukum'],
-        ['name' => 'Manajemen', 'slug' => 'manajemen'],
-        ['name' => 'Akuntansi', 'slug' => 'akuntansi'],
-        ['name' => 'Bisnis Digital', 'slug' => 'bisdig'],
-        ['name' => 'Pendidikan Teknologi Informasi', 'slug' => 'pti'],
-        ['name' => 'Pendidikan Kepelatihan Olahraga', 'slug' => 'pko'],
-    ];
-
     /**
      * Known test accounts for Ilmu Komputer (kept for backward compatibility).
      *
@@ -218,10 +194,13 @@ class UserSeeder extends Seeder
 
     public function run(): void
     {
-        $roles = $this->seedRoles();
+        $this->call(AcademicStructureSeeder::class);
 
-        // 1. Seed all 17 Program Studi
-        $prodiModels = $this->seedProgramStudis();
+        $roles = $this->seedRoles();
+        $programStudiData = AcademicStructureSeeder::defaultUserProgramStudis();
+
+        // 1. Load the 17 program studies used by the default showcase accounts.
+        $prodiModels = $this->programStudiModels($programStudiData);
 
         // 2. Super Admin
         $this->upsertSuperAdmin($roles[AppRole::SuperAdmin->value]);
@@ -230,9 +209,11 @@ class UserSeeder extends Seeder
         $this->upsertIlkomAccounts($roles, $prodiModels['ilkom']);
 
         // 4. All other prodi (index 1..16)
-        foreach (array_slice(self::PRODI_LIST, 1) as $prodiIndex => $prodi) {
+        foreach (array_slice($programStudiData, 1) as $prodiIndex => $prodi) {
             $this->seedProdi($prodi, $prodiIndex + 1, $roles, $prodiModels[$prodi['slug']]);
         }
+
+        $this->call(ExpertiseFieldSeeder::class);
     }
 
     /**
@@ -250,20 +231,13 @@ class UserSeeder extends Seeder
     /**
      * @return array<string, \App\Models\ProgramStudi>
      */
-    private function seedProgramStudis(): array
+    private function programStudiModels(array $programStudiData): array
     {
-        $models = [];
-        foreach (self::PRODI_LIST as $prodi) {
-            $models[$prodi['slug']] = \App\Models\ProgramStudi::query()->updateOrCreate(
-                ['slug' => $prodi['slug']],
-                [
-                    'name' => $prodi['name'],
-                    'concentrations' => ProgramStudi::defaultConcentrationsForSlug($prodi['slug']),
-                ],
-            );
-        }
-
-        return $models;
+        return ProgramStudi::query()
+            ->whereIn('slug', array_column($programStudiData, 'slug'))
+            ->get()
+            ->keyBy('slug')
+            ->all();
     }
 
     /**
@@ -360,6 +334,7 @@ class UserSeeder extends Seeder
                 [
                     'nim' => (string) $account['nim'],
                     'program_studi_id' => $prodi->id,
+                    'degree_level' => DegreeLevel::S1->value,
                     'concentration' => (string) $account['concentration'],
                     'angkatan' => (int) $account['angkatan'],
                     'is_active' => true,
@@ -374,7 +349,7 @@ class UserSeeder extends Seeder
     /**
      * Seed a non-Ilkom prodi with admin, dosen, and mahasiswa.
      *
-     * @param  array{name: string, slug: string}  $prodiData
+     * @param  array{name: string, slug: string, degree_levels: array<int, string>}  $prodiData
      * @param  array<string, Role>  $roles
      */
     private function seedProdi(array $prodiData, int $prodiIndex, array $roles, \App\Models\ProgramStudi $prodi): void
@@ -454,12 +429,24 @@ class UserSeeder extends Seeder
                 [
                     'nim' => $nim,
                     'program_studi_id' => $prodi->id,
+                    'degree_level' => $this->defaultStudentDegreeLevel($prodi),
                     'concentration' => ProgramStudi::defaultConcentrationsForSlug($prodi->slug)[0],
                     'angkatan' => 2022,
                     'is_active' => true,
                 ],
             );
         }
+    }
+
+    private function defaultStudentDegreeLevel(ProgramStudi $programStudi): string
+    {
+        $availableLevels = $programStudi->degreeLevelList();
+
+        if (in_array(DegreeLevel::S1->value, $availableLevels, true)) {
+            return DegreeLevel::S1->value;
+        }
+
+        return $availableLevels[0] ?? DegreeLevel::S1->value;
     }
 
     private function setPrimaryKaprodi(ProgramStudi $prodi, User $kaprodi): void

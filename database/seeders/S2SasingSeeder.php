@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\AdvisorType;
 use App\Enums\AppRole;
+use App\Enums\DegreeLevel;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\KaprodiAssignment;
@@ -32,8 +33,6 @@ use Illuminate\Support\Facades\Storage;
 
 class S2SasingSeeder extends Seeder
 {
-    private const PRODI_NAME = 'S2 Sastra Inggris';
-
     private const PRODI_SLUG = 's2-sastra-inggris';
 
     private const CONCENTRATION = ProgramStudi::DEFAULT_GENERAL_CONCENTRATION;
@@ -81,8 +80,12 @@ class S2SasingSeeder extends Seeder
     {
         $this->anchor = CarbonImmutable::now()->startOfDay();
 
+        $this->call(AcademicStructureSeeder::class);
+
         $roles = $this->seedRoles();
-        $programStudi = $this->upsertProgramStudi();
+        $programStudi = ProgramStudi::query()
+            ->where('slug', self::PRODI_SLUG)
+            ->firstOrFail();
         $superAdmin = $this->upsertSuperAdmin($roles[AppRole::SuperAdmin->value]);
         $admin = $this->upsertAdmin($roles[AppRole::Admin->value], $programStudi);
         $this->upsertKaprodi(
@@ -92,6 +95,8 @@ class S2SasingSeeder extends Seeder
         );
         $lecturers = $this->seedLecturers($roles[AppRole::Dosen->value], $programStudi);
         $students = $this->seedStudents($roles[AppRole::Mahasiswa->value], $programStudi);
+
+        $this->call(ExpertiseFieldSeeder::class);
 
         $this->seedFreshSubmissions($programStudi, $students);
         $this->seedSemproScheduled($admin, $programStudi, $students['erina'], $lecturers['diana'], $lecturers['rudi']);
@@ -121,17 +126,6 @@ class S2SasingSeeder extends Seeder
                 $role => Role::query()->firstOrCreate(['name' => $role]),
             ])
             ->all();
-    }
-
-    private function upsertProgramStudi(): ProgramStudi
-    {
-        return ProgramStudi::query()->updateOrCreate(
-            ['slug' => self::PRODI_SLUG],
-            [
-                'name' => self::PRODI_NAME,
-                'concentrations' => [self::CONCENTRATION],
-            ],
-        );
     }
 
     private function upsertSuperAdmin(Role $role): User
@@ -230,6 +224,7 @@ class S2SasingSeeder extends Seeder
                     [
                         'nim' => $student['nim'],
                         'program_studi_id' => $programStudi->id,
+                        'degree_level' => DegreeLevel::S2->value,
                         'concentration' => self::CONCENTRATION,
                         'angkatan' => $student['angkatan'],
                         'is_active' => true,

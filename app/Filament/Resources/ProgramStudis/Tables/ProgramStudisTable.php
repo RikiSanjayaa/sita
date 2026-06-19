@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\ProgramStudis\Tables;
 
+use App\Enums\DegreeLevel;
+use App\Models\Faculty;
 use App\Models\ProgramStudi;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -20,6 +22,11 @@ class ProgramStudisTable
     {
         return $table
             ->columns([
+                TextColumn::make('faculty.name')
+                    ->label('Fakultas')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable()
@@ -27,6 +34,13 @@ class ProgramStudisTable
                 TextColumn::make('slug')
                     ->searchable()
                     ->sortable()
+                    ->toggleable(),
+                TextColumn::make('degree_levels')
+                    ->label('Jenjang')
+                    ->state(fn(ProgramStudi $record): array => array_values($record->degreeLevelOptions()))
+                    ->badge()
+                    ->color('info')
+                    ->wrap()
                     ->toggleable(),
                 TextColumn::make('concentrations')
                     ->label('Konsentrasi')
@@ -60,6 +74,21 @@ class ProgramStudisTable
                     ->toggleable(),
             ])
             ->filters([
+                SelectFilter::make('faculty_id')
+                    ->label('Fakultas')
+                    ->options(fn(): array => Faculty::query()
+                        ->where('is_placeholder', false)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('degree_level')
+                    ->label('Jenjang')
+                    ->options(DegreeLevel::options())
+                    ->query(fn($query, array $data) => filled($data['value'] ?? null)
+                        ? $query->whereJsonContains('degree_levels', $data['value'])
+                        : $query),
                 SelectFilter::make('concentration')
                     ->label('Konsentrasi')
                     ->options(fn(): array => ProgramStudi::query()

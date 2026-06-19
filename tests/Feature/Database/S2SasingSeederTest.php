@@ -15,9 +15,13 @@ test('s2 sastra inggris deployment seeder seeds the expected showcase accounts a
     $this->seed(S2SasingSeeder::class);
 
     $programStudi = ProgramStudi::query()->where('slug', 's2-sastra-inggris')->firstOrFail();
+    $lecturer = User::query()->where('email', 'dosen1.s2.sasing@gmail.com')->firstOrFail();
 
-    expect(ProgramStudi::query()->count())->toBe(1)
-        ->and($programStudi->name)->toBe('S2 Sastra Inggris')
+    expect(ProgramStudi::query()->count())->toBe(21)
+        ->and($programStudi->name)->toBe('Sastra Inggris')
+        ->and($programStudi->faculty?->name)->toBe('Program Pascasarjana')
+        ->and($programStudi->degreeLevelList())->toBe(['s2'])
+        ->and($programStudi->mahasiswaProfiles()->where('degree_level', 's2')->count())->toBe(15)
         ->and($programStudi->concentrationList())->toBe(['Umum'])
         ->and(Role::query()->pluck('name')->sort()->values()->all())->toBe(collect(AppRole::values())->sort()->values()->all())
         ->and(User::query()->count())->toBe(26)
@@ -33,6 +37,11 @@ test('s2 sastra inggris deployment seeder seeds the expected showcase accounts a
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Dosen->value))->count())->toBe(9)
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Mahasiswa->value))->count())->toBe(15)
         ->and(User::query()->whereHas('roles', fn($query) => $query->where('name', AppRole::Penguji->value))->count())->toBe(0)
+        ->and($lecturer->expertiseFields()->pluck('name')->all())->toEqualCanonicalizing([
+            'Linguistik Terapan',
+            'Kajian Sastra Lanjut',
+            'Metodologi Penelitian Humaniora',
+        ])
         ->and(SystemAnnouncement::query()->where('program_studi_id', $programStudi->id)->where('status', SystemAnnouncement::STATUS_PUBLISHED)->count())->toBe(1);
 });
 
