@@ -5,6 +5,7 @@ use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
 use App\Filament\Resources\ThesisProjects\Pages\ViewThesisProject;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\AdminProfile;
+use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
@@ -341,6 +342,54 @@ test('admin can approve title review from workflow action', function (): void {
         'event_type' => 'title_approved',
         'label' => 'Judul disetujui',
     ]);
+});
+
+test('admin can schedule sempro with only one examiner from filament action', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $examiner = User::factory()->asDosen()->create();
+
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+    DosenProfile::factory()->create([
+        'user_id' => $examiner->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDay(),
+        'created_by' => $student->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->callAction('schedule_sempro', [
+            'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
+            'location' => 'Ruang Sempro',
+            'mode' => 'offline',
+            'examiner_1' => $examiner->id,
+        ]);
+
+    $sempro = ThesisDefense::query()
+        ->where('project_id', $project->id)
+        ->where('type', 'sempro')
+        ->firstOrFail();
+
+    expect($sempro->examiners()->pluck('lecturer_user_id')->all())->toBe([$examiner->id]);
 });
 
 test('admin can reject title review from workflow action', function (): void {

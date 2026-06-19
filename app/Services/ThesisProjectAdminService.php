@@ -788,8 +788,8 @@ class ThesisProjectAdminService
             ->filter(static fn(int $id): bool => $id > 0)
             ->values();
 
-        if ($normalizedExaminerIds->count() !== 2 || $normalizedExaminerIds->unique()->count() !== 2) {
-            throw new RuntimeException('Sempro harus memiliki tepat dua penguji yang berbeda.');
+        if ($normalizedExaminerIds->isEmpty() || $normalizedExaminerIds->unique()->count() !== $normalizedExaminerIds->count()) {
+            throw new RuntimeException('Sempro harus memiliki minimal satu penguji dan setiap penguji harus berbeda.');
         }
 
         $defense->examiners()->delete();

@@ -100,7 +100,7 @@ class UserInfolist
                             ->placeholder('0'),
                         TextEntry::make('thesis_load_note')
                             ->label('Catatan')
-                            ->state('Kuota pembimbing dapat diatur oleh superadmin. Penetapan pembimbing hanya dapat dilakukan jika konsentrasi dosen dan mahasiswa sama.')
+                            ->state('Kuota pembimbing dapat diatur oleh superadmin. Konsentrasi ditampilkan sebagai informasi dan tidak membatasi penetapan pembimbing.')
                             ->columnSpanFull(),
                     ]),
             ]);

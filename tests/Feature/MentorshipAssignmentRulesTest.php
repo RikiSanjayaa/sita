@@ -142,7 +142,7 @@ test('lecturer quota blocks assignment above configured active mahasiswa count',
     })->toThrow(ValidationException::class);
 });
 
-test('lecturer concentration must match mahasiswa concentration', function () {
+test('lecturer concentration does not need to match mahasiswa concentration', function () {
     $admin = createRoleUser(AppRole::Admin->value);
     $student = createRoleUser(AppRole::Mahasiswa->value);
     $lecturer = createRoleUser(AppRole::Dosen->value);
@@ -154,6 +154,45 @@ test('lecturer concentration must match mahasiswa concentration', function () {
     $lecturer->dosenProfile()->update([
         'concentration' => 'Computer Vision',
     ]);
+
+    MentorshipAssignment::query()->create([
+        'student_user_id' => $student->id,
+        'lecturer_user_id' => $lecturer->id,
+        'advisor_type' => AdvisorType::Primary->value,
+        'status' => AssignmentStatus::Active->value,
+        'assigned_by' => $admin->id,
+    ]);
+
+    expect(MentorshipAssignment::query()->where('student_user_id', $student->id)->count())->toBe(1);
+});
+
+test('lecturer must have an active assignment in the mahasiswa program studi', function () {
+    $admin = createRoleUser(AppRole::Admin->value);
+    $student = createRoleUser(AppRole::Mahasiswa->value);
+    $lecturer = createRoleUser(AppRole::Dosen->value);
+    $otherProgram = ProgramStudi::factory()->create();
+
+    $lecturer->activeDosenProgramStudiAssignments()->update([
+        'program_studi_id' => $otherProgram->id,
+    ]);
+
+    expect(function () use ($admin, $student, $lecturer): void {
+        MentorshipAssignment::query()->create([
+            'student_user_id' => $student->id,
+            'lecturer_user_id' => $lecturer->id,
+            'advisor_type' => AdvisorType::Primary->value,
+            'status' => AssignmentStatus::Active->value,
+            'assigned_by' => $admin->id,
+        ]);
+    })->toThrow(ValidationException::class);
+});
+
+test('inactive lecturer cannot be assigned as mahasiswa advisor', function () {
+    $admin = createRoleUser(AppRole::Admin->value);
+    $student = createRoleUser(AppRole::Mahasiswa->value);
+    $lecturer = createRoleUser(AppRole::Dosen->value);
+
+    $lecturer->dosenProfile()->update(['is_active' => false]);
 
     expect(function () use ($admin, $student, $lecturer): void {
         MentorshipAssignment::query()->create([

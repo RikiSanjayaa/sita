@@ -95,4 +95,69 @@ test.describe('System announcements', () => {
             await mahasiswaContext.close();
         }
     });
+
+    test('announcement body links remain clickable without an action URL', async ({
+        browser,
+    }) => {
+        resetAnnouncementsAndNotifications('farhan@sita.test');
+
+        const adminContext = await browser.newContext({
+            storageState: authStatePath('superadmin'),
+        });
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath('farhan'),
+        });
+        const title = `Pengumuman Tautan ${Date.now()}`;
+        const firstUrl = 'https://example.com/panduan';
+        const secondUrl = 'www.example.org/bantuan';
+        const body = `Baca ${firstUrl} atau ${secondUrl}.`;
+
+        try {
+            const adminPage = await adminContext.newPage();
+            const mahasiswaPage = await mahasiswaContext.newPage();
+
+            await adminPage.goto('/admin/system-announcements/create');
+            await adminPage.getByLabel('Judul').fill(title);
+            await adminPage.getByLabel('Isi Pengumuman').fill(body);
+            await adminPage
+                .getByRole('checkbox', { name: 'Mahasiswa' })
+                .check();
+            await adminPage.getByRole('button', { name: 'Draft' }).click();
+            await adminPage
+                .getByRole('option', { name: 'Publish sekarang', exact: true })
+                .click();
+            await adminPage
+                .getByRole('button', { name: 'Create', exact: true })
+                .click();
+
+            await mahasiswaPage.goto('/mahasiswa/dashboard');
+            const notificationPanel = await openNotifications(mahasiswaPage);
+            const firstLink = notificationPanel.getByRole('link', {
+                name: firstUrl,
+            });
+            const secondLink = notificationPanel.getByRole('link', {
+                name: secondUrl,
+            });
+
+            await expect(firstLink).toHaveAttribute('href', firstUrl);
+            await expect(firstLink).toHaveAttribute('target', '_blank');
+            await expect(secondLink).toHaveAttribute(
+                'href',
+                `https://${secondUrl}`,
+            );
+            await expect(secondLink).toHaveAttribute('target', '_blank');
+
+            const popupPromise = mahasiswaPage.waitForEvent('popup');
+            await firstLink.click();
+            const popup = await popupPromise;
+            await popup.close();
+
+            await expect(
+                notificationPanel.getByText('0', { exact: true }),
+            ).toBeVisible();
+        } finally {
+            await adminContext.close();
+            await mahasiswaContext.close();
+        }
+    });
 });

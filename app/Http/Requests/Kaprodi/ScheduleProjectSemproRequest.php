@@ -21,7 +21,7 @@ class ScheduleProjectSemproRequest extends FormRequest
             'location' => ['required', 'string', 'max:255'],
             'mode' => ['required', 'in:offline,online,hybrid'],
             'examiner_1_user_id' => ['required', 'integer', 'exists:users,id'],
-            'examiner_2_user_id' => ['required', 'integer', 'exists:users,id', 'different:examiner_1_user_id'],
+            'examiner_2_user_id' => ['nullable', 'integer', 'exists:users,id', 'different:examiner_1_user_id'],
         ];
     }
 }

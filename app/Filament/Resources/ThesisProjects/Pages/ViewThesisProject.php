@@ -141,13 +141,14 @@ class ViewThesisProject extends ViewRecord
                         ->searchable()
                         ->preload()
                         ->required()
+                        ->helperText('Minimal 1 penguji. D3 umumnya 1 penguji; S1/S2 disarankan 2, mengikuti kebijakan prodi.')
                         ->native(false),
                     Select::make('examiner_2')
-                        ->label('Penguji 2')
+                        ->label('Penguji 2 (Opsional)')
                         ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
                         ->preload()
-                        ->required()
+                        ->nullable()
                         ->different('examiner_1')
                         ->native(false),
                 ])
@@ -165,7 +166,13 @@ class ViewThesisProject extends ViewRecord
                             scheduledFor: (string) $data['scheduled_for'],
                             location: (string) $data['location'],
                             mode: (string) $data['mode'],
-                            examinerUserIds: [(int) $data['examiner_1'], (int) $data['examiner_2']],
+                            examinerUserIds: collect([
+                                $data['examiner_1'],
+                                $data['examiner_2'] ?? null,
+                            ])->filter(fn($id): bool => filled($id))
+                                ->map(fn($id): int => (int) $id)
+                                ->values()
+                                ->all(),
                         );
 
                         Notification::make()

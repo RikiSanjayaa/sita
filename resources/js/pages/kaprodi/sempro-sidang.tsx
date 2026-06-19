@@ -861,9 +861,9 @@ function ScheduleDialog({
         form.data.location === '' ||
         (activeState.type === 'sempro' &&
             (form.data.examiner_1_user_id === '' ||
-                form.data.examiner_2_user_id === '' ||
-                form.data.examiner_1_user_id ===
-                    form.data.examiner_2_user_id)) ||
+                (form.data.examiner_2_user_id !== '' &&
+                    form.data.examiner_1_user_id ===
+                        form.data.examiner_2_user_id))) ||
         (activeState.type === 'sidang' &&
             form.data.additional_examiner_user_ids.length === 0);
 
@@ -1007,25 +1007,37 @@ function ScheduleDialog({
                     </div>
 
                     {activeState.type === 'sempro' ? (
-                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                            <LecturerSelect
-                                label="Penguji Sempro 1"
-                                value={form.data.examiner_1_user_id}
-                                onChange={(value) =>
-                                    form.setData('examiner_1_user_id', value)
-                                }
-                                lecturerOptions={lecturerOptions}
-                                error={form.errors.examiner_1_user_id}
-                            />
-                            <LecturerSelect
-                                label="Penguji Sempro 2"
-                                value={form.data.examiner_2_user_id}
-                                onChange={(value) =>
-                                    form.setData('examiner_2_user_id', value)
-                                }
-                                lecturerOptions={lecturerOptions}
-                                error={form.errors.examiner_2_user_id}
-                            />
+                        <div className="grid gap-2">
+                            <p className="text-xs text-muted-foreground">
+                                Minimal 1 penguji. D3 umumnya 1 penguji; S1/S2
+                                disarankan 2, mengikuti kebijakan prodi.
+                            </p>
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                                <LecturerSelect
+                                    label="Penguji Sempro 1"
+                                    value={form.data.examiner_1_user_id}
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'examiner_1_user_id',
+                                            value,
+                                        )
+                                    }
+                                    lecturerOptions={lecturerOptions}
+                                    error={form.errors.examiner_1_user_id}
+                                />
+                                <LecturerSelect
+                                    label="Penguji Sempro 2 (Opsional)"
+                                    value={form.data.examiner_2_user_id}
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'examiner_2_user_id',
+                                            value,
+                                        )
+                                    }
+                                    lecturerOptions={lecturerOptions}
+                                    error={form.errors.examiner_2_user_id}
+                                />
+                            </div>
                         </div>
                     ) : (
                         <div className="grid gap-2">

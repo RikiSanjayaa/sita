@@ -19,6 +19,30 @@ use App\Notifications\RealtimeNotification;
 use App\Services\ThesisProjectAdminService;
 use Illuminate\Support\Facades\Notification;
 
+test('admin service rejects sempro schedule without an examiner', function (): void {
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $prodi = ProgramStudi::factory()->create();
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now(),
+    ]);
+
+    expect(fn() => app(ThesisProjectAdminService::class)->scheduleSempro(
+        project: $project,
+        scheduledBy: $admin->id,
+        scheduledFor: now()->addWeek()->format('Y-m-d H:i:s'),
+        location: 'Ruang Sempro',
+        mode: 'offline',
+        examinerUserIds: [],
+    ))->toThrow(RuntimeException::class, 'Sempro harus memiliki minimal satu penguji');
+
+    expect(ThesisDefense::query()->where('project_id', $project->id)->exists())->toBeFalse();
+});
+
 test('admin service schedules sempro from thesis project aggregate without creating legacy sempro rows', function (): void {
     $admin = User::factory()->asAdmin()->create();
     $superAdmin = User::factory()->asSuperAdmin()->create();
