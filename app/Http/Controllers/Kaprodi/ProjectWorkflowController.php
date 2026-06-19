@@ -64,6 +64,14 @@ class ProjectWorkflowController extends Controller
         $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_SCHEDULE_SEMPRO);
         $this->ensureDefenseCanBeScheduled($project, 'sempro');
 
+        $examinerUserIds = collect([
+            $request->validated('examiner_1_user_id'),
+            $request->validated('examiner_2_user_id'),
+        ])->filter(fn($id): bool => filled($id))
+            ->map(fn($id): int => (int) $id)
+            ->values()
+            ->all();
+
         try {
             $this->thesisProjectAdminService->scheduleSempro(
                 project: $project,
@@ -71,10 +79,7 @@ class ProjectWorkflowController extends Controller
                 scheduledFor: (string) $request->validated('scheduled_for'),
                 location: (string) $request->validated('location'),
                 mode: (string) $request->validated('mode'),
-                examinerUserIds: [
-                    (int) $request->validated('examiner_1_user_id'),
-                    (int) $request->validated('examiner_2_user_id'),
-                ],
+                examinerUserIds: $examinerUserIds,
             );
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages([
@@ -92,10 +97,7 @@ class ProjectWorkflowController extends Controller
                 'scheduled_for' => $request->validated('scheduled_for'),
                 'location' => $request->validated('location'),
                 'mode' => $request->validated('mode'),
-                'examiner_user_ids' => [
-                    (int) $request->validated('examiner_1_user_id'),
-                    (int) $request->validated('examiner_2_user_id'),
-                ],
+                'examiner_user_ids' => $examinerUserIds,
             ],
         );
 

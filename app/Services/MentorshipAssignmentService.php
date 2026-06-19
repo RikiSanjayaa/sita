@@ -73,7 +73,7 @@ class MentorshipAssignmentService
         $this->ensureUserRole($assignment->lecturer_user_id, AppRole::Dosen->value, 'lecturer_user_id');
         $this->ensureAdvisorTypeIsUnique($assignment);
         $this->ensureStudentHasMaximumTwoAdvisors($assignment);
-        $this->ensureMatchingConcentration($assignment);
+        $this->ensureLecturerTeachesInStudentProgram($assignment);
         $this->ensureLecturerHasCapacity($assignment);
     }
 
@@ -164,38 +164,30 @@ class MentorshipAssignmentService
         ]);
     }
 
-    private function ensureMatchingConcentration(MentorshipAssignment $assignment): void
+    private function ensureLecturerTeachesInStudentProgram(MentorshipAssignment $assignment): void
     {
         $student = User::query()
             ->with('mahasiswaProfile')
             ->find($assignment->student_user_id);
 
         $lecturer = User::query()
-            ->with('dosenProfile')
+            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
             ->find($assignment->lecturer_user_id);
 
-        $studentConcentration = $student?->mahasiswaProfile?->concentration;
         $studentProgramStudiId = $student?->mahasiswaProfile?->program_studi_id;
-        $hasMatchingAssignment = $lecturer?->teachesInProgramStudi($studentProgramStudiId, $studentConcentration) ?? false;
 
-        if (! filled($studentConcentration)) {
+        if ($lecturer?->dosenProfile === null || ! $lecturer->dosenProfile->is_active) {
             throw ValidationException::withMessages([
-                'student_user_id' => ['Mahasiswa concentration must be configured before assigning advisors.'],
+                'lecturer_user_id' => ['Dosen must have an active lecturer profile.'],
             ]);
         }
 
-        if (($lecturer?->activeDosenProgramStudiAssignments?->isEmpty() ?? true)) {
-            throw ValidationException::withMessages([
-                'lecturer_user_id' => ['Dosen concentration must be configured before assigning advisors.'],
-            ]);
-        }
-
-        if ($hasMatchingAssignment) {
+        if ($lecturer?->teachesInProgramStudi($studentProgramStudiId) ?? false) {
             return;
         }
 
         throw ValidationException::withMessages([
-            'lecturer_user_id' => ['Dosen concentration must match the mahasiswa concentration.'],
+            'lecturer_user_id' => ['Dosen must have an active assignment in the mahasiswa program studi.'],
         ]);
     }
 

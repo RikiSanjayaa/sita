@@ -14,6 +14,11 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import {
+    firstUrlInText,
+    LinkifiedText,
+    normalizeUrl,
+} from '@/components/linkified-text';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,6 +70,19 @@ function csrfToken(): string {
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute('content') ?? ''
     );
+}
+
+function visitNotificationUrl(url: string): void {
+    const normalizedUrl = normalizeUrl(url);
+    const target = new URL(normalizedUrl, window.location.origin);
+
+    if (target.origin === window.location.origin) {
+        router.visit(`${target.pathname}${target.search}${target.hash}`);
+
+        return;
+    }
+
+    window.open(target.href, '_blank', 'noopener,noreferrer');
 }
 
 function mapIncomingNotification(
@@ -290,8 +308,12 @@ function HeaderNotifications() {
                 nativeNotification.onclick = () => {
                     window.focus();
 
-                    if (nextNotification.url) {
-                        router.visit(nextNotification.url);
+                    const targetUrl =
+                        nextNotification.url ??
+                        firstUrlInText(nextNotification.description);
+
+                    if (targetUrl) {
+                        visitNotificationUrl(targetUrl);
                     }
                 };
             }
@@ -418,23 +440,29 @@ function HeaderNotifications() {
         });
     };
 
+    const markNotificationRead = async (notification: HeaderNotification) => {
+        if (!notification.unread) {
+            return;
+        }
+
+        setNotificationOverrides((current) => ({
+            ...current,
+            [notification.id]: {
+                ...current[notification.id],
+                unread: false,
+            },
+        }));
+
+        await markNotificationAsRead(notification.id);
+    };
+
     const handleNotificationClick = async (
         notification: HeaderNotification,
     ) => {
-        if (notification.unread) {
-            setNotificationOverrides((current) => ({
-                ...current,
-                [notification.id]: {
-                    ...current[notification.id],
-                    unread: false,
-                },
-            }));
-
-            await markNotificationAsRead(notification.id);
-        }
+        await markNotificationRead(notification);
 
         if (notification.url) {
-            router.visit(notification.url);
+            visitNotificationUrl(notification.url);
         }
     };
 
@@ -524,30 +552,39 @@ function HeaderNotifications() {
                                                 >
                                                     <Icon className="size-4" />
                                                 </span>
-                                                <button
-                                                    type="button"
-                                                    className="min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                                                    onClick={() =>
-                                                        handleNotificationClick(
-                                                            n,
-                                                        )
-                                                    }
-                                                >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <p className="text-sm font-medium">
-                                                            {n.title}
-                                                        </p>
-                                                        {n.unread && (
-                                                            <span className="mt-1 size-2 rounded-[3px] bg-primary" />
-                                                        )}
-                                                    </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <button
+                                                        type="button"
+                                                        className="block w-full text-left focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                        onClick={() =>
+                                                            handleNotificationClick(
+                                                                n,
+                                                            )
+                                                        }
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <p className="text-sm font-medium">
+                                                                {n.title}
+                                                            </p>
+                                                            {n.unread && (
+                                                                <span className="mt-1 size-2 rounded-[3px] bg-primary" />
+                                                            )}
+                                                        </div>
+                                                    </button>
                                                     <p className="text-sm text-muted-foreground">
-                                                        {n.description}
+                                                        <LinkifiedText
+                                                            text={n.description}
+                                                            onLinkClick={() =>
+                                                                void markNotificationRead(
+                                                                    n,
+                                                                )
+                                                            }
+                                                        />
                                                     </p>
                                                     <p className="mt-2 text-xs text-muted-foreground">
                                                         {n.time}
                                                     </p>
-                                                </button>
+                                                </div>
                                                 {!n.unread && (
                                                     <Button
                                                         type="button"
@@ -578,29 +615,44 @@ function HeaderNotifications() {
                 (() => {
                     const ToastIcon = notificationIconMap[toast.icon] ?? Bell;
                     return (
-                        <button
-                            type="button"
-                            className="group fixed top-[72px] right-4 z-[100] flex w-[min(380px,calc(100vw-2rem))] animate-in items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8"
-                            onClick={() => handleNotificationClick(toast)}
-                        >
+                        <div className="group fixed top-[72px] right-4 z-[100] flex w-[min(380px,calc(100vw-2rem))] animate-in items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8">
                             <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <ToastIcon className="size-5" />
                             </div>
                             <div className="flex-1 space-y-1 overflow-hidden">
-                                <p className="truncate text-sm font-semibold text-foreground">
+                                <button
+                                    type="button"
+                                    className="block w-full truncate text-left text-sm font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                    onClick={() =>
+                                        handleNotificationClick(toast)
+                                    }
+                                >
                                     {toast.title}
-                                </p>
+                                </button>
                                 <p className="line-clamp-2 text-sm text-muted-foreground">
-                                    {toast.description}
+                                    <LinkifiedText
+                                        text={toast.description}
+                                        onLinkClick={() =>
+                                            void markNotificationRead(toast)
+                                        }
+                                    />
                                 </p>
-                                <p className="pt-1 text-[11px] font-medium tracking-wide text-primary/80 uppercase">
-                                    Lihat detail &rarr;
-                                </p>
+                                {toast.url ? (
+                                    <button
+                                        type="button"
+                                        className="pt-1 text-[11px] font-medium tracking-wide text-primary/80 uppercase focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                        onClick={() =>
+                                            handleNotificationClick(toast)
+                                        }
+                                    >
+                                        Lihat detail &rarr;
+                                    </button>
+                                ) : null}
                             </div>
                             <div className="mt-1.5 shrink-0">
                                 <div className="size-2 rounded-full bg-primary shadow-sm" />
                             </div>
-                        </button>
+                        </div>
                     );
                 })()}
         </>

@@ -9,6 +9,7 @@ use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
 use App\Models\Role;
+use App\Models\SystemAuditLog;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -628,6 +629,92 @@ test('kaprodi can be assigned as thesis supervisor for own prodi project', funct
         'role' => 'primary',
         'status' => 'active',
     ]);
+});
+
+test('kaprodi can schedule sempro with one examiner and remove an optional second examiner', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+    $kaprodi = kaprodiRoleUser();
+    $secondExaminer = User::factory()->asDosen()->create();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $secondExaminer->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = kaprodiStudent($prodi, 'Mahasiswa Satu Penguji');
+    $project = kaprodiProject($student, $prodi, 'sempro', 'active');
+    $scheduledFor = now()->addWeek()->format('Y-m-d H:i:s');
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sempro", [
+            'scheduled_for' => $scheduledFor,
+            'location' => 'Ruang Sempro',
+            'mode' => 'offline',
+            'examiner_1_user_id' => $kaprodi->id,
+            'examiner_2_user_id' => $secondExaminer->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sempro", [
+            'scheduled_for' => $scheduledFor,
+            'location' => 'Ruang Sempro Baru',
+            'mode' => 'hybrid',
+            'examiner_1_user_id' => $kaprodi->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $sempro = ThesisDefense::query()
+        ->where('project_id', $project->id)
+        ->where('type', 'sempro')
+        ->firstOrFail();
+    $auditLog = SystemAuditLog::query()
+        ->where('event_type', 'kaprodi_sempro_scheduled')
+        ->latest('id')
+        ->firstOrFail();
+
+    expect($sempro->examiners()->pluck('lecturer_user_id')->all())
+        ->toBe([$kaprodi->id])
+        ->and($auditLog->payload['examiner_user_ids'])->toBe([$kaprodi->id]);
+});
+
+test('sempro schedule requires one unique examiner', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+    $kaprodi = kaprodiRoleUser();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $student = kaprodiStudent($prodi, 'Mahasiswa Validasi Penguji');
+    $project = kaprodiProject($student, $prodi, 'sempro', 'active');
+    $payload = [
+        'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
+        'location' => 'Ruang Sempro',
+        'mode' => 'offline',
+    ];
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sempro", $payload)
+        ->assertSessionHasErrors('examiner_1_user_id');
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sempro", [
+            ...$payload,
+            'examiner_1_user_id' => $kaprodi->id,
+            'examiner_2_user_id' => $kaprodi->id,
+        ])
+        ->assertSessionHasErrors('examiner_2_user_id');
 });
 
 test('kaprodi workflow mutations are scoped to own prodi and active mutable exams', function (): void {
