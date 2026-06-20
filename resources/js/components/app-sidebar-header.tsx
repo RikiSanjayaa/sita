@@ -335,19 +335,31 @@ function HeaderNotifications() {
         };
     }, [auth.user?.id, notificationSettings?.browserNotifications]);
 
-    const markNotificationAsRead = async (notificationId: string) => {
-        await fetch(`/settings/notifications/${notificationId}/read`, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({}),
+    const submitNotificationMutation = (
+        url: string,
+        method: 'post' | 'delete',
+    ): Promise<boolean> => {
+        return new Promise((resolve) => {
+            let succeeded = false;
+
+            router.visit(url, {
+                method,
+                data: {},
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    succeeded = true;
+                },
+                onFinish: () => resolve(succeeded),
+            });
         });
     };
+
+    const markNotificationAsRead = (notificationId: string): Promise<boolean> =>
+        submitNotificationMutation(
+            `/settings/notifications/${notificationId}/read`,
+            'post',
+        );
 
     const handleMarkAllAsRead = async () => {
         if (unreadCount === 0) {
@@ -367,17 +379,27 @@ function HeaderNotifications() {
             return next;
         });
 
-        await fetch('/settings/notifications/read-all', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({}),
-        });
+        const succeeded = await submitNotificationMutation(
+            '/settings/notifications/read-all',
+            'post',
+        );
+
+        if (!succeeded) {
+            setNotificationOverrides((current) => {
+                const next = { ...current };
+
+                for (const notification of notificationItems) {
+                    if (notification.unread) {
+                        next[notification.id] = {
+                            ...next[notification.id],
+                            unread: true,
+                        };
+                    }
+                }
+
+                return next;
+            });
+        }
     };
 
     const handleDeleteReadNotifications = async () => {
@@ -409,17 +431,10 @@ function HeaderNotifications() {
             return next;
         });
 
-        await fetch('/settings/notifications/read-items', {
-            method: 'DELETE',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({}),
-        });
+        await submitNotificationMutation(
+            '/settings/notifications/read-items',
+            'delete',
+        );
     };
 
     const handleDeleteNotification = async (notificationId: string) => {
@@ -438,22 +453,17 @@ function HeaderNotifications() {
             setToastNotification(null);
         }
 
-        await fetch(`/settings/notifications/${notificationId}`, {
-            method: 'DELETE',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({}),
-        });
+        await submitNotificationMutation(
+            `/settings/notifications/${notificationId}`,
+            'delete',
+        );
     };
 
-    const markNotificationRead = async (notification: HeaderNotification) => {
+    const markNotificationRead = async (
+        notification: HeaderNotification,
+    ): Promise<boolean> => {
         if (!notification.unread) {
-            return;
+            return true;
         }
 
         setNotificationOverrides((current) => ({
@@ -464,15 +474,27 @@ function HeaderNotifications() {
             },
         }));
 
-        await markNotificationAsRead(notification.id);
+        const succeeded = await markNotificationAsRead(notification.id);
+
+        if (!succeeded) {
+            setNotificationOverrides((current) => ({
+                ...current,
+                [notification.id]: {
+                    ...current[notification.id],
+                    unread: true,
+                },
+            }));
+        }
+
+        return succeeded;
     };
 
     const handleNotificationClick = async (
         notification: HeaderNotification,
     ) => {
-        await markNotificationRead(notification);
+        const markedAsRead = await markNotificationRead(notification);
 
-        if (notification.url) {
+        if (markedAsRead && notification.url) {
             visitNotificationUrl(notification.url);
         }
     };

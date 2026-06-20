@@ -33,7 +33,7 @@ class NotificationSettingsController extends Controller
         return back()->with('success', 'Pengaturan notifikasi berhasil diperbarui.');
     }
 
-    public function markAllAsRead(Request $request): JsonResponse
+    public function markAllAsRead(Request $request): JsonResponse|RedirectResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
@@ -42,10 +42,14 @@ class NotificationSettingsController extends Controller
             'read_at' => now(),
         ]);
 
+        if ($request->header('X-Inertia') === 'true') {
+            return back();
+        }
+
         return response()->json(['ok' => true]);
     }
 
-    public function markAsRead(Request $request, string $notificationId): JsonResponse
+    public function markAsRead(Request $request, string $notificationId): JsonResponse|RedirectResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
@@ -57,15 +61,23 @@ class NotificationSettingsController extends Controller
             $notification->markAsRead();
         }
 
+        if ($request->header('X-Inertia') === 'true') {
+            return back();
+        }
+
         return response()->json(['ok' => true]);
     }
 
-    public function deleteReadNotifications(Request $request): JsonResponse
+    public function deleteReadNotifications(Request $request): JsonResponse|RedirectResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
 
         $deleted = $user->readNotifications()->delete();
+
+        if ($request->header('X-Inertia') === 'true') {
+            return back();
+        }
 
         return response()->json([
             'ok' => true,
@@ -73,7 +85,7 @@ class NotificationSettingsController extends Controller
         ]);
     }
 
-    public function deleteReadNotification(Request $request, string $notificationId): JsonResponse
+    public function deleteReadNotification(Request $request, string $notificationId): JsonResponse|RedirectResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
@@ -88,6 +100,10 @@ class NotificationSettingsController extends Controller
         }
 
         $notification->delete();
+
+        if ($request->header('X-Inertia') === 'true') {
+            return back();
+        }
 
         return response()->json(['ok' => true]);
     }
