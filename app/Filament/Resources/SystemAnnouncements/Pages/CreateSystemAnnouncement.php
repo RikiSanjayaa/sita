@@ -19,9 +19,10 @@ class CreateSystemAnnouncement extends CreateRecord
         /** @var User|null $user */
         $user = Auth::user();
 
+        $data = $this->normalizeAudienceData($data, $user);
+
         return [
             ...$data,
-            'program_studi_id' => $user?->adminProgramStudiId() ?? $data['program_studi_id'] ?? null,
             'published_at' => ($data['status'] ?? null) === SystemAnnouncement::STATUS_PUBLISHED ? now() : null,
             'created_by' => $user?->id,
             'updated_by' => $user?->id,
@@ -57,5 +58,52 @@ class CreateSystemAnnouncement extends CreateRecord
     protected function getRedirectUrl(): string
     {
         return SystemAnnouncementResource::getUrl('index');
+    }
+
+    private function normalizeAudienceData(array $data, ?User $user): array
+    {
+        $adminProgramStudiId = $user?->adminProgramStudiId();
+
+        if ($adminProgramStudiId !== null) {
+            return [
+                ...$data,
+                'program_studi_id' => $adminProgramStudiId,
+                'target_scope' => SystemAnnouncement::TARGET_PROGRAMS,
+                'target_faculty_ids' => null,
+                'target_program_studi_ids' => [$adminProgramStudiId],
+            ];
+        }
+
+        $scope = in_array($data['target_scope'] ?? null, [
+            SystemAnnouncement::TARGET_ALL,
+            SystemAnnouncement::TARGET_FACULTIES,
+            SystemAnnouncement::TARGET_PROGRAMS,
+        ], true) ? $data['target_scope'] : SystemAnnouncement::TARGET_ALL;
+
+        return [
+            ...$data,
+            'program_studi_id' => null,
+            'target_scope' => $scope,
+            'target_faculty_ids' => $scope === SystemAnnouncement::TARGET_FACULTIES
+                ? $this->normalizeIds($data['target_faculty_ids'] ?? [])
+                : null,
+            'target_program_studi_ids' => $scope === SystemAnnouncement::TARGET_PROGRAMS
+                ? $this->normalizeIds($data['target_program_studi_ids'] ?? [])
+                : null,
+        ];
+    }
+
+    /**
+     * @param  mixed  $ids
+     * @return array<int, int>
+     */
+    private function normalizeIds($ids): array
+    {
+        return collect(is_array($ids) ? $ids : [])
+            ->map(static fn($id): int => (int) $id)
+            ->filter(static fn(int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

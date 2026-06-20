@@ -139,6 +139,10 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('examiner_1')
                         ->label('Penguji 1')
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            'Wajib diisi. Pencarian mencakup seluruh dosen aktif dan dapat menggunakan nama, NIK, prodi, konsentrasi, atau bidang keilmuan.',
+                        )
                         ->searchable()
                         ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'))
                         ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'examiner'))
@@ -148,6 +152,10 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('examiner_2')
                         ->label('Penguji 2 (Opsional)')
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            'Opsional. Jika dipilih, harus berbeda dari Penguji 1. D3 umumnya menggunakan satu penguji; kebijakan akhir mengikuti prodi.',
+                        )
                         ->searchable()
                         ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'))
                         ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'examiner'))
@@ -255,6 +263,10 @@ class ViewThesisProject extends ViewRecord
                 ->form([
                     Select::make('pembimbing_1')
                         ->label('Pembimbing 1')
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            'Semua dosen aktif dapat dicari. Konsentrasi dan bidang keilmuan merupakan informasi pendukung, bukan syarat kesamaan dengan mahasiswa.',
+                        )
                         ->searchable()
                         ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'supervisor'))
                         ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'supervisor'))
@@ -263,6 +275,10 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('pembimbing_2')
                         ->label('Pembimbing 2')
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            'Harus berbeda dari Pembimbing 1. Dosen yang sudah mencapai kuota tidak dapat menerima mahasiswa baru.',
+                        )
                         ->searchable()
                         ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'supervisor'))
                         ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'supervisor'))
@@ -335,6 +351,10 @@ class ViewThesisProject extends ViewRecord
                         ->rows(2),
                     Select::make('additional_examiner_user_ids')
                         ->label('Dosen Penguji '.$terms['finalExam'])
+                        ->hintIcon(
+                            'heroicon-m-question-mark-circle',
+                            'Pembimbing aktif otomatis masuk panel. Pilih dosen tambahan yang belum ada di panel; bidang keilmuan ditampilkan sebagai pertimbangan.',
+                        )
                         ->multiple()
                         ->default(fn(): array => $this->defaultSidangAdditionalExaminerUserIds($record))
                         ->searchable()

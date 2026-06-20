@@ -22,6 +22,10 @@ class ProgramStudiForm
             ->components([
                 Select::make('faculty_id')
                     ->label('Fakultas')
+                    ->hintIcon(
+                        'heroicon-m-question-mark-circle',
+                        'Satu program studi hanya berada di bawah satu fakultas. Relasi ini digunakan untuk pengelompokan data dan target pengumuman.',
+                    )
                     ->options(fn(): array => Faculty::query()
                         ->where('is_active', true)
                         ->where('is_placeholder', false)
@@ -57,6 +61,10 @@ class ProgramStudiForm
                     ->maxLength(255),
                 CheckboxList::make('degree_levels')
                     ->label('Jenjang Tersedia')
+                    ->hintIcon(
+                        'heroicon-m-information-circle',
+                        'Hanya jenjang yang dicentang yang dapat dipilih saat membuat atau mengimpor mahasiswa pada prodi ini. Jenjang mahasiswa yang sudah tersimpan tidak berubah otomatis.',
+                    )
                     ->options(DegreeLevel::options())
                     ->required()
                     ->minItems(1)
@@ -64,6 +72,10 @@ class ProgramStudiForm
                     ->helperText('Jenjang mahasiswa yang dapat dipilih pada program studi ini.'),
                 TagsInput::make('concentrations')
                     ->label('Konsentrasi')
+                    ->hintIcon(
+                        'heroicon-m-question-mark-circle',
+                        'Konsentrasi adalah peminatan internal prodi, bukan bidang keilmuan dosen dan bukan syarat kelayakan pembimbing.',
+                    )
                     ->required()
                     ->nestedRecursiveRules(['min:2', 'max:255'])
                     ->suggestions(ProgramStudi::ILMU_KOMPUTER_CONCENTRATIONS)

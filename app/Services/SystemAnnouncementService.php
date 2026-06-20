@@ -82,22 +82,24 @@ class SystemAnnouncementService
             $roleQuery->where('name', $role);
         });
 
-        if ($announcement->program_studi_id === null) {
+        $programStudiIds = $announcement->resolvedProgramStudiIds();
+
+        if ($programStudiIds === []) {
             return $query;
         }
 
         return match ($role) {
-            AppRole::Mahasiswa->value => $query->whereHas('mahasiswaProfile', function (Builder $profileQuery) use ($announcement): void {
-                $profileQuery->where('program_studi_id', $announcement->program_studi_id);
+            AppRole::Mahasiswa->value => $query->whereHas('mahasiswaProfile', function (Builder $profileQuery) use ($programStudiIds): void {
+                $profileQuery->whereIn('program_studi_id', $programStudiIds);
             }),
-            AppRole::Dosen->value => $query->whereHas('activeDosenProgramStudiAssignments', function (Builder $assignmentQuery) use ($announcement): void {
-                $assignmentQuery->where('program_studi_id', $announcement->program_studi_id);
+            AppRole::Dosen->value => $query->whereHas('activeDosenProgramStudiAssignments', function (Builder $assignmentQuery) use ($programStudiIds): void {
+                $assignmentQuery->whereIn('program_studi_id', $programStudiIds);
             }),
-            AppRole::Admin->value => $query->whereHas('adminProfile', function (Builder $profileQuery) use ($announcement): void {
-                $profileQuery->where('program_studi_id', $announcement->program_studi_id);
+            AppRole::Admin->value => $query->whereHas('adminProfile', function (Builder $profileQuery) use ($programStudiIds): void {
+                $profileQuery->whereIn('program_studi_id', $programStudiIds);
             }),
-            AppRole::Kaprodi->value => $query->whereHas('kaprodiAssignment', function (Builder $assignmentQuery) use ($announcement): void {
-                $assignmentQuery->where('program_studi_id', $announcement->program_studi_id);
+            AppRole::Kaprodi->value => $query->whereHas('kaprodiAssignment', function (Builder $assignmentQuery) use ($programStudiIds): void {
+                $assignmentQuery->whereIn('program_studi_id', $programStudiIds);
             }),
             default => $query,
         };

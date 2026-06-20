@@ -39,9 +39,10 @@ class SystemAnnouncementsTable
                         })
                         ->implode(', '))
                     ->wrap(),
-                TextColumn::make('programStudi.name')
-                    ->label('Program Studi')
-                    ->placeholder('Semua Program Studi'),
+                TextColumn::make('audience')
+                    ->label('Cakupan Akademik')
+                    ->state(fn(SystemAnnouncement $record): string => $record->audienceLabel())
+                    ->wrap(),
                 TextColumn::make('published_at')
                     ->label('Published')
                     ->since()
