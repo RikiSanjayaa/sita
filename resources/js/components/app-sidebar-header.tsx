@@ -11,7 +11,14 @@ import {
     Trash2,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type MouseEvent,
+    type ReactNode,
+} from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import {
@@ -126,6 +133,10 @@ function applyNotificationOverride(
         ...notification,
         unread: override?.unread ?? notification.unread,
     };
+}
+
+function isNotificationControl(target: EventTarget | null): boolean {
+    return target instanceof Element && target.closest('a, button') !== null;
 }
 
 function deriveNotificationItems(
@@ -466,7 +477,27 @@ function HeaderNotifications() {
         }
     };
 
-    const toast = toastNotification;
+    const handleNotificationCardClick = (
+        event: MouseEvent<HTMLDivElement>,
+        notification: HeaderNotification,
+    ) => {
+        if (isNotificationControl(event.target)) {
+            return;
+        }
+
+        void handleNotificationClick(notification);
+    };
+
+    const toast = useMemo(
+        () =>
+            toastNotification === null
+                ? null
+                : applyNotificationOverride(
+                      toastNotification,
+                      notificationOverrides[toastNotification.id],
+                  ),
+        [notificationOverrides, toastNotification],
+    );
 
     return (
         <>
@@ -543,7 +574,14 @@ function HeaderNotifications() {
                                         return (
                                             <div
                                                 key={n.id}
-                                                className="flex items-start gap-3 rounded-lg border bg-background p-4 transition-colors hover:bg-primary/10"
+                                                data-testid="notification-card"
+                                                className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-4 transition-colors hover:bg-primary/10"
+                                                onClick={(event) =>
+                                                    handleNotificationCardClick(
+                                                        event,
+                                                        n,
+                                                    )
+                                                }
                                             >
                                                 <span
                                                     className={
@@ -615,7 +653,13 @@ function HeaderNotifications() {
                 (() => {
                     const ToastIcon = notificationIconMap[toast.icon] ?? Bell;
                     return (
-                        <div className="group fixed top-[72px] right-4 z-[100] flex w-[min(380px,calc(100vw-2rem))] animate-in items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8">
+                        <div
+                            data-testid="notification-toast"
+                            className="group fixed top-[72px] right-4 z-[100] flex w-[min(380px,calc(100vw-2rem))] animate-in cursor-pointer items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8"
+                            onClick={(event) =>
+                                handleNotificationCardClick(event, toast)
+                            }
+                        >
                             <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <ToastIcon className="size-5" />
                             </div>
@@ -649,9 +693,11 @@ function HeaderNotifications() {
                                     </button>
                                 ) : null}
                             </div>
-                            <div className="mt-1.5 shrink-0">
-                                <div className="size-2 rounded-full bg-primary shadow-sm" />
-                            </div>
+                            {toast.unread ? (
+                                <div className="mt-1.5 shrink-0">
+                                    <div className="size-2 rounded-full bg-primary shadow-sm" />
+                                </div>
+                            ) : null}
                         </div>
                     );
                 })()}
