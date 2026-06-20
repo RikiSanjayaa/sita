@@ -118,11 +118,10 @@ test.describe('Notifications', () => {
                     .first(),
             ).toBeVisible();
 
-            await studentPage
-                .locator('button')
+            await notificationPanel
+                .getByTestId('notification-card')
                 .filter({ hasText: 'Pesan bimbingan baru' })
-                .first()
-                .click();
+                .click({ position: { x: 20, y: 70 } });
 
             await expect(studentPage).toHaveURL(/\/mahasiswa\/pesan/);
 
