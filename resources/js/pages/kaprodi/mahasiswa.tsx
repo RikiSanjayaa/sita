@@ -549,9 +549,10 @@ function SupervisorDialog({
             : '',
         notes: '',
     });
+    const { clearErrors, setData } = form;
 
     useEffect(() => {
-        form.setData({
+        setData({
             primary_lecturer_user_id: primary?.lecturerUserId
                 ? String(primary.lecturerUserId)
                 : '',
@@ -560,8 +561,14 @@ function SupervisorDialog({
                 : '',
             notes: '',
         });
-        form.clearErrors();
-    }, [student?.projectId]);
+        clearErrors();
+    }, [
+        clearErrors,
+        primary?.lecturerUserId,
+        secondary?.lecturerUserId,
+        setData,
+        student?.projectId,
+    ]);
 
     if (!student || student.projectId === null) return null;
 

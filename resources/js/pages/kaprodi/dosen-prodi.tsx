@@ -425,13 +425,14 @@ function QuotaDialog({
     const form = useForm({
         supervision_quota: lecturer ? String(lecturer.quota) : '',
     });
+    const { clearErrors, setData } = form;
 
     useEffect(() => {
-        form.setData({
+        setData({
             supervision_quota: lecturer ? String(lecturer.quota) : '',
         });
-        form.clearErrors();
-    }, [lecturer?.id]);
+        clearErrors();
+    }, [clearErrors, lecturer, setData]);
 
     if (!lecturer) return null;
 
