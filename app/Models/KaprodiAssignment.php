@@ -51,8 +51,8 @@ class KaprodiAssignment extends Model
     {
         return [
             self::CAPABILITY_MANAGE_SUPERVISORS => 'Tetapkan pembimbing',
-            self::CAPABILITY_SCHEDULE_SEMPRO => 'Jadwalkan sempro',
-            self::CAPABILITY_SCHEDULE_SIDANG => 'Jadwalkan sidang',
+            self::CAPABILITY_SCHEDULE_SEMPRO => 'Jadwalkan ujian proposal',
+            self::CAPABILITY_SCHEDULE_SIDANG => 'Jadwalkan ujian akhir',
             self::CAPABILITY_MANAGE_LECTURER_QUOTA => 'Atur kuota bimbingan',
             self::CAPABILITY_VIEW_DOCUMENTS => 'Lihat dokumen',
             self::CAPABILITY_DOWNLOAD_DOCUMENTS => 'Download dokumen',

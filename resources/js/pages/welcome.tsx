@@ -37,7 +37,7 @@ const featureLinks: FeatureLink[] = [
         href: '/jadwal',
         title: 'Jadwal',
         description:
-            'Lihat jadwal sempro dan sidang yang akan datang maupun yang sudah berlalu.',
+            'Lihat jadwal ujian proposal dan ujian akhir yang akan datang maupun yang sudah berlalu.',
         icon: CalendarClock,
         highlightKey: 'Jadwal',
     },
@@ -45,7 +45,7 @@ const featureLinks: FeatureLink[] = [
         href: '/mahasiswa-aktif',
         title: 'Mahasiswa Aktif',
         description:
-            'Lihat mahasiswa yang masih aktif mengambil tugas akhir, dari yang baru terdaftar sampai tahap sempro, bimbingan, dan sidang.',
+            'Lihat mahasiswa yang masih aktif mengambil karya akhir, dari yang baru terdaftar sampai tahap proposal, bimbingan, dan ujian akhir.',
         icon: GraduationCap,
         highlightKey: 'Mahasiswa Aktif',
     },
@@ -61,7 +61,7 @@ const featureLinks: FeatureLink[] = [
         href: '/topik',
         title: 'Topik',
         description:
-            'Telusuri topik skripsi yang benar-benar sudah final setelah sidang selesai dan dinyatakan lulus.',
+            'Telusuri topik karya akhir yang sudah final setelah ujian selesai dan dinyatakan lulus.',
         icon: BookOpenText,
         highlightKey: 'Topik',
     },
@@ -211,13 +211,13 @@ export default function Welcome() {
 
                         <div className="space-y-4">
                             <h2 className="max-w-4xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-[4rem] lg:leading-[1.05]">
-                                Akses cepat ke ritme tugas akhir yang sedang
+                                Akses cepat ke ritme karya akhir yang sedang
                                 berjalan.
                             </h2>
                             <p className="max-w-3xl text-base leading-8 text-muted-foreground lg:text-lg">
                                 Portal publik ini merangkum jadwal seminar,
                                 mahasiswa aktif, direktori pembimbing, dan topik
-                                tugas akhir yang sudah dapat ditelusuri tanpa
+                                karya akhir yang sudah dapat ditelusuri tanpa
                                 membuat pengalaman terasa seperti dashboard
                                 internal.
                             </p>

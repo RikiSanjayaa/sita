@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import * as React from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import * as routes from '@/routes';
 import { create as uploadDokumenCreate } from '@/routes/upload-dokumen';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'pptx'] as const;
@@ -82,6 +82,7 @@ function validateFile(file: File) {
 }
 
 export default function UploadDokumenForm() {
+    const { academicTerminology: terms } = usePage<SharedData>().props;
     const [kategori, setKategori] = React.useState<string>('draft-tugas-akhir');
     const [file, setFile] = React.useState<File | null>(null);
     const [fileError, setFileError] = React.useState<string | null>(null);
@@ -126,7 +127,7 @@ export default function UploadDokumenForm() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="draft-tugas-akhir">
-                                                Draft Skripsi
+                                                Draft {terms.finalWork}
                                             </SelectItem>
                                             <SelectItem value="proposal">
                                                 Proposal

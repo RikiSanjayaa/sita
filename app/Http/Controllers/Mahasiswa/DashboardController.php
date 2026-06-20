@@ -13,6 +13,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -31,12 +32,13 @@ class DashboardController extends Controller
         abort_if($student === null, 401);
 
         $project = $this->resolveProjectForStudent($student);
+        $terms = AcademicTerminology::forStudent($student);
         $workflow = $project instanceof ThesisProject
             ? $this->resolveProjectWorkflow($project)
             : [
                 'key' => 'not_started',
                 'label' => 'Belum Memulai',
-                'description' => 'Anda belum memiliki proyek tugas akhir aktif.',
+                'description' => 'Anda belum memiliki proyek '.$terms['finalWorkLower'].' aktif.',
             ];
 
         $advisorAssignments = $project?->activeSupervisorAssignments
@@ -94,7 +96,7 @@ class DashboardController extends Controller
                 [
                     'title' => 'Agenda Mendatang',
                     'value' => (string) count($upcomingActivities),
-                    'description' => 'Bimbingan, sempro, dan sidang terdekat.',
+                    'description' => 'Bimbingan, '.$terms['proposalExamShort'].', dan '.$terms['finalExam'].' terdekat.',
                     'icon' => 'calendar-clock',
                 ],
                 [
@@ -203,6 +205,7 @@ class DashboardController extends Controller
     private function upcomingActivities(User $student, Collection $advisorLecturerIds): array
     {
         $now = now();
+        $terms = AcademicTerminology::forStudent($student);
 
         $schedules = MentorshipSchedule::query()
             ->with('lecturer')
@@ -243,8 +246,8 @@ class DashboardController extends Controller
             ->where('scheduled_for', '>=', $now->copy()->startOfDay())
             ->with(['examiners.lecturer'])
             ->get()
-            ->map(function (ThesisDefense $defense): array {
-                $badge = $defense->type === 'sidang' ? 'Sidang' : 'Sempro';
+            ->map(function (ThesisDefense $defense) use ($terms): array {
+                $badge = $defense->type === 'sidang' ? $terms['finalExam'] : $terms['proposalExamShort'];
                 $subtitle = collect([
                     $defense->location,
                     $defense->mode !== null ? strtoupper($defense->mode) : null,
@@ -259,9 +262,7 @@ class DashboardController extends Controller
                     'type' => $defense->type,
                     'sortAt' => $defense->scheduled_for,
                     'badge' => $badge,
-                    'title' => $defense->type === 'sidang'
-                        ? 'Sidang skripsi terjadwal'
-                        : 'Seminar proposal terjadwal',
+                    'title' => $badge.' terjadwal',
                     'subtitle' => $subtitle,
                     'date' => $defense->scheduled_for?->locale('id')->translatedFormat('d M Y, H:i'),
                     'status' => 'Terjadwal',
@@ -306,6 +307,9 @@ class DashboardController extends Controller
      */
     private function progressTimeline(?ThesisProject $project, array $workflow): array
     {
+        $terms = $project instanceof ThesisProject
+            ? AcademicTerminology::forProject($project)
+            : AcademicTerminology::neutral();
         $latestSempro = $project?->defenses
             ->where('type', 'sempro')
             ->sortByDesc('attempt_no')
@@ -324,8 +328,8 @@ class DashboardController extends Controller
                 'description' => $project instanceof ThesisProject
                     ? (in_array($workflow['key'], ['title_review_pending', 'title_approved', 'title_rejected', 'project_cancelled'], true)
                         ? $workflow['description']
-                        : 'Judul dan proposal sudah masuk ke alur tugas akhir.')
-                    : 'Mulai dari pengajuan judul dan proposal tugas akhir.',
+                        : 'Judul dan proposal sudah masuk ke alur '.$terms['finalWorkLower'].'.')
+                    : 'Mulai dari pengajuan judul dan proposal '.$terms['finalWorkLower'].'.',
                 'date' => $project?->latestTitle?->submitted_at?->locale('id')->translatedFormat('d M Y')
                     ?? $project?->started_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $project instanceof ThesisProject
@@ -335,19 +339,19 @@ class DashboardController extends Controller
                     : 'upcoming',
             ],
             [
-                'title' => 'Seminar Proposal',
+                'title' => $terms['proposalExam'],
                 'description' => $latestSempro instanceof ThesisDefense
                     ? match ($latestSempro->status) {
-                        'scheduled' => 'Sempro sudah dijadwalkan. Pastikan dokumen dan kesiapan presentasi sudah lengkap.',
-                        'awaiting_finalization' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
+                        'scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Pastikan dokumen dan kesiapan presentasi sudah lengkap.',
+                        'awaiting_finalization' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
                         'completed' => $latestSempro->result === 'pass_with_revision'
-                            ? 'Sempro selesai dengan revisi. Tindak lanjuti catatan penguji.'
+                            ? $terms['proposalExamShort'].' selesai dengan revisi. Tindak lanjuti catatan penguji.'
                             : ($latestSempro->result === 'fail'
-                                ? 'Sempro belum lulus. Tunggu penjadwalan ulang dari admin.'
-                                : 'Sempro sudah selesai. Lanjutkan ke tahap berikutnya.'),
-                        default => 'Tahap sempro sedang diproses.',
+                                ? $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin.'
+                                : $terms['proposalExamShort'].' sudah selesai. Lanjutkan ke tahap berikutnya.'),
+                        default => 'Tahap '.$terms['proposalExamShort'].' sedang diproses.',
                     }
-                    : 'Sempro akan muncul setelah tahap awal siap diproses.',
+                    : $terms['proposalExamShort'].' akan muncul setelah tahap awal siap diproses.',
                 'date' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d M Y')
                     ?? $latestSempro?->decision_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $latestSempro instanceof ThesisDefense
@@ -362,26 +366,26 @@ class DashboardController extends Controller
                 'title' => 'Bimbingan dan Penelitian',
                 'description' => $hasAdvisors
                     ? 'Dosen pembimbing aktif sudah ditetapkan. Dadwalkan bimbingan dan siapkan dokumen.'
-                    : 'Tahap penelitian akan aktif setelah pembimbing atau hasil sempro ditetapkan.',
+                    : 'Tahap penelitian akan aktif setelah pembimbing atau hasil '.$terms['proposalExamShort'].' ditetapkan.',
                 'date' => $project?->started_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $hasAdvisors
                     ? (in_array($workflow['key'], ['research_in_progress', 'sempro_passed', 'sempro_revision'], true) ? 'current' : 'done')
                     : 'upcoming',
             ],
             [
-                'title' => 'Sidang Akhir',
+                'title' => $terms['finalExam'],
                 'description' => $latestSidang instanceof ThesisDefense
                     ? match ($latestSidang->status) {
-                        'scheduled' => 'Sidang sudah terjadwal. Pastikan dokumen akhir dan revisi sempro telah siap.',
-                        'awaiting_finalization' => 'Seluruh keputusan dosen untuk sidang sudah masuk. Menunggu hasil resmi dari admin.',
+                        'scheduled' => $terms['finalExam'].' sudah terjadwal. Pastikan dokumen akhir dan revisi proposal telah siap.',
+                        'awaiting_finalization' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
                         'completed' => $latestSidang->result === 'pass_with_revision'
-                            ? 'Sidang selesai dengan revisi.'
+                            ? $terms['finalExam'].' selesai dengan revisi.'
                             : ($latestSidang->result === 'fail'
-                                ? 'Sidang belum lulus. Tunggu penjadwalan ulang dari admin.'
-                                : 'Sidang akhir telah selesai.'),
-                        default => 'Tahap sidang sedang diproses.',
+                                ? $terms['finalExam'].' belum lulus. Tunggu penjadwalan ulang dari admin.'
+                                : $terms['finalExam'].' telah selesai.'),
+                        default => 'Tahap '.$terms['finalExam'].' sedang diproses.',
                     }
-                    : 'Tahap sidang akan muncul setelah penelitian selesai.',
+                    : 'Tahap '.$terms['finalExam'].' akan muncul setelah penelitian selesai.',
                 'date' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d M Y')
                     ?? $latestSidang?->decision_at?->locale('id')->translatedFormat('d M Y'),
                 'status' => $latestSidang instanceof ThesisDefense
@@ -409,8 +413,8 @@ class DashboardController extends Controller
 
             return [
                 'key' => $key,
-                'label' => $this->workflowLabel($key),
-                'description' => $this->workflowDescription($key),
+                'label' => $this->workflowLabel($key, $project),
+                'description' => $this->workflowDescription($key, $project),
             ];
         }
 
@@ -438,8 +442,8 @@ class DashboardController extends Controller
 
             return [
                 'key' => $key,
-                'label' => $this->workflowLabel($key),
-                'description' => $this->workflowDescription($key),
+                'label' => $this->workflowLabel($key, $project),
+                'description' => $this->workflowDescription($key, $project),
             ];
         }
 
@@ -476,52 +480,56 @@ class DashboardController extends Controller
 
         return [
             'key' => $key,
-            'label' => $this->workflowLabel($key),
-            'description' => $this->workflowDescription($key),
+            'label' => $this->workflowLabel($key, $project),
+            'description' => $this->workflowDescription($key, $project),
         ];
     }
 
-    private function workflowLabel(string $key): string
+    private function workflowLabel(string $key, ThesisProject $project): string
     {
+        $terms = AcademicTerminology::forProject($project);
+
         return match ($key) {
             'title_review_pending' => 'Menunggu Persetujuan',
             'title_approved' => 'Judul Disetujui',
             'title_rejected' => 'Judul Tidak Disetujui',
             'project_cancelled' => 'Proyek Dibatalkan',
-            'sempro_scheduled' => 'Sempro Dijadwalkan',
-            'sempro_waiting_result' => 'Menunggu Hasil Sempro',
-            'sempro_revision' => 'Revisi Sempro',
-            'sempro_failed' => 'Sempro Tidak Lulus',
-            'sempro_passed' => 'Sempro Selesai',
+            'sempro_scheduled' => $terms['proposalExamShort'].' Dijadwalkan',
+            'sempro_waiting_result' => 'Menunggu Hasil '.$terms['proposalExamShort'],
+            'sempro_revision' => 'Revisi '.$terms['proposalExamShort'],
+            'sempro_failed' => $terms['proposalExamShort'].' Tidak Lulus',
+            'sempro_passed' => $terms['proposalExamShort'].' Selesai',
             'research_in_progress' => 'Penelitian Berjalan',
-            'sidang_scheduled' => 'Sidang Dijadwalkan',
-            'sidang_waiting_result' => 'Menunggu Hasil Sidang',
-            'sidang_revision' => 'Revisi Sidang',
-            'completed' => 'Sidang Selesai',
-            'sidang_failed' => 'Sidang Tidak Lulus',
+            'sidang_scheduled' => $terms['finalExam'].' Dijadwalkan',
+            'sidang_waiting_result' => 'Menunggu Hasil '.$terms['finalExam'],
+            'sidang_revision' => 'Revisi '.$terms['finalExam'],
+            'completed' => $terms['finalExam'].' Selesai',
+            'sidang_failed' => $terms['finalExam'].' Tidak Lulus',
             default => 'Belum Memulai',
         };
     }
 
-    private function workflowDescription(string $key): string
+    private function workflowDescription(string $key, ThesisProject $project): string
     {
+        $terms = AcademicTerminology::forProject($project);
+
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
-            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan sempro.',
+            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan '.$terms['proposalExamShort'].'.',
             'title_rejected' => 'Pengajuan judul dan proposal tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
-            'project_cancelled' => 'Proyek tugas akhir ini sudah dibatalkan oleh admin.',
-            'sempro_scheduled' => 'Sempro sudah dijadwalkan. Siapkan proposal dan presentasi terbaik Anda.',
-            'sempro_waiting_result' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
-            'sempro_revision' => 'Sempro selesai dengan revisi. Cek catatan penguji dan unggah dokumen perbaikan.',
-            'sempro_failed' => 'Sempro belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
-            'sempro_passed' => 'Tahap sempro telah selesai. Menunggu penetapan pembimbing aktif atau progres berikutnya.',
+            'project_cancelled' => 'Proyek '.$terms['finalWorkLower'].' ini sudah dibatalkan oleh admin.',
+            'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Siapkan proposal dan presentasi terbaik Anda.',
+            'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
+            'sempro_revision' => $terms['proposalExamShort'].' selesai dengan revisi. Cek catatan penguji dan unggah dokumen perbaikan.',
+            'sempro_failed' => $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
+            'sempro_passed' => 'Tahap '.$terms['proposalExamShort'].' telah selesai. Menunggu penetapan pembimbing aktif atau progres berikutnya.',
             'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan penelitian, bimbingan, dan pengumpulan dokumen.',
-            'sidang_scheduled' => 'Sidang skripsi sudah dijadwalkan. Pastikan dokumen akhir Anda lengkap.',
-            'sidang_waiting_result' => 'Seluruh keputusan dosen untuk sidang sudah masuk. Menunggu hasil resmi dari admin.',
-            'sidang_revision' => 'Sidang selesai dengan revisi. Tindak lanjuti masukan tim sidang.',
-            'completed' => 'Tahap sidang skripsi telah selesai.',
-            'sidang_failed' => 'Sidang belum lulus. Segera koordinasikan langkah berikutnya dengan admin dan pembimbing.',
-            default => 'Mulai dari pengajuan judul dan proposal tugas akhir Anda.',
+            'sidang_scheduled' => $terms['finalExam'].' sudah dijadwalkan. Pastikan dokumen akhir Anda lengkap.',
+            'sidang_waiting_result' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
+            'sidang_revision' => $terms['finalExam'].' selesai dengan revisi. Tindak lanjuti masukan tim penguji.',
+            'completed' => 'Tahap '.$terms['finalExam'].' telah selesai.',
+            'sidang_failed' => $terms['finalExam'].' belum lulus. Segera koordinasikan langkah berikutnya dengan admin dan pembimbing.',
+            default => 'Mulai dari pengajuan judul dan proposal '.$terms['finalWorkLower'].' Anda.',
         };
     }
 

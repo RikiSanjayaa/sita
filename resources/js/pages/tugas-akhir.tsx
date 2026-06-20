@@ -38,11 +38,7 @@ import {
 } from '@/lib/academic-grade';
 import { cn } from '@/lib/utils';
 import { dashboard, tugasAkhir } from '@/routes';
-import {
-    type BreadcrumbItem,
-    type SharedData,
-    type UserProfileSummary,
-} from '@/types';
+import { type SharedData, type UserProfileSummary } from '@/types';
 
 type Submission = {
     id: number;
@@ -235,11 +231,6 @@ type DefenseDocumentFormData = {
     supporting_document_ids: string[];
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Tugas Akhir', href: tugasAkhir().url },
-];
-
 function normalizeTitleEn(value: string | null | undefined): string {
     if (value === null || value === '-' || value === undefined) return '';
     return value;
@@ -320,16 +311,18 @@ function SubmissionFields({
     form,
     fileRequired,
     idPrefix,
+    finalWork,
 }: {
     form: ReturnType<typeof useForm<FormData>>;
     fileRequired: boolean;
     idPrefix: string;
+    finalWork: string;
 }) {
     return (
         <div className="space-y-5">
             <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}title_id`}>
-                    Judul Skripsi (Bahasa Indonesia)
+                    Judul {finalWork} (Bahasa Indonesia)
                 </Label>
                 <Textarea
                     id={`${idPrefix}title_id`}
@@ -347,7 +340,7 @@ function SubmissionFields({
 
             <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}title_en`}>
-                    Judul Skripsi (Bahasa Inggris)
+                    Judul {finalWork} (Bahasa Inggris)
                 </Label>
                 <Textarea
                     id={`${idPrefix}title_en`}
@@ -474,6 +467,7 @@ function DefenseDocumentSelectionSection({
     form,
     onSubmit,
     allowSupportingFiles,
+    finalExamLabel,
 }: {
     title: string;
     description: string;
@@ -482,6 +476,7 @@ function DefenseDocumentSelectionSection({
     form: ReturnType<typeof useForm<DefenseDocumentFormData>>;
     onSubmit: FormEventHandler;
     allowSupportingFiles: boolean;
+    finalExamLabel: string;
 }) {
     const [mainSearch, setMainSearch] = useState('');
     const [supportingSearch, setSupportingSearch] = useState('');
@@ -717,7 +712,9 @@ function DefenseDocumentSelectionSection({
                             {allowSupportingFiles &&
                                 supportingOptions.length > 0 && (
                                     <div className="grid gap-2">
-                                        <Label>Lampiran pendukung sidang</Label>
+                                        <Label>
+                                            Lampiran pendukung {finalExamLabel}
+                                        </Label>
                                         <div className="space-y-3">
                                             <div className="flex min-h-11 flex-wrap gap-2 rounded-md border px-3 py-2">
                                                 {selectedSupportingDocuments.length >
@@ -1001,9 +998,11 @@ function DefenseResultSection({
 function DefenseHistoryRow({
     item,
     type,
+    typeLabel,
 }: {
     item: TugasAkhirPageProps['defenseHistory']['sempro'][number];
     type: 'sempro' | 'sidang';
+    typeLabel: string;
 }) {
     const [expanded, setExpanded] = useState(false);
     const averageScore = calculateAverageAcademicScore(
@@ -1033,8 +1032,7 @@ function DefenseHistoryRow({
                                 : 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
                         )}
                     >
-                        {type === 'sempro' ? 'Sempro' : 'Sidang'} #
-                        {item.attemptNo}
+                        {typeLabel} #{item.attemptNo}
                     </span>
                 </td>
 
@@ -1387,10 +1385,12 @@ function DefenseHistorySection({
     title,
     items,
     type,
+    typeLabel,
 }: {
     title: string;
     items: TugasAkhirPageProps['defenseHistory']['sempro'];
     type: 'sempro' | 'sidang';
+    typeLabel: string;
 }) {
     if (items.length === 0) return null;
 
@@ -1431,6 +1431,7 @@ function DefenseHistorySection({
                                 key={item.id}
                                 item={item}
                                 type={type}
+                                typeLabel={typeLabel}
                             />
                         ))}
                     </tbody>
@@ -1456,6 +1457,7 @@ export default function TugasAkhirSaya() {
         defenseHistory,
         flashMessage,
         errorMessage,
+        academicTerminology: terms,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
 
     const [isEditing, setIsEditing] = useState(false);
@@ -1521,11 +1523,14 @@ export default function TugasAkhirSaya() {
 
     return (
         <AppLayout
-            breadcrumbs={breadcrumbs}
-            title="Tugas Akhir"
-            subtitle="Judul, proposal, seminar, dan sidang skripsi Anda"
+            breadcrumbs={[
+                { title: 'Dashboard', href: dashboard().url },
+                { title: terms.finalWork, href: tugasAkhir().url },
+            ]}
+            title={terms.finalWork}
+            subtitle={`Judul, proposal, seminar, dan ${terms.finalExam.toLowerCase()} Anda`}
         >
-            <Head title="Tugas Akhir" />
+            <Head title={terms.finalWork} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 md:px-6">
                 {/* Flash / Error */}
@@ -1546,7 +1551,7 @@ export default function TugasAkhirSaya() {
                             </h2>
                             <p className="text-sm text-muted-foreground">
                                 {submission === null
-                                    ? 'Isi formulir di bawah ini untuk memulai pengajuan skripsi Anda.'
+                                    ? `Isi formulir di bawah ini untuk memulai pengajuan ${terms.finalWorkLower} Anda.`
                                     : 'Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan proposal baru dari formulir ini.'}
                             </p>
                         </div>
@@ -1560,6 +1565,7 @@ export default function TugasAkhirSaya() {
                                         form={form}
                                         fileRequired
                                         idPrefix="create_"
+                                        finalWork={terms.finalWork}
                                     />
                                     <Button
                                         type="submit"
@@ -1616,7 +1622,7 @@ export default function TugasAkhirSaya() {
                             <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
                                 <SectionHeader
                                     title="Informasi Judul"
-                                    description="Judul dan ringkasan proposal skripsi terbaru"
+                                    description={`Judul dan ringkasan proposal ${terms.finalWorkLower} terbaru`}
                                     action={
                                         !isEditing ? (
                                             <Button
@@ -1653,6 +1659,7 @@ export default function TugasAkhirSaya() {
                                                 form={form}
                                                 fileRequired={false}
                                                 idPrefix="edit_"
+                                                finalWork={terms.finalWork}
                                             />
                                             <div className="flex flex-wrap gap-2">
                                                 <Button
@@ -1796,23 +1803,25 @@ export default function TugasAkhirSaya() {
                         )}
 
                         <DefenseDocumentSelectionSection
-                            title="Dokumen Seminar Proposal"
-                            description="Pilih file dari workspace untuk dijadikan snapshot resmi pada sempro aktif. File bisa diganti sampai hasil sempro ditetapkan."
+                            title={`Dokumen ${terms.proposalExam}`}
+                            description={`Pilih file dari workspace untuk dijadikan snapshot resmi pada ${terms.proposalExamShort} aktif. File bisa diganti sampai hasil ${terms.proposalExamShort} ditetapkan.`}
                             workspaceDocuments={workspaceDocuments}
                             selection={semproSelection}
                             form={semproForm}
                             onSubmit={updateSemproDocuments}
                             allowSupportingFiles={false}
+                            finalExamLabel={terms.finalExam}
                         />
 
                         <DefenseDocumentSelectionSection
-                            title="Dokumen Sidang"
-                            description="Pilih naskah akhir utama dan lampiran pendukung dari workspace. Snapshot ini dipakai untuk sidang aktif dan bisa diperbarui sampai hasil sidang ditetapkan."
+                            title={`Dokumen ${terms.finalExam}`}
+                            description={`Pilih naskah akhir utama dan lampiran pendukung dari workspace. Snapshot ini dipakai untuk ${terms.finalExam.toLowerCase()} aktif dan bisa diperbarui sampai hasilnya ditetapkan.`}
                             workspaceDocuments={workspaceDocuments}
                             selection={sidangSelection}
                             form={sidangForm}
                             onSubmit={updateSidangDocuments}
                             allowSupportingFiles
+                            finalExamLabel={terms.finalExam}
                         />
 
                         {/* ── Dosen Pembimbing & Penguji ── */}
@@ -1820,7 +1829,7 @@ export default function TugasAkhirSaya() {
                             <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
                                 <SectionHeader
                                     title="Dosen Pembimbing & Penguji"
-                                    description="Dosen yang terlibat pada sempro dan sidang skripsi Anda"
+                                    description={`Dosen yang terlibat pada ${terms.proposalExamShort} dan ${terms.finalExam.toLowerCase()} Anda`}
                                 />
                                 <div className="grid gap-6 p-5 xl:grid-cols-3">
                                     {/* Pembimbing */}
@@ -1831,7 +1840,8 @@ export default function TugasAkhirSaya() {
                                                 Dosen Pembimbing
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Pembimbing aktif skripsi
+                                                Pembimbing aktif{' '}
+                                                {terms.finalWorkLower}
                                             </p>
                                         </div>
                                         {advisorProfiles.length > 0 ? (
@@ -1859,10 +1869,12 @@ export default function TugasAkhirSaya() {
                                         <div>
                                             <p className="flex items-center gap-1.5 text-sm font-semibold">
                                                 <Users className="size-4 text-cyan-600" />
-                                                Penguji Sempro
+                                                Penguji{' '}
+                                                {terms.proposalExamShort}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Penguji pada seminar proposal
+                                                Penguji pada{' '}
+                                                {terms.proposalExam.toLowerCase()}{' '}
                                                 terbaru
                                             </p>
                                         </div>
@@ -1880,7 +1892,8 @@ export default function TugasAkhirSaya() {
                                             </div>
                                         ) : (
                                             <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                                Belum ada dosen penguji sempro.
+                                                Belum ada dosen penguji{' '}
+                                                {terms.proposalExamShort}.
                                             </div>
                                         )}
                                     </div>
@@ -1890,10 +1903,11 @@ export default function TugasAkhirSaya() {
                                         <div>
                                             <p className="flex items-center gap-1.5 text-sm font-semibold">
                                                 <Users className="size-4 text-purple-600" />
-                                                Penguji Sidang
+                                                Penguji {terms.finalExam}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Penguji pada sidang skripsi
+                                                Penguji pada{' '}
+                                                {terms.finalExam.toLowerCase()}{' '}
                                                 terbaru
                                             </p>
                                         </div>
@@ -1904,14 +1918,15 @@ export default function TugasAkhirSaya() {
                                                         <PersonCardLink
                                                             key={`${person.id}-sidang-${index}`}
                                                             person={person}
-                                                            label={`Penguji Sidang ${index + 1}`}
+                                                            label={`Penguji ${terms.finalExam} ${index + 1}`}
                                                         />
                                                     ),
                                                 )}
                                             </div>
                                         ) : (
                                             <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                                Belum ada dosen penguji sidang.
+                                                Belum ada dosen penguji{' '}
+                                                {terms.finalExam.toLowerCase()}.
                                             </div>
                                         )}
                                     </div>
@@ -1922,30 +1937,32 @@ export default function TugasAkhirSaya() {
                         {/* ── Hasil sidang ── */}
                         {semproResult && (
                             <DefenseResultSection
-                                title="Hasil Seminar Proposal"
+                                title={`Hasil ${terms.proposalExam}`}
                                 result={semproResult}
                             />
                         )}
 
                         {sidangResult && (
                             <DefenseResultSection
-                                title="Hasil Sidang Skripsi"
+                                title={`Hasil ${terms.finalExam}`}
                                 result={sidangResult}
                             />
                         )}
 
                         {/* ── Riwayat sempro ── */}
                         <DefenseHistorySection
-                            title="Riwayat Seminar Proposal"
+                            title={`Riwayat ${terms.proposalExam}`}
                             items={defenseHistory.sempro}
                             type="sempro"
+                            typeLabel={terms.proposalExamShort}
                         />
 
                         {/* ── Riwayat sidang ── */}
                         <DefenseHistorySection
-                            title="Riwayat Sidang Skripsi"
+                            title={`Riwayat ${terms.finalExam}`}
                             items={defenseHistory.sidang}
                             type="sidang"
+                            typeLabel={terms.finalExam}
                         />
                     </>
                 )}

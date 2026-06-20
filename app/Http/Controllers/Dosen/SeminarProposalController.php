@@ -10,6 +10,7 @@ use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisDefenseRevisionService;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -41,6 +42,9 @@ class SeminarProposalController extends Controller
             $project = $defense?->project;
             $student = $project?->student;
             $title = $project?->latestTitle;
+            $terminology = $project === null
+                ? AcademicTerminology::neutral()
+                : AcademicTerminology::forProject($project);
 
             $otherExaminers = $defense?->examiners
                 ?->filter(fn(ThesisDefenseExaminer $item) => $item->lecturer_user_id !== $lecturer->id)
@@ -78,7 +82,10 @@ class SeminarProposalController extends Controller
             return [
                 'defenseId' => $defense?->id,
                 'type' => $defense?->type,
-                'typeLabel' => $defense?->type === 'sidang' ? 'Sidang' : 'Sempro',
+                'typeLabel' => $defense?->type === 'sidang'
+                    ? $terminology['finalExam']
+                    : $terminology['proposalExamShort'],
+                'terminology' => $terminology,
                 'attemptNo' => $defense?->attempt_no,
                 'studentName' => $student?->name ?? '-',
                 'studentNim' => $student?->mahasiswaProfile?->nim ?? '-',

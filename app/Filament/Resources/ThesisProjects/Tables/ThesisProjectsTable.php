@@ -89,12 +89,12 @@ class ThesisProjectsTable
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sempro_attempts_count')
-                    ->label('Sempro')
+                    ->label('Proposal')
                     ->numeric()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sidang_attempts_count')
-                    ->label('Sidang')
+                    ->label('Ujian Akhir')
                     ->numeric()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -275,9 +275,9 @@ class ThesisProjectsTable
     {
         return match ($phase) {
             'title_review' => 'Review Judul',
-            'sempro' => 'Sempro',
+            'sempro' => 'Proposal',
             'research' => 'Riset',
-            'sidang' => 'Sidang',
+            'sidang' => 'Ujian Akhir',
             'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
             default => ucwords(str_replace('_', ' ', $phase)),

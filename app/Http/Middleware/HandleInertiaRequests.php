@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\KaprodiAssignment;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -100,6 +101,9 @@ class HandleInertiaRequests extends Middleware
             'notificationSettings' => $notificationSettings,
             'notifications' => $notifications,
             'unreadNotificationCount' => $unreadNotificationCount,
+            'academicTerminology' => $user?->hasRole('mahasiswa')
+                ? AcademicTerminology::forStudent($user)
+                : AcademicTerminology::neutral(),
         ];
     }
 }

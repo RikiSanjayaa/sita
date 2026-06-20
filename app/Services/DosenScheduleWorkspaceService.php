@@ -6,6 +6,7 @@ use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -101,7 +102,7 @@ class DosenScheduleWorkspaceService
     private function defenseEvents(User $lecturer): Collection
     {
         return ThesisDefenseExaminer::query()
-            ->with(['defense.project.student'])
+            ->with(['defense.project.student.mahasiswaProfile'])
             ->where('lecturer_user_id', $lecturer->id)
             ->whereHas('defense', fn($query) => $query->whereNotNull('scheduled_for'))
             ->get()
@@ -114,7 +115,12 @@ class DosenScheduleWorkspaceService
                     return null;
                 }
 
-                $label = $defense?->type === 'sidang' ? 'Sidang' : 'Sempro';
+                $terminology = $defense?->project === null
+                    ? AcademicTerminology::neutral()
+                    : AcademicTerminology::forProject($defense->project);
+                $label = $defense?->type === 'sidang'
+                    ? $terminology['finalExam']
+                    : $terminology['proposalExamShort'];
                 $status = $defense?->status === 'scheduled'
                     ? 'scheduled'
                     : ($defense?->status ?? 'cancelled');

@@ -52,6 +52,7 @@ import {
     type AcademicGrade,
     academicGradeClassName,
 } from '@/lib/academic-grade';
+import { type AcademicTerminology } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -79,6 +80,7 @@ type ExamRow = {
     averageScore: number | null;
     grade: string | null;
     student: string;
+    terminology: AcademicTerminology;
     nim: string | null;
     title: string;
     attempt: number;
@@ -97,6 +99,7 @@ type SchedulableProject = {
     student: string;
     nim: string | null;
     title: string;
+    terminology: AcademicTerminology;
     phase: string;
     supervisors: {
         id: number;
@@ -144,7 +147,7 @@ type ScheduleDialogState = {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
-    { title: 'Sempro & Sidang', href: '/kaprodi/sempro-sidang' },
+    { title: 'Proposal & Ujian Akhir', href: '/kaprodi/sempro-sidang' },
 ];
 
 const PAGE_SIZE = 15;
@@ -251,8 +254,8 @@ export default function KaprodiSemproSidangPage() {
 
     const typeTabs: { label: string; value: TypeFilter }[] = [
         { label: 'Semua', value: 'semua' },
-        { label: 'Sempro', value: 'sempro' },
-        { label: 'Sidang', value: 'sidang' },
+        { label: 'Proposal', value: 'sempro' },
+        { label: 'Ujian Akhir', value: 'sidang' },
     ];
 
     const statusTabs: { label: string; value: StatusFilter; count?: number }[] =
@@ -282,10 +285,10 @@ export default function KaprodiSemproSidangPage() {
     return (
         <KaprodiLayout
             breadcrumbs={breadcrumbs}
-            title="Sempro & Sidang"
+            title="Proposal & Ujian Akhir"
             subtitle={`Monitoring ujian dan jadwal untuk ${programStudi.name}`}
         >
-            <Head title="Sempro & Sidang" />
+            <Head title="Proposal & Ujian Akhir" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
                 <section>
@@ -294,8 +297,8 @@ export default function KaprodiSemproSidangPage() {
                             Kalender Ujian Prodi
                         </h2>
                         <p className="text-sm text-muted-foreground">
-                            Kalender sempro dan sidang dari seluruh mahasiswa
-                            prodi.
+                            Kalender ujian proposal dan ujian akhir dari seluruh
+                            mahasiswa prodi.
                         </p>
                     </div>
                     <BimbinganCalendar
@@ -330,7 +333,7 @@ export default function KaprodiSemproSidangPage() {
                                             }
                                         >
                                             <Plus className="size-4" />
-                                            Jadwalkan Sempro
+                                            Jadwalkan Proposal
                                         </Button>
                                     ) : null}
                                     {canScheduleSidang ? (
@@ -345,7 +348,7 @@ export default function KaprodiSemproSidangPage() {
                                             }
                                         >
                                             <Plus className="size-4" />
-                                            Jadwalkan Sidang
+                                            Jadwalkan Ujian Akhir
                                         </Button>
                                     ) : null}
                                 </div>
@@ -831,14 +834,16 @@ function ScheduleDialog({
     const currentProject = projects.find(
         (project) => String(project.id) === form.data.project_id,
     );
+    const terms =
+        currentProject?.terminology ?? state?.exam?.terminology ?? null;
     const title =
         activeState.type === 'sempro'
             ? activeState.exam
-                ? 'Ubah Jadwal Sempro'
-                : 'Jadwalkan Sempro'
+                ? `Ubah Jadwal ${terms?.proposalExamShort ?? 'Proposal'}`
+                : `Jadwalkan ${terms?.proposalExamShort ?? 'Proposal'}`
             : activeState.exam
-              ? 'Ubah Jadwal Sidang'
-              : 'Jadwalkan Sidang';
+              ? `Ubah Jadwal ${terms?.finalExam ?? 'Ujian Akhir'}`
+              : `Jadwalkan ${terms?.finalExam ?? 'Ujian Akhir'}`;
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
@@ -961,7 +966,7 @@ function ScheduleDialog({
                                 onChange={(event) =>
                                     form.setData('location', event.target.value)
                                 }
-                                placeholder="Ruang sidang / tautan meeting"
+                                placeholder="Ruang ujian / tautan meeting"
                             />
                         </div>
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
@@ -988,7 +993,7 @@ function ScheduleDialog({
                             </p>
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                                 <LecturerSearchSelect
-                                    label="Penguji Sempro 1"
+                                    label={`Penguji ${terms?.proposalExamShort ?? 'Proposal'} 1`}
                                     value={form.data.examiner_1_user_id}
                                     onChange={(value) =>
                                         form.setData(
@@ -1004,7 +1009,7 @@ function ScheduleDialog({
                                     error={form.errors.examiner_1_user_id}
                                 />
                                 <LecturerSearchSelect
-                                    label="Penguji Sempro 2 (Opsional)"
+                                    label={`Penguji ${terms?.proposalExamShort ?? 'Proposal'} 2 (Opsional)`}
                                     value={form.data.examiner_2_user_id}
                                     onChange={(value) =>
                                         form.setData(
@@ -1024,7 +1029,7 @@ function ScheduleDialog({
                         </div>
                     ) : (
                         <LecturerMultiSearch
-                            label="Penguji Sidang Tambahan"
+                            label={`Penguji ${terms?.finalExam ?? 'Ujian Akhir'} Tambahan`}
                             values={form.data.additional_examiner_user_ids}
                             onChange={(values) =>
                                 form.setData(

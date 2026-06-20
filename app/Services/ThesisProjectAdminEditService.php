@@ -7,6 +7,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -97,7 +98,7 @@ class ThesisProjectAdminEditService
                     'uploaded_by_user_id' => $admin->id,
                     'status' => 'active',
                     'version_no' => $currentTitle->version_no,
-                    'title' => 'Proposal Skripsi',
+                    'title' => 'Proposal '.AcademicTerminology::forProject($project)['finalWork'],
                     'notes' => $currentProposal?->notes,
                     'storage_disk' => 'public',
                     'storage_path' => $path,

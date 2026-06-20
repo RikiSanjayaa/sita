@@ -7,6 +7,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisRevision;
 use App\Models\User;
 use App\Notifications\RealtimeNotification;
+use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -126,7 +127,10 @@ class ReminderDeadlineNotificationService
                 continue;
             }
 
-            $typeLabel = $defense->type === 'sidang' ? 'sidang' : 'sempro';
+            $terminology = AcademicTerminology::forProject($defense->project);
+            $typeLabel = $defense->type === 'sidang'
+                ? $terminology['finalExam']
+                : $terminology['proposalExamShort'];
             $formattedDate = WitaDateTime::translated($defense->scheduled_for, 'd M Y, H:i');
             $windowLabel = $this->windowLabel($window);
 
@@ -137,7 +141,7 @@ class ReminderDeadlineNotificationService
                     'title' => sprintf('Reminder %s', $typeLabel),
                     'description' => sprintf(
                         '%s Anda %s pada %s di %s.',
-                        ucfirst($typeLabel),
+                        $typeLabel,
                         $windowLabel,
                         $formattedDate,
                         $defense->location ?? 'lokasi yang ditentukan',
@@ -162,7 +166,7 @@ class ReminderDeadlineNotificationService
                         'title' => sprintf('Reminder %s', $typeLabel),
                         'description' => sprintf(
                             '%s %s untuk %s %s pada %s di %s.',
-                            ucfirst($typeLabel),
+                            $typeLabel,
                             $windowLabel,
                             $defense->project->student->name,
                             $window === self::WINDOW_HOUR ? 'dimulai' : 'berlangsung',
@@ -201,10 +205,11 @@ class ReminderDeadlineNotificationService
 
             $formattedDate = WitaDateTime::translated($revision->due_at, 'd M Y, H:i');
             $windowLabel = $this->windowLabel($window);
+            $terminology = AcademicTerminology::forProject($revision->project);
             $revisionContext = match ($revision->defense?->type) {
-                'sidang' => 'revisi sidang',
-                'sempro' => 'revisi sempro',
-                default => 'revisi tugas akhir',
+                'sidang' => 'revisi '.mb_strtolower($terminology['finalExam']),
+                'sempro' => 'revisi '.mb_strtolower($terminology['proposalExamShort']),
+                default => 'revisi '.$terminology['finalWorkLower'],
             };
 
             $count += $this->sendReminder(

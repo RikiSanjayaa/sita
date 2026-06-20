@@ -38,7 +38,7 @@ type Pembimbing = {
 };
 
 export default function EditProfile() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, academicTerminology } = usePage<SharedData>().props;
     const getInitials = useInitials();
 
     const userAny = auth.user as unknown as Record<string, unknown>;
@@ -311,16 +311,19 @@ export default function EditProfile() {
 
                 <Card className="overflow-hidden py-0 shadow-sm">
                     <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <CardTitle>Informasi Skripsi</CardTitle>
+                        <CardTitle>
+                            Informasi {academicTerminology.finalWork}
+                        </CardTitle>
                         <CardDescription>
-                            Detail pembimbingan skripsi Anda
+                            Detail pembimbingan{' '}
+                            {academicTerminology.finalWorkLower} Anda
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pb-6">
                         <div className="grid gap-6">
                             <div className="grid gap-1">
                                 <div className="text-xs text-muted-foreground">
-                                    Judul Skripsi
+                                    Judul {academicTerminology.finalWork}
                                 </div>
                                 <div className="text-sm font-medium">
                                     {tugasAkhir.judul}

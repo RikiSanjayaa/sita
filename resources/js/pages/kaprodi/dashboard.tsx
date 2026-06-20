@@ -118,7 +118,7 @@ export default function KaprodiDashboardPage() {
             primary: true,
         },
         {
-            title: 'Sempro & Sidang',
+            title: 'Proposal & Ujian Akhir',
             description:
                 'Pantau jadwal, status ujian, hasil, dan revisi terbuka.',
             href: '/kaprodi/sempro-sidang',
@@ -414,7 +414,7 @@ export default function KaprodiDashboardPage() {
 
                         <Card className={sectionCardClass}>
                             <CardHeader className={sectionCardHeaderClass}>
-                                <CardTitle>Sempro & Sidang</CardTitle>
+                                <CardTitle>Proposal & Ujian Akhir</CardTitle>
                                 <CardDescription>
                                     Ringkasan status attempt ujian.
                                 </CardDescription>
@@ -437,7 +437,7 @@ export default function KaprodiDashboardPage() {
                                 ) : (
                                     <EmptyState
                                         icon={ClipboardCheck}
-                                        title="Belum ada sempro atau sidang"
+                                        title="Belum ada ujian proposal atau ujian akhir"
                                         description="Attempt ujian akan tampil saat data tersedia."
                                     />
                                 )}

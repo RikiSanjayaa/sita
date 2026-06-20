@@ -23,13 +23,13 @@ class AdminOverviewStats extends StatsOverviewWidget
         $metrics = $service->metrics($user);
 
         return [
-            Stat::make('Gap Sempro Fase Awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
-                ->description("{$metrics['needsSempro']} dari {$metrics['earlyStageProjects']} proyek fase awal belum punya sempro")
+            Stat::make('Gap Proposal Fase Awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
+                ->description("{$metrics['needsSempro']} dari {$metrics['earlyStageProjects']} proyek fase awal belum punya ujian proposal")
                 ->descriptionIcon('heroicon-m-clock', IconPosition::Before)
                 ->chart($service->weeklyMetricHistory($user, 'needs_sempro'))
                 ->color('warning'),
-            Stat::make('Gap Sidang Fase Lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
-                ->description("{$metrics['needsSidang']} dari {$metrics['lateStageProjects']} proyek fase lanjut belum punya sidang")
+            Stat::make('Gap Ujian Akhir Fase Lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
+                ->description("{$metrics['needsSidang']} dari {$metrics['lateStageProjects']} proyek fase lanjut belum punya ujian akhir")
                 ->descriptionIcon('heroicon-m-academic-cap', IconPosition::Before)
                 ->chart($service->weeklyMetricHistory($user, 'needs_sidang'))
                 ->color('primary'),

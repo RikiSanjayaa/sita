@@ -9,6 +9,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -187,7 +188,9 @@ class WelcomeController extends Controller
                 return [
                     'id' => $defense->id,
                     'type' => $defense->type,
-                    'typeLabel' => $defense->type === 'sidang' ? 'Sidang' : 'Sempro',
+                    'typeLabel' => $defense->type === 'sidang'
+                        ? AcademicTerminology::forProject($project)['finalExam']
+                        : AcademicTerminology::forProject($project)['proposalExamShort'],
                     'studentName' => $project?->student?->name ?? '-',
                     'studentNim' => $project?->student?->mahasiswaProfile?->nim ?? '-',
                     'programStudi' => $project?->programStudi?->name ?? '-',
@@ -250,7 +253,9 @@ class WelcomeController extends Controller
                 return [
                     'id' => $defense->id,
                     'type' => $defense->type,
-                    'typeLabel' => $defense->type === 'sidang' ? 'Sidang' : 'Sempro',
+                    'typeLabel' => $defense->type === 'sidang'
+                        ? AcademicTerminology::forProject($project)['finalExam']
+                        : AcademicTerminology::forProject($project)['proposalExamShort'],
                     'studentName' => $project?->student?->name ?? '-',
                     'studentNim' => $project?->student?->mahasiswaProfile?->nim ?? '-',
                     'programStudi' => $project?->programStudi?->name ?? '-',
@@ -439,6 +444,8 @@ class WelcomeController extends Controller
                     'year' => $latestSidang?->scheduled_for?->format('Y') ?? '-',
                     'seminarDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
                     'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+                    'proposalExamLabel' => AcademicTerminology::forProject($project)['proposalExamShort'],
+                    'finalExamLabel' => AcademicTerminology::forProject($project)['finalExam'],
                     'advisors' => $displayAdvisors
                         ->map(fn($assignment): array => [
                             'name' => $assignment->lecturer?->name ?? '-',
@@ -627,6 +634,8 @@ class WelcomeController extends Controller
             ];
         }
 
+        $terms = AcademicTerminology::forProject($project);
+
         $latestSidang = $project->defenses
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
@@ -635,18 +644,18 @@ class WelcomeController extends Controller
         if ($latestSidang instanceof ThesisDefense) {
             return match ($latestSidang->status) {
                 'scheduled' => [
-                    'label' => 'Sidang Terjadwal',
-                    'description' => 'Mahasiswa sedang bersiap menuju sidang akhir.',
+                    'label' => $terms['finalExam'].' Terjadwal',
+                    'description' => 'Mahasiswa sedang bersiap menuju '.$terms['finalExam'].'.',
                 ],
                 'completed' => [
-                    'label' => $latestSidang->result === 'pass_with_revision' ? 'Revisi Sidang' : 'Tahap Sidang',
+                    'label' => $latestSidang->result === 'pass_with_revision' ? 'Revisi '.$terms['finalExam'] : 'Tahap '.$terms['finalExam'],
                     'description' => $latestSidang->result === 'pass_with_revision'
-                        ? 'Sidang selesai dan masih ada revisi yang berjalan.'
-                        : 'Status sidang mahasiswa masih dalam proses tindak lanjut.',
+                        ? $terms['finalExam'].' selesai dan masih ada revisi yang berjalan.'
+                        : 'Status '.$terms['finalExam'].' mahasiswa masih dalam proses tindak lanjut.',
                 ],
                 default => [
-                    'label' => 'Tahap Sidang',
-                    'description' => 'Mahasiswa sedang berada pada fase sidang.',
+                    'label' => 'Tahap '.$terms['finalExam'],
+                    'description' => 'Mahasiswa sedang berada pada fase '.$terms['finalExam'].'.',
                 ],
             };
         }
@@ -659,17 +668,17 @@ class WelcomeController extends Controller
         if ($latestSempro instanceof ThesisDefense) {
             return match ($latestSempro->status) {
                 'scheduled' => [
-                    'label' => 'Sempro Terjadwal',
-                    'description' => 'Mahasiswa sedang menuju pelaksanaan seminar proposal.',
+                    'label' => $terms['proposalExamShort'].' Terjadwal',
+                    'description' => 'Mahasiswa sedang menuju pelaksanaan '.$terms['proposalExam'].'.',
                 ],
                 'completed' => [
-                    'label' => $latestSempro->result === 'pass_with_revision' ? 'Revisi Sempro' : 'Penelitian Berjalan',
+                    'label' => $latestSempro->result === 'pass_with_revision' ? 'Revisi '.$terms['proposalExamShort'] : 'Penelitian Berjalan',
                     'description' => $latestSempro->result === 'pass_with_revision'
-                        ? 'Sempro selesai dan perlu menindaklanjuti revisi.'
-                        : 'Sempro selesai, mahasiswa lanjut ke fase penelitian aktif.',
+                        ? $terms['proposalExamShort'].' selesai dan perlu menindaklanjuti revisi.'
+                        : $terms['proposalExamShort'].' selesai, mahasiswa lanjut ke fase penelitian aktif.',
                 ],
                 default => [
-                    'label' => 'Tahap Sempro',
+                    'label' => 'Tahap '.$terms['proposalExamShort'],
                     'description' => 'Proposal dan kesiapan seminar masih diproses.',
                 ],
             };

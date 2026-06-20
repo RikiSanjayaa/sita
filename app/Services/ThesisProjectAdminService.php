@@ -14,6 +14,7 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -27,7 +28,11 @@ class ThesisProjectAdminService
     public function approveTitleReview(ThesisProject $project, int $decidedBy, ?string $notes = null): ThesisProject
     {
         $title = $this->resolveSubmittedTitleForReview($project);
-        $notes = $notes ?: 'Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.';
+        $terminology = AcademicTerminology::forProject($project);
+        $notes = $notes ?: sprintf(
+            'Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap %s.',
+            $terminology['proposalExamShort'],
+        );
 
         $updatedProject = DB::transaction(function () use ($decidedBy, $notes, $project, $title): ThesisProject {
             $title->forceFill([
@@ -1208,17 +1213,17 @@ class ThesisProjectAdminService
             return;
         }
 
-        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+        $label = $this->defenseLabel($project, $type);
 
         $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
             'title' => $wasRescheduled
                 ? sprintf('Jadwal %s diperbarui', $label)
-                : sprintf('%s dijadwalkan', ucfirst($label)),
+                : sprintf('%s dijadwalkan', $label),
             'description' => sprintf(
                 $wasRescheduled
                     ? '%s Anda dijadwalkan ulang pada %s di %s.'
                     : '%s Anda dijadwalkan pada %s di %s.',
-                ucfirst($label),
+                $label,
                 $scheduledFor,
                 $location,
             ),
@@ -1239,7 +1244,7 @@ class ThesisProjectAdminService
         $project->loadMissing('activeSupervisorAssignments.lecturer');
         $defense?->loadMissing('examiners.lecturer');
 
-        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+        $label = $this->defenseLabel($project, $type);
         $recipients = $project->activeSupervisorAssignments
             ->map(fn(ThesisSupervisorAssignment $assignment): ?User => $assignment->lecturer)
             ->concat(
@@ -1254,12 +1259,12 @@ class ThesisProjectAdminService
             $this->realtimeNotificationService->notifyUser($recipient, 'statusTugasAkhir', [
                 'title' => $wasRescheduled
                     ? sprintf('Jadwal %s mahasiswa diperbarui', $label)
-                    : sprintf('%s mahasiswa dijadwalkan', ucfirst($label)),
+                    : sprintf('%s mahasiswa dijadwalkan', $label),
                 'description' => sprintf(
                     $wasRescheduled
                         ? '%s mahasiswa bimbingan Anda dijadwalkan ulang pada %s di %s.'
                         : '%s mahasiswa bimbingan Anda dijadwalkan pada %s di %s.',
-                    ucfirst($label),
+                    $label,
                     $scheduledFor,
                     $location,
                 ),
@@ -1282,12 +1287,12 @@ class ThesisProjectAdminService
             return;
         }
 
-        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+        $label = $this->defenseLabel($project, $type);
 
         $title = match ($result) {
             'pass' => sprintf('Hasil %s tersedia', $label),
-            'pass_with_revision' => sprintf('%s selesai dengan revisi', ucfirst($label)),
-            'fail' => sprintf('%s dinyatakan tidak lulus', ucfirst($label)),
+            'pass_with_revision' => sprintf('%s selesai dengan revisi', $label),
+            'fail' => sprintf('%s dinyatakan tidak lulus', $label),
             default => sprintf('Update %s tersedia', $label),
         };
 
@@ -1362,7 +1367,7 @@ class ThesisProjectAdminService
             return;
         }
 
-        $label = $type === 'sidang' ? 'sidang' : 'sempro';
+        $label = $this->defenseLabel($project, $type);
 
         $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
             'title' => sprintf('Revisi %s disetujui', $label),
@@ -1371,5 +1376,14 @@ class ThesisProjectAdminService
             'icon' => 'check-circle',
             'createdAt' => now()->toIso8601String(),
         ]);
+    }
+
+    private function defenseLabel(ThesisProject $project, string $type): string
+    {
+        $terminology = AcademicTerminology::forProject($project);
+
+        return $type === 'sidang'
+            ? $terminology['finalExam']
+            : $terminology['proposalExamShort'];
     }
 }

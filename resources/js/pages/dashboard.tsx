@@ -133,9 +133,13 @@ const activityTypeIcon: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-    const { summary, quickActionState, upcomingActivities, timeline } = usePage<
-        SharedData & DashboardProps
-    >().props;
+    const {
+        summary,
+        quickActionState,
+        upcomingActivities,
+        timeline,
+        academicTerminology: terms,
+    } = usePage<SharedData & DashboardProps>().props;
 
     const quickActions: Array<{
         title: string;
@@ -148,10 +152,10 @@ export default function DashboardPage() {
         {
             title: quickActionState.canSubmitTitle
                 ? 'Ajukan Judul'
-                : 'Buka Tugas Akhir',
+                : `Buka ${terms.finalWork}`,
             description: quickActionState.canSubmitTitle
-                ? 'Mulai pengajuan judul dan proposal tugas akhir.'
-                : 'Lihat status proposal, dosen, dan detail tugas akhir.',
+                ? `Mulai pengajuan judul dan proposal ${terms.finalWorkLower}.`
+                : `Lihat status proposal, dosen, dan detail ${terms.finalWorkLower}.`,
             href: tugasAkhir().url,
             icon: FileText,
             enabled: true,
@@ -171,7 +175,7 @@ export default function DashboardPage() {
             title: 'Upload Dokumen',
             description: quickActionState.canUploadDocument
                 ? 'Unggah proposal, revisi, atau dokumen terbaru.'
-                : 'Aktif saat ada pembimbing atau sempro aktif.',
+                : `Aktif saat ada pembimbing atau ${terms.proposalExamShort} aktif.`,
             href: uploadDokumen({ query: { open: 'unggah' } }).url,
             icon: Upload,
             enabled: quickActionState.canUploadDocument,
@@ -193,7 +197,7 @@ export default function DashboardPage() {
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Dashboard Mahasiswa"
-            subtitle="Ringkasan tugas akhir, aksi cepat, dan agenda akademik terdekat"
+            subtitle={`Ringkasan ${terms.finalWorkLower}, aksi cepat, dan agenda akademik terdekat`}
         >
             <Head title="Dashboard Mahasiswa" />
 
@@ -221,11 +225,12 @@ export default function DashboardPage() {
 
                                 <div className="space-y-4">
                                     <p className="text-sm text-muted-foreground">
-                                        Judul tugas akhir {summary.studentName}:
+                                        Judul {terms.finalWorkLower}{' '}
+                                        {summary.studentName}:
                                     </p>
                                     <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                                         {summary.projectTitle ??
-                                            'Siapkan pengajuan judul dan mulai perjalanan tugas akhir Anda.'}
+                                            `Siapkan pengajuan judul dan mulai perjalanan ${terms.finalWorkLower} Anda.`}
                                     </h1>
                                     {summary.projectTitleEn ? (
                                         <p className="max-w-3xl text-sm leading-6 text-muted-foreground italic lg:text-base">
@@ -348,8 +353,8 @@ export default function DashboardPage() {
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Kegiatan Mendatang</CardTitle>
                                 <CardDescription>
-                                    Jadwal bimbingan, sempro, dan sidang
-                                    terdekat.
+                                    Jadwal bimbingan, {terms.proposalExamShort},
+                                    dan {terms.finalExam} terdekat.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="p-0">
@@ -428,7 +433,7 @@ export default function DashboardPage() {
                                         <EmptyState
                                             icon={CalendarClock}
                                             title="Belum ada agenda mendatang"
-                                            description="Saat ada bimbingan, sempro, atau sidang terjadwal, semuanya akan muncul di sini."
+                                            description={`Saat ada bimbingan, ${terms.proposalExamShort}, atau ${terms.finalExam} terjadwal, semuanya akan muncul di sini.`}
                                         />
                                     </div>
                                 )}
@@ -442,7 +447,8 @@ export default function DashboardPage() {
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Dosen Pembimbing</CardTitle>
                                 <CardDescription>
-                                    Pembimbing aktif untuk tugas akhir Anda.
+                                    Pembimbing aktif untuk{' '}
+                                    {terms.finalWorkLower} Anda.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="py-6">
@@ -473,7 +479,8 @@ export default function DashboardPage() {
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Timeline Progres</CardTitle>
                                 <CardDescription>
-                                    Tahap utama perjalanan tugas akhir Anda
+                                    Tahap utama perjalanan{' '}
+                                    {terms.finalWorkLower} Anda
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="py-6">

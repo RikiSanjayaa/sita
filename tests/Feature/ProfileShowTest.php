@@ -93,7 +93,7 @@ test('mahasiswa profile separates sempro and sidang examiners', function () {
 
     expect(data_get($page, 'props.profile.thesis.examinerGroups.0.title'))->toBe('Penguji Sempro')
         ->and(data_get($page, 'props.profile.thesis.examinerGroups.0.users.0.name'))->toBe('Dosen Penguji Sama')
-        ->and(data_get($page, 'props.profile.thesis.examinerGroups.1.title'))->toBe('Penguji Sidang')
+        ->and(data_get($page, 'props.profile.thesis.examinerGroups.1.title'))->toBe('Penguji Sidang Skripsi')
         ->and(data_get($page, 'props.profile.thesis.examinerGroups.1.users.0.name'))->toBe('Dosen Penguji Sama');
 });
 

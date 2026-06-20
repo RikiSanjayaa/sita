@@ -179,6 +179,7 @@ function RelationTypeBadge({
 
 export default function JadwalBimbinganPage() {
     const page = usePage<SharedData & JadwalPageProps>();
+    const terms = page.props.academicTerminology;
     const query = page.url.split('?')[1] ?? '';
     const defaultLecturerUserId = page.props.advisors[0]?.lecturerUserId;
     const [isAjukanOpen, setIsAjukanOpen] = useState(
@@ -373,7 +374,7 @@ export default function JadwalBimbinganPage() {
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Jadwal Bimbingan"
-            subtitle="Kelola jadwal bimbingan skripsi dengan dosen pembimbing"
+            subtitle={`Kelola jadwal bimbingan ${terms.finalWorkLower} dengan dosen pembimbing`}
         >
             <Head title="Jadwal Bimbingan" />
 
@@ -640,8 +641,8 @@ export default function JadwalBimbinganPage() {
                             Jadwal Bimbingan
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola jadwal bimbingan skripsi dengan dosen
-                            pembimbing
+                            Kelola jadwal bimbingan {terms.finalWorkLower}{' '}
+                            dengan dosen pembimbing
                         </p>
                     </div>
                     {page.props.hasDosbing && (

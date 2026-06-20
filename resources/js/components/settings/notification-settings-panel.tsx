@@ -151,9 +151,9 @@ export default function NotificationSettingsPanel() {
             },
             {
                 key: 'statusTugasAkhir',
-                title: 'Update status skripsi',
+                title: 'Update status tugas akhir',
                 description:
-                    'Notifikasi saat status judul, sempro, sidang, atau pembimbing berubah.',
+                    'Notifikasi saat status judul, proposal, ujian akhir, atau pembimbing berubah.',
                 icon: FileText,
             },
             {
@@ -174,7 +174,7 @@ export default function NotificationSettingsPanel() {
                 key: 'reminderDeadline',
                 title: 'Reminder deadline',
                 description:
-                    'Pengingat untuk deadline proposal, sidang, dan submission.',
+                    'Pengingat untuk deadline proposal, ujian akhir, dan submission.',
                 icon: Timer,
             },
             {

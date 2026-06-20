@@ -132,14 +132,14 @@ function ScheduleTable({
                                     count: items.length,
                                 },
                                 {
-                                    label: 'Sempro',
+                                    label: 'Proposal',
                                     value: 'sempro',
                                     count: items.filter(
                                         (item) => item.type === 'sempro',
                                     ).length,
                                 },
                                 {
-                                    label: 'Sidang',
+                                    label: 'Ujian Akhir',
                                     value: 'sidang',
                                     count: items.filter(
                                         (item) => item.type === 'sidang',
@@ -410,8 +410,8 @@ function PublicSchedulesContent({
     return (
         <PublicLayout
             active="jadwal"
-            headTitle="Jadwal Sempro dan Sidang"
-            pageTitle="Jadwal Sempro dan Sidang"
+            headTitle="Jadwal Proposal dan Ujian Akhir"
+            pageTitle="Jadwal Proposal dan Ujian Akhir"
             description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
             <div className="grid gap-6">

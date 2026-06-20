@@ -70,7 +70,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Sempro & Sidang',
+                title: 'Proposal & Ujian Akhir',
                 href: '/dosen/seminar-proposal',
                 icon: ClipboardCheck,
             },
@@ -114,7 +114,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UsersRound,
             },
             {
-                title: 'Sempro & Sidang',
+                title: 'Proposal & Ujian Akhir',
                 href: '/kaprodi/sempro-sidang',
                 icon: ClipboardCheck,
             },

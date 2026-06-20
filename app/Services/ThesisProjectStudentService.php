@@ -11,6 +11,7 @@ use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -38,8 +39,9 @@ class ThesisProjectStudentService
         }
 
         $path = $proposalFile->store('proposal_files', 'public');
+        $terminology = AcademicTerminology::forStudent($student);
 
-        $project = DB::transaction(function () use ($data, $path, $programStudiId, $proposalFile, $student): ThesisProject {
+        $project = DB::transaction(function () use ($data, $path, $programStudiId, $proposalFile, $student, $terminology): ThesisProject {
             $submittedAt = now();
 
             $project = ThesisProject::query()->create([
@@ -69,7 +71,7 @@ class ThesisProjectStudentService
                 'kind' => 'proposal',
                 'status' => 'active',
                 'version_no' => 1,
-                'title' => 'Proposal Skripsi',
+                'title' => 'Proposal '.$terminology['finalWork'],
                 'storage_disk' => 'public',
                 'storage_path' => $path,
                 'stored_file_name' => basename($path),
@@ -86,7 +88,7 @@ class ThesisProjectStudentService
                 fileName: $proposalFile->getClientOriginalName(),
                 mimeType: $proposalFile->getMimeType() ?? 'application/pdf',
                 fileSizeKb: $this->toKilobytes($proposalFile->getSize()),
-                title: 'Proposal Skripsi',
+                title: 'Proposal '.$terminology['finalWork'],
                 category: 'proposal',
             );
 
@@ -94,7 +96,7 @@ class ThesisProjectStudentService
                 $project,
                 actorUserId: $student->id,
                 eventType: 'project_created',
-                label: 'Proyek tugas akhir dimulai',
+                label: 'Proyek '.$terminology['finalWorkLower'].' dimulai',
                 description: 'Mahasiswa membuat pengajuan judul dan proposal baru.',
             );
 
@@ -126,12 +128,13 @@ class ThesisProjectStudentService
         }
 
         $mode = $this->editableSubmissionMode($project);
+        $terminology = AcademicTerminology::forStudent($student);
 
         if ($mode === null) {
             throw new RuntimeException('Pengajuan tidak dapat diedit pada tahap ini.');
         }
 
-        return DB::transaction(function () use ($data, $mode, $programStudiId, $proposalFile, $student, $project): ThesisProject {
+        return DB::transaction(function () use ($data, $mode, $programStudiId, $proposalFile, $student, $project, $terminology): ThesisProject {
             $updatedFileMeta = null;
             $proposalDocument = ThesisDocument::query()
                 ->where('project_id', $project->id)
@@ -162,7 +165,7 @@ class ThesisProjectStudentService
                     fileName: $proposalFile->getClientOriginalName(),
                     mimeType: $proposalFile->getMimeType() ?? 'application/pdf',
                     fileSizeKb: $this->toKilobytes($proposalFile->getSize()),
-                    title: 'Proposal Skripsi',
+                    title: 'Proposal '.$terminology['finalWork'],
                     category: 'proposal',
                 );
             }
@@ -221,7 +224,7 @@ class ThesisProjectStudentService
                     'uploaded_by_user_id' => $student->id,
                     'status' => 'active',
                     'version_no' => $title->version_no,
-                    'title' => 'Proposal Skripsi',
+                    'title' => 'Proposal '.$terminology['finalWork'],
                     'storage_disk' => 'public',
                     'storage_path' => $updatedFileMeta['path'] ?? $proposalDocument?->storage_path,
                     'stored_file_name' => $updatedFileMeta['stored_file_name'] ?? $proposalDocument?->stored_file_name,
@@ -255,9 +258,9 @@ class ThesisProjectStudentService
             }
 
             $eventDescription = match ($mode) {
-                'sempro_scheduled' => 'Mahasiswa memperbarui judul atau proposal untuk kebutuhan sempro yang sudah dijadwalkan.',
-                'sempro_revision' => 'Mahasiswa memperbarui judul atau proposal untuk menindaklanjuti revisi sempro.',
-                'sempro_failed' => 'Mahasiswa memperbarui judul atau proposal setelah sempro dinyatakan gagal untuk persiapan attempt berikutnya.',
+                'sempro_scheduled' => sprintf('Mahasiswa memperbarui judul atau proposal untuk kebutuhan %s yang sudah dijadwalkan.', $terminology['proposalExamShort']),
+                'sempro_revision' => sprintf('Mahasiswa memperbarui judul atau proposal untuk menindaklanjuti revisi %s.', $terminology['proposalExamShort']),
+                'sempro_failed' => sprintf('Mahasiswa memperbarui judul atau proposal setelah %s dinyatakan gagal untuk persiapan attempt berikutnya.', $terminology['proposalExamShort']),
                 default => 'Mahasiswa memperbarui judul atau proposal sebelum direview admin.',
             };
 
@@ -286,6 +289,10 @@ class ThesisProjectStudentService
         abort_unless($project->student_user_id === $student->id, 403);
 
         $project->loadMissing(['defenses.documents', 'latestTitle', 'titles']);
+        $terminology = AcademicTerminology::forProject($project);
+        $defenseLabel = $type === 'sidang'
+            ? $terminology['finalExam']
+            : $terminology['proposalExamShort'];
 
         /** @var ThesisDefense|null $defense */
         $defense = $project->defenses
@@ -294,7 +301,7 @@ class ThesisProjectStudentService
             ->first();
 
         if (! $defense instanceof ThesisDefense) {
-            throw new RuntimeException(sprintf('%s belum tersedia untuk proyek ini.', $type === 'sidang' ? 'Sidang' : 'Sempro'));
+            throw new RuntimeException(sprintf('%s belum tersedia untuk proyek ini.', $defenseLabel));
         }
 
         if ($defense->status === 'completed') {
@@ -320,7 +327,7 @@ class ThesisProjectStudentService
         }
 
         if ($type === 'sempro' && $supportingDocumentIds !== []) {
-            throw new RuntimeException('Sempro hanya menerima satu dokumen utama.');
+            throw new RuntimeException(sprintf('%s hanya menerima satu dokumen utama.', $defenseLabel));
         }
 
         $titleVersionId = $defense->title_version_id ?? $project->latestTitle?->getKey();
@@ -331,9 +338,9 @@ class ThesisProjectStudentService
             throw new RuntimeException('Dokumen utama tidak valid.');
         }
 
-        return DB::transaction(function () use ($defense, $mainDocument, $project, $student, $submittedAt, $supportingDocumentIds, $titleVersionId, $type, $workspaceDocuments): ThesisProject {
+        return DB::transaction(function () use ($defense, $defenseLabel, $mainDocument, $project, $student, $submittedAt, $supportingDocumentIds, $titleVersionId, $type, $workspaceDocuments): ThesisProject {
             $primaryKind = $type === 'sidang' ? 'final_manuscript' : 'proposal';
-            $primaryTitle = $type === 'sidang' ? 'Naskah Akhir Sidang' : 'Proposal Sempro';
+            $primaryTitle = $type === 'sidang' ? 'Naskah Akhir '.$defenseLabel : 'Proposal '.$defenseLabel;
 
             $this->replaceDefenseDocument(
                 defense: $defense,
@@ -366,10 +373,10 @@ class ThesisProjectStudentService
                 $project,
                 actorUserId: $student->id,
                 eventType: $type === 'sidang' ? 'sidang_documents_selected' : 'sempro_document_selected',
-                label: $type === 'sidang' ? 'Dokumen sidang dipilih' : 'Dokumen sempro dipilih',
+                label: sprintf('Dokumen %s dipilih', $defenseLabel),
                 description: $type === 'sidang'
-                    ? 'Mahasiswa memperbarui naskah akhir dan lampiran sidang dari workspace dokumen.'
-                    : 'Mahasiswa memilih dokumen proposal dari workspace untuk sempro aktif.',
+                    ? sprintf('Mahasiswa memperbarui naskah akhir dan lampiran %s dari workspace dokumen.', $defenseLabel)
+                    : sprintf('Mahasiswa memilih dokumen proposal dari workspace untuk %s aktif.', $defenseLabel),
             );
 
             return $project->fresh(['documents', 'defenses.documents']);

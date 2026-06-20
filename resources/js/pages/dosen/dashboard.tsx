@@ -83,9 +83,9 @@ export default function DosenDashboardPage() {
             primary: false,
         },
         {
-            title: 'Sempro & Sidang',
+            title: 'Proposal & Ujian Akhir',
             description:
-                'Pantau agenda sempro dan sidang yang perlu Anda nilai.',
+                'Pantau agenda proposal dan ujian akhir yang perlu Anda nilai.',
             href: '/dosen/seminar-proposal',
             icon: Presentation,
             primary: false,
@@ -160,8 +160,8 @@ export default function DosenDashboardPage() {
                                         untuk dosen pembimbing — mulai dari
                                         pemantauan progres mahasiswa,
                                         pengelolaan jadwal bimbingan, hingga
-                                        penilaian sempro dan sidang, semuanya
-                                        dalam satu platform tanpa perlu
+                                        penilaian proposal dan ujian akhir,
+                                        semuanya dalam satu platform tanpa perlu
                                         berpindah sistem.
                                     </p>
                                 </div>

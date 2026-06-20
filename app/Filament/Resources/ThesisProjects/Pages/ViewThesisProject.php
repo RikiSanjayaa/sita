@@ -8,6 +8,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Services\LecturerSearchService;
 use App\Services\ThesisProjectAdminService;
+use App\Support\AcademicTerminology;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DateTimePicker;
@@ -29,6 +30,7 @@ class ViewThesisProject extends ViewRecord
     {
         /** @var ThesisProject $record */
         $record = $this->record;
+        $terms = AcademicTerminology::forProject($record);
 
         $workflowActions = [
             Action::make('approve_title')
@@ -42,7 +44,7 @@ class ViewThesisProject extends ViewRecord
                         ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -84,7 +86,7 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -113,7 +115,7 @@ class ViewThesisProject extends ViewRecord
                     }
                 }),
             Action::make('schedule_sempro')
-                ->label('Jadwalkan Sempro')
+                ->label('Jadwalkan '.$terms['proposalExamShort'])
                 ->icon('heroicon-m-calendar')
                 ->color('info')
                 ->visible(fn(): bool => $record->state === 'active')
@@ -154,7 +156,7 @@ class ViewThesisProject extends ViewRecord
                         ->different('examiner_1')
                         ->native(false),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -178,7 +180,7 @@ class ViewThesisProject extends ViewRecord
                         );
 
                         Notification::make()
-                            ->title('Sempro berhasil dijadwalkan')
+                            ->title($terms['proposalExamShort'].' berhasil dijadwalkan')
                             ->success()
                             ->send();
 
@@ -192,7 +194,7 @@ class ViewThesisProject extends ViewRecord
                     }
                 }),
             Action::make('finalize_sempro')
-                ->label('Catat Hasil Sempro')
+                ->label('Catat Hasil '.$terms['proposalExamShort'])
                 ->icon('heroicon-m-check-badge')
                 ->color('success')
                 ->visible(fn(): bool => $record->state === 'active' && $this->latestSempro($record) !== null)
@@ -215,7 +217,7 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -272,7 +274,7 @@ class ViewThesisProject extends ViewRecord
                         ->label('Catatan')
                         ->rows(2),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -303,13 +305,13 @@ class ViewThesisProject extends ViewRecord
                     }
                 }),
             Action::make('schedule_sidang')
-                ->label('Jadwalkan Sidang')
+                ->label('Jadwalkan '.$terms['finalExam'])
                 ->icon('heroicon-m-clipboard-document-check')
                 ->color('warning')
                 ->visible(fn(): bool => $record->state === 'active')
                 ->form([
                     DateTimePicker::make('scheduled_for')
-                        ->label('Jadwal Sidang')
+                        ->label('Jadwal '.$terms['finalExam'])
                         ->required(),
                     TextInput::make('location')
                         ->label('Lokasi')
@@ -332,7 +334,7 @@ class ViewThesisProject extends ViewRecord
                         ->dehydrated(false)
                         ->rows(2),
                     Select::make('additional_examiner_user_ids')
-                        ->label('Dosen Penguji Sidang')
+                        ->label('Dosen Penguji '.$terms['finalExam'])
                         ->multiple()
                         ->default(fn(): array => $this->defaultSidangAdditionalExaminerUserIds($record))
                         ->searchable()
@@ -351,7 +353,7 @@ class ViewThesisProject extends ViewRecord
                         ->label('Catatan')
                         ->rows(2),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -373,7 +375,7 @@ class ViewThesisProject extends ViewRecord
                         );
 
                         Notification::make()
-                            ->title('Sidang berhasil dijadwalkan')
+                            ->title($terms['finalExam'].' berhasil dijadwalkan')
                             ->success()
                             ->send();
 
@@ -387,7 +389,7 @@ class ViewThesisProject extends ViewRecord
                     }
                 }),
             Action::make('complete_sidang')
-                ->label('Selesaikan Sidang')
+                ->label('Selesaikan '.$terms['finalExam'])
                 ->icon('heroicon-m-check-circle')
                 ->color('success')
                 ->visible(fn(): bool => $record->state === 'active' && $this->latestSidang($record) !== null)
@@ -395,7 +397,7 @@ class ViewThesisProject extends ViewRecord
                 ->tooltip(fn(): ?string => $this->completeSidangTooltip($record))
                 ->form([
                     Select::make('result')
-                        ->label('Hasil Sidang')
+                        ->label('Hasil '.$terms['finalExam'])
                         ->options([
                             'pass' => 'Lulus',
                             'pass_with_revision' => 'Lulus dengan Revisi',
@@ -409,11 +411,11 @@ class ViewThesisProject extends ViewRecord
                         ->label('Catatan Revisi')
                         ->rows(2),
                     Textarea::make('notes')
-                        ->label('Catatan Sidang')
+                        ->label('Catatan '.$terms['finalExam'])
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -431,7 +433,7 @@ class ViewThesisProject extends ViewRecord
                         );
 
                         Notification::make()
-                            ->title('Sidang berhasil diperbarui')
+                            ->title($terms['finalExam'].' berhasil diperbarui')
                             ->success()
                             ->send();
 

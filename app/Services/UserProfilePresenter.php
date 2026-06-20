@@ -9,6 +9,7 @@ use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 
 class UserProfilePresenter
 {
@@ -141,15 +142,16 @@ class UserProfilePresenter
             ->values()
             ->all();
 
+        $terminology = AcademicTerminology::forStudent($user);
         $examinerGroups = collect([
             [
-                'title' => 'Penguji Sempro',
-                'emptyMessage' => 'Belum ada penguji sempro.',
+                'title' => 'Penguji '.$terminology['proposalExamShort'],
+                'emptyMessage' => 'Belum ada penguji '.$terminology['proposalExamShort'].'.',
                 'users' => $semproExaminers,
             ],
             [
-                'title' => 'Penguji Sidang',
-                'emptyMessage' => 'Belum ada penguji sidang.',
+                'title' => 'Penguji '.$terminology['finalExam'],
+                'emptyMessage' => 'Belum ada penguji '.$terminology['finalExam'].'.',
                 'users' => $sidangExaminers,
             ],
         ])->filter(fn(array $group): bool => $group['users'] !== [])->values()->all();
@@ -159,7 +161,8 @@ class UserProfilePresenter
         return [
             ...($summary ?? []),
             'headline' => 'Profil mahasiswa',
-            'description' => 'Ringkasan identitas akademik dan progres tugas akhir saat ini.',
+            'description' => 'Ringkasan identitas akademik dan progres '.$terminology['finalWorkLower'].' saat ini.',
+            'academicTerminology' => $terminology,
             'meta' => [
                 ['label' => 'NIM', 'value' => $user->mahasiswaProfile?->nim ?? '-'],
                 ['label' => 'Program Studi', 'value' => $user->mahasiswaProfile?->programStudi?->name ?? '-'],
@@ -171,7 +174,7 @@ class UserProfilePresenter
                 ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
             ],
             'stats' => [
-                ['label' => 'Status Skripsi', 'value' => $this->projectStatusLabel($project)],
+                ['label' => 'Status '.$terminology['finalWork'], 'value' => $this->projectStatusLabel($project)],
                 ['label' => 'Pembimbing Aktif', 'value' => (string) count($advisors)],
                 ['label' => 'Penguji Aktif', 'value' => (string) count($examiners)],
                 ['label' => 'Total Proyek', 'value' => (string) $projects->count()],
@@ -362,6 +365,7 @@ class UserProfilePresenter
         }
 
         $project->loadMissing('defenses');
+        $terms = AcademicTerminology::forProject($project);
 
         $latestSidang = $project->defenses
             ->where('type', 'sidang')
@@ -370,15 +374,15 @@ class UserProfilePresenter
 
         if ($latestSidang instanceof ThesisDefense) {
             if ($latestSidang->status === 'scheduled') {
-                return 'Sidang terjadwal';
+                return $terms['finalExam'].' terjadwal';
             }
 
             if ($latestSidang->status === 'completed') {
                 return match ($latestSidang->result) {
-                    'pass' => 'Sidang selesai',
-                    'pass_with_revision' => 'Revisi sidang',
-                    'fail' => 'Sidang belum lulus',
-                    default => 'Sidang berjalan',
+                    'pass' => $terms['finalExam'].' selesai',
+                    'pass_with_revision' => 'Revisi '.$terms['finalExam'],
+                    'fail' => $terms['finalExam'].' belum lulus',
+                    default => $terms['finalExam'].' berjalan',
                 };
             }
         }
@@ -390,21 +394,21 @@ class UserProfilePresenter
 
         if ($latestSempro instanceof ThesisDefense) {
             if ($latestSempro->status === 'scheduled') {
-                return 'Sempro terjadwal';
+                return $terms['proposalExamShort'].' terjadwal';
             }
 
             if ($latestSempro->status === 'completed') {
                 return match ($latestSempro->result) {
-                    'pass' => 'Sempro selesai',
-                    'pass_with_revision' => 'Revisi sempro',
-                    default => 'Sempro berjalan',
+                    'pass' => $terms['proposalExamShort'].' selesai',
+                    'pass_with_revision' => 'Revisi '.$terms['proposalExamShort'],
+                    default => $terms['proposalExamShort'].' berjalan',
                 };
             }
         }
 
         return match ($project->phase) {
             'title_review' => 'Menunggu review judul',
-            'sempro' => 'Tahap sempro',
+            'sempro' => 'Tahap '.$terms['proposalExamShort'],
             'research' => 'Tahap bimbingan',
             default => 'Dalam proses',
         };

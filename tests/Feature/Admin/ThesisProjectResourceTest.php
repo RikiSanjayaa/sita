@@ -729,7 +729,7 @@ test('admin can view thesis and mentorship documents in thesis project page', fu
         ->assertSee('Status Workflow')
         ->assertSee('Aksi Berikutnya')
         ->assertSee('Workflow')
-        ->assertSee('Dokumen Tugas Akhir')
+        ->assertSee('Dokumen Skripsi')
         ->assertSee('admin-view-proposal.pdf')
         ->assertSee('Dokumen Bimbingan Proyek')
         ->assertSee('Draft Bab 2')
