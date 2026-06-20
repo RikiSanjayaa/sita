@@ -6,7 +6,7 @@ use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
-use App\Models\User;
+use App\Services\LecturerSearchService;
 use App\Services\ThesisProjectAdminService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -137,17 +137,19 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     Select::make('examiner_1')
                         ->label('Penguji 1')
-                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
-                        ->preload()
+                        ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'))
+                        ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'examiner'))
+                        ->searchPrompt('Ketik minimal 2 karakter nama, NIK, prodi, konsentrasi, atau bidang keilmuan')
                         ->required()
                         ->helperText('Minimal 1 penguji. D3 umumnya 1 penguji; S1/S2 disarankan 2, mengikuti kebijakan prodi.')
                         ->native(false),
                     Select::make('examiner_2')
                         ->label('Penguji 2 (Opsional)')
-                        ->options(fn(): array => $this->dosenOptions($record))
                         ->searchable()
-                        ->preload()
+                        ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'))
+                        ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'examiner'))
+                        ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
                         ->nullable()
                         ->different('examiner_1')
                         ->native(false),
@@ -251,16 +253,18 @@ class ViewThesisProject extends ViewRecord
                 ->form([
                     Select::make('pembimbing_1')
                         ->label('Pembimbing 1')
-                        ->options(fn(): array => $this->supervisorOptions($record))
                         ->searchable()
-                        ->preload()
+                        ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'supervisor'))
+                        ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'supervisor'))
+                        ->searchPrompt('Ketik minimal 2 karakter nama, NIK, prodi, konsentrasi, atau bidang keilmuan')
                         ->required()
                         ->native(false),
                     Select::make('pembimbing_2')
                         ->label('Pembimbing 2')
-                        ->options(fn(): array => $this->supervisorOptions($record))
                         ->searchable()
-                        ->preload()
+                        ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'supervisor'))
+                        ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'supervisor'))
+                        ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
                         ->required()
                         ->different('pembimbing_1')
                         ->native(false),
@@ -330,10 +334,11 @@ class ViewThesisProject extends ViewRecord
                     Select::make('additional_examiner_user_ids')
                         ->label('Dosen Penguji Sidang')
                         ->multiple()
-                        ->options(fn(): array => $this->sidangAdditionalExaminerOptions($record))
                         ->default(fn(): array => $this->defaultSidangAdditionalExaminerUserIds($record))
                         ->searchable()
-                        ->preload()
+                        ->getSearchResultsUsing(fn(string $search): array => app(LecturerSearchService::class)->filamentOptions($record, $search, 'examiner'))
+                        ->getOptionLabelsUsing(fn(array $values): array => app(LecturerSearchService::class)->filamentOptionLabels($record, $values, 'examiner'))
+                        ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
                         ->required()
                         ->minItems(fn(): int => $this->requiredSidangPanelUserIds($record) === [] ? 2 : 1)
                         ->helperText(
@@ -455,81 +460,6 @@ class ViewThesisProject extends ViewRecord
     }
 
     /**
-     * @return array<int, string>
-     */
-    private function dosenOptions(ThesisProject $project): array
-    {
-        return User::query()
-            ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('activeDosenProgramStudiAssignments', function ($query) use ($project): void {
-                $query->where('program_studi_id', $project->program_studi_id)
-                    ->where('is_active', true);
-            })
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
-            ->orderBy('name')
-            ->get()
-            ->mapWithKeys(fn(User $user): array => [
-                $user->id => sprintf(
-                    '%s (%s) - %s - %s',
-                    $user->name,
-                    $user->dosenProfile?->nik ?? '-',
-                    $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id),
-                    $this->lecturerExpertiseSummary($user),
-                ),
-            ])
-            ->all();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function supervisorOptions(ThesisProject $project): array
-    {
-        return User::query()
-            ->whereHas('roles', static fn($query) => $query->where('name', 'dosen'))
-            ->whereHas('activeDosenProgramStudiAssignments', function ($query) use ($project): void {
-                $query->where('program_studi_id', $project->program_studi_id)
-                    ->where('is_active', true);
-            })
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
-            ->orderBy('name')
-            ->get()
-            ->mapWithKeys(fn(User $user): array => [
-                $user->id => sprintf(
-                    '%s (%s) - %s - %s - %d/%d aktif',
-                    $user->name,
-                    $user->dosenProfile?->nik ?? '-',
-                    $this->lecturerConcentrationSummary($user, (int) $project->program_studi_id),
-                    $this->lecturerExpertiseSummary($user),
-                    $this->activeThesisStudentCountForLecturer($user->id),
-                    max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14)),
-                ),
-            ])
-            ->all();
-    }
-
-    private function lecturerExpertiseSummary(User $user): string
-    {
-        $summary = $user->expertiseFields
-            ->pluck('name')
-            ->sort()
-            ->implode(', ');
-
-        return $summary !== '' ? $summary : 'Bidang keilmuan belum diatur';
-    }
-
-    private function lecturerConcentrationSummary(User $user, int $programStudiId): string
-    {
-        return $user->activeDosenProgramStudiAssignments
-            ->where('program_studi_id', $programStudiId)
-            ->pluck('concentration')
-            ->filter()
-            ->unique()
-            ->values()
-            ->implode(', ') ?: '-';
-    }
-
-    /**
      * @return array<int, int>
      */
     private function requiredSidangPanelUserIds(ThesisProject $project): array
@@ -561,28 +491,7 @@ class ViewThesisProject extends ViewRecord
             return $existingExaminerIds->all();
         }
 
-        $availableIds = collect(array_keys($this->sidangAdditionalExaminerOptions($project)))
-            ->map(static fn($id): int => (int) $id)
-            ->values();
-
-        $extraExaminerId = $availableIds->first();
-
-        return collect()
-            ->when($extraExaminerId !== null, fn($ids) => $ids->push($extraExaminerId))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function sidangAdditionalExaminerOptions(ThesisProject $project): array
-    {
-        $requiredIds = collect($this->requiredSidangPanelUserIds($project));
-
-        return collect($this->dosenOptions($project))
-            ->reject(fn($_label, $id): bool => $requiredIds->contains((int) $id))
-            ->all();
+        return [];
     }
 
     private function activeSupervisorSummary(ThesisProject $project): string
@@ -595,20 +504,6 @@ class ViewThesisProject extends ViewRecord
                 return sprintf('Pembimbing %d: %s', $index + 1, $assignment->lecturer?->name ?? '-');
             })
             ->implode(PHP_EOL);
-    }
-
-    private function activeThesisStudentCountForLecturer(int $lecturerUserId): int
-    {
-        return ThesisSupervisorAssignment::query()
-            ->with('project')
-            ->where('lecturer_user_id', $lecturerUserId)
-            ->where('status', 'active')
-            ->whereHas('project', static fn($query) => $query->where('state', 'active'))
-            ->get()
-            ->map(static fn(ThesisSupervisorAssignment $assignment): ?int => $assignment->project?->student_user_id)
-            ->filter()
-            ->unique()
-            ->count();
     }
 
     private function latestSempro(ThesisProject $project): ?ThesisDefense

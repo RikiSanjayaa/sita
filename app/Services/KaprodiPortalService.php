@@ -82,7 +82,6 @@ class KaprodiPortalService
             ],
             'students' => $studentRows->values()->all(),
             'archives' => $this->archiveRows($programStudi, null)->values()->all(),
-            'lecturerOptions' => $this->lecturerOptions($programStudi)->values()->all(),
         ];
     }
 
@@ -148,7 +147,6 @@ class KaprodiPortalService
                 'studentProfileUrl' => route('users.profile.show', ['user' => $defense->project?->student_user_id]),
             ])->values()->all(),
             'schedulableProjects' => $this->schedulableProjects($programStudi)->values()->all(),
-            'lecturerOptions' => $this->lecturerOptions($programStudi)->values()->all(),
             'calendarEvents' => $defenses
                 ->filter(fn(ThesisDefense $defense): bool => $defense->scheduled_for !== null)
                 ->map(fn(ThesisDefense $defense): array => [
@@ -838,41 +836,6 @@ class KaprodiPortalService
     {
         return $defense->project?->state === 'active'
             && ! in_array($defense->status, ['awaiting_finalization', 'completed', 'cancelled'], true);
-    }
-
-    private function lecturerOptions(ProgramStudi $programStudi): Collection
-    {
-        return User::query()
-            ->whereHas('activeDosenProgramStudiAssignments', fn($query) => $query->where('program_studi_id', $programStudi->id))
-            ->with(['dosenProfile', 'activeDosenProgramStudiAssignments', 'expertiseFields'])
-            ->orderBy('name')
-            ->get()
-            ->map(function (User $lecturer) use ($programStudi): array {
-                $assignments = $lecturer->activeDosenProgramStudiAssignments
-                    ->where('program_studi_id', $programStudi->id)
-                    ->sortBy('concentration')
-                    ->values();
-
-                return [
-                    'id' => $lecturer->id,
-                    'name' => $lecturer->name,
-                    'nik' => $lecturer->dosenProfile?->nik,
-                    'quota' => (int) ($lecturer->dosenProfile?->supervision_quota ?? 14),
-                    'concentrations' => $assignments
-                        ->pluck('concentration')
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->all(),
-                    'expertiseFields' => $lecturer->expertiseFields
-                        ->pluck('name')
-                        ->sort()
-                        ->values()
-                        ->all(),
-                    'profileUrl' => route('users.profile.show', ['user' => $lecturer->id]),
-                ];
-            })
-            ->values();
     }
 
     private function schedulableProjects(ProgramStudi $programStudi): Collection

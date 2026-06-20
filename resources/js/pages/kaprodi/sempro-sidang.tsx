@@ -20,6 +20,10 @@ import {
     BimbinganCalendar,
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
+import {
+    LecturerMultiSearch,
+    LecturerSearchSelect,
+} from '@/components/lecturer-search-select';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,16 +92,6 @@ type ExamRow = {
     studentProfileUrl: string;
 };
 
-type LecturerOption = {
-    id: number;
-    name: string;
-    nik: string | null;
-    quota: number;
-    concentrations: string[];
-    expertiseFields: string[];
-    profileUrl: string;
-};
-
 type SchedulableProject = {
     id: number;
     student: string;
@@ -133,7 +127,6 @@ type SemproSidangProps = {
     programStudi: ProgramStudi;
     exams: ExamRow[];
     schedulableProjects: SchedulableProject[];
-    lecturerOptions: LecturerOption[];
     calendarEvents: BimbinganEvent[];
 };
 
@@ -200,14 +193,8 @@ function DecisionBadge({ decision }: { decision: string }) {
 }
 
 export default function KaprodiSemproSidangPage() {
-    const {
-        auth,
-        programStudi,
-        exams,
-        schedulableProjects,
-        lecturerOptions,
-        calendarEvents,
-    } = usePage<SharedData & SemproSidangProps>().props;
+    const { auth, programStudi, exams, schedulableProjects, calendarEvents } =
+        usePage<SharedData & SemproSidangProps>().props;
     const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
     const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
     const [search, setSearch] = useUrlState('search', '');
@@ -638,7 +625,6 @@ export default function KaprodiSemproSidangPage() {
             <ScheduleDialog
                 state={scheduleDialog}
                 projects={schedulableProjects}
-                lecturerOptions={lecturerOptions}
                 open={scheduleDialog !== null}
                 onOpenChange={(open) => {
                     if (!open) setScheduleDialog(null);
@@ -775,13 +761,11 @@ function ExamDetailSheet({
 function ScheduleDialog({
     state,
     projects,
-    lecturerOptions,
     open,
     onOpenChange,
 }: {
     state: ScheduleDialogState | null;
     projects: SchedulableProject[];
-    lecturerOptions: LecturerOption[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -867,17 +851,6 @@ function ScheduleDialog({
                         form.data.examiner_2_user_id))) ||
         (activeState.type === 'sidang' &&
             form.data.additional_examiner_user_ids.length === 0);
-
-    function toggleAdditionalExaminer(id: number, checked: boolean) {
-        const value = String(id);
-        const next = checked
-            ? [...form.data.additional_examiner_user_ids, value]
-            : form.data.additional_examiner_user_ids.filter(
-                  (item) => item !== value,
-              );
-
-        form.setData('additional_examiner_user_ids', Array.from(new Set(next)));
-    }
 
     function submit() {
         const projectId = Number(form.data.project_id);
@@ -1014,7 +987,7 @@ function ScheduleDialog({
                                 disarankan 2, mengikuti kebijakan prodi.
                             </p>
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                                <LecturerSelect
+                                <LecturerSearchSelect
                                     label="Penguji Sempro 1"
                                     value={form.data.examiner_1_user_id}
                                     onChange={(value) =>
@@ -1023,10 +996,14 @@ function ScheduleDialog({
                                             value,
                                         )
                                     }
-                                    lecturerOptions={lecturerOptions}
+                                    projectId={
+                                        Number(form.data.project_id) || null
+                                    }
+                                    purpose="examiner"
+                                    excludeIds={[form.data.examiner_2_user_id]}
                                     error={form.errors.examiner_1_user_id}
                                 />
-                                <LecturerSelect
+                                <LecturerSearchSelect
                                     label="Penguji Sempro 2 (Opsional)"
                                     value={form.data.examiner_2_user_id}
                                     onChange={(value) =>
@@ -1035,74 +1012,38 @@ function ScheduleDialog({
                                             value,
                                         )
                                     }
-                                    lecturerOptions={lecturerOptions}
+                                    projectId={
+                                        Number(form.data.project_id) || null
+                                    }
+                                    purpose="examiner"
+                                    excludeIds={[form.data.examiner_1_user_id]}
+                                    optional
                                     error={form.errors.examiner_2_user_id}
                                 />
                             </div>
                         </div>
                     ) : (
-                        <div className="grid gap-2">
-                            <p className="text-sm font-medium">
-                                Penguji Sidang Tambahan
-                            </p>
-                            <div className="grid max-h-48 gap-2 overflow-y-auto rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                                {lecturerOptions.map((lecturer) => (
-                                    <label
-                                        key={lecturer.id}
-                                        className="flex min-w-0 items-start gap-2 rounded-md p-2 text-sm transition-colors hover:bg-muted/50"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            className="mt-1"
-                                            checked={form.data.additional_examiner_user_ids.includes(
-                                                String(lecturer.id),
-                                            )}
-                                            onChange={(event) =>
-                                                toggleAdditionalExaminer(
-                                                    lecturer.id,
-                                                    event.target.checked,
-                                                )
-                                            }
-                                        />
-                                        <span className="min-w-0">
-                                            <span className="block truncate font-medium">
-                                                {lecturer.name}
-                                            </span>
-                                            <span className="block text-xs text-muted-foreground">
-                                                {lecturer.concentrations.join(
-                                                    ', ',
-                                                ) || 'Tanpa konsentrasi'}
-                                            </span>
-                                            {lecturer.expertiseFields.length >
-                                            0 ? (
-                                                <span className="mt-1 flex flex-wrap gap-1">
-                                                    {lecturer.expertiseFields.map(
-                                                        (field) => (
-                                                            <Badge
-                                                                key={field}
-                                                                variant="secondary"
-                                                                className="text-[10px]"
-                                                            >
-                                                                {field}
-                                                            </Badge>
-                                                        ),
-                                                    )}
-                                                </span>
-                                            ) : null}
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                            {(form.errors as Record<string, string>)
-                                .additional_examiner_user_ids ? (
-                                <p className="text-xs text-destructive">
-                                    {
-                                        (form.errors as Record<string, string>)
-                                            .additional_examiner_user_ids
-                                    }
-                                </p>
-                            ) : null}
-                        </div>
+                        <LecturerMultiSearch
+                            label="Penguji Sidang Tambahan"
+                            values={form.data.additional_examiner_user_ids}
+                            onChange={(values) =>
+                                form.setData(
+                                    'additional_examiner_user_ids',
+                                    values,
+                                )
+                            }
+                            projectId={Number(form.data.project_id) || null}
+                            purpose="examiner"
+                            excludeIds={
+                                currentProject?.supervisors.map((supervisor) =>
+                                    String(supervisor.id),
+                                ) ?? []
+                            }
+                            error={
+                                (form.errors as Record<string, string>)
+                                    .additional_examiner_user_ids
+                            }
+                        />
                     )}
 
                     {activeState.type === 'sidang' ? (
@@ -1139,58 +1080,6 @@ function ScheduleDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
-}
-
-function LecturerSelect({
-    label,
-    value,
-    onChange,
-    lecturerOptions,
-    error,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    lecturerOptions: LecturerOption[];
-    error?: string;
-}) {
-    const selectedLecturer = lecturerOptions.find(
-        (lecturer) => String(lecturer.id) === value,
-    );
-
-    return (
-        <div className="grid min-w-0 gap-1.5">
-            <label className="text-sm font-medium">{label}</label>
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-                <option value="">Pilih dosen</option>
-                {lecturerOptions.map((lecturer) => (
-                    <option key={lecturer.id} value={lecturer.id}>
-                        {lecturer.name}
-                        {lecturer.concentrations.length > 0
-                            ? ` - ${lecturer.concentrations.join(', ')}`
-                            : ''}
-                        {lecturer.expertiseFields.length > 0
-                            ? ` [${lecturer.expertiseFields.join(', ')}]`
-                            : ''}
-                    </option>
-                ))}
-            </select>
-            {selectedLecturer?.expertiseFields.length ? (
-                <div className="flex flex-wrap gap-1">
-                    {selectedLecturer.expertiseFields.map((field) => (
-                        <Badge key={field} variant="secondary">
-                            {field}
-                        </Badge>
-                    ))}
-                </div>
-            ) : null}
-            {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        </div>
     );
 }
 
