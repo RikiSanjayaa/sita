@@ -56,6 +56,27 @@ test('user can mark notifications as read', function () {
     expect($user->fresh()->unreadNotifications()->count())->toBe(0);
 });
 
+test('inertia request can mark notification as read before navigation', function () {
+    $user = User::factory()->create();
+
+    $user->notify(new RealtimeNotification([
+        'title' => 'Pembimbing ditetapkan',
+        'description' => 'Dosen pembimbing sudah ditetapkan.',
+        'icon' => 'bell',
+        'url' => '/mahasiswa/tugas-akhir',
+    ]));
+
+    $notificationId = $user->unreadNotifications()->firstOrFail()->id;
+
+    $this->actingAs($user)
+        ->from('/mahasiswa/dashboard')
+        ->withHeader('X-Inertia', 'true')
+        ->post(route('settings.notifications.read', ['notificationId' => $notificationId]))
+        ->assertRedirect('/mahasiswa/dashboard');
+
+    expect($user->fresh()->unreadNotifications()->count())->toBe(0);
+});
+
 test('user can mark all notifications as read', function () {
     $user = User::factory()->create();
 
