@@ -3,6 +3,7 @@ import {
     AlertCircle,
     CalendarClock,
     ChevronRight,
+    CircleHelp,
     FileArchive,
     FileText,
     Search,
@@ -25,6 +26,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
@@ -577,7 +584,28 @@ function SupervisorDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Atur Pembimbing</DialogTitle>
+                    <div className="flex items-center gap-2">
+                        <DialogTitle>Atur Pembimbing</DialogTitle>
+                        <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label="Panduan pemilihan pembimbing"
+                                        className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                    >
+                                        <CircleHelp className="size-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                                    Badge prodi, konsentrasi, dan bidang
+                                    keilmuan adalah informasi pendukung, bukan
+                                    syarat kesamaan. Dosen dengan kuota penuh
+                                    tidak dapat dipilih.
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                     <DialogDescription>
                         Tetapkan pembimbing aktif untuk {activeStudent.name} (
                         {activeStudent.nim}).

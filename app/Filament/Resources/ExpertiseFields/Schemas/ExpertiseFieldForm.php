@@ -18,6 +18,10 @@ class ExpertiseFieldForm
             ->components([
                 TextInput::make('name')
                     ->label('Nama Bidang')
+                    ->hintIcon(
+                        'heroicon-m-information-circle',
+                        'Bidang keilmuan adalah kompetensi dosen yang dapat digunakan lintas prodi. Satu dosen dapat memiliki beberapa bidang keilmuan.',
+                    )
                     ->required()
                     ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, Set $set, Get $get): void {
@@ -39,6 +43,10 @@ class ExpertiseFieldForm
                     ->columnSpanFull(),
                 Toggle::make('is_active')
                     ->label('Aktif')
+                    ->hintIcon(
+                        'heroicon-m-question-mark-circle',
+                        'Bidang nonaktif tetap tersimpan pada data lama, tetapi tidak tersedia untuk penetapan baru.',
+                    )
                     ->default(true),
             ])
             ->columns(2);

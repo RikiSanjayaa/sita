@@ -27,6 +27,10 @@ class UserForm
                     ->schema([
                         Select::make('role')
                             ->label('Role')
+                            ->hintIcon(
+                                'heroicon-m-information-circle',
+                                'Role menentukan profil dan field akademik yang wajib diisi. Assignment Kaprodi dikelola dari Program Studi, bukan dari form user.',
+                            )
                             ->options(function (?User $record): array {
                                 /** @var User|null $user */
                                 $user = Auth::user();
@@ -78,6 +82,10 @@ class UserForm
                             ->maxLength(255),
                         Select::make('prodi')
                             ->label('Prodi')
+                            ->hintIcon(
+                                'heroicon-m-question-mark-circle',
+                                'Untuk mahasiswa, prodi menentukan pilihan jenjang dan konsentrasi. Untuk admin, prodi menentukan data yang dapat dikelola.',
+                            )
                             ->options(fn(): array => self::manageableProgramStudiOptions())
                             ->searchable()
                             ->preload()
@@ -90,6 +98,10 @@ class UserForm
                             ->visible(fn(Get $get): bool => in_array($get('role'), [AppRole::Mahasiswa->value, AppRole::Admin->value], true)),
                         Select::make('concentration')
                             ->label('Konsentrasi')
+                            ->hintIcon(
+                                'heroicon-m-question-mark-circle',
+                                'Konsentrasi adalah peminatan di dalam prodi. Nilai ini ditampilkan sebagai informasi dan bukan syarat kesamaan saat memilih pembimbing.',
+                            )
                             ->options(fn(Get $get): array => self::concentrationOptions($get))
                             ->searchable()
                             ->preload()
@@ -110,6 +122,10 @@ class UserForm
                             ->maxLength(255),
                         Select::make('degree_level')
                             ->label('Jenjang')
+                            ->hintIcon(
+                                'heroicon-m-question-mark-circle',
+                                'Jenjang menentukan istilah akademik yang tampil: D3 Tugas Akhir, S1 Skripsi, dan S2 Tesis.',
+                            )
                             ->options(fn(Get $get): array => self::degreeLevelOptions($get))
                             ->required()
                             ->native(false)
@@ -136,6 +152,10 @@ class UserForm
                             ->maxLength(255),
                         TextInput::make('supervision_quota')
                             ->label('Kuota Bimbingan')
+                            ->hintIcon(
+                                'heroicon-m-question-mark-circle',
+                                'Batas jumlah mahasiswa aktif yang dapat dibimbing. Dosen yang sudah mencapai kuota tidak dapat dipilih sebagai pembimbing baru.',
+                            )
                             ->numeric()
                             ->default(14)
                             ->minValue(1)
@@ -146,6 +166,10 @@ class UserForm
                             ->required(),
                         Select::make('expertise_field_ids')
                             ->label('Bidang Keilmuan')
+                            ->hintIcon(
+                                'heroicon-m-question-mark-circle',
+                                'Bidang keilmuan menggambarkan kompetensi dosen, dapat lebih dari satu, dan muncul sebagai badge pada profil serta hasil pencarian. Ini berbeda dari konsentrasi prodi.',
+                            )
                             ->options(fn(): array => ExpertiseField::query()
                                 ->where('is_active', true)
                                 ->orderBy('name')
@@ -159,6 +183,10 @@ class UserForm
                             ->helperText('Pilih satu atau beberapa bidang yang menggambarkan keahlian dosen.'),
                         Repeater::make('academic_assignments')
                             ->label('Penempatan Prodi & Konsentrasi')
+                            ->hintIcon(
+                                'heroicon-m-question-mark-circle',
+                                'Penempatan mencatat prodi tempat dosen aktif. Penempatan utama berfungsi sebagai homebase tampilan; dosen dari prodi lain tetap dapat ditemukan saat pencarian pembimbing atau penguji.',
+                            )
                             ->schema([
                                 Grid::make(12)
                                     ->schema([
@@ -191,6 +219,10 @@ class UserForm
                                             ]),
                                         Toggle::make('is_primary')
                                             ->label('Utama')
+                                            ->hintIcon(
+                                                'heroicon-m-question-mark-circle',
+                                                'Tandai satu penempatan sebagai homebase utama dosen untuk tampilan dan administrasi.',
+                                            )
                                             ->inline(false)
                                             ->columnSpan([
                                                 'default' => 12,

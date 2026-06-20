@@ -40,6 +40,11 @@ class ListUsers extends ListRecords
                     FileUpload::make('file')
                         ->label('File Excel')
                         ->placeholder('Upload file Excel (.xlsx)')
+                        ->hintIcon(
+                            'heroicon-m-information-circle',
+                            'Gunakan template resmi tanpa mengubah nama header. Untuk dosen, bidang_keilmuan dapat berisi beberapa nilai dan penempatan_dosen memakai format Nama Prodi:Konsentrasi yang dipisahkan tanda ; atau |.',
+                        )
+                        ->helperText('Gunakan template resmi agar jenjang, konsentrasi, dan bidang keilmuan terbaca dengan benar.')
                         ->acceptedFileTypes([
                             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         ])
@@ -139,6 +144,10 @@ class UserImportOptions
         return [
             Select::make('import_type')
                 ->label('Tipe Import')
+                ->hintIcon(
+                    'heroicon-m-question-mark-circle',
+                    'Menjadi role default untuk baris yang kolom role-nya kosong. Sebaiknya satu file hanya memuat satu tipe pengguna.',
+                )
                 ->options(function (): array {
                     $options = [
                         'mahasiswa' => 'Mahasiswa',
@@ -159,6 +168,10 @@ class UserImportOptions
                 ->native(false),
             Select::make('program_studi_id')
                 ->label('Program Studi')
+                ->hintIcon(
+                    'heroicon-m-question-mark-circle',
+                    'Menjadi prodi utama seluruh baris. Jenjang mahasiswa harus tersedia pada prodi ini. Dosen dapat memiliki penempatan tambahan melalui kolom penempatan_dosen.',
+                )
                 ->options(fn(): array => ProgramStudi::query()->orderBy('name')->pluck('name', 'id')->all())
                 ->required()
                 ->searchable()
