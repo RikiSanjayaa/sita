@@ -371,7 +371,7 @@ test('dashboard counts active and archived data and detail returns full project 
         ->assertRedirect('/profil/'.$student->id);
 });
 
-test('kaprodi appears as an eligible lecturer option for own prodi', function (): void {
+test('kaprodi lecturer directory stays scoped while assignment options load asynchronously', function (): void {
     $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $kaprodi = kaprodiRoleUser(['name' => 'Kaprodi Merangkap Dosen']);
 
@@ -386,7 +386,7 @@ test('kaprodi appears as an eligible lecturer option for own prodi', function ()
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('kaprodi/mahasiswa')
-            ->where('lecturerOptions.0.name', 'Kaprodi Merangkap Dosen'));
+            ->missing('lecturerOptions'));
 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/dosen-prodi')
@@ -776,7 +776,7 @@ test('kaprodi workflow mutations are scoped to own prodi and active mutable exam
         ->assertForbidden();
 });
 
-test('kaprodi workflow rejects lecturers outside project prodi', function (): void {
+test('kaprodi workflow accepts active lecturers outside project prodi', function (): void {
     $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $prodiB = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
     $kaprodi = kaprodiRoleUser();
@@ -806,7 +806,52 @@ test('kaprodi workflow rejects lecturers outside project prodi', function (): vo
             'primary_lecturer_user_id' => $lecturerA->id,
             'secondary_lecturer_user_id' => $lecturerB->id,
         ])
-        ->assertSessionHasErrors('primary_lecturer_user_id');
+        ->assertSessionHasNoErrors();
+
+    expect($project->activeSupervisorAssignments()->pluck('lecturer_user_id')->all())
+        ->toContain($lecturerA->id, $lecturerB->id);
+});
+
+test('kaprodi lecturer search waits for two characters and searches across prodi', function (): void {
+    $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $prodiB = ProgramStudi::factory()->create(['name' => 'Sistem Informasi']);
+    $kaprodi = kaprodiRoleUser();
+    $student = kaprodiStudent($prodiA, 'Mahasiswa Pencarian Dosen');
+    $project = kaprodiProject($student, $prodiA, 'research', 'active');
+    $sameProdiLecturer = User::factory()->asDosen()->create(['name' => 'Budi Data']);
+    $otherProdiLecturer = User::factory()->asDosen()->create(['name' => 'Budi Jaringan']);
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodiA->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $sameProdiLecturer->id,
+        'program_studi_id' => $prodiA->id,
+        'nik' => 'DOSEN-DATA',
+    ]);
+    DosenProfile::factory()->create([
+        'user_id' => $otherProdiLecturer->id,
+        'program_studi_id' => $prodiB->id,
+        'nik' => 'DOSEN-JARINGAN',
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->getJson('/kaprodi/lecturers/search?project_id='.$project->id.'&purpose=supervisor&q=B')
+        ->assertOk()
+        ->assertJsonCount(0, 'data');
+
+    $this->actingAs($kaprodi)
+        ->getJson('/kaprodi/lecturers/search?project_id='.$project->id.'&purpose=supervisor&q=Budi')
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $sameProdiLecturer->id)
+        ->assertJsonPath('data.0.sameProgram', true)
+        ->assertJsonFragment([
+            'id' => $otherProdiLecturer->id,
+            'sameProgram' => false,
+        ]);
 });
 
 test('kaprodi can update own prodi lecturer supervision quota safely', function (): void {

@@ -128,6 +128,5 @@ test('profile presenter exposes degree and expertise badges', function (): void 
         ->and(collect($presenter->detail($student)['meta'])->firstWhere('label', 'Jenjang')['value'])->toBe('S1')
         ->and(collect($presenter->detail($lecturer)['meta'])->firstWhere('label', 'Bidang Keilmuan')['value'])->toBe('Sains Data')
         ->and($studentIndex['students'][0]['degreeLevel'])->toBe('S1')
-        ->and($studentIndex['lecturerOptions'][0]['expertiseFields'])->toBe(['Sains Data'])
         ->and($lecturerIndex['lecturers'][0]['expertiseFields'])->toBe(['Sains Data']);
 });

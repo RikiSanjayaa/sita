@@ -1084,10 +1084,6 @@ class ThesisProjectAdminService
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
         }
 
-        if (! $lecturer->teachesInProgramStudi((int) $project->program_studi_id)) {
-            throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
-        }
-
         $quota = max(1, (int) ($lecturerProfile->supervision_quota ?? 14));
         $activeStudentIds = $this->activeStudentIdsForLecturer($lecturerUserId);
 
@@ -1116,9 +1112,6 @@ class ThesisProjectAdminService
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
         }
 
-        if (! $lecturer->teachesInProgramStudi((int) $project->program_studi_id)) {
-            throw new RuntimeException(sprintf('%s harus berasal dari program studi yang sama.', $label));
-        }
     }
 
     /**

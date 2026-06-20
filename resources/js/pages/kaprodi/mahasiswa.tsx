@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { LecturerSearchSelect } from '@/components/lecturer-search-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,16 +71,6 @@ type StudentRow = {
     profileUrl: string;
 };
 
-type LecturerOption = {
-    id: number;
-    name: string;
-    nik: string | null;
-    quota: number;
-    concentrations: string[];
-    expertiseFields: string[];
-    profileUrl: string;
-};
-
 type ArchiveRow = {
     id: number;
     student: string;
@@ -105,7 +96,6 @@ type MahasiswaProps = {
     };
     students: StudentRow[];
     archives: ArchiveRow[];
-    lecturerOptions: LecturerOption[];
 };
 
 type ActivePhaseFilter =
@@ -131,8 +121,9 @@ function searchUrl(path: string, value: string) {
 
 export default function KaprodiMahasiswaPage() {
     const { auth } = usePage<SharedData>().props;
-    const { programStudi, filters, students, archives, lecturerOptions } =
-        usePage<SharedData & MahasiswaProps>().props;
+    const { programStudi, filters, students, archives } = usePage<
+        SharedData & MahasiswaProps
+    >().props;
     const canManageSupervisors =
         auth.kaprodiCapabilities?.manage_supervisors ?? true;
 
@@ -167,7 +158,6 @@ export default function KaprodiMahasiswaPage() {
                     <ActiveStudentTable
                         rows={activeRows}
                         filters={filters}
-                        lecturerOptions={lecturerOptions}
                         canManageSupervisors={canManageSupervisors}
                         emptyText="Belum ada mahasiswa aktif"
                     />
@@ -191,13 +181,11 @@ export default function KaprodiMahasiswaPage() {
 function ActiveStudentTable({
     rows,
     filters,
-    lecturerOptions,
     canManageSupervisors,
     emptyText,
 }: {
     rows: StudentRow[];
     filters: MahasiswaProps['filters'];
-    lecturerOptions: LecturerOption[];
     canManageSupervisors: boolean;
     emptyText: string;
 }) {
@@ -521,7 +509,6 @@ function ActiveStudentTable({
             )}
             <SupervisorDialog
                 student={supervisorDialog}
-                lecturerOptions={lecturerOptions}
                 open={supervisorDialog !== null}
                 onOpenChange={(open) => {
                     if (!open) setSupervisorDialog(null);
@@ -533,12 +520,10 @@ function ActiveStudentTable({
 
 function SupervisorDialog({
     student,
-    lecturerOptions,
     open,
     onOpenChange,
 }: {
     student: StudentRow | null;
-    lecturerOptions: LecturerOption[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -610,16 +595,18 @@ function SupervisorDialog({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <LecturerSelect
+                        <LecturerSearchSelect
                             label="Pembimbing 1"
                             value={form.data.primary_lecturer_user_id}
                             onChange={(value) =>
                                 form.setData('primary_lecturer_user_id', value)
                             }
-                            lecturerOptions={lecturerOptions}
+                            projectId={activeStudent.projectId}
+                            purpose="supervisor"
+                            excludeIds={[form.data.secondary_lecturer_user_id]}
                             error={form.errors.primary_lecturer_user_id}
                         />
-                        <LecturerSelect
+                        <LecturerSearchSelect
                             label="Pembimbing 2"
                             value={form.data.secondary_lecturer_user_id}
                             onChange={(value) =>
@@ -628,7 +615,9 @@ function SupervisorDialog({
                                     value,
                                 )
                             }
-                            lecturerOptions={lecturerOptions}
+                            projectId={activeStudent.projectId}
+                            purpose="supervisor"
+                            excludeIds={[form.data.primary_lecturer_user_id]}
                             error={form.errors.secondary_lecturer_user_id}
                         />
                     </div>
@@ -668,58 +657,6 @@ function SupervisorDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
-}
-
-function LecturerSelect({
-    label,
-    value,
-    onChange,
-    lecturerOptions,
-    error,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    lecturerOptions: LecturerOption[];
-    error?: string;
-}) {
-    const selectedLecturer = lecturerOptions.find(
-        (lecturer) => String(lecturer.id) === value,
-    );
-
-    return (
-        <div className="grid min-w-0 gap-1.5">
-            <label className="text-sm font-medium">{label}</label>
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-                <option value="">Pilih dosen</option>
-                {lecturerOptions.map((lecturer) => (
-                    <option key={lecturer.id} value={lecturer.id}>
-                        {lecturer.name}
-                        {lecturer.concentrations.length > 0
-                            ? ` - ${lecturer.concentrations.join(', ')}`
-                            : ''}
-                        {lecturer.expertiseFields.length > 0
-                            ? ` [${lecturer.expertiseFields.join(', ')}]`
-                            : ''}
-                    </option>
-                ))}
-            </select>
-            {selectedLecturer?.expertiseFields.length ? (
-                <div className="flex flex-wrap gap-1">
-                    {selectedLecturer.expertiseFields.map((field) => (
-                        <Badge key={field} variant="secondary">
-                            {field}
-                        </Badge>
-                    ))}
-                </div>
-            ) : null}
-            {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        </div>
     );
 }
 
