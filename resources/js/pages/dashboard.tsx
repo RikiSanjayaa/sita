@@ -429,7 +429,7 @@ export default function DashboardPage() {
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="px-6 pb-6">
+                                    <div className="px-6 py-6">
                                         <EmptyState
                                             icon={CalendarClock}
                                             title="Belum ada agenda mendatang"

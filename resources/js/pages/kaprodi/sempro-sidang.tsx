@@ -772,39 +772,13 @@ function ScheduleDialog({
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
-    const selectedProject =
-        state?.project ??
-        projects.find((project) => project.id === state?.exam?.projectId) ??
-        null;
-    const examiners = state?.exam?.examiners ?? [];
-    const additionalExaminerIds = examiners
-        .filter((examiner) => examiner.role === 'Penguji')
-        .map((examiner) => String(examiner.id));
-    const form = useForm({
-        project_id: selectedProject ? String(selectedProject.id) : '',
-        scheduled_for: state?.exam?.scheduledForInput ?? '',
-        location: state?.exam?.location ?? '',
-        mode: state?.exam?.mode ?? 'offline',
-        examiner_1_user_id:
-            state?.type === 'sempro' && examiners[0]?.id
-                ? String(examiners[0].id)
-                : '',
-        examiner_2_user_id:
-            state?.type === 'sempro' && examiners[1]?.id
-                ? String(examiners[1].id)
-                : '',
-        additional_examiner_user_ids:
-            state?.type === 'sidang' ? additionalExaminerIds : [],
-        notes: '',
-    });
-
-    useEffect(() => {
+    const initialFormData = useMemo(() => {
         const project =
             state?.project ??
             projects.find((item) => item.id === state?.exam?.projectId);
         const currentExaminers = state?.exam?.examiners ?? [];
 
-        form.setData({
+        return {
             project_id: project ? String(project.id) : '',
             scheduled_for: state?.exam?.scheduledForInput ?? '',
             location: state?.exam?.location ?? '',
@@ -824,9 +798,15 @@ function ScheduleDialog({
                           .map((examiner) => String(examiner.id))
                     : [],
             notes: '',
-        });
-        form.clearErrors();
-    }, [state?.type, state?.exam?.id, state?.project?.id]);
+        };
+    }, [projects, state]);
+    const form = useForm(initialFormData);
+    const { clearErrors, setData } = form;
+
+    useEffect(() => {
+        setData(initialFormData);
+        clearErrors();
+    }, [clearErrors, initialFormData, setData]);
 
     if (!state) return null;
 
