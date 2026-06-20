@@ -564,7 +564,7 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
     $this->assertDatabaseHas('system_audit_logs', [
         'user_id' => $kaprodi->id,
         'event_type' => 'kaprodi_sempro_scheduled',
-        'label' => 'Kaprodi memperbarui jadwal sempro',
+        'label' => 'Kaprodi memperbarui jadwal Sempro',
     ]);
 
     $this->actingAs($kaprodi)
@@ -591,7 +591,7 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
     $this->assertDatabaseHas('system_audit_logs', [
         'user_id' => $kaprodi->id,
         'event_type' => 'kaprodi_sidang_scheduled',
-        'label' => 'Kaprodi memperbarui jadwal sidang',
+        'label' => 'Kaprodi memperbarui jadwal Sidang Skripsi',
     ]);
 });
 

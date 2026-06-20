@@ -97,8 +97,8 @@ type GroupThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang';
 const groupThreadFilterTabs: { label: string; value: GroupThreadFilter }[] = [
     { label: 'Semua', value: 'semua' },
     { label: 'Bimbingan', value: 'pembimbing' },
-    { label: 'Sempro', value: 'sempro' },
-    { label: 'Sidang', value: 'sidang' },
+    { label: 'Proposal', value: 'sempro' },
+    { label: 'Ujian Akhir', value: 'sidang' },
 ];
 
 function messageMatches(message: ThreadMessage, query: string) {

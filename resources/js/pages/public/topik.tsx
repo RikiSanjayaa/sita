@@ -34,6 +34,8 @@ type SemproTitleItem = {
     year: string;
     seminarDate: string | null;
     sidangDate: string | null;
+    proposalExamLabel: string;
+    finalExamLabel: string;
     advisors: Array<{
         name: string;
         label: string;
@@ -175,9 +177,9 @@ function PublicTopicsContent({
     return (
         <PublicLayout
             active="topik"
-            headTitle="Topik Tugas Akhir"
-            pageTitle="Topik Tugas Akhir"
-            description="Daftar topik tugas akhir yang sudah selesai sempro dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan."
+            headTitle="Topik Karya Akhir"
+            pageTitle="Topik Karya Akhir"
+            description="Daftar topik karya akhir yang sudah menyelesaikan ujian proposal dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan."
         >
             <div className="space-y-6">
                 <Card className="overflow-hidden py-0 shadow-sm">
@@ -429,7 +431,9 @@ function PublicTopicsContent({
                                                                                             </div>
                                                                                             <div>
                                                                                                 <span className="font-medium text-foreground">
-                                                                                                    Sidang
+                                                                                                    {
+                                                                                                        item.finalExamLabel
+                                                                                                    }
                                                                                                     selesai:
                                                                                                 </span>{' '}
                                                                                                 {item.sidangDate ||

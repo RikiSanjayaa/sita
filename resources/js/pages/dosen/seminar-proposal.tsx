@@ -48,7 +48,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
-    { title: 'Sempro & Sidang', href: '/dosen/seminar-proposal' },
+    { title: 'Proposal & Ujian Akhir', href: '/dosen/seminar-proposal' },
 ];
 
 type OtherExaminer = {
@@ -762,15 +762,15 @@ export default function DosenSeminarProposalPage() {
     }
 
     const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
-        { label: 'Sempro / Sidang', value: 'ujian' },
+        { label: 'Proposal / Ujian Akhir', value: 'ujian' },
         { label: 'Bimbingan', value: 'bimbingan' },
         { label: 'Semua', value: 'semua' },
     ];
 
     const typeFilterTabs: { label: string; value: TypeFilter }[] = [
         { label: 'Semua', value: 'semua' },
-        { label: 'Sempro', value: 'sempro' },
-        { label: 'Sidang', value: 'sidang' },
+        { label: 'Proposal', value: 'sempro' },
+        { label: 'Ujian Akhir', value: 'sidang' },
     ];
 
     const statusFilterTabs: {
@@ -786,10 +786,10 @@ export default function DosenSeminarProposalPage() {
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
-            title="Sempro & Sidang"
-            subtitle="Jadwal dan penilaian sempro serta sidang"
+            title="Proposal & Ujian Akhir"
+            subtitle="Jadwal dan penilaian proposal serta ujian akhir"
         >
-            <Head title="Sempro & Sidang — Dosen" />
+            <Head title="Proposal & Ujian Akhir — Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
                 {/* Flash / Error */}
@@ -812,8 +812,8 @@ export default function DosenSeminarProposalPage() {
                                 Workspace Jadwal
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Lihat jadwal sempro, sidang, dan bimbingan dalam
-                                satu kalender
+                                Lihat jadwal proposal, ujian akhir, dan
+                                bimbingan dalam satu kalender
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -849,7 +849,7 @@ export default function DosenSeminarProposalPage() {
                     <div className="mb-4 flex items-center justify-between">
                         <div>
                             <h2 className="text-base font-semibold">
-                                Daftar Sempro & Sidang
+                                Daftar Proposal & Ujian Akhir
                             </h2>
                             <p className="text-sm text-muted-foreground">
                                 Klik baris untuk melihat detail dan menginput
@@ -950,7 +950,7 @@ export default function DosenSeminarProposalPage() {
                             </p>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 {defenses.length === 0
-                                    ? 'Anda belum ditugaskan sebagai penguji sempro atau sidang manapun.'
+                                    ? 'Anda belum ditugaskan sebagai penguji proposal atau ujian akhir manapun.'
                                     : 'Coba ubah filter atau kata kunci pencarian.'}
                             </p>
                         </div>

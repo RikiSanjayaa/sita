@@ -1,6 +1,8 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
+import { type AcademicTerminology } from '@/lib/academic-terminology';
+
 export type AppRole = 'mahasiswa' | 'dosen' | 'kaprodi' | 'admin' | 'penguji';
 
 export interface Auth {
@@ -54,6 +56,7 @@ export interface SharedData {
     notificationSettings?: NotificationSettings;
     notifications?: HeaderNotification[];
     unreadNotificationCount?: number;
+    academicTerminology: AcademicTerminology;
     [key: string]: unknown;
 }
 
@@ -100,6 +103,7 @@ export interface UserProfileDetail extends UserProfileSummary {
     stats: ProfileFieldItem[];
     thesis: ThesisProfileSection | null;
     relatedUsers: RelatedUserGroup[];
+    academicTerminology?: AcademicTerminology;
 }
 
 export interface NotificationSettings {

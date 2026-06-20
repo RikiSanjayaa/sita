@@ -11,6 +11,7 @@ use App\Models\ThesisProject;
 use App\Models\User;
 use App\Services\ThesisProjectStudentService;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -28,6 +29,9 @@ class TugasAkhirController extends Controller
         abort_if($student === null, 401);
 
         $project = $this->resolveProjectForStudent($student);
+        $terms = $project instanceof ThesisProject
+            ? AcademicTerminology::forProject($project)
+            : AcademicTerminology::forStudent($student);
         $latestSempro = $project?->defenses
             ->where('type', 'sempro')
             ->sortByDesc('attempt_no')
@@ -107,8 +111,8 @@ class TugasAkhirController extends Controller
             )),
             'semproDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
             'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
-            'semproResult' => $this->mapDefenseResult($latestSempro, 'Seminar Proposal'),
-            'sidangResult' => $this->mapDefenseResult($latestSidang, 'Sidang Skripsi'),
+            'semproResult' => $this->mapDefenseResult($latestSempro, $terms['proposalExam']),
+            'sidangResult' => $this->mapDefenseResult($latestSidang, $terms['finalExam']),
             'defenseHistory' => $project === null ? ['sempro' => [], 'sidang' => []] : [
                 'sempro' => $this->mapDefenseHistory($project, 'sempro'),
                 'sidang' => $this->mapDefenseHistory($project, 'sidang'),
@@ -162,7 +166,9 @@ class TugasAkhirController extends Controller
         abort_unless($project->student_user_id === $student->id, 403);
 
         if (! app(ThesisProjectStudentService::class)->canEditSubmission($project)) {
-            return back()->with('error', 'Pengajuan hanya dapat diedit saat masih ditinjau admin, sempro terjadwal, sempro gagal, atau revisi sempro masih aktif.');
+            $proposalExam = AcademicTerminology::forProject($project)['proposalExamShort'];
+
+            return back()->with('error', "Pengajuan hanya dapat diedit saat masih ditinjau admin, {$proposalExam} terjadwal, {$proposalExam} gagal, atau revisinya masih aktif.");
         }
 
         $validated = $request->validate([
@@ -205,7 +211,9 @@ class TugasAkhirController extends Controller
             mainDocumentId: (int) $validated['workspace_document_id'],
         );
 
-        return back()->with('success', 'Dokumen sempro berhasil diperbarui dari workspace file.');
+        $proposalExam = AcademicTerminology::forProject($project)['proposalExamShort'];
+
+        return back()->with('success', "Dokumen {$proposalExam} berhasil diperbarui dari workspace file.");
     }
 
     public function updateSidangDocuments(Request $request, ThesisProject $project): RedirectResponse
@@ -231,7 +239,9 @@ class TugasAkhirController extends Controller
             ),
         );
 
-        return back()->with('success', 'Dokumen sidang berhasil diperbarui dari workspace file.');
+        $finalExam = AcademicTerminology::forProject($project)['finalExam'];
+
+        return back()->with('success', "Dokumen {$finalExam} berhasil diperbarui dari workspace file.");
     }
 
     private function resolveProgramStudiForStudent(User $student, ?string $fallback = null): string
@@ -290,8 +300,8 @@ class TugasAkhirController extends Controller
 
             return [
                 'key' => $key,
-                'label' => $this->workflowLabel($key),
-                'description' => $this->workflowDescription($key),
+                'label' => $this->workflowLabel($key, $project),
+                'description' => $this->workflowDescription($key, $project),
                 'can_edit' => $this->canEditProjectSubmission($project),
             ];
         }
@@ -321,8 +331,8 @@ class TugasAkhirController extends Controller
 
             return [
                 'key' => $key,
-                'label' => $this->workflowLabel($key),
-                'description' => $this->workflowDescription($key),
+                'label' => $this->workflowLabel($key, $project),
+                'description' => $this->workflowDescription($key, $project),
                 'can_edit' => $this->canEditProjectSubmission($project),
             ];
         }
@@ -361,52 +371,56 @@ class TugasAkhirController extends Controller
 
         return [
             'key' => $key,
-            'label' => $this->workflowLabel($key),
-            'description' => $this->workflowDescription($key),
+            'label' => $this->workflowLabel($key, $project),
+            'description' => $this->workflowDescription($key, $project),
             'can_edit' => $this->canEditProjectSubmission($project),
         ];
     }
 
-    private function workflowLabel(string $key): string
+    private function workflowLabel(string $key, ThesisProject $project): string
     {
+        $terms = AcademicTerminology::forProject($project);
+
         return match ($key) {
             'title_review_pending' => 'Menunggu Persetujuan',
             'title_approved' => 'Judul Disetujui',
             'title_rejected' => 'Judul Tidak Disetujui',
             'project_cancelled' => 'Proyek Dibatalkan',
-            'sempro_scheduled' => 'Sempro Dijadwalkan',
-            'sempro_waiting_result' => 'Menunggu Hasil Sempro',
-            'sempro_revision' => 'Revisi Sempro',
-            'sempro_failed' => 'Sempro Tidak Lulus',
-            'sempro_passed' => 'Sempro Selesai',
+            'sempro_scheduled' => $terms['proposalExamShort'].' Dijadwalkan',
+            'sempro_waiting_result' => 'Menunggu Hasil '.$terms['proposalExamShort'],
+            'sempro_revision' => 'Revisi '.$terms['proposalExamShort'],
+            'sempro_failed' => $terms['proposalExamShort'].' Tidak Lulus',
+            'sempro_passed' => $terms['proposalExamShort'].' Selesai',
             'research_in_progress' => 'Pembimbing Ditetapkan',
-            'sidang_scheduled' => 'Sidang Dijadwalkan',
-            'sidang_waiting_result' => 'Menunggu Hasil Sidang',
-            'sidang_revision' => 'Revisi Sidang',
-            'completed' => 'Sidang Selesai',
-            'sidang_failed' => 'Sidang Tidak Lulus',
+            'sidang_scheduled' => $terms['finalExam'].' Dijadwalkan',
+            'sidang_waiting_result' => 'Menunggu Hasil '.$terms['finalExam'],
+            'sidang_revision' => 'Revisi '.$terms['finalExam'],
+            'completed' => $terms['finalExam'].' Selesai',
+            'sidang_failed' => $terms['finalExam'].' Tidak Lulus',
             default => 'Dalam Proses',
         };
     }
 
-    private function workflowDescription(string $key): string
+    private function workflowDescription(string $key, ThesisProject $project): string
     {
+        $terms = AcademicTerminology::forProject($project);
+
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
-            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan sempro.',
+            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan '.$terms['proposalExamShort'].'.',
             'title_rejected' => 'Pengajuan judul dan proposal tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
-            'project_cancelled' => 'Proyek tugas akhir ini sudah dibatalkan oleh admin.',
-            'sempro_scheduled' => 'Sempro sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
-            'sempro_waiting_result' => 'Semua keputusan dosen untuk sempro sudah masuk. Menunggu hasil resmi dari admin.',
-            'sempro_revision' => 'Sempro selesai dengan revisi. Periksa catatan revisi dari penguji.',
-            'sempro_failed' => 'Sempro belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
-            'sempro_passed' => 'Tahap Sempro telah selesai. Menunggu pembimbing aktif atau progres penelitian berikutnya.',
+            'project_cancelled' => 'Proyek '.$terms['finalWorkLower'].' ini sudah dibatalkan oleh admin.',
+            'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
+            'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
+            'sempro_revision' => $terms['proposalExamShort'].' selesai dengan revisi. Periksa catatan revisi dari penguji.',
+            'sempro_failed' => $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
+            'sempro_passed' => 'Tahap '.$terms['proposalExamShort'].' telah selesai. Menunggu pembimbing aktif atau progres penelitian berikutnya.',
             'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan proses penelitian dan bimbingan.',
-            'sidang_scheduled' => 'Sidang skripsi sudah dijadwalkan. Siapkan dokumen akhir Anda dengan baik.',
-            'sidang_waiting_result' => 'Seluruh keputusan dosen untuk sidang sudah masuk. Menunggu hasil resmi dari admin.',
-            'sidang_revision' => 'Sidang selesai dengan revisi. Periksa catatan revisi dari tim sidang.',
-            'completed' => 'Tahap sidang skripsi telah selesai.',
-            'sidang_failed' => 'Sidang belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
+            'sidang_scheduled' => $terms['finalExam'].' sudah dijadwalkan. Siapkan dokumen akhir Anda dengan baik.',
+            'sidang_waiting_result' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
+            'sidang_revision' => $terms['finalExam'].' selesai dengan revisi. Periksa catatan revisi dari tim penguji.',
+            'completed' => 'Tahap '.$terms['finalExam'].' telah selesai.',
+            'sidang_failed' => $terms['finalExam'].' belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
             default => 'Pengajuan sedang diproses admin.',
         };
     }

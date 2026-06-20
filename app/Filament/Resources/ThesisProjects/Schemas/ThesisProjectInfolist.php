@@ -12,6 +12,7 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Support\Filament\BadgeStyles;
+use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
@@ -87,10 +88,10 @@ class ThesisProjectInfolist
                             ->state(fn(ThesisProject $record): string => self::workflowAttention($record))
                             ->placeholder('-'),
                         TextEntry::make('latest_sempro_summary')
-                            ->label('Sempro Terakhir')
+                            ->label(fn(ThesisProject $record): string => AcademicTerminology::forProject($record)['proposalExamShort'].' Terakhir')
                             ->state(fn(ThesisProject $record): string => self::latestDefenseSummary($record, 'sempro')),
                         TextEntry::make('latest_sidang_summary')
-                            ->label('Sidang Terakhir')
+                            ->label(fn(ThesisProject $record): string => AcademicTerminology::forProject($record)['finalExam'].' Terakhir')
                             ->state(fn(ThesisProject $record): string => self::latestDefenseSummary($record, 'sidang')),
                         TextEntry::make('active_supervisors_summary')
                             ->label('Pembimbing Aktif')
@@ -117,12 +118,12 @@ class ThesisProjectInfolist
                         Tab::make('Workflow')
                             ->icon('heroicon-m-arrows-right-left')
                             ->schema([
-                                Section::make('Sempro')
+                                Section::make(fn(ThesisProject $record): string => AcademicTerminology::forProject($record)['proposalExamShort'])
                                     ->schema([
                                         self::defenseEntry('sempro'),
                                     ])
                                     ->visible(fn(ThesisProject $record): bool => $record->defenses->contains(fn(ThesisDefense $defense): bool => $defense->type === 'sempro')),
-                                Section::make('Sidang')
+                                Section::make(fn(ThesisProject $record): string => AcademicTerminology::forProject($record)['finalExam'])
                                     ->schema([
                                         self::defenseEntry('sidang'),
                                     ])
@@ -131,7 +132,7 @@ class ThesisProjectInfolist
                         Tab::make('Dokumen')
                             ->icon('heroicon-m-folder-open')
                             ->schema([
-                                Section::make('Dokumen Tugas Akhir')
+                                Section::make(fn(ThesisProject $record): string => 'Dokumen '.AcademicTerminology::forProject($record)['finalWork'])
                                     ->schema([
                                         self::thesisDocumentsEntry(),
                                     ])
@@ -413,17 +414,18 @@ class ThesisProjectInfolist
 
         $latestSempro = self::latestDefense($record, 'sempro');
         $latestSidang = self::latestDefense($record, 'sidang');
+        $terms = AcademicTerminology::forProject($record);
 
         return match ($record->phase) {
             'title_review', 'sempro' => $latestSempro instanceof ThesisDefense
                 ? self::nextSemproStepLabel($record, $latestSempro)
-            : 'Jadwalkan Sempro',
+            : 'Jadwalkan '.$terms['proposalExamShort'],
             'research' => $record->activeSupervisorAssignments->count() < 2
                 ? 'Lengkapi Pembimbing Aktif'
                 : 'Pantau Bimbingan Penelitian',
             'sidang' => $latestSidang instanceof ThesisDefense
                 ? self::nextSidangStepLabel($record, $latestSidang)
-            : 'Jadwalkan Sidang',
+            : 'Jadwalkan '.$terms['finalExam'],
             default => 'Monitoring Proyek',
         };
     }
@@ -489,54 +491,58 @@ class ThesisProjectInfolist
 
     private static function nextSemproStepLabel(ThesisProject $record, ThesisDefense $defense): string
     {
+        $label = AcademicTerminology::forProject($record)['proposalExamShort'];
+
         if ($defense->status === 'awaiting_finalization') {
-            return 'Tetapkan Hasil Sempro';
+            return 'Tetapkan Hasil '.$label;
         }
 
         if ($defense->status === 'scheduled') {
             $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
 
             return $decidedCount === 0
-                ? 'Tunggu Nilai Penguji Sempro'
+                ? 'Tunggu Nilai Penguji '.$label
                 : 'Tunggu Nilai Penguji Lain';
         }
 
         if ($defense->status === 'completed') {
             return match ($defense->result) {
-                'fail' => 'Jadwalkan Sempro Ulang',
-                'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi Sempro' : 'Tetapkan Pembimbing Aktif',
+                'fail' => 'Jadwalkan '.$label.' Ulang',
+                'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi '.$label : 'Tetapkan Pembimbing Aktif',
                 'pass' => 'Tetapkan Pembimbing Aktif',
-                default => 'Monitoring Sempro',
+                default => 'Monitoring '.$label,
             };
         }
 
-        return 'Jadwalkan Sempro';
+        return 'Jadwalkan '.$label;
     }
 
     private static function nextSidangStepLabel(ThesisProject $record, ThesisDefense $defense): string
     {
+        $label = AcademicTerminology::forProject($record)['finalExam'];
+
         if ($defense->status === 'awaiting_finalization') {
-            return 'Tetapkan Hasil Sidang';
+            return 'Tetapkan Hasil '.$label;
         }
 
         if ($defense->status === 'scheduled') {
             $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
 
             return $decidedCount === 0
-                ? 'Tunggu Nilai Panel Sidang'
+                ? 'Tunggu Nilai Panel '.$label
                 : 'Tunggu Nilai Panel Lain';
         }
 
         if ($defense->status === 'completed') {
             return match ($defense->result) {
-                'fail' => 'Jadwalkan Sidang Ulang',
-                'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi Sidang' : 'Monitoring Sidang',
+                'fail' => 'Jadwalkan '.$label.' Ulang',
+                'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi '.$label : 'Monitoring '.$label,
                 'pass' => 'Monitoring Saja',
-                default => 'Monitoring Sidang',
+                default => 'Monitoring '.$label,
             };
         }
 
-        return 'Jadwalkan Sidang';
+        return 'Jadwalkan '.$label;
     }
 
     private static function activeSupervisorsSummary(ThesisProject $record): string

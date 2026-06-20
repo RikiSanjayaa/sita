@@ -12,6 +12,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -115,7 +116,7 @@ class KaprodiPortalService
             'exams' => $defenses->map(fn(ThesisDefense $defense): array => [
                 'id' => $defense->id,
                 'projectId' => $defense->project_id,
-                'type' => $this->defenseTypeLabel($defense->type),
+                'type' => $this->defenseTypeLabelForProject($defense->type, $defense->project),
                 'typeKey' => $defense->type,
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
@@ -123,6 +124,9 @@ class KaprodiPortalService
                 'averageScore' => $this->averageScore($defense),
                 'grade' => $this->grade($this->averageScore($defense)),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
+                'terminology' => $defense->project instanceof ThesisProject
+                    ? AcademicTerminology::forProject($defense->project)
+                    : AcademicTerminology::neutral(),
                 'nim' => $defense->project?->student?->mahasiswaProfile?->nim,
                 'title' => $defense->project?->latestTitle?->title_id ?? '-',
                 'attempt' => $defense->attempt_no,
@@ -151,8 +155,8 @@ class KaprodiPortalService
                 ->filter(fn(ThesisDefense $defense): bool => $defense->scheduled_for !== null)
                 ->map(fn(ThesisDefense $defense): array => [
                     'id' => 'defense-'.$defense->id,
-                    'title' => $this->defenseTypeLabel($defense->type).' - '.$defense->project?->student?->name,
-                    'topic' => $this->defenseTypeLabel($defense->type).' #'.$defense->attempt_no,
+                    'title' => $this->defenseTypeLabelForProject($defense->type, $defense->project).' - '.$defense->project?->student?->name,
+                    'topic' => $this->defenseTypeLabelForProject($defense->type, $defense->project).' #'.$defense->attempt_no,
                     'person' => $defense->project?->student?->name ?? 'Mahasiswa',
                     'category' => 'ujian',
                     'start' => $defense->scheduled_for?->toIso8601String(),
@@ -484,6 +488,7 @@ class KaprodiPortalService
                     'status' => $profile->is_active ? 'Aktif' : 'Nonaktif',
                     'angkatan' => $profile->angkatan,
                     'degreeLevel' => strtoupper((string) $profile->degree_level),
+                    'terminology' => AcademicTerminology::forDegreeLevel($profile->degree_level),
                     'concentration' => $profile->concentration,
                     'phase' => $this->phaseLabel($project?->phase),
                     'phaseKey' => $project?->phase ?? 'none',
@@ -730,9 +735,9 @@ class KaprodiPortalService
     {
         return match ($phase) {
             'title_review' => 'Review Judul',
-            'sempro' => 'Sempro',
+            'sempro' => 'Proposal',
             'research' => 'Penelitian',
-            'sidang' => 'Sidang',
+            'sidang' => 'Ujian Akhir',
             'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
             default => '-',
@@ -742,8 +747,21 @@ class KaprodiPortalService
     private function defenseTypeLabel(?string $type): string
     {
         return match ($type) {
-            'sempro' => 'Sempro',
-            'sidang' => 'Sidang',
+            'sempro' => 'Proposal',
+            'sidang' => 'Ujian Akhir',
+            default => 'Ujian',
+        };
+    }
+
+    private function defenseTypeLabelForProject(?string $type, ?ThesisProject $project): string
+    {
+        $terminology = $project instanceof ThesisProject
+            ? AcademicTerminology::forProject($project)
+            : AcademicTerminology::neutral();
+
+        return match ($type) {
+            'sempro' => $terminology['proposalExamShort'],
+            'sidang' => $terminology['finalExam'],
             default => 'Ujian',
         };
     }
@@ -856,6 +874,7 @@ class KaprodiPortalService
                 'student' => $project->student?->name ?? 'Mahasiswa',
                 'nim' => $project->student?->mahasiswaProfile?->nim,
                 'title' => $project->latestTitle?->title_id ?? '-',
+                'terminology' => AcademicTerminology::forProject($project),
                 'phase' => $this->phaseLabel($project->phase),
                 'supervisors' => $project->activeSupervisorAssignments
                     ->sortBy('role')

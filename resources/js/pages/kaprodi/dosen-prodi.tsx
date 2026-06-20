@@ -332,13 +332,13 @@ export default function KaprodiDosenProdiPage() {
                                                 <td className="hidden px-4 py-3 lg:table-cell">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         <Badge variant="outline">
-                                                            Sempro{' '}
+                                                            Proposal{' '}
                                                             {
                                                                 lecturer.semproCount
                                                             }
                                                         </Badge>
                                                         <Badge variant="outline">
-                                                            Sidang{' '}
+                                                            Ujian Akhir{' '}
                                                             {
                                                                 lecturer.sidangCount
                                                             }

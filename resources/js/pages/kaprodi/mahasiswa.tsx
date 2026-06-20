@@ -214,9 +214,9 @@ function ActiveStudentTable({
 
     const phaseOptions: { label: string; value: ActivePhaseFilter }[] = [
         { label: 'Review Judul', value: 'title_review' },
-        { label: 'Sempro', value: 'sempro' },
+        { label: 'Proposal', value: 'sempro' },
         { label: 'Penelitian', value: 'research' },
-        { label: 'Sidang', value: 'sidang' },
+        { label: 'Ujian Akhir', value: 'sidang' },
         { label: 'Belum Ada Proyek', value: 'none' },
     ];
 

@@ -34,6 +34,16 @@ const STAT_CONFIGS: Record<string, StatConfig> = {
         wrapperClass: 'bg-primary/10',
         iconClass: 'text-primary',
     },
+    'Status Tugas Akhir': {
+        icon: BookOpen,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
+    'Status Tesis': {
+        icon: BookOpen,
+        wrapperClass: 'bg-primary/10',
+        iconClass: 'text-primary',
+    },
     'Pembimbing Aktif': {
         icon: GraduationCap,
         wrapperClass: 'bg-primary/10',
@@ -137,6 +147,8 @@ export function ProfileDetailsSections({
 }: {
     profile: UserProfileDetail;
 }) {
+    const finalWork = profile.academicTerminology?.finalWork ?? 'Tugas Akhir';
+
     return (
         <div className="space-y-8">
             {/* ── Detail Akademik & Peran ─────────────────────────────── */}
@@ -188,7 +200,7 @@ export function ProfileDetailsSections({
                     {/* Header */}
                     <div className="px-6 py-5">
                         <SectionHeader
-                            title="Tugas Akhir"
+                            title={finalWork}
                             description="Status terkini dan dosen yang sedang terlibat."
                             icon={FileText}
                         />

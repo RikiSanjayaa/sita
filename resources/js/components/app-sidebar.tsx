@@ -27,20 +27,28 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ role }: AppSidebarProps) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, academicTerminology } = usePage<SharedData>().props;
     const { currentUrl } = useActiveUrl();
     const activeRole = role ?? auth.activeRole ?? 'mahasiswa';
     const navigation = roleNavigationConfig[activeRole];
+    const resolvedMainNavigation =
+        activeRole === 'mahasiswa'
+            ? navigation.main.map((item) =>
+                  item.href === '/mahasiswa/tugas-akhir'
+                      ? { ...item, title: academicTerminology.finalWork }
+                      : item,
+              )
+            : navigation.main;
     const mainNavigation =
         activeRole === 'kaprodi'
-            ? navigation.main.filter((item) => {
+            ? resolvedMainNavigation.filter((item) => {
                   if (item.href === '/kaprodi/dokumen') {
                       return auth.kaprodiCapabilities?.view_documents ?? true;
                   }
 
                   return true;
               })
-            : navigation.main;
+            : resolvedMainNavigation;
     const settingsIsActive = currentUrl.startsWith('/settings');
 
     return (

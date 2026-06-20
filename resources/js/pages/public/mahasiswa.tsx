@@ -175,8 +175,8 @@ function PublicStudentsContent({
         <PublicLayout
             active="mahasiswa"
             headTitle="Mahasiswa Aktif"
-            pageTitle="Mahasiswa Tugas Akhir Aktif"
-            description="Daftar mahasiswa yang masih aktif menjalani proses tugas akhir, termasuk mahasiswa baru terdaftar, sempro, bimbingan aktif, hingga sidang yang masih berjalan."
+            pageTitle="Mahasiswa Karya Akhir Aktif"
+            description="Daftar mahasiswa yang masih aktif menjalani proses karya akhir, termasuk mahasiswa baru terdaftar, ujian proposal, bimbingan aktif, hingga ujian akhir yang masih berjalan."
         >
             <div className="space-y-6">
                 <Card className={sectionCardClass}>

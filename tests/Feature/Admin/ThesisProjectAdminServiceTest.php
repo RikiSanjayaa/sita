@@ -598,7 +598,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         $data = $notification->toArray($student);
 
         return in_array('database', $channels, true)
-            && $data['title'] === 'Sidang dijadwalkan'
+            && $data['title'] === 'Sidang Skripsi dijadwalkan'
             && str_contains($data['description'], 'Ruang Sidang Proyek')
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
@@ -607,7 +607,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         $data = $notification->toArray($student);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Sidang selesai dengan revisi'
+            && $data['title'] === 'Sidang Skripsi selesai dengan revisi'
             && $data['description'] === 'Sidang diterima dengan revisi minor.'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
@@ -616,7 +616,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         $data = $notification->toArray($primarySupervisor);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Sidang mahasiswa dijadwalkan'
+            && $data['title'] === 'Sidang Skripsi mahasiswa dijadwalkan'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 
@@ -624,7 +624,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         $data = $notification->toArray($secondarySupervisor);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Sidang mahasiswa dijadwalkan'
+            && $data['title'] === 'Sidang Skripsi mahasiswa dijadwalkan'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 
@@ -632,7 +632,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         $data = $notification->toArray($examiner);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Sidang mahasiswa dijadwalkan'
+            && $data['title'] === 'Sidang Skripsi mahasiswa dijadwalkan'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 });
@@ -797,7 +797,7 @@ test('admin service approves sempro revision and advances project to research', 
         $data = $notification->toArray($student);
 
         return in_array('database', $channels, true)
-            && $data['title'] === 'Revisi sempro disetujui'
+            && $data['title'] === 'Revisi Sempro disetujui'
             && $data['description'] === 'Revisi sempro disetujui, lanjut tetapkan pembimbing.'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
@@ -889,7 +889,7 @@ test('admin service approves sidang revision and completes project', function ()
         $data = $notification->toArray($student);
 
         return in_array('database', $channels, true)
-            && $data['title'] === 'Revisi sidang disetujui'
+            && $data['title'] === 'Revisi Sidang Skripsi disetujui'
             && $data['description'] === 'Revisi sidang disetujui, proyek dinyatakan selesai.'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });

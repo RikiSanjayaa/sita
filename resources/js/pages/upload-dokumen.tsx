@@ -136,6 +136,7 @@ const PAGE_SIZE = 15;
 
 export default function UploadDokumenPage() {
     const page = usePage<SharedData & UploadDokumenProps>();
+    const terms = page.props.academicTerminology;
     const query = page.url.split('?')[1] ?? '';
     const [isUploadOpen, setIsUploadOpen] = useState(
         new URLSearchParams(query).get('open') === 'unggah',
@@ -256,7 +257,7 @@ export default function UploadDokumenPage() {
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Upload Dokumen"
-            subtitle="Kelola dan upload dokumen skripsi Anda"
+            subtitle={`Kelola dan upload dokumen ${terms.finalWorkLower} Anda`}
         >
             <Head title="Upload Dokumen" />
 
@@ -316,7 +317,7 @@ export default function UploadDokumenPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="draft-tugas-akhir">
-                                        Draft Skripsi
+                                        Draft {terms.finalWork}
                                     </SelectItem>
                                     <SelectItem value="proposal">
                                         Proposal
@@ -331,7 +332,7 @@ export default function UploadDokumenPage() {
                                         Lampiran
                                     </SelectItem>
                                     <SelectItem value="lampiran-sidang">
-                                        Lampiran Sidang
+                                        Lampiran {terms.finalExam}
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -488,7 +489,8 @@ export default function UploadDokumenPage() {
                             Upload Dokumen
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola dan upload dokumen skripsi Anda
+                            Kelola dan upload dokumen {terms.finalWorkLower}{' '}
+                            Anda
                         </p>
                     </div>
                     <Button

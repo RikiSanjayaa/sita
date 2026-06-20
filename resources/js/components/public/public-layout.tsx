@@ -169,9 +169,9 @@ export function PublicLayout({
                                 </div>
                             </div>
                             <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-                                Akses ringkas untuk melihat jadwal sempro dan
-                                sidang, direktori pembimbing, mahasiswa aktif,
-                                dan daftar topik tugas akhir yang sudah
+                                Akses ringkas untuk melihat jadwal proposal dan
+                                ujian akhir, direktori pembimbing, mahasiswa
+                                aktif, dan daftar topik tugas akhir yang sudah
                                 dipublikasikan.
                             </p>
                         </div>

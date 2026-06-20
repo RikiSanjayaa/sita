@@ -13,6 +13,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Services\DosenBimbinganService;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -222,7 +223,12 @@ class MahasiswaBimbinganController extends Controller
 
         $stage = $this->stageSummary($project);
         $studentSummary = $this->userProfilePresenter->summary($student);
-        $contextLabel = $defense?->type === 'sidang' ? 'Sidang' : 'Sempro';
+        $terminology = $project === null
+            ? AcademicTerminology::neutral()
+            : AcademicTerminology::forProject($project);
+        $contextLabel = $defense?->type === 'sidang'
+            ? $terminology['finalExam']
+            : $terminology['proposalExamShort'];
 
         return [
             'nim' => $profile?->nim ?? '-',
@@ -340,6 +346,7 @@ class MahasiswaBimbinganController extends Controller
         }
 
         $project->loadMissing('defenses');
+        $terms = AcademicTerminology::forProject($project);
 
         $latestSidang = $project->defenses
             ->where('type', 'sidang')
@@ -349,28 +356,28 @@ class MahasiswaBimbinganController extends Controller
         if ($latestSidang instanceof ThesisDefense) {
             return match ($latestSidang->status) {
                 'scheduled' => [
-                    'label' => 'Sidang Terjadwal',
-                    'description' => 'Mahasiswa bersiap menuju sidang akhir.',
+                    'label' => $terms['finalExam'].' Terjadwal',
+                    'description' => 'Mahasiswa bersiap menuju '.$terms['finalExam'].'.',
                 ],
                 'awaiting_finalization' => [
-                    'label' => 'Menunggu Hasil Sidang',
+                    'label' => 'Menunggu Hasil '.$terms['finalExam'],
                     'description' => 'Semua keputusan dosen sudah masuk dan menunggu finalisasi admin.',
                 ],
                 'completed' => [
                     'label' => match ($latestSidang->result) {
-                        'pass_with_revision' => 'Revisi Sidang',
-                        'fail' => 'Sidang Tidak Lulus',
-                        default => 'Sidang Selesai',
+                        'pass_with_revision' => 'Revisi '.$terms['finalExam'],
+                        'fail' => $terms['finalExam'].' Tidak Lulus',
+                        default => $terms['finalExam'].' Selesai',
                     },
                     'description' => match ($latestSidang->result) {
-                        'pass_with_revision' => 'Masih ada revisi sidang yang perlu dipantau.',
-                        'fail' => 'Mahasiswa menunggu penjadwalan ulang sidang berikutnya.',
-                        default => 'Tahap sidang sudah selesai.',
+                        'pass_with_revision' => 'Masih ada revisi '.$terms['finalExam'].' yang perlu dipantau.',
+                        'fail' => 'Mahasiswa menunggu penjadwalan ulang '.$terms['finalExam'].' berikutnya.',
+                        default => 'Tahap '.$terms['finalExam'].' sudah selesai.',
                     },
                 ],
                 default => [
-                    'label' => 'Tahap Sidang',
-                    'description' => 'Mahasiswa sedang berada pada fase sidang.',
+                    'label' => 'Tahap '.$terms['finalExam'],
+                    'description' => 'Mahasiswa sedang berada pada fase '.$terms['finalExam'].'.',
                 ],
             };
         }
@@ -383,28 +390,28 @@ class MahasiswaBimbinganController extends Controller
         if ($latestSempro instanceof ThesisDefense) {
             return match ($latestSempro->status) {
                 'scheduled' => [
-                    'label' => 'Sempro Terjadwal',
-                    'description' => 'Mahasiswa sedang menuju pelaksanaan seminar proposal.',
+                    'label' => $terms['proposalExamShort'].' Terjadwal',
+                    'description' => 'Mahasiswa sedang menuju pelaksanaan '.$terms['proposalExam'].'.',
                 ],
                 'awaiting_finalization' => [
-                    'label' => 'Menunggu Hasil Sempro',
+                    'label' => 'Menunggu Hasil '.$terms['proposalExamShort'],
                     'description' => 'Semua keputusan dosen sudah masuk dan menunggu finalisasi admin.',
                 ],
                 'completed' => [
                     'label' => match ($latestSempro->result) {
-                        'pass_with_revision' => 'Revisi Sempro',
-                        'fail' => 'Sempro Tidak Lulus',
+                        'pass_with_revision' => 'Revisi '.$terms['proposalExamShort'],
+                        'fail' => $terms['proposalExamShort'].' Tidak Lulus',
                         default => 'Penelitian Berjalan',
                     },
                     'description' => match ($latestSempro->result) {
-                        'pass_with_revision' => 'Perlu menindaklanjuti revisi sempro.',
-                        'fail' => 'Mahasiswa menunggu penjadwalan ulang sempro berikutnya.',
-                        default => 'Sempro selesai, lanjut ke fase penelitian.',
+                        'pass_with_revision' => 'Perlu menindaklanjuti revisi '.$terms['proposalExamShort'].'.',
+                        'fail' => 'Mahasiswa menunggu penjadwalan ulang '.$terms['proposalExamShort'].' berikutnya.',
+                        default => $terms['proposalExamShort'].' selesai, lanjut ke fase penelitian.',
                     },
                 ],
                 default => [
-                    'label' => 'Tahap Sempro',
-                    'description' => 'Tahap sempro sedang diproses.',
+                    'label' => 'Tahap '.$terms['proposalExamShort'],
+                    'description' => 'Tahap '.$terms['proposalExamShort'].' sedang diproses.',
                 ],
             };
         }

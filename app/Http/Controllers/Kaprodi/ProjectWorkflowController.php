@@ -12,6 +12,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Services\SystemAuditLogService;
 use App\Services\ThesisProjectAdminService;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +29,7 @@ class ProjectWorkflowController extends Controller
     {
         $this->ensureProjectCanBeManaged($request, $project);
         $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_MANAGE_SUPERVISORS);
+        $terms = AcademicTerminology::forProject($project);
 
         try {
             $this->thesisProjectAdminService->assignSupervisors(
@@ -48,7 +50,7 @@ class ProjectWorkflowController extends Controller
             project: $project,
             eventType: 'kaprodi_supervisors_updated',
             label: 'Kaprodi memperbarui pembimbing',
-            description: 'Kaprodi memperbarui dosen pembimbing tugas akhir.',
+            description: 'Kaprodi memperbarui dosen pembimbing '.$terms['finalWorkLower'].'.',
             payload: [
                 'primary_lecturer_user_id' => (int) $request->validated('primary_lecturer_user_id'),
                 'secondary_lecturer_user_id' => (int) $request->validated('secondary_lecturer_user_id'),
@@ -63,6 +65,7 @@ class ProjectWorkflowController extends Controller
         $this->ensureProjectCanBeManaged($request, $project);
         $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_SCHEDULE_SEMPRO);
         $this->ensureDefenseCanBeScheduled($project, 'sempro');
+        $terms = AcademicTerminology::forProject($project);
 
         $examinerUserIds = collect([
             $request->validated('examiner_1_user_id'),
@@ -91,8 +94,8 @@ class ProjectWorkflowController extends Controller
             request: $request,
             project: $project,
             eventType: 'kaprodi_sempro_scheduled',
-            label: 'Kaprodi memperbarui jadwal sempro',
-            description: 'Kaprodi memperbarui jadwal dan penguji sempro.',
+            label: 'Kaprodi memperbarui jadwal '.$terms['proposalExamShort'],
+            description: 'Kaprodi memperbarui jadwal dan penguji '.$terms['proposalExamShort'].'.',
             payload: [
                 'scheduled_for' => $request->validated('scheduled_for'),
                 'location' => $request->validated('location'),
@@ -101,7 +104,7 @@ class ProjectWorkflowController extends Controller
             ],
         );
 
-        return back()->with('success', 'Jadwal sempro berhasil diperbarui.');
+        return back()->with('success', 'Jadwal '.$terms['proposalExamShort'].' berhasil diperbarui.');
     }
 
     public function scheduleSidang(ScheduleProjectSidangRequest $request, ThesisProject $project): RedirectResponse
@@ -109,6 +112,7 @@ class ProjectWorkflowController extends Controller
         $this->ensureProjectCanBeManaged($request, $project);
         $this->ensureKaprodiCapability($request, KaprodiAssignment::CAPABILITY_SCHEDULE_SIDANG);
         $this->ensureDefenseCanBeScheduled($project, 'sidang');
+        $terms = AcademicTerminology::forProject($project);
 
         $project->loadMissing('activeSupervisorAssignments');
         $supervisorIds = $project->activeSupervisorAssignments
@@ -141,8 +145,8 @@ class ProjectWorkflowController extends Controller
             request: $request,
             project: $project,
             eventType: 'kaprodi_sidang_scheduled',
-            label: 'Kaprodi memperbarui jadwal sidang',
-            description: 'Kaprodi memperbarui jadwal dan panel sidang.',
+            label: 'Kaprodi memperbarui jadwal '.$terms['finalExam'],
+            description: 'Kaprodi memperbarui jadwal dan panel '.$terms['finalExam'].'.',
             payload: [
                 'scheduled_for' => $request->validated('scheduled_for'),
                 'location' => $request->validated('location'),
@@ -152,7 +156,7 @@ class ProjectWorkflowController extends Controller
             ],
         );
 
-        return back()->with('success', 'Jadwal sidang berhasil diperbarui.');
+        return back()->with('success', 'Jadwal '.$terms['finalExam'].' berhasil diperbarui.');
     }
 
     private function ensureProjectCanBeManaged(Request $request, ThesisProject $project): void

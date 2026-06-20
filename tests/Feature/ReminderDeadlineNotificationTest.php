@@ -184,7 +184,7 @@ test('deadline reminder service sends reminders for upcoming bimbingan sempro si
         $data = $notification->toArray($studentSempro);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Reminder sempro'
+            && $data['title'] === 'Reminder Sempro'
             && str_contains($data['description'], 'Ruang Sempro A')
             && $data['preferenceKey'] === 'reminderDeadline';
     });
@@ -193,7 +193,7 @@ test('deadline reminder service sends reminders for upcoming bimbingan sempro si
         $data = $notification->toArray($studentSidang);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Reminder sidang'
+            && $data['title'] === 'Reminder Sidang Skripsi'
             && str_contains($data['description'], 'Ruang Sidang 2')
             && $data['preferenceKey'] === 'reminderDeadline';
     });
@@ -203,7 +203,7 @@ test('deadline reminder service sends reminders for upcoming bimbingan sempro si
 
         return in_array('database', $channels, true)
             && $data['title'] === 'Reminder deadline revisi'
-            && str_contains($data['description'], 'revisi sidang')
+            && str_contains($data['description'], 'revisi sidang skripsi')
             && $data['preferenceKey'] === 'reminderDeadline';
     });
 });

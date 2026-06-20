@@ -130,9 +130,9 @@ class AdminDashboardService
 
         return collect([
             ['phase' => 'title_review', 'label' => 'Review Judul', 'color' => 'gray', 'hex' => '#94a3b8'],
-            ['phase' => 'sempro', 'label' => 'Sempro', 'color' => 'info', 'hex' => '#06b6d4'],
+            ['phase' => 'sempro', 'label' => 'Proposal', 'color' => 'info', 'hex' => '#06b6d4'],
             ['phase' => 'research', 'label' => 'Riset', 'color' => 'warning', 'hex' => '#f59e0b'],
-            ['phase' => 'sidang', 'label' => 'Sidang', 'color' => 'primary', 'hex' => '#2563eb'],
+            ['phase' => 'sidang', 'label' => 'Ujian Akhir', 'color' => 'primary', 'hex' => '#2563eb'],
             ['phase' => 'completed', 'label' => 'Selesai', 'color' => 'success', 'hex' => '#16a34a'],
         ])->map(function (array $item) use ($counts): array {
             $item['count'] = (int) ($counts[$item['phase']] ?? 0);
@@ -170,15 +170,15 @@ class AdminDashboardService
 
         return [
             [
-                'label' => 'Perlu Sempro',
+                'label' => 'Perlu Ujian Proposal',
                 'count' => $metrics['needsSempro'],
-                'description' => 'Mahasiswa masih berada di review judul/sempro tapi belum punya agenda sempro.',
+                'description' => 'Mahasiswa masih berada di review judul/proposal tetapi belum punya agenda ujian proposal.',
                 'url' => $baseUrl.'?activeTab=perlu-sempro',
             ],
             [
-                'label' => 'Perlu Sidang',
+                'label' => 'Perlu Ujian Akhir',
                 'count' => $metrics['needsSidang'],
-                'description' => 'Proyek riset/sidang belum memiliki jadwal atau riwayat sidang.',
+                'description' => 'Proyek riset/ujian akhir belum memiliki jadwal atau riwayat ujian akhir.',
                 'url' => $baseUrl.'?activeTab=perlu-sidang',
             ],
             [
@@ -276,7 +276,7 @@ class AdminDashboardService
             ->limit($limit)
             ->get()
             ->map(fn(ThesisDefense $defense): array => [
-                'label' => $defense->type === 'sidang' ? 'Sidang' : 'Sempro',
+                'label' => $defense->type === 'sidang' ? 'Ujian Akhir' : 'Proposal',
                 'student' => $defense->project?->student?->name ?? '-',
                 'nim' => $defense->project?->student?->mahasiswaProfile?->nim ?? '-',
                 'programStudi' => $defense->project?->programStudi?->name ?? '-',
@@ -453,11 +453,11 @@ class AdminDashboardService
         }
 
         if (in_array($record->phase, ['title_review', 'sempro'], true) && $record->defenses->where('type', 'sempro')->whereIn('status', ['scheduled', 'completed'])->isEmpty()) {
-            return 'Belum ada sempro yang dijadwalkan atau diselesaikan.';
+            return 'Belum ada ujian proposal yang dijadwalkan atau diselesaikan.';
         }
 
         if (in_array($record->phase, ['research', 'sidang'], true) && $record->defenses->where('type', 'sidang')->whereIn('status', ['scheduled', 'completed'])->isEmpty()) {
-            return 'Belum ada sidang yang dijadwalkan atau diselesaikan.';
+            return 'Belum ada ujian akhir yang dijadwalkan atau diselesaikan.';
         }
 
         return 'Perlu pengecekan manual dari admin.';

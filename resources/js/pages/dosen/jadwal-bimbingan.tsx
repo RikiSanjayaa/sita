@@ -548,7 +548,7 @@ export default function DosenJadwalBimbinganPage() {
 
     const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
         { label: 'Bimbingan', value: 'bimbingan' },
-        { label: 'Sempro / Sidang', value: 'ujian' },
+        { label: 'Proposal / Ujian Akhir', value: 'ujian' },
         { label: 'Semua', value: 'semua' },
     ];
 
@@ -590,8 +590,8 @@ export default function DosenJadwalBimbinganPage() {
                                 Workspace Jadwal
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Satu kalender untuk bimbingan, sempro, dan
-                                sidang
+                                Satu kalender untuk bimbingan, proposal, dan
+                                ujian akhir
                             </p>
                         </div>
                         {/* filter pills */}
