@@ -86,6 +86,9 @@ type ExamRow = {
     attempt: number;
     scheduledFor: string;
     scheduledForInput: string;
+    scheduledDateStartInput: string;
+    scheduledDateEndInput: string;
+    scheduledTimeInput: string;
     location: string | null;
     mode: string;
     canManageSchedule: boolean;
@@ -116,6 +119,9 @@ type DefenseSummary = {
     statusKey: string;
     scheduledFor: string;
     scheduledForInput: string;
+    scheduledDateStartInput: string;
+    scheduledDateEndInput: string;
+    scheduledTimeInput: string;
     location: string | null;
     mode: string;
     canManageSchedule: boolean;
@@ -178,11 +184,11 @@ function DecisionBadge({ decision }: { decision: string }) {
         );
     }
 
-    if (decision === 'Lulus dengan Revisi') {
+    if (decision === 'Lulus dengan Syarat') {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                 <FileWarning className="size-3" />
-                Revisi
+                Lulus Bersyarat
             </span>
         );
     }
@@ -780,7 +786,13 @@ function ScheduleDialog({
 
         return {
             project_id: project ? String(project.id) : '',
-            scheduled_for: state?.exam?.scheduledForInput ?? '',
+            scheduled_for:
+                state?.type === 'sempro'
+                    ? (state?.exam?.scheduledForInput ?? '')
+                    : '',
+            scheduled_date_start: state?.exam?.scheduledDateStartInput ?? '',
+            scheduled_date_end: state?.exam?.scheduledDateEndInput ?? '',
+            scheduled_time: state?.exam?.scheduledTimeInput ?? '',
             location: state?.exam?.location ?? '',
             mode: state?.exam?.mode ?? 'offline',
             examiner_1_user_id:
@@ -827,7 +839,10 @@ function ScheduleDialog({
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
-        form.data.scheduled_for === '' ||
+        (activeState.type === 'sempro'
+            ? form.data.scheduled_for === ''
+            : form.data.scheduled_date_start === '' ||
+              form.data.scheduled_time === '') ||
         form.data.location === '' ||
         (activeState.type === 'sempro' &&
             (form.data.examiner_1_user_id === '' ||
@@ -913,30 +928,127 @@ function ScheduleDialog({
                     ) : null}
 
                     <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="grid min-w-0 gap-1.5 sm:col-span-1">
-                            <label className="text-sm font-medium">
-                                Jadwal
-                            </label>
-                            <Input
-                                type="datetime-local"
-                                value={form.data.scheduled_for}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'scheduled_for',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            {(form.errors as Record<string, string>)
-                                .scheduled_for ? (
-                                <p className="text-xs text-destructive">
-                                    {
-                                        (form.errors as Record<string, string>)
-                                            .scheduled_for
+                        {activeState.type === 'sempro' ? (
+                            <div className="grid min-w-0 gap-1.5 sm:col-span-1">
+                                <label className="text-sm font-medium">
+                                    Jadwal
+                                </label>
+                                <Input
+                                    type="datetime-local"
+                                    value={form.data.scheduled_for}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'scheduled_for',
+                                            event.target.value,
+                                        )
                                     }
-                                </p>
-                            ) : null}
-                        </div>
+                                />
+                                {(form.errors as Record<string, string>)
+                                    .scheduled_for ? (
+                                    <p className="text-xs text-destructive">
+                                        {
+                                            (
+                                                form.errors as Record<
+                                                    string,
+                                                    string
+                                                >
+                                            ).scheduled_for
+                                        }
+                                    </p>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <div className="grid min-w-0 gap-3 sm:col-span-1">
+                                <div className="grid min-w-0 gap-1.5">
+                                    <label className="text-sm font-medium">
+                                        Tanggal Mulai
+                                    </label>
+                                    <Input
+                                        type="date"
+                                        value={form.data.scheduled_date_start}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'scheduled_date_start',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {(form.errors as Record<string, string>)
+                                        .scheduled_date_start ? (
+                                        <p className="text-xs text-destructive">
+                                            {
+                                                (
+                                                    form.errors as Record<
+                                                        string,
+                                                        string
+                                                    >
+                                                ).scheduled_date_start
+                                            }
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="grid min-w-0 gap-1.5">
+                                    <label className="text-sm font-medium">
+                                        Tanggal Akhir
+                                    </label>
+                                    <Input
+                                        type="date"
+                                        min={
+                                            form.data.scheduled_date_start ||
+                                            undefined
+                                        }
+                                        value={form.data.scheduled_date_end}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'scheduled_date_end',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {(form.errors as Record<string, string>)
+                                        .scheduled_date_end ? (
+                                        <p className="text-xs text-destructive">
+                                            {
+                                                (
+                                                    form.errors as Record<
+                                                        string,
+                                                        string
+                                                    >
+                                                ).scheduled_date_end
+                                            }
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="grid min-w-0 gap-1.5">
+                                    <label className="text-sm font-medium">
+                                        Jam
+                                    </label>
+                                    <Input
+                                        type="time"
+                                        value={form.data.scheduled_time}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'scheduled_time',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {(form.errors as Record<string, string>)
+                                        .scheduled_time ? (
+                                        <p className="text-xs text-destructive">
+                                            {
+                                                (
+                                                    form.errors as Record<
+                                                        string,
+                                                        string
+                                                    >
+                                                ).scheduled_time
+                                            }
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                        )}
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
                             <label className="text-sm font-medium">
                                 Lokasi

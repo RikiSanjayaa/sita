@@ -121,12 +121,14 @@ class ProjectWorkflowController extends Controller
             ->map(static fn($id): int => (int) $id)
             ->values()
             ->all();
+        $scheduledFor = $this->scheduledForFromSidangRequest($request);
+        $scheduledUntil = $this->scheduledUntilFromSidangRequest($request);
 
         try {
             $this->thesisProjectAdminService->scheduleSidang(
                 project: $project,
                 createdBy: (int) $request->user()?->getKey(),
-                scheduledFor: (string) $request->validated('scheduled_for'),
+                scheduledFor: $scheduledFor,
                 location: (string) $request->validated('location'),
                 mode: (string) $request->validated('mode'),
                 panelUserIds: array_values(array_unique(array_merge(
@@ -134,6 +136,7 @@ class ProjectWorkflowController extends Controller
                     array_map(static fn($id): int => (int) $id, $request->validated('additional_examiner_user_ids')),
                 ))),
                 notes: $request->validated('notes'),
+                scheduledUntil: $scheduledUntil,
             );
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages([
@@ -148,7 +151,8 @@ class ProjectWorkflowController extends Controller
             label: 'Kaprodi memperbarui jadwal '.$terms['finalExam'],
             description: 'Kaprodi memperbarui jadwal dan panel '.$terms['finalExam'].'.',
             payload: [
-                'scheduled_for' => $request->validated('scheduled_for'),
+                'scheduled_for' => $scheduledFor,
+                'scheduled_until' => $scheduledUntil,
                 'location' => $request->validated('location'),
                 'mode' => $request->validated('mode'),
                 'supervisor_user_ids' => $supervisorIds,
@@ -157,6 +161,28 @@ class ProjectWorkflowController extends Controller
         );
 
         return back()->with('success', 'Jadwal '.$terms['finalExam'].' berhasil diperbarui.');
+    }
+
+    private function scheduledForFromSidangRequest(ScheduleProjectSidangRequest $request): string
+    {
+        $legacyScheduledFor = $request->validated('scheduled_for');
+
+        if (filled($legacyScheduledFor)) {
+            return (string) $legacyScheduledFor;
+        }
+
+        return $request->validated('scheduled_date_start').' '.$request->validated('scheduled_time');
+    }
+
+    private function scheduledUntilFromSidangRequest(ScheduleProjectSidangRequest $request): ?string
+    {
+        $scheduledDateEnd = $request->validated('scheduled_date_end');
+
+        if (blank($scheduledDateEnd)) {
+            return null;
+        }
+
+        return $scheduledDateEnd.' '.$request->validated('scheduled_time');
     }
 
     private function ensureProjectCanBeManaged(Request $request, ThesisProject $project): void

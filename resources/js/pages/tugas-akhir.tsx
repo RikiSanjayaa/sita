@@ -104,10 +104,12 @@ type TugasAkhirPageProps = {
     sidangExaminerProfiles: UserProfileSummary[];
     semproDate: string | null;
     sidangDate: string | null;
+    sidangDateUntil: string | null;
     semproResult: {
         label: string;
         resultLabel: string;
         scheduledFor: string | null;
+        scheduledUntil: string | null;
         location: string | null;
         examiners: Array<{
             id: number;
@@ -122,6 +124,7 @@ type TugasAkhirPageProps = {
         label: string;
         resultLabel: string;
         scheduledFor: string | null;
+        scheduledUntil: string | null;
         location: string | null;
         examiners: Array<{
             id: number;
@@ -139,6 +142,7 @@ type TugasAkhirPageProps = {
             statusLabel: string;
             resultLabel: string;
             scheduledFor: string | null;
+            scheduledUntil: string | null;
             location: string | null;
             mode: string | null;
             officialNotes: string | null;
@@ -179,6 +183,7 @@ type TugasAkhirPageProps = {
             statusLabel: string;
             resultLabel: string;
             scheduledFor: string | null;
+            scheduledUntil: string | null;
             location: string | null;
             mode: string | null;
             officialNotes: string | null;

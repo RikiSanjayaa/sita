@@ -119,14 +119,14 @@ class SeminarProposalController extends Controller
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
+        $allowedDecisions = $defense->type === 'sempro'
+            ? ['pass_with_revision', 'fail']
+            : ['pass', 'pass_with_revision', 'fail'];
+
         $validated = $request->validate([
             'decision' => [
                 'required',
-                Rule::in([
-                    'pass',
-                    'pass_with_revision',
-                    'fail',
-                ]),
+                Rule::in($allowedDecisions),
             ],
             'score' => ['required', 'numeric', 'min:0', 'max:100'],
             'decision_notes' => ['nullable', 'string', 'max:2000'],

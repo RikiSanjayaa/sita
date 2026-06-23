@@ -120,7 +120,7 @@ class KaprodiPortalService
                 'typeKey' => $defense->type,
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
-                'result' => $this->statusLabel($defense->result),
+                'result' => $this->defenseResultLabel($defense),
                 'averageScore' => $this->averageScore($defense),
                 'grade' => $this->grade($this->averageScore($defense)),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
@@ -130,8 +130,11 @@ class KaprodiPortalService
                 'nim' => $defense->project?->student?->mahasiswaProfile?->nim,
                 'title' => $defense->project?->latestTitle?->title_id ?? '-',
                 'attempt' => $defense->attempt_no,
-                'scheduledFor' => WitaDateTime::format($defense->scheduled_for),
+                'scheduledFor' => $this->formatDefenseSchedule($defense),
                 'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
+                'scheduledDateStartInput' => $defense->scheduled_for?->format('Y-m-d') ?? '',
+                'scheduledDateEndInput' => $defense->scheduled_until?->format('Y-m-d') ?? '',
+                'scheduledTimeInput' => $defense->scheduled_for?->format('H:i') ?? '',
                 'location' => $defense->location,
                 'mode' => $defense->mode ?? 'offline',
                 'canManageSchedule' => $this->canManageDefenseSchedule($defense),
@@ -141,7 +144,7 @@ class KaprodiPortalService
                         'id' => $examiner->lecturer_user_id,
                         'name' => $examiner->lecturer?->name ?? '-',
                         'role' => $this->examinerRoleLabel($examiner->role),
-                        'decision' => $this->statusLabel($examiner->decision),
+                        'decision' => $this->defenseDecisionLabel($defense, $examiner->decision),
                         'score' => $examiner->score,
                         'profileUrl' => route('users.profile.show', ['user' => $examiner->lecturer_user_id]),
                     ])
@@ -160,7 +163,7 @@ class KaprodiPortalService
                     'person' => $defense->project?->student?->name ?? 'Mahasiswa',
                     'category' => 'ujian',
                     'start' => $defense->scheduled_for?->toIso8601String(),
-                    'end' => $defense->scheduled_for?->copy()->addHours(2)->toIso8601String(),
+                    'end' => ($defense->scheduled_until ?? $defense->scheduled_for?->copy()->addHours(2))?->toIso8601String(),
                     'location' => $defense->location ?? '-',
                     'status' => in_array($defense->status, ['completed', 'cancelled'], true) ? $defense->status : 'scheduled',
                     'personRole' => 'student',
@@ -780,7 +783,7 @@ class KaprodiPortalService
             'awaiting_finalization' => 'Menunggu Finalisasi',
             'pending' => 'Menunggu',
             'pass' => 'Lulus',
-            'pass_with_revision' => 'Lulus dengan Revisi',
+            'pass_with_revision' => 'Lulus',
             'fail' => 'Tidak Lulus',
             'approved' => 'Disetujui',
             'needs_revision' => 'Perlu Revisi',
@@ -789,6 +792,33 @@ class KaprodiPortalService
             'resolved' => 'Selesai',
             default => str($status)->replace('_', ' ')->headline()->toString(),
         };
+    }
+
+    private function defenseResultLabel(ThesisDefense $defense): string
+    {
+        return match ($defense->result) {
+            'pending' => 'Menunggu',
+            'pass' => 'Lulus',
+            'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
+            'fail' => 'Tidak Lulus',
+            default => $this->statusLabel($defense->result),
+        };
+    }
+
+    private function defenseDecisionLabel(ThesisDefense $defense, ?string $decision): string
+    {
+        return match ($decision) {
+            null, '', 'pending' => 'Menunggu',
+            'pass' => 'Lulus',
+            'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
+            'fail' => 'Tidak Lulus',
+            default => $this->statusLabel($decision),
+        };
+    }
+
+    private function formatDefenseSchedule(ThesisDefense $defense): string
+    {
+        return WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until);
     }
 
     private function workspaceDocumentGroupKey(MentorshipDocument $document): string
@@ -906,8 +936,11 @@ class KaprodiPortalService
             'id' => $defense->id,
             'status' => $this->statusLabel($defense->status),
             'statusKey' => $defense->status,
-            'scheduledFor' => WitaDateTime::format($defense->scheduled_for),
+            'scheduledFor' => $this->formatDefenseSchedule($defense),
             'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
+            'scheduledDateStartInput' => $defense->scheduled_for?->format('Y-m-d') ?? '',
+            'scheduledDateEndInput' => $defense->scheduled_until?->format('Y-m-d') ?? '',
+            'scheduledTimeInput' => $defense->scheduled_for?->format('H:i') ?? '',
             'location' => $defense->location,
             'mode' => $defense->mode ?? 'offline',
             'canManageSchedule' => $this->canManageDefenseSchedule($defense),
