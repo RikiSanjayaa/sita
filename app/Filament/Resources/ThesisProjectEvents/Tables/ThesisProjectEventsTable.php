@@ -23,7 +23,7 @@ class ThesisProjectEventsTable
     {
         return $table
             ->defaultSort('occurred_at', 'desc')
-            ->paginated([10, 25, 50])
+            ->paginated([10, 15, 25, 50, 100])
             ->columns([
                 TextColumn::make('occurred_at')
                     ->label('Waktu')

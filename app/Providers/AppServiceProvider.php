@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Filament\Support\Facades\FilamentTimezone;
+use Filament\Tables\Table;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +66,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Date::use(CarbonImmutable::class);
         FilamentTimezone::set(WitaDateTime::TIMEZONE);
+
+        Table::configureUsing(function (Table $table): void {
+            $table
+                ->paginated([10, 15, 25, 50, 100])
+                ->defaultPaginationPageOption(10);
+        });
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

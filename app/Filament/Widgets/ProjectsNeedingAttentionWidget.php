@@ -32,7 +32,7 @@ class ProjectsNeedingAttentionWidget extends TableWidget
             ->description('Proyek yang paling perlu tindakan admin berikutnya.')
             ->query($service->attentionProjectsQuery($user))
             ->defaultPaginationPageOption(5)
-            ->paginated([5, 10])
+            ->paginated([5, 10, 15, 25, 50, 100])
             ->columns([
                 TextColumn::make('student.name')
                     ->label('Mahasiswa')
