@@ -29,7 +29,7 @@ class RecentProjectEventsWidget extends TableWidget
             ->heading('Aktivitas Admin Terkini')
             ->query($this->query($user))
             ->defaultPaginationPageOption(5)
-            ->paginated([5, 10])
+            ->paginated([5, 10, 15, 25, 50, 100])
             ->defaultSort('occurred_at', 'desc')
             ->columns([
                 TextColumn::make('label')

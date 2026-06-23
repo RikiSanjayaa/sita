@@ -23,7 +23,7 @@ class CsatResponsesTable
     {
         return $table
             ->defaultSort('created_at', 'desc')
-            ->paginated([10, 25, 50])
+            ->paginated([10, 15, 25, 50, 100])
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Dikirim')
