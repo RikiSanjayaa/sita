@@ -108,6 +108,7 @@ function PublicTopicsContent({
                 {
                     search: search || undefined,
                     program: normalizedProgram || undefined,
+                    per_page: topicPagination.perPage,
                 },
                 {
                     preserveScroll: true,
@@ -118,7 +119,13 @@ function PublicTopicsContent({
         }, 250);
 
         return () => window.clearTimeout(timeoutId);
-    }, [filters.program, filters.search, programFilter, search]);
+    }, [
+        filters.program,
+        filters.search,
+        programFilter,
+        search,
+        topicPagination.perPage,
+    ]);
 
     const yearTabs = useMemo(() => {
         const years = Array.from(
@@ -165,6 +172,24 @@ function PublicTopicsContent({
                 page,
                 search: filters.search || undefined,
                 program: filters.program || undefined,
+                per_page: topicPagination.perPage,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
+
+    function changePageSize(pageSize: number) {
+        router.get(
+            '/topik',
+            {
+                page: 1,
+                search: filters.search || undefined,
+                program: filters.program || undefined,
+                per_page: pageSize,
             },
             {
                 preserveScroll: true,
@@ -248,7 +273,29 @@ function PublicTopicsContent({
 
                         {filteredTitles.length > 0 ? (
                             <>
-                                <DataTableContainer>
+                                <DataTableContainer
+                                    pagination={
+                                        <DataTablePagination
+                                            currentPage={
+                                                topicPagination.currentPage
+                                            }
+                                            totalPages={Math.max(
+                                                1,
+                                                topicPagination.currentPage +
+                                                    (topicPagination.hasMorePages
+                                                        ? 1
+                                                        : 0),
+                                            )}
+                                            currentItemCount={
+                                                filteredTitles.length
+                                            }
+                                            pageSize={topicPagination.perPage}
+                                            onPageChange={visitPage}
+                                            onPageSizeChange={changePageSize}
+                                            itemLabel="topik"
+                                        />
+                                    }
+                                >
                                     <table className="w-full min-w-[980px] text-sm">
                                         <thead className="bg-muted/30 text-left">
                                             <tr>
@@ -454,21 +501,6 @@ function PublicTopicsContent({
                                         </tbody>
                                     </table>
                                 </DataTableContainer>
-
-                                <DataTablePagination
-                                    currentPage={topicPagination.currentPage}
-                                    totalPages={Math.max(
-                                        1,
-                                        topicPagination.currentPage +
-                                            (topicPagination.hasMorePages
-                                                ? 1
-                                                : 0),
-                                    )}
-                                    currentItemCount={filteredTitles.length}
-                                    pageSize={topicPagination.perPage}
-                                    onPageChange={visitPage}
-                                    itemLabel="topik"
-                                />
                             </>
                         ) : (
                             <DataTableEmptyState

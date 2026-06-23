@@ -220,6 +220,8 @@ export default function UploadDokumenPage() {
     const {
         page: currentPage,
         setPage,
+        pageSize,
+        setPageSize,
         totalPages,
         paginated,
         totalItems,
@@ -577,7 +579,19 @@ export default function UploadDokumenPage() {
 
                     {/* Table */}
                     {totalItems > 0 ? (
-                        <DataTableContainer>
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    pageSize={pageSize}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={setPageSize}
+                                    itemLabel="dokumen"
+                                />
+                            }
+                        >
                             <table className="w-full min-w-[800px] text-left text-sm">
                                 <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
                                     <tr>
@@ -740,14 +754,6 @@ export default function UploadDokumenPage() {
                                     })}
                                 </tbody>
                             </table>
-                            <DataTablePagination
-                                currentPage={currentPage}
-                                totalPages={totalPages}
-                                totalItems={totalItems}
-                                pageSize={PAGE_SIZE}
-                                onPageChange={setPage}
-                                itemLabel="dokumen"
-                            />
                         </DataTableContainer>
                     ) : (
                         <DataTableEmptyState

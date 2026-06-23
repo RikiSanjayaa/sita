@@ -30,8 +30,16 @@ class WelcomeController extends Controller
     public function schedules(Request $request): Response
     {
         $search = trim((string) $request->string('search'));
-        $upcomingSchedules = $this->upcomingScheduleItems($search, (int) $request->integer('upcoming_page', 1));
-        $followUpSchedules = $this->followUpScheduleItems($search, (int) $request->integer('follow_up_page', 1));
+        $upcomingSchedules = $this->upcomingScheduleItems(
+            search: $search,
+            page: (int) $request->integer('upcoming_page', 1),
+            perPage: $this->paginationPageSize($request, 'upcoming_per_page', 10),
+        );
+        $followUpSchedules = $this->followUpScheduleItems(
+            search: $search,
+            page: (int) $request->integer('follow_up_page', 1),
+            perPage: $this->paginationPageSize($request, 'follow_up_per_page', 8),
+        );
 
         return Inertia::render('public/jadwal', [
             'filters' => [
@@ -71,6 +79,7 @@ class WelcomeController extends Controller
             search: $search,
             program: $program,
             page: (int) $request->integer('page', 1),
+            perPage: $this->paginationPageSize($request, 'per_page', 10),
         );
 
         return Inertia::render('public/topik', [
@@ -101,6 +110,7 @@ class WelcomeController extends Controller
             search: $search,
             program: $program,
             page: (int) $request->integer('page', 1),
+            perPage: $this->paginationPageSize($request, 'per_page', 10),
         );
 
         return Inertia::render('public/mahasiswa', [
@@ -178,10 +188,10 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function upcomingScheduleItems(string $search = '', int $page = 1): array
+    private function upcomingScheduleItems(string $search = '', int $page = 1, int $perPage = 10): array
     {
         $paginator = $this->upcomingScheduleQuery($search)
-            ->simplePaginate(perPage: 10, pageName: 'upcoming_page', page: $page)
+            ->simplePaginate(perPage: $perPage, pageName: 'upcoming_page', page: $page)
             ->through(function (ThesisDefense $defense): array {
                 $project = $defense->project;
 
@@ -214,12 +224,12 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function followUpScheduleItems(string $search = '', int $page = 1): array
+    private function followUpScheduleItems(string $search = '', int $page = 1, int $perPage = 8): array
     {
         $now = now();
 
         $paginator = $this->followUpScheduleQuery($search, $now)
-            ->simplePaginate(perPage: 8, pageName: 'follow_up_page', page: $page)
+            ->simplePaginate(perPage: $perPage, pageName: 'follow_up_page', page: $page)
             ->through(function (ThesisDefense $defense) use ($now): array {
                 $project = $defense->project;
                 $openRevisions = $defense->revisions->whereIn('status', ['open', 'submitted']);
@@ -371,7 +381,7 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function semproTitles(string $search = '', string $program = '', int $page = 1): array
+    private function semproTitles(string $search = '', string $program = '', int $page = 1, int $perPage = 10): array
     {
         $paginator = ThesisProject::query()
             ->with([
@@ -422,7 +432,7 @@ class WelcomeController extends Controller
                 });
             })
             ->orderByDesc('latest_sidang_at')
-            ->simplePaginate(perPage: 10, pageName: 'page', page: $page)
+            ->simplePaginate(perPage: $perPage, pageName: 'page', page: $page)
             ->through(function (ThesisProject $project): array {
                 $latestSempro = $project->semproDefenses->first();
                 $latestSidang = $project->sidangDefenses->first();
@@ -481,7 +491,7 @@ class WelcomeController extends Controller
             ->values();
     }
 
-    private function activeStudents(string $search = '', string $program = '', int $page = 1): array
+    private function activeStudents(string $search = '', string $program = '', int $page = 1, int $perPage = 10): array
     {
         $students = User::query()
             ->whereHas('roles', function ($query): void {
@@ -551,9 +561,9 @@ class WelcomeController extends Controller
             ->values();
 
         $paginator = new LengthAwarePaginator(
-            items: $students->forPage($page, 10)->values()->all(),
+            items: $students->forPage($page, $perPage)->values()->all(),
             total: $students->count(),
-            perPage: 10,
+            perPage: $perPage,
             currentPage: max($page, 1),
             options: [
                 'path' => request()->url(),
@@ -772,6 +782,15 @@ class WelcomeController extends Controller
                 ->orWhere('location', 'like', "%{$search}%")
                 ->orWhere('mode', 'like', "%{$search}%");
         });
+    }
+
+    private function paginationPageSize(Request $request, string $key, int $fallback): int
+    {
+        $pageSize = (int) $request->integer($key, $fallback);
+
+        return in_array($pageSize, [10, 15, 25, 50, 100], true)
+            ? $pageSize
+            : $fallback;
     }
 
     private function simplePaginationData($paginator): array
