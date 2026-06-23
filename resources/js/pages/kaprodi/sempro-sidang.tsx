@@ -27,7 +27,11 @@ import {
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DataTablePagination, usePagination } from '@/components/ui/data-table';
+import {
+    DataTableContainer,
+    DataTablePagination,
+    usePagination,
+} from '@/components/ui/data-table';
 import {
     Dialog,
     DialogContent,
@@ -245,7 +249,15 @@ export default function KaprodiSemproSidangPage() {
         });
     }, [exams, search, statusFilter, typeFilter]);
 
-    const { page, setPage, totalPages, paginated, totalItems } = usePagination(
+    const {
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(
         filtered,
         PAGE_SIZE,
         [search, typeFilter, statusFilter],
@@ -432,7 +444,19 @@ export default function KaprodiSemproSidangPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    pageSize={pageSize}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={setPageSize}
+                                    itemLabel="ujian"
+                                />
+                            }
+                        >
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b bg-muted/30">
@@ -597,15 +621,7 @@ export default function KaprodiSemproSidangPage() {
                                     ))}
                                 </tbody>
                             </table>
-                            <DataTablePagination
-                                currentPage={page}
-                                totalPages={totalPages}
-                                totalItems={totalItems}
-                                pageSize={PAGE_SIZE}
-                                onPageChange={setPage}
-                                itemLabel="ujian"
-                            />
-                        </div>
+                        </DataTableContainer>
                     )}
                 </section>
             </div>

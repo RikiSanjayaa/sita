@@ -100,6 +100,7 @@ function PublicStudentsContent({
                 {
                     search: search || undefined,
                     program: normalizedProgram || undefined,
+                    per_page: studentPagination.perPage,
                 },
                 {
                     preserveScroll: true,
@@ -110,7 +111,13 @@ function PublicStudentsContent({
         }, 250);
 
         return () => window.clearTimeout(timeoutId);
-    }, [filters.program, filters.search, programFilter, search]);
+    }, [
+        filters.program,
+        filters.search,
+        programFilter,
+        search,
+        studentPagination.perPage,
+    ]);
 
     const stageTabs = useMemo(() => {
         const counts = activeStudents.reduce<Record<string, number>>(
@@ -150,6 +157,24 @@ function PublicStudentsContent({
                 page,
                 search: filters.search || undefined,
                 program: filters.program || undefined,
+                per_page: studentPagination.perPage,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
+
+    function changePageSize(pageSize: number) {
+        router.get(
+            '/mahasiswa-aktif',
+            {
+                page: 1,
+                search: filters.search || undefined,
+                program: filters.program || undefined,
+                per_page: pageSize,
             },
             {
                 preserveScroll: true,
@@ -236,7 +261,21 @@ function PublicStudentsContent({
                         />
 
                         {filteredStudents.length > 0 ? (
-                            <DataTableContainer>
+                            <DataTableContainer
+                                pagination={
+                                    <DataTablePagination
+                                        currentPage={
+                                            studentPagination.currentPage
+                                        }
+                                        totalPages={studentPagination.lastPage}
+                                        totalItems={studentPagination.total}
+                                        pageSize={studentPagination.perPage}
+                                        onPageChange={visitPage}
+                                        onPageSizeChange={changePageSize}
+                                        itemLabel="mahasiswa"
+                                    />
+                                }
+                            >
                                 <table className="w-full min-w-[980px] text-sm">
                                     <thead className="bg-muted/30 text-left">
                                         <tr>
@@ -328,15 +367,6 @@ function PublicStudentsContent({
                                 }
                             />
                         )}
-
-                        <DataTablePagination
-                            currentPage={studentPagination.currentPage}
-                            totalPages={studentPagination.lastPage}
-                            totalItems={studentPagination.total}
-                            pageSize={studentPagination.perPage}
-                            onPageChange={visitPage}
-                            itemLabel="mahasiswa"
-                        />
                     </CardContent>
                 </Card>
             </div>

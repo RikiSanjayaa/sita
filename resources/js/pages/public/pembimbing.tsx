@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DataTableContainer,
     DataTableEmptyState,
+    DataTablePagination,
     DataTableToolbar,
+    usePagination,
 } from '@/components/ui/data-table';
 import {
     Select,
@@ -42,6 +44,93 @@ type PageProps = {
 
 const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
 const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+const ADVISOR_PAGE_SIZE = 10;
+
+function AdvisorGroupTable({
+    advisors,
+    concentration,
+    totalActiveStudents,
+}: {
+    advisors: AdvisorDirectoryItem[];
+    concentration: string;
+    totalActiveStudents: number;
+}) {
+    const {
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(advisors, ADVISOR_PAGE_SIZE, [
+        concentration,
+        advisors.length,
+    ]);
+
+    return (
+        <section className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold text-foreground">
+                    {concentration}
+                </h2>
+                <Badge variant="outline">{advisors.length} dosen</Badge>
+            </div>
+
+            <DataTableContainer
+                pagination={
+                    <DataTablePagination
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        pageSize={pageSize}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                        itemLabel="dosen"
+                    />
+                }
+            >
+                <table className="w-full min-w-[640px] text-sm">
+                    <thead className="bg-muted/30 text-left">
+                        <tr>
+                            <th className="px-4 py-3 font-semibold">
+                                Dosen Pembimbing
+                            </th>
+                            <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
+                                Pembimbing 1
+                            </th>
+                            <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
+                                Pembimbing 2
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {paginated.map((advisor) => (
+                            <tr key={advisor.id} className="border-t">
+                                <td className="px-4 py-3 font-medium text-foreground">
+                                    {advisor.name}
+                                </td>
+                                <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
+                                    {advisor.primaryCount}
+                                </td>
+                                <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
+                                    {advisor.secondaryCount}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </DataTableContainer>
+
+            <div className="flex justify-end text-sm text-muted-foreground">
+                Total mahasiswa aktif pada konsentrasi ini:{' '}
+                <span className="ml-1 font-semibold text-foreground">
+                    {totalActiveStudents}
+                </span>
+            </div>
+        </section>
+    );
+}
 
 export default function PublicAdvisorsPage() {
     const { advisorDirectory, advisorPrograms, concentrationStudentTotals } =
@@ -155,67 +244,14 @@ export default function PublicAdvisorsPage() {
                                     );
 
                                 return (
-                                    <section
+                                    <AdvisorGroupTable
                                         key={concentration}
-                                        className="space-y-4"
-                                    >
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h2 className="text-base font-semibold text-foreground">
-                                                {concentration}
-                                            </h2>
-                                            <Badge variant="outline">
-                                                {advisors.length} dosen
-                                            </Badge>
-                                        </div>
-
-                                        <DataTableContainer>
-                                            <table className="w-full min-w-[640px] text-sm">
-                                                <thead className="bg-muted/30 text-left">
-                                                    <tr>
-                                                        <th className="px-4 py-3 font-semibold">
-                                                            Dosen Pembimbing
-                                                        </th>
-                                                        <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
-                                                            Pembimbing 1
-                                                        </th>
-                                                        <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
-                                                            Pembimbing 2
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {advisors.map((advisor) => (
-                                                        <tr
-                                                            key={advisor.id}
-                                                            className="border-t"
-                                                        >
-                                                            <td className="px-4 py-3 font-medium text-foreground">
-                                                                {advisor.name}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
-                                                                {
-                                                                    advisor.primaryCount
-                                                                }
-                                                            </td>
-                                                            <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
-                                                                {
-                                                                    advisor.secondaryCount
-                                                                }
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </DataTableContainer>
-
-                                        <div className="flex justify-end text-sm text-muted-foreground">
-                                            Total mahasiswa aktif pada
-                                            konsentrasi ini:{' '}
-                                            <span className="ml-1 font-semibold text-foreground">
-                                                {totalActiveStudents}
-                                            </span>
-                                        </div>
-                                    </section>
+                                        advisors={advisors}
+                                        concentration={concentration}
+                                        totalActiveStudents={
+                                            totalActiveStudents
+                                        }
+                                    />
                                 );
                             })
                         ) : (

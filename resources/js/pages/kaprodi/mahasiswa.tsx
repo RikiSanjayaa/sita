@@ -4,7 +4,6 @@ import {
     CalendarClock,
     ChevronRight,
     CircleHelp,
-    FileArchive,
     FileText,
     Search,
     UserCog,
@@ -24,6 +23,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DataTableContainer,
+    DataTablePagination,
+} from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -95,6 +98,27 @@ type ArchiveRow = {
     profileUrl: string;
 };
 
+type DirectoryRow = {
+    kind: 'active' | 'archive';
+    id: number;
+    projectId: number | null;
+    canManageSupervisors: boolean;
+    name: string;
+    nim: string;
+    avatar: string | null;
+    angkatan: string | null;
+    degreeLevel: string;
+    concentration: string | null;
+    phase: string;
+    phaseKey: ActivePhaseFilter;
+    title: string;
+    advisors: string[];
+    progressRisk: StudentRow['progressRisk'] | null;
+    profileUrl: string;
+    completedAt: string | null;
+    activeStudent: StudentRow | null;
+};
+
 type MahasiswaProps = {
     programStudi: ProgramStudi;
     filters: {
@@ -111,11 +135,11 @@ type ActivePhaseFilter =
     | 'sempro'
     | 'research'
     | 'sidang'
+    | 'completed'
+    | 'cancelled'
     | 'none';
 
 type RiskFilter = 'semua' | 'high' | 'medium' | 'low';
-
-type ArchiveFilter = 'semua' | 'Selesai' | 'Dibatalkan';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
@@ -139,6 +163,7 @@ export default function KaprodiMahasiswaPage() {
             student.status === 'Aktif' &&
             !['completed', 'cancelled'].includes(student.projectStateKey),
     );
+    const totalRows = activeRows.length + archives.length;
 
     return (
         <KaprodiLayout
@@ -152,46 +177,38 @@ export default function KaprodiMahasiswaPage() {
                 <section>
                     <div className="mb-4 border-b pb-3">
                         <h2 className="text-base font-semibold">
-                            Mahasiswa Aktif
+                            Daftar Mahasiswa
                         </h2>
                         <p className="text-sm text-muted-foreground">
                             Memantau{' '}
                             <span className="font-semibold text-foreground">
-                                {activeRows.length}
+                                {totalRows}
                             </span>{' '}
-                            mahasiswa aktif di {programStudi.name}
+                            mahasiswa dan arsip proyek di {programStudi.name}
                         </p>
                     </div>
-                    <ActiveStudentTable
+                    <StudentTable
                         rows={activeRows}
+                        archives={archives}
                         filters={filters}
                         canManageSupervisors={canManageSupervisors}
-                        emptyText="Belum ada mahasiswa aktif"
+                        emptyText="Belum ada mahasiswa atau arsip proyek"
                     />
-                </section>
-
-                <section>
-                    <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">Arsip Prodi</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Proyek selesai atau dibatalkan, tetap bisa dibuka
-                            dari profil mahasiswa.
-                        </p>
-                    </div>
-                    <ArchiveTable rows={archives} filters={filters} />
                 </section>
             </div>
         </KaprodiLayout>
     );
 }
 
-function ActiveStudentTable({
+function StudentTable({
     rows,
+    archives,
     filters,
     canManageSupervisors,
     emptyText,
 }: {
     rows: StudentRow[];
+    archives: ArchiveRow[];
     filters: MahasiswaProps['filters'];
     canManageSupervisors: boolean;
     emptyText: string;
@@ -215,6 +232,7 @@ function ActiveStudentTable({
         'semua',
     );
     const [page, setPage] = useUrlState('activePage', 1);
+    const [pageSize, setPageSize] = useUrlState('activePageSize', PAGE_SIZE);
     const [supervisorDialog, setSupervisorDialog] = useState<StudentRow | null>(
         null,
     );
@@ -224,6 +242,8 @@ function ActiveStudentTable({
         { label: 'Proposal', value: 'sempro' },
         { label: 'Penelitian', value: 'research' },
         { label: 'Ujian Akhir', value: 'sidang' },
+        { label: 'Selesai', value: 'completed' },
+        { label: 'Dibatalkan', value: 'cancelled' },
         { label: 'Belum Ada Proyek', value: 'none' },
     ];
 
@@ -233,10 +253,62 @@ function ActiveStudentTable({
         { label: 'Terkendali', value: 'low' },
     ];
 
+    const directoryRows = useMemo<DirectoryRow[]>(() => {
+        const activeDirectoryRows = rows.map(
+            (row): DirectoryRow => ({
+                kind: 'active',
+                id: row.id,
+                projectId: row.projectId,
+                canManageSupervisors: row.canManageSupervisors,
+                name: row.name,
+                nim: row.nim,
+                avatar: row.avatar,
+                angkatan: row.angkatan,
+                degreeLevel: row.degreeLevel,
+                concentration: row.concentration,
+                phase: row.phase,
+                phaseKey: row.phaseKey as ActivePhaseFilter,
+                title: row.title,
+                advisors: row.advisors,
+                progressRisk: row.progressRisk,
+                profileUrl: row.profileUrl,
+                completedAt: null,
+                activeStudent: row,
+            }),
+        );
+
+        const archiveDirectoryRows = archives.map((row): DirectoryRow => {
+            const isCancelled = row.state === 'Dibatalkan';
+
+            return {
+                kind: 'archive',
+                id: row.id,
+                projectId: null,
+                canManageSupervisors: false,
+                name: row.student,
+                nim: row.nim ?? '',
+                avatar: row.avatar,
+                angkatan: row.angkatan,
+                degreeLevel: row.degreeLevel,
+                concentration: row.concentration,
+                phase: row.state,
+                phaseKey: isCancelled ? 'cancelled' : 'completed',
+                title: row.title,
+                advisors: [],
+                progressRisk: null,
+                profileUrl: row.profileUrl,
+                completedAt: row.completedAt,
+                activeStudent: null,
+            };
+        });
+
+        return [...activeDirectoryRows, ...archiveDirectoryRows];
+    }, [archives, rows]);
+
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase();
 
-        return rows.filter((row) => {
+        return directoryRows.filter((row) => {
             const matchesSearch =
                 !query ||
                 [
@@ -246,10 +318,10 @@ function ActiveStudentTable({
                     row.title,
                     row.degreeLevel,
                     row.concentration ?? '',
-                    row.progressRisk.label,
-                    row.progressRisk.description,
-                    row.progressRisk.lastActivityLabel,
-                    ...row.progressRisk.signals,
+                    row.progressRisk?.label ?? '',
+                    row.progressRisk?.description ?? '',
+                    row.progressRisk?.lastActivityLabel ?? '',
+                    ...(row.progressRisk?.signals ?? []),
                     ...row.advisors,
                 ]
                     .join(' ')
@@ -260,7 +332,7 @@ function ActiveStudentTable({
                 matchesSearch &&
                 (phaseFilter === 'semua' || row.phaseKey === phaseFilter) &&
                 (riskFilter === 'semua' ||
-                    row.progressRisk.level === riskFilter) &&
+                    row.progressRisk?.level === riskFilter) &&
                 (angkatanFilter === 'semua' ||
                     String(row.angkatan ?? '') === angkatanFilter) &&
                 (concentrationFilter === 'semua' ||
@@ -270,19 +342,19 @@ function ActiveStudentTable({
     }, [
         angkatanFilter,
         concentrationFilter,
+        directoryRows,
         phaseFilter,
         riskFilter,
-        rows,
         search,
     ]);
 
     const safePage = Math.max(
         1,
-        Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))),
+        Math.min(page, Math.max(1, Math.ceil(filtered.length / pageSize))),
     );
     const paginated = filtered.slice(
-        (safePage - 1) * PAGE_SIZE,
-        safePage * PAGE_SIZE,
+        (safePage - 1) * pageSize,
+        safePage * pageSize,
     );
 
     function resetPage() {
@@ -364,7 +436,25 @@ function ActiveStudentTable({
             </div>
 
             {paginated.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                <DataTableContainer
+                    pagination={
+                        <DataTablePagination
+                            currentPage={safePage}
+                            totalPages={Math.max(
+                                1,
+                                Math.ceil(filtered.length / pageSize),
+                            )}
+                            totalItems={filtered.length}
+                            pageSize={pageSize}
+                            onPageChange={setPage}
+                            onPageSizeChange={(nextPageSize) => {
+                                setPageSize(nextPageSize);
+                                resetPage();
+                            }}
+                            itemLabel="mahasiswa"
+                        />
+                    }
+                >
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b bg-muted/30">
@@ -392,7 +482,7 @@ function ActiveStudentTable({
                         <tbody className="divide-y">
                             {paginated.map((row) => (
                                 <tr
-                                    key={row.id}
+                                    key={`${row.kind}-${row.id}`}
                                     className="transition-colors hover:bg-muted/20"
                                 >
                                     <td className="px-4 py-3">
@@ -432,17 +522,39 @@ function ActiveStudentTable({
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex flex-col items-start gap-1.5">
-                                            <Badge>{row.phase}</Badge>
-                                            <ProgressRiskBadge
-                                                risk={row.progressRisk}
-                                                className="lg:hidden"
-                                            />
+                                            <Badge
+                                                variant={
+                                                    row.kind === 'archive' &&
+                                                    row.phaseKey === 'cancelled'
+                                                        ? 'outline'
+                                                        : 'default'
+                                                }
+                                            >
+                                                {row.phase}
+                                            </Badge>
+                                            {row.completedAt ? (
+                                                <span className="text-xs text-muted-foreground">
+                                                    {row.completedAt}
+                                                </span>
+                                            ) : null}
+                                            {row.progressRisk ? (
+                                                <ProgressRiskBadge
+                                                    risk={row.progressRisk}
+                                                    className="lg:hidden"
+                                                />
+                                            ) : null}
                                         </div>
                                     </td>
                                     <td className="hidden px-4 py-3 lg:table-cell">
-                                        <ProgressRiskBadge
-                                            risk={row.progressRisk}
-                                        />
+                                        {row.progressRisk ? (
+                                            <ProgressRiskBadge
+                                                risk={row.progressRisk}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                -
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
                                         <p className="line-clamp-2 text-xs leading-relaxed">
@@ -480,12 +592,15 @@ function ActiveStudentTable({
                                             </Link>
                                             {canManageSupervisors &&
                                             row.canManageSupervisors &&
-                                            row.projectId !== null ? (
+                                            row.projectId !== null &&
+                                            row.activeStudent ? (
                                                 <button
                                                     type="button"
                                                     title="Atur pembimbing"
                                                     onClick={() =>
-                                                        setSupervisorDialog(row)
+                                                        setSupervisorDialog(
+                                                            row.activeStudent,
+                                                        )
                                                     }
                                                     className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
                                                 >
@@ -505,12 +620,7 @@ function ActiveStudentTable({
                             ))}
                         </tbody>
                     </table>
-                    <PaginationFooter
-                        page={safePage}
-                        total={filtered.length}
-                        onPageChange={setPage}
-                    />
-                </div>
+                </DataTableContainer>
             ) : (
                 <EmptyBlock icon={AlertCircle} text={emptyText} />
             )}
@@ -721,314 +831,6 @@ function ProgressRiskBadge({
             <p className="text-xs text-muted-foreground">
                 {risk.lastActivityLabel} - {risk.lastActivityAt}
             </p>
-        </div>
-    );
-}
-
-function ArchiveTable({
-    rows,
-    filters,
-}: {
-    rows: ArchiveRow[];
-    filters: MahasiswaProps['filters'];
-}) {
-    const getInitials = useInitials();
-    const [search, setSearch] = useUrlState('archiveSearch', '');
-    const [stateFilter, setStateFilter] = useUrlState<ArchiveFilter>(
-        'archiveStatus',
-        'semua',
-    );
-    const [angkatanFilter, setAngkatanFilter] = useUrlState(
-        'archiveAngkatan',
-        'semua',
-    );
-    const [concentrationFilter, setConcentrationFilter] = useUrlState(
-        'archiveKonsentrasi',
-        'semua',
-    );
-    const [page, setPage] = useUrlState('archivePage', 1);
-
-    const filtered = useMemo(() => {
-        const query = search.trim().toLowerCase();
-
-        return rows.filter((row) => {
-            const matchesSearch =
-                !query ||
-                [
-                    row.student,
-                    row.nim ?? '',
-                    row.title,
-                    row.phase,
-                    row.state,
-                    row.angkatan ?? '',
-                    row.degreeLevel,
-                    row.concentration ?? '',
-                ]
-                    .join(' ')
-                    .toLowerCase()
-                    .includes(query);
-
-            return (
-                matchesSearch &&
-                (stateFilter === 'semua' || row.state === stateFilter) &&
-                (angkatanFilter === 'semua' ||
-                    String(row.angkatan ?? '') === angkatanFilter) &&
-                (concentrationFilter === 'semua' ||
-                    row.concentration === concentrationFilter)
-            );
-        });
-    }, [angkatanFilter, concentrationFilter, rows, search, stateFilter]);
-
-    const safePage = Math.max(
-        1,
-        Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))),
-    );
-    const paginated = filtered.slice(
-        (safePage - 1) * PAGE_SIZE,
-        safePage * PAGE_SIZE,
-    );
-
-    return (
-        <div className="space-y-3">
-            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-                <div className="relative max-w-xs flex-1">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        value={search}
-                        onChange={(event) => {
-                            setSearch(event.target.value);
-                            setPage(1);
-                        }}
-                        placeholder="Cari mahasiswa atau judul..."
-                        className="h-8 pl-8 text-sm"
-                    />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <FilterSelect
-                        value={stateFilter}
-                        onChange={(value) => {
-                            setStateFilter(value as ArchiveFilter);
-                            setPage(1);
-                        }}
-                        options={[
-                            { label: 'Selesai', value: 'Selesai' },
-                            { label: 'Dibatalkan', value: 'Dibatalkan' },
-                        ]}
-                        placeholder="Semua Status"
-                    />
-                    <FilterSelect
-                        value={angkatanFilter}
-                        onChange={(value) => {
-                            setAngkatanFilter(value);
-                            setPage(1);
-                        }}
-                        options={filters.angkatan}
-                        placeholder="Semua Angkatan"
-                    />
-                    <FilterSelect
-                        value={concentrationFilter}
-                        onChange={(value) => {
-                            setConcentrationFilter(value);
-                            setPage(1);
-                        }}
-                        options={filters.concentrations}
-                        placeholder="Semua Konsentrasi"
-                    />
-                    {stateFilter !== 'semua' ||
-                    angkatanFilter !== 'semua' ||
-                    concentrationFilter !== 'semua' ? (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setStateFilter('semua');
-                                setAngkatanFilter('semua');
-                                setConcentrationFilter('semua');
-                                setPage(1);
-                            }}
-                            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                            Reset filter
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-
-            {paginated.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b bg-muted/30">
-                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                    Mahasiswa
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                    Angkatan
-                                </th>
-                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                    Status
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
-                                    Judul
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
-                                    Tanggal
-                                </th>
-                                <th className="w-8 px-4 py-2.5" />
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {paginated.map((row) => (
-                                <tr
-                                    key={row.id}
-                                    className="transition-colors hover:bg-muted/20"
-                                >
-                                    <td className="px-4 py-3">
-                                        <Link
-                                            href={row.profileUrl}
-                                            className="flex items-center gap-2.5"
-                                        >
-                                            <Avatar className="size-7 shrink-0 border">
-                                                <AvatarImage
-                                                    src={
-                                                        row.avatar ?? undefined
-                                                    }
-                                                    alt={row.student}
-                                                />
-                                                <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
-                                                    {getInitials(row.student)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className="min-w-0">
-                                                <p className="truncate leading-snug font-medium">
-                                                    {row.student}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {row.nim ?? '-'}
-                                                </p>
-                                            </div>
-                                        </Link>
-                                    </td>
-                                    <td className="hidden px-4 py-3 md:table-cell">
-                                        <p className="text-xs font-medium">
-                                            {row.degreeLevel} ·{' '}
-                                            {row.angkatan ?? '-'}
-                                        </p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {row.concentration ?? '-'}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <Badge
-                                                variant={
-                                                    row.state === 'Selesai'
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
-                                            >
-                                                {row.state}
-                                            </Badge>
-                                        </div>
-                                    </td>
-                                    <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
-                                        <p className="line-clamp-2 text-xs leading-relaxed">
-                                            {row.title}
-                                        </p>
-                                    </td>
-                                    <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
-                                        {row.completedAt}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Link
-                                                href={searchUrl(
-                                                    '/kaprodi/dokumen',
-                                                    row.nim ?? '',
-                                                )}
-                                                title="Lihat dokumen mahasiswa"
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <FileText className="size-4" />
-                                            </Link>
-                                            <Link
-                                                href={searchUrl(
-                                                    '/kaprodi/sempro-sidang',
-                                                    row.nim ?? '',
-                                                )}
-                                                title="Lihat jadwal sempro dan sidang"
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <CalendarClock className="size-4" />
-                                            </Link>
-                                            <Link
-                                                href={row.profileUrl}
-                                                title="Buka profil mahasiswa"
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <ChevronRight className="size-4" />
-                                            </Link>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <PaginationFooter
-                        page={safePage}
-                        total={filtered.length}
-                        onPageChange={setPage}
-                    />
-                </div>
-            ) : (
-                <EmptyBlock icon={FileArchive} text="Belum ada arsip proyek" />
-            )}
-        </div>
-    );
-}
-
-function PaginationFooter({
-    page,
-    total,
-    onPageChange,
-}: {
-    page: number;
-    total: number;
-    onPageChange: (page: number) => void;
-}) {
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-    return (
-        <div className="flex items-center justify-between border-t px-4 py-2.5">
-            <p className="text-xs text-muted-foreground">
-                {total === 0
-                    ? 'Tidak ada item'
-                    : `${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, total)} dari ${total} item`}
-            </p>
-            {totalPages > 1 ? (
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        disabled={page <= 1}
-                        onClick={() => onPageChange(Math.max(1, page - 1))}
-                        className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-                    >
-                        Prev
-                    </button>
-                    <span className="text-xs text-muted-foreground">
-                        Hal {page} / {totalPages}
-                    </span>
-                    <button
-                        type="button"
-                        disabled={page >= totalPages}
-                        onClick={() =>
-                            onPageChange(Math.min(totalPages, page + 1))
-                        }
-                        className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-                    >
-                        Next
-                    </button>
-                </div>
-            ) : null}
         </div>
     );
 }

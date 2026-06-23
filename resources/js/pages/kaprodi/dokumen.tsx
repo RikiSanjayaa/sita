@@ -122,7 +122,15 @@ export default function KaprodiDokumenPage() {
         });
     }, [documentQueue, search, statusFilter]);
 
-    const { page, setPage, totalPages, paginated, totalItems } = usePagination(
+    const {
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(
         filteredDocuments,
         PAGE_SIZE,
         [search, statusFilter],
@@ -203,7 +211,19 @@ export default function KaprodiDokumenPage() {
                     />
 
                     {totalItems > 0 ? (
-                        <DataTableContainer>
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    pageSize={pageSize}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={setPageSize}
+                                    itemLabel="dokumen"
+                                />
+                            }
+                        >
                             <table className="w-full text-left text-sm">
                                 <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
                                     <tr>
@@ -443,14 +463,6 @@ export default function KaprodiDokumenPage() {
                                     })}
                                 </tbody>
                             </table>
-                            <DataTablePagination
-                                currentPage={page}
-                                totalPages={totalPages}
-                                totalItems={totalItems}
-                                pageSize={PAGE_SIZE}
-                                onPageChange={setPage}
-                                itemLabel="dokumen"
-                            />
                         </DataTableContainer>
                     ) : (
                         <DataTableEmptyState

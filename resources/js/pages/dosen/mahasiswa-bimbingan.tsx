@@ -15,6 +15,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+    DataTableContainer,
+    DataTablePagination,
+    usePagination,
+} from '@/components/ui/data-table';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -33,6 +38,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
     { title: 'Mahasiswa Dosen', href: '/dosen/mahasiswa-bimbingan' },
 ];
+
+const STUDENT_PAGE_SIZE = 15;
 
 type RoleFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2' | 'penguji';
 
@@ -107,6 +114,7 @@ function StudentTable({
         `${queryPrefix}Role`,
         'semua',
     );
+    const pageState = useUrlState(`${queryPrefix}Page`, 1);
 
     function openPrivateChat(row: MahasiswaRow) {
         if (row.studentUserId === null) {
@@ -140,6 +148,20 @@ function StudentTable({
             return matchSearch && matchRole;
         });
     }, [roleFilter, rows, search]);
+    const {
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(
+        filtered,
+        STUDENT_PAGE_SIZE,
+        [search, roleFilter, rows.length],
+        pageState,
+    );
 
     return (
         <div className="space-y-3">
@@ -173,7 +195,19 @@ function StudentTable({
             </div>
 
             {filtered.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                <DataTableContainer
+                    pagination={
+                        <DataTablePagination
+                            currentPage={page}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            pageSize={pageSize}
+                            onPageChange={setPage}
+                            onPageSizeChange={setPageSize}
+                            itemLabel="mahasiswa"
+                        />
+                    }
+                >
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b bg-muted/30">
@@ -197,7 +231,7 @@ function StudentTable({
                             </tr>
                         </thead>
                         <tbody className="divide-y">
-                            {filtered.map((row) => (
+                            {paginated.map((row) => (
                                 <tr
                                     key={`${row.nim}-${row.relationType}-${row.roleLabel}-${row.contextLabel}`}
                                     className="transition-colors hover:bg-muted/20"
@@ -395,7 +429,7 @@ function StudentTable({
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </DataTableContainer>
             ) : (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
                     <UserRound className="mb-2 size-8 text-muted-foreground/40" />

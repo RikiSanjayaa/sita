@@ -709,7 +709,31 @@ export default function JadwalBimbinganPage() {
                             </div>
 
                             {page.props.upcomingMeetings.length > 0 ? (
-                                <DataTableContainer>
+                                <DataTableContainer
+                                    pagination={
+                                        <DataTablePagination
+                                            currentPage={
+                                                upcomingPagination.page
+                                            }
+                                            totalPages={
+                                                upcomingPagination.totalPages
+                                            }
+                                            totalItems={
+                                                upcomingPagination.totalItems
+                                            }
+                                            pageSize={
+                                                upcomingPagination.pageSize
+                                            }
+                                            onPageChange={
+                                                upcomingPagination.setPage
+                                            }
+                                            onPageSizeChange={
+                                                upcomingPagination.setPageSize
+                                            }
+                                            itemLabel="jadwal"
+                                        />
+                                    }
+                                >
                                     <table className="w-full min-w-[700px] text-sm">
                                         <thead>
                                             <tr className="border-b bg-muted/30">
@@ -813,20 +837,6 @@ export default function JadwalBimbinganPage() {
                                             )}
                                         </tbody>
                                     </table>
-                                    <DataTablePagination
-                                        currentPage={upcomingPagination.page}
-                                        totalPages={
-                                            upcomingPagination.totalPages
-                                        }
-                                        totalItems={
-                                            upcomingPagination.totalItems
-                                        }
-                                        pageSize={PAGE_SIZE}
-                                        onPageChange={
-                                            upcomingPagination.setPage
-                                        }
-                                        itemLabel="jadwal"
-                                    />
                                 </DataTableContainer>
                             ) : (
                                 <DataTableEmptyState
@@ -884,7 +894,29 @@ export default function JadwalBimbinganPage() {
                             />
 
                             {historyPagination.totalItems > 0 ? (
-                                <DataTableContainer>
+                                <DataTableContainer
+                                    pagination={
+                                        <DataTablePagination
+                                            currentPage={historyPagination.page}
+                                            totalPages={
+                                                historyPagination.totalPages
+                                            }
+                                            totalItems={
+                                                historyPagination.totalItems
+                                            }
+                                            pageSize={
+                                                historyPagination.pageSize
+                                            }
+                                            onPageChange={
+                                                historyPagination.setPage
+                                            }
+                                            onPageSizeChange={
+                                                historyPagination.setPageSize
+                                            }
+                                            itemLabel="riwayat"
+                                        />
+                                    }
+                                >
                                     <table className="w-full min-w-[600px] text-left text-sm">
                                         <thead className="border-b bg-muted/30">
                                             <tr>
@@ -957,18 +989,6 @@ export default function JadwalBimbinganPage() {
                                             )}
                                         </tbody>
                                     </table>
-                                    <DataTablePagination
-                                        currentPage={historyPagination.page}
-                                        totalPages={
-                                            historyPagination.totalPages
-                                        }
-                                        totalItems={
-                                            historyPagination.totalItems
-                                        }
-                                        pageSize={PAGE_SIZE}
-                                        onPageChange={historyPagination.setPage}
-                                        itemLabel="riwayat"
-                                    />
                                 </DataTableContainer>
                             ) : (
                                 <DataTableEmptyState

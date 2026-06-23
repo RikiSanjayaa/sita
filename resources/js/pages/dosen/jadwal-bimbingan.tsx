@@ -203,6 +203,8 @@ export default function DosenJadwalBimbinganPage() {
     const [historySearch, setHistorySearch] = useUrlState('historySearch', '');
     const historyPageState = useUrlState('historyPage', 1);
     const HISTORY_PAGE_SIZE = 15;
+    const upcomingPageState = useUrlState('upcomingPage', 1);
+    const UPCOMING_PAGE_SIZE = 15;
 
     // Sheet state for upcoming schedule actions
     const [selectedUpcoming, setSelectedUpcoming] =
@@ -498,6 +500,12 @@ export default function DosenJadwalBimbinganPage() {
         HISTORY_PAGE_SIZE,
         [historyFilter, historySearch],
         historyPageState,
+    );
+    const upcomingPagination = usePagination(
+        upcomingSchedules,
+        UPCOMING_PAGE_SIZE,
+        [upcomingSchedules.length],
+        upcomingPageState,
     );
 
     function handleEventClick(event: BimbinganEvent) {
@@ -1193,58 +1201,125 @@ export default function DosenJadwalBimbinganPage() {
 
                         {upcomingSchedules.length > 0 ? (
                             <>
+                                <div className="md:hidden">
+                                    <DataTablePagination
+                                        currentPage={upcomingPagination.page}
+                                        totalPages={
+                                            upcomingPagination.totalPages
+                                        }
+                                        totalItems={
+                                            upcomingPagination.totalItems
+                                        }
+                                        pageSize={upcomingPagination.pageSize}
+                                        onPageChange={
+                                            upcomingPagination.setPage
+                                        }
+                                        onPageSizeChange={
+                                            upcomingPagination.setPageSize
+                                        }
+                                        itemLabel="jadwal"
+                                    />
+                                </div>
                                 <div className="grid gap-3 md:hidden">
-                                    {upcomingSchedules.map((item) => (
-                                        <button
-                                            key={`${item.id}-${item.mahasiswa}-mobile`}
-                                            type="button"
-                                            className="rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/20"
-                                            onClick={() => {
-                                                setSelectedUpcoming(item);
-                                                setUpcomingSheetOpen(true);
-                                            }}
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 space-y-2">
-                                                    <div>
-                                                        <p className="text-sm font-semibold">
-                                                            {item.mahasiswa}
-                                                        </p>
-                                                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                                            {item.topic}
-                                                        </p>
+                                    {upcomingPagination.paginated.map(
+                                        (item) => (
+                                            <button
+                                                key={`${item.id}-${item.mahasiswa}-mobile`}
+                                                type="button"
+                                                className="rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/20"
+                                                onClick={() => {
+                                                    setSelectedUpcoming(item);
+                                                    setUpcomingSheetOpen(true);
+                                                }}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0 space-y-2">
+                                                        <div>
+                                                            <p className="text-sm font-semibold">
+                                                                {item.mahasiswa}
+                                                            </p>
+                                                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                                {item.topic}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <RelationTypeBadge
+                                                                relationType={
+                                                                    item.relationType
+                                                                }
+                                                            />
+                                                            <StatusBadge
+                                                                status={
+                                                                    item.status
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1.5 text-xs text-muted-foreground">
+                                                            <span className="flex items-center gap-1.5">
+                                                                <CalendarClock className="size-3 shrink-0" />
+                                                                {formatDateTime(
+                                                                    item.date,
+                                                                    item.time,
+                                                                )}
+                                                            </span>
+                                                            <span className="flex items-center gap-1.5">
+                                                                <MapPin className="size-3 shrink-0" />
+                                                                {item.location}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <RelationTypeBadge
-                                                            relationType={
-                                                                item.relationType
-                                                            }
-                                                        />
-                                                        <StatusBadge
-                                                            status={item.status}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1.5 text-xs text-muted-foreground">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <CalendarClock className="size-3 shrink-0" />
-                                                            {formatDateTime(
-                                                                item.date,
-                                                                item.time,
-                                                            )}
-                                                        </span>
-                                                        <span className="flex items-center gap-1.5">
-                                                            <MapPin className="size-3 shrink-0" />
-                                                            {item.location}
-                                                        </span>
-                                                    </div>
+                                                    <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                                                 </div>
-                                                <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                            </div>
-                                        </button>
-                                    ))}
+                                            </button>
+                                        ),
+                                    )}
+                                </div>
+                                <div className="md:hidden">
+                                    <DataTablePagination
+                                        currentPage={upcomingPagination.page}
+                                        totalPages={
+                                            upcomingPagination.totalPages
+                                        }
+                                        totalItems={
+                                            upcomingPagination.totalItems
+                                        }
+                                        pageSize={upcomingPagination.pageSize}
+                                        onPageChange={
+                                            upcomingPagination.setPage
+                                        }
+                                        onPageSizeChange={
+                                            upcomingPagination.setPageSize
+                                        }
+                                        itemLabel="jadwal"
+                                    />
                                 </div>
 
-                                <div className="hidden overflow-hidden rounded-xl border bg-card shadow-sm md:block">
+                                <DataTableContainer
+                                    className="hidden md:block"
+                                    pagination={
+                                        <DataTablePagination
+                                            currentPage={
+                                                upcomingPagination.page
+                                            }
+                                            totalPages={
+                                                upcomingPagination.totalPages
+                                            }
+                                            totalItems={
+                                                upcomingPagination.totalItems
+                                            }
+                                            pageSize={
+                                                upcomingPagination.pageSize
+                                            }
+                                            onPageChange={
+                                                upcomingPagination.setPage
+                                            }
+                                            onPageSizeChange={
+                                                upcomingPagination.setPageSize
+                                            }
+                                            itemLabel="jadwal"
+                                        />
+                                    }
+                                >
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b bg-muted/30">
@@ -1264,61 +1339,59 @@ export default function DosenJadwalBimbinganPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
-                                            {upcomingSchedules.map((item) => (
-                                                <tr
-                                                    key={`${item.id}-${item.mahasiswa}`}
-                                                    className="cursor-pointer transition-colors hover:bg-muted/30"
-                                                    onClick={() => {
-                                                        setSelectedUpcoming(
-                                                            item,
-                                                        );
-                                                        setUpcomingSheetOpen(
-                                                            true,
-                                                        );
-                                                    }}
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        <p className="font-medium">
-                                                            {item.mahasiswa}
-                                                        </p>
-                                                        <RelationTypeBadge
-                                                            relationType={
-                                                                item.relationType
-                                                            }
-                                                        />
-                                                    </td>
-                                                    <td className="hidden max-w-[200px] px-4 py-3 md:table-cell">
-                                                        <p className="line-clamp-2 text-xs text-muted-foreground">
-                                                            {item.topic}
-                                                        </p>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                                                            <CalendarClock className="size-3 shrink-0" />
-                                                            {formatDateTime(
-                                                                item.date,
-                                                                item.time,
-                                                            )}
-                                                        </span>
-                                                    </td>
-                                                    <td className="hidden px-4 py-3 sm:table-cell">
-                                                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                            <MapPin className="size-3 shrink-0" />
-                                                            {item.location}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">
-                                                        <ChevronRight className="size-4" />
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {upcomingPagination.paginated.map(
+                                                (item) => (
+                                                    <tr
+                                                        key={`${item.id}-${item.mahasiswa}`}
+                                                        className="cursor-pointer transition-colors hover:bg-muted/30"
+                                                        onClick={() => {
+                                                            setSelectedUpcoming(
+                                                                item,
+                                                            );
+                                                            setUpcomingSheetOpen(
+                                                                true,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <td className="px-4 py-3">
+                                                            <p className="font-medium">
+                                                                {item.mahasiswa}
+                                                            </p>
+                                                            <RelationTypeBadge
+                                                                relationType={
+                                                                    item.relationType
+                                                                }
+                                                            />
+                                                        </td>
+                                                        <td className="hidden max-w-[200px] px-4 py-3 md:table-cell">
+                                                            <p className="line-clamp-2 text-xs text-muted-foreground">
+                                                                {item.topic}
+                                                            </p>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                                <CalendarClock className="size-3 shrink-0" />
+                                                                {formatDateTime(
+                                                                    item.date,
+                                                                    item.time,
+                                                                )}
+                                                            </span>
+                                                        </td>
+                                                        <td className="hidden px-4 py-3 sm:table-cell">
+                                                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                                <MapPin className="size-3 shrink-0" />
+                                                                {item.location}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-muted-foreground">
+                                                            <ChevronRight className="size-4" />
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
                                         </tbody>
                                     </table>
-                                    <div className="border-t px-4 py-2 text-right text-xs text-muted-foreground">
-                                        {upcomingSchedules.length} jadwal
-                                        mendatang
-                                    </div>
-                                </div>
+                                </DataTableContainer>
                             </>
                         ) : (
                             <EmptyState
@@ -1353,7 +1426,26 @@ export default function DosenJadwalBimbinganPage() {
 
                     {historyPagination.totalItems > 0 ? (
                         <>
-                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm md:hidden">
+                            <DataTableContainer
+                                className="md:hidden"
+                                pagination={
+                                    <DataTablePagination
+                                        currentPage={historyPagination.page}
+                                        totalPages={
+                                            historyPagination.totalPages
+                                        }
+                                        totalItems={
+                                            historyPagination.totalItems
+                                        }
+                                        pageSize={historyPagination.pageSize}
+                                        onPageChange={historyPagination.setPage}
+                                        onPageSizeChange={
+                                            historyPagination.setPageSize
+                                        }
+                                        itemLabel="riwayat"
+                                    />
+                                }
+                            >
                                 <div className="divide-y">
                                     {historyPagination.paginated.map((item) => (
                                         <div
@@ -1400,17 +1492,28 @@ export default function DosenJadwalBimbinganPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <DataTablePagination
-                                    currentPage={historyPagination.page}
-                                    totalPages={historyPagination.totalPages}
-                                    totalItems={historyPagination.totalItems}
-                                    pageSize={HISTORY_PAGE_SIZE}
-                                    onPageChange={historyPagination.setPage}
-                                    itemLabel="riwayat"
-                                />
-                            </div>
+                            </DataTableContainer>
 
-                            <DataTableContainer className="hidden md:block">
+                            <DataTableContainer
+                                className="hidden md:block"
+                                pagination={
+                                    <DataTablePagination
+                                        currentPage={historyPagination.page}
+                                        totalPages={
+                                            historyPagination.totalPages
+                                        }
+                                        totalItems={
+                                            historyPagination.totalItems
+                                        }
+                                        pageSize={historyPagination.pageSize}
+                                        onPageChange={historyPagination.setPage}
+                                        onPageSizeChange={
+                                            historyPagination.setPageSize
+                                        }
+                                        itemLabel="riwayat"
+                                    />
+                                }
+                            >
                                 <table className="w-full text-left text-sm">
                                     <thead className="border-b bg-muted/30">
                                         <tr>
@@ -1482,14 +1585,6 @@ export default function DosenJadwalBimbinganPage() {
                                         )}
                                     </tbody>
                                 </table>
-                                <DataTablePagination
-                                    currentPage={historyPagination.page}
-                                    totalPages={historyPagination.totalPages}
-                                    totalItems={historyPagination.totalItems}
-                                    pageSize={HISTORY_PAGE_SIZE}
-                                    onPageChange={historyPagination.setPage}
-                                    itemLabel="riwayat"
-                                />
                             </DataTableContainer>
                         </>
                     ) : (

@@ -25,6 +25,10 @@ import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    DataTableContainer,
+    DataTablePagination,
+} from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -653,6 +657,7 @@ export default function DosenSeminarProposalPage() {
     const [sheetOpen, setSheetOpen] = useState(false);
     const [page, setPage] = useUrlState('page', 1);
     const PAGE_SIZE = 15;
+    const [pageSize, setPageSize] = useUrlState('pageSize', PAGE_SIZE);
 
     const [selectedEvent, setSelectedEvent] = useState<{
         id: number;
@@ -715,13 +720,17 @@ export default function DosenSeminarProposalPage() {
 
     const totalPages = Math.max(
         1,
-        Math.ceil(filteredDefenses.length / PAGE_SIZE),
+        Math.ceil(filteredDefenses.length / pageSize),
     );
     const safePage = Math.max(1, Math.min(page, totalPages));
     const paginatedDefenses = filteredDefenses.slice(
-        (safePage - 1) * PAGE_SIZE,
-        safePage * PAGE_SIZE,
+        (safePage - 1) * pageSize,
+        safePage * pageSize,
     );
+    const handlePageSizeChange = (nextPageSize: number) => {
+        setPageSize(nextPageSize);
+        setPage(1);
+    };
 
     const pendingCount = defenses.filter(
         (i) => i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
@@ -955,7 +964,19 @@ export default function DosenSeminarProposalPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={safePage}
+                                    totalPages={totalPages}
+                                    totalItems={filteredDefenses.length}
+                                    pageSize={pageSize}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={handlePageSizeChange}
+                                    itemLabel="item"
+                                />
+                            }
+                        >
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b bg-muted/30">
@@ -1109,45 +1130,7 @@ export default function DosenSeminarProposalPage() {
                                     })}
                                 </tbody>
                             </table>
-                            <div className="flex items-center justify-between border-t px-4 py-2.5">
-                                <p className="text-xs text-muted-foreground">
-                                    {filteredDefenses.length === 0
-                                        ? 'Tidak ada item'
-                                        : `${(safePage - 1) * PAGE_SIZE + 1}–${Math.min(safePage * PAGE_SIZE, filteredDefenses.length)} dari ${filteredDefenses.length} item`}
-                                </p>
-                                {totalPages > 1 && (
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            disabled={safePage <= 1}
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.max(1, p - 1),
-                                                )
-                                            }
-                                            className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-                                        >
-                                            ← Prev
-                                        </button>
-                                        <span className="text-xs text-muted-foreground">
-                                            Hal {safePage} / {totalPages}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            disabled={safePage >= totalPages}
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.min(totalPages, p + 1),
-                                                )
-                                            }
-                                            className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-                                        >
-                                            Next →
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        </DataTableContainer>
                     )}
                 </section>
             </div>

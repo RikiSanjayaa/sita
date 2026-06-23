@@ -13,7 +13,11 @@ import { EmptyState } from '@/components/empty-state';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DataTablePagination, usePagination } from '@/components/ui/data-table';
+import {
+    DataTableContainer,
+    DataTablePagination,
+    usePagination,
+} from '@/components/ui/data-table';
 import {
     Dialog,
     DialogContent,
@@ -125,7 +129,15 @@ export default function KaprodiDosenProdiPage() {
         });
     }, [concentrationFilter, lecturers, search]);
 
-    const { page, setPage, totalPages, paginated, totalItems } = usePagination(
+    const {
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(
         filtered,
         PAGE_SIZE,
         [search, concentrationFilter],
@@ -191,7 +203,19 @@ export default function KaprodiDosenProdiPage() {
                         </div>
 
                         {filtered.length > 0 ? (
-                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                            <DataTableContainer
+                                pagination={
+                                    <DataTablePagination
+                                        currentPage={page}
+                                        totalPages={totalPages}
+                                        totalItems={totalItems}
+                                        pageSize={pageSize}
+                                        onPageChange={setPage}
+                                        onPageSizeChange={setPageSize}
+                                        itemLabel="dosen"
+                                    />
+                                }
+                            >
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
@@ -377,15 +401,7 @@ export default function KaprodiDosenProdiPage() {
                                         ))}
                                     </tbody>
                                 </table>
-                                <DataTablePagination
-                                    currentPage={page}
-                                    totalPages={totalPages}
-                                    totalItems={totalItems}
-                                    pageSize={PAGE_SIZE}
-                                    onPageChange={setPage}
-                                    itemLabel="dosen"
-                                />
-                            </div>
+                            </DataTableContainer>
                         ) : (
                             <EmptyState
                                 icon={GraduationCap}

@@ -68,6 +68,7 @@ function ScheduleTable({
     pagination,
     search,
     onPageChange,
+    onPageSizeChange,
     onSearchChange,
     title,
 }: {
@@ -76,6 +77,7 @@ function ScheduleTable({
     pagination: PaginationData;
     search: string;
     onPageChange: (page: number) => void;
+    onPageSizeChange: (pageSize: number) => void;
     onSearchChange: (value: string) => void;
     title: string;
 }) {
@@ -97,6 +99,20 @@ function ScheduleTable({
             : (pagination.currentPage - 1) * pagination.perPage + 1;
     const rangeEnd =
         filteredItems.length === 0 ? 0 : rangeStart + filteredItems.length - 1;
+    const renderPaginationControl = () => (
+        <DataTablePagination
+            currentPage={pagination.currentPage}
+            totalPages={Math.max(
+                1,
+                pagination.currentPage + (pagination.hasMorePages ? 1 : 0),
+            )}
+            currentItemCount={filteredItems.length}
+            pageSize={pagination.perPage}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            itemLabel="jadwal"
+        />
+    );
 
     return (
         <Card className={sectionCardClass}>
@@ -157,6 +173,9 @@ function ScheduleTable({
 
                 {filteredItems.length > 0 ? (
                     <>
+                        <div className="md:hidden">
+                            {renderPaginationControl()}
+                        </div>
                         <div className="grid gap-3 md:hidden">
                             {filteredItems.map((item) => (
                                 <div
@@ -231,8 +250,14 @@ function ScheduleTable({
                                 </div>
                             ))}
                         </div>
+                        <div className="md:hidden">
+                            {renderPaginationControl()}
+                        </div>
 
-                        <DataTableContainer className="hidden md:block">
+                        <DataTableContainer
+                            className="hidden md:block"
+                            pagination={renderPaginationControl()}
+                        >
                             <table className="w-full min-w-[760px] text-sm">
                                 <thead className="bg-muted/30 text-left">
                                     <tr>
@@ -317,19 +342,6 @@ function ScheduleTable({
                         description={emptyMessage}
                     />
                 )}
-
-                <DataTablePagination
-                    currentPage={pagination.currentPage}
-                    totalPages={Math.max(
-                        1,
-                        pagination.currentPage +
-                            (pagination.hasMorePages ? 1 : 0),
-                    )}
-                    currentItemCount={filteredItems.length}
-                    pageSize={pagination.perPage}
-                    onPageChange={onPageChange}
-                    itemLabel="jadwal"
-                />
             </CardContent>
         </Card>
     );
@@ -375,6 +387,8 @@ function PublicSchedulesContent({
                 '/jadwal',
                 {
                     search: search || undefined,
+                    upcoming_per_page: upcomingPagination.perPage,
+                    follow_up_per_page: followUpPagination.perPage,
                 },
                 {
                     preserveScroll: true,
@@ -392,10 +406,45 @@ function PublicSchedulesContent({
             '/jadwal',
             {
                 search: filters.search || undefined,
+                upcoming_per_page: upcomingPagination.perPage,
+                follow_up_per_page: followUpPagination.perPage,
                 [key]: page,
                 ...(key === 'upcoming_page'
                     ? { follow_up_page: followUpPagination.currentPage }
                     : { upcoming_page: upcomingPagination.currentPage }),
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
+
+    function changePageSize(
+        key: 'upcoming_per_page' | 'follow_up_per_page',
+        pageSize: number,
+    ) {
+        router.get(
+            '/jadwal',
+            {
+                search: filters.search || undefined,
+                upcoming_page:
+                    key === 'upcoming_per_page'
+                        ? 1
+                        : upcomingPagination.currentPage,
+                follow_up_page:
+                    key === 'follow_up_per_page'
+                        ? 1
+                        : followUpPagination.currentPage,
+                upcoming_per_page:
+                    key === 'upcoming_per_page'
+                        ? pageSize
+                        : upcomingPagination.perPage,
+                follow_up_per_page:
+                    key === 'follow_up_per_page'
+                        ? pageSize
+                        : followUpPagination.perPage,
             },
             {
                 preserveScroll: true,
@@ -427,6 +476,9 @@ function PublicSchedulesContent({
                             : 'Belum ada jadwal mendatang pada bagian ini.'
                     }
                     onPageChange={(page) => visitPage('upcoming_page', page)}
+                    onPageSizeChange={(pageSize) =>
+                        changePageSize('upcoming_per_page', pageSize)
+                    }
                 />
                 <ScheduleTable
                     title="Tindak Lanjut Terbaru"
@@ -440,6 +492,9 @@ function PublicSchedulesContent({
                             : 'Belum ada data pada bagian ini.'
                     }
                     onPageChange={(page) => visitPage('follow_up_page', page)}
+                    onPageSizeChange={(pageSize) =>
+                        changePageSize('follow_up_per_page', pageSize)
+                    }
                 />
             </div>
         </PublicLayout>
