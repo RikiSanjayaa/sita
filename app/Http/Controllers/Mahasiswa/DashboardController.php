@@ -345,7 +345,7 @@ class DashboardController extends Controller
                         'scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Pastikan dokumen dan kesiapan presentasi sudah lengkap.',
                         'awaiting_finalization' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
                         'completed' => $latestSempro->result === 'pass_with_revision'
-                            ? $terms['proposalExamShort'].' selesai dengan revisi. Tindak lanjuti catatan penguji.'
+                            ? $terms['proposalExamShort'].' lulus. Tindak lanjuti catatan revisi dari penguji.'
                             : ($latestSempro->result === 'fail'
                                 ? $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin.'
                                 : $terms['proposalExamShort'].' sudah selesai. Lanjutkan ke tahap berikutnya.'),
@@ -379,7 +379,7 @@ class DashboardController extends Controller
                         'scheduled' => $terms['finalExam'].' sudah terjadwal. Pastikan dokumen akhir dan revisi proposal telah siap.',
                         'awaiting_finalization' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
                         'completed' => $latestSidang->result === 'pass_with_revision'
-                            ? $terms['finalExam'].' selesai dengan revisi.'
+                            ? $terms['finalExam'].' lulus dengan syarat.'
                             : ($latestSidang->result === 'fail'
                                 ? $terms['finalExam'].' belum lulus. Tunggu penjadwalan ulang dari admin.'
                                 : $terms['finalExam'].' telah selesai.'),
@@ -520,13 +520,13 @@ class DashboardController extends Controller
             'project_cancelled' => 'Proyek '.$terms['finalWorkLower'].' ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Siapkan proposal dan presentasi terbaik Anda.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
-            'sempro_revision' => $terms['proposalExamShort'].' selesai dengan revisi. Cek catatan penguji dan unggah dokumen perbaikan.',
+            'sempro_revision' => $terms['proposalExamShort'].' lulus. Cek catatan revisi dari penguji dan unggah dokumen perbaikan.',
             'sempro_failed' => $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
             'sempro_passed' => 'Tahap '.$terms['proposalExamShort'].' telah selesai. Menunggu penetapan pembimbing aktif atau progres berikutnya.',
             'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan penelitian, bimbingan, dan pengumpulan dokumen.',
             'sidang_scheduled' => $terms['finalExam'].' sudah dijadwalkan. Pastikan dokumen akhir Anda lengkap.',
             'sidang_waiting_result' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
-            'sidang_revision' => $terms['finalExam'].' selesai dengan revisi. Tindak lanjuti masukan tim penguji.',
+            'sidang_revision' => $terms['finalExam'].' lulus dengan syarat. Tindak lanjuti masukan tim penguji.',
             'completed' => 'Tahap '.$terms['finalExam'].' telah selesai.',
             'sidang_failed' => $terms['finalExam'].' belum lulus. Segera koordinasikan langkah berikutnya dengan admin dan pembimbing.',
             default => 'Mulai dari pengajuan judul dan proposal '.$terms['finalWorkLower'].' Anda.',

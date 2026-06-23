@@ -768,7 +768,7 @@ test('tugas akhir page shows completed sempro and sidang results', function () {
         ->assertInertia(fn(Assert $page) => $page
             ->component('tugas-akhir')
             ->where('semproResult.label', 'Seminar Proposal Skripsi')
-            ->where('semproResult.resultLabel', 'Lulus dengan Revisi')
+            ->where('semproResult.resultLabel', 'Lulus')
             ->where('semproResult.examiners.0.name', $pengujiSempro->name)
             ->where('semproResult.examiners.0.score', '78.00')
             ->where('sidangResult.label', 'Sidang Skripsi')

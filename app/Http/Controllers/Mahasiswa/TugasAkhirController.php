@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\ThesisProjectStudentService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
+use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -110,7 +111,10 @@ class TugasAkhirController extends Controller
                     ->all(),
             )),
             'semproDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
-            'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+            'sidangDate' => $latestSidang instanceof ThesisDefense
+                ? WitaDateTime::translatedDateRange($latestSidang->scheduled_for, $latestSidang->scheduled_until, withLabel: false)
+                : null,
+            'sidangDateUntil' => $latestSidang?->scheduled_until?->locale('id')->translatedFormat('d F Y'),
             'semproResult' => $this->mapDefenseResult($latestSempro, $terms['proposalExam']),
             'sidangResult' => $this->mapDefenseResult($latestSidang, $terms['finalExam']),
             'defenseHistory' => $project === null ? ['sempro' => [], 'sidang' => []] : [
@@ -354,10 +358,6 @@ class TugasAkhirController extends Controller
                     : ($project->activeSupervisorAssignments->isNotEmpty()
                         ? 'research_in_progress'
                         : 'sempro_passed');
-            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass') {
-                $key = $project->activeSupervisorAssignments->isNotEmpty()
-                    ? 'research_in_progress'
-                    : 'sempro_passed';
             } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'fail') {
                 $key = 'sempro_failed';
             }
@@ -412,13 +412,13 @@ class TugasAkhirController extends Controller
             'project_cancelled' => 'Proyek '.$terms['finalWorkLower'].' ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
-            'sempro_revision' => $terms['proposalExamShort'].' selesai dengan revisi. Periksa catatan revisi dari penguji.',
+            'sempro_revision' => $terms['proposalExamShort'].' lulus. Periksa catatan revisi dari penguji.',
             'sempro_failed' => $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
             'sempro_passed' => 'Tahap '.$terms['proposalExamShort'].' telah selesai. Menunggu pembimbing aktif atau progres penelitian berikutnya.',
             'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan proses penelitian dan bimbingan.',
             'sidang_scheduled' => $terms['finalExam'].' sudah dijadwalkan. Siapkan dokumen akhir Anda dengan baik.',
             'sidang_waiting_result' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
-            'sidang_revision' => $terms['finalExam'].' selesai dengan revisi. Periksa catatan revisi dari tim penguji.',
+            'sidang_revision' => $terms['finalExam'].' lulus dengan syarat. Periksa catatan revisi dari tim penguji.',
             'completed' => 'Tahap '.$terms['finalExam'].' telah selesai.',
             'sidang_failed' => $terms['finalExam'].' belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
             default => 'Pengajuan sedang diproses admin.',
@@ -444,11 +444,12 @@ class TugasAkhirController extends Controller
             'label' => $label,
             'resultLabel' => match ($defense->result) {
                 'pass' => 'Lulus',
-                'pass_with_revision' => 'Lulus dengan Revisi',
+                'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                 'fail' => 'Tidak Lulus',
                 default => 'Menunggu Hasil',
             },
-            'scheduledFor' => $defense->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+            'scheduledFor' => WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until, withLabel: false),
+            'scheduledUntil' => $defense->scheduled_until?->locale('id')->translatedFormat('d F Y'),
             'location' => $defense->location,
             'examiners' => $defense->examiners
                 ->sortBy('order_no')
@@ -458,7 +459,7 @@ class TugasAkhirController extends Controller
                     'roleLabel' => $this->defenseRoleLabel($examiner->role, $examiner->order_no),
                     'decisionLabel' => match ($examiner->decision) {
                         'pass' => 'Lulus',
-                        'pass_with_revision' => 'Lulus dengan Revisi',
+                        'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                         'fail' => 'Tidak Lulus',
                         default => 'Belum Ada Keputusan',
                     },
@@ -520,11 +521,12 @@ class TugasAkhirController extends Controller
                     'resultLabel' => match ($defense->result) {
                         'pending' => 'Menunggu Hasil',
                         'pass' => 'Lulus',
-                        'pass_with_revision' => 'Lulus dengan Revisi',
+                        'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                         'fail' => 'Tidak Lulus',
                         default => ucwords(str_replace('_', ' ', $defense->result)),
                     },
-                    'scheduledFor' => $defense->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
+                    'scheduledFor' => WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until, withLabel: false),
+                    'scheduledUntil' => $defense->scheduled_until?->locale('id')->translatedFormat('d F Y'),
                     'location' => $defense->location,
                     'mode' => $defense->mode,
                     'officialNotes' => $defense->notes,
@@ -548,7 +550,7 @@ class TugasAkhirController extends Controller
                             'roleLabel' => $this->defenseRoleLabel($examiner->role, $examiner->order_no),
                             'decisionLabel' => match ($examiner->decision) {
                                 'pass' => 'Lulus',
-                                'pass_with_revision' => 'Lulus dengan Revisi',
+                                'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                                 'fail' => 'Tidak Lulus',
                                 default => 'Belum Ada Keputusan',
                             },

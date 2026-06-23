@@ -319,7 +319,7 @@ class MahasiswaBimbinganController extends Controller
         if ($status === 'completed') {
             return match ($result) {
                 'pass' => 'Lulus',
-                'pass_with_revision' => 'Lulus dengan revisi',
+                'pass_with_revision' => 'Lulus',
                 'fail' => 'Tidak lulus',
                 default => 'Selesai',
             };

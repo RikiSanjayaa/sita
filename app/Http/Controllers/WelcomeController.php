@@ -648,9 +648,9 @@ class WelcomeController extends Controller
                     'description' => 'Mahasiswa sedang bersiap menuju '.$terms['finalExam'].'.',
                 ],
                 'completed' => [
-                    'label' => $latestSidang->result === 'pass_with_revision' ? 'Revisi '.$terms['finalExam'] : 'Tahap '.$terms['finalExam'],
+                    'label' => $latestSidang->result === 'pass_with_revision' ? $terms['finalExam'].' Bersyarat' : 'Tahap '.$terms['finalExam'],
                     'description' => $latestSidang->result === 'pass_with_revision'
-                        ? $terms['finalExam'].' selesai dan masih ada revisi yang berjalan.'
+                        ? $terms['finalExam'].' lulus dengan syarat dan masih ada tindak lanjut revisi.'
                         : 'Status '.$terms['finalExam'].' mahasiswa masih dalam proses tindak lanjut.',
                 ],
                 default => [
@@ -672,9 +672,9 @@ class WelcomeController extends Controller
                     'description' => 'Mahasiswa sedang menuju pelaksanaan '.$terms['proposalExam'].'.',
                 ],
                 'completed' => [
-                    'label' => $latestSempro->result === 'pass_with_revision' ? 'Revisi '.$terms['proposalExamShort'] : 'Penelitian Berjalan',
+                    'label' => $latestSempro->result === 'pass_with_revision' ? $terms['proposalExamShort'].' Lulus' : 'Penelitian Berjalan',
                     'description' => $latestSempro->result === 'pass_with_revision'
-                        ? $terms['proposalExamShort'].' selesai dan perlu menindaklanjuti revisi.'
+                        ? $terms['proposalExamShort'].' lulus dan perlu menindaklanjuti revisi.'
                         : $terms['proposalExamShort'].' selesai, mahasiswa lanjut ke fase penelitian aktif.',
                 ],
                 default => [

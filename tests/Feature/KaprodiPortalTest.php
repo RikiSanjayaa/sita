@@ -567,9 +567,14 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
         'label' => 'Kaprodi memperbarui jadwal Sempro',
     ]);
 
+    $sidangStart = now()->addWeeks(3)->setTime(10, 0);
+    $sidangEnd = now()->addWeeks(3)->addDays(2)->setTime(10, 0);
+
     $this->actingAs($kaprodi)
         ->post("/kaprodi/projects/{$project->id}/sidang", [
-            'scheduled_for' => now()->addWeeks(3)->format('Y-m-d H:i:s'),
+            'scheduled_date_start' => $sidangStart->format('Y-m-d'),
+            'scheduled_date_end' => $sidangEnd->format('Y-m-d'),
+            'scheduled_time' => $sidangStart->format('H:i'),
             'location' => 'Ruang Sidang',
             'mode' => 'hybrid',
             'additional_examiner_user_ids' => [$kaprodi->id],
@@ -584,6 +589,8 @@ test('kaprodi can assign supervisors and schedule exams for own active prodi pro
         ->firstOrFail();
 
     expect($sidang->status)->toBe('scheduled')
+        ->and($sidang->scheduled_for?->toDateTimeString())->toBe($sidangStart->toDateTimeString())
+        ->and($sidang->scheduled_until?->toDateTimeString())->toBe($sidangEnd->toDateTimeString())
         ->and($sidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
         ->and($sidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
         ->and($sidang->examiners()->where('role', 'examiner')->where('lecturer_user_id', $kaprodi->id)->exists())->toBeTrue();
