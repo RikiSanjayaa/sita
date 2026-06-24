@@ -642,6 +642,93 @@ test('admin service schedules and completes sidang with revision', function (): 
     });
 });
 
+test('admin service reschedules sidang and notifies student and panel', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $examinerOne = User::factory()->asDosen()->create();
+    $examinerTwo = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    foreach ([$examinerOne, $examinerTwo] as $lecturer) {
+        DosenProfile::factory()->create([
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $prodi->id,
+            'is_active' => true,
+        ]);
+    }
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sidang',
+        'state' => 'active',
+        'started_at' => now()->subMonth(),
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Sistem Monitoring Progres Tugas Akhir',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subMonth(),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subMonth(),
+    ]);
+
+    app(ThesisProjectAdminService::class)->scheduleSidang(
+        project: $project,
+        createdBy: $admin->id,
+        scheduledFor: '2026-07-01 09:00:00',
+        location: 'Ruang Lama',
+        mode: 'offline',
+        panelUserIds: [$examinerOne->id, $examinerTwo->id],
+        scheduledUntil: '2026-07-01 09:00:00',
+    );
+
+    Notification::fake();
+
+    $defense = app(ThesisProjectAdminService::class)->rescheduleSidang(
+        project: $project->fresh(),
+        updatedBy: $admin->id,
+        scheduledFor: '2026-07-03 09:00:00',
+        scheduledUntil: '2026-07-05 09:00:00',
+        location: 'Ruang Baru',
+        mode: 'hybrid',
+        notes: 'Jadwal dipindahkan.',
+    );
+
+    expect($defense->scheduled_for?->format('Y-m-d H:i'))->toBe('2026-07-03 09:00')
+        ->and($defense->scheduled_until?->format('Y-m-d H:i'))->toBe('2026-07-05 09:00')
+        ->and($defense->location)->toBe('Ruang Baru')
+        ->and($defense->mode)->toBe('hybrid');
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Jadwal Sidang Skripsi diperbarui'
+            && str_contains($data['description'], 'Ruang Baru');
+    });
+
+    Notification::assertSentTo($examinerOne, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($examinerOne): bool {
+        $data = $notification->toArray($examinerOne);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Jadwal Sidang Skripsi mahasiswa diperbarui'
+            && str_contains($data['description'], 'Ruang Baru');
+    });
+});
+
 test('admin service finalizes sempro as failed without opening revisions', function (): void {
     Notification::fake();
 
@@ -735,6 +822,83 @@ test('admin service finalizes sempro as failed without opening revisions', funct
             && $data['description'] === 'Proposal belum memenuhi standar kelulusan sempro.'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
+});
+
+test('admin service opens admin sempro revision when no examiner requests revision', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $examiner = User::factory()->asDosen()->create();
+    $prodi = ProgramStudi::factory()->create(['name' => 'Teknik Informatika']);
+
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510400',
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Artificial Intelligence',
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    DosenProfile::query()->create([
+        'user_id' => $examiner->id,
+        'nik' => fake()->numerify('730101010101####'),
+        'program_studi_id' => $prodi->id,
+        'concentration' => 'Artificial Intelligence',
+        'supervision_quota' => 10,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sempro',
+        'state' => 'active',
+        'started_at' => now()->subDays(14),
+        'created_by' => $student->id,
+    ]);
+
+    app(ThesisProjectAdminService::class)->scheduleSempro(
+        project: $project,
+        scheduledBy: $admin->id,
+        scheduledFor: now()->addDays(4)->setTime(9, 0)->format('Y-m-d H:i:s'),
+        location: 'Ruang Sempro 2',
+        mode: 'offline',
+        examinerUserIds: [$examiner->id],
+        scheduledUntil: now()->addDays(4)->setTime(9, 0)->format('Y-m-d H:i:s'),
+    );
+
+    $sempro = ThesisDefense::query()->where('project_id', $project->id)->where('type', 'sempro')->firstOrFail();
+
+    $sempro->examiners()->update([
+        'decision' => 'pass',
+        'score' => 82,
+        'notes' => 'Proposal layak dilanjutkan.',
+        'decided_at' => now(),
+    ]);
+
+    $sempro->forceFill([
+        'status' => 'awaiting_finalization',
+        'result' => 'pending',
+    ])->save();
+
+    $revisionDueAt = now()->addDays(7)->setTime(23, 59);
+
+    app(ThesisProjectAdminService::class)->finalizeSempro(
+        project: $project->fresh(),
+        decidedBy: $admin->id,
+        result: 'pass_with_revision',
+        notes: 'Lengkapi catatan penetapan admin sebelum lanjut.',
+        revisionDueAt: $revisionDueAt->format('Y-m-d H:i:s'),
+    );
+
+    $revision = ThesisRevision::query()->where('project_id', $project->id)->firstOrFail();
+
+    expect($sempro->fresh()->result)->toBe('pass_with_revision')
+        ->and($revision->requested_by_user_id)->toBe($admin->id)
+        ->and($revision->notes)->toBe('Lengkapi catatan penetapan admin sebelum lanjut.')
+        ->and($revision->due_at?->toDateTimeString())->toBe($revisionDueAt->toDateTimeString());
 });
 
 test('admin service approves sempro revision and advances project to research', function (): void {

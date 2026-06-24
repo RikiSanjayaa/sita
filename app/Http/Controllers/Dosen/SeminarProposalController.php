@@ -120,8 +120,13 @@ class SeminarProposalController extends Controller
         abort_if($lecturer === null, 401);
 
         $allowedDecisions = $defense->type === 'sempro'
-            ? ['pass_with_revision', 'fail']
+            ? ['pass', 'fail']
             : ['pass', 'pass_with_revision', 'fail'];
+        $revisionNotesRules = ['nullable', 'string', 'max:2000'];
+
+        if ($defense->type !== 'sempro') {
+            array_splice($revisionNotesRules, 1, 0, 'required_if:decision,pass_with_revision');
+        }
 
         $validated = $request->validate([
             'decision' => [
@@ -130,8 +135,12 @@ class SeminarProposalController extends Controller
             ],
             'score' => ['required', 'numeric', 'min:0', 'max:100'],
             'decision_notes' => ['nullable', 'string', 'max:2000'],
-            'revision_notes' => ['nullable', 'required_if:decision,pass_with_revision', 'string', 'max:2000'],
+            'revision_notes' => $revisionNotesRules,
         ]);
+
+        if ($defense->type === 'sempro' && $validated['decision'] === 'pass' && filled($validated['revision_notes'] ?? null)) {
+            $validated['decision'] = 'pass_with_revision';
+        }
 
         try {
             $this->decisionService->submit($lecturer, $defense, $validated);

@@ -378,7 +378,8 @@ test('admin can schedule sempro with only one examiner from filament action', fu
 
     Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
         ->callAction('schedule_sempro', [
-            'scheduled_for' => now()->addWeek()->format('Y-m-d H:i:s'),
+            'scheduled_starts_on' => now()->addWeek()->format('Y-m-d'),
+            'scheduled_at_time' => '09:00',
             'location' => 'Ruang Sempro',
             'mode' => 'offline',
             'examiner_1' => $examiner->id,
@@ -389,7 +390,134 @@ test('admin can schedule sempro with only one examiner from filament action', fu
         ->where('type', 'sempro')
         ->firstOrFail();
 
-    expect($sempro->examiners()->pluck('lecturer_user_id')->all())->toBe([$examiner->id]);
+    expect($sempro->scheduled_until)->toBeNull()
+        ->and($sempro->examiners()->pluck('lecturer_user_id')->all())->toBe([$examiner->id]);
+});
+
+test('admin can edit scheduled sidang from schedule action and notify panel', function (): void {
+    Notification::fake();
+
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $admin = User::factory()->asAdmin()->create();
+    $student = User::factory()->asMahasiswa()->create();
+    $primarySupervisor = User::factory()->asDosen()->create();
+    $secondarySupervisor = User::factory()->asDosen()->create();
+    $examiner = User::factory()->asDosen()->create();
+
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'is_active' => true,
+    ]);
+
+    foreach ([$primarySupervisor, $secondarySupervisor, $examiner] as $lecturer) {
+        DosenProfile::factory()->create([
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $prodi->id,
+            'is_active' => true,
+        ]);
+    }
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'sidang',
+        'state' => 'active',
+        'started_at' => now()->subMonth(),
+        'created_by' => $student->id,
+    ]);
+
+    ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => 'Sistem Rekomendasi Bimbingan',
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subMonth(),
+        'decided_by_user_id' => $admin->id,
+        'decided_at' => now()->subMonth(),
+    ]);
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $primarySupervisor->id,
+        'role' => 'primary',
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subWeeks(3),
+    ]);
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $secondarySupervisor->id,
+        'role' => 'secondary',
+        'status' => 'active',
+        'assigned_by' => $admin->id,
+        'started_at' => now()->subWeeks(3),
+    ]);
+
+    app(\App\Services\ThesisProjectAdminService::class)->scheduleSidang(
+        project: $project,
+        createdBy: $admin->id,
+        scheduledFor: now()->addWeek()->setTime(9, 0)->format('Y-m-d H:i:s'),
+        location: 'Ruang Lama',
+        mode: 'offline',
+        panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id],
+        scheduledUntil: now()->addWeek()->setTime(9, 0)->format('Y-m-d H:i:s'),
+    );
+
+    $sidang = ThesisDefense::query()
+        ->where('project_id', $project->id)
+        ->where('type', 'sidang')
+        ->firstOrFail();
+
+    $this->actingAs($admin);
+
+    Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->mountAction('schedule_sidang')
+        ->setActionData([
+            'scheduled_starts_on' => '2026-07-03',
+            'scheduled_ends_on' => '2026-07-05',
+            'scheduled_at_time' => '09:00',
+            'location' => 'Ruang Baru',
+            'mode' => 'hybrid',
+            'additional_examiner_user_ids' => [$examiner->id],
+            'notes' => 'Jadwal dipindahkan.',
+        ])
+        ->assertActionDataSet([
+            'scheduled_starts_on' => '2026-07-03',
+            'scheduled_ends_on' => '2026-07-05',
+            'scheduled_at_time' => '09:00',
+        ])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    $sidang->refresh();
+
+    expect($sidang->scheduled_for?->format('Y-m-d H:i'))->toBe('2026-07-03 09:00')
+        ->and($sidang->scheduled_until?->format('Y-m-d H:i'))->toBe('2026-07-05 09:00')
+        ->and($sidang->location)->toBe('Ruang Baru')
+        ->and($sidang->mode)->toBe('hybrid')
+        ->and(ThesisDefense::query()->where('project_id', $project->id)->where('type', 'sidang')->count())->toBe(1);
+
+    Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
+        $data = $notification->toArray($student);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Jadwal Sidang Skripsi diperbarui'
+            && str_contains($data['description'], 'Ruang Baru');
+    });
+
+    Notification::assertSentTo($examiner, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($examiner): bool {
+        $data = $notification->toArray($examiner);
+
+        return in_array('database', $channels, true)
+            && $data['title'] === 'Jadwal Sidang Skripsi mahasiswa diperbarui'
+            && str_contains($data['description'], 'Ruang Baru');
+    });
 });
 
 test('admin can reject title review from workflow action', function (): void {

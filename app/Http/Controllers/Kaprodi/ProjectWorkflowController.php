@@ -74,15 +74,18 @@ class ProjectWorkflowController extends Controller
             ->map(fn($id): int => (int) $id)
             ->values()
             ->all();
+        $scheduledFor = $this->scheduledForFromDefenseRequest($request);
+        $scheduledUntil = $this->scheduledUntilFromDefenseRequest($request);
 
         try {
             $this->thesisProjectAdminService->scheduleSempro(
                 project: $project,
                 scheduledBy: (int) $request->user()?->getKey(),
-                scheduledFor: (string) $request->validated('scheduled_for'),
+                scheduledFor: $scheduledFor,
                 location: (string) $request->validated('location'),
                 mode: (string) $request->validated('mode'),
                 examinerUserIds: $examinerUserIds,
+                scheduledUntil: $scheduledUntil,
             );
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages([
@@ -97,7 +100,8 @@ class ProjectWorkflowController extends Controller
             label: 'Kaprodi memperbarui jadwal '.$terms['proposalExamShort'],
             description: 'Kaprodi memperbarui jadwal dan penguji '.$terms['proposalExamShort'].'.',
             payload: [
-                'scheduled_for' => $request->validated('scheduled_for'),
+                'scheduled_for' => $scheduledFor,
+                'scheduled_until' => $scheduledUntil,
                 'location' => $request->validated('location'),
                 'mode' => $request->validated('mode'),
                 'examiner_user_ids' => $examinerUserIds,
@@ -121,8 +125,8 @@ class ProjectWorkflowController extends Controller
             ->map(static fn($id): int => (int) $id)
             ->values()
             ->all();
-        $scheduledFor = $this->scheduledForFromSidangRequest($request);
-        $scheduledUntil = $this->scheduledUntilFromSidangRequest($request);
+        $scheduledFor = $this->scheduledForFromDefenseRequest($request);
+        $scheduledUntil = $this->scheduledUntilFromDefenseRequest($request);
 
         try {
             $this->thesisProjectAdminService->scheduleSidang(
@@ -163,7 +167,7 @@ class ProjectWorkflowController extends Controller
         return back()->with('success', 'Jadwal '.$terms['finalExam'].' berhasil diperbarui.');
     }
 
-    private function scheduledForFromSidangRequest(ScheduleProjectSidangRequest $request): string
+    private function scheduledForFromDefenseRequest(ScheduleProjectSemproRequest|ScheduleProjectSidangRequest $request): string
     {
         $legacyScheduledFor = $request->validated('scheduled_for');
 
@@ -174,9 +178,13 @@ class ProjectWorkflowController extends Controller
         return $request->validated('scheduled_date_start').' '.$request->validated('scheduled_time');
     }
 
-    private function scheduledUntilFromSidangRequest(ScheduleProjectSidangRequest $request): ?string
+    private function scheduledUntilFromDefenseRequest(ScheduleProjectSemproRequest|ScheduleProjectSidangRequest $request): ?string
     {
-        $scheduledDateEnd = $request->validated('scheduled_date_end');
+        if (filled($request->validated('scheduled_for')) && blank($request->validated('scheduled_date_start'))) {
+            return null;
+        }
+
+        $scheduledDateEnd = $request->validated('scheduled_date_end') ?: $request->validated('scheduled_date_start');
 
         if (blank($scheduledDateEnd)) {
             return null;
@@ -207,6 +215,10 @@ class ProjectWorkflowController extends Controller
             ->first();
 
         if (! $defense instanceof ThesisDefense) {
+            return;
+        }
+
+        if ($defense->status === 'completed' && $defense->result === 'fail') {
             return;
         }
 

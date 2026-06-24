@@ -19,6 +19,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Enums\Alignment;
 use Illuminate\Support\Facades\Auth;
 
@@ -117,16 +119,42 @@ class ViewThesisProject extends ViewRecord
                     }
                 }),
             Action::make('schedule_sempro')
-                ->label('Jadwalkan '.$terms['proposalExamShort'])
+                ->label(fn(): string => $this->latestEditableSempro($record) instanceof ThesisDefense
+                    ? 'Ubah Jadwal '.$terms['proposalExamShort']
+                    : 'Jadwalkan '.$terms['proposalExamShort'])
                 ->icon('heroicon-m-calendar')
                 ->color('info')
-                ->visible(fn(): bool => $record->state === 'active')
+                ->visible(fn(): bool => $this->canScheduleDefense($record, 'sempro'))
                 ->form([
-                    DateTimePicker::make('scheduled_for')
-                        ->label('Jadwal')
-                        ->required(),
+                    Grid::make([
+                        'default' => 1,
+                        'md' => 3,
+                    ])
+                        ->schema([
+                            DatePicker::make('scheduled_starts_on')
+                                ->label('Tanggal Mulai')
+                                ->required()
+                                ->default(fn(): ?string => $this->latestEditableSempro($record)?->scheduled_for?->format('Y-m-d'))
+                                ->native(false),
+                            DatePicker::make('scheduled_ends_on')
+                                ->label('Tanggal Akhir (Opsional)')
+                                ->hintIcon(
+                                    'heroicon-m-question-mark-circle',
+                                    'Isi hanya jika jadwal masih berupa rentang tanggal. Kosongkan jika jadwal sudah pasti pada tanggal mulai.',
+                                )
+                                ->afterOrEqual('scheduled_starts_on')
+                                ->default(fn(): ?string => $this->latestEditableSempro($record)?->scheduled_until?->format('Y-m-d'))
+                                ->native(false),
+                            TimePicker::make('scheduled_at_time')
+                                ->label('Jam')
+                                ->seconds(false)
+                                ->required()
+                                ->default(fn(): ?string => $this->latestEditableSempro($record)?->scheduled_for?->format('H:i'))
+                                ->native(false),
+                        ]),
                     TextInput::make('location')
                         ->label('Lokasi')
+                        ->default(fn(): ?string => $this->latestEditableSempro($record)?->location)
                         ->required()
                         ->maxLength(255),
                     Select::make('mode')
@@ -136,7 +164,7 @@ class ViewThesisProject extends ViewRecord
                             'online' => 'Online',
                             'hybrid' => 'Hybrid',
                         ])
-                        ->default('offline')
+                        ->default(fn(): string => $this->latestEditableSempro($record)?->mode ?? 'offline')
                         ->required()
                         ->native(false),
                     Select::make('examiner_1')
@@ -174,10 +202,15 @@ class ViewThesisProject extends ViewRecord
                     }
 
                     try {
+                        $scheduledFor = $data['scheduled_starts_on'].' '.$data['scheduled_at_time'];
+                        $scheduledUntil = filled($data['scheduled_ends_on'] ?? null)
+                            ? $data['scheduled_ends_on'].' '.$data['scheduled_at_time']
+                            : null;
+
                         app(ThesisProjectAdminService::class)->scheduleSempro(
                             project: $record,
                             scheduledBy: $userId,
-                            scheduledFor: (string) $data['scheduled_for'],
+                            scheduledFor: $scheduledFor,
                             location: (string) $data['location'],
                             mode: (string) $data['mode'],
                             examinerUserIds: collect([
@@ -187,6 +220,7 @@ class ViewThesisProject extends ViewRecord
                                 ->map(fn($id): int => (int) $id)
                                 ->values()
                                 ->all(),
+                            scheduledUntil: $scheduledUntil,
                         );
 
                         Notification::make()
@@ -221,7 +255,8 @@ class ViewThesisProject extends ViewRecord
                         ->native(false),
                     DateTimePicker::make('revision_due_at')
                         ->label('Batas Revisi')
-                        ->helperText('Wajib diisi jika hasil Lulus.'),
+                        ->helperText('Wajib diisi jika hasil Lulus.')
+                        ->required(fn(Get $get): bool => $get('result') === 'pass_with_revision'),
                     Textarea::make('notes')
                         ->label('Catatan')
                         ->required()
@@ -323,26 +358,42 @@ class ViewThesisProject extends ViewRecord
                     }
                 }),
             Action::make('schedule_sidang')
-                ->label('Jadwalkan '.$terms['finalExam'])
+                ->label(fn(): string => $this->latestEditableSidang($record) instanceof ThesisDefense
+                    ? 'Ubah Jadwal '.$terms['finalExam']
+                    : 'Jadwalkan '.$terms['finalExam'])
                 ->icon('heroicon-m-clipboard-document-check')
                 ->color('warning')
-                ->visible(fn(): bool => $record->state === 'active')
+                ->visible(fn(): bool => $this->canScheduleDefense($record, 'sidang'))
                 ->form([
-                    DatePicker::make('scheduled_date_start')
-                        ->label('Tanggal Mulai')
-                        ->required()
-                        ->native(false),
-                    DatePicker::make('scheduled_date_end')
-                        ->label('Tanggal Akhir (Opsional)')
-                        ->helperText('Kosongkan jika jadwal sudah pasti pada tanggal mulai.')
-                        ->afterOrEqual('scheduled_date_start')
-                        ->native(false),
-                    TimePicker::make('scheduled_time')
-                        ->label('Jam')
-                        ->required()
-                        ->native(false),
+                    Grid::make([
+                        'default' => 1,
+                        'md' => 3,
+                    ])
+                        ->schema([
+                            DatePicker::make('scheduled_starts_on')
+                                ->label('Tanggal Mulai')
+                                ->required()
+                                ->default(fn(): ?string => $this->latestEditableSidang($record)?->scheduled_for?->format('Y-m-d'))
+                                ->native(false),
+                            DatePicker::make('scheduled_ends_on')
+                                ->label('Tanggal Akhir (Opsional)')
+                                ->hintIcon(
+                                    'heroicon-m-question-mark-circle',
+                                    'Isi hanya jika jadwal masih berupa rentang tanggal. Kosongkan jika jadwal sudah pasti pada tanggal mulai.',
+                                )
+                                ->afterOrEqual('scheduled_starts_on')
+                                ->default(fn(): ?string => $this->latestEditableSidang($record)?->scheduled_until?->format('Y-m-d'))
+                                ->native(false),
+                            TimePicker::make('scheduled_at_time')
+                                ->label('Jam Tetap')
+                                ->seconds(false)
+                                ->required()
+                                ->default(fn(): ?string => $this->latestEditableSidang($record)?->scheduled_for?->format('H:i'))
+                                ->native(false),
+                        ]),
                     TextInput::make('location')
                         ->label('Lokasi')
+                        ->default(fn(): ?string => $this->latestEditableSidang($record)?->location)
                         ->required()
                         ->maxLength(255),
                     Select::make('mode')
@@ -352,7 +403,7 @@ class ViewThesisProject extends ViewRecord
                             'online' => 'Online',
                             'hybrid' => 'Hybrid',
                         ])
-                        ->default('offline')
+                        ->default(fn(): string => $this->latestEditableSidang($record)?->mode ?? 'offline')
                         ->required()
                         ->native(false),
                     Textarea::make('active_supervisors')
@@ -393,9 +444,9 @@ class ViewThesisProject extends ViewRecord
                     }
 
                     try {
-                        $scheduledFor = $data['scheduled_date_start'].' '.$data['scheduled_time'];
-                        $scheduledUntil = filled($data['scheduled_date_end'] ?? null)
-                            ? $data['scheduled_date_end'].' '.$data['scheduled_time']
+                        $scheduledFor = $data['scheduled_starts_on'].' '.$data['scheduled_at_time'];
+                        $scheduledUntil = filled($data['scheduled_ends_on'] ?? null)
+                            ? $data['scheduled_ends_on'].' '.$data['scheduled_at_time']
                             : null;
 
                         app(ThesisProjectAdminService::class)->scheduleSidang(
@@ -444,9 +495,11 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->native(false),
                     DateTimePicker::make('revision_due_at')
-                        ->label('Batas Revisi'),
+                        ->label('Batas Revisi')
+                        ->required(fn(Get $get): bool => $get('result') === 'pass_with_revision'),
                     Textarea::make('revision_notes')
                         ->label('Catatan Revisi')
+                        ->required(fn(Get $get): bool => $get('result') === 'pass_with_revision')
                         ->rows(2),
                     Textarea::make('notes')
                         ->label('Catatan '.$terms['finalExam'])
@@ -479,72 +532,6 @@ class ViewThesisProject extends ViewRecord
                     } catch (\Throwable $exception) {
                         Notification::make()
                             ->title('Gagal memperbarui sidang')
-                            ->body($exception->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
-            Action::make('reschedule_sidang')
-                ->label('Ubah Jadwal '.$terms['finalExam'])
-                ->icon('heroicon-m-calendar')
-                ->color('gray')
-                ->visible(fn(): bool => $record->state === 'active' && $this->latestSidang($record)?->status === 'scheduled')
-                ->form([
-                    DatePicker::make('scheduled_date_start')
-                        ->label('Tanggal Mulai')
-                        ->required()
-                        ->default(fn(): ?string => $this->latestSidang($record)?->scheduled_for?->format('Y-m-d'))
-                        ->native(false),
-                    DatePicker::make('scheduled_date_end')
-                        ->label('Tanggal Akhir (Opsional)')
-                        ->helperText('Kosongkan jika jadwal sudah pasti.')
-                        ->afterOrEqual('scheduled_date_start')
-                        ->default(fn(): ?string => $this->latestSidang($record)?->scheduled_until?->format('Y-m-d'))
-                        ->native(false),
-                    TimePicker::make('scheduled_time')
-                        ->label('Jam')
-                        ->required()
-                        ->default(fn(): ?string => $this->latestSidang($record)?->scheduled_for?->format('H:i'))
-                        ->native(false),
-                    TextInput::make('location')
-                        ->label('Lokasi')
-                        ->default(fn(): ?string => $this->latestSidang($record)?->location)
-                        ->maxLength(255),
-                    Textarea::make('notes')
-                        ->label('Catatan Perubahan')
-                        ->rows(2),
-                ])
-                ->action(function (array $data) use ($record, $terms): void {
-                    $userId = Auth::id();
-
-                    if ($userId === null) {
-                        return;
-                    }
-
-                    try {
-                        $scheduledFor = $data['scheduled_date_start'].' '.$data['scheduled_time'];
-                        $scheduledUntil = filled($data['scheduled_date_end'] ?? null)
-                            ? $data['scheduled_date_end'].' '.$data['scheduled_time']
-                            : null;
-
-                        app(ThesisProjectAdminService::class)->rescheduleSidang(
-                            project: $record,
-                            updatedBy: $userId,
-                            scheduledFor: $scheduledFor,
-                            scheduledUntil: $scheduledUntil,
-                            location: $data['location'] ?? null,
-                            notes: $data['notes'] ?? null,
-                        );
-
-                        Notification::make()
-                            ->title('Jadwal '.$terms['finalExam'].' berhasil diperbarui')
-                            ->success()
-                            ->send();
-
-                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
-                    } catch (\Throwable $exception) {
-                        Notification::make()
-                            ->title('Gagal memperbarui jadwal')
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();
@@ -626,6 +613,52 @@ class ViewThesisProject extends ViewRecord
             ->where('type', 'sidang')
             ->sortByDesc('attempt_no')
             ->first();
+    }
+
+    private function latestEditableSempro(ThesisProject $project): ?ThesisDefense
+    {
+        return $this->latestEditableDefense($project, 'sempro');
+    }
+
+    private function latestEditableSidang(ThesisProject $project): ?ThesisDefense
+    {
+        return $this->latestEditableDefense($project, 'sidang');
+    }
+
+    private function latestEditableDefense(ThesisProject $project, string $type): ?ThesisDefense
+    {
+        $defense = $type === 'sempro'
+            ? $this->latestSempro($project)
+            : $this->latestSidang($project);
+
+        if (! $defense instanceof ThesisDefense) {
+            return null;
+        }
+
+        return in_array($defense->status, ['draft', 'scheduled'], true)
+            ? $defense
+            : null;
+    }
+
+    private function canScheduleDefense(ThesisProject $project, string $type): bool
+    {
+        if ($project->state !== 'active') {
+            return false;
+        }
+
+        $defense = $type === 'sempro'
+            ? $this->latestSempro($project)
+            : $this->latestSidang($project);
+
+        if (! $defense instanceof ThesisDefense) {
+            return true;
+        }
+
+        if (in_array($defense->status, ['draft', 'scheduled'], true)) {
+            return true;
+        }
+
+        return $defense->status === 'completed' && $defense->result === 'fail';
     }
 
     private function canDecideTitleReview(ThesisProject $project): bool

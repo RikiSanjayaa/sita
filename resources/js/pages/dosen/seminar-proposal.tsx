@@ -5,6 +5,7 @@ import {
     CheckCircle2,
     ChevronRight,
     Clock,
+    FileWarning,
     Inbox,
     MapPin,
     Search,
@@ -121,7 +122,6 @@ const statusColor: Record<string, string> = {
 
 const decisionLabel: Record<string, string> = {
     pending: 'Pending',
-    pass_with_revision: 'Lulus',
     pass: 'Lulus',
     fail: 'Tidak Lulus',
 };
@@ -129,7 +129,6 @@ const decisionLabel: Record<string, string> = {
 const resultLabel: Record<string, string> = {
     pending: 'Menunggu Finalisasi',
     pass: 'Lulus',
-    pass_with_revision: 'Lulus',
     fail: 'Tidak Lulus',
 };
 
@@ -139,7 +138,30 @@ function resolveDefenseRoleLabel(role: string) {
     return 'Penguji';
 }
 
-function MyDecisionBadge({ decision }: { decision: string | null }) {
+function getDecisionLabel(decision: string | null, defenseType: string) {
+    if (!decision || decision === 'pending') return 'Pending';
+    if (decision === 'pass_with_revision') {
+        return defenseType === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus';
+    }
+
+    return decisionLabel[decision] ?? 'Pending';
+}
+
+function getResultLabel(result: string, defenseType: string) {
+    if (result === 'pass_with_revision') {
+        return defenseType === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus';
+    }
+
+    return resultLabel[result] ?? result;
+}
+
+function MyDecisionBadge({
+    decision,
+    defenseType,
+}: {
+    decision: string | null;
+    defenseType: string;
+}) {
     if (!decision || decision === 'pending') {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -152,7 +174,7 @@ function MyDecisionBadge({ decision }: { decision: string | null }) {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2 className="size-3" />
-                Lulus
+                {getDecisionLabel(decision, defenseType)}
             </span>
         );
     }
@@ -167,9 +189,11 @@ function MyDecisionBadge({ decision }: { decision: string | null }) {
 // ── Decision Form (inside sheet) ────────────────────────────────────
 function DecisionForm({
     defenseId,
+    defenseType,
     onClose,
 }: {
     defenseId: number;
+    defenseType: string;
     onClose: () => void;
 }) {
     const [decision, setDecision] = useState<string>('');
@@ -177,9 +201,15 @@ function DecisionForm({
     const [decisionNotes, setDecisionNotes] = useState<string>('');
     const [revisionNotes, setRevisionNotes] = useState<string>('');
     const [submitting, setSubmitting] = useState(false);
+    const showRevisionNotes =
+        decision === 'pass_with_revision' ||
+        (defenseType === 'sempro' && decision === 'pass');
+    const revisionNotesRequired = decision === 'pass_with_revision';
 
     function submit() {
         if (!decision || !score) return;
+        if (revisionNotesRequired && revisionNotes.trim() === '') return;
+
         setSubmitting(true);
         router.post(
             `/dosen/seminar-proposal/${defenseId}/decision`,
@@ -187,8 +217,9 @@ function DecisionForm({
                 decision,
                 score: parseFloat(score),
                 decision_notes: decisionNotes || null,
-                revision_notes:
-                    decision === 'pass_with_revision' ? revisionNotes : null,
+                revision_notes: showRevisionNotes
+                    ? revisionNotes.trim() || null
+                    : null,
             },
             {
                 onFinish: () => setSubmitting(false),
@@ -211,19 +242,39 @@ function DecisionForm({
                             type="button"
                             size="sm"
                             variant={
-                                decision === 'pass_with_revision'
-                                    ? 'default'
-                                    : 'outline'
+                                decision === 'pass' ? 'default' : 'outline'
                             }
-                            onClick={() => setDecision('pass_with_revision')}
+                            onClick={() => setDecision('pass')}
                             className={
-                                decision === 'pass_with_revision'
+                                decision === 'pass'
                                     ? 'bg-emerald-600 hover:bg-emerald-700'
                                     : ''
                             }
                         >
                             <CheckCircle2 className="size-3.5" /> Lulus
                         </Button>
+                        {defenseType !== 'sempro' && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    decision === 'pass_with_revision'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    setDecision('pass_with_revision')
+                                }
+                                className={
+                                    decision === 'pass_with_revision'
+                                        ? 'bg-amber-600 hover:bg-amber-700'
+                                        : ''
+                                }
+                            >
+                                <FileWarning className="size-3.5" /> Lulus
+                                dengan Syarat
+                            </Button>
+                        )}
                         <Button
                             type="button"
                             size="sm"
@@ -269,10 +320,11 @@ function DecisionForm({
                 />
             </div>
 
-            {decision === 'pass_with_revision' && (
+            {showRevisionNotes && (
                 <div className="grid gap-1.5">
                     <Label htmlFor="sheet-revision-notes">
-                        Catatan Revisi *
+                        Catatan Revisi
+                        {revisionNotesRequired ? ' *' : ' (opsional)'}
                     </Label>
                     <Textarea
                         id="sheet-revision-notes"
@@ -289,7 +341,12 @@ function DecisionForm({
                 <Button
                     size="sm"
                     onClick={submit}
-                    disabled={submitting || !decision || !score}
+                    disabled={
+                        submitting ||
+                        !decision ||
+                        !score ||
+                        (revisionNotesRequired && revisionNotes.trim() === '')
+                    }
                     className="flex-1 sm:flex-none"
                 >
                     <Send className="size-3.5" />
@@ -432,6 +489,7 @@ function DefenseDetailSheet({
                                     </span>
                                     <MyDecisionBadge
                                         decision={item.myDecision}
+                                        defenseType={item.type}
                                     />
                                     {item.myScore !== null && (
                                         <span className="flex items-center gap-1 text-xs font-semibold">
@@ -470,8 +528,10 @@ function DefenseDetailSheet({
                                                         : 'bg-muted text-muted-foreground',
                                             )}
                                         >
-                                            {decisionLabel[ex.decision ?? ''] ??
-                                                'Pending'}
+                                            {getDecisionLabel(
+                                                ex.decision,
+                                                item.type,
+                                            )}
                                         </Badge>
                                         {ex.score !== null && (
                                             <span className="flex items-center gap-1 font-semibold">
@@ -509,8 +569,10 @@ function DefenseDetailSheet({
                                         )}
                                         <span className="text-muted-foreground">
                                             · Hasil:{' '}
-                                            {resultLabel[item.defenseResult] ??
-                                                item.defenseResult}
+                                            {getResultLabel(
+                                                item.defenseResult,
+                                                item.type,
+                                            )}
                                         </span>
                                     </div>
                                 )}
@@ -594,6 +656,7 @@ function DefenseDetailSheet({
                                 ) : (
                                     <DecisionForm
                                         defenseId={item.defenseId}
+                                        defenseType={item.type}
                                         onClose={handleClose}
                                     />
                                 )}
@@ -1070,6 +1133,7 @@ export default function DosenSeminarProposalPage() {
                                                         decision={
                                                             item.myDecision
                                                         }
+                                                        defenseType={item.type}
                                                     />
                                                     {item.myScore !== null && (
                                                         <span className="ml-1 inline-flex items-center gap-0.5 text-xs font-semibold">

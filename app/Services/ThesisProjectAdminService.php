@@ -127,10 +127,11 @@ class ThesisProjectAdminService
         string $location,
         string $mode,
         array $examinerUserIds,
+        ?string $scheduledUntil = null,
     ): ThesisProject {
         $wasRescheduled = false;
 
-        $updatedProject = DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $location, $mode, $examinerUserIds, &$wasRescheduled): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $scheduledUntil, $location, $mode, $examinerUserIds, &$wasRescheduled): ThesisProject {
             $defense = $project->semproDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
                 ->latest('attempt_no')
@@ -157,6 +158,7 @@ class ThesisProjectAdminService
                 'status' => 'scheduled',
                 'result' => 'pending',
                 'scheduled_for' => $scheduledFor,
+                'scheduled_until' => $scheduledUntil,
                 'location' => $location,
                 'mode' => $mode,
                 'created_by' => $scheduledBy,
@@ -197,6 +199,7 @@ class ThesisProjectAdminService
             scheduledFor: $scheduledFor,
             location: $location,
             wasRescheduled: $wasRescheduled,
+            scheduledUntil: $scheduledUntil,
         );
         $this->notifyLecturersAboutDefenseSchedule(
             project: $updatedProject,
@@ -205,6 +208,7 @@ class ThesisProjectAdminService
             scheduledFor: $scheduledFor,
             location: $location,
             wasRescheduled: $wasRescheduled,
+            scheduledUntil: $scheduledUntil,
         );
 
         return $updatedProject;
@@ -230,6 +234,14 @@ class ThesisProjectAdminService
             throw new RuntimeException('Sempro belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
         }
 
+        if ($result === 'pass_with_revision' && blank($revisionDueAt)) {
+            throw new RuntimeException('Batas revisi wajib diisi untuk hasil sempro lulus.');
+        }
+
+        if ($result === 'pass_with_revision' && blank($notes)) {
+            throw new RuntimeException('Catatan revisi wajib diisi untuk hasil sempro lulus.');
+        }
+
         $updatedProject = DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt): ThesisProject {
             $defense->forceFill([
                 'status' => 'completed',
@@ -244,7 +256,7 @@ class ThesisProjectAdminService
             }
 
             if ($result === 'pass_with_revision') {
-                $this->syncDefenseRevisionsFromExaminers($defense, $notes, $revisionDueAt);
+                $this->syncDefenseRevisionsFromExaminers($defense, $notes, $revisionDueAt, $decidedBy);
 
                 $project->forceFill([
                     'phase' => 'sempro',
@@ -518,6 +530,7 @@ class ThesisProjectAdminService
         string $scheduledFor,
         ?string $scheduledUntil,
         ?string $location,
+        ?string $mode,
         ?string $notes,
     ): ThesisDefense {
         $defense = $project->sidangDefenses()
@@ -529,7 +542,7 @@ class ThesisProjectAdminService
             throw new RuntimeException('Tidak ada sidang aktif untuk diperbarui jadwalnya.');
         }
 
-        DB::transaction(function () use ($defense, $project, $updatedBy, $scheduledFor, $scheduledUntil, $location, $notes): void {
+        DB::transaction(function () use ($defense, $project, $updatedBy, $scheduledFor, $scheduledUntil, $location, $mode, $notes): void {
             $updates = [
                 'scheduled_for' => $scheduledFor,
                 'scheduled_until' => $scheduledUntil,
@@ -537,6 +550,10 @@ class ThesisProjectAdminService
 
             if (filled($location)) {
                 $updates['location'] = $location;
+            }
+
+            if (filled($mode)) {
+                $updates['mode'] = $mode;
             }
 
             if (filled($notes)) {
@@ -555,27 +572,28 @@ class ThesisProjectAdminService
             );
         });
 
-        $project->loadMissing('student');
+        $updatedDefense = $defense->fresh(['examiners.lecturer']);
+        $effectiveLocation = filled($location) ? $location : $updatedDefense->location;
 
-        if ($project->student instanceof User) {
-            $label = $this->defenseLabel($project, 'sidang');
-            $formattedSchedule = $this->formatScheduleRange($scheduledFor, $scheduledUntil);
+        $this->notifyStudentAboutDefenseSchedule(
+            project: $project,
+            type: 'sidang',
+            scheduledFor: $scheduledFor,
+            location: (string) $effectiveLocation,
+            wasRescheduled: true,
+            scheduledUntil: $scheduledUntil,
+        );
+        $this->notifyLecturersAboutDefenseSchedule(
+            project: $project,
+            defense: $updatedDefense,
+            type: 'sidang',
+            scheduledFor: $scheduledFor,
+            location: (string) $effectiveLocation,
+            wasRescheduled: true,
+            scheduledUntil: $scheduledUntil,
+        );
 
-            $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
-                'title' => sprintf('Jadwal %s diperbarui', $label),
-                'description' => sprintf(
-                    'Jadwal %s Anda diperbarui menjadi %s%s.',
-                    $label,
-                    $formattedSchedule,
-                    filled($location) ? ' di '.$location : '',
-                ),
-                'url' => '/tugas-akhir',
-                'icon' => 'calendar-clock',
-                'createdAt' => now()->toIso8601String(),
-            ]);
-        }
-
-        return $defense->fresh();
+        return $updatedDefense;
     }
 
     public function completeSidang(
@@ -629,7 +647,15 @@ class ThesisProjectAdminService
             }
 
             if ($result === 'pass_with_revision') {
-                $this->syncDefenseRevisionsFromExaminers($defense, $revisionNotes ?? $notes, $revisionDueAt);
+                if (blank($revisionDueAt)) {
+                    throw new RuntimeException('Batas revisi wajib diisi untuk hasil sidang lulus dengan syarat.');
+                }
+
+                if (blank($revisionNotes)) {
+                    throw new RuntimeException('Catatan revisi wajib diisi untuk hasil sidang lulus dengan syarat.');
+                }
+
+                $this->syncDefenseRevisionsFromExaminers($defense, $revisionNotes, $revisionDueAt, $decidedBy);
 
                 $project->forceFill([
                     'phase' => 'sidang',
@@ -795,14 +821,45 @@ class ThesisProjectAdminService
             ]);
     }
 
-    private function syncDefenseRevisionsFromExaminers(ThesisDefense $defense, string $fallbackNotes, ?string $dueAt): void
+    private function syncDefenseRevisionsFromExaminers(ThesisDefense $defense, string $fallbackNotes, ?string $dueAt, int $fallbackRequesterUserId): void
     {
         $requestingExaminers = $defense->examiners
             ->where('decision', 'pass_with_revision')
             ->values();
 
         if ($requestingExaminers->isEmpty()) {
-            throw new RuntimeException('Tidak ada dosen penguji yang meminta revisi untuk hasil ini.');
+            $revision = ThesisRevision::query()
+                ->where('project_id', $defense->project_id)
+                ->where('defense_id', $defense->getKey())
+                ->where('requested_by_user_id', $fallbackRequesterUserId)
+                ->whereIn('status', ['open', 'submitted'])
+                ->latest('id')
+                ->first();
+
+            if ($revision instanceof ThesisRevision) {
+                $revision->forceFill([
+                    'status' => 'open',
+                    'notes' => $fallbackNotes,
+                    'due_at' => $dueAt,
+                    'submitted_at' => null,
+                    'resolved_at' => null,
+                    'resolved_by_user_id' => null,
+                    'resolution_notes' => null,
+                ])->save();
+
+                return;
+            }
+
+            ThesisRevision::query()->create([
+                'project_id' => $defense->project_id,
+                'defense_id' => $defense->getKey(),
+                'requested_by_user_id' => $fallbackRequesterUserId,
+                'status' => 'open',
+                'notes' => $fallbackNotes,
+                'due_at' => $dueAt,
+            ]);
+
+            return;
         }
 
         foreach ($requestingExaminers as $examiner) {

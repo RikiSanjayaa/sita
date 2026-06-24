@@ -20,6 +20,7 @@ import {
     BimbinganCalendar,
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
+import { DateRangePicker } from '@/components/date-range-picker';
 import {
     LecturerMultiSearch,
     LecturerSearchSelect,
@@ -119,8 +120,10 @@ type SchedulableProject = {
 
 type DefenseSummary = {
     id: number;
+    attempt: number;
     status: string;
     statusKey: string;
+    resultKey: string;
     scheduledFor: string;
     scheduledForInput: string;
     scheduledDateStartInput: string;
@@ -154,6 +157,59 @@ type ScheduleDialogState = {
     project?: SchedulableProject;
     exam?: ExamRow;
 };
+
+function examScheduleBlockedReason(
+    project: SchedulableProject,
+    type: 'sempro' | 'sidang',
+): string | null {
+    const defense =
+        type === 'sempro' ? project.latestSempro : project.latestSidang;
+    const terms = project.terminology;
+    const label =
+        type === 'sempro'
+            ? (terms.proposalExamShort ?? 'Sempro')
+            : (terms.finalExam ?? 'Ujian akhir');
+
+    if (!defense) {
+        return null;
+    }
+
+    if (defense.statusKey === 'awaiting_finalization') {
+        return `${label} masih menunggu finalisasi`;
+    }
+
+    if (defense.statusKey === 'cancelled') {
+        return `${label} terakhir dibatalkan`;
+    }
+
+    if (defense.statusKey === 'completed') {
+        if (defense.resultKey === 'fail') {
+            return null;
+        }
+
+        return `${label} sudah lulus/selesai`;
+    }
+
+    return null;
+}
+
+function examScheduleOptionHint(
+    project: SchedulableProject,
+    type: 'sempro' | 'sidang',
+): string | null {
+    const defense =
+        type === 'sempro' ? project.latestSempro : project.latestSidang;
+
+    if (defense?.statusKey === 'completed' && defense.resultKey === 'fail') {
+        return `percobaan #${defense.attempt + 1}`;
+    }
+
+    if (defense?.statusKey === 'scheduled' || defense?.statusKey === 'draft') {
+        return 'sudah ada jadwal aktif';
+    }
+
+    return null;
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
@@ -802,12 +858,12 @@ function ScheduleDialog({
 
         return {
             project_id: project ? String(project.id) : '',
-            scheduled_for:
-                state?.type === 'sempro'
-                    ? (state?.exam?.scheduledForInput ?? '')
-                    : '',
+            scheduled_for: '',
             scheduled_date_start: state?.exam?.scheduledDateStartInput ?? '',
-            scheduled_date_end: state?.exam?.scheduledDateEndInput ?? '',
+            scheduled_date_end:
+                state?.exam?.scheduledDateEndInput ||
+                state?.exam?.scheduledDateStartInput ||
+                '',
             scheduled_time: state?.exam?.scheduledTimeInput ?? '',
             location: state?.exam?.location ?? '',
             mode: state?.exam?.mode ?? 'offline',
@@ -828,13 +884,23 @@ function ScheduleDialog({
             notes: '',
         };
     }, [projects, state]);
+    const resetKey = useMemo(() => {
+        return [
+            open ? 'open' : 'closed',
+            state?.type ?? 'none',
+            state?.project?.id ?? 'new',
+            state?.exam?.id ?? 'new',
+        ].join(':');
+    }, [open, state]);
     const form = useForm(initialFormData);
-    const { clearErrors, setData } = form;
 
     useEffect(() => {
-        setData(initialFormData);
-        clearErrors();
-    }, [clearErrors, initialFormData, setData]);
+        form.setData(initialFormData);
+        form.clearErrors();
+        // Reset should only follow the opened dialog target, not every form
+        // change, otherwise submit can read freshly-reset state.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetKey]);
 
     if (!state) return null;
 
@@ -842,6 +908,10 @@ function ScheduleDialog({
     const currentProject = projects.find(
         (project) => String(project.id) === form.data.project_id,
     );
+    const currentProjectScheduleBlockedReason =
+        currentProject && !activeState.exam
+            ? examScheduleBlockedReason(currentProject, activeState.type)
+            : null;
     const terms =
         currentProject?.terminology ?? state?.exam?.terminology ?? null;
     const title =
@@ -852,21 +922,19 @@ function ScheduleDialog({
             : activeState.exam
               ? `Ubah Jadwal ${terms?.finalExam ?? 'Ujian Akhir'}`
               : `Jadwalkan ${terms?.finalExam ?? 'Ujian Akhir'}`;
+    const errors = form.errors as Record<string, string | undefined>;
+    const projectError =
+        errors.project_id ??
+        errors.project ??
+        currentProjectScheduleBlockedReason;
+    const dateRangeError =
+        errors.scheduled_date_start ??
+        errors.scheduled_date_end ??
+        errors.scheduled_for;
     const submitDisabled =
         form.processing ||
         form.data.project_id === '' ||
-        (activeState.type === 'sempro'
-            ? form.data.scheduled_for === ''
-            : form.data.scheduled_date_start === '' ||
-              form.data.scheduled_time === '') ||
-        form.data.location === '' ||
-        (activeState.type === 'sempro' &&
-            (form.data.examiner_1_user_id === '' ||
-                (form.data.examiner_2_user_id !== '' &&
-                    form.data.examiner_1_user_id ===
-                        form.data.examiner_2_user_id))) ||
-        (activeState.type === 'sidang' &&
-            form.data.additional_examiner_user_ids.length === 0);
+        Boolean(currentProjectScheduleBlockedReason);
 
     function submit() {
         const projectId = Number(form.data.project_id);
@@ -903,12 +971,47 @@ function ScheduleDialog({
                             className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
                         >
                             <option value="">Pilih mahasiswa</option>
-                            {projects.map((project) => (
-                                <option key={project.id} value={project.id}>
-                                    {project.student} ({project.nim ?? '-'})
-                                </option>
-                            ))}
+                            {projects.map((project) => {
+                                const blockedReason = !activeState.exam
+                                    ? examScheduleBlockedReason(
+                                          project,
+                                          activeState.type,
+                                      )
+                                    : null;
+                                const hint =
+                                    !blockedReason && !activeState.exam
+                                        ? examScheduleOptionHint(
+                                              project,
+                                              activeState.type,
+                                          )
+                                        : null;
+
+                                return (
+                                    <option
+                                        key={project.id}
+                                        value={project.id}
+                                        disabled={Boolean(blockedReason)}
+                                    >
+                                        {project.student} ({project.nim ?? '-'})
+                                        {blockedReason
+                                            ? ` — ${blockedReason}`
+                                            : hint
+                                              ? ` — ${hint}`
+                                              : ''}
+                                    </option>
+                                );
+                            })}
                         </select>
+                        {projectError ? (
+                            <p className="text-xs text-destructive">
+                                {projectError}
+                            </p>
+                        ) : form.data.project_id === '' ? (
+                            <p className="text-xs text-muted-foreground">
+                                Pilih mahasiswa terlebih dahulu untuk
+                                melanjutkan penjadwalan.
+                            </p>
+                        ) : null}
                     </div>
 
                     {currentProject ? (
@@ -943,128 +1046,49 @@ function ScheduleDialog({
                         </div>
                     ) : null}
 
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        {activeState.type === 'sempro' ? (
-                            <div className="grid min-w-0 gap-1.5 sm:col-span-1">
-                                <label className="text-sm font-medium">
-                                    Jadwal
-                                </label>
-                                <Input
-                                    type="datetime-local"
-                                    value={form.data.scheduled_for}
-                                    onChange={(event) =>
-                                        form.setData(
-                                            'scheduled_for',
-                                            event.target.value,
-                                        )
+                    <div className="grid gap-3 sm:grid-cols-4">
+                        <div className="grid min-w-0 gap-1.5 sm:col-span-2">
+                            <label className="text-sm font-medium">
+                                Rentang Tanggal
+                            </label>
+                            <DateRangePicker
+                                startDate={form.data.scheduled_date_start}
+                                endDate={form.data.scheduled_date_end}
+                                onChange={(range) => {
+                                    form.setData(
+                                        'scheduled_date_start',
+                                        range.from,
+                                    );
+                                    form.setData(
+                                        'scheduled_date_end',
+                                        range.to,
+                                    );
+                                }}
+                                error={dateRangeError}
+                            />
+                        </div>
+                        <div className="grid min-w-0 gap-1.5 sm:col-span-1">
+                            <label className="text-sm font-medium">Jam</label>
+                            <Input
+                                type="time"
+                                value={form.data.scheduled_time}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'scheduled_time',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            {(form.errors as Record<string, string>)
+                                .scheduled_time ? (
+                                <p className="text-xs text-destructive">
+                                    {
+                                        (form.errors as Record<string, string>)
+                                            .scheduled_time
                                     }
-                                />
-                                {(form.errors as Record<string, string>)
-                                    .scheduled_for ? (
-                                    <p className="text-xs text-destructive">
-                                        {
-                                            (
-                                                form.errors as Record<
-                                                    string,
-                                                    string
-                                                >
-                                            ).scheduled_for
-                                        }
-                                    </p>
-                                ) : null}
-                            </div>
-                        ) : (
-                            <div className="grid min-w-0 gap-3 sm:col-span-1">
-                                <div className="grid min-w-0 gap-1.5">
-                                    <label className="text-sm font-medium">
-                                        Tanggal Mulai
-                                    </label>
-                                    <Input
-                                        type="date"
-                                        value={form.data.scheduled_date_start}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'scheduled_date_start',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                    {(form.errors as Record<string, string>)
-                                        .scheduled_date_start ? (
-                                        <p className="text-xs text-destructive">
-                                            {
-                                                (
-                                                    form.errors as Record<
-                                                        string,
-                                                        string
-                                                    >
-                                                ).scheduled_date_start
-                                            }
-                                        </p>
-                                    ) : null}
-                                </div>
-                                <div className="grid min-w-0 gap-1.5">
-                                    <label className="text-sm font-medium">
-                                        Tanggal Akhir
-                                    </label>
-                                    <Input
-                                        type="date"
-                                        min={
-                                            form.data.scheduled_date_start ||
-                                            undefined
-                                        }
-                                        value={form.data.scheduled_date_end}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'scheduled_date_end',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                    {(form.errors as Record<string, string>)
-                                        .scheduled_date_end ? (
-                                        <p className="text-xs text-destructive">
-                                            {
-                                                (
-                                                    form.errors as Record<
-                                                        string,
-                                                        string
-                                                    >
-                                                ).scheduled_date_end
-                                            }
-                                        </p>
-                                    ) : null}
-                                </div>
-                                <div className="grid min-w-0 gap-1.5">
-                                    <label className="text-sm font-medium">
-                                        Jam
-                                    </label>
-                                    <Input
-                                        type="time"
-                                        value={form.data.scheduled_time}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'scheduled_time',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                    {(form.errors as Record<string, string>)
-                                        .scheduled_time ? (
-                                        <p className="text-xs text-destructive">
-                                            {
-                                                (
-                                                    form.errors as Record<
-                                                        string,
-                                                        string
-                                                    >
-                                                ).scheduled_time
-                                            }
-                                        </p>
-                                    ) : null}
-                                </div>
-                            </div>
-                        )}
+                                </p>
+                            ) : null}
+                        </div>
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
                             <label className="text-sm font-medium">
                                 Lokasi
@@ -1076,6 +1100,11 @@ function ScheduleDialog({
                                 }
                                 placeholder="Ruang ujian / tautan meeting"
                             />
+                            {errors.location ? (
+                                <p className="text-xs text-destructive">
+                                    {errors.location}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
                             <label className="text-sm font-medium">Mode</label>

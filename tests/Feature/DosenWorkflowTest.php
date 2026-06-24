@@ -412,6 +412,59 @@ test('examiner decision sends notification to mahasiswa', function () {
     });
 });
 
+test('sempro examiner submits lulus with optional revision notes through simplified decision options', function () {
+    $dosen = createDosenUser();
+    $student = createMahasiswaUser('2210519008');
+    $project = createThesisProjectForStudent($student);
+
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle?->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'scheduled',
+        'result' => 'pending',
+        'scheduled_for' => now()->addDays(3),
+        'location' => 'Ruang Sempro Simplified',
+        'mode' => 'offline',
+    ]);
+
+    $examiner = assignDefenseExaminer($defense, $dosen, 'examiner', 1);
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.seminar-proposal'))
+        ->post(route('dosen.seminar-proposal.decision', $defense), [
+            'decision' => 'pass_with_revision',
+            'score' => 82,
+            'decision_notes' => 'Tidak boleh dikirim langsung dari opsi sempro.',
+            'revision_notes' => 'Catatan revisi.',
+        ])
+        ->assertRedirect(route('dosen.seminar-proposal'))
+        ->assertSessionHasErrors('decision');
+
+    $this->assertDatabaseHas('thesis_defense_examiners', [
+        'id' => $examiner->id,
+        'decision' => 'pending',
+    ]);
+
+    $this->actingAs($dosen)
+        ->from(route('dosen.seminar-proposal'))
+        ->post(route('dosen.seminar-proposal.decision', $defense), [
+            'decision' => 'pass',
+            'score' => 82,
+            'decision_notes' => 'Lulus dengan revisi minor.',
+            'revision_notes' => 'Perbaiki latar belakang dan rumusan masalah.',
+        ])
+        ->assertRedirect(route('dosen.seminar-proposal'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('thesis_defense_examiners', [
+        'id' => $examiner->id,
+        'decision' => 'pass_with_revision',
+        'revision_notes' => 'Perbaiki latar belakang dan rumusan masalah.',
+    ]);
+});
+
 test('dosen can close confirmed schedule as completed or cancelled', function () {
     $admin = User::factory()->asAdmin()->create();
     $dosen = createDosenUser();
