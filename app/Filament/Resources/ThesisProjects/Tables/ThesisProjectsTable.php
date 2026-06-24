@@ -369,7 +369,7 @@ class ThesisProjectsTable
             '%s #%d - %s',
             strtoupper($defense->type),
             $defense->attempt_no,
-            WitaDateTime::format($defense->scheduled_for),
+            WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until),
         );
     }
 }

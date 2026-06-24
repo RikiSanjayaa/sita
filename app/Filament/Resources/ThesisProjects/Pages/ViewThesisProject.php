@@ -11,10 +11,12 @@ use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Enums\Alignment;
@@ -44,7 +46,7 @@ class ViewThesisProject extends ViewRecord
                         ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record, $terms): void {
+                ->action(function (array $data) use ($record): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -86,7 +88,7 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record, $terms): void {
+                ->action(function (array $data) use ($record): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -212,20 +214,20 @@ class ViewThesisProject extends ViewRecord
                     Select::make('result')
                         ->label('Hasil')
                         ->options([
-                            'pass' => 'Lulus',
-                            'pass_with_revision' => 'Lulus dengan Revisi',
+                            'pass_with_revision' => 'Lulus',
                             'fail' => 'Tidak Lulus',
                         ])
                         ->required()
                         ->native(false),
                     DateTimePicker::make('revision_due_at')
-                        ->label('Batas Revisi'),
+                        ->label('Batas Revisi')
+                        ->helperText('Wajib diisi jika hasil Lulus.'),
                     Textarea::make('notes')
                         ->label('Catatan')
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record, $terms): void {
+                ->action(function (array $data) use ($record): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -290,7 +292,7 @@ class ViewThesisProject extends ViewRecord
                         ->label('Catatan')
                         ->rows(2),
                 ])
-                ->action(function (array $data) use ($record, $terms): void {
+                ->action(function (array $data) use ($record): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -326,9 +328,19 @@ class ViewThesisProject extends ViewRecord
                 ->color('warning')
                 ->visible(fn(): bool => $record->state === 'active')
                 ->form([
-                    DateTimePicker::make('scheduled_for')
-                        ->label('Jadwal '.$terms['finalExam'])
-                        ->required(),
+                    DatePicker::make('scheduled_date_start')
+                        ->label('Tanggal Mulai')
+                        ->required()
+                        ->native(false),
+                    DatePicker::make('scheduled_date_end')
+                        ->label('Tanggal Akhir (Opsional)')
+                        ->helperText('Kosongkan jika jadwal sudah pasti pada tanggal mulai.')
+                        ->afterOrEqual('scheduled_date_start')
+                        ->native(false),
+                    TimePicker::make('scheduled_time')
+                        ->label('Jam')
+                        ->required()
+                        ->native(false),
                     TextInput::make('location')
                         ->label('Lokasi')
                         ->required()
@@ -381,10 +393,15 @@ class ViewThesisProject extends ViewRecord
                     }
 
                     try {
+                        $scheduledFor = $data['scheduled_date_start'].' '.$data['scheduled_time'];
+                        $scheduledUntil = filled($data['scheduled_date_end'] ?? null)
+                            ? $data['scheduled_date_end'].' '.$data['scheduled_time']
+                            : null;
+
                         app(ThesisProjectAdminService::class)->scheduleSidang(
                             project: $record,
                             createdBy: $userId,
-                            scheduledFor: (string) $data['scheduled_for'],
+                            scheduledFor: $scheduledFor,
                             location: (string) $data['location'],
                             mode: (string) $data['mode'],
                             panelUserIds: array_merge(
@@ -392,6 +409,7 @@ class ViewThesisProject extends ViewRecord
                                 array_map(static fn($id): int => (int) $id, $data['additional_examiner_user_ids'] ?? []),
                             ),
                             notes: $data['notes'] ?? null,
+                            scheduledUntil: $scheduledUntil,
                         );
 
                         Notification::make()
@@ -420,7 +438,7 @@ class ViewThesisProject extends ViewRecord
                         ->label('Hasil '.$terms['finalExam'])
                         ->options([
                             'pass' => 'Lulus',
-                            'pass_with_revision' => 'Lulus dengan Revisi',
+                            'pass_with_revision' => 'Lulus dengan Syarat',
                             'fail' => 'Tidak Lulus',
                         ])
                         ->required()
@@ -461,6 +479,72 @@ class ViewThesisProject extends ViewRecord
                     } catch (\Throwable $exception) {
                         Notification::make()
                             ->title('Gagal memperbarui sidang')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+            Action::make('reschedule_sidang')
+                ->label('Ubah Jadwal '.$terms['finalExam'])
+                ->icon('heroicon-m-calendar')
+                ->color('gray')
+                ->visible(fn(): bool => $record->state === 'active' && $this->latestSidang($record)?->status === 'scheduled')
+                ->form([
+                    DatePicker::make('scheduled_date_start')
+                        ->label('Tanggal Mulai')
+                        ->required()
+                        ->default(fn(): ?string => $this->latestSidang($record)?->scheduled_for?->format('Y-m-d'))
+                        ->native(false),
+                    DatePicker::make('scheduled_date_end')
+                        ->label('Tanggal Akhir (Opsional)')
+                        ->helperText('Kosongkan jika jadwal sudah pasti.')
+                        ->afterOrEqual('scheduled_date_start')
+                        ->default(fn(): ?string => $this->latestSidang($record)?->scheduled_until?->format('Y-m-d'))
+                        ->native(false),
+                    TimePicker::make('scheduled_time')
+                        ->label('Jam')
+                        ->required()
+                        ->default(fn(): ?string => $this->latestSidang($record)?->scheduled_for?->format('H:i'))
+                        ->native(false),
+                    TextInput::make('location')
+                        ->label('Lokasi')
+                        ->default(fn(): ?string => $this->latestSidang($record)?->location)
+                        ->maxLength(255),
+                    Textarea::make('notes')
+                        ->label('Catatan Perubahan')
+                        ->rows(2),
+                ])
+                ->action(function (array $data) use ($record, $terms): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    try {
+                        $scheduledFor = $data['scheduled_date_start'].' '.$data['scheduled_time'];
+                        $scheduledUntil = filled($data['scheduled_date_end'] ?? null)
+                            ? $data['scheduled_date_end'].' '.$data['scheduled_time']
+                            : null;
+
+                        app(ThesisProjectAdminService::class)->rescheduleSidang(
+                            project: $record,
+                            updatedBy: $userId,
+                            scheduledFor: $scheduledFor,
+                            scheduledUntil: $scheduledUntil,
+                            location: $data['location'] ?? null,
+                            notes: $data['notes'] ?? null,
+                        );
+
+                        Notification::make()
+                            ->title('Jadwal '.$terms['finalExam'].' berhasil diperbarui')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
+                    } catch (\Throwable $exception) {
+                        Notification::make()
+                            ->title('Gagal memperbarui jadwal')
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();

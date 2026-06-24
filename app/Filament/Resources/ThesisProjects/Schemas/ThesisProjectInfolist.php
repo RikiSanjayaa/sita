@@ -11,8 +11,8 @@ use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
-use App\Support\Filament\BadgeStyles;
 use App\Support\AcademicTerminology;
+use App\Support\Filament\BadgeStyles;
 use App\Support\WitaDateTime;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
@@ -484,8 +484,8 @@ class ThesisProjectInfolist
             '#%d - %s - %s - %s',
             $defense->attempt_no,
             self::defenseStatusLabel($defense->status),
-            self::defenseResultLabel($defense->result),
-            WitaDateTime::format($defense->scheduled_for),
+            self::defenseResultLabel($defense->result, $type),
+            self::formatDefenseSchedule($defense),
         );
     }
 
@@ -509,7 +509,6 @@ class ThesisProjectInfolist
             return match ($defense->result) {
                 'fail' => 'Jadwalkan '.$label.' Ulang',
                 'pass_with_revision' => $record->open_revisions_count > 0 ? 'Pantau Revisi '.$label : 'Tetapkan Pembimbing Aktif',
-                'pass' => 'Tetapkan Pembimbing Aktif',
                 default => 'Monitoring '.$label,
             };
         }
@@ -594,8 +593,8 @@ class ThesisProjectInfolist
             ->map(fn(ThesisDefense $defense): array => [
                 'attempt' => '#'.$defense->attempt_no,
                 'status' => self::defenseStatusLabel($defense->status),
-                'result' => self::defenseResultLabel($defense->result),
-                'scheduled_for' => WitaDateTime::format($defense->scheduled_for),
+                'result' => self::defenseResultLabel($defense->result, $type),
+                'scheduled_for' => self::formatDefenseSchedule($defense),
                 'location' => $defense->location ?? '-',
                 'mode' => ucfirst($defense->mode),
                 'examiners' => $defense->examiners
@@ -698,15 +697,20 @@ class ThesisProjectInfolist
         };
     }
 
-    private static function defenseResultLabel(string $result): string
+    private static function defenseResultLabel(string $result, string $defenseType = 'sempro'): string
     {
         return match ($result) {
             'pending' => 'Pending',
             'pass' => 'Lulus',
-            'pass_with_revision' => 'Lulus Revisi',
+            'pass_with_revision' => $defenseType === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
             'fail' => 'Tidak Lulus',
             default => ucwords(str_replace('_', ' ', $result)),
         };
+    }
+
+    private static function formatDefenseSchedule(ThesisDefense $defense): string
+    {
+        return WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until);
     }
 
     private static function defenseResultColor(string $result): string
