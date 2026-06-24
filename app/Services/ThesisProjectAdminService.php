@@ -15,6 +15,8 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
+use App\Support\WitaDateTime;
+use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -241,15 +243,6 @@ class ThesisProjectAdminService
                 $this->closeDefenseRevisions($defense, $decidedBy, $notes);
             }
 
-            if ($result === 'pass') {
-                $project->forceFill([
-                    'phase' => 'research',
-                    'state' => 'active',
-                    'completed_at' => null,
-                    'closed_by' => null,
-                ])->save();
-            }
-
             if ($result === 'pass_with_revision') {
                 $this->syncDefenseRevisionsFromExaminers($defense, $notes, $revisionDueAt);
 
@@ -276,14 +269,12 @@ class ThesisProjectAdminService
                 $freshProject,
                 actorUserId: $decidedBy,
                 eventType: match ($result) {
-                    'pass' => 'sempro_completed',
                     'pass_with_revision' => 'sempro_completed',
                     'fail' => 'sempro_failed',
                     default => 'sempro_completed',
                 },
                 label: match ($result) {
-                    'pass' => 'Sempro selesai',
-                    'pass_with_revision' => 'Sempro selesai dengan revisi',
+                    'pass_with_revision' => 'Sempro selesai',
                     'fail' => 'Sempro tidak lulus',
                     default => 'Hasil sempro ditetapkan',
                 },
@@ -435,10 +426,11 @@ class ThesisProjectAdminService
         string $mode,
         array $panelUserIds,
         ?string $notes = null,
+        ?string $scheduledUntil = null,
     ): ThesisDefense {
         $wasRescheduled = false;
 
-        $defense = DB::transaction(function () use ($project, $createdBy, $scheduledFor, $location, $mode, $panelUserIds, $notes, &$wasRescheduled): ThesisDefense {
+        $defense = DB::transaction(function () use ($project, $createdBy, $scheduledFor, $scheduledUntil, $location, $mode, $panelUserIds, $notes, &$wasRescheduled): ThesisDefense {
             $attemptNo = (int) $project->sidangDefenses()->max('attempt_no');
             $openDefense = $project->sidangDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
@@ -464,6 +456,7 @@ class ThesisProjectAdminService
                 'status' => 'scheduled',
                 'result' => 'pending',
                 'scheduled_for' => $scheduledFor,
+                'scheduled_until' => $scheduledUntil,
                 'location' => $location,
                 'mode' => $mode,
                 'created_by' => $createdBy,
@@ -504,6 +497,7 @@ class ThesisProjectAdminService
             scheduledFor: $scheduledFor,
             location: $location,
             wasRescheduled: $wasRescheduled,
+            scheduledUntil: $scheduledUntil,
         );
         $this->notifyLecturersAboutDefenseSchedule(
             project: $project,
@@ -512,9 +506,76 @@ class ThesisProjectAdminService
             scheduledFor: $scheduledFor,
             location: $location,
             wasRescheduled: $wasRescheduled,
+            scheduledUntil: $scheduledUntil,
         );
 
         return $defense;
+    }
+
+    public function rescheduleSidang(
+        ThesisProject $project,
+        int $updatedBy,
+        string $scheduledFor,
+        ?string $scheduledUntil,
+        ?string $location,
+        ?string $notes,
+    ): ThesisDefense {
+        $defense = $project->sidangDefenses()
+            ->whereIn('status', ['draft', 'scheduled'])
+            ->latest('attempt_no')
+            ->first();
+
+        if (! $defense instanceof ThesisDefense) {
+            throw new RuntimeException('Tidak ada sidang aktif untuk diperbarui jadwalnya.');
+        }
+
+        DB::transaction(function () use ($defense, $project, $updatedBy, $scheduledFor, $scheduledUntil, $location, $notes): void {
+            $updates = [
+                'scheduled_for' => $scheduledFor,
+                'scheduled_until' => $scheduledUntil,
+            ];
+
+            if (filled($location)) {
+                $updates['location'] = $location;
+            }
+
+            if (filled($notes)) {
+                $updates['notes'] = $notes;
+            }
+
+            $defense->forceFill($updates)->save();
+
+            $this->recordEvent(
+                $project->fresh(),
+                actorUserId: $updatedBy,
+                eventType: 'sidang_rescheduled',
+                label: 'Jadwal sidang diperbarui',
+                description: $notes ?? 'Jadwal sidang telah diperbarui.',
+                occurredAt: $scheduledFor,
+            );
+        });
+
+        $project->loadMissing('student');
+
+        if ($project->student instanceof User) {
+            $label = $this->defenseLabel($project, 'sidang');
+            $formattedSchedule = $this->formatScheduleRange($scheduledFor, $scheduledUntil);
+
+            $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
+                'title' => sprintf('Jadwal %s diperbarui', $label),
+                'description' => sprintf(
+                    'Jadwal %s Anda diperbarui menjadi %s%s.',
+                    $label,
+                    $formattedSchedule,
+                    filled($location) ? ' di '.$location : '',
+                ),
+                'url' => '/tugas-akhir',
+                'icon' => 'calendar-clock',
+                'createdAt' => now()->toIso8601String(),
+            ]);
+        }
+
+        return $defense->fresh();
     }
 
     public function completeSidang(
@@ -598,7 +659,7 @@ class ThesisProjectAdminService
                 },
                 label: match ($result) {
                     'pass' => 'Sidang selesai',
-                    'pass_with_revision' => 'Sidang selesai dengan revisi',
+                    'pass_with_revision' => 'Sidang selesai dengan syarat',
                     'fail' => 'Sidang tidak lulus',
                     default => 'Hasil sidang ditetapkan',
                 },
@@ -1206,6 +1267,7 @@ class ThesisProjectAdminService
         string $scheduledFor,
         string $location,
         bool $wasRescheduled,
+        ?string $scheduledUntil = null,
     ): void {
         $project->loadMissing('student');
 
@@ -1214,6 +1276,7 @@ class ThesisProjectAdminService
         }
 
         $label = $this->defenseLabel($project, $type);
+        $formattedSchedule = $this->formatScheduleRange($scheduledFor, $scheduledUntil);
 
         $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
             'title' => $wasRescheduled
@@ -1224,7 +1287,7 @@ class ThesisProjectAdminService
                     ? '%s Anda dijadwalkan ulang pada %s di %s.'
                     : '%s Anda dijadwalkan pada %s di %s.',
                 $label,
-                $scheduledFor,
+                $formattedSchedule,
                 $location,
             ),
             'url' => '/tugas-akhir',
@@ -1240,11 +1303,13 @@ class ThesisProjectAdminService
         string $scheduledFor,
         string $location,
         bool $wasRescheduled,
+        ?string $scheduledUntil = null,
     ): void {
         $project->loadMissing('activeSupervisorAssignments.lecturer');
         $defense?->loadMissing('examiners.lecturer');
 
         $label = $this->defenseLabel($project, $type);
+        $formattedSchedule = $this->formatScheduleRange($scheduledFor, $scheduledUntil);
         $recipients = $project->activeSupervisorAssignments
             ->map(fn(ThesisSupervisorAssignment $assignment): ?User => $assignment->lecturer)
             ->concat(
@@ -1265,7 +1330,7 @@ class ThesisProjectAdminService
                         ? '%s mahasiswa bimbingan Anda dijadwalkan ulang pada %s di %s.'
                         : '%s mahasiswa bimbingan Anda dijadwalkan pada %s di %s.',
                     $label,
-                    $scheduledFor,
+                    $formattedSchedule,
                     $location,
                 ),
                 'url' => '/dosen/seminar-proposal',
@@ -1291,7 +1356,9 @@ class ThesisProjectAdminService
 
         $title = match ($result) {
             'pass' => sprintf('Hasil %s tersedia', $label),
-            'pass_with_revision' => sprintf('%s selesai dengan revisi', $label),
+            'pass_with_revision' => $type === 'sidang'
+                ? sprintf('%s lulus dengan syarat', $label)
+                : sprintf('%s selesai', $label),
             'fail' => sprintf('%s dinyatakan tidak lulus', $label),
             default => sprintf('Update %s tersedia', $label),
         };
@@ -1303,6 +1370,14 @@ class ThesisProjectAdminService
             'icon' => 'check-circle',
             'createdAt' => now()->toIso8601String(),
         ]);
+    }
+
+    private function formatScheduleRange(string $scheduledFor, ?string $scheduledUntil = null): string
+    {
+        return WitaDateTime::translatedDateRange(
+            CarbonImmutable::parse($scheduledFor),
+            filled($scheduledUntil) ? CarbonImmutable::parse($scheduledUntil) : null,
+        );
     }
 
     private function notifyStudentAboutTitleReviewDecision(

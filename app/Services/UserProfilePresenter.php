@@ -380,7 +380,7 @@ class UserProfilePresenter
             if ($latestSidang->status === 'completed') {
                 return match ($latestSidang->result) {
                     'pass' => $terms['finalExam'].' selesai',
-                    'pass_with_revision' => 'Revisi '.$terms['finalExam'],
+                    'pass_with_revision' => $terms['finalExam'].' lulus bersyarat',
                     'fail' => $terms['finalExam'].' belum lulus',
                     default => $terms['finalExam'].' berjalan',
                 };
@@ -400,7 +400,7 @@ class UserProfilePresenter
             if ($latestSempro->status === 'completed') {
                 return match ($latestSempro->result) {
                     'pass' => $terms['proposalExamShort'].' selesai',
-                    'pass_with_revision' => 'Revisi '.$terms['proposalExamShort'],
+                    'pass_with_revision' => $terms['proposalExamShort'].' lulus',
                     default => $terms['proposalExamShort'].' berjalan',
                 };
             }

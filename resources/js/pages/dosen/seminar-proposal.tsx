@@ -5,7 +5,6 @@ import {
     CheckCircle2,
     ChevronRight,
     Clock,
-    FileWarning,
     Inbox,
     MapPin,
     Search,
@@ -122,15 +121,15 @@ const statusColor: Record<string, string> = {
 
 const decisionLabel: Record<string, string> = {
     pending: 'Pending',
-    pass_with_revision: 'Perlu Revisi',
-    pass: 'Disetujui',
+    pass_with_revision: 'Lulus',
+    pass: 'Lulus',
     fail: 'Tidak Lulus',
 };
 
 const resultLabel: Record<string, string> = {
     pending: 'Menunggu Finalisasi',
     pass: 'Lulus',
-    pass_with_revision: 'Lulus Revisi',
+    pass_with_revision: 'Lulus',
     fail: 'Tidak Lulus',
 };
 
@@ -149,19 +148,11 @@ function MyDecisionBadge({ decision }: { decision: string | null }) {
             </span>
         );
     }
-    if (decision === 'pass') {
+    if (decision === 'pass' || decision === 'pass_with_revision') {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2 className="size-3" />
-                Disetujui
-            </span>
-        );
-    }
-    if (decision === 'pass_with_revision') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                <FileWarning className="size-3" />
-                Perlu Revisi
+                Lulus
             </span>
         );
     }
@@ -220,21 +211,6 @@ function DecisionForm({
                             type="button"
                             size="sm"
                             variant={
-                                decision === 'pass' ? 'default' : 'outline'
-                            }
-                            onClick={() => setDecision('pass')}
-                            className={
-                                decision === 'pass'
-                                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                                    : ''
-                            }
-                        >
-                            <CheckCircle2 className="size-3.5" /> Setujui
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={
                                 decision === 'pass_with_revision'
                                     ? 'default'
                                     : 'outline'
@@ -242,11 +218,11 @@ function DecisionForm({
                             onClick={() => setDecision('pass_with_revision')}
                             className={
                                 decision === 'pass_with_revision'
-                                    ? 'bg-amber-600 hover:bg-amber-700'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
                                     : ''
                             }
                         >
-                            <FileWarning className="size-3.5" /> Perlu Revisi
+                            <CheckCircle2 className="size-3.5" /> Lulus
                         </Button>
                         <Button
                             type="button"

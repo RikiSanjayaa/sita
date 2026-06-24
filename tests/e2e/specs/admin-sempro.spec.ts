@@ -85,9 +85,9 @@ async function submitDefenseDecision(
         .getByRole('button', {
             name:
                 decision === 'pass'
-                    ? /Setujui/i
+                    ? /Lulus/i
                     : decision === 'pass_with_revision'
-                      ? /Perlu Revisi/i
+                      ? /Lulus/i
                       : /Tidak Lulus/i,
         })
         .click();
@@ -110,9 +110,9 @@ async function submitDefenseDecision(
     const row = defenseRow(page, studentName, attemptLabel);
     await expect(row).toContainText(
         decision === 'pass'
-            ? 'Disetujui'
+            ? 'Lulus'
             : decision === 'pass_with_revision'
-              ? 'Perlu Revisi'
+              ? 'Lulus'
               : 'Tidak Lulus',
     );
     await expect(row).toContainText(score);
@@ -357,7 +357,7 @@ test.describe('Admin sempro workflow', () => {
         }
     });
 
-    test('admin records sempro failure, then creates the next attempt and finalizes it as pass', async ({
+    test('admin records sempro failure, then creates the next attempt and finalizes it as pass with revision follow-up', async ({
         browser,
     }) => {
         const examinerOneContext = await browser.newContext({
@@ -427,26 +427,41 @@ test.describe('Admin sempro workflow', () => {
 
             await submitDefenseDecision(examinerOnePage, {
                 studentName: thesisScenarios.semproRetry.studentName,
-                decision: 'pass',
+                decision: 'pass_with_revision',
                 score: '85',
                 decisionNotes:
                     'Attempt baru sudah siap dan dapat dilanjutkan ke penelitian.',
+                revisionNotes:
+                    'Rapikan catatan akhir proposal sebelum lanjut penelitian.',
                 attemptLabel: 'Sempro #3',
             });
 
             await submitDefenseDecision(examinerTwoPage, {
                 studentName: thesisScenarios.semproRetry.studentName,
-                decision: 'pass',
+                decision: 'pass_with_revision',
                 score: '87',
                 decisionNotes:
                     'Perbaikan attempt baru memadai untuk lolos sempro.',
+                revisionNotes: 'Lengkapi lampiran validasi proposal final.',
                 attemptLabel: 'Sempro #3',
             });
 
             finalizeSemproForStudent(
                 'bagas@sita.test',
-                'pass',
+                'pass_with_revision',
                 'Attempt sempro terbaru dinyatakan lulus.',
+                toDateTimeLocalString(
+                    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                ),
+            );
+
+            resolveSemproRevisionForStudent(
+                'bagas@sita.test',
+                'dosen@sita.test',
+            );
+            resolveSemproRevisionForStudent(
+                'bagas@sita.test',
+                'dosen2@sita.test',
             );
 
             await studentPage.goto('/mahasiswa/tugas-akhir');

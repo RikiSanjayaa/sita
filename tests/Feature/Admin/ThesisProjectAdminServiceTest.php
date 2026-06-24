@@ -523,14 +523,18 @@ test('admin service schedules and completes sidang with revision', function (): 
         'started_at' => now()->subDays(25),
     ]);
 
+    $scheduledFor = now()->addDays(10)->setTime(9, 0);
+    $scheduledUntil = now()->addDays(12)->setTime(9, 0);
+
     app(ThesisProjectAdminService::class)->scheduleSidang(
         project: $project,
         createdBy: $admin->id,
-        scheduledFor: now()->addDays(10)->format('Y-m-d H:i:s'),
+        scheduledFor: $scheduledFor->format('Y-m-d H:i:s'),
         location: 'Ruang Sidang Proyek',
         mode: 'offline',
         panelUserIds: [$primarySupervisor->id, $secondarySupervisor->id, $examiner->id],
         notes: 'Sidang tahap akhir.',
+        scheduledUntil: $scheduledUntil->format('Y-m-d H:i:s'),
     );
 
     $scheduledSidang = ThesisDefense::query()->where('project_id', $project->id)->where('type', 'sidang')->firstOrFail();
@@ -541,6 +545,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->firstOrFail();
 
     expect($scheduledSidang->examiners()->count())->toBe(3)
+        ->and($scheduledSidang->scheduled_until?->toDateTimeString())->toBe($scheduledUntil->toDateTimeString())
         ->and($scheduledSidang->examiners()->where('role', 'primary_supervisor')->exists())->toBeTrue()
         ->and($scheduledSidang->examiners()->where('role', 'secondary_supervisor')->exists())->toBeTrue()
         ->and($scheduledSidang->examiners()->where('role', 'examiner')->exists())->toBeTrue()
@@ -607,7 +612,7 @@ test('admin service schedules and completes sidang with revision', function (): 
         $data = $notification->toArray($student);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Sidang Skripsi selesai dengan revisi'
+            && $data['title'] === 'Sidang Skripsi lulus dengan syarat'
             && $data['description'] === 'Sidang diterima dengan revisi minor.'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });

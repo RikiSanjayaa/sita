@@ -43,4 +43,36 @@ class WitaDateTime
 
         return $formatted.' WITA';
     }
+
+    public static function translatedDateRange(
+        ?CarbonInterface $start,
+        ?CarbonInterface $end,
+        string $locale = 'id',
+        bool $withLabel = true,
+    ): string {
+        if ($start === null) {
+            return '-';
+        }
+
+        $startAt = CarbonImmutable::instance($start)->setTimezone(self::TIMEZONE)->locale($locale);
+        $endAt = $end instanceof CarbonInterface
+            ? CarbonImmutable::instance($end)->setTimezone(self::TIMEZONE)->locale($locale)
+            : null;
+
+        if (! $endAt instanceof CarbonImmutable || $startAt->isSameDay($endAt)) {
+            return self::translated($startAt, 'd F Y, H:i', $locale, $withLabel);
+        }
+
+        $formatted = $startAt->translatedFormat('d F Y')
+            .' - '
+            .$endAt->translatedFormat('d F Y')
+            .', '
+            .$startAt->format('H:i');
+
+        if (! $withLabel) {
+            return $formatted;
+        }
+
+        return $formatted.' WITA';
+    }
 }

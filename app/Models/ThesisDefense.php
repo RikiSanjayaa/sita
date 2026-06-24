@@ -20,6 +20,7 @@ class ThesisDefense extends Model
         'status',
         'result',
         'scheduled_for',
+        'scheduled_until',
         'location',
         'mode',
         'created_by',
@@ -34,6 +35,7 @@ class ThesisDefense extends Model
             'legacy_sempro_id' => 'integer',
             'attempt_no' => 'integer',
             'scheduled_for' => 'datetime',
+            'scheduled_until' => 'datetime',
             'decision_at' => 'datetime',
         ];
     }
