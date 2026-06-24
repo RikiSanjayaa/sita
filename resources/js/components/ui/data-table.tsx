@@ -243,7 +243,6 @@ export function DataTablePagination({
     currentItemCount,
     pageSize,
     onPageChange,
-    itemLabel = 'item',
     placement = 'bottom',
     pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
     onPageSizeChange,
@@ -390,7 +389,7 @@ export function usePagination<T>(
             setPageSizeState(nextPageSize);
             setPage(1);
         },
-        [setPage],
+        [setPage, setPageSizeState],
     );
 
     const totalPages = Math.max(1, Math.ceil(data.length / pageSize));

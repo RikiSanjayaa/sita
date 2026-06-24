@@ -48,7 +48,7 @@ class WitaDateTime
         ?CarbonInterface $start,
         ?CarbonInterface $end,
         string $locale = 'id',
-        bool $withLabel = true,
+        bool $withLabel = false,
     ): string {
         if ($start === null) {
             return '-';
@@ -60,14 +60,24 @@ class WitaDateTime
             : null;
 
         if (! $endAt instanceof CarbonImmutable || $startAt->isSameDay($endAt)) {
-            return self::translated($startAt, 'd F Y, H:i', $locale, $withLabel);
+            $formatted = $startAt->translatedFormat('j F Y').', '.$startAt->format('H.i');
+
+            if (! $withLabel) {
+                return $formatted;
+            }
+
+            return $formatted.' WITA';
         }
 
-        $formatted = $startAt->translatedFormat('d F Y')
-            .' - '
-            .$endAt->translatedFormat('d F Y')
-            .', '
-            .$startAt->format('H:i');
+        if ($startAt->isSameMonth($endAt) && $startAt->isSameYear($endAt)) {
+            $formatted = $startAt->format('j').'–'.$endAt->translatedFormat('j F Y');
+        } elseif ($startAt->isSameYear($endAt)) {
+            $formatted = $startAt->translatedFormat('j F').'–'.$endAt->translatedFormat('j F Y');
+        } else {
+            $formatted = $startAt->translatedFormat('j F Y').'–'.$endAt->translatedFormat('j F Y');
+        }
+
+        $formatted .= ', '.$startAt->format('H.i');
 
         if (! $withLabel) {
             return $formatted;

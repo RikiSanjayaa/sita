@@ -934,8 +934,10 @@ class KaprodiPortalService
 
         return [
             'id' => $defense->id,
+            'attempt' => $defense->attempt_no,
             'status' => $this->statusLabel($defense->status),
             'statusKey' => $defense->status,
+            'resultKey' => $defense->result,
             'scheduledFor' => $this->formatDefenseSchedule($defense),
             'scheduledForInput' => $defense->scheduled_for?->format('Y-m-d\TH:i') ?? '',
             'scheduledDateStartInput' => $defense->scheduled_for?->format('Y-m-d') ?? '',

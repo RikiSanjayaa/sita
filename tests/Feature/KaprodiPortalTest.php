@@ -656,11 +656,14 @@ test('kaprodi can schedule sempro with one examiner and remove an optional secon
 
     $student = kaprodiStudent($prodi, 'Mahasiswa Satu Penguji');
     $project = kaprodiProject($student, $prodi, 'sempro', 'active');
-    $scheduledFor = now()->addWeek()->format('Y-m-d H:i:s');
+    $scheduledStart = now()->addWeek()->setTime(9, 0);
+    $scheduledEnd = now()->addWeek()->addDay()->setTime(9, 0);
 
     $this->actingAs($kaprodi)
         ->post("/kaprodi/projects/{$project->id}/sempro", [
-            'scheduled_for' => $scheduledFor,
+            'scheduled_date_start' => $scheduledStart->format('Y-m-d'),
+            'scheduled_date_end' => $scheduledEnd->format('Y-m-d'),
+            'scheduled_time' => $scheduledStart->format('H:i'),
             'location' => 'Ruang Sempro',
             'mode' => 'offline',
             'examiner_1_user_id' => $kaprodi->id,
@@ -671,7 +674,9 @@ test('kaprodi can schedule sempro with one examiner and remove an optional secon
 
     $this->actingAs($kaprodi)
         ->post("/kaprodi/projects/{$project->id}/sempro", [
-            'scheduled_for' => $scheduledFor,
+            'scheduled_date_start' => $scheduledStart->format('Y-m-d'),
+            'scheduled_date_end' => $scheduledStart->format('Y-m-d'),
+            'scheduled_time' => $scheduledStart->format('H:i'),
             'location' => 'Ruang Sempro Baru',
             'mode' => 'hybrid',
             'examiner_1_user_id' => $kaprodi->id,
@@ -690,6 +695,8 @@ test('kaprodi can schedule sempro with one examiner and remove an optional secon
 
     expect($sempro->examiners()->pluck('lecturer_user_id')->all())
         ->toBe([$kaprodi->id])
+        ->and($sempro->scheduled_for?->toDateTimeString())->toBe($scheduledStart->toDateTimeString())
+        ->and($sempro->scheduled_until?->toDateTimeString())->toBe($scheduledStart->toDateTimeString())
         ->and($auditLog->payload['examiner_user_ids'])->toBe([$kaprodi->id]);
 });
 
@@ -781,6 +788,53 @@ test('kaprodi workflow mutations are scoped to own prodi and active mutable exam
             'secondary_lecturer_user_id' => $lecturerB->id,
         ])
         ->assertForbidden();
+});
+
+test('kaprodi can schedule next sempro attempt after failed result', function (): void {
+    $programStudi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser();
+    $student = kaprodiStudent($programStudi, 'Mahasiswa Sempro Ulang');
+    $project = kaprodiProject($student, $programStudi, 'sempro', 'active');
+    $lecturer = User::factory()->asDosen()->create();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $programStudi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    DosenProfile::factory()->create([
+        'user_id' => $lecturer->id,
+        'program_studi_id' => $programStudi->id,
+    ]);
+
+    ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'type' => 'sempro',
+        'attempt_no' => 1,
+        'status' => 'completed',
+        'result' => 'fail',
+        'scheduled_for' => now()->subWeek(),
+        'scheduled_until' => now()->subWeek(),
+        'location' => 'Ruang Lama',
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->post("/kaprodi/projects/{$project->id}/sempro", [
+            'scheduled_date_start' => now()->addWeek()->toDateString(),
+            'scheduled_date_end' => now()->addWeek()->toDateString(),
+            'scheduled_time' => '09:00',
+            'location' => 'Ruang Sempro Ulang',
+            'mode' => 'offline',
+            'examiner_1_user_id' => $lecturer->id,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $latestSempro = $project->semproDefenses()->latest('attempt_no')->first();
+
+    expect($latestSempro?->attempt_no)->toBe(2)
+        ->and($latestSempro?->status)->toBe('scheduled')
+        ->and($latestSempro?->location)->toBe('Ruang Sempro Ulang');
 });
 
 test('kaprodi workflow accepts active lecturers outside project prodi', function (): void {
