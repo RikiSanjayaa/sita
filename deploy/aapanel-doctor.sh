@@ -10,6 +10,8 @@ NODE_BIN="${NODE_BIN:-node}"
 NPM_BIN="${NPM_BIN:-npm}"
 DOMAIN="${DOMAIN:-}"
 CHECK_SERVICES="${CHECK_SERVICES:-false}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
+PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-}"
 
 FAILED=0
 
@@ -61,13 +63,25 @@ if command -v "$PHP_BIN" >/dev/null 2>&1; then
         fail "PHP CLI ${PHP_VERSION_STR:-unknown} belum memenuhi minimal 8.4"
     fi
 
-    for extension in ctype dom fileinfo filter json mbstring openssl pcre pdo session tokenizer xml; do
+    for extension in bcmath ctype dom fileinfo filter intl json mbstring openssl pcntl pcre pdo session tokenizer xml zip; do
         if "$PHP_BIN" -m | grep -qi "^${extension}$"; then
             ok "PHP extension aktif: ${extension}"
         else
             fail "PHP extension belum aktif: ${extension}"
         fi
     done
+fi
+
+if command -v "$NODE_BIN" >/dev/null 2>&1; then
+    NODE_VERSION_STR="$("$NODE_BIN" -p 'process.versions.node' 2>/dev/null || true)"
+    if "$NODE_BIN" -e '
+        const [major, minor] = process.versions.node.split(".").map(Number);
+        process.exit((major === 20 && minor >= 19) || major === 21 || (major === 22 && minor >= 12) || major > 22 ? 0 : 1);
+    ' >/dev/null 2>&1; then
+        ok "Node.js ${NODE_VERSION_STR} memenuhi minimal 20.19/22.12 untuk Vite 7"
+    else
+        fail "Node.js ${NODE_VERSION_STR:-unknown} belum memenuhi minimal 20.19 atau 22.12 untuk Vite 7"
+    fi
 fi
 
 if [ -f composer.json ]; then
@@ -86,6 +100,16 @@ if [ -f package-lock.json ]; then
     ok "package-lock.json ditemukan, deploy akan memakai npm ci"
 else
     warn "package-lock.json tidak ditemukan, deploy akan fallback ke npm install"
+fi
+
+if [ -f public/hot ]; then
+    warn "public/hot masih ada. Deploy akan menghapusnya agar production memakai public/build."
+fi
+
+if [ -f public/build/manifest.json ]; then
+    ok "Asset manifest production tersedia: public/build/manifest.json"
+else
+    warn "Asset manifest production belum ada. Jalankan deploy agar npm run build membuat public/build."
 fi
 
 if [ -f .env ]; then
@@ -180,6 +204,35 @@ if [ "$CHECK_SERVICES" = "true" ]; then
         done
     else
         warn "Lewati cek service karena systemctl tidak ada atau DOMAIN kosong."
+    fi
+fi
+
+if [ -n "$PHP_FPM_SERVICE" ]; then
+    if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files "$PHP_FPM_SERVICE.service" >/dev/null 2>&1; then
+        ok "PHP-FPM service ditemukan: $PHP_FPM_SERVICE"
+    elif [ -x "/etc/init.d/${PHP_FPM_SERVICE}" ]; then
+        ok "PHP-FPM init script ditemukan: $PHP_FPM_SERVICE"
+    else
+        warn "PHP_FPM_SERVICE=$PHP_FPM_SERVICE belum ditemukan lewat systemctl atau /etc/init.d"
+    fi
+elif [ "$PHP_BIN" != "php" ]; then
+    case "$PHP_BIN" in
+        */php/[0-9][0-9]/bin/php)
+            PHP_SLOT="$(printf '%s' "$PHP_BIN" | sed -E 's#^.*/php/([0-9][0-9])/bin/php$#\1#')"
+            warn "Deploy akan mencoba restart PHP-FPM service: php-fpm-${PHP_SLOT}. Override dengan PHP_FPM_SERVICE bila nama service berbeda."
+            ;;
+    esac
+fi
+
+if [ -n "$HEALTHCHECK_URL" ]; then
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
+            ok "Healthcheck URL bisa diakses: $HEALTHCHECK_URL"
+        else
+            warn "Healthcheck URL belum berhasil: $HEALTHCHECK_URL"
+        fi
+    else
+        warn "curl tidak tersedia untuk mengecek HEALTHCHECK_URL"
     fi
 fi
 

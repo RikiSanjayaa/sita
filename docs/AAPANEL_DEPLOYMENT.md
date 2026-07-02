@@ -59,9 +59,9 @@ Frontend dan backend tidak perlu dipisah subdomain karena Inertia menyajikan Rea
 
 - aaPanel Free dengan Nginx.
 - PHP 8.4 atau lebih baru. Samakan PHP CLI, Composer, PHP-FPM site, dan PATH build Vite ke PHP 8.4.
-- Extension PHP: `ctype`, `dom`, `fileinfo`, `filter`, `json`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_mysql`, `session`, `tokenizer`, `xml`.
+- Extension PHP: `bcmath`, `ctype`, `dom`, `fileinfo`, `filter`, `intl`, `json`, `mbstring`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `session`, `tokenizer`, `xml`, `zip`.
 - Composer 2.
-- Node.js 20 LTS atau lebih baru untuk build.
+- Node.js 20.19 atau 22.12 lebih baru untuk build Vite 7. Node 22 tetap direkomendasikan karena CI/CD homeserver memakai Node 22.
 - MariaDB/MySQL.
 - Git dan Bash.
 
@@ -135,6 +135,16 @@ DOMAIN=sita.kampus.ac.id PHP_BIN=/www/server/php/84/bin/php bash deploy/aapanel-
 
 Semua item `[FAIL]` harus diperbaiki sebelum deploy.
 
+Jika ingin cek healthcheck dan nama service PHP-FPM yang akan direstart saat deploy:
+
+```bash
+DOMAIN=sita.kampus.ac.id \
+PHP_BIN=/www/server/php/84/bin/php \
+PHP_FPM_SERVICE=php-fpm-84 \
+HEALTHCHECK_URL=https://sita.kampus.ac.id/up \
+bash deploy/aapanel-doctor.sh
+```
+
 ## Deploy
 
 Deploy normal:
@@ -147,15 +157,32 @@ Script akan:
 
 - validasi `.env` production;
 - `git pull --ff-only` jika folder adalah git checkout;
+- reload script deploy satu kali setelah `git pull` agar aaPanel memakai versi script terbaru dari repo;
+- validasi PHP 8.4, Node 20.19/22.12, Composer, NPM, dan extension PHP production;
 - masuk maintenance mode;
 - install Composer production dependency;
+- cek Composer platform requirement;
 - install dependency Node dan build asset Vite;
+- menghapus `public/hot` agar production tidak menunjuk Vite dev server;
 - menyiapkan permission storage;
 - menjalankan `storage:link`;
 - menjalankan migration;
 - membuat cache config, route, view, dan event;
 - restart queue worker Laravel;
+- restart/reload PHP-FPM aaPanel agar opcache/runtime setara dengan container homeserver yang diganti;
 - keluar dari maintenance mode.
+
+Deploy dengan healthcheck seperti CI/CD homeserver:
+
+```bash
+DOMAIN=sita.kampus.ac.id \
+PHP_BIN=/www/server/php/84/bin/php \
+PHP_FPM_SERVICE=php-fpm-84 \
+HEALTHCHECK_URL=https://sita.kampus.ac.id/up \
+bash deploy/aapanel-deploy.sh
+```
+
+Jika nama service PHP-FPM aaPanel berbeda, isi `PHP_FPM_SERVICE`. Jika restart PHP-FPM dikelola manual oleh panel, pakai `RESTART_PHP_FPM=false`.
 
 Deploy lengkap sekaligus memasang service Reverb, queue worker, dan scheduler systemd:
 
