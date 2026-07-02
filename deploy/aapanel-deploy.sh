@@ -7,11 +7,16 @@ cd "$PROJECT_ROOT"
 DOMAIN="${DOMAIN:?Isi DOMAIN, contoh: DOMAIN=sita.kampus.ac.id bash deploy/aapanel-deploy.sh}"
 PHP_BIN="${PHP_BIN:-php}"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+NODE_BIN="${NODE_BIN:-node}"
 NPM_BIN="${NPM_BIN:-npm}"
 GIT_PULL="${GIT_PULL:-true}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 RUN_QUEUE_RESTART="${RUN_QUEUE_RESTART:-true}"
 INSTALL_SERVICES="${INSTALL_SERVICES:-false}"
+RESTART_PHP_FPM="${RESTART_PHP_FPM:-true}"
+PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
+AAPANEL_DEPLOY_REEXECUTED="${AAPANEL_DEPLOY_REEXECUTED:-false}"
 
 export PATH="$(dirname "$PHP_BIN"):$PATH"
 
@@ -35,11 +40,152 @@ require_file() {
     fi
 }
 
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        printf 'Command wajib tidak tersedia: %s\n' "$1" >&2
+        exit 1
+    fi
+}
+
+env_value() {
+    key="$1"
+    grep -E "^${key}=" .env | tail -n 1 | cut -d '=' -f 2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
+}
+
+validate_php_runtime() {
+    if ! "$PHP_BIN" -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") ? 0 : 1);' >/dev/null 2>&1; then
+        printf 'PHP CLI harus 8.4 atau lebih baru. Versi sekarang: %s\n' "$("$PHP_BIN" -r 'echo PHP_VERSION;' 2>/dev/null || printf 'unknown')" >&2
+        exit 1
+    fi
+
+    missing_extensions=0
+    for extension in bcmath ctype dom fileinfo filter intl json mbstring openssl pcntl pcre pdo session tokenizer xml zip; do
+        if ! "$PHP_BIN" -m | grep -qi "^${extension}$"; then
+            printf 'PHP extension wajib belum aktif: %s\n' "$extension" >&2
+            missing_extensions=1
+        fi
+    done
+
+    db_connection="$(env_value DB_CONNECTION)"
+    case "$db_connection" in
+        mysql|mariadb)
+            if ! "$PHP_BIN" -m | grep -qi '^pdo_mysql$'; then
+                printf 'PHP extension wajib belum aktif untuk %s: pdo_mysql\n' "$db_connection" >&2
+                missing_extensions=1
+            fi
+            ;;
+        pgsql)
+            if ! "$PHP_BIN" -m | grep -qi '^pdo_pgsql$'; then
+                printf 'PHP extension wajib belum aktif untuk pgsql: pdo_pgsql\n' >&2
+                missing_extensions=1
+            fi
+            ;;
+    esac
+
+    if [ "$missing_extensions" -eq 1 ]; then
+        exit 1
+    fi
+}
+
+validate_node_runtime() {
+    node_version="$("$NODE_BIN" -p 'process.versions.node' 2>/dev/null || true)"
+    if [ -z "$node_version" ]; then
+        printf 'Node.js tidak bisa dijalankan lewat NODE_BIN=%s\n' "$NODE_BIN" >&2
+        exit 1
+    fi
+
+    if ! "$NODE_BIN" -e '
+        const [major, minor] = process.versions.node.split(".").map(Number);
+        process.exit((major === 20 && minor >= 19) || major === 21 || (major === 22 && minor >= 12) || major > 22 ? 0 : 1);
+    ' >/dev/null 2>&1; then
+        printf 'Node.js minimal 20.19 atau 22.12 dibutuhkan untuk Vite 7. Versi sekarang: %s\n' "$node_version" >&2
+        exit 1
+    fi
+}
+
+derive_php_fpm_service() {
+    if [ -n "$PHP_FPM_SERVICE" ]; then
+        printf '%s' "$PHP_FPM_SERVICE"
+        return 0
+    fi
+
+    case "$PHP_BIN" in
+        */php/[0-9][0-9]/bin/php)
+            php_slot="$(printf '%s' "$PHP_BIN" | sed -E 's#^.*/php/([0-9][0-9])/bin/php$#\1#')"
+            printf 'php-fpm-%s' "$php_slot"
+            ;;
+    esac
+}
+
+restart_php_fpm() {
+    if [ "$RESTART_PHP_FPM" != "true" ]; then
+        return 0
+    fi
+
+    service_name="$(derive_php_fpm_service || true)"
+    if [ -z "$service_name" ]; then
+        printf 'Lewati restart PHP-FPM: isi PHP_FPM_SERVICE jika service aaPanel tidak standar.\n'
+        return 0
+    fi
+
+    if command -v systemctl >/dev/null 2>&1; then
+        if command -v sudo >/dev/null 2>&1; then
+            sudo systemctl reload-or-restart "$service_name" || sudo systemctl restart "$service_name"
+        else
+            systemctl reload-or-restart "$service_name" || systemctl restart "$service_name"
+        fi
+        return 0
+    fi
+
+    if [ -x "/etc/init.d/${service_name}" ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            sudo "/etc/init.d/${service_name}" reload || sudo "/etc/init.d/${service_name}" restart
+        else
+            "/etc/init.d/${service_name}" reload || "/etc/init.d/${service_name}" restart
+        fi
+        return 0
+    fi
+
+    printf 'Lewati restart PHP-FPM: service %s tidak ditemukan.\n' "$service_name"
+}
+
+run_healthcheck() {
+    if [ -z "$HEALTHCHECK_URL" ]; then
+        return 0
+    fi
+
+    if ! command -v curl >/dev/null 2>&1; then
+        printf 'curl tidak tersedia, healthcheck %s dilewati.\n' "$HEALTHCHECK_URL"
+        return 0
+    fi
+
+    step "Healthcheck production"
+    for attempt in $(seq 1 20); do
+        if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
+            printf 'Healthcheck berhasil: %s\n' "$HEALTHCHECK_URL"
+            return 0
+        fi
+
+        sleep 3
+    done
+
+    printf 'Healthcheck gagal setelah beberapa percobaan: %s\n' "$HEALTHCHECK_URL" >&2
+    if [ -f storage/logs/laravel.log ]; then
+        printf '\nTail log Laravel terakhir:\n' >&2
+        tail -n 80 storage/logs/laravel.log >&2 || true
+    fi
+    exit 1
+}
+
 step "Validasi project"
 require_file artisan
 require_file composer.json
 require_file package.json
 require_file .env
+require_command "$PHP_BIN"
+require_command "$COMPOSER_BIN"
+require_command "$NODE_BIN"
+require_command "$NPM_BIN"
 
 if grep -q '^APP_ENV=production' .env && grep -q '^APP_DEBUG=false' .env; then
     printf 'Environment production terdeteksi.\n'
@@ -51,7 +197,17 @@ fi
 if [ "$GIT_PULL" = "true" ] && [ -d .git ]; then
     step "Update source dari git"
     git pull --ff-only
+
+    if [ "$AAPANEL_DEPLOY_REEXECUTED" != "true" ]; then
+        step "Reload script deploy terbaru"
+        export AAPANEL_DEPLOY_REEXECUTED=true
+        exec "$BASH" "$0"
+    fi
 fi
+
+step "Validasi runtime production"
+validate_php_runtime
+validate_node_runtime
 
 step "Aktifkan maintenance mode"
 if [ -f vendor/autoload.php ]; then
@@ -63,6 +219,7 @@ fi
 
 step "Install dependency PHP production"
 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+"$COMPOSER_BIN" check-platform-reqs --no-dev
 
 step "Install dependency frontend"
 if [ -f package-lock.json ]; then
@@ -73,6 +230,7 @@ fi
 
 step "Build frontend production"
 "$NPM_BIN" run build
+rm -f public/hot
 
 step "Siapkan storage dan permission"
 mkdir -p storage/app/public storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
@@ -103,6 +261,9 @@ if [ "$RUN_QUEUE_RESTART" = "true" ]; then
     "$PHP_BIN" artisan queue:restart
 fi
 
+step "Restart PHP-FPM aaPanel"
+restart_php_fpm
+
 if [ "$INSTALL_SERVICES" = "true" ]; then
     step "Install/restart service Reverb, queue, dan scheduler"
     DOMAIN="$DOMAIN" PHP_BIN="$PHP_BIN" bash deploy/aapanel-services.sh
@@ -111,6 +272,8 @@ fi
 step "Matikan maintenance mode"
 "$PHP_BIN" artisan up
 APP_WAS_DOWN=0
+
+run_healthcheck
 
 printf '\nDeploy selesai untuk %s.\n' "$DOMAIN"
 printf 'Pastikan aaPanel Nginx root mengarah ke: %s/public\n' "$PROJECT_ROOT"
