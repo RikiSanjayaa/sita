@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       target: app
+      args:
+        INSTALL_DEV_DEPENDENCIES: 'false'
 
   app:
     build:
