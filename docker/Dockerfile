@@ -41,6 +41,8 @@ RUN retry() { \
     }; \
     retry 3 apk add --no-cache nodejs npm
 
+COPY package.json package-lock.json ./
+
 RUN retry() { \
         attempts=$1; \
         shift; \
