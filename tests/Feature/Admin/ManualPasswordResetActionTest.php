@@ -91,3 +91,29 @@ test('admin cannot see manual password reset link action for admin accounts', fu
     Livewire::test(ViewUser::class, ['record' => $target->getKey()])
         ->assertActionHidden('sendPasswordResetLink');
 });
+
+test('admin cannot send manual password reset link to a user from another prodi', function (): void {
+    /** @var \Tests\TestCase $this */
+    $prodiA = ProgramStudi::factory()->create();
+    $prodiB = ProgramStudi::factory()->create();
+
+    $actor = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create([
+        'user_id' => $actor->id,
+        'program_studi_id' => $prodiA->id,
+    ]);
+
+    $target = User::factory()->asMahasiswa()->create();
+    MahasiswaProfile::query()->create([
+        'user_id' => $target->id,
+        'nim' => '2210510002',
+        'program_studi_id' => $prodiB->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($actor);
+
+    Livewire::test(ViewUser::class, ['record' => $target->getKey()])
+        ->assertActionHidden('sendPasswordResetLink');
+});

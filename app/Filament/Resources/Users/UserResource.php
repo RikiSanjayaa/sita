@@ -17,7 +17,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
@@ -81,19 +80,6 @@ class UserResource extends Resource
                         ->where('status', 'scheduled')
                         ->whereHas('project', static fn(Builder $projectQuery): Builder => $projectQuery->where('state', 'active'))),
             ]);
-
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-        $prodiId = $user?->adminProgramStudiId();
-
-        if ($prodiId !== null) {
-            $query->where(function (Builder $q) use ($prodiId): void {
-                $q->whereHas('mahasiswaProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
-                    ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
-                    ->orWhereHas('adminProfile', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId))
-                    ->orWhereHas('kaprodiAssignment', fn(Builder $sub): Builder => $sub->where('program_studi_id', $prodiId));
-            });
-        }
 
         return $query;
     }
