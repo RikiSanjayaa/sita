@@ -41,9 +41,6 @@ RUN retry() { \
     }; \
     retry 3 apk add --no-cache nodejs npm
 
-COPY . .
-COPY --from=vendor /var/www/html/vendor ./vendor
-
 RUN retry() { \
         attempts=$1; \
         shift; \
@@ -57,8 +54,12 @@ RUN retry() { \
             sleep 5; \
         done; \
     }; \
-    retry 3 npm ci \
-    && npm run build
+    retry 3 npm ci
+
+COPY . .
+COPY --from=vendor /var/www/html/vendor ./vendor
+
+RUN npm run build
 
 
 FROM php:8.4-fpm-alpine AS app
