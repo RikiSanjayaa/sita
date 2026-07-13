@@ -32,7 +32,19 @@ class ManualPasswordResetService
             return $actor->hasRole(AppRole::SuperAdmin);
         }
 
-        return true;
+        if ($actor->hasRole(AppRole::SuperAdmin)) {
+            return true;
+        }
+
+        $programStudiId = $actor->adminProgramStudiId();
+
+        return $actor->hasRole(AppRole::Admin)
+            && $programStudiId !== null
+            && ($target->mahasiswaProfile()->where('program_studi_id', $programStudiId)->exists()
+                || $target->dosenProfile()->where('program_studi_id', $programStudiId)->exists()
+                || $target->dosenProgramStudiAssignments()->where('program_studi_id', $programStudiId)->exists()
+                || $target->adminProfile()->where('program_studi_id', $programStudiId)->exists()
+                || $target->kaprodiAssignment()->where('program_studi_id', $programStudiId)->exists());
     }
 
     /**

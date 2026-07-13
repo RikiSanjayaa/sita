@@ -19,7 +19,7 @@ use App\Services\UserProvisioningService;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
-test('admin can only see users from their prodi', function (): void {
+test('admin can see users from every prodi but cannot edit users outside their prodi', function (): void {
     $prodiA = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $prodiB = ProgramStudi::factory()->create(['name' => 'Teknologi Informasi']);
 
@@ -51,7 +51,10 @@ test('admin can only see users from their prodi', function (): void {
 
     Livewire::test(ListUsers::class)
         ->assertCanSeeTableRecords([$studentA])
-        ->assertCanNotSeeTableRecords([$studentB]);
+        ->assertCanSeeTableRecords([$studentB]);
+
+    $this->get(UserResource::getUrl('view', ['record' => $studentB]))->assertOk();
+    $this->get(UserResource::getUrl('edit', ['record' => $studentB]))->assertForbidden();
 });
 
 test('super admin can see all users from all prodi', function (): void {
