@@ -4,15 +4,8 @@ set -euo pipefail
 
 compose_files=(-f docker-compose.yml -f docker-compose.deploy.yml)
 
-build_args=(
-    --build-arg VITE_REVERB_APP_KEY="${VITE_REVERB_APP_KEY:-}"
-    --build-arg VITE_REVERB_HOST="${VITE_REVERB_HOST:-}"
-    --build-arg VITE_REVERB_PORT="${VITE_REVERB_PORT:-443}"
-    --build-arg VITE_REVERB_SCHEME="${VITE_REVERB_SCHEME:-https}"
-)
-
 echo "Building images locally..."
-docker compose "${compose_files[@]}" build "${build_args[@]}" app web init
+docker compose "${compose_files[@]}" build app web init
 
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
@@ -25,15 +18,19 @@ docker compose "${compose_files[@]}" ps
 
 if [[ -n "${HEALTHCHECK_URL:-}" ]]; then
     echo "Waiting for healthcheck at ${HEALTHCHECK_URL}"
+    healthcheck_passed=false
     for attempt in {1..20}; do
         if curl -fsS "${HEALTHCHECK_URL}" >/dev/null; then
             echo "Healthcheck passed"
-            exit 0
+            healthcheck_passed=true
+            break
         fi
 
         sleep 3
     done
 
-    echo "Healthcheck failed after retries"
-    exit 1
+    if [[ "$healthcheck_passed" != "true" ]]; then
+        echo "Healthcheck failed after retries"
+        exit 1
+    fi
 fi
