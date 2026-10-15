@@ -14,6 +14,7 @@
 .env
 .env.backup
 .env.production
+/.sita-release/
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -31,3 +32,8 @@ yarn-error.log
 /test-results
 /storage/playwright
 /database/playwright.sqlite
+
+# Local research and document-generation artifacts
+/.tmp/
+/output/
+/tmp/
