@@ -27,7 +27,53 @@ Halaman publik (`/jadwal`, `/topik`, `/pembimbing`, `/mahasiswa-aktif`) bisa dib
 
 Laravel 12 (PHP 8.4), Inertia v2 + React 19 + TypeScript, Tailwind CSS v4, Filament untuk panel admin, Laravel Reverb + Echo untuk real-time, Pest dan Playwright untuk pengujian.
 
-## Menjalankan secara lokal
+## Coba cepat dengan image Docker
+
+Cukup Docker dan Docker Compose; tidak perlu clone repo, PHP, atau Node. Image siap pakai diambil dari GHCR.
+
+```bash
+mkdir sita && cd sita
+for f in docker-compose.yml docker-compose.deploy.yml .env.docker; do
+  curl -fsSLO "https://raw.githubusercontent.com/RikiSanjayaa/sita/main/$f"
+done
+cp .env.docker .env
+echo "base64:$(openssl rand -base64 32)"   # salin hasilnya ke APP_KEY di .env
+```
+
+Lalu pilih isi database:
+
+**A. Dengan data contoh.** Set `RUN_DB_SEED=true` di `.env`, lalu jalankan:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.deploy.yml up -d
+```
+
+Seeding pertama butuh sekitar 1-2 menit. Masuk dengan [akun contoh](#akun-contoh).
+
+**B. Database kosong dengan super admin sendiri.** Biarkan `RUN_DB_SEED=false` (default), jalankan perintah `up` yang sama, lalu buat akun pertama secara interaktif:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.deploy.yml exec app php artisan sita:provision-initial-super-admin
+```
+
+Masuk ke `/admin` dengan akun tersebut untuk membuat prodi, dosen, dan mahasiswa (atau import dari Excel).
+
+Aplikasi berjalan di `http://localhost:8088`. Secara default dipakai image `main` (build terbaru); untuk versi rilis tertentu set `APP_IMAGE=ghcr.io/rikisanjayaa/sita-app:1.0.0` dan `WEB_IMAGE=ghcr.io/rikisanjayaa/sita-web:1.0.0` (atau tag `latest`). Matikan dengan `docker compose -f docker-compose.yml -f docker-compose.deploy.yml down` (tambah `-v` untuk menghapus data).
+
+> Image GHCR dibangun untuk server produksi berbasis HTTPS, sehingga chat real-time tidak tersambung saat dicoba di `http://localhost`. Halaman tetap berfungsi; pesan baru muncul setelah halaman dimuat ulang. Untuk real-time di lokal, build image sendiri (lihat di bawah). Perbaikannya dilacak di [#42](https://github.com/RikiSanjayaa/sita/issues/42).
+
+### Build image sendiri
+
+Dari hasil clone repo, stack yang sama bisa di-build dari source:
+
+```bash
+cp .env.docker .env       # isi APP_KEY seperti di atas; atur RUN_DB_SEED sesuai pilihan A/B
+docker compose up --build -d
+```
+
+Image hasil build lokal memakai nilai `VITE_REVERB_*` dari `.env` (default `ws://localhost:8089`), jadi chat real-time diarahkan ke Reverb lokal.
+
+## Menjalankan untuk pengembangan
 
 Prasyarat: PHP 8.4, Composer, Node.js 22. Database default SQLite, tidak perlu server database.
 
@@ -37,7 +83,11 @@ php artisan db:seed       # opsional: akun dan data contoh
 composer run dev          # server, queue, Reverb, dan Vite sekaligus
 ```
 
-Buka `http://localhost:9000` (samakan `APP_URL` di `.env`). Setelah seeding, semua akun contoh memakai password `password`:
+Buka `http://localhost:9000` (samakan `APP_URL` di `.env`). Tanpa seeder, buat akun pertama dengan `php artisan sita:provision-initial-super-admin`.
+
+## Akun contoh
+
+Tersedia setelah seeding; semua memakai password `password`.
 
 | Peran                  | Email                 |
 | ---------------------- | --------------------- |
@@ -45,17 +95,6 @@ Buka `http://localhost:9000` (samakan `APP_URL` di `.env`). Setelah seeding, sem
 | Dosen                  | `dosen@sita.test`     |
 | Kaprodi                | `kaprodi@sita.test`   |
 | Admin (panel `/admin`) | `admin@sita.test`     |
-
-## Menjalankan dengan Docker
-
-Stack lengkap (PostgreSQL, PHP-FPM, Nginx, queue, scheduler, Reverb) tersedia di `docker-compose.yml`:
-
-```bash
-cp .env.docker .env       # isi APP_KEY: php artisan key:generate --show
-docker compose up --build -d
-```
-
-Aplikasi berjalan di `http://localhost:8088` dan Reverb di `ws://localhost:8089`. Seeder tidak dijalankan secara default; set `RUN_DB_SEED=true` di `.env` untuk mengisi data contoh. Matikan dengan `docker compose down` (tambah `-v` untuk menghapus data).
 
 ## Pengujian dan kualitas kode
 
@@ -73,7 +112,6 @@ Playwright memakai database SQLite terpisah (`database/playwright.sqlite`) yang 
 
 - **Docker**: setiap push ke `main` yang lolos test dipublikasikan sebagai image `ghcr.io/rikisanjayaa/sita-app` dan `ghcr.io/rikisanjayaa/sita-web` (tag `main` dan `sha-<commit>`; tag git `vX.Y.Z` menghasilkan `X.Y.Z` dan `latest`). Di server, `bash scripts/deploy-via-compose.sh` menarik image itu, menjalankan migrasi, me-restart service, lalu healthcheck (`HEALTHCHECK_URL` opsional). Pin versi lewat `APP_IMAGE` dan `WEB_IMAGE`. Image dibangun dengan `VITE_REVERB_APP_KEY` dari GitHub variable, jadi `REVERB_APP_KEY` di server harus sama.
 - **aaPanel**: lihat [docs/AAPANEL_DEPLOYMENT.md](docs/AAPANEL_DEPLOYMENT.md).
-- Database baru tanpa seeder: buat akun super admin pertama dengan `php artisan sita:provision-initial-super-admin`.
 
 ## Troubleshooting
 
