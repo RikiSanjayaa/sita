@@ -83,7 +83,11 @@ Playwright memakai database SQLite terpisah (`database/playwright.sqlite`) yang 
 
 ## Berkontribusi
 
-Pekerjaan direncanakan lewat GitHub Issues; perubahan masuk lewat pull request ke `main`. Panduan untuk coding agent ada di [AGENTS.md](AGENTS.md).
+Pekerjaan direncanakan lewat GitHub Issues; perubahan masuk lewat pull request ke `main` dengan pesan commit [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, ...). Panduan untuk coding agent ada di [AGENTS.md](AGENTS.md).
+
+## Rilis
+
+Versi mengikuti [Semantic Versioning](https://semver.org/). [release-please](https://github.com/googleapis/release-please) menjaga satu PR rilis yang berisi versi berikutnya dan isi [CHANGELOG.md](CHANGELOG.md): `fix` menaikkan patch, `feat` menaikkan minor, perubahan breaking menaikkan major. Saat PR itu di-merge, tag `vX.Y.Z`, GitHub Release, dan image `X.Y.Z` serta `latest` dibuat otomatis.
 
 ## Lisensi
 

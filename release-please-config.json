@@ -1,0 +1,23 @@
+{
+    "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+    "release-type": "simple",
+    "include-component-in-tag": false,
+    "packages": {
+        ".": {
+            "changelog-path": "CHANGELOG.md",
+            "changelog-sections": [
+                { "type": "feat", "section": "Fitur" },
+                { "type": "fix", "section": "Perbaikan" },
+                { "type": "perf", "section": "Performa" },
+                { "type": "revert", "section": "Revert" },
+                { "type": "docs", "section": "Dokumentasi" },
+                { "type": "refactor", "section": "Refactor", "hidden": true },
+                { "type": "test", "section": "Test", "hidden": true },
+                { "type": "ci", "section": "CI", "hidden": true },
+                { "type": "build", "section": "Build", "hidden": true },
+                { "type": "chore", "section": "Lain-lain", "hidden": true },
+                { "type": "style", "section": "Gaya kode", "hidden": true }
+            ]
+        }
+    }
+}
