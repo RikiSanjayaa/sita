@@ -12,10 +12,19 @@ on:
 
 jobs:
   ci:
+    name: ci (PHP ${{ matrix.php-version }}${{ matrix.experimental && ', experimental' || '' }})
     runs-on: ubuntu-latest
+    # PHP 8.4 matches production and gates merges; 8.5 is an early warning
+    # for the next upgrade and does not fail the workflow.
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
+      fail-fast: false
       matrix:
-        php-version: ['8.4', '8.5']
+        include:
+          - php-version: '8.4'
+            experimental: false
+          - php-version: '8.5'
+            experimental: true
 
     steps:
       - name: Checkout
@@ -26,7 +35,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          coverage: xdebug
+          coverage: none
 
       - name: Setup Node
         uses: actions/setup-node@v4
