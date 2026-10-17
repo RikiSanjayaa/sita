@@ -8,6 +8,15 @@ Compact operating guide for coding agents in this repository.
 - Main areas: backend (`app/`, `routes/`, `database/`), frontend (`resources/js/`).
 - Real-time features use Echo + Reverb and depend on Reverb env vars.
 - UI: Uses Radix UI primitives, Lucide icons, class-variance-authority (cva), clsx, tailwind-merge.
+- Deployment: Docker via `scripts/deploy-via-compose.sh` (see `README.md`); aaPanel via `deploy/aapanel-*.sh` (see `docs/AAPANEL_DEPLOYMENT.md`).
+
+## Domain
+
+- SITA documents thesis progress. Build the workflow an issue asks for and nothing more; informal coordination (agreeing on dates, confirming attendance) happens on WhatsApp or in person, outside the app.
+- The thesis lifecycle lives in `ThesisProject` and its `Thesis*` models: `phase` moves `title_review` -> `sempro` -> `research` -> `sidang` -> `completed`; `ThesisDefense.type` is `sempro` or `sidang`; supervisors are `ThesisSupervisorAssignment`.
+- `Sempro`, `SemproExaminer`, `SemproRevision`, `ThesisSubmission`, and `MentorshipAssignment` are legacy remnants kept for migrated data. Build new features on the `Thesis*` models.
+- Academic labels differ per degree (D3/S1/S2). Take every user-facing label from `App\Support\AcademicTerminology` (PHP) or `resources/js/lib/academic-terminology.ts` (TS).
+- Kaprodi users also hold the dosen role.
 
 ## Core Rules
 
@@ -136,7 +145,7 @@ use Illuminate\Support\Facades\Auth;
 - Playwright uses a dedicated SQLite database at `database/playwright.sqlite` and auth state under `storage/playwright`.
 - `global-setup.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
 - Prefer keeping E2E focused on user-visible multi-role integration flows; keep business logic coverage in Pest.
-- When changing thesis workflow UI or seed-backed flows, verify both the relevant Pest tests and the affected Playwright specs.
+- A change to a user-visible flow adds or updates a Playwright scenario in the same change, and the affected specs plus relevant Pest tests are run before handing off. Playwright is not in CI yet, so this local run is the only E2E check.
 - Use stable selectors in E2E assertions. Prefer page titles, labels, roles, unique section copy, or scoped locators over generic repeated text.
 - `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification.
 
@@ -156,4 +165,5 @@ use Illuminate\Support\Facades\Auth;
 
 - Prefer specialized tools for file edits/search over ad-hoc shell commands.
 - Search Laravel docs first for Laravel ecosystem work (`search-docs` tool).
+- Planned work lives in GitHub issues under milestone `Revisi FT 2026-10`. Before starting one, read tracking issue #35 (order, blockers, files that conflict between issues), then work to the issue's acceptance criteria and its `Konvensi` section.
 - Summarize changes with touched file paths and what was validated.
