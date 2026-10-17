@@ -71,7 +71,7 @@ Playwright memakai database SQLite terpisah (`database/playwright.sqlite`) yang 
 
 ## Deployment
 
-- **Docker**: `docker-compose.yml` + `docker-compose.deploy.yml` dan `scripts/deploy-via-compose.sh` (pull image, migrasi, restart, healthcheck).
+- **Docker**: setiap push ke `main` yang lolos test dipublikasikan sebagai image `ghcr.io/rikisanjayaa/sita-app` dan `ghcr.io/rikisanjayaa/sita-web` (tag `main` dan `sha-<commit>`; tag git `vX.Y.Z` menghasilkan `X.Y.Z` dan `latest`). Di server, `bash scripts/deploy-via-compose.sh` menarik image itu, menjalankan migrasi, me-restart service, lalu healthcheck (`HEALTHCHECK_URL` opsional). Pin versi lewat `APP_IMAGE` dan `WEB_IMAGE`. Image dibangun dengan `VITE_REVERB_APP_KEY` dari GitHub variable, jadi `REVERB_APP_KEY` di server harus sama.
 - **aaPanel**: lihat [docs/AAPANEL_DEPLOYMENT.md](docs/AAPANEL_DEPLOYMENT.md).
 - Database baru tanpa seeder: buat akun super admin pertama dengan `php artisan sita:provision-initial-super-admin`.
 
