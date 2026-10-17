@@ -25,6 +25,7 @@ Compact operating guide for coding agents in this repository.
 - Do not change dependencies without explicit approval.
 - Do not modify secrets or commit `.env` values.
 - Do not commit unless explicitly asked.
+- Write commit messages (and PR titles) as Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `ci:`, `chore:`, `refactor:`; `!` or a `BREAKING CHANGE:` footer for breaking changes. release-please reads them to pick the next version and write `CHANGELOG.md`, so `feat` and `fix` are reserved for user-visible changes.
 - Never revert unrelated user changes in a dirty worktree.
 - Use ASCII by default in code/docs.
 
