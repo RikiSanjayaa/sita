@@ -1,38 +1,15 @@
+# Run prebuilt images from GHCR instead of building on the server.
+# Pin a release with APP_IMAGE / WEB_IMAGE, e.g. ghcr.io/rikisanjayaa/sita-app:sha-1a2b3c4.
+x-app-image: &app-image
+  image: ${APP_IMAGE:-ghcr.io/rikisanjayaa/sita-app:main}
+  pull_policy: missing
+
 services:
-  init:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      target: app
-      args:
-        INSTALL_DEV_DEPENDENCIES: 'false'
-
-  app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      target: app
-
+  init: *app-image
+  app: *app-image
+  queue: *app-image
+  scheduler: *app-image
+  reverb: *app-image
   web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      target: web
-
-  queue:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      target: app
-
-  scheduler:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      target: app
-
-  reverb:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-      target: app
+    image: ${WEB_IMAGE:-ghcr.io/rikisanjayaa/sita-web:main}
+    pull_policy: missing

@@ -4,14 +4,14 @@ set -euo pipefail
 
 compose_files=(-f docker-compose.yml -f docker-compose.deploy.yml)
 
-echo "Building images locally..."
-docker compose "${compose_files[@]}" build app web init
+echo "Pulling images..."
+docker compose "${compose_files[@]}" pull app web init
 
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
 
 echo "Starting updated services..."
-docker compose "${compose_files[@]}" up -d app web queue scheduler reverb
+docker compose "${compose_files[@]}" up -d --no-build app web queue scheduler reverb
 
 echo "Deployment status:"
 docker compose "${compose_files[@]}" ps
