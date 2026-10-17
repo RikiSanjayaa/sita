@@ -6,7 +6,7 @@ cd "$PROJECT_ROOT"
 
 DOMAIN="${DOMAIN:?Isi DOMAIN, contoh: DOMAIN=sita.kampus.ac.id bash deploy/aapanel-services.sh}"
 PHP_BIN="${PHP_BIN:-/www/server/php/84/bin/php}"
-SERVICE_USER="${SERVICE_USER:-$(id -un)}"
+SERVICE_USER="${SERVICE_USER:-www}"
 SERVICE_GROUP="${SERVICE_GROUP:-www}"
 REVERB_HOST="${REVERB_SERVER_HOST:-127.0.0.1}"
 REVERB_PORT="${REVERB_SERVER_PORT:-8080}"
@@ -19,9 +19,34 @@ if ! command -v systemctl >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v sudo >/dev/null 2>&1; then
-    printf 'sudo tidak tersedia. Jalankan script ini sebagai root atau pasang service manual.\n' >&2
+run_privileged() {
+    if [ "$EUID" -eq 0 ]; then
+        "$@"
+        return
+    fi
+
+    if command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+        return
+    fi
+
+    printf 'Hak root diperlukan untuk memasang service. Jalankan sebagai root atau sediakan sudo.\n' >&2
     exit 1
+}
+
+if ! getent passwd "$SERVICE_USER" >/dev/null 2>&1; then
+    printf 'User runtime service tidak ditemukan: %s\n' "$SERVICE_USER" >&2
+    exit 1
+fi
+
+if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
+    printf 'Group runtime service tidak ditemukan: %s\n' "$SERVICE_GROUP" >&2
+    exit 1
+fi
+
+if [[ ! "$REVERB_PORT" =~ ^[0-9]+$ ]] || [ "$REVERB_PORT" -lt 1024 ] || [ "$REVERB_PORT" -gt 65535 ]; then
+    printf 'REVERB_SERVER_PORT harus berupa port nonprivileged 1024-65535.\n' >&2
+    exit 2
 fi
 
 SERVICE_SLUG="$(printf '%s' "$DOMAIN" | tr -cs 'A-Za-z0-9' '-')"
@@ -32,7 +57,7 @@ SCHEDULER_TIMER="sita-${SERVICE_SLUG}-schedule.timer"
 
 write_unit() {
     local path="$1"
-    sudo tee "$path" >/dev/null
+    run_privileged tee "$path" >/dev/null
 }
 
 printf 'Membuat systemd service untuk %s\n' "$DOMAIN"
@@ -106,16 +131,22 @@ Unit=${SCHEDULER_SERVICE}
 WantedBy=timers.target
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now "$REVERB_SERVICE"
-sudo systemctl enable --now "$QUEUE_SERVICE"
-sudo systemctl enable --now "$SCHEDULER_TIMER"
-sudo systemctl restart "$REVERB_SERVICE" "$QUEUE_SERVICE"
+run_privileged systemctl daemon-reload
+run_privileged systemctl enable "$REVERB_SERVICE" "$QUEUE_SERVICE"
+run_privileged systemctl enable --now "$SCHEDULER_TIMER"
+run_privileged systemctl reset-failed "$REVERB_SERVICE" "$QUEUE_SERVICE"
+run_privileged systemctl restart "$REVERB_SERVICE" "$QUEUE_SERVICE"
 
 printf '\nService aktif:\n'
-sudo systemctl --no-pager --full status "$REVERB_SERVICE" "$QUEUE_SERVICE" "$SCHEDULER_TIMER" || true
+run_privileged systemctl --no-pager --full status "$REVERB_SERVICE" "$QUEUE_SERVICE" "$SCHEDULER_TIMER" || true
 
 printf '\nCek ringkas:\n'
-systemctl is-active "$REVERB_SERVICE" || true
-systemctl is-active "$QUEUE_SERVICE" || true
-systemctl is-active "$SCHEDULER_TIMER" || true
+for service in "$REVERB_SERVICE" "$QUEUE_SERVICE" "$SCHEDULER_TIMER"; do
+    if run_privileged systemctl is-active --quiet "$service"; then
+        printf 'active: %s\n' "$service"
+    else
+        printf 'Service tidak aktif setelah pemasangan: %s\n' "$service" >&2
+        run_privileged journalctl -u "$service" -n 30 --no-pager >&2 || true
+        exit 1
+    fi
+done

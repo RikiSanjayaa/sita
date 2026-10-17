@@ -131,6 +131,7 @@ if [ -f .env ]; then
     REVERB_INTERNAL_HOST_VALUE="$(env_value REVERB_INTERNAL_HOST)"
     REVERB_INTERNAL_PORT_VALUE="$(env_value REVERB_INTERNAL_PORT)"
     REVERB_INTERNAL_SCHEME_VALUE="$(env_value REVERB_INTERNAL_SCHEME)"
+    REVERB_ALLOWED_ORIGINS_VALUE="$(env_value REVERB_ALLOWED_ORIGINS)"
 
     [ "$APP_ENV_VALUE" = "production" ] && ok "APP_ENV=production" || fail "APP_ENV harus production, sekarang: ${APP_ENV_VALUE:-kosong}"
     [ "$APP_DEBUG_VALUE" = "false" ] && ok "APP_DEBUG=false" || fail "APP_DEBUG harus false, sekarang: ${APP_DEBUG_VALUE:-kosong}"
@@ -146,6 +147,21 @@ if [ -f .env ]; then
         [ "$REVERB_INTERNAL_HOST_VALUE" = "127.0.0.1" ] && ok "REVERB_INTERNAL_HOST=127.0.0.1" || warn "REVERB_INTERNAL_HOST sebaiknya 127.0.0.1, sekarang: ${REVERB_INTERNAL_HOST_VALUE:-kosong}"
         [ "$REVERB_INTERNAL_PORT_VALUE" = "8080" ] && ok "REVERB_INTERNAL_PORT=8080" || warn "REVERB_INTERNAL_PORT sebaiknya 8080, sekarang: ${REVERB_INTERNAL_PORT_VALUE:-kosong}"
         [ "$REVERB_INTERNAL_SCHEME_VALUE" = "http" ] && ok "REVERB_INTERNAL_SCHEME=http" || warn "REVERB_INTERNAL_SCHEME sebaiknya http, sekarang: ${REVERB_INTERNAL_SCHEME_VALUE:-kosong}"
+
+        case "$REVERB_ALLOWED_ORIGINS_VALUE" in
+            ''|*'*'*)
+                fail "REVERB_ALLOWED_ORIGINS wajib berisi hostname production tanpa wildcard, sekarang: ${REVERB_ALLOWED_ORIGINS_VALUE:-kosong (default *)}"
+                ;;
+            *)
+                APP_HOST="${APP_URL_VALUE#*://}"
+                APP_HOST="${APP_HOST%%/*}"
+                APP_HOST="${APP_HOST%%:*}"
+                case ",${REVERB_ALLOWED_ORIGINS_VALUE// /}," in
+                    *",${APP_HOST},"*) ok "REVERB_ALLOWED_ORIGINS memuat host APP_URL: ${APP_HOST}" ;;
+                    *) warn "REVERB_ALLOWED_ORIGINS (${REVERB_ALLOWED_ORIGINS_VALUE}) tidak memuat host APP_URL (${APP_HOST:-kosong}). Isi hostname saja, tanpa https://." ;;
+                esac
+                ;;
+        esac
     fi
 
     if [ "$DB_CONNECTION_VALUE" = "mysql" ] || [ "$DB_CONNECTION_VALUE" = "mariadb" ]; then
@@ -176,20 +192,20 @@ for dir in storage bootstrap/cache; do
     fi
 done
 
-if [ -d vendor ] && [ -f artisan ] && [ -f .env ]; then
+if [ -f vendor/autoload.php ] && [ -f artisan ] && [ -f .env ]; then
     if "$PHP_BIN" artisan --version >/dev/null 2>&1; then
         ok "Artisan bisa dijalankan"
-    else
-        fail "Artisan gagal dijalankan. Cek vendor, .env, dan APP_KEY."
-    fi
 
-    if "$PHP_BIN" artisan migrate:status --no-interaction >/dev/null 2>&1; then
-        ok "Koneksi database dan tabel migrations bisa diakses"
+        if "$PHP_BIN" artisan migrate:status --no-interaction >/dev/null 2>&1; then
+            ok "Koneksi database dan tabel migrations bisa diakses"
+        else
+            fail "Database belum bisa diakses oleh Laravel. Cek DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD, dan pdo_mysql."
+        fi
     else
-        fail "Database belum bisa diakses oleh Laravel. Cek DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD, dan pdo_mysql."
+        fail "Artisan gagal dijalankan. Cek vendor, .env, dan APP_KEY. Cek database dilewati."
     fi
 else
-    warn "Lewati cek Artisan/database karena vendor, artisan, atau .env belum lengkap."
+    warn "Lewati cek Artisan/database karena vendor/autoload.php, artisan, atau .env belum ada."
 fi
 
 if [ "$CHECK_SERVICES" = "true" ]; then

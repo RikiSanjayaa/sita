@@ -15,6 +15,7 @@ RUN_QUEUE_RESTART="${RUN_QUEUE_RESTART:-true}"
 INSTALL_SERVICES="${INSTALL_SERVICES:-false}"
 RESTART_PHP_FPM="${RESTART_PHP_FPM:-true}"
 PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-}"
+PHP_FPM_RUNTIME_GROUP="${PHP_FPM_RUNTIME_GROUP:-www}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
 AAPANEL_DEPLOY_REEXECUTED="${AAPANEL_DEPLOY_REEXECUTED:-false}"
 
@@ -52,15 +53,35 @@ env_value() {
     grep -E "^${key}=" .env | tail -n 1 | cut -d '=' -f 2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
 }
 
+PHP_EXTENSIONS=''
+
+read_php_extensions() {
+    PHP_EXTENSIONS="$("$PHP_BIN" -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+}
+
+# Membaca `php -m` sekali. Pola `php -m | grep -q` bisa gagal palsu
+# di bawah pipefail karena grep menutup pipe lebih awal (SIGPIPE).
+php_extension_active() {
+    case $'\n'"$PHP_EXTENSIONS"$'\n' in
+        *$'\n'"$1"$'\n'*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 validate_php_runtime() {
     if ! "$PHP_BIN" -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") ? 0 : 1);' >/dev/null 2>&1; then
         printf 'PHP CLI harus 8.4 atau lebih baru. Versi sekarang: %s\n' "$("$PHP_BIN" -r 'echo PHP_VERSION;' 2>/dev/null || printf 'unknown')" >&2
         exit 1
     fi
 
+    if ! read_php_extensions || [ -z "$PHP_EXTENSIONS" ]; then
+        printf 'Daftar PHP extension tidak dapat dibaca dari %s\n' "$PHP_BIN" >&2
+        exit 1
+    fi
+
     missing_extensions=0
     for extension in bcmath ctype dom fileinfo filter intl json mbstring openssl pcntl pcre pdo session tokenizer xml zip; do
-        if ! "$PHP_BIN" -m | grep -qi "^${extension}$"; then
+        if ! php_extension_active "$extension"; then
             printf 'PHP extension wajib belum aktif: %s\n' "$extension" >&2
             missing_extensions=1
         fi
@@ -69,13 +90,13 @@ validate_php_runtime() {
     db_connection="$(env_value DB_CONNECTION)"
     case "$db_connection" in
         mysql|mariadb)
-            if ! "$PHP_BIN" -m | grep -qi '^pdo_mysql$'; then
+            if ! php_extension_active pdo_mysql; then
                 printf 'PHP extension wajib belum aktif untuk %s: pdo_mysql\n' "$db_connection" >&2
                 missing_extensions=1
             fi
             ;;
         pgsql)
-            if ! "$PHP_BIN" -m | grep -qi '^pdo_pgsql$'; then
+            if ! php_extension_active pdo_pgsql; then
                 printf 'PHP extension wajib belum aktif untuk pgsql: pdo_pgsql\n' >&2
                 missing_extensions=1
             fi
@@ -85,6 +106,28 @@ validate_php_runtime() {
     if [ "$missing_extensions" -eq 1 ]; then
         exit 1
     fi
+}
+
+run_privileged() {
+    if [ "$EUID" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+# Service Reverb/queue/scheduler dan PHP-FPM berjalan sebagai user runtime aaPanel (www),
+# sehingga storage, bootstrap/cache, dan .env harus bisa diakses group tersebut.
+prepare_runtime_permissions() {
+    if ! getent group "$PHP_FPM_RUNTIME_GROUP" >/dev/null 2>&1; then
+        printf 'Group runtime PHP-FPM tidak ditemukan: %s\n' "$PHP_FPM_RUNTIME_GROUP" >&2
+        exit 1
+    fi
+
+    mkdir -p storage/app/public storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+    run_privileged chgrp -R "$PHP_FPM_RUNTIME_GROUP" storage bootstrap/cache .env
+    run_privileged chmod -R ug+rwX storage bootstrap/cache
+    run_privileged chmod 640 .env
 }
 
 validate_node_runtime() {
@@ -233,8 +276,7 @@ step "Build frontend production"
 rm -f public/hot
 
 step "Siapkan storage dan permission"
-mkdir -p storage/app/public storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
-chmod -R ug+rw storage bootstrap/cache
+prepare_runtime_permissions
 "$PHP_BIN" artisan storage:link --force
 
 step "Bersihkan cache bootstrap lama"
@@ -266,7 +308,7 @@ restart_php_fpm
 
 if [ "$INSTALL_SERVICES" = "true" ]; then
     step "Install/restart service Reverb, queue, dan scheduler"
-    DOMAIN="$DOMAIN" PHP_BIN="$PHP_BIN" bash deploy/aapanel-services.sh
+    DOMAIN="$DOMAIN" PHP_BIN="$PHP_BIN" SERVICE_GROUP="$PHP_FPM_RUNTIME_GROUP" bash deploy/aapanel-services.sh
 fi
 
 step "Matikan maintenance mode"

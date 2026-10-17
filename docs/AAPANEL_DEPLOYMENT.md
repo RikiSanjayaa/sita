@@ -10,7 +10,7 @@ Dokumen ini menjelaskan deployment SITA untuk aaPanel Free, Nginx, PHP-FPM, Mari
 - Runtime backend: Nginx mengarah ke folder `public/`, PHP-FPM menjalankan `public/index.php`.
 - Database lokal saat audit: SQLite. Production direkomendasikan MariaDB/MySQL dari aaPanel.
 - Queue/cache/session: default repo memakai driver `database`, sehingga tabel `jobs`, `cache`, dan `sessions` harus dimigrasikan.
-- Storage: `storage/` dan `bootstrap/cache/` wajib writable oleh user PHP-FPM. Jalankan `php artisan storage:link`.
+- Storage: `storage/` dan `bootstrap/cache/` wajib writable oleh group runtime PHP-FPM aaPanel (`www`). Script deploy mengatur group dan permission ini, lalu menjalankan `php artisan storage:link`.
 - Realtime chat/notifikasi: project memakai Laravel Reverb. Di aaPanel perlu proses Reverb terpisah jika ingin chat realtime seperti Docker.
 - Scheduler: project punya command reminder. Cron scheduler perlu diaktifkan.
 - Email: Fortify reset password dan verifikasi email butuh SMTP production.
@@ -111,13 +111,24 @@ REVERB_INTERNAL_PORT=8080
 REVERB_INTERNAL_SCHEME=http
 REVERB_SERVER_HOST=127.0.0.1
 REVERB_SERVER_PORT=8080
+REVERB_ALLOWED_ORIGINS=sita.kampus.ac.id
 VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
 VITE_REVERB_HOST="${REVERB_HOST}"
 VITE_REVERB_PORT="${REVERB_PORT}"
 VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 ```
 
+`REVERB_ALLOWED_ORIGINS` berisi hostname saja (tanpa `https://`), dipisah koma bila lebih dari satu. Jika kosong, Reverb memakai `*` dan menerima WebSocket dari origin mana pun; doctor akan menandainya `[FAIL]`.
+
 Jangan commit `.env`.
+
+Database baru tidak lagi diisi data contoh. Setelah deploy pertama (migration selesai), buat akun Super Admin pertama dari terminal interaktif:
+
+```bash
+/www/server/php/84/bin/php artisan sita:provision-initial-super-admin
+```
+
+Command ini hanya berjalan jika tabel `users` masih kosong; selain itu dilewati.
 
 ## Precheck Server
 
@@ -164,7 +175,7 @@ Script akan:
 - cek Composer platform requirement;
 - install dependency Node dan build asset Vite;
 - menghapus `public/hot` agar production tidak menunjuk Vite dev server;
-- menyiapkan permission storage;
+- menyiapkan permission storage, `bootstrap/cache`, dan `.env` untuk group runtime PHP-FPM (`PHP_FPM_RUNTIME_GROUP`, default `www`; memakai `sudo` bila bukan root);
 - menjalankan `storage:link`;
 - menjalankan migration;
 - membuat cache config, route, view, dan event;
@@ -210,23 +221,20 @@ RUN_MIGRATIONS=false DOMAIN=sita.kampus.ac.id bash deploy/aapanel-deploy.sh
 
 ## Nginx aaPanel
 
-Gunakan template `deploy/aapanel-nginx.conf`. Ganti:
+Gunakan template `deploy/aapanel-nginx.conf`. Ganti placeholder:
 
 - `DOMAIN` menjadi domain production.
-- `root /www/wwwroot/DOMAIN/public;` menjadi path production.
+- `PROJECT_ROOT` menjadi folder checkout, misalnya `/www/wwwroot/sita.kampus.ac.id`. Root akhirnya `PROJECT_ROOT/public`. Jangan samakan nama folder dengan domain bila keduanya berbeda.
+- `PHP_FPM_SOCKET` menjadi socket PHP 8.4 aaPanel, biasanya `/tmp/php-cgi-84.sock`. Pada beberapa server aaPanel, include bawaan `enable-php-84.conf` bisa dipakai menggantikan blok PHP manual.
 
-Untuk panel admin Filament, pastikan request `/livewire/*` diteruskan ke Laravel. Jika aaPanel masih memakai rule static bawaan untuk `.js`/`.css`, tambahkan blok ini sebelum rule static asset:
+Hal yang wajib ada bila menyunting vhost bawaan aaPanel alih-alih memakai template:
 
-```nginx
-location ^~ /livewire {
-    try_files $uri $uri/ /index.php?$query_string;
-}
-```
-
-Untuk Reverb realtime, proxy websocket ke proses lokal Reverb:
+- Request `/livewire/*` diteruskan ke Laravel, ditaruh sebelum rule static `.js`/`.css` bawaan aaPanel. Tanpa ini panel admin Filament tidak merespons.
+- `location ^~ /storage/` melayani file dari `public/storage`. Prefix `^~` wajib agar file publik (foto profil, lampiran) tidak ikut terblokir rule deny direktori internal `storage/`.
+- Proxy Reverb memakai regex ketat `^/(app|apps)(?:/|$)` (tidak menangkap path seperti `/application`) dan timeout `3600` detik supaya koneksi WebSocket tidak putus tiap 60 detik:
 
 ```nginx
-location ~ ^/(app|apps) {
+location ~ ^/(app|apps)(?:/|$) {
     proxy_http_version 1.1;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Host $host;
@@ -235,12 +243,13 @@ location ~ ^/(app|apps) {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
-    proxy_read_timeout 60;
-    proxy_send_timeout 60;
+    proxy_read_timeout 3600;
+    proxy_send_timeout 3600;
     proxy_pass http://127.0.0.1:8080;
 }
 ```
-- `fastcgi_pass unix:/tmp/php-cgi-84.sock;` sesuai socket PHP aaPanel. Pada beberapa server aaPanel, include bawaan `enable-php-84.conf` bisa dipakai menggantikan blok PHP manual.
+
+- Header keamanan (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) di level `server`. Nginx tidak mewariskan `add_header` ke `location` yang punya `add_header` sendiri, jadi header ini diulang di blok static asset dan `/storage/`. HSTS diaktifkan dari menu SSL aaPanel.
 
 Contoh root wajib tetap ke `public/`, bukan folder project utama.
 
@@ -259,6 +268,8 @@ Script ini membuat dan menyalakan:
 - `sita-DOMAIN-reverb.service`
 - `sita-DOMAIN-queue.service`
 - `sita-DOMAIN-schedule.timer`
+
+Service berjalan sebagai user/group runtime aaPanel (`SERVICE_USER`/`SERVICE_GROUP`, default `www`) agar file log dan cache yang ditulis queue/scheduler tetap bisa ditulis PHP-FPM. Script gagal (exit 1) dan menampilkan `journalctl` bila salah satu service tidak aktif setelah dipasang.
 
 Cek status:
 
@@ -312,7 +323,9 @@ Catatan: Nginx subpath Laravel butuh konfigurasi rewrite yang lebih teliti diban
 - Blank page setelah deploy: cek `storage/logs/laravel.log`, lalu jalankan `php artisan optimize:clear`.
 - Asset CSS/JS 404: pastikan `npm run build` sukses dan `public/build` ada. Untuk subpath, pastikan `ASSET_URL` sesuai `APP_URL`.
 - Admin login tidak merespons dan console menampilkan `livewire.min.js 404`: tambahkan rule Nginx `/livewire` seperti bagian Nginx di atas, lalu reload Nginx.
-- Chat terkirim tetapi harus refresh: Reverb belum aktif, service Reverb mati, atau Nginx belum punya proxy `location ~ ^/(app|apps)`.
+- Chat terkirim tetapi harus refresh: Reverb belum aktif, service Reverb mati, atau Nginx belum punya proxy `location ~ ^/(app|apps)(?:/|$)`.
+- WebSocket ditolak (handshake 403/close): host browser belum tercantum di `REVERB_ALLOWED_ORIGINS`. Perbaiki `.env`, jalankan `php artisan config:cache`, lalu restart service Reverb.
+- Foto profil/lampiran publik 403/404: Nginx belum punya `location ^~ /storage/` atau `php artisan storage:link` belum dijalankan.
 - Chat 500 tetapi pesan muncul setelah refresh: Laravel gagal broadcast ke Reverb. Cek `.env` agar `REVERB_INTERNAL_HOST=127.0.0.1`, `REVERB_INTERNAL_PORT=8080`, dan `REVERB_INTERNAL_SCHEME=http`.
 - Login/reset password email tidak terkirim: cek konfigurasi SMTP dan firewall kampus.
 - Migration gagal: cek kredensial DB, permission user DB, dan extension `pdo_mysql`.
