@@ -67,23 +67,22 @@ test.describe('Program Studi management', () => {
 
             await adminPage.goto('/admin/users/create');
             await expect(adminPage).toHaveURL(/\/admin\/users\/create/);
-            await adminPage.locator('select').first().selectOption('mahasiswa');
-            await adminPage.waitForTimeout(1000);
-            await expect(adminPage.getByText('Prodi*').first()).toBeVisible();
+            await adminPage.getByLabel('Role*').selectOption('mahasiswa');
+            const prodiSelect = adminPage.getByRole('combobox', {
+                name: 'Prodi*',
+            });
+            await prodiSelect.click();
             await adminPage
-                .locator('button')
-                .filter({ hasText: 'Select an option' })
-                .first()
+                .getByRole('option', {
+                    name: 'Ilmu Komputer (S1) - Fakultas Teknik',
+                    exact: true,
+                })
                 .click();
-            await adminPage
-                .getByRole('option', { name: 'Ilmu Komputer', exact: true })
-                .click();
-            await adminPage.waitForTimeout(1000);
-            await adminPage
-                .locator('button')
-                .filter({ hasText: 'Select an option' })
-                .first()
-                .click();
+            const concentrationSelect = adminPage.getByRole('combobox', {
+                name: 'Konsentrasi',
+            });
+            await expect(concentrationSelect).toBeEnabled();
+            await concentrationSelect.click();
             await expect(
                 adminPage.getByRole('option', {
                     name: newConcentration,

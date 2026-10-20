@@ -59,3 +59,106 @@ jobs:
 
       - name: Tests
         run: ./vendor/bin/pest
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # A real Reverb server is started by the Playwright config, and the build must compile the same keys.
+    env:
+      REVERB_APP_ID: local-app
+      REVERB_APP_KEY: local-key
+      REVERB_APP_SECRET: local-secret
+      REVERB_HOST: 127.0.0.1
+      REVERB_PORT: '9011'
+      REVERB_SCHEME: http
+      REVERB_ALLOWED_ORIGINS: 127.0.0.1,localhost
+      FRONTEND_REVERB_HOST: 127.0.0.1
+      VITE_REVERB_APP_KEY: local-key
+      VITE_REVERB_HOST: 127.0.0.1
+      VITE_REVERB_PORT: '9011'
+      VITE_REVERB_SCHEME: http
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, sqlite3, pdo_sqlite, curl, dom, fileinfo, xml
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Locate Composer cache
+        id: composer-cache-dir
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Record e2e start time
+        run: echo "E2E_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Run e2e
+        id: e2e
+        run: npm run e2e
+
+      - name: Write e2e duration
+        if: always()
+        run: |
+          if [ -n "${E2E_START:-}" ]; then
+            elapsed=$(($(date +%s) - E2E_START))
+            printf 'Playwright e2e duration: %s seconds\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY" || :
+          fi
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

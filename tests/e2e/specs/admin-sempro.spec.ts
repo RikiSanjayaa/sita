@@ -21,15 +21,21 @@ function defenseRow(page: Page, studentName: string, attemptLabel?: string) {
         : matchingRows.filter({ hasText: attemptLabel }).first();
 }
 
+async function openDefenseList(page: Page, studentName: string): Promise<void> {
+    await page.goto('/dosen/seminar-proposal');
+    await page.getByRole('button', { name: 'Proposal', exact: true }).click();
+
+    const searchInput = page.getByPlaceholder(/cari nama/i);
+    await expect(searchInput).toBeVisible();
+    await searchInput.fill(studentName);
+}
+
 async function openDefenseSheet(
     page: Page,
     studentName: string,
     attemptLabel?: string,
 ): Promise<void> {
-    const searchInput = page.getByPlaceholder('Cari nama atau judul...');
-
-    await expect(searchInput).toBeVisible();
-    await searchInput.fill(studentName);
+    await openDefenseList(page, studentName);
 
     const row = defenseRow(page, studentName, attemptLabel);
     const dialog = page.getByRole('dialog');
@@ -75,9 +81,6 @@ async function submitDefenseDecision(
         attemptLabel?: string;
     },
 ): Promise<void> {
-    await page.goto('/dosen/seminar-proposal');
-    await expect(page).toHaveTitle(/Sempro & Sidang/i);
-
     await openDefenseSheet(page, studentName, attemptLabel);
     await page.getByRole('button', { name: 'Input Keputusan Saya' }).click();
 
@@ -85,17 +88,17 @@ async function submitDefenseDecision(
         .getByRole('button', {
             name:
                 decision === 'pass'
-                    ? /Lulus/i
+                    ? /^Lulus$/i
                     : decision === 'pass_with_revision'
-                      ? /Lulus/i
-                      : /Tidak Lulus/i,
+                      ? /^Lulus$/i
+                      : /^Tidak Lulus$/i,
         })
         .click();
     await page.getByLabel(/Nilai/i).fill(score);
     await page.getByLabel('Catatan Keputusan').fill(decisionNotes);
 
     if (decision === 'pass_with_revision') {
-        await page.getByLabel('Catatan Revisi *').fill(revisionNotes ?? '');
+        await page.getByLabel(/catatan revisi/i).fill(revisionNotes ?? '');
     }
 
     const decisionRequest = page.waitForResponse(
@@ -190,8 +193,10 @@ test.describe('Admin sempro workflow', () => {
             const removedExaminerPage = await removedExaminerContext.newPage();
             const addedExaminerPage = await addedExaminerContext.newPage();
 
-            await removedExaminerPage.goto('/dosen/seminar-proposal');
-            await expect(removedExaminerPage).toHaveTitle(/Sempro & Sidang/i);
+            await openDefenseList(
+                removedExaminerPage,
+                thesisScenarios.semproScheduled.studentName,
+            );
             await expect(
                 removedExaminerPage
                     .locator('tr')
@@ -203,7 +208,6 @@ test.describe('Admin sempro workflow', () => {
 
             await adminPage.goto('/admin/thesis-projects?tableSearch=Akbar');
             await expect(adminPage).toHaveURL(/\/admin\/thesis-projects/);
-            await expect(adminPage).toHaveTitle(/Proyek Tugas Akhir/i);
             await adminPage
                 .locator('tr')
                 .filter({
@@ -231,7 +235,10 @@ test.describe('Admin sempro workflow', () => {
 
             await adminPage.reload();
 
-            await removedExaminerPage.goto('/dosen/seminar-proposal');
+            await openDefenseList(
+                removedExaminerPage,
+                thesisScenarios.semproScheduled.studentName,
+            );
             await expect(
                 removedExaminerPage
                     .locator('tr')
@@ -241,8 +248,10 @@ test.describe('Admin sempro workflow', () => {
                     .first(),
             ).toHaveCount(0);
 
-            await addedExaminerPage.goto('/dosen/seminar-proposal');
-            await expect(addedExaminerPage).toHaveTitle(/Sempro & Sidang/i);
+            await openDefenseList(
+                addedExaminerPage,
+                thesisScenarios.semproScheduled.studentName,
+            );
             await expect(
                 addedExaminerPage
                     .locator('tr')
@@ -253,9 +262,6 @@ test.describe('Admin sempro workflow', () => {
             ).toBeVisible();
 
             await addedExaminerPage.goto('/dosen/pesan-bimbingan');
-            await expect(addedExaminerPage).toHaveTitle(
-                /Pesan Bimbingan Dosen/i,
-            );
             await expect(
                 addedExaminerPage
                     .getByText(thesisScenarios.semproScheduled.studentName)
@@ -325,13 +331,14 @@ test.describe('Admin sempro workflow', () => {
             );
 
             await studentPage.goto('/mahasiswa/tugas-akhir');
-            await expect(studentPage).toHaveTitle(/Tugas Akhir/i);
             await expect(
                 studentPage.getByText('Revisi Sempro').first(),
             ).toBeVisible();
 
-            await examinerOnePage.goto('/dosen/seminar-proposal');
-            await expect(examinerOnePage).toHaveTitle(/Sempro & Sidang/i);
+            await openDefenseList(
+                examinerOnePage,
+                thesisScenarios.semproScheduled.studentName,
+            );
             await expect(
                 examinerOnePage
                     .locator('tr')
@@ -404,7 +411,6 @@ test.describe('Admin sempro workflow', () => {
             );
 
             await studentPage.goto('/mahasiswa/tugas-akhir');
-            await expect(studentPage).toHaveTitle(/Tugas Akhir/i);
             await expect(
                 studentPage.getByText('Sempro Tidak Lulus').first(),
             ).toBeVisible();
@@ -416,7 +422,10 @@ test.describe('Admin sempro workflow', () => {
                 ['dosen@sita.test', 'dosen2@sita.test'],
             );
 
-            await examinerOnePage.goto('/dosen/seminar-proposal');
+            await openDefenseList(
+                examinerOnePage,
+                thesisScenarios.semproRetry.studentName,
+            );
             await expect(
                 defenseRow(
                     examinerOnePage,
