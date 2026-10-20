@@ -118,10 +118,20 @@ async function waitForUploadedWorkbook(
     const modal = page.locator('.fi-modal-window').filter({
         hasText: 'Import user dari Excel',
     });
+    const fileInput = modal.locator('.filepond--root input[type="file"]');
 
-    await expect(
-        modal.getByText(path.basename(workbookPath)).first(),
-    ).toBeVisible();
+    await expect(fileInput).toBeAttached();
+    await fileInput.setInputFiles(workbookPath);
+
+    const item = modal.locator('.filepond--item');
+
+    await expect(item).toHaveAttribute(
+        'data-filepond-item-state',
+        'processing-complete',
+    );
+    await expect(item.locator('.filepond--file-info-main')).toContainText(
+        path.basename(workbookPath),
+    );
 }
 
 async function selectFilamentOption(
@@ -215,9 +225,6 @@ test.describe('Admin user import', () => {
         try {
             const page = await adminContext.newPage();
             await openImportModal(page);
-            await page
-                .locator('input[type="file"]')
-                .setInputFiles(workbookPath);
             await waitForUploadedWorkbook(page, workbookPath);
             await selectFilamentOption(page, 0, 'mahasiswa');
             await selectFilamentOption(page, 1, '1');
@@ -315,26 +322,21 @@ test.describe('Admin user import', () => {
         try {
             const page = await adminContext.newPage();
             await openImportModal(page);
-            await page
-                .locator('input[type="file"]')
-                .setInputFiles(workbookPath);
             await waitForUploadedWorkbook(page, workbookPath);
             await selectFilamentOption(page, 0, 'mahasiswa');
             await selectFilamentOption(page, 1, '1');
             await page.getByRole('button', { name: 'Submit' }).click();
 
+            const notification = page.locator('.fi-no-notification');
             await expect(
-                page.getByText('Import Excel selesai dengan catatan').first(),
+                notification.getByText(
+                    'Diproses 3 baris, berhasil 2, gagal 1.',
+                ),
             ).toBeVisible();
             await expect(
-                page
-                    .getByText('Diproses 3 baris, berhasil 2, gagal 1.')
-                    .first(),
-            ).toBeVisible();
-            await expect(
-                page
-                    .getByText('Baris 3: NIM wajib diisi untuk role mahasiswa.')
-                    .first(),
+                notification.getByText(
+                    'Baris 3: NIM wajib diisi untuk role mahasiswa.',
+                ),
             ).toBeVisible();
 
             await fillTableSearch(page, 'import-valid-satu@sita.test');
@@ -342,6 +344,14 @@ test.describe('Admin user import', () => {
                 page
                     .locator('tr')
                     .filter({ hasText: 'Import Valid Satu' })
+                    .first(),
+            ).toBeVisible();
+
+            await fillTableSearch(page, 'import-valid-tiga@sita.test');
+            await expect(
+                page
+                    .locator('tr')
+                    .filter({ hasText: 'Import Valid Tiga' })
                     .first(),
             ).toBeVisible();
 

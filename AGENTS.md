@@ -144,11 +144,13 @@ use Illuminate\Support\Facades\Auth;
 - E2E specs live in `tests/e2e/specs/`.
 - Playwright support utilities live in `tests/e2e/support/`.
 - Playwright uses a dedicated SQLite database at `database/playwright.sqlite` and auth state under `storage/playwright`.
-- `global-setup.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
+- Playwright starts Laravel and Reverb with isolated test settings. CI builds assets with matching `VITE_REVERB_*` values before starting the servers; keep one worker because all specs share the SQLite database.
+- `tests/e2e/setup/bootstrap.spec.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
 - Prefer keeping E2E focused on user-visible multi-role integration flows; keep business logic coverage in Pest.
-- A change to a user-visible flow adds or updates a Playwright scenario in the same change, and the affected specs plus relevant Pest tests are run before handing off. Playwright is not in CI yet, so this local run is the only E2E check.
+- A change to a user-visible flow adds or updates a Playwright scenario in the same change, and the affected specs plus relevant Pest tests are run before handing off. The `e2e` job in `.github/workflows/tests.yml` also runs the full suite on pull requests and pushes to `main` and `develop`.
+- When CI E2E fails, open the workflow run's Artifacts section and download `playwright-e2e-<run-id>-<attempt>`. Extract it, then run `npx playwright show-report playwright-report` for the HTML report or `npx playwright show-trace test-results/<failed-test>/trace.zip` for a trace. Screenshots and videos are under `test-results/`; the job summary records suite duration.
 - Use stable selectors in E2E assertions. Prefer page titles, labels, roles, unique section copy, or scoped locators over generic repeated text.
-- `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification.
+- `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification. Each fixme must have a comment linking its tracking issue.
 
 ### Test Conventions
 

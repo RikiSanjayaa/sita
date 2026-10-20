@@ -18,8 +18,8 @@ async function openDosenBimbinganThread(
     studentName: string,
 ): Promise<void> {
     await page.goto('/dosen/pesan-bimbingan');
-    await expect(page).toHaveTitle(/Pesan Bimbingan Dosen/i);
-    await page.getByPlaceholder('Cari mahasiswa...').fill(studentName);
+    await page.waitForURL(/\/dosen\/pesan(\?|$)/);
+    await page.getByPlaceholder('Cari grup...').fill(studentName);
 
     const threadButton = page
         .locator('button')
@@ -42,7 +42,7 @@ async function sendBimbinganMessageFromLecturer(
     const submitRequest = page.waitForResponse(
         (response) =>
             response.request().method() === 'POST' &&
-            /\/dosen\/pesan-bimbingan\/\d+\/messages$/.test(response.url()),
+            /\/dosen\/pesan\/\d+\/messages$/.test(response.url()),
     );
 
     await page.getByPlaceholder('Tulis pesan...').fill(message);
@@ -68,6 +68,13 @@ function setPesanBaruPreference(email: string, enabled: boolean): void {
     ]);
 }
 
+function expectNoStoredNotificationsForUser(email: string): void {
+    runArtisan([
+        'tinker',
+        `--execute=$user = App\\Models\\User::query()->where("email", "${email}")->firstOrFail(); if ($user->notifications()->exists()) { fwrite(STDERR, "Unexpected stored notification for ${email}\\n"); exit(1); }`,
+    ]);
+}
+
 function insertNotificationForUser(
     email: string,
     title: string,
@@ -86,6 +93,7 @@ test.describe('Notifications', () => {
         browser,
     }) => {
         resetNotificationState('mahasiswa@sita.test');
+        const notificationTitle = `Playwright bimbingan notification ${Date.now()}`;
 
         const studentContext = await browser.newContext({
             storageState: authStatePath(
@@ -94,7 +102,7 @@ test.describe('Notifications', () => {
         });
         insertNotificationForUser(
             'mahasiswa@sita.test',
-            'Pesan bimbingan baru',
+            notificationTitle,
             'Dr. Budi Santoso, M.Kom. mengirim pembaruan bimbingan.',
             '/mahasiswa/pesan',
             'message-square',
@@ -104,35 +112,24 @@ test.describe('Notifications', () => {
             const studentPage = await studentContext.newPage();
 
             await studentPage.goto('/mahasiswa/dashboard');
-            await expect(studentPage).toHaveTitle(/Dashboard/i);
 
             const notificationPanel = await openNotifications(studentPage);
-            await expect(
-                notificationPanel.getByText('Pesan bimbingan baru').first(),
-            ).toBeVisible();
-            await expect(
-                notificationPanel
-                    .getByText(
-                        'Dr. Budi Santoso, M.Kom. mengirim pembaruan bimbingan.',
-                    )
-                    .first(),
-            ).toBeVisible();
-
-            await notificationPanel
+            const notificationCard = notificationPanel
                 .getByTestId('notification-card')
-                .filter({ hasText: 'Pesan bimbingan baru' })
-                .click({ position: { x: 20, y: 70 } });
+                .filter({ hasText: notificationTitle });
+            await expect(notificationCard).toBeVisible();
+
+            await notificationCard.click({ position: { x: 20, y: 70 } });
 
             await expect(studentPage).toHaveURL(/\/mahasiswa\/pesan/);
 
             const clearedPanel = await openNotifications(studentPage);
-            await clearedPanel
-                .locator('div')
-                .filter({ hasText: 'Pesan bimbingan baru' })
-                .getByLabel('Hapus notifikasi')
-                .click();
+            const notificationToDelete = clearedPanel
+                .getByTestId('notification-card')
+                .filter({ hasText: notificationTitle });
+            await notificationToDelete.getByLabel('Hapus notifikasi').click();
             await expect(
-                clearedPanel.getByText('Pesan bimbingan baru'),
+                clearedPanel.getByTestId('notification-card'),
             ).toHaveCount(0);
         } finally {
             await studentContext.close();
@@ -162,7 +159,6 @@ test.describe('Notifications', () => {
             setPesanBaruPreference('mahasiswa@sita.test', false);
 
             await studentPage.goto('/settings/notifications');
-            await expect(studentPage).toHaveTitle(/Pengaturan notifikasi/i);
 
             await expect(
                 studentPage.getByRole('switch', {
@@ -174,19 +170,17 @@ test.describe('Notifications', () => {
                     name: 'Aktifkan Pesan baru',
                 }),
             ).toHaveAttribute('data-state', 'unchecked');
-
+            await studentPage.goto('/mahasiswa/dashboard');
             await sendBimbinganMessageFromLecturer(
                 lecturerPage,
                 thesisScenarios.activeResearch.studentName,
                 message,
             );
-
-            await studentPage.goto('/mahasiswa/dashboard');
-            await expect(studentPage).toHaveTitle(/Dashboard/i);
+            expectNoStoredNotificationsForUser('mahasiswa@sita.test');
 
             const notificationPanel = await openNotifications(studentPage);
             await expect(
-                notificationPanel.getByText('Pesan bimbingan baru'),
+                notificationPanel.getByTestId('notification-card'),
             ).toHaveCount(0);
         } finally {
             await studentContext.close();

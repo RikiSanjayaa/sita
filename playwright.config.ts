@@ -21,13 +21,39 @@ const webServerEnvironment = {
     MAIL_MAILER: 'array',
     QUEUE_CONNECTION: 'sync',
     SESSION_DRIVER: 'file',
-    BROADCAST_CONNECTION: 'log',
+    BROADCAST_CONNECTION: 'reverb',
+    REVERB_APP_ID: 'local-app',
+    REVERB_APP_KEY: 'local-key',
+    REVERB_APP_SECRET: 'local-secret',
+    REVERB_HOST: '127.0.0.1',
+    REVERB_PORT: '9011',
+    REVERB_SCHEME: 'http',
+    REVERB_ALLOWED_ORIGINS: '127.0.0.1,localhost',
+    REVERB_SERVER_HOST: '127.0.0.1',
+    REVERB_SERVER_PORT: '9011',
+    FRONTEND_REVERB_HOST: '127.0.0.1',
+    VITE_REVERB_APP_KEY: 'local-key',
+    VITE_REVERB_HOST: '127.0.0.1',
+    VITE_REVERB_PORT: '9011',
+    VITE_REVERB_SCHEME: 'http',
     PULSE_ENABLED: 'false',
     TELESCOPE_ENABLED: 'false',
     NIGHTWATCH_ENABLED: 'false',
 };
 
+// Keep SQLite and other test overrides when Artisan starts its PHP subprocess.
+const webServerCommand = `${process.env.CI ? '' : 'npm run build && '}php artisan serve --no-reload --host=127.0.0.1 --port=9010`;
+
 export default defineConfig({
+    reporter: process.env.CI
+        ? [
+              ['html', { outputFolder: 'playwright-report', open: 'never' }],
+              ['line'],
+          ]
+        : [
+              ['list'],
+              ['html', { outputFolder: 'playwright-report', open: 'never' }],
+          ],
     testDir: './tests/e2e',
     fullyParallel: false,
     workers: 1,
@@ -56,12 +82,20 @@ export default defineConfig({
             dependencies: ['setup'],
         },
     ],
-    webServer: {
-        command:
-            'npm run build && php artisan serve --host=127.0.0.1 --port=9010',
-        url: `${baseURL}/up`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 180_000,
-        env: webServerEnvironment,
-    },
+    webServer: [
+        {
+            command: webServerCommand,
+            url: `${baseURL}/up`,
+            reuseExistingServer: !process.env.CI,
+            timeout: 180_000,
+            env: webServerEnvironment,
+        },
+        {
+            command: 'php artisan reverb:start --host=127.0.0.1 --port=9011',
+            port: 9011,
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+            env: webServerEnvironment,
+        },
+    ],
 });

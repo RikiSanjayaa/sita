@@ -351,6 +351,7 @@ export default function DosenDokumenRevisiPage() {
                                                                 <Button
                                                                     size="icon"
                                                                     variant="ghost"
+                                                                    aria-label="Unduh Dokumen"
                                                                     className="size-8 text-muted-foreground hover:text-foreground"
                                                                     disabled={
                                                                         !doc.fileUrl
@@ -385,6 +386,7 @@ export default function DosenDokumenRevisiPage() {
                                                                         <Button
                                                                             size="icon"
                                                                             variant="ghost"
+                                                                            aria-label="Kirim Catatan Revisi"
                                                                             className="size-8 text-amber-600 hover:bg-amber-600/10 hover:text-amber-700"
                                                                             disabled={
                                                                                 form.processing
@@ -415,6 +417,7 @@ export default function DosenDokumenRevisiPage() {
                                                                         <Button
                                                                             size="icon"
                                                                             variant="ghost"
+                                                                            aria-label="Setujui Dokumen"
                                                                             className="size-8 text-emerald-600 hover:bg-emerald-600/10 hover:text-emerald-700"
                                                                             disabled={
                                                                                 form.processing

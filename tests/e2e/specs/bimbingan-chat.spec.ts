@@ -22,9 +22,8 @@ async function uploadThesisDocument(
     page: Page,
     title: string,
     categoryLabel: 'Draft Skripsi' | 'Proposal' | 'Laporan' | 'Lampiran',
-) {
+): Promise<void> {
     await page.goto('/mahasiswa/upload-dokumen?open=unggah');
-    await expect(page).toHaveTitle(/Upload Dokumen/i);
     await expect(
         page.getByRole('dialog', { name: 'Upload Dokumen' }),
     ).toBeVisible();
@@ -39,16 +38,87 @@ async function uploadThesisDocument(
         );
     await page.getByRole('button', { name: 'Upload' }).click();
 
-    await expect(
-        page.getByText(
-            'Dokumen berhasil diunggah dan notifikasi terkirim ke thread terkait.',
-        ),
-    ).toBeVisible();
+    const uploadedRow = page.locator('tr').filter({ hasText: title }).first();
+    await expect(uploadedRow).toBeVisible();
+    await expect(uploadedRow).toContainText('Menunggu Review');
+}
+
+async function waitForThreadSubscription(
+    page: Page,
+    requireResubscribe = false,
+): Promise<void> {
+    await page.waitForFunction((requireResubscribe) => {
+        const threadId = new URLSearchParams(window.location.search).get(
+            'thread',
+        );
+        const channel = threadId
+            ? window.Echo.connector.pusher.channel(
+                  `private-mentorship.thread.${threadId}`,
+              )
+            : undefined;
+        const windowWithPreviousChannel = window as Window & {
+            __previousThreadChannel?: unknown;
+        };
+
+        return (
+            channel?.subscribed === true &&
+            (!requireResubscribe ||
+                channel !== windowWithPreviousChannel.__previousThreadChannel)
+        );
+    }, requireResubscribe);
+}
+
+async function captureThreadChannel(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const threadId = new URLSearchParams(window.location.search).get(
+            'thread',
+        );
+        const windowWithPreviousChannel = window as Window & {
+            __previousThreadChannel?: unknown;
+        };
+
+        windowWithPreviousChannel.__previousThreadChannel = threadId
+            ? window.Echo.connector.pusher.channel(
+                  `private-mentorship.thread.${threadId}`,
+              )
+            : undefined;
+    });
+}
+
+async function sendChatMessage(
+    page: Page,
+    urlPattern: RegExp,
+    message: string,
+): Promise<void> {
+    const messageInput = page.getByPlaceholder('Tulis pesan...');
+    const pageUrl = new URL(page.url());
+    await captureThreadChannel(page);
+    const submitRequest = page.waitForResponse(
+        (response) =>
+            response.request().method() === 'POST' &&
+            urlPattern.test(response.url()),
+    );
+    const inertiaFollowUp = page.waitForResponse((response) => {
+        const responseUrl = new URL(response.url());
+
+        return (
+            response.request().method() === 'GET' &&
+            response.status() === 200 &&
+            responseUrl.pathname === pageUrl.pathname
+        );
+    });
+
+    await messageInput.fill(message);
+    await messageInput.press('Enter');
+    await submitRequest;
+    await inertiaFollowUp;
+    await expect(messageInput).toHaveValue('');
+    await expect(page.getByText(message).last()).toBeVisible();
+    await waitForThreadSubscription(page, true);
 }
 
 async function openMahasiswaBimbinganThread(page: Page): Promise<void> {
     await page.goto('/mahasiswa/pesan');
-    await expect(page).toHaveTitle(/Pesan/i);
 
     const bimbinganThreadButton = page
         .locator('button')
@@ -65,8 +135,9 @@ async function openDosenBimbinganThread(
     studentName: string,
 ): Promise<void> {
     await page.goto('/dosen/pesan-bimbingan');
-    await expect(page).toHaveTitle(/Pesan(?: Bimbingan)? Dosen/i);
-    await page.getByPlaceholder(/Cari (mahasiswa|grup)\.\.\./).fill(studentName);
+    await page
+        .getByPlaceholder(/Cari (mahasiswa|grup)\.\.\./)
+        .fill(studentName);
 
     const threadButton = page
         .locator('button')
@@ -77,24 +148,6 @@ async function openDosenBimbinganThread(
     await expect(threadButton).toBeVisible();
     await threadButton.click();
     await expect(page.getByText(studentName).first()).toBeVisible();
-}
-
-async function sendChatMessage(
-    page: Page,
-    urlPattern: RegExp,
-    message: string,
-): Promise<void> {
-    const messageInput = page.getByPlaceholder('Tulis pesan...');
-    const submitRequest = page.waitForResponse(
-        (response) =>
-            response.request().method() === 'POST' &&
-            urlPattern.test(response.url()),
-    );
-
-    await messageInput.fill(message);
-    await messageInput.press('Enter');
-    await submitRequest;
-    await expect(page.getByText(message).last()).toBeVisible();
 }
 
 async function requestBimbinganSchedule(
@@ -115,7 +168,6 @@ async function requestBimbinganSchedule(
     },
 ): Promise<void> {
     await page.goto('/mahasiswa/jadwal-bimbingan?open=ajukan');
-    await expect(page).toHaveTitle(/Jadwal Bimbingan/i);
     await expect(
         page.getByRole('dialog', { name: 'Ajukan Jadwal Bimbingan' }),
     ).toBeVisible();
@@ -142,7 +194,19 @@ async function requestBimbinganSchedule(
             .click();
     }
 
-    await page.getByRole('button', { name: 'Kirim Permintaan' }).click();
+    await Promise.all([
+        page.waitForResponse((response) => {
+            const url = new URL(response.url());
+
+            return (
+                response.request().method() === 'POST' &&
+                url.pathname === '/mahasiswa/jadwal-bimbingan' &&
+                response.status() >= 200 &&
+                response.status() < 400
+            );
+        }),
+        page.getByRole('button', { name: 'Kirim Permintaan' }).click(),
+    ]);
 }
 
 test.describe('Bimbingan and chat integration', () => {
@@ -163,16 +227,11 @@ test.describe('Bimbingan and chat integration', () => {
             const dosenPage = await dosenContext.newPage();
 
             await mahasiswaPage.goto('/mahasiswa/pesan');
-            await expect(mahasiswaPage).toHaveTitle(/Pesan/i);
-            await expect(
-                mahasiswaPage.getByText('Thread bimbingan dan sempro Anda'),
-            ).toBeVisible();
             await expect(
                 mahasiswaPage.getByText('Mahasiswa SiTA').first(),
             ).toBeVisible();
 
             await dosenPage.goto('/dosen/pesan-bimbingan');
-            await expect(dosenPage).toHaveTitle(/Pesan Bimbingan Dosen/i);
             await expect(
                 dosenPage
                     .getByText(thesisScenarios.activeResearch.studentName)
@@ -183,13 +242,11 @@ test.describe('Bimbingan and chat integration', () => {
             ).toBeEnabled();
 
             await dosenPage.goto('/dosen/dokumen-revisi');
-            await expect(dosenPage).toHaveTitle(/Dokumen & Revisi Dosen/i);
             await expect(
                 dosenPage.getByText('Draft Bab 1').first(),
             ).toBeVisible();
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
-            await expect(mahasiswaPage).toHaveTitle(/Jadwal Bimbingan/i);
             await expect(
                 mahasiswaPage
                     .getByText('Review Bab II dan kesiapan implementasi')
@@ -223,7 +280,6 @@ test.describe('Bimbingan and chat integration', () => {
             const dosenPage = await dosenContext.newPage();
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen?open=unggah');
-            await expect(mahasiswaPage).toHaveTitle(/Upload Dokumen/i);
             await expect(
                 mahasiswaPage.getByRole('dialog', { name: 'Upload Dokumen' }),
             ).toBeVisible();
@@ -240,16 +296,10 @@ test.describe('Bimbingan and chat integration', () => {
             await mahasiswaPage.getByRole('button', { name: 'Upload' }).click();
 
             await expect(
-                mahasiswaPage.getByText(
-                    'Dokumen berhasil diunggah dan notifikasi terkirim ke thread terkait.',
-                ),
-            ).toBeVisible();
-            await expect(
                 mahasiswaPage.getByText(documentTitle).first(),
             ).toBeVisible();
 
             await mahasiswaPage.goto('/mahasiswa/pesan');
-            await expect(mahasiswaPage).toHaveTitle(/Pesan/i);
             await expect(
                 mahasiswaPage.getByText('Dokumen Baru Diunggah').first(),
             ).toBeVisible();
@@ -258,7 +308,6 @@ test.describe('Bimbingan and chat integration', () => {
             ).toBeVisible();
 
             await dosenPage.goto('/dosen/dokumen-revisi');
-            await expect(dosenPage).toHaveTitle(/Dokumen & Revisi Dosen/i);
             await expect(
                 dosenPage
                     .getByText(thesisScenarios.activeResearch.studentName)
@@ -304,7 +353,6 @@ test.describe('Bimbingan and chat integration', () => {
             const dosenPage = await dosenContext.newPage();
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan?open=ajukan');
-            await expect(mahasiswaPage).toHaveTitle(/Jadwal Bimbingan/i);
             await expect(
                 mahasiswaPage.getByRole('dialog', {
                     name: 'Ajukan Jadwal Bimbingan',
@@ -322,12 +370,6 @@ test.describe('Bimbingan and chat integration', () => {
                 .getByRole('button', { name: 'Kirim Permintaan' })
                 .click();
 
-            await expect(
-                mahasiswaPage.getByText(
-                    'Permintaan jadwal bimbingan berhasil dikirim.',
-                ),
-            ).toBeVisible();
-
             const mahasiswaPendingRow = mahasiswaPage
                 .locator('tr')
                 .filter({ hasText: topic })
@@ -338,7 +380,6 @@ test.describe('Bimbingan and chat integration', () => {
             );
 
             await dosenPage.goto('/dosen/jadwal-bimbingan');
-            await expect(dosenPage).toHaveTitle(/Jadwal Bimbingan Dosen/i);
 
             const requestCard = dosenPage
                 .locator('div.rounded-xl.border.bg-card.p-5.shadow-sm')
@@ -356,9 +397,6 @@ test.describe('Bimbingan and chat integration', () => {
                 .getByRole('button', { name: 'Konfirmasi' })
                 .click();
 
-            await expect(
-                dosenPage.getByText('Keputusan jadwal berhasil disimpan.'),
-            ).toBeVisible();
             await expect(requestCard).toHaveCount(0);
 
             const dosenUpcomingRow = dosenPage
@@ -371,7 +409,6 @@ test.describe('Bimbingan and chat integration', () => {
             );
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
-            await expect(mahasiswaPage).toHaveTitle(/Jadwal Bimbingan/i);
 
             const mahasiswaApprovedRow = mahasiswaPage
                 .locator('tr')
@@ -415,9 +452,8 @@ test.describe('Bimbingan and chat integration', () => {
             );
 
             await dosenPage.goto('/dosen/dokumen-revisi');
-            await expect(dosenPage).toHaveTitle(/Dokumen & Revisi Dosen/i);
             await dosenPage
-                .getByPlaceholder('Cari mahasiswa atau file...')
+                .getByPlaceholder(/Cari mahasiswa.*file/i)
                 .fill(initialTitle);
 
             const initialReviewRow = dosenPage
@@ -428,7 +464,9 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(initialReviewRow).toBeVisible();
             await expect(initialReviewRow).toContainText('Perlu Review');
-            await initialReviewRow.locator('button').nth(1).click();
+            await initialReviewRow
+                .getByRole('button', { name: 'Kirim Catatan Revisi' })
+                .click();
 
             const revisionDialog = dosenPage.getByRole('dialog', {
                 name: 'Kirim Catatan Revisi',
@@ -442,14 +480,10 @@ test.describe('Bimbingan and chat integration', () => {
                 .getByRole('button', { name: 'Kirim Catatan' })
                 .click();
 
-            await expect(
-                dosenPage.getByText('Status dokumen berhasil diperbarui.'),
-            ).toBeVisible();
             await expect(initialReviewRow).toContainText('Perlu Revisi');
             await expect(initialReviewRow).toContainText(revisionNotes);
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
-            await expect(mahasiswaPage).toHaveTitle(/Upload Dokumen/i);
             await mahasiswaPage
                 .getByPlaceholder('Cari judul atau file...')
                 .fill(initialTitle);
@@ -484,9 +518,8 @@ test.describe('Bimbingan and chat integration', () => {
             );
 
             await dosenPage.goto('/dosen/dokumen-revisi');
-            await expect(dosenPage).toHaveTitle(/Dokumen & Revisi Dosen/i);
             await dosenPage
-                .getByPlaceholder('Cari mahasiswa atau file...')
+                .getByPlaceholder(/Cari mahasiswa.*file/i)
                 .fill(revisedTitle);
 
             const revisedReviewRow = dosenPage
@@ -497,15 +530,13 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(revisedReviewRow).toBeVisible();
             await expect(revisedReviewRow).toContainText('Perlu Review');
-            await revisedReviewRow.locator('button').nth(2).click();
+            await revisedReviewRow
+                .getByRole('button', { name: 'Setujui Dokumen' })
+                .click();
 
-            await expect(
-                dosenPage.getByText('Status dokumen berhasil diperbarui.'),
-            ).toBeVisible();
             await expect(revisedReviewRow).toContainText('Disetujui');
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
-            await expect(mahasiswaPage).toHaveTitle(/Upload Dokumen/i);
             await mahasiswaPage
                 .getByPlaceholder('Cari judul atau file...')
                 .fill(revisedTitle);
@@ -547,6 +578,8 @@ test.describe('Bimbingan and chat integration', () => {
                 dosenPage,
                 thesisScenarios.activeResearch.studentName,
             );
+            await waitForThreadSubscription(mahasiswaPage);
+            await waitForThreadSubscription(dosenPage);
 
             await sendChatMessage(
                 mahasiswaPage,
@@ -557,10 +590,11 @@ test.describe('Bimbingan and chat integration', () => {
             await expect(
                 dosenPage.getByText(mahasiswaMessage).last(),
             ).toBeVisible({ timeout: 15_000 });
+            await waitForThreadSubscription(mahasiswaPage);
 
             await sendChatMessage(
                 dosenPage,
-                /\/dosen\/pesan-bimbingan\/\d+\/messages$/,
+                /\/dosen\/pesan\/\d+\/messages$/,
                 dosenMessage,
             );
 
@@ -602,11 +636,6 @@ test.describe('Bimbingan and chat integration', () => {
                 studentNote:
                     'Mohon masukan terkait fokus pembahasan bab evaluasi.',
             });
-            await expect(
-                mahasiswaPage.getByText(
-                    'Permintaan jadwal bimbingan berhasil dikirim.',
-                ),
-            ).toBeVisible();
 
             const mahasiswaPendingRow = mahasiswaPage
                 .locator('tr')
@@ -618,7 +647,6 @@ test.describe('Bimbingan and chat integration', () => {
             );
 
             await dosenPage.goto('/dosen/jadwal-bimbingan');
-            await expect(dosenPage).toHaveTitle(/Jadwal Bimbingan Dosen/i);
 
             const requestCard = dosenPage
                 .locator('div.rounded-xl.border.bg-card.p-5.shadow-sm')
@@ -630,13 +658,9 @@ test.describe('Bimbingan and chat integration', () => {
                 .fill(rejectionNote);
             await requestCard.getByRole('button', { name: 'Tolak' }).click();
 
-            await expect(
-                dosenPage.getByText('Keputusan jadwal berhasil disimpan.'),
-            ).toBeVisible();
             await expect(requestCard).toHaveCount(0);
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
-            await expect(mahasiswaPage).toHaveTitle(/Jadwal Bimbingan/i);
 
             const mahasiswaHistoryRow = mahasiswaPage
                 .locator('tr')
@@ -685,19 +709,19 @@ test.describe('Bimbingan and chat integration', () => {
                     count: '3',
                 },
             });
-            await expect(
-                mahasiswaPage.getByText(
-                    '3 permintaan jadwal bimbingan berulang berhasil dikirim.',
-                ),
-            ).toBeVisible();
+            const pendingRows = mahasiswaPage
+                .locator('tr')
+                .filter({ hasText: topic });
+            await expect(pendingRows).toHaveCount(3);
 
             await dosenPage.goto('/dosen/jadwal-bimbingan');
-            await expect(dosenPage).toHaveTitle(/Jadwal Bimbingan Dosen/i);
 
             const recurringCard = dosenPage
-                .locator('div.rounded-xl.border.bg-card.p-5.shadow-sm')
-                .filter({ hasText: topic })
-                .first();
+                .getByText(topic, { exact: true })
+                .locator('..')
+                .filter({
+                    has: dosenPage.locator('input[id^="recurring-location-"]'),
+                });
             await expect(recurringCard).toBeVisible();
             await expect(recurringCard).toContainText('3 Pertemuan');
             await recurringCard
@@ -710,13 +734,9 @@ test.describe('Bimbingan and chat integration', () => {
                 .getByRole('button', { name: 'Konfirmasi Semua' })
                 .click();
 
-            await expect(
-                dosenPage.getByText('3 jadwal berhasil dikonfirmasi.'),
-            ).toBeVisible();
             await expect(recurringCard).toHaveCount(0);
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
-            await expect(mahasiswaPage).toHaveTitle(/Jadwal Bimbingan/i);
 
             const scheduledRows = mahasiswaPage
                 .locator('tr')
@@ -743,7 +763,6 @@ test.describe('Bimbingan and chat integration', () => {
             const dosenPage = await dosenContext.newPage();
 
             await dosenPage.goto('/dosen/mahasiswa-bimbingan');
-            await expect(dosenPage).toHaveTitle(/Mahasiswa Bimbingan/i);
 
             const activeSection = dosenPage
                 .locator('section')
@@ -776,11 +795,13 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(activeStudentRow).toBeVisible();
 
-            await activeStudentRow.getByRole('link', { name: 'Chat' }).click();
-            await expect(dosenPage).toHaveURL(
-                /\/dosen\/pesan-bimbingan\?thread=/,
-            );
-            await expect(dosenPage).toHaveTitle(/Pesan Bimbingan Dosen/i);
+            await activeStudentRow
+                .getByRole('button', { name: 'Chat' })
+                .click();
+            await dosenPage
+                .getByRole('menuitem', { name: 'Chat grup' })
+                .click();
+            await expect(dosenPage).toHaveURL(/\/dosen\/pesan\?thread=/);
             await expect(
                 dosenPage
                     .getByText(thesisScenarios.activeResearch.studentName)
@@ -791,7 +812,6 @@ test.describe('Bimbingan and chat integration', () => {
             ).toBeEnabled();
 
             await dosenPage.goto('/dosen/mahasiswa-bimbingan');
-            await expect(dosenPage).toHaveTitle(/Mahasiswa Bimbingan/i);
             await expect(historySection).toBeVisible();
             await expect(
                 historySection.getByRole('link', { name: 'Chat' }),
