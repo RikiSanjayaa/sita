@@ -10,6 +10,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { getInitials } from '@/lib/initials';
 import { cn } from '@/lib/utils';
 
 export type ChatMessagePayload = {
@@ -29,15 +30,6 @@ interface ChatBubbleProps {
     isMe: boolean;
     searchTerm?: string;
     isActiveMatch?: boolean;
-}
-
-function initials(name: string) {
-    return name
-        .split(' ')
-        .map((chunk) => chunk[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
 }
 
 function truncateFilename(name: string | null, maxLength = 28) {
@@ -151,11 +143,11 @@ export function ChatBubble({
                     )}
                 >
                     <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary-muted text-primary-muted-foreground">
                             <FileText className="size-5" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                            <p className="text-xs font-medium text-muted-foreground">
                                 {isRevision
                                     ? 'File Revisi dari Dosen'
                                     : 'Dokumen Baru Diunggah'}
@@ -197,7 +189,7 @@ export function ChatBubble({
                         )}
                     </Button>
                 </div>
-                <span className="text-[11px] font-medium text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                     {message.time}
                 </span>
             </div>
@@ -227,7 +219,7 @@ export function ChatBubble({
                                         alt={message.author}
                                     />
                                     <AvatarFallback>
-                                        {initials(message.author)}
+                                        {getInitials(message.author)}
                                     </AvatarFallback>
                                 </Avatar>
                             </Link>
@@ -238,7 +230,7 @@ export function ChatBubble({
                                     alt={message.author}
                                 />
                                 <AvatarFallback>
-                                    {initials(message.author)}
+                                    {getInitials(message.author)}
                                 </AvatarFallback>
                             </Avatar>
                         )}
@@ -325,7 +317,7 @@ export function ChatBubble({
 
                     <div
                         className={cn(
-                            'mt-0.5 text-[11px] text-muted-foreground',
+                            'mt-0.5 text-xs text-muted-foreground',
                             isMe ? 'pr-1 text-right' : 'pl-1 text-left',
                         )}
                     >

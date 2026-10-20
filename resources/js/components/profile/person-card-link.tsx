@@ -31,7 +31,7 @@ export function PersonCardLink({
         <Link
             href={person.profileUrl}
             className={cn(
-                'group flex items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors hover:border-primary/40',
+                'group flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors hover:border-primary/40',
                 className,
             )}
         >
@@ -40,14 +40,14 @@ export function PersonCardLink({
                     src={person.avatar ?? undefined}
                     alt={person.name}
                 />
-                <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                <AvatarFallback className="bg-primary-muted text-sm font-semibold text-primary-muted-foreground">
                     {getInitials(person.name)}
                 </AvatarFallback>
             </Avatar>
 
             <div className="min-w-0 flex-1 pl-1">
                 {label && (
-                    <p className="mb-0.5 text-[10px] font-semibold tracking-widest text-primary/70 uppercase">
+                    <p className="mb-0.5 text-xs font-medium text-muted-foreground">
                         {label}
                     </p>
                 )}
@@ -59,7 +59,7 @@ export function PersonCardLink({
                         {chips.map((chip, i) => (
                             <span
                                 key={i}
-                                className="text-[11px] text-muted-foreground"
+                                className="text-xs text-muted-foreground"
                             >
                                 {chip}
                                 {i < chips.length - 1 && (

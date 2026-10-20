@@ -159,7 +159,7 @@ function LecturerResult({
                 <span className="truncate text-sm font-medium">
                     {lecturer.name}
                 </span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                     {lecturer.activeSupervisionCount}/{lecturer.quota} aktif
                 </span>
             </span>
@@ -169,23 +169,15 @@ function LecturerResult({
             </span>
             <span className="flex flex-wrap gap-1">
                 {lecturer.sameProgram ? (
-                    <Badge variant="outline" className="text-[10px]">
-                        Prodi yang sama
-                    </Badge>
+                    <Badge variant="outline">Prodi yang sama</Badge>
                 ) : null}
                 {lecturer.expertiseFields.slice(0, 3).map((field) => (
-                    <Badge
-                        key={field}
-                        variant="secondary"
-                        className="text-[10px]"
-                    >
+                    <Badge key={field} variant="secondary" className="text-xs">
                         {field}
                     </Badge>
                 ))}
                 {!lecturer.available ? (
-                    <Badge variant="destructive" className="text-[10px]">
-                        Kuota penuh
-                    </Badge>
+                    <Badge variant="destructive">Kuota penuh</Badge>
                 ) : null}
             </span>
         </button>
@@ -280,7 +272,7 @@ export function LecturerSearchSelect({
                 ) : null}
             </div>
             {query.trim().length < 2 ? (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                     Cari nama, NIK, prodi, konsentrasi, atau bidang keilmuan.
                 </p>
             ) : null}
@@ -397,7 +389,7 @@ export function LecturerMultiSearch({
                 ) : null}
             </div>
             {query.trim().length < 2 ? (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                     Hasil baru dimuat setelah minimal 2 karakter.
                 </p>
             ) : null}

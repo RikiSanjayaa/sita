@@ -59,7 +59,7 @@ const rightNavItems: NavItem[] = [
 ];
 
 const activeItemStyles =
-    'border border-primary/15 bg-primary/8 text-primary dark:bg-primary/12';
+    'border border-primary/15 bg-primary-muted text-primary-muted-foreground';
 
 interface AppHeaderProps {
     breadcrumbs?: BreadcrumbItem[];
@@ -227,7 +227,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                             src={auth.user.avatar}
                                             alt={auth.user.name}
                                         />
-                                        <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
+                                        <AvatarFallback className="rounded-lg bg-primary-muted text-primary-muted-foreground">
                                             {getInitials(auth.user.name)}
                                         </AvatarFallback>
                                     </Avatar>

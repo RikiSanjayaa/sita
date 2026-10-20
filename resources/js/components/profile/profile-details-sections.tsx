@@ -1,122 +1,9 @@
-import {
-    BookOpen,
-    CalendarCheck,
-    CalendarClock,
-    FileText,
-    Gauge,
-    GraduationCap,
-    type LucideIcon,
-    UserCheck,
-    Users,
-} from 'lucide-react';
+import { FileText, GraduationCap, type LucideIcon, Users } from 'lucide-react';
 
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
-import { type ProfileFieldItem, type UserProfileDetail } from '@/types';
-
-// ---------------------------------------------------------------------------
-// Stat icon + color config, keyed by label from the backend
-// ---------------------------------------------------------------------------
-
-type StatConfig = {
-    icon: LucideIcon;
-    /** className applied to the icon wrapper square */
-    wrapperClass: string;
-    /** className applied to the icon itself */
-    iconClass: string;
-};
-
-const STAT_CONFIGS: Record<string, StatConfig> = {
-    'Status Skripsi': {
-        icon: BookOpen,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Status Tugas Akhir': {
-        icon: BookOpen,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Status Tesis': {
-        icon: BookOpen,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Pembimbing Aktif': {
-        icon: GraduationCap,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Penguji Aktif': {
-        icon: UserCheck,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Mahasiswa Aktif': {
-        icon: Users,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Mahasiswa Bimbingan Aktif': {
-        icon: Users,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Sisa Kuota': {
-        icon: Gauge,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Sempro Terjadwal': {
-        icon: CalendarClock,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-    'Sidang Terjadwal': {
-        icon: CalendarCheck,
-        wrapperClass: 'bg-primary/10',
-        iconClass: 'text-primary',
-    },
-};
-
-const DEFAULT_STAT_CONFIG: StatConfig = {
-    icon: FileText,
-    wrapperClass: 'bg-primary/10',
-    iconClass: 'text-primary',
-};
-
-// ---------------------------------------------------------------------------
-
-function StatItem({ label, value }: ProfileFieldItem) {
-    const {
-        icon: Icon,
-        wrapperClass,
-        iconClass,
-    } = STAT_CONFIGS[label] ?? DEFAULT_STAT_CONFIG;
-
-    return (
-        <div className="flex items-center gap-3">
-            <div
-                className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-lg',
-                    wrapperClass,
-                )}
-            >
-                <Icon aria-hidden="true" className={cn('size-5', iconClass)} />
-            </div>
-            <div className="min-w-0">
-                <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                    {label}
-                </p>
-                <p className="mt-0.5 text-sm font-bold text-foreground">
-                    {value}
-                </p>
-            </div>
-        </div>
-    );
-}
+import { type UserProfileDetail } from '@/types';
 
 function SectionHeader({
     title,
@@ -157,7 +44,7 @@ export function ProfileDetailsSections({
                 <div className="px-6 py-5">
                     <SectionHeader
                         title="Detail Akademik & Peran"
-                        description="Ringkasan identitas dan status bimbingan Anda saat ini."
+                        description="Ringkasan identitas dan status bimbingan."
                     />
                 </div>
 
@@ -167,7 +54,7 @@ export function ProfileDetailsSections({
                 <div className="grid gap-x-8 gap-y-5 px-6 py-5 sm:grid-cols-2 xl:grid-cols-3">
                     {profile.meta.map((item) => (
                         <div key={item.label}>
-                            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                            <p className="text-xs font-medium text-muted-foreground">
                                 {item.label}
                             </p>
                             <p className="mt-1 text-sm font-semibold text-foreground">
@@ -183,11 +70,14 @@ export function ProfileDetailsSections({
                         <Separator />
                         <div className="grid gap-5 px-6 py-5 sm:grid-cols-2 lg:grid-cols-3">
                             {profile.stats.map((item) => (
-                                <StatItem
-                                    key={item.label}
-                                    label={item.label}
-                                    value={item.value}
-                                />
+                                <div key={item.label}>
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        {item.label}
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold tabular-nums">
+                                        {item.value}
+                                    </p>
+                                </div>
                             ))}
                         </div>
                     </>
@@ -211,7 +101,7 @@ export function ProfileDetailsSections({
                     <div className="space-y-6 px-6 py-5">
                         {/* Thesis title block */}
                         <div>
-                            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                            <p className="text-xs font-medium text-muted-foreground">
                                 Judul Saat Ini
                             </p>
                             <p className="mt-1 text-sm font-semibold text-foreground">
@@ -268,7 +158,7 @@ export function ProfileDetailsSections({
                                                     key={group.title}
                                                     className="space-y-2"
                                                 >
-                                                    <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                                                    <p className="text-xs font-medium text-muted-foreground">
                                                         {group.title}
                                                     </p>
                                                     {group.users.length > 0 ? (

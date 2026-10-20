@@ -28,6 +28,8 @@
 
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
+    --color-primary-muted: var(--primary-muted);
+    --color-primary-muted-foreground: var(--primary-muted-foreground);
 
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -45,6 +47,26 @@
     --color-input: var(--input);
     --color-ring: var(--ring);
 
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-muted: var(--success-muted);
+    --color-success-muted-foreground: var(--success-muted-foreground);
+
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-muted: var(--warning-muted);
+    --color-warning-muted-foreground: var(--warning-muted-foreground);
+
+    --color-danger: var(--danger);
+    --color-danger-foreground: var(--danger-foreground);
+    --color-danger-muted: var(--danger-muted);
+    --color-danger-muted-foreground: var(--danger-muted-foreground);
+
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-muted: var(--info-muted);
+    --color-info-muted-foreground: var(--info-muted-foreground);
+
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
     --color-chart-3: var(--chart-3);
@@ -61,75 +83,127 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * UBG Blue (light + dark), the default theme. The `ubg-blue` preset in
+ * resources/js/hooks/use-primary-color.ts and Filament's
+ * App\Providers\Filament\AdminPanelProvider::SEMANTIC_COLORS repeat these values;
+ * change all three together.
+ *
+ * Primary has two roles. `primary`/`primary-foreground` is a solid fill (buttons,
+ * selected pills) and `text-primary` on page surfaces. `primary-muted`/
+ * `primary-muted-foreground` is the tinted surface + text pair (active nav item,
+ * avatar initials, soft badges); use it instead of `bg-primary/10 text-primary`,
+ * which drops below 4.5:1 in light mode. Dark primary is a light blue with a
+ * dark foreground so `text-primary` stays readable on dark surfaces.
+ */
 :root {
-    --background: oklch(0.98 0.01 250);
-    --foreground: oklch(0.2 0.02 250);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.2 0.02 250);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.2 0.02 250);
-    --primary: oklch(0.35 0.08 250);
-    --primary-foreground: oklch(0.98 0.01 250);
-    --secondary: oklch(0.95 0.01 250);
-    --secondary-foreground: oklch(0.3 0.02 250);
-    --muted: oklch(0.95 0.01 250);
-    --muted-foreground: oklch(0.55 0.02 250);
-    --accent: oklch(0.95 0.01 250);
-    --accent-foreground: oklch(0.3 0.02 250);
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --primary-muted: #edf2fe;
+    --primary-muted-foreground: #2563eb;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #5a6a80;
+    --accent: #e0ecff;
+    --accent-foreground: #1e3a5f;
     --destructive: oklch(0.57 0.2 27);
     --destructive-foreground: oklch(0.98 0 0);
-    --border: oklch(0.9 0.01 250);
-    --input: oklch(0.9 0.01 250);
-    --ring: oklch(0.35 0.08 250);
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #2563eb;
     --chart-1: oklch(0.45 0.1 250);
     --chart-2: oklch(0.6 0.1 200);
     --chart-3: oklch(0.5 0.1 280);
     --chart-4: oklch(0.6 0.15 40);
     --chart-5: oklch(0.7 0.15 90);
     --radius: 0.5rem;
-    --sidebar: oklch(0.98 0.01 250);
-    --sidebar-foreground: oklch(0.2 0.02 250);
-    --sidebar-primary: oklch(0.35 0.08 250);
-    --sidebar-primary-foreground: oklch(0.98 0.01 250);
-    --sidebar-accent: oklch(0.95 0.01 250);
-    --sidebar-accent-foreground: oklch(0.3 0.02 250);
-    --sidebar-border: oklch(0.9 0.01 250);
-    --sidebar-ring: oklch(0.35 0.08 250);
+    --sidebar: #f8fafc;
+    --sidebar-foreground: #0f172a;
+    --sidebar-primary: #2563eb;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f1f5f9;
+    --sidebar-accent-foreground: #0f172a;
+    --sidebar-border: #e2e8f0;
+    --sidebar-ring: #2563eb;
+
+    /* Semantic status tokens: base/foreground for filled surfaces, muted/muted-foreground for tinted badges. */
+    --success: oklch(0.5 0.12 160);
+    --success-foreground: oklch(0.98 0.01 160);
+    --success-muted: oklch(0.95 0.05 160);
+    --success-muted-foreground: oklch(0.4 0.1 160);
+    --warning: oklch(0.8 0.16 80);
+    --warning-foreground: oklch(0.25 0.05 70);
+    --warning-muted: oklch(0.96 0.07 90);
+    --warning-muted-foreground: oklch(0.42 0.09 70);
+    --danger: oklch(0.55 0.2 27);
+    --danger-foreground: oklch(0.98 0 0);
+    --danger-muted: oklch(0.95 0.04 20);
+    --danger-muted-foreground: oklch(0.45 0.18 27);
+    --info: oklch(0.5 0.13 235);
+    --info-foreground: oklch(0.98 0.01 235);
+    --info-muted: oklch(0.95 0.04 235);
+    --info-muted-foreground: oklch(0.42 0.11 240);
 }
 
 .dark {
-    --background: oklch(0.16 0.02 250);
-    --foreground: oklch(0.98 0.01 250);
-    --card: oklch(0.2 0.02 250);
-    --card-foreground: oklch(0.98 0.01 250);
-    --popover: oklch(0.2 0.02 250);
-    --popover-foreground: oklch(0.98 0.01 250);
-    --primary: oklch(0.75 0.1 250);
-    --primary-foreground: oklch(0.16 0.02 250);
-    --secondary: oklch(0.24 0.02 250);
-    --secondary-foreground: oklch(0.98 0.01 250);
-    --muted: oklch(0.24 0.02 250);
-    --muted-foreground: oklch(0.7 0.02 250);
-    --accent: oklch(0.24 0.02 250);
-    --accent-foreground: oklch(0.98 0.01 250);
+    --background: #0b0f14;
+    --foreground: #eaf2f7;
+    --card: #11161c;
+    --card-foreground: #eaf2f7;
+    --popover: #11161c;
+    --popover-foreground: #eaf2f7;
+    --primary: #60a5fa;
+    --primary-foreground: #0f172a;
+    --primary-muted: #1a2a3d;
+    --primary-muted-foreground: #93c5fd;
+    --secondary: #151c23;
+    --secondary-foreground: #eaf2f7;
+    --muted: #151c23;
+    --muted-foreground: #9fb0bd;
+    --accent: #17202a;
+    --accent-foreground: #c2d0da;
     --destructive: oklch(0.57 0.2 27);
     --destructive-foreground: oklch(0.98 0 0);
-    --border: oklch(0.28 0.02 250);
-    --input: oklch(0.28 0.02 250);
-    --ring: oklch(0.75 0.1 250);
+    --border: #202a35;
+    --input: #202a35;
+    --ring: #60a5fa;
     --chart-1: oklch(0.75 0.1 250);
     --chart-2: oklch(0.7 0.1 200);
     --chart-3: oklch(0.7 0.1 280);
     --chart-4: oklch(0.7 0.15 40);
     --chart-5: oklch(0.8 0.15 90);
-    --sidebar: oklch(0.2 0.02 250);
-    --sidebar-foreground: oklch(0.98 0.01 250);
-    --sidebar-primary: oklch(0.75 0.1 250);
-    --sidebar-primary-foreground: oklch(0.16 0.02 250);
-    --sidebar-accent: oklch(0.24 0.02 250);
-    --sidebar-accent-foreground: oklch(0.98 0.01 250);
-    --sidebar-border: oklch(0.28 0.02 250);
-    --sidebar-ring: oklch(0.75 0.1 250);
+    --sidebar: #0f141a;
+    --sidebar-foreground: #eaf2f7;
+    --sidebar-primary: #60a5fa;
+    --sidebar-primary-foreground: #0f172a;
+    --sidebar-accent: #151c23;
+    --sidebar-accent-foreground: #eaf2f7;
+    --sidebar-border: #202a35;
+    --sidebar-ring: #60a5fa;
+
+    --success: oklch(0.7 0.15 160);
+    --success-foreground: oklch(0.2 0.04 160);
+    --success-muted: oklch(0.3 0.06 160);
+    --success-muted-foreground: oklch(0.85 0.12 160);
+    --warning: oklch(0.8 0.16 80);
+    --warning-foreground: oklch(0.22 0.05 70);
+    --warning-muted: oklch(0.32 0.06 80);
+    --warning-muted-foreground: oklch(0.88 0.12 85);
+    --danger: oklch(0.68 0.19 25);
+    --danger-foreground: oklch(0.18 0.03 25);
+    --danger-muted: oklch(0.32 0.09 25);
+    --danger-muted-foreground: oklch(0.85 0.1 25);
+    --info: oklch(0.72 0.13 235);
+    --info-foreground: oklch(0.18 0.03 235);
+    --info-muted: oklch(0.3 0.06 235);
+    --info-muted-foreground: oklch(0.86 0.09 235);
 }
 
 @layer base {
@@ -187,73 +261,55 @@
     }
 }
 
-/* FullCalendar Dark Mode Styles */
-.dark .fc {
-    --fc-border-color: oklch(0.28 0.02 250);
-    --fc-button-bg-color: oklch(0.24 0.02 250);
-    --fc-button-border-color: oklch(0.28 0.02 250);
-    --fc-button-text-color: oklch(0.98 0.01 250);
-    --fc-button-hover-bg-color: oklch(0.32 0.02 250);
-    --fc-button-hover-border-color: oklch(0.35 0.02 250);
-    --fc-button-active-bg-color: oklch(0.35 0.02 250);
-    --fc-today-bg-color: oklch(0.24 0.02 250);
-    --fc-neutral-bg-color: oklch(0.2 0.02 250);
-    --fc-page-bg-color: oklch(0.2 0.02 250);
+/* FullCalendar: map its variables to the app tokens in both themes. */
+.fc {
+    --fc-border-color: var(--border);
+    --fc-button-bg-color: var(--card);
+    --fc-button-border-color: var(--border);
+    --fc-button-text-color: var(--foreground);
+    --fc-button-hover-bg-color: var(--muted);
+    --fc-button-hover-border-color: var(--border);
+    --fc-button-active-bg-color: var(--primary);
+    --fc-button-active-border-color: var(--primary);
+    --fc-today-bg-color: var(--primary-muted);
+    --fc-neutral-bg-color: var(--muted);
+    --fc-page-bg-color: var(--card);
 }
 
-.dark .fc .fc-toolbar-title {
-    color: oklch(0.98 0.01 250);
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    color: var(--primary-foreground);
 }
 
-.dark .fc .fc-col-header-cell-cushion {
-    color: oklch(0.7 0.02 250);
+.fc .fc-button-primary:focus,
+.fc .fc-button-primary:not(:disabled).fc-button-active:focus,
+.fc .fc-button-primary:not(:disabled):active:focus {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 40%, transparent);
 }
 
-.dark .fc .fc-daygrid-day-number {
-    color: oklch(0.85 0.02 250);
+.fc .fc-toolbar-title,
+.fc .fc-daygrid-day-number {
+    color: var(--foreground);
 }
 
-.dark .fc .fc-day-other .fc-daygrid-day-top {
-    opacity: 0.4;
+.fc .fc-col-header-cell-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+    color: var(--muted-foreground);
 }
 
-.dark .fc-theme-standard td,
-.dark .fc-theme-standard th {
-    border-color: oklch(0.28 0.02 250);
+/* Days outside the month: muted text instead of FullCalendar's 0.3 opacity, which fails AA. */
+.fc .fc-day-other .fc-daygrid-day-top {
+    opacity: 1;
 }
 
-.dark .fc-theme-standard .fc-scrollgrid {
-    border-color: oklch(0.28 0.02 250);
+.fc .fc-day-other .fc-daygrid-day-number {
+    color: var(--muted-foreground);
 }
 
-.dark .fc .fc-button-primary {
-    background-color: oklch(0.24 0.02 250);
-    border-color: oklch(0.28 0.02 250);
-}
-
-.dark .fc .fc-button-primary:hover {
-    background-color: oklch(0.32 0.02 250);
-}
-
-.dark .fc .fc-button-primary:disabled {
-    background-color: oklch(0.28 0.02 250);
-    border-color: oklch(0.28 0.02 250);
-}
-
-.dark .fc .fc-button-primary:not(:disabled).fc-button-active,
-.dark .fc .fc-button-primary:not(:disabled):active {
-    background-color: oklch(0.35 0.08 250);
-}
-
-.dark .fc-timeGridWeek-view .fc-timegrid-slot-label-cushion,
-.dark .fc-timeGridDay-view .fc-timegrid-slot-label-cushion {
-    color: oklch(0.7 0.02 250);
-}
-
-.dark .fc .fc-timegrid-slot {
-    border-color: oklch(0.24 0.02 250);
-}
-
-.dark .fc .fc-timegrid-axis {
-    border-color: oklch(0.28 0.02 250);
+.fc-theme-standard td,
+.fc-theme-standard th,
+.fc-theme-standard .fc-scrollgrid,
+.fc .fc-timegrid-slot,
+.fc .fc-timegrid-axis {
+    border-color: var(--border);
 }

@@ -974,8 +974,8 @@ export default function DosenSeminarProposalPage() {
                                                         'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
                                                         statusFilter ===
                                                             tab.value
-                                                            ? 'bg-white/20 text-white'
-                                                            : 'bg-amber-600/15 text-amber-700',
+                                                            ? 'bg-primary-foreground text-primary'
+                                                            : 'bg-warning-muted text-warning-muted-foreground',
                                                     )}
                                                 >
                                                     {tab.count}

@@ -9,7 +9,7 @@ import {
     Users,
 } from 'lucide-react';
 
-import { EmptyState } from '@/components/empty-state';
+import { EmptyState } from '@/components/patterns/empty-state';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Badge } from '@/components/ui/badge';
 import {

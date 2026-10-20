@@ -15,7 +15,7 @@ import {
     BimbinganCalendar,
     type BimbinganEvent,
 } from '@/components/bimbingan-calendar';
-import { EmptyState } from '@/components/empty-state';
+import { EmptyState } from '@/components/patterns/empty-state';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';

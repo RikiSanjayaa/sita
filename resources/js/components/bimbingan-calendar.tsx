@@ -6,7 +6,10 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { Calendar as CalendarIcon, List } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
+import { statusTone, type StatusTone } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
 
 import { ErrorBoundary } from './error-boundary';
@@ -39,14 +42,27 @@ export type BimbinganCalendarProps = {
     className?: string;
 };
 
-const statusColors: Record<BimbinganEvent['status'], string> = {
-    scheduled: '#2563eb',
-    pending: '#f59e0b',
-    approved: '#22c55e',
-    rescheduled: '#3b82f6',
-    rejected: '#ef4444',
-    completed: '#6b7280',
-    cancelled: '#9ca3af',
+// Solid event fills follow the same domain tones as StatusBadge; values are CSS
+// variables so FullCalendar's inline styles follow light/dark mode.
+const toneFill: Record<StatusTone, { background: string; text: string }> = {
+    neutral: {
+        background: 'var(--muted-foreground)',
+        text: 'var(--background)',
+    },
+    primary: {
+        background: 'var(--primary)',
+        text: 'var(--primary-foreground)',
+    },
+    success: {
+        background: 'var(--success)',
+        text: 'var(--success-foreground)',
+    },
+    warning: {
+        background: 'var(--warning)',
+        text: 'var(--warning-foreground)',
+    },
+    danger: { background: 'var(--danger)', text: 'var(--danger-foreground)' },
+    info: { background: 'var(--info)', text: 'var(--info-foreground)' },
 };
 
 const statusLabels: Record<BimbinganEvent['status'], string> = {
@@ -59,8 +75,8 @@ const statusLabels: Record<BimbinganEvent['status'], string> = {
     cancelled: 'Dibatalkan',
 };
 
-function getEventColor(status: BimbinganEvent['status']): string {
-    return statusColors[status] ?? '#3b82f6';
+function getEventFill(status: BimbinganEvent['status']) {
+    return toneFill[statusTone('schedule', status)];
 }
 
 function startOfDay(d: Date): Date {
@@ -123,9 +139,9 @@ function CalendarWrapper({
             title: `${event.topic} - ${event.person}`,
             start: event.start,
             end: event.end,
-            backgroundColor: getEventColor(event.status),
-            borderColor: getEventColor(event.status),
-            textColor: 'white',
+            backgroundColor: getEventFill(event.status).background,
+            borderColor: getEventFill(event.status).background,
+            textColor: getEventFill(event.status).text,
             extendedProps: { ...event },
         }));
     }, [events]);
@@ -156,7 +172,8 @@ function CalendarWrapper({
                                 <div
                                     className="size-3 rounded-sm"
                                     style={{
-                                        backgroundColor: statusColors[status],
+                                        backgroundColor:
+                                            getEventFill(status).background,
                                     }}
                                 />
                                 <span className="text-muted-foreground">
@@ -166,7 +183,7 @@ function CalendarWrapper({
                         ))}
                     </div>
                 )}
-                <div className="rounded-lg border bg-card p-4 shadow-sm">
+                <div className="rounded-lg border bg-card p-4">
                     <FullCalendar
                         plugins={[
                             dayGridPlugin,
@@ -212,9 +229,10 @@ function CalendarWrapper({
                                 <div
                                     className="overflow-hidden px-1.5 py-0.5"
                                     style={{
-                                        backgroundColor: getEventColor(
+                                        backgroundColor: getEventFill(
                                             event.status,
-                                        ),
+                                        ).background,
+                                        color: getEventFill(event.status).text,
                                         height: '100%',
                                     }}
                                 >
@@ -359,35 +377,14 @@ export function BimbinganCalendar({
                 />
             ) : (
                 <div className="space-y-3">
-                    <div className="flex flex-wrap gap-1.5">
-                        {periodTabs.map((tab) => (
-                            <button
-                                key={tab.value}
-                                type="button"
-                                onClick={() => setPeriodFilter(tab.value)}
-                                className={cn(
-                                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                    periodFilter === tab.value
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                )}
-                            >
-                                {tab.label}
-                                <span
-                                    className={cn(
-                                        'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
-                                        periodFilter === tab.value
-                                            ? 'bg-white/20 text-white'
-                                            : 'bg-background text-foreground',
-                                    )}
-                                >
-                                    {tab.count}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
+                    <FilterPills
+                        label="Filter periode jadwal"
+                        value={periodFilter}
+                        onValueChange={setPeriodFilter}
+                        options={periodTabs}
+                    />
 
-                    <div className="rounded-lg border bg-card shadow-sm">
+                    <div className="rounded-lg border bg-card">
                         {filteredListEvents.length === 0 ? (
                             <p className="py-10 text-center text-sm text-muted-foreground">
                                 {emptyListMessage}
@@ -403,9 +400,9 @@ export function BimbinganCalendar({
                                         <div
                                             className="mt-1.5 size-2.5 shrink-0 rounded-full"
                                             style={{
-                                                backgroundColor: getEventColor(
+                                                backgroundColor: getEventFill(
                                                     event.status,
-                                                ),
+                                                ).background,
                                             }}
                                         />
                                         <div className="min-w-0 flex-1">
@@ -427,16 +424,13 @@ export function BimbinganCalendar({
                                                 })}
                                             </p>
                                         </div>
-                                        <span
-                                            className="mt-1 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-                                            style={{
-                                                backgroundColor: getEventColor(
-                                                    event.status,
-                                                ),
-                                            }}
+                                        <StatusBadge
+                                            domain="schedule"
+                                            status={event.status}
+                                            className="mt-1 shrink-0"
                                         >
                                             {statusLabels[event.status]}
-                                        </span>
+                                        </StatusBadge>
                                     </div>
                                 ))}
                             </div>

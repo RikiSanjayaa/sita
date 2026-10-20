@@ -682,7 +682,7 @@ function HeaderNotifications() {
                                 handleNotificationCardClick(event, toast)
                             }
                         >
-                            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-muted text-primary-muted-foreground">
                                 <ToastIcon className="size-5" />
                             </div>
                             <div className="flex-1 space-y-1 overflow-hidden">
@@ -706,7 +706,7 @@ function HeaderNotifications() {
                                 {toast.url ? (
                                     <button
                                         type="button"
-                                        className="pt-1 text-[11px] font-medium tracking-wide text-primary/80 uppercase focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                        className="pt-1 text-xs font-medium text-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                                         onClick={() =>
                                             handleNotificationClick(toast)
                                         }
@@ -743,7 +743,7 @@ function HeaderUserMenu() {
                 >
                     <Avatar className="h-8 w-8 overflow-hidden rounded-full">
                         <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback className="rounded-lg bg-primary/15 text-primary">
+                        <AvatarFallback className="rounded-lg bg-primary-muted text-primary-muted-foreground">
                             {getInitials(user.name)}
                         </AvatarFallback>
                     </Avatar>
