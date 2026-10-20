@@ -102,6 +102,8 @@ export default [
             'resources/js/routes',
             'resources/js/pages/dosen/pesan-bimbingan.tsx',
             'tmp-filament',
+            'playwright-report',
+            'test-results',
             '.*',
             'tmp-*',
         ],

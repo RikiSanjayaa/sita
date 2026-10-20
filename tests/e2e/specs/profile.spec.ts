@@ -3,10 +3,10 @@ import { expect, test } from '@playwright/test';
 import { runArtisan } from '../support/db';
 import { authStatePath } from '../support/thesis-fixtures';
 
-function resetProfileForUser(email: string): void {
+function resetProfileForUser(): void {
     runArtisan([
         'tinker',
-        `--execute=$user = App\\Models\\User::query()->where("email", "${email}")->firstOrFail(); $user->forceFill(["name" => "Farhan Maulana", "email" => "farhan@sita.test", "phone_number" => null])->save();`,
+        '--execute=$user = App\\Models\\User::query()->whereIn("email", ["farhan@sita.test", "farhan.playwright@sita.test"])->firstOrFail(); $user->forceFill(["name" => "Farhan Maulana", "email" => "farhan@sita.test", "phone_number" => null])->save();',
     ]);
 }
 
@@ -14,7 +14,7 @@ test.describe('Profile settings', () => {
     test('user can update profile fields and see them persisted after reload', async ({
         browser,
     }) => {
-        resetProfileForUser('farhan@sita.test');
+        resetProfileForUser();
 
         const context = await browser.newContext({
             storageState: authStatePath('farhan'),
@@ -58,6 +58,7 @@ test.describe('Profile settings', () => {
             await expect(page.getByText(nextEmail).first()).toBeVisible();
         } finally {
             await context.close();
+            resetProfileForUser();
         }
     });
 });

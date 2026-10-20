@@ -55,9 +55,15 @@ test.describe('System announcements', () => {
             await adminPage
                 .getByRole('checkbox', { name: 'Mahasiswa' })
                 .check();
-            await adminPage.getByRole('button', { name: 'Draft' }).click();
+            const statusSelect = adminPage.getByRole('combobox', {
+                name: 'Status*',
+            });
+            await statusSelect.click();
             await adminPage
-                .getByRole('option', { name: 'Publish sekarang', exact: true })
+                .getByRole('option', {
+                    name: 'Publish sekarang',
+                    exact: true,
+                })
                 .click();
             await adminPage
                 .getByRole('button', { name: 'Create', exact: true })
@@ -122,9 +128,15 @@ test.describe('System announcements', () => {
             await adminPage
                 .getByRole('checkbox', { name: 'Mahasiswa' })
                 .check();
-            await adminPage.getByRole('button', { name: 'Draft' }).click();
+            const statusSelect = adminPage.getByRole('combobox', {
+                name: 'Status*',
+            });
+            await statusSelect.click();
             await adminPage
-                .getByRole('option', { name: 'Publish sekarang', exact: true })
+                .getByRole('option', {
+                    name: 'Publish sekarang',
+                    exact: true,
+                })
                 .click();
             await adminPage
                 .getByRole('button', { name: 'Create', exact: true })
