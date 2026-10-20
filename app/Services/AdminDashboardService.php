@@ -465,13 +465,6 @@ class AdminDashboardService
 
     private function phaseColor(string $phase): string
     {
-        return match ($phase) {
-            'title_review' => 'gray',
-            'sempro' => 'info',
-            'research' => 'warning',
-            'sidang' => 'primary',
-            'completed' => 'success',
-            default => 'gray',
-        };
+        return \App\Support\Filament\BadgeStyles::phaseColor($phase);
     }
 }

@@ -25,6 +25,11 @@ import {
     LecturerMultiSearch,
     LecturerSearchSelect,
 } from '@/components/lecturer-search-select';
+import { EmptyState } from '@/components/patterns/empty-state';
+import { FilterBar } from '@/components/patterns/filter-bar';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { SectionCard } from '@/components/patterns/section-card';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -218,46 +223,39 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const PAGE_SIZE = 15;
 
-const statusColor: Record<string, string> = {
-    scheduled: 'bg-primary/10 text-primary',
-    awaiting_finalization: 'bg-amber-600/10 text-amber-700',
-    completed: 'bg-emerald-600/10 text-emerald-600',
-    cancelled: 'bg-destructive/10 text-destructive',
-};
-
 function DecisionBadge({ decision }: { decision: string }) {
     if (decision === '-' || decision === 'Menunggu') {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <StatusBadge domain="result" status="pending">
                 <Clock className="size-3" />
                 Belum Diputus
-            </span>
+            </StatusBadge>
         );
     }
 
     if (decision === 'Lulus') {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+            <StatusBadge domain="result" status="pass">
                 <CheckCircle2 className="size-3" />
                 Lulus
-            </span>
+            </StatusBadge>
         );
     }
 
     if (decision === 'Lulus dengan Syarat') {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <StatusBadge domain="result" status="pass_with_revision">
                 <FileWarning className="size-3" />
                 Lulus Bersyarat
-            </span>
+            </StatusBadge>
         );
     }
 
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+        <StatusBadge domain="result" status="fail">
             <XCircle className="size-3" />
             {decision}
-        </span>
+        </StatusBadge>
     );
 }
 
@@ -365,72 +363,58 @@ export default function KaprodiSemproSidangPage() {
             <Head title="Proposal & Ujian Akhir" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
-                <section>
-                    <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">
-                            Kalender Ujian Prodi
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Kalender ujian proposal dan ujian akhir dari seluruh
-                            mahasiswa prodi.
-                        </p>
-                    </div>
+                <SectionCard
+                    title="Kalender Ujian Prodi"
+                    description="Kalender ujian proposal dan ujian akhir dari seluruh mahasiswa prodi."
+                >
                     <BimbinganCalendar
                         events={calendarEvents}
                         onEventClick={setSelectedEvent}
                     />
-                </section>
+                </SectionCard>
 
-                <section>
-                    <div className="mb-4 border-b pb-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                            <div>
-                                <h2 className="text-base font-semibold">
-                                    Monitoring Ujian
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Kaprodi dapat mengatur jadwal dan dosen
-                                    terlibat tanpa melakukan penilaian.
-                                </p>
-                            </div>
-                            {canScheduleSempro || canScheduleSidang ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {canScheduleSempro ? (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                                setScheduleDialog({
-                                                    type: 'sempro',
-                                                })
-                                            }
-                                        >
-                                            <Plus className="size-4" />
-                                            Jadwalkan Proposal
-                                        </Button>
-                                    ) : null}
-                                    {canScheduleSidang ? (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                                setScheduleDialog({
-                                                    type: 'sidang',
-                                                })
-                                            }
-                                        >
-                                            <Plus className="size-4" />
-                                            Jadwalkan Ujian Akhir
-                                        </Button>
-                                    ) : null}
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-
-                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <SectionCard
+                    title="Monitoring Ujian"
+                    description="Kaprodi dapat mengatur jadwal dan dosen terlibat tanpa melakukan penilaian."
+                    actions={
+                        canScheduleSempro || canScheduleSidang ? (
+                            <>
+                                {canScheduleSempro ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            setScheduleDialog({
+                                                type: 'sempro',
+                                            })
+                                        }
+                                    >
+                                        <Plus className="size-4" />
+                                        Jadwalkan Proposal
+                                    </Button>
+                                ) : null}
+                                {canScheduleSidang ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            setScheduleDialog({
+                                                type: 'sidang',
+                                            })
+                                        }
+                                    >
+                                        <Plus className="size-4" />
+                                        Jadwalkan Ujian Akhir
+                                    </Button>
+                                ) : null}
+                            </>
+                        ) : null
+                    }
+                    contentClassName="space-y-3"
+                >
+                    <FilterBar>
                         <div className="relative w-full max-w-xs">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -444,67 +428,27 @@ export default function KaprodiSemproSidangPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            <div className="flex gap-1">
-                                {typeTabs.map((tab) => (
-                                    <button
-                                        key={tab.value}
-                                        type="button"
-                                        onClick={() => setTypeFilter(tab.value)}
-                                        className={cn(
-                                            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                            typeFilter === tab.value
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                        )}
-                                    >
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="flex gap-1">
-                                {statusTabs.map((tab) => (
-                                    <button
-                                        key={tab.value}
-                                        type="button"
-                                        onClick={() =>
-                                            setStatusFilter(tab.value)
-                                        }
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                            statusFilter === tab.value
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                        )}
-                                    >
-                                        {tab.label}
-                                        {tab.count ? (
-                                            <span
-                                                className={cn(
-                                                    'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
-                                                    statusFilter === tab.value
-                                                        ? 'bg-white/20 text-white'
-                                                        : 'bg-amber-600/15 text-amber-700',
-                                                )}
-                                            >
-                                                {tab.count}
-                                            </span>
-                                        ) : null}
-                                    </button>
-                                ))}
-                            </div>
+                            <FilterPills
+                                label="Filter tipe ujian"
+                                value={typeFilter}
+                                onValueChange={setTypeFilter}
+                                options={typeTabs}
+                            />
+                            <FilterPills
+                                label="Filter status ujian"
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                                options={statusTabs}
+                            />
                         </div>
-                    </div>
+                    </FilterBar>
 
                     {filtered.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
-                            <Inbox className="mb-3 size-10 text-muted-foreground/40" />
-                            <p className="text-sm font-semibold">
-                                Tidak ada ujian yang cocok
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Coba ubah filter atau kata kunci pencarian.
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={Inbox}
+                            title="Tidak ada ujian yang cocok"
+                            description="Coba ubah filter atau kata kunci pencarian."
+                        />
                     ) : (
                         <DataTableContainer
                             pagination={
@@ -569,13 +513,7 @@ export default function KaprodiSemproSidangPage() {
                                             <td className="px-4 py-3">
                                                 <Badge
                                                     variant="outline"
-                                                    className={cn(
-                                                        'rounded-full text-xs',
-                                                        item.typeKey ===
-                                                            'sempro'
-                                                            ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400'
-                                                            : 'border-purple-500/50 bg-purple-500/10 text-purple-700 dark:text-purple-400',
-                                                    )}
+                                                    className="rounded-full text-xs"
                                                 >
                                                     {item.type} #{item.attempt}
                                                 </Badge>
@@ -634,17 +572,12 @@ export default function KaprodiSemproSidangPage() {
                                                 </div>
                                             </td>
                                             <td className="hidden px-4 py-3 sm:table-cell">
-                                                <span
-                                                    className={cn(
-                                                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap',
-                                                        statusColor[
-                                                            item.statusKey
-                                                        ] ??
-                                                            'bg-muted text-muted-foreground',
-                                                    )}
+                                                <StatusBadge
+                                                    domain="defense"
+                                                    status={item.statusKey}
                                                 >
                                                     {item.status}
-                                                </span>
+                                                </StatusBadge>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 <div className="flex items-center justify-end gap-2">
@@ -685,7 +618,7 @@ export default function KaprodiSemproSidangPage() {
                             </table>
                         </DataTableContainer>
                     )}
-                </section>
+                </SectionCard>
             </div>
 
             <ExamDetailSheet
@@ -734,15 +667,9 @@ function ExamDetailSheet({
                         <Badge variant="outline">
                             {item.type} #{item.attempt}
                         </Badge>
-                        <span
-                            className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                                statusColor[item.statusKey] ??
-                                    'bg-muted text-muted-foreground',
-                            )}
-                        >
+                        <StatusBadge domain="defense" status={item.statusKey}>
                             {item.status}
-                        </span>
+                        </StatusBadge>
                     </div>
                     <SheetTitle className="mt-1 text-base leading-snug">
                         {item.title}
@@ -799,7 +726,7 @@ function ExamDetailSheet({
                                         />
                                         {examiner.score ? (
                                             <span className="inline-flex items-center gap-1 text-xs font-semibold">
-                                                <Star className="size-3 text-amber-500" />
+                                                <Star className="size-3 text-warning-muted-foreground" />
                                                 {examiner.score}
                                             </span>
                                         ) : null}

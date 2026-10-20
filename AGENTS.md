@@ -115,6 +115,7 @@ use Illuminate\Support\Facades\Auth;
 - Use `cva` for variant components.
 - Use `clsx` and `tailwind-merge` for conditional classes.
 - Extract reusable components to `resources/js/components/`.
+- Before implementing a page or changing an existing page's design, read `docs/DESIGN_SYSTEM.md` and use its shared patterns and semantic status tokens. Keep raw Tailwind palette colors out of status styling.
 
 ### Imports Order
 

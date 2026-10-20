@@ -6,6 +6,98 @@ use Illuminate\Support\Str;
 
 class BadgeStyles
 {
+    /**
+     * Raw backend status keys per domain mapped to semantic tones.
+     * Keep in sync with resources/js/lib/status-styles.ts.
+     *
+     * @var array<string, array<string, string>>
+     */
+    public const DOMAIN_TONES = [
+        'phase' => [
+            'title_review' => 'neutral',
+            'sempro' => 'info',
+            'research' => 'warning',
+            'sidang' => 'primary',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+        ],
+        'state' => [
+            'active' => 'success',
+            'on_hold' => 'warning',
+            'completed' => 'neutral',
+            'cancelled' => 'danger',
+        ],
+        'defense' => [
+            'draft' => 'neutral',
+            'scheduled' => 'info',
+            'awaiting_finalization' => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+        ],
+        'result' => [
+            'pending' => 'warning',
+            'pass' => 'success',
+            'pass_with_revision' => 'warning',
+            'fail' => 'danger',
+        ],
+        'schedule' => [
+            'pending' => 'warning',
+            'approved' => 'success',
+            'scheduled' => 'info',
+            'rescheduled' => 'info',
+            'rejected' => 'danger',
+            'completed' => 'neutral',
+            'cancelled' => 'neutral',
+        ],
+        'document' => [
+            'draft' => 'neutral',
+            'submitted' => 'info',
+            'needs_revision' => 'warning',
+            'approved' => 'success',
+            'rejected' => 'danger',
+            'active' => 'success',
+        ],
+        'revision' => [
+            'open' => 'warning',
+            'submitted' => 'info',
+            'resolved' => 'success',
+        ],
+        // UI-only follow-up ticket vocabulary; the backend has no ticket/deadline status column.
+        'ticket' => [
+            'open' => 'warning',
+            'submitted' => 'info',
+            'overdue' => 'danger',
+            'resolved' => 'success',
+            'closed' => 'neutral',
+        ],
+        'active' => [
+            'active' => 'success',
+            'inactive' => 'neutral',
+            'ended' => 'neutral',
+            'true' => 'success',
+            'false' => 'neutral',
+        ],
+    ];
+
+    /**
+     * Semantic tone (neutral|primary|success|warning|danger|info) for a raw status key.
+     * Unknown domains, unknown keys and null are neutral.
+     */
+    public static function statusTone(string $domain, ?string $status): string
+    {
+        return self::DOMAIN_TONES[$domain][$status ?? ''] ?? 'neutral';
+    }
+
+    /**
+     * Filament color name for a raw status key in a domain.
+     */
+    public static function domainStatusColor(string $domain, ?string $status): string
+    {
+        $tone = self::statusTone($domain, $status);
+
+        return $tone === 'neutral' ? 'gray' : $tone;
+    }
+
     public static function programStudiColor(?string $name): string
     {
         if (blank($name)) {
@@ -55,15 +147,7 @@ class BadgeStyles
 
     public static function phaseColor(?string $phase): string
     {
-        return match ($phase) {
-            'title_review' => 'gray',
-            'sempro' => 'info',
-            'research' => 'warning',
-            'sidang' => 'primary',
-            'completed' => 'success',
-            'cancelled' => 'danger',
-            default => 'gray',
-        };
+        return self::domainStatusColor('phase', $phase);
     }
 
     public static function phaseIcon(?string $phase): string
@@ -81,13 +165,7 @@ class BadgeStyles
 
     public static function stateColor(?string $state): string
     {
-        return match ($state) {
-            'active' => 'success',
-            'on_hold' => 'warning',
-            'completed' => 'gray',
-            'cancelled' => 'danger',
-            default => 'gray',
-        };
+        return self::domainStatusColor('state', $state);
     }
 
     public static function stateIcon(?string $state): string
