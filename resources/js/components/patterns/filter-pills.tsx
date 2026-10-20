@@ -43,11 +43,11 @@ export function FilterPills<T extends string>({
                     key={option.value}
                     value={option.value}
                     disabled={option.disabled}
-                    className="group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
+                    className="group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                 >
                     {option.label}
                     {option.count !== undefined ? (
-                        <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[10px] leading-none font-bold tabular-nums group-data-[state=on]:bg-primary-foreground/20">
+                        <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] leading-none font-bold text-foreground tabular-nums group-data-[state=on]:bg-primary-foreground group-data-[state=on]:text-primary">
                             {option.count}
                         </span>
                     ) : null}

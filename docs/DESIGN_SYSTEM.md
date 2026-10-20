@@ -4,23 +4,27 @@ Shared UI foundation for the React app. Pages compose the patterns in `resources
 
 ## Color tokens
 
-Tokens are CSS variables with light and dark values, exposed as Tailwind utilities through `@theme`.
+Tokens are CSS variables with light and dark values, exposed as Tailwind utilities through `@theme`. UBG Blue (light and dark) is the default theme and the only one that meets WCAG AA. `resources/js/hooks/use-primary-color.ts` writes the selected preset inline on `<html>`, overriding `app.css`, so its `ubg-blue` entry must carry the same values as `:root`/`.dark`. The other presets (emerald, sunset, rose, indigo, teal) are proof-of-concept and fail AA in light and dark; accessible schemes defined as CSS tokens are tracked in #50.
 
 | Role      | Hue base     | Solid        | On solid                  | Muted surface      | Text on muted surface           |
 | --------- | ------------ | ------------ | ------------------------- | ------------------ | ------------------------------- |
-| `primary` | brand blue   | `bg-primary` | `text-primary-foreground` | `bg-primary/10`    | `text-primary`                  |
+| `primary` | brand blue   | `bg-primary` | `text-primary-foreground` | `bg-primary-muted` | `text-primary-muted-foreground` |
 | `success` | emerald      | `bg-success` | `text-success-foreground` | `bg-success-muted` | `text-success-muted-foreground` |
 | `warning` | amber        | `bg-warning` | `text-warning-foreground` | `bg-warning-muted` | `text-warning-muted-foreground` |
 | `danger`  | red          | `bg-danger`  | `text-danger-foreground`  | `bg-danger-muted`  | `text-danger-muted-foreground`  |
 | `info`    | sky/blue     | `bg-info`    | `text-info-foreground`    | `bg-info-muted`    | `text-info-muted-foreground`    |
 | `muted`   | neutral gray | `bg-muted`   | `text-muted-foreground`   | (already muted)    | `text-muted-foreground`         |
 
-- Each status role defines `--<role>`, `--<role>-foreground`, `--<role>-muted` and `--<role>-muted-foreground` in both `:root` (light) and `.dark`, mapped to `--color-*` in `@theme` of `resources/css/app.css`. Read the values there; do not copy them elsewhere.
+- Each role defines `--<role>`, `--<role>-foreground`, `--<role>-muted` and `--<role>-muted-foreground` in both `:root` (light) and `.dark`, mapped to `--color-*` in `@theme` of `resources/css/app.css`. Read the values there; do not copy them elsewhere.
+- Primary is `#2563eb` with white text in light mode, and `#60a5fa` with dark (`#0f172a`) text in dark mode. Dark primary is light on purpose: `text-primary` (links, active states, icons) must stay readable on dark surfaces, and the dark status solids follow the same light-fill/dark-text rule.
+- Text on a primary tint uses `bg-primary-muted text-primary-muted-foreground` (active navigation, avatar initials, soft badges and buttons, icon chips). `bg-primary/10 text-primary` measures about 4.5:1 or less in light mode and fails AA once the tint is stronger or the base is not white.
+- Text on `bg-primary` uses `text-primary-foreground`; a count chip nested in a primary pill is inverted (`bg-primary-foreground text-primary`). Never `text-white`/`bg-white/20` on primary (dark primary is light), and no translucent `primary-foreground/20` chip under white text (it lightens the fill below 4.5:1).
 - Pair solid fills with `-foreground`, and muted surfaces with `-muted-foreground`. Browser-resolved sRGB measurements for the 16 success/warning/danger/info light/dark pairs were at least 5.07:1. Recheck contrast when changing values or introducing new combinations.
 - Badges and callouts use the muted surface with its `-muted-foreground` text (`bg-success-muted text-success-muted-foreground`). Solid fills (`bg-danger text-danger-foreground`) are for emphasis such as alerts and buttons.
 - Filament admin: `App\Providers\Filament\AdminPanelProvider::SEMANTIC_COLORS` mirrors the color values from `resources/css/app.css`, because the panel does not load the React stylesheet. Keep those two palettes paired. Separately, the TypeScript domain-status mapping mirrors `App\Support\Filament\BadgeStyles::DOMAIN_TONES`.
-- Filament primary is the default UBG Blue: solid `#2563eb` in light, `#1d4ed8` in dark, foreground `#ffffff` in both. This matches what the React app applies at runtime from the default `ubg-blue` preset in `resources/js/hooks/use-primary-color.ts` (it writes inline `--primary`, `--ring` and `--sidebar-primary` on the root), and the CSS fallbacks in `resources/css/app.css` carry the same values. The optional React appearance presets (emerald, sunset, rose, indigo, teal) remain React-specific: Filament does not follow them, and a user-selected React preset does not change the admin panel.
-- Status palettes are derived from those constants (shade 400 = dark solid, 500 = light solid, 600 = light muted-foreground, 50 = muted surface); primary uses a blue ramp. Filament chooses button shades dynamically, so palettes alone cannot guarantee token matching. `resources/views/filament/semantic-colors.blade.php`, rendered at `PanelsRenderHook::STYLES_AFTER`, pins solid `.fi-btn` backgrounds/foregrounds and `.fi-badge` muted surfaces/text to the light/dark tokens. Outlined, gray and disabled states retain Filament behavior.
+- Filament primary matches the React tokens: solid `#2563eb`/white in light, `#60a5fa`/`#0f172a` in dark, and `primary` badges use the primary-muted pair. Filament draws dark-mode text, links, active navigation, tabs and pagination from palette shade 400, so shade 400 is the dark `--primary`.
+- Status palettes are derived from those constants (shade 400 = dark solid, 500 = light solid, 600 = light muted-foreground, 50 = muted surface); primary uses a blue ramp. Filament chooses button shades dynamically, so palettes alone cannot guarantee token matching. `resources/views/filament/semantic-colors.blade.php`, rendered at `PanelsRenderHook::STYLES_AFTER`, pins solid `.fi-btn` backgrounds/foregrounds and `.fi-badge` muted surfaces/text to the light/dark tokens, and removes the badge ring so badges match `StatusBadge`. Outlined, gray and disabled states retain Filament behavior.
+- FullCalendar variables (borders, buttons, today highlight) are mapped to the tokens in `app.css` for both themes; calendar event fills use the `schedule` domain tones.
 - Use opacity modifiers on tokens (`bg-success/10`) when no token fits; never switch to a palette hue.
 
 ## Prohibited: raw palettes and redeclared patterns
@@ -29,6 +33,14 @@ Tokens are CSS variables with light and dark values, exposed as Tailwind utiliti
 - Do not copy a pattern's markup into a page (own page header, stat card, empty state, filter pills, key/value list). Import the pattern. If it lacks something, extend the pattern.
 - ESLint enforces the palette rule as a **warning** for `resources/js/pages/**/*.tsx` (`no-restricted-syntax` in `eslint.config.js`). It flags string literals and template fragments, including `cn(...)`/ternary/`clsx` arguments, variants and opacities. Semantic classes never warn. Warnings do not fail `npm run lint`; do not add new ones.
 - The legacy `dosen/pesan-bimbingan.tsx` page retains its existing exemption from general lint rules, but the palette guard still checks it. Fixing its unrelated lint debt is outside this foundation change.
+
+## Composition rules
+
+- One surface per block. A `SectionCard`/`Card` already has border and shadow; content inside it uses borders or dividers, not another shadowed card. `DataTableContainer` has a border but no shadow for that reason, and a page must not add `shadow-sm` to a `Card` (it is the default).
+- Badges carry state. Do not wrap constant values, column-header repeats or plain counts in a pill; render them as text (`tabular-nums` for numbers). A missing value is a single muted `-`, never a badge.
+- Two adjacent `FilterPills` groups are separated (`gap-x-3` plus a vertical divider, or a label) so each group's "Semua" reads as its own selection.
+- Labels are Indonesian, sentence case, at least `text-xs` (12px). Avoid `text-[9px]`/`text-[10px]` and uppercase `tracking-widest` micro-labels for content; use `text-xs font-medium text-muted-foreground`.
+- `DataTablePagination` prints the range and page-size select once (top bar) and page navigation only when there is more than one page; pass `itemLabel` so the range reads "Menampilkan 1-10 dari 24 ujian".
 
 ## Pattern inventory
 

@@ -82,7 +82,9 @@ export function AppSidebar({ role }: AppSidebarProps) {
                                 <SidebarMenuButton
                                     asChild
                                     isActive={settingsIsActive}
-                                    tooltip={{ children: 'Settings' }}
+                                    tooltip={{
+                                        children: navigation.settings.title,
+                                    }}
                                 >
                                     <Link
                                         href={navigation.settings.href}
@@ -91,7 +93,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
                                         {navigation.settings.icon && (
                                             <navigation.settings.icon />
                                         )}
-                                        <span>Settings</span>
+                                        <span>{navigation.settings.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>

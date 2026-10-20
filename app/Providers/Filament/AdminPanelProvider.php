@@ -38,8 +38,8 @@ class AdminPanelProvider extends PanelProvider
         'primary' => [
             'hue' => 250,
             'chroma' => 0.08,
-            'light' => ['#2563eb', '#ffffff', 'oklch(0.95 0.01 250)', 'oklch(0.3 0.02 250)'],
-            'dark' => ['#1d4ed8', '#ffffff', 'oklch(0.24 0.02 250)', 'oklch(0.98 0.01 250)'],
+            'light' => ['#2563eb', '#ffffff', '#edf2fe', '#2563eb'],
+            'dark' => ['#60a5fa', '#0f172a', '#1a2a3d', '#93c5fd'],
         ],
         'success' => [
             'hue' => 160,
@@ -98,8 +98,10 @@ class AdminPanelProvider extends PanelProvider
 
     /**
      * Primary palette: shade 600 is the light --primary and 400 the dark --primary.
-     * Solid buttons are pinned to the exact tokens by the style view because Filament
-     * picks shade 600 for button backgrounds in both modes.
+     * Filament draws dark-mode text, icons, active navigation, tabs and pagination
+     * from shade 400, so it must stay a light blue that reads on dark surfaces.
+     * Solid buttons are pinned to the exact tokens by the style view because
+     * Filament picks shade 600 for button backgrounds in both modes.
      *
      * @return array<int, string>
      */

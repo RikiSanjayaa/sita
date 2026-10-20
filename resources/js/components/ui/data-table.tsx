@@ -39,7 +39,8 @@ export type DataTablePaginationProps = {
  * DataTableContainer
  *
  * Wraps a <table> with the standard visual treatment:
- * rounded-xl border, bg-card, shadow-sm, horizontal scroll.
+ * rounded-xl border, bg-card, horizontal scroll. No shadow: tables sit
+ * inside a SectionCard/Card, and a second shadow stacks on the card's.
  * ───────────────────────────────────────────────────────────────────── */
 
 export function DataTableContainer({
@@ -107,7 +108,7 @@ export function DataTableContainer({
     return (
         <div
             className={cn(
-                'overflow-hidden rounded-xl border bg-card shadow-sm',
+                'overflow-hidden rounded-xl border bg-card',
                 className,
             )}
         >
@@ -212,8 +213,8 @@ export function DataTableToolbar({
                                                         'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
                                                         group.value ===
                                                             tab.value
-                                                            ? 'bg-white/20 text-white'
-                                                            : 'bg-amber-600/15 text-amber-700',
+                                                            ? 'bg-primary-foreground text-primary'
+                                                            : 'bg-warning-muted text-warning-muted-foreground',
                                                     )}
                                                 >
                                                     {tab.count}
@@ -233,7 +234,9 @@ export function DataTableToolbar({
 /* ─────────────────────────────────────────────────────────────────────
  * DataTablePagination
  *
- * Footer row with range label + Prev/Next buttons.
+ * Top bar: range label, page-size select and page navigation.
+ * Bottom bar: page navigation only, and only when there is more than one
+ * page, so the range is never printed twice.
  * ───────────────────────────────────────────────────────────────────── */
 
 export function DataTablePagination({
@@ -243,12 +246,14 @@ export function DataTablePagination({
     currentItemCount,
     pageSize,
     onPageChange,
+    itemLabel,
     placement = 'bottom',
     pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
     onPageSizeChange,
 }: DataTablePaginationProps) {
     const safePage = Math.min(currentPage, totalPages);
     const hasKnownTotal = totalItems !== undefined;
+    const hasMultiplePages = totalPages > 1;
     const canChangePageSize =
         onPageSizeChange !== undefined && pageSizeOptions.length > 0;
     const normalizedPageSizeOptions = Array.from(
@@ -259,27 +264,59 @@ export function DataTablePagination({
     const rangeEnd = hasKnownTotal
         ? Math.min(safePage * pageSize, totalItems)
         : Math.max(rangeStart - 1, rangeStart + (currentItemCount ?? pageSize) - 1);
+    const itemSuffix = itemLabel ? ` ${itemLabel}` : '';
+
+    if (placement === 'bottom' && !hasMultiplePages) {
+        return null;
+    }
+
+    const navigation = hasMultiplePages ? (
+        <nav aria-label="Navigasi halaman" className="flex items-center gap-2">
+            <button
+                type="button"
+                disabled={safePage <= 1}
+                onClick={() => onPageChange(Math.max(1, safePage - 1))}
+                className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+                Sebelumnya
+            </button>
+            <span className="text-xs text-muted-foreground tabular-nums">
+                {hasKnownTotal
+                    ? `Hal ${safePage} / ${totalPages}`
+                    : `Hal ${safePage}`}
+            </span>
+            <button
+                type="button"
+                disabled={safePage >= totalPages}
+                onClick={() =>
+                    onPageChange(Math.min(totalPages, safePage + 1))
+                }
+                className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+                Berikutnya
+            </button>
+        </nav>
+    ) : null;
+
+    if (placement === 'bottom') {
+        return (
+            <div className="flex justify-end border-t px-5 py-2.5">
+                {navigation}
+            </div>
+        );
+    }
 
     return (
-        <div
-            className={cn(
-                'flex flex-col gap-2 px-5 py-2.5 sm:flex-row sm:items-center sm:justify-between',
-                placement === 'top' ? 'border-b' : 'border-t',
-            )}
-        >
-            <div className="flex flex-wrap items-center gap-4">
-                <p className="text-xs text-muted-foreground">
+        <div className="flex flex-col gap-2 border-b px-5 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <p className="text-xs text-muted-foreground tabular-nums">
                     {hasKnownTotal
-                        ? `Showing ${rangeStart} - ${rangeEnd} of ${totalItems}`
-                        : `Showing ${rangeStart} - ${rangeEnd}`}
+                        ? `Menampilkan ${rangeStart}-${rangeEnd} dari ${totalItems}${itemSuffix}`
+                        : `Menampilkan ${rangeStart}-${rangeEnd}${itemSuffix}`}
                 </p>
                 {canChangePageSize && (
-                    <label className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span
-                            className="h-5 w-px bg-border"
-                            aria-hidden="true"
-                        />
-                        <span>Per page:</span>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground sm:border-l sm:pl-4">
+                        <span>Per halaman</span>
                         <select
                             value={pageSize}
                             onChange={(event) =>
@@ -296,33 +333,7 @@ export function DataTablePagination({
                     </label>
                 )}
             </div>
-            {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        disabled={safePage <= 1}
-                        onClick={() => onPageChange(Math.max(1, safePage - 1))}
-                        className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-                    >
-                        ← Prev
-                    </button>
-                    <span className="text-xs text-muted-foreground">
-                        {hasKnownTotal
-                            ? `Hal ${safePage} / ${totalPages}`
-                            : `Halaman ${safePage}`}
-                    </span>
-                    <button
-                        type="button"
-                        disabled={safePage >= totalPages}
-                        onClick={() =>
-                            onPageChange(Math.min(totalPages, safePage + 1))
-                        }
-                        className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-                    >
-                        Next →
-                    </button>
-                </div>
-            )}
+            {navigation}
         </div>
     );
 }

@@ -109,6 +109,19 @@ test.describe('Kaprodi sempro-sidang design patterns', () => {
             await expect(rows).toHaveCount(1);
             await expect(rows.first()).toContainText(fixture.studentName);
 
+            // The range prints once with the item label; a single page renders no page navigation.
+            const monitoring = page.getByRole('region', {
+                name: 'Monitoring Ujian',
+            });
+            await expect(
+                monitoring.getByText('Menampilkan 1-1 dari 1 ujian'),
+            ).toHaveCount(1);
+            await expect(
+                monitoring.getByRole('navigation', {
+                    name: 'Navigasi halaman',
+                }),
+            ).toHaveCount(0);
+
             await setTheme(page, 'light');
             await page
                 .getByRole('region', { name: 'Monitoring Ujian' })

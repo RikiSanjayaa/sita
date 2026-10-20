@@ -57,7 +57,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             },
         ],
         settings: {
-            title: 'Settings',
+            title: 'Pengaturan Akun',
             href: '/settings',
             icon: Settings,
         },
@@ -96,7 +96,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             },
         ],
         settings: {
-            title: 'Settings',
+            title: 'Pengaturan Akun',
             href: '/settings',
             icon: Settings,
         },
@@ -130,7 +130,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             },
         ],
         settings: {
-            title: 'Settings',
+            title: 'Pengaturan Akun',
             href: '/settings',
             icon: Settings,
         },
@@ -159,7 +159,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             },
         ],
         settings: {
-            title: 'Settings',
+            title: 'Pengaturan Akun',
             href: '/settings',
             icon: Settings,
         },
@@ -173,7 +173,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             },
         ],
         settings: {
-            title: 'Settings',
+            title: 'Pengaturan Akun',
             href: '/settings',
             icon: Settings,
         },

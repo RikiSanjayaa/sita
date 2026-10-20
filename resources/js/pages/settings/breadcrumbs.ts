@@ -6,7 +6,7 @@ export function makeSettingsBreadcrumbs(
 ): BreadcrumbItem[] {
     return [
         {
-            title: 'Settings',
+            title: 'Pengaturan Akun',
             href: '/settings',
         },
         {

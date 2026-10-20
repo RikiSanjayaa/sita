@@ -140,7 +140,7 @@ export function PrivateRecipientCombobox({
                                                 }
                                                 alt={recipient.name}
                                             />
-                                            <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                                            <AvatarFallback className="bg-primary-muted text-[10px] text-primary-muted-foreground">
                                                 {getInitials(recipient.name)}
                                             </AvatarFallback>
                                         </Avatar>

@@ -36,7 +36,7 @@ export function StatCard({
             </CardHeader>
             {description && (
                 <CardContent className="flex items-start gap-4 p-6 pt-0">
-                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
                         <Icon className="size-5" />
                     </span>
                     <p className="text-sm leading-snug text-muted-foreground">

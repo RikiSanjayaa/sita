@@ -20,15 +20,15 @@
             --dark-hover-text: {{ $darkForeground }};
         }
 
+        {{-- Filled tint without the ring, matching the React StatusBadge. --}}
         .fi-badge.fi-color.fi-color-{{ $role }} {
             --text: {{ $mutedForeground }};
             --dark-text: {{ $darkMutedForeground }};
-            --tw-ring-color: color-mix(in oklab, {{ $mutedForeground }} 20%, transparent);
+            --tw-ring-color: transparent;
             background-color: {{ $muted }};
         }
 
         .dark .fi-badge.fi-color.fi-color-{{ $role }} {
-            --tw-ring-color: color-mix(in oklab, {{ $darkMutedForeground }} 30%, transparent);
             background-color: {{ $darkMuted }};
         }
     @endforeach

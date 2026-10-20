@@ -26,19 +26,22 @@ export type ThemePreset = {
     dark: ThemeScale;
 };
 
+// UBG Blue must match :root/.dark in resources/css/app.css: this hook writes these
+// values inline and overrides the stylesheet. Other presets are proof-of-concept and
+// fail WCAG AA; accessible schemes are tracked in issue #50.
 export const THEME_PRESETS: ThemePreset[] = [
     {
         id: 'ubg-blue',
         label: 'UBG Blue',
         description: 'Biru akademik resmi',
         primary: '#2563eb',
-        darkPrimary: '#1d4ed8',
+        darkPrimary: '#60a5fa',
         light: {
             background: '#f8fafc',
             foreground: '#0f172a',
             card: '#ffffff',
             muted: '#f1f5f9',
-            mutedForeground: '#64748b',
+            mutedForeground: '#5a6a80',
             accent: '#e0ecff',
             accentForeground: '#1e3a5f',
             border: '#e2e8f0',

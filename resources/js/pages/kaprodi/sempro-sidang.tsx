@@ -427,12 +427,16 @@ export default function KaprodiSemproSidangPage() {
                             />
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                             <FilterPills
                                 label="Filter tipe ujian"
                                 value={typeFilter}
                                 onValueChange={setTypeFilter}
                                 options={typeTabs}
+                            />
+                            <span
+                                aria-hidden="true"
+                                className="hidden h-5 w-px bg-border sm:block"
                             />
                             <FilterPills
                                 label="Filter status ujian"
@@ -473,13 +477,10 @@ export default function KaprodiSemproSidangPage() {
                                             Judul
                                         </th>
                                         <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Tipe
+                                            Tipe & Jadwal
                                         </th>
                                         <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
                                             Dosen Terlibat
-                                        </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
-                                            Jadwal
                                         </th>
                                         <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                             Nilai
@@ -487,7 +488,7 @@ export default function KaprodiSemproSidangPage() {
                                         <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
                                             Status
                                         </th>
-                                        <th className="w-24 px-4 py-2.5" />
+                                        <th className="w-16 px-4 py-2.5" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -497,7 +498,7 @@ export default function KaprodiSemproSidangPage() {
                                             className="cursor-pointer transition-colors hover:bg-muted/30"
                                             onClick={() => setSelected(item)}
                                         >
-                                            <td className="px-4 py-3">
+                                            <td className="min-w-36 px-4 py-3">
                                                 <p className="leading-snug font-medium">
                                                     {item.student}
                                                 </p>
@@ -505,71 +506,82 @@ export default function KaprodiSemproSidangPage() {
                                                     {item.nim ?? '-'}
                                                 </p>
                                             </td>
-                                            <td className="hidden max-w-[260px] px-4 py-3 md:table-cell">
+                                            <td className="hidden min-w-48 px-4 py-3 md:table-cell">
                                                 <p className="line-clamp-2 text-xs leading-relaxed">
                                                     {item.title}
                                                 </p>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 sm:whitespace-nowrap">
                                                 <Badge
                                                     variant="outline"
                                                     className="rounded-full text-xs"
                                                 >
                                                     {item.type} #{item.attempt}
                                                 </Badge>
-                                            </td>
-                                            <td className="hidden px-4 py-3 lg:table-cell">
-                                                <div className="flex max-w-sm flex-wrap gap-1.5">
-                                                    {item.examiners.map(
-                                                        (examiner) => (
-                                                            <Link
-                                                                key={`${item.id}-${examiner.id}-${examiner.role}`}
-                                                                href={
-                                                                    examiner.profileUrl
-                                                                }
-                                                                onClick={(
-                                                                    event,
-                                                                ) =>
-                                                                    event.stopPropagation()
-                                                                }
-                                                            >
-                                                                <Badge variant="outline">
-                                                                    {
-                                                                        examiner.role
-                                                                    }
-                                                                    :{' '}
-                                                                    {
-                                                                        examiner.name
-                                                                    }
-                                                                </Badge>
-                                                            </Link>
-                                                        ),
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="hidden px-4 py-3 xl:table-cell">
-                                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <span className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                                     <Clock className="size-3 shrink-0" />
                                                     {item.scheduledFor}
                                                 </span>
                                             </td>
+                                            <td className="hidden px-4 py-3 lg:table-cell">
+                                                <ul className="flex flex-col gap-1 text-xs whitespace-nowrap">
+                                                    {item.examiners.map(
+                                                        (examiner) => (
+                                                            <li
+                                                                key={`${item.id}-${examiner.id}-${examiner.role}`}
+                                                            >
+                                                                <span className="text-muted-foreground">
+                                                                    {
+                                                                        examiner.role
+                                                                    }
+                                                                    :{' '}
+                                                                </span>
+                                                                <Link
+                                                                    href={
+                                                                        examiner.profileUrl
+                                                                    }
+                                                                    onClick={(
+                                                                        event,
+                                                                    ) =>
+                                                                        event.stopPropagation()
+                                                                    }
+                                                                    className="font-medium hover:text-primary hover:underline"
+                                                                >
+                                                                    {
+                                                                        examiner.name
+                                                                    }
+                                                                </Link>
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
+                                            </td>
                                             <td className="px-4 py-3">
-                                                <div className="flex flex-wrap items-center gap-1.5">
-                                                    <span className="text-xs font-semibold">
-                                                        {item.averageScore ??
-                                                            '-'}
+                                                {item.averageScore === null &&
+                                                item.grade === null ? (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        -
                                                     </span>
-                                                    <Badge
-                                                        className={cn(
-                                                            'rounded-full text-xs',
-                                                            academicGradeClassName(
-                                                                item.grade as AcademicGrade | null,
-                                                            ),
-                                                        )}
-                                                    >
-                                                        {item.grade ?? '-'}
-                                                    </Badge>
-                                                </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                                        <span className="text-xs font-semibold tabular-nums">
+                                                            {item.averageScore ??
+                                                                '-'}
+                                                        </span>
+                                                        {item.grade ? (
+                                                            <Badge
+                                                                className={cn(
+                                                                    'rounded-full text-xs',
+                                                                    academicGradeClassName(
+                                                                        item.grade as AcademicGrade,
+                                                                    ),
+                                                                )}
+                                                            >
+                                                                {item.grade}
+                                                            </Badge>
+                                                        ) : null}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="hidden px-4 py-3 sm:table-cell">
                                                 <StatusBadge
@@ -675,7 +687,7 @@ function ExamDetailSheet({
                         {item.title}
                     </SheetTitle>
                     <SheetDescription>
-                        Detail monitoring read-only untuk kaprodi.
+                        Detail ujian untuk pemantauan kaprodi (hanya baca).
                     </SheetDescription>
                 </SheetHeader>
 
@@ -705,7 +717,7 @@ function ExamDetailSheet({
                         </div>
 
                         <div>
-                            <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            <p className="mb-2 text-xs font-medium text-muted-foreground">
                                 Keputusan Dosen
                             </p>
                             <div className="divide-y rounded-xl border bg-card">
@@ -736,7 +748,7 @@ function ExamDetailSheet({
                         </div>
 
                         <div className="rounded-xl border bg-muted/20 p-4">
-                            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            <p className="text-xs font-medium text-muted-foreground">
                                 Ringkasan Hasil
                             </p>
                             <div className="mt-3 grid gap-3 sm:grid-cols-4">
@@ -943,7 +955,7 @@ function ScheduleDialog({
 
                     {currentProject ? (
                         <div className="rounded-lg border bg-muted/20 p-3">
-                            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            <p className="text-xs font-medium text-muted-foreground">
                                 Proyek
                             </p>
                             <p className="mt-1 text-sm font-medium">
@@ -1155,9 +1167,7 @@ function ScheduleDialog({
 function MiniStat({ label, value }: { label: string; value: string }) {
     return (
         <div>
-            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                {label}
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
             <p className="mt-1 text-sm font-semibold">{value}</p>
         </div>
     );

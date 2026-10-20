@@ -49,7 +49,7 @@ export function ActionQueueItem({
         >
             <div className="flex min-w-0 items-start gap-3">
                 {Icon && (
-                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
                         <Icon className="size-4" aria-hidden="true" />
                     </span>
                 )}

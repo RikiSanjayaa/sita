@@ -11,9 +11,9 @@ const breadcrumbs = makeSettingsBreadcrumbs('Tampilan', editAppearance().url);
 export default function Appearance() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Appearance settings" />
+            <Head title="Pengaturan tampilan" />
 
-            <h1 className="sr-only">Appearance Settings</h1>
+            <h1 className="sr-only">Pengaturan tampilan</h1>
 
             <SettingsLayout>
                 <AppearanceSettingsPanel />

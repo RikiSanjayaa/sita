@@ -99,7 +99,7 @@ const statusTones: Record<StatusDomain, Record<string, StatusTone>> = {
 
 const toneClassNames: Record<StatusTone, string> = {
     neutral: 'bg-muted text-muted-foreground',
-    primary: 'bg-primary/10 text-primary dark:bg-primary/20',
+    primary: 'bg-primary-muted text-primary-muted-foreground',
     success: 'bg-success-muted text-success-muted-foreground',
     warning: 'bg-warning-muted text-warning-muted-foreground',
     danger: 'bg-danger-muted text-danger-muted-foreground',
