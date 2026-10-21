@@ -5,6 +5,7 @@ import { playwrightAuthPath } from './db';
 export type PlaywrightAccountKey =
     | 'superadmin'
     | 'admin'
+    | 'kaprodi'
     | 'dosen1'
     | 'dosen2'
     | 'dosen3'
@@ -18,7 +19,12 @@ export type PlaywrightAccountKey =
     | 'siti'
     | 'bagas'
     | 'farhan'
-    | 'putra';
+    | 'putra'
+    | 'kirana'
+    | 'dimas'
+    | 'laras'
+    | 'raka'
+    | 'sinta';
 
 type PlaywrightAccount = {
     email: string;
@@ -42,6 +48,12 @@ export const playwrightAccounts: Record<
         password: 'password',
         loginPath: '/admin',
         landingPath: '/admin',
+    },
+    kaprodi: {
+        email: 'kaprodi@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/kaprodi/dashboard',
     },
     dosen1: {
         email: 'dosen@sita.test',
@@ -127,6 +139,36 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
+    kirana: {
+        email: 'e2e-pembimbing@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
+    dimas: {
+        email: 'e2e-sempro@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
+    laras: {
+        email: 'e2e-jadwalsempro@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
+    raka: {
+        email: 'e2e-pembimbingbaru@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
+    sinta: {
+        email: 'e2e-sidang@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
 };
 
 export const thesisScenarios = {
@@ -172,6 +214,45 @@ export const thesisScenarios = {
         studentName: 'Mahasiswa SiTA',
         currentTitle:
             'Sistem Rekomendasi Topik Bimbingan Berbasis Riwayat Interaksi',
+    },
+    // Dedicated students from PlaywrightScenarioSeeder (database/seeders).
+    // Specs reset them with seedPlaywrightScenarios() in beforeAll, so they do
+    // not depend on what earlier specs did to the shared seeded students.
+    twoSupervisors: {
+        studentKey: 'kirana' as const,
+        studentName: 'Kirana Dua Pembimbing',
+        currentTitle: 'Sistem Peringatan Dini Banjir Berbasis Sensor IoT',
+        supervisorKeys: ['dosen1', 'dosen2'] as const,
+        supervisorNames: [
+            'Dr. Budi Santoso, M.Kom.',
+            'Dr. Ratna Kusuma, M.Kom.',
+        ],
+    },
+    semproTwoExaminers: {
+        studentKey: 'dimas' as const,
+        studentName: 'Dimas Penguji Sempro',
+        currentTitle:
+            'Klasifikasi Citra Daun Padi Menggunakan Jaringan Konvolusi',
+        examinerKeys: ['dosen3', 'dosen4'] as const,
+        location: 'Ruang Seminar E2E',
+    },
+    semproUnscheduled: {
+        studentKey: 'laras' as const,
+        studentName: 'Laras Siap Sempro',
+        currentTitle: 'Aplikasi Pemantauan Kualitas Udara Dalam Ruangan',
+    },
+    passedWithoutSupervisors: {
+        studentKey: 'raka' as const,
+        studentName: 'Raka Belum Pembimbing',
+        currentTitle:
+            'Optimasi Rute Pengiriman Logistik Dengan Algoritma Genetika',
+    },
+    sidangWithPanel: {
+        studentKey: 'sinta' as const,
+        studentName: 'Sinta Sidang Terjadwal',
+        currentTitle: 'Prediksi Kelulusan Tepat Waktu Dengan Pohon Keputusan',
+        panelKeys: ['dosen1', 'dosen2', 'dosen3'] as const,
+        location: 'Ruang Sidang E2E',
     },
 };
 

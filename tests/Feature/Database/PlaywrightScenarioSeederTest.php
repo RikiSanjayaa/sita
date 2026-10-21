@@ -1,0 +1,43 @@
+<?php
+
+use App\Models\ThesisProject;
+use App\Models\User;
+use Database\Seeders\PlaywrightScenarioSeeder;
+use Database\Seeders\ThesisWorkflowSeeder;
+use Database\Seeders\UserSeeder;
+
+function playwrightProject(string $email): ThesisProject
+{
+    return ThesisProject::query()
+        ->whereHas('student', fn ($query) => $query->where('email', $email))
+        ->with(['activeSupervisorAssignments', 'semproDefenses.examiners', 'sidangDefenses.examiners'])
+        ->firstOrFail();
+}
+
+it('seeds one student per Playwright scenario and can be re-run to reset them', function () {
+    $this->seed([UserSeeder::class, ThesisWorkflowSeeder::class]);
+
+    $this->seed(PlaywrightScenarioSeeder::class);
+    $this->seed(PlaywrightScenarioSeeder::class);
+
+    $twoSupervisors = playwrightProject('e2e-pembimbing@sita.test');
+    expect($twoSupervisors->phase)->toBe('research')
+        ->and($twoSupervisors->activeSupervisorAssignments)->toHaveCount(2);
+
+    $sempro = playwrightProject('e2e-sempro@sita.test')->semproDefenses->first();
+    expect($sempro->status)->toBe('scheduled')
+        ->and($sempro->examiners)->toHaveCount(2);
+
+    $unscheduled = playwrightProject('e2e-jadwalsempro@sita.test');
+    expect($unscheduled->semproDefenses)->toBeEmpty();
+
+    $withoutSupervisors = playwrightProject('e2e-pembimbingbaru@sita.test');
+    expect($withoutSupervisors->activeSupervisorAssignments)->toBeEmpty()
+        ->and($withoutSupervisors->semproDefenses->first()->result)->toBe('pass');
+
+    $sidang = playwrightProject('e2e-sidang@sita.test')->sidangDefenses->first();
+    expect($sidang->status)->toBe('scheduled')
+        ->and($sidang->examiners)->toHaveCount(3);
+
+    expect(ThesisProject::query()->whereIn('student_user_id', User::query()->where('email', 'like', 'e2e-%@sita.test')->pluck('id'))->count())->toBe(5);
+});

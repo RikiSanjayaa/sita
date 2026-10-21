@@ -1,7 +1,100 @@
-# E2E coverage
+# E2E coverage map
 
-This file lists only specs added with an explicit coverage note. It is not a full audit of the application.
+Maps user flows to Playwright specs in `tests/e2e/specs/`. E2E covers cross-role flows a user can see; business rules (validation, calculations, detailed permissions) stay in Pest.
 
-| Spec                                    | Covers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `specs/kaprodi-design-patterns.spec.ts` | Design-system patterns as adopted on the kaprodi Sempro / Sinopsis & Sidang Akhir page (`kaprodi/sempro-sidang`): SectionCard, EmptyState, FilterBar, FilterPills and StatusBadge. Scenarios: combined type, status and search filters, zero counts, sticky selection, keyboard use of the type filter, and the search empty state. Saves light and dark screenshots as evidence (not pixel-compared). The page does not adopt PageHeader, so it is not covered here. Does not cover the rest of the kaprodi area. |
+**Rule for feature issues:** a pull request that adds or changes a user-visible flow MUST update this file (row, status, spec) in the same change, and add or update the Playwright scenario. Menus come from `resources/js/config/role-navigation.ts`; keep the rows below in sync with it.
+
+Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles covered, **belum** = no spec. Priority: **P1** core thesis workflow or demo path, **P2** supporting, **P3** admin/support.
+
+## Fixtures
+
+- `thesisScenarios` in `support/thesis-fixtures.ts` lists the shared seeded students (`akbar`, `nadia`, `putra`, `mahasiswa`, ...). Earlier specs change their state (reschedule, finalize, close), so do not depend on their initial state.
+- Dedicated scenario students come from `database/seeders/PlaywrightScenarioSeeder.php` (run by the setup project, not by `DatabaseSeeder`). Specs call `seedPlaywrightScenarios()` in `beforeAll` to rebuild them: `twoSupervisors` (dosen1 + dosen2), `semproTwoExaminers` (dosen3 + dosen4), `semproUnscheduled`, `passedWithoutSupervisors`, `sidangWithPanel` (dosen1, dosen2, dosen3). Add new scenario students there plus an entry in `thesisScenarios`. Scenarios for OBE, expired ticket and archived students are added by the feature issues themselves.
+- The `kaprodi` account (`kaprodi@sita.test`) has a stored auth state like the other accounts.
+
+## Mahasiswa
+
+| Flow (menu)                                                               | Spec                                             | Status   | Priority |
+| ------------------------------------------------------------------------- | ------------------------------------------------ | -------- | -------- |
+| Dashboard (`/mahasiswa/dashboard`)                                        | landing only, via auth setup                     | belum    | P2       |
+| Tugas Akhir: judul, naskah proposal, revisi judul                         | `mahasiswa-thesis`                               | tercakup | P1       |
+| Tugas Akhir: pilih berkas untuk sempro/sidang aktif                       | `mahasiswa-thesis`                               | tercakup | P1       |
+| Tugas Akhir: hasil sempro, revisi, selesai                                | `admin-sempro`, `dosen-penilaian`                | tercakup | P1       |
+| Tugas Akhir: pembimbing tampil setelah ditetapkan kaprodi                 | `kaprodi-portal`                                 | tercakup | P1       |
+| Jadwal Bimbingan: ajukan, approve, tolak, berulang                        | `bimbingan-chat`                                 | tercakup | P1       |
+| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua, pembimbing 2 | `jadwal-bimbingan`                               | tercakup | P1       |
+| Upload Dokumen: unggah, unduh, hapus                                      | `upload-dokumen`, `bimbingan-chat`               | tercakup | P1       |
+| Upload Dokumen: lampiran chat ditinjau dosen kedua, status gabungan       | `chat-attachment-review` (issue #10), plus Pest  | tercakup | P1       |
+| Pesan (thread bimbingan, sempro, sidang)                                  | `bimbingan-chat`, `admin-sempro`, `admin-sidang` | tercakup | P1       |
+| Panduan (`/mahasiswa/panduan`)                                            | none                                             | belum    | P3       |
+| Pengaturan Akun: profil                                                   | `profile`                                        | tercakup | P2       |
+| Pengaturan Akun: 2FA                                                      | `two-factor-auth`                                | tercakup | P2       |
+| Pengaturan Akun: notifikasi                                               | `notifications`                                  | tercakup | P2       |
+| Notifikasi pesan dan pengumuman                                           | `notifications`, `system-announcements`          | tercakup | P2       |
+| CSAT                                                                      | `csat`                                           | tercakup | P3       |
+
+## Dosen
+
+| Flow (menu)                                                               | Spec                                                              | Status   | Priority |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | -------- |
+| Dashboard (`/dosen/dashboard`)                                            | landing only, via auth setup                                      | belum    | P2       |
+| Sempro / Sinopsis & Sidang Akhir: penilaian penguji (UI)                  | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: sidang panel, lulus dengan syarat       | `dosen-penilaian`, `admin-sidang`                                 | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: selesaikan revisi                       | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: dosen di luar panel tidak melihat ujian | `dosen-penilaian`                                                 | tercakup | P2       |
+| Mahasiswa Dosen (`/dosen/mahasiswa-bimbingan`)                            | `bimbingan-chat`, `kaprodi-portal`                                | sebagian | P1       |
+| Jadwal Bimbingan: approve, tolak, berulang                                | `bimbingan-chat`                                                  | tercakup | P1       |
+| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua               | `jadwal-bimbingan`                                                | tercakup | P1       |
+| Dokumen & Revisi: minta revisi, setujui                                   | `bimbingan-chat`                                                  | tercakup | P1       |
+| Dokumen & Revisi: beberapa reviewer (pembimbing 1 + 2, penguji)           | `chat-attachment-review` (issue #10), plus Pest                   | tercakup | P1       |
+| Pesan (bimbingan, grup sempro/sidang)                                     | `bimbingan-chat`, `admin-sempro`, `admin-sidang`, `notifications` | tercakup | P1       |
+| Ganti peran dosen / kaprodi                                               | none (flow changes in #30)                                        | belum    | P2       |
+
+## Kaprodi
+
+| Flow (menu)                                                    | Spec                                                                                                                                                                                                                                                                                                                                                                                              | Status   | Priority |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------- |
+| Dashboard: bagian monitoring dan tautan menu                   | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | tercakup | P2       |
+| Mahasiswa Prodi: cari, buka profil                             | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | sebagian | P1       |
+| Mahasiswa Prodi: filter tahap/risiko/angkatan/konsentrasi      | none                                                                                                                                                                                                                                                                                                                                                                                              | belum    | P3       |
+| Mahasiswa Prodi: atur pembimbing (2 pembimbing)                | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: jadwalkan sempro (2 penguji) | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: jadwalkan sidang             | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: ubah jadwal                  | none                                                                                                                                                                                                                                                                                                                                                                                              | belum    | P2       |
+| Sempro / Sinopsis & Sidang Akhir: pola desain halaman          | `kaprodi-design-patterns` (SectionCard, EmptyState, FilterBar, FilterPills and StatusBadge on `kaprodi/sempro-sidang`: combined type, status and search filters, zero counts, sticky selection, keyboard use of the type filter, search empty state; light and dark screenshots as evidence, not pixel-compared; the page does not adopt PageHeader; does not cover the rest of the kaprodi area) | tercakup | P2       |
+| Dokumen: daftar, cari, detail                                  | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | sebagian | P2       |
+| Dosen Prodi: daftar beban dan ubah kuota                       | `kaprodi-portal`                                                                                                                                                                                                                                                                                                                                                                                  | tercakup | P1       |
+| Kaprodi dengan kapabilitas dibatasi                            | Pest only                                                                                                                                                                                                                                                                                                                                                                                         | belum    | P3       |
+| Kaprodi: badge OBE (issue #6)                                  | Pest only (`UserObeCurriculumTest`, `KaprodiPortalTest`)                                                                                                                                                                                                                                                                                                                                          | belum    | P3       |
+
+## Admin (Filament `/admin`) and super admin
+
+| Flow (menu / resource)                                                     | Spec                                                                                  | Status   | Priority |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------- | -------- |
+| Dashboard (`/admin`)                                                       | login only, via auth setup                                                            | belum    | P3       |
+| Users: impor Excel mahasiswa/dosen (termasuk kolom template OBE, issue #6) | `admin-user-import`                                                                   | sebagian | P2       |
+| Users: buat, ubah, nonaktifkan                                             | none (konsentrasi lookup in `program-studi`)                                          | belum    | P2       |
+| Sempro (`/admin/sempros`) dan Judul & Naskah Proposal                      | `admin-sempro`, `admin-sidang` (service calls via tinker, results checked in portals) | sebagian | P1       |
+| Thesis Projects: jadwal, finalisasi, tutup                                 | `admin-sempro`, `admin-sidang`                                                        | sebagian | P1       |
+| Program Studi: konsentrasi                                                 | `program-studi`                                                                       | tercakup | P3       |
+| Fakultas, Bidang Keilmuan                                                  | none                                                                                  | belum    | P3       |
+| Pengumuman Sistem                                                          | `system-announcements`                                                                | tercakup | P2       |
+| Respons CSAT                                                               | `csat`                                                                                | tercakup | P3       |
+| Panduan Mahasiswa (StudentGuides)                                          | none                                                                                  | belum    | P3       |
+| Audit Sistem (tabel), Thesis Project Events                                | Pest only (Audit Sistem table, issue #36)                                             | belum    | P3       |
+| Isolasi sesi admin / mahasiswa / dosen                                     | `session-isolation`                                                                   | tercakup | P2       |
+
+## Publik (tanpa login)
+
+| Flow                                           | Spec           | Status   | Priority |
+| ---------------------------------------------- | -------------- | -------- | -------- |
+| `/` beranda dan tautan ke halaman publik       | `public-pages` | tercakup | P2       |
+| `/jadwal` jadwal akan datang, pencarian        | `public-pages` | sebagian | P2       |
+| `/pembimbing` direktori, pencarian             | `public-pages` | sebagian | P2       |
+| `/topik` daftar topik, detail baris            | `public-pages` | sebagian | P2       |
+| `/mahasiswa-aktif` daftar dan pembimbing aktif | `public-pages` | sebagian | P2       |
+
+## Known gaps worth closing next
+
+- Dashboards for mahasiswa, dosen and admin (#31, #32, #33 change them; add specs there).
+- Ganti peran dosen / kaprodi (#30).

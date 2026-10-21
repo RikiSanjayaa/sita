@@ -1,7 +1,11 @@
 import { request, test } from '@playwright/test';
 
 import { captureAuthStates } from '../support/auth';
-import { ensurePlaywrightFilesystem, runArtisan } from '../support/db';
+import {
+    ensurePlaywrightFilesystem,
+    runArtisan,
+    seedPlaywrightScenarios,
+} from '../support/db';
 
 test.setTimeout(5 * 60 * 1000);
 
@@ -35,6 +39,7 @@ test('bootstrap Playwright database and auth states', async ({ baseURL }) => {
     ensurePlaywrightFilesystem();
     runArtisan(['optimize:clear'], resolvedBaseUrl);
     runArtisan(['migrate:fresh', '--seed', '--force'], resolvedBaseUrl);
+    seedPlaywrightScenarios(resolvedBaseUrl);
 
     await waitForApplication(resolvedBaseUrl);
     await captureAuthStates(resolvedBaseUrl);
