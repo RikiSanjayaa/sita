@@ -16,6 +16,16 @@ use Illuminate\Support\Facades\Auth;
 
 class SystemAuditLogsTable
 {
+    /**
+     * Event types whose description carries detail (target role, prodi name, reset outcome) absent from the label.
+     * Shown as a line under the activity label; other descriptions remain available as a tooltip.
+     */
+    private const array DETAIL_EVENT_TYPES = [
+        'role_switched',
+        'student_guide_updated',
+        'password_reset_requested',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -29,12 +39,9 @@ class SystemAuditLogsTable
                     ->toggleable(),
                 TextColumn::make('label')
                     ->label('Aktivitas')
+                    ->description(fn(SystemAuditLog $record): ?string => in_array($record->event_type, self::DETAIL_EVENT_TYPES, true) ? $record->description : null)
+                    ->tooltip(fn(SystemAuditLog $record): ?string => $record->description)
                     ->searchable()
-                    ->wrap()
-                    ->toggleable(),
-                TextColumn::make('description')
-                    ->label('Deskripsi')
-                    ->placeholder('-')
                     ->wrap()
                     ->toggleable(),
                 TextColumn::make('user.name')
@@ -53,11 +60,6 @@ class SystemAuditLogsTable
                 TextColumn::make('ip_address')
                     ->label('IP')
                     ->placeholder('-')
-                    ->toggleable(),
-                TextColumn::make('url')
-                    ->label('URL')
-                    ->placeholder('-')
-                    ->limit(60)
                     ->toggleable(),
             ])
             ->filters([

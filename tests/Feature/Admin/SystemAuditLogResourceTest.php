@@ -125,3 +125,55 @@ test('system audit log prunable query keeps only one year of history', function 
     expect($prunableIds)->toContain($olderLog->id)
         ->and($prunableIds)->not->toContain($recentLog->id);
 });
+
+test('system audit log table does not offer description or url columns', function (): void {
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($superAdmin);
+
+    Livewire::test(ListSystemAuditLogs::class)
+        ->assertTableColumnExists('label')
+        ->assertTableColumnDoesNotExist('description')
+        ->assertTableColumnDoesNotExist('url');
+});
+
+test('system audit log table keeps detail that the label does not carry', function (): void {
+    $superAdmin = User::factory()->asSuperAdmin()->create();
+
+    $roleSwitchLog = SystemAuditLog::query()->create([
+        'user_id' => $superAdmin->id,
+        'event_type' => 'role_switched',
+        'label' => 'Peran diganti',
+        'description' => 'Pengguna beralih ke peran Dosen.',
+        'email' => $superAdmin->email,
+        'occurred_at' => now(),
+    ]);
+
+    $guideLog = SystemAuditLog::query()->create([
+        'user_id' => $superAdmin->id,
+        'event_type' => 'student_guide_updated',
+        'label' => 'Panduan mahasiswa diperbarui',
+        'description' => 'Panduan mahasiswa untuk prodi Ilmu Komputer berhasil diperbarui.',
+        'email' => $superAdmin->email,
+        'occurred_at' => now()->subMinute(),
+    ]);
+
+    $loginLog = SystemAuditLog::query()->create([
+        'user_id' => $superAdmin->id,
+        'event_type' => 'login_success',
+        'label' => 'Login berhasil',
+        'description' => 'Pengguna berhasil masuk ke sistem.',
+        'email' => $superAdmin->email,
+        'occurred_at' => now()->subMinutes(2),
+    ]);
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($superAdmin);
+
+    Livewire::test(ListSystemAuditLogs::class)
+        ->assertCanSeeTableRecords([$roleSwitchLog, $guideLog, $loginLog])
+        ->assertSee('Pengguna beralih ke peran Dosen.')
+        ->assertSee('Panduan mahasiswa untuk prodi Ilmu Komputer berhasil diperbarui.')
+        ->assertSee('Pengguna berhasil masuk ke sistem.');
+});
