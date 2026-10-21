@@ -2038,3 +2038,110 @@ test('download permissions enforce ownership and escalation rules', function () 
         ->get(route('files.chat-attachments.download', ['message' => $message->id, 'escalated' => 1]))
         ->assertOk();
 });
+
+test('chat attachment reviewed by second lecturer shows review to mahasiswa on upload page', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $dosen1 = createUserWithRole(AppRole::Dosen->value);
+    $dosen2 = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'is_active' => true,
+    ]);
+
+    createActiveMentorshipAssignment($student, $dosen1, $admin, AdvisorType::Primary);
+    createActiveMentorshipAssignment($student, $dosen2, $admin, AdvisorType::Secondary);
+    syncThesisSupervisor($student, $dosen1, $admin, AdvisorType::Primary->value);
+    syncThesisSupervisor($student, $dosen2, $admin, AdvisorType::Secondary->value);
+
+    $thread = MentorshipChatThread::query()->create([
+        'student_user_id' => $student->id,
+        'type' => 'pembimbing',
+    ]);
+
+    $this->actingAs($student)
+        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
+            'message' => 'Lampiran bab 2',
+            'attachment' => UploadedFile::fake()->create('bab-2.pdf', 250, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $reviewCopy = MentorshipDocument::query()
+        ->where('category', 'lampiran-chat')
+        ->where('lecturer_user_id', $dosen2->id)
+        ->firstOrFail();
+
+    $notificationsBefore = $student->notifications()->count();
+
+    $this->actingAs($dosen2)
+        ->post("/dosen/dokumen-revisi/{$reviewCopy->id}/review", [
+            'status' => 'needs_revision',
+            'revision_notes' => 'Tambahkan sumber pada tabel 2.1.',
+        ])
+        ->assertRedirect();
+
+    $response = $this->actingAs($student)
+        ->get('/mahasiswa/upload-dokumen')
+        ->assertOk();
+
+    $documents = $response->viewData('page')['props']['uploadedDocuments'];
+
+    expect($documents)->toHaveCount(1)
+        ->and($documents[0]['status'])->toBe('Perlu Revisi')
+        ->and(collect($documents[0]['reviews'])->firstWhere('lecturerName', $dosen2->name))
+        ->toMatchArray([
+            'status' => 'needs_revision',
+            'role' => 'Pembimbing 2',
+            'notes' => 'Tambahkan sumber pada tabel 2.1.',
+        ]);
+
+    $this->assertDatabaseHas('mentorship_chat_messages', [
+        'mentorship_chat_thread_id' => $thread->id,
+        'sender_user_id' => $dosen2->id,
+        'message_type' => 'document_event',
+    ]);
+
+    expect($student->notifications()->count())->toBe($notificationsBefore + 1);
+});
+
+test('upload page document status aggregates reviews from every assigned lecturer', function (array $statuses, string $expectedStatus) {
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'is_active' => true,
+    ]);
+
+    foreach ($statuses as $status) {
+        MentorshipDocument::factory()->create([
+            'student_user_id' => $student->id,
+            'lecturer_user_id' => createUserWithRole(AppRole::Dosen->value)->id,
+            'category' => 'lampiran-chat',
+            'document_group' => "{$student->id}:lampiran-chat",
+            'version_number' => 1,
+            'status' => $status,
+            'revision_notes' => $status === 'needs_revision' ? 'Perbaiki bab 3.' : null,
+            'reviewed_at' => $status === 'submitted' ? null : now(),
+            'uploaded_by_user_id' => $student->id,
+            'uploaded_by_role' => 'mahasiswa',
+        ]);
+    }
+
+    $response = $this->actingAs($student)
+        ->get('/mahasiswa/upload-dokumen')
+        ->assertOk();
+
+    $documents = $response->viewData('page')['props']['uploadedDocuments'];
+
+    expect($documents)->toHaveCount(1)
+        ->and($documents[0]['status'])->toBe($expectedStatus)
+        ->and($documents[0]['reviews'])->toHaveCount(count($statuses));
+})->with([
+    'belum ada review' => [['submitted', 'submitted'], 'Menunggu Review'],
+    'sebagian sudah direview' => [['approved', 'submitted'], 'Sebagian direview'],
+    'semua disetujui' => [['approved', 'approved'], 'Disetujui'],
+    'salah satu minta revisi' => [['needs_revision', 'approved'], 'Perlu Revisi'],
+]);
