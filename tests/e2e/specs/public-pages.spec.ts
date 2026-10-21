@@ -109,7 +109,10 @@ test.describe('Public pages', () => {
         await expect(row).toBeVisible();
 
         await row.getByRole('button', { name: 'Buka detail topik' }).click();
-        await expect(page.getByText('Judul Internasional')).toBeVisible();
+        // Collapsed rows keep their detail markup, so match only the opened one.
+        await expect(
+            page.getByText('Judul Internasional').filter({ visible: true }),
+        ).toBeVisible();
 
         // Retry the fill: a late response to the previous search can reset the input.
         await expect(async () => {
