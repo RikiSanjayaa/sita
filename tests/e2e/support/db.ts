@@ -55,3 +55,15 @@ export function runArtisan(args: string[], baseURL?: string): void {
         stdio: 'inherit',
     });
 }
+
+/**
+ * Rebuilds the dedicated scenario students from PlaywrightScenarioSeeder.
+ * Specs call this in beforeAll so they start from a known state regardless
+ * of which specs ran before them.
+ */
+export function seedPlaywrightScenarios(baseURL?: string): void {
+    runArtisan(
+        ['db:seed', '--class=PlaywrightScenarioSeeder', '--force'],
+        baseURL,
+    );
+}
