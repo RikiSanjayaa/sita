@@ -45,6 +45,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
+
 import {
     type BreadcrumbItem,
     type SharedData,
@@ -97,8 +99,8 @@ type GroupThreadFilter = 'semua' | 'pembimbing' | 'sempro' | 'sidang';
 const groupThreadFilterTabs: { label: string; value: GroupThreadFilter }[] = [
     { label: 'Semua', value: 'semua' },
     { label: 'Bimbingan', value: 'pembimbing' },
-    { label: 'Proposal', value: 'sempro' },
-    { label: 'Ujian Akhir', value: 'sidang' },
+    { label: n.proposalExamShort, value: 'sempro' },
+    { label: n.finalExam, value: 'sidang' },
 ];
 
 function messageMatches(message: ThreadMessage, query: string) {

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AppRole;
+use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,8 +52,8 @@ class KaprodiAssignment extends Model
     {
         return [
             self::CAPABILITY_MANAGE_SUPERVISORS => 'Tetapkan pembimbing',
-            self::CAPABILITY_SCHEDULE_SEMPRO => 'Jadwalkan ujian proposal',
-            self::CAPABILITY_SCHEDULE_SIDANG => 'Jadwalkan ujian akhir',
+            self::CAPABILITY_SCHEDULE_SEMPRO => 'Jadwalkan '.AcademicTerminology::neutral()['proposalExamShort'],
+            self::CAPABILITY_SCHEDULE_SIDANG => 'Jadwalkan '.AcademicTerminology::neutral()['finalExam'],
             self::CAPABILITY_MANAGE_LECTURER_QUOTA => 'Atur kuota bimbingan',
             self::CAPABILITY_VIEW_DOCUMENTS => 'Lihat dokumen',
             self::CAPABILITY_DOWNLOAD_DOCUMENTS => 'Download dokumen',

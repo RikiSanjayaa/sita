@@ -272,14 +272,14 @@ test('admin can override title and proposal anytime and student receives notific
     $this->assertDatabaseHas('thesis_project_events', [
         'project_id' => $project->id,
         'event_type' => 'core_submission_updated_by_admin',
-        'label' => 'Judul/proposal diperbarui admin',
+        'label' => 'Judul/naskah proposal diperbarui admin',
     ]);
 
     Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
         $data = $notification->toArray($student);
 
         return in_array('database', $channels, true)
-            && $data['title'] === 'Judul / proposal diperbarui admin'
+            && $data['title'] === 'Judul / Naskah Proposal diperbarui admin'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 });
@@ -859,7 +859,7 @@ test('admin can view thesis and mentorship documents in thesis project page', fu
         ->assertSee('Workflow')
         ->assertSee('Dokumen Skripsi')
         ->assertSee('admin-view-proposal.pdf')
-        ->assertSee('Dokumen Bimbingan Proyek')
+        ->assertSee('Dokumen Bimbingan')
         ->assertSee('Draft Bab 2')
         ->assertSee('admin-view-draft.pdf');
 });
@@ -961,7 +961,7 @@ test('admin thesis project page only shows mentorship documents within the proje
     $this->actingAs($admin)
         ->get(ThesisProjectResource::getUrl('view', ['record' => $activeProject]))
         ->assertOk()
-        ->assertSee('Dokumen Bimbingan Proyek')
+        ->assertSee('Dokumen Bimbingan')
         ->assertSee('Draft Aktif')
         ->assertSee('draft-aktif.pdf')
         ->assertDontSee('Draft Lama')

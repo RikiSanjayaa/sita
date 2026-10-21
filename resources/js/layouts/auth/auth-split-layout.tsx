@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
 import AppLogoIcon from '@/components/app-logo-icon';
+import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { home } from '@/routes';
 import { type SharedData } from '@/types';
 
@@ -59,8 +60,9 @@ export default function AuthSplitLayout({
                             di {name}
                         </h2>
                         <p className="text-xs leading-relaxed text-slate-400">
-                            Platform untuk pengelolaan tugas akhir mahasiswa
-                            secara efisien dan terintegrasi.
+                            Platform untuk pengelolaan{' '}
+                            {neutralAcademicTerminology.finalWork.toLowerCase()}{' '}
+                            mahasiswa secara efisien dan terintegrasi.
                         </p>
                     </div>
 

@@ -15,7 +15,7 @@ Compact operating guide for coding agents in this repository.
 - SITA documents thesis progress. Build the workflow an issue asks for and nothing more; informal coordination (agreeing on dates, confirming attendance) happens on WhatsApp or in person, outside the app.
 - The thesis lifecycle lives in `ThesisProject` and its `Thesis*` models: `phase` moves `title_review` -> `sempro` -> `research` -> `sidang` -> `completed`; `ThesisDefense.type` is `sempro` or `sidang`; supervisors are `ThesisSupervisorAssignment`.
 - `Sempro`, `SemproExaminer`, `SemproRevision`, `ThesisSubmission`, and `MentorshipAssignment` are legacy remnants kept for migrated data. Build new features on the `Thesis*` models.
-- Academic labels differ per degree (D3/S1/S2). Take every user-facing label from `App\Support\AcademicTerminology` (PHP) or `resources/js/lib/academic-terminology.ts` (TS).
+- Academic labels differ per degree (D3/S1/S2) and per audience (one student vs. cross-degree lists). Take every user-facing label from `App\Support\AcademicTerminology` (PHP) or `resources/js/lib/academic-terminology.ts` (TS); `docs/GLOSSARY.md` lists which label to use and the retired phrases ("Proyek", "Ujian Akhir", ...) a Pest test rejects.
 - Kaprodi users also hold the dosen role.
 
 ## Core Rules

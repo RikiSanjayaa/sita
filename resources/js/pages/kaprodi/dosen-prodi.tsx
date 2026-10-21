@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
+import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -356,13 +357,17 @@ export default function KaprodiDosenProdiPage() {
                                                 <td className="hidden px-4 py-3 lg:table-cell">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         <Badge variant="outline">
-                                                            Proposal{' '}
+                                                            {
+                                                                neutralAcademicTerminology.proposalExamShort
+                                                            }{' '}
                                                             {
                                                                 lecturer.semproCount
                                                             }
                                                         </Badge>
                                                         <Badge variant="outline">
-                                                            Ujian Akhir{' '}
+                                                            {
+                                                                neutralAcademicTerminology.finalExam
+                                                            }{' '}
                                                             {
                                                                 lecturer.sidangCount
                                                             }

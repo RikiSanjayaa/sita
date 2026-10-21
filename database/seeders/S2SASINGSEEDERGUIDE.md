@@ -44,12 +44,12 @@ Format email:
 
 | Kode   | Nama                        | Email                        | Fungsi utama untuk demo                           |
 | ------ | --------------------------- | ---------------------------- | ------------------------------------------------- |
-| dosen1 | Dr. Diana Permata, M.Hum.   | `dosen1.s2.sasing@gmail.com` | Pembimbing utama, sempro, proyek selesai          |
+| dosen1 | Dr. Diana Permata, M.Hum.   | `dosen1.s2.sasing@gmail.com` | Pembimbing utama, sempro, tesis selesai          |
 | dosen2 | Rudi Hartono, M.A.          | `dosen2.s2.sasing@gmail.com` | Sempro terjadwal, sidang menunggu finalisasi      |
 | dosen3 | Dr. Maya Salsabila, M.Phil. | `dosen3.s2.sasing@gmail.com` | Sempro menunggu finalisasi, rotasi pembimbing     |
-| dosen4 | Prof. Arman Wijaya, Ph.D.   | `dosen4.s2.sasing@gmail.com` | Penguji dan panel proyek selesai                  |
+| dosen4 | Prof. Arman Wijaya, Ph.D.   | `dosen4.s2.sasing@gmail.com` | Penguji dan panel tesis selesai                  |
 | dosen5 | Dr. Nisa Rahmawati, M.Hum.  | `dosen5.s2.sasing@gmail.com` | Revisi sempro, riset belum lengkap, on hold       |
-| dosen6 | Bintang Prakoso, M.A.       | `dosen6.s2.sasing@gmail.com` | Revisi sempro, sidang terjadwal, proyek restart   |
+| dosen6 | Bintang Prakoso, M.A.       | `dosen6.s2.sasing@gmail.com` | Revisi sempro, sidang terjadwal, tesis restart   |
 | dosen7 | Dr. Sekar Lestari, M.Litt.  | `dosen7.s2.sasing@gmail.com` | Sempro gagal, sidang menunggu finalisasi, on hold |
 | dosen8 | Fikri Mahendra, M.Hum.      | `dosen8.s2.sasing@gmail.com` | Sempro gagal, riset belum lengkap, revisi sidang  |
 
@@ -70,8 +70,8 @@ Format email:
 | siswa11 | Luthfi Maulana  | `siswa11.s2.sasing@gmail.com` | Sidang menunggu finalisasi            | Panel sudah memberi keputusan                           |
 | siswa12 | Mentari Puspita | `siswa12.s2.sasing@gmail.com` | Revisi sidang terbuka                 | Ada revisi sidang dan aktivitas workspace               |
 | siswa13 | Nabila Paramita | `siswa13.s2.sasing@gmail.com` | Selesai                               | Akan tampil di daftar topik lulus                       |
-| siswa14 | Oka Prasetyo    | `siswa14.s2.sasing@gmail.com` | On hold                               | Proyek riset sedang ditunda                             |
-| siswa15 | Putri Anindita  | `siswa15.s2.sasing@gmail.com` | Riwayat restart tesis                 | Punya proyek lama yang dibatalkan dan proyek baru aktif |
+| siswa14 | Oka Prasetyo    | `siswa14.s2.sasing@gmail.com` | On hold                               | Riset sedang ditunda                                  |
+| siswa15 | Putri Anindita  | `siswa15.s2.sasing@gmail.com` | Riwayat restart tesis                 | Tesis lama dibatalkan dan tesis baru aktif |
 
 ## Rekomendasi Akun Untuk Demo Cepat
 

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ThesisProjects\Schemas;
 
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
+use App\Support\AcademicTerminology;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -19,8 +20,8 @@ class ThesisProjectForm
     {
         return $schema
             ->components([
-                Section::make('Konteks Proyek')
-                    ->description('Ringkasan identitas proyek untuk memastikan admin mengedit record yang tepat.')
+                Section::make('Konteks '.AcademicTerminology::neutral()['finalWork'])
+                    ->description('Ringkasan identitas '.strtolower(AcademicTerminology::neutral()['finalWork']).' untuk memastikan admin mengedit record yang tepat.')
                     ->columns(2)
                     ->schema([
                         TextInput::make('student_name')
@@ -42,7 +43,7 @@ class ThesisProjectForm
                             ->columnSpanFull(),
                     ]),
                 Section::make('Koreksi Administratif')
-                    ->description('Gunakan halaman ini untuk membetulkan metadata proyek. Workflow operasional tetap lebih aman dijalankan dari aksi khusus pada halaman detail.')
+                    ->description('Gunakan halaman ini untuk membetulkan metadata '.strtolower(AcademicTerminology::neutral()['finalWork']).'. Workflow operasional tetap lebih aman dijalankan dari aksi khusus pada halaman detail.')
                     ->columns(2)
                     ->schema([
                         Select::make('phase')
@@ -111,8 +112,8 @@ class ThesisProjectForm
                             ->rows(4)
                             ->columnSpanFull(),
                     ]),
-                Section::make('Override Judul & Proposal')
-                    ->description('Admin dapat memperbarui judul dan proposal aktif kapan saja. Mahasiswa akan menerima notifikasi otomatis ketika data inti ini diubah.')
+                Section::make('Override Judul & '.AcademicTerminology::neutral()['proposalDocument'])
+                    ->description('Admin dapat memperbarui judul dan '.strtolower(AcademicTerminology::neutral()['proposalDocument']).' aktif kapan saja. Mahasiswa akan menerima notifikasi otomatis ketika data inti ini diubah.')
                     ->columnSpanFull()
                     ->columns(2)
                     ->schema([
@@ -124,19 +125,19 @@ class ThesisProjectForm
                             ->label('Judul Inggris')
                             ->maxLength(255),
                         Textarea::make('proposal_summary')
-                            ->label('Ringkasan Proposal')
+                            ->label('Ringkasan '.AcademicTerminology::neutral()['proposalDocument'])
                             ->rows(6)
                             ->columnSpanFull(),
                         TextInput::make('current_proposal_file_name')
-                            ->label('Proposal Aktif Saat Ini')
+                            ->label(AcademicTerminology::neutral()['proposalDocument'].' Aktif Saat Ini')
                             ->disabled()
                             ->dehydrated(false),
                         FileUpload::make('proposal_file')
-                            ->label('Ganti File Proposal')
+                            ->label('Ganti File '.AcademicTerminology::neutral()['proposalDocument'])
                             ->acceptedFileTypes([
                                 'application/pdf',
                             ])
-                            ->helperText('Kosongkan jika file proposal tidak berubah. Upload PDF baru jika admin perlu mengganti dokumen proposal aktif.')
+                            ->helperText('Kosongkan jika file '.strtolower(AcademicTerminology::neutral()['proposalDocument']).' tidak berubah. Upload PDF baru jika admin perlu mengganti dokumen aktif.')
                             ->storeFiles(false)
                             ->downloadable()
                             ->columnSpanFull(),

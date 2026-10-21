@@ -7,6 +7,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Services\ThesisProjectAdminService;
+use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
 use App\Support\WitaDateTime;
 use Filament\Actions\Action;
@@ -89,12 +90,12 @@ class ThesisProjectsTable
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sempro_attempts_count')
-                    ->label('Proposal')
+                    ->label(AcademicTerminology::neutral()['proposalExamShort'])
                     ->numeric()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sidang_attempts_count')
-                    ->label('Ujian Akhir')
+                    ->label(AcademicTerminology::neutral()['finalExam'])
                     ->numeric()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -194,7 +195,7 @@ class ThesisProjectsTable
                     ->form([
                         Textarea::make('notes')
                             ->label('Catatan')
-                            ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
+                            ->default(fn (ThesisProject $record): string => 'Judul dan '.mb_strtolower(AcademicTerminology::forProject($record)['proposalDocument']).' disetujui. Mahasiswa dapat lanjut ke '.AcademicTerminology::forProject($record)['proposalPhase'].'.')
                             ->rows(3),
                     ])
                     ->action(function (ThesisProject $record, array $data): void {
@@ -230,7 +231,7 @@ class ThesisProjectsTable
                     ->visible(fn(ThesisProject $record): bool => self::canDecideTitleReview($record))
                     ->requiresConfirmation()
                     ->modalHeading('Tolak pengajuan judul?')
-                    ->modalDescription('Proyek akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
+                    ->modalDescription(AcademicTerminology::neutral()['finalWork'].' akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
                     ->form([
                         Textarea::make('notes')
                             ->label('Alasan')
@@ -274,11 +275,7 @@ class ThesisProjectsTable
     public static function phaseLabel(string $phase): string
     {
         return match ($phase) {
-            'title_review' => 'Review Judul',
-            'sempro' => 'Proposal',
-            'research' => 'Riset',
-            'sidang' => 'Ujian Akhir',
-            'completed' => 'Selesai',
+            'title_review', 'sempro', 'research', 'sidang', 'completed' => AcademicTerminology::phaseLabel($phase),
             'cancelled' => 'Dibatalkan',
             default => ucwords(str_replace('_', ' ', $phase)),
         };

@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { type NotificationSettings, type SharedData } from '@/types';
 
 type JenisNotifikasiItem = {
@@ -25,7 +26,8 @@ type JenisNotifikasiItem = {
 };
 
 export default function NotificationSettingsPanel() {
-    const { notificationSettings } = usePage<SharedData>().props;
+    const { notificationSettings, academicTerminology: terms } =
+        usePage<SharedData>().props;
     const [isSaving, setIsSaving] = useState(false);
     const [browserPermission, setBrowserPermission] = useState<
         NotificationPermission | 'unsupported'
@@ -151,9 +153,8 @@ export default function NotificationSettingsPanel() {
             },
             {
                 key: 'statusTugasAkhir',
-                title: 'Update status tugas akhir',
-                description:
-                    'Notifikasi saat status judul, proposal, ujian akhir, atau pembimbing berubah.',
+                title: `Update status ${terms.finalWorkLower}`,
+                description: `Notifikasi saat status judul, ${n.proposalDocument.toLowerCase()}, ${n.finalExam.toLowerCase()}, atau pembimbing berubah.`,
                 icon: FileText,
             },
             {
@@ -173,8 +174,7 @@ export default function NotificationSettingsPanel() {
             {
                 key: 'reminderDeadline',
                 title: 'Reminder deadline',
-                description:
-                    'Pengingat untuk deadline proposal, ujian akhir, dan submission.',
+                description: `Pengingat untuk deadline ${n.proposalDocument.toLowerCase()}, ${n.finalExam.toLowerCase()}, dan submission.`,
                 icon: Timer,
             },
             {

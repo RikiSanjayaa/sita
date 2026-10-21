@@ -71,7 +71,7 @@ class ThesisWorkflowSeeder extends Seeder
         $approvedAt = CarbonImmutable::parse('2026-01-14 13:00:00');
         $semproAt = CarbonImmutable::parse('2026-01-28 09:00:00');
 
-        $project = $this->upsertProject($student, $prodi, $startedAt, 'research', 'active', null, null, 'Proyek aktif setelah sempro disetujui.');
+        $project = $this->upsertProject($student, $prodi, $startedAt, 'research', 'active', null, null, 'Skripsi aktif setelah sempro disetujui.');
         $title = $this->upsertTitle(
             $project,
             versionNo: 1,
@@ -105,7 +105,7 @@ class ThesisWorkflowSeeder extends Seeder
             approvedScheduledAt: CarbonImmutable::parse('2026-02-14 10:00:00'),
         );
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Mahasiswa membuat pengajuan judul dan proposal baru.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Mahasiswa membuat pengajuan judul dan proposal baru.', $startedAt);
         $this->recordEvent($project, $student, 'title_submitted', 'Judul diajukan', $title->title_id, $submittedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Sempro dinyatakan lulus.', $semproAt->addHours(2));
@@ -147,7 +147,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'pending', null, null, $admin, null);
         $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul telah dibuat.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Pengajuan judul telah dibuat.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_scheduled', 'Sempro dijadwalkan', 'Sempro terjadwal di Ruang Seminar 1.', $semproAt);
     }
@@ -191,7 +191,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertMentorshipDocument($student, $examinerOne, 'Revisi Metodologi', 'revisi-sempro', 1, 'mentorship/nadia/revisi-metodologi-v1.pdf', 'needs_revision', CarbonImmutable::parse('2026-03-02 14:00:00'), 'Masih perlu melengkapi penjelasan teknik pengumpulan data.');
         $this->upsertMentorshipDocument($student, $examinerOne, 'Revisi Metodologi', 'revisi-sempro', 2, 'mentorship/nadia/revisi-metodologi-v2.pdf', 'submitted', CarbonImmutable::parse('2026-03-04 10:00:00'), null);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul telah dibuat.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Pengajuan judul telah dibuat.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'revision_opened', 'Revisi sempro dibuka', 'Mahasiswa perlu memperbaiki metodologi.', $semproAt->addHours(2));
     }
@@ -221,7 +221,7 @@ class ThesisWorkflowSeeder extends Seeder
 
         $this->upsertThesisDocument($project, $title, $student, 'proposal', 1, 'Proposal Skripsi', 'thesis/proposals/rizky-proposal.pdf', $submittedAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul menunggu review admin.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Pengajuan judul menunggu review admin.', $startedAt);
         $this->recordEvent($project, $student, 'title_submitted', 'Judul diajukan', $title->title_id, $submittedAt);
     }
 
@@ -260,7 +260,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'pass', 80, 'Setuju. Dataset sudah jelas.', $admin, $semproAt->addMinutes(90));
         $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul dibuat.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Pengajuan judul dibuat.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Sempro dinyatakan lulus.', $semproAt->addHours(2));
     }
@@ -305,7 +305,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertDefenseExaminer($attemptTwo, $examinerTwo, 'examiner', 2, 'pending', null, null, $admin, null);
         $this->createSemproThread($attemptTwo, $student, [$examinerOne, $examinerTwo], $attemptTwoAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul dibuat.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Pengajuan judul dibuat.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Attempt pertama selesai.', $attemptOneAt->addHours(2));
         $this->recordEvent($project, $admin, 'sempro_scheduled', 'Sempro dijadwalkan', 'Attempt kedua dijadwalkan ulang.', $attemptTwoAt);
     }
@@ -340,7 +340,7 @@ class ThesisWorkflowSeeder extends Seeder
             versionNo: 1,
             titleId: 'Sistem Rekomendasi Ruang Belajar Kolaboratif Berbasis IoT',
             titleEn: 'IoT-Based Collaborative Study Space Recommendation System',
-            proposalSummary: 'Proyek lama yang telah melewati sempro dan diarsipkan karena mahasiswa mengganti arah penelitian.',
+            proposalSummary: 'Skripsi lama yang telah melewati sempro dan diarsipkan karena mahasiswa mengganti arah penelitian.',
             status: 'approved',
             submittedBy: $student,
             submittedAt: $historicalSubmittedAt,
@@ -350,15 +350,15 @@ class ThesisWorkflowSeeder extends Seeder
 
         $this->upsertThesisDocument($historicalProject, $historicalTitle, $student, 'proposal', 1, 'Proposal Skripsi', 'thesis/proposals/laila-historical-proposal.pdf', $historicalSubmittedAt);
 
-        $historicalSempro = $this->upsertDefense($historicalProject, $historicalTitle, 'sempro', 1, 'completed', 'pass', $historicalSemproAt, 'Ruang Seminar 2', 'offline', $admin, $admin, $historicalSemproAt->addHours(2), 'Sempro proyek lama disetujui.');
-        $this->upsertDefenseExaminer($historicalSempro, $examinerOne, 'examiner', 1, 'pass', 78, 'Sempro proyek lama disetujui.', $admin, $historicalSemproAt->addMinutes(80));
-        $this->upsertDefenseExaminer($historicalSempro, $examinerTwo, 'examiner', 2, 'pass', 80.5, 'Dokumen proyek lama cukup baik.', $admin, $historicalSemproAt->addMinutes(85));
+        $historicalSempro = $this->upsertDefense($historicalProject, $historicalTitle, 'sempro', 1, 'completed', 'pass', $historicalSemproAt, 'Ruang Seminar 2', 'offline', $admin, $admin, $historicalSemproAt->addHours(2), 'Sempro skripsi lama disetujui.');
+        $this->upsertDefenseExaminer($historicalSempro, $examinerOne, 'examiner', 1, 'pass', 78, 'Sempro skripsi lama disetujui.', $admin, $historicalSemproAt->addMinutes(80));
+        $this->upsertDefenseExaminer($historicalSempro, $examinerTwo, 'examiner', 2, 'pass', 80.5, 'Dokumen skripsi lama cukup baik.', $admin, $historicalSemproAt->addMinutes(85));
         $this->createSemproThread($historicalSempro, $student, [$examinerOne, $examinerTwo], $historicalSemproAt);
 
-        $this->upsertSupervisorAssignment($historicalProject, $supervisorOne, AdvisorType::Primary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:00:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing proyek lama.');
-        $this->upsertSupervisorAssignment($historicalProject, $supervisorTwo, AdvisorType::Secondary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:05:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing kedua proyek lama.');
+        $this->upsertSupervisorAssignment($historicalProject, $supervisorOne, AdvisorType::Primary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:00:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing skripsi lama.');
+        $this->upsertSupervisorAssignment($historicalProject, $supervisorTwo, AdvisorType::Secondary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:05:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing kedua skripsi lama.');
 
-        $historicalSidang = $this->upsertDefense($historicalProject, $historicalTitle, 'sidang', 1, 'completed', 'pass_with_revision', $historicalSidangAt, 'Ruang Sidang B', 'offline', $admin, $admin, $historicalSidangAt->addHours(2), 'Sidang historis untuk proyek yang telah ditutup.');
+        $historicalSidang = $this->upsertDefense($historicalProject, $historicalTitle, 'sidang', 1, 'completed', 'pass_with_revision', $historicalSidangAt, 'Ruang Sidang B', 'offline', $admin, $admin, $historicalSidangAt->addHours(2), 'Sidang historis untuk skripsi yang telah ditutup.');
         $this->upsertDefenseExaminer($historicalSidang, $supervisorOne, 'primary_supervisor', 1, 'pass', 83.5, 'Pembimbing utama menyetujui dengan revisi minor.', $admin, $historicalSidangAt->addMinutes(95));
         $this->upsertDefenseExaminer($historicalSidang, $supervisorTwo, 'secondary_supervisor', 2, 'pass_with_revision', 81, 'Pembimbing kedua menambahkan catatan format.', $admin, $historicalSidangAt->addMinutes(100));
         $this->upsertDefenseExaminer($historicalSidang, $examinerOne, 'examiner', 3, 'pass', 84, 'Penguji menyetujui hasil sidang.', $admin, $historicalSidangAt->addMinutes(105));
@@ -382,21 +382,21 @@ class ThesisWorkflowSeeder extends Seeder
         $newStartedAt = CarbonImmutable::parse('2026-03-01 08:00:00');
         $newSubmittedAt = CarbonImmutable::parse('2026-03-01 08:30:00');
 
-        $newProject = $this->upsertProject($student, $prodi, $newStartedAt, 'title_review', 'active', null, null, 'Attempt baru setelah mahasiswa merombak total topik tugas akhir.');
+        $newProject = $this->upsertProject($student, $prodi, $newStartedAt, 'title_review', 'active', null, null, 'Attempt baru setelah mahasiswa merombak total topik skripsi.');
         $newTitle = $this->upsertTitle(
             $newProject,
             versionNo: 1,
             titleId: 'Asisten Akademik Berbasis Retrieval-Augmented Generation',
             titleEn: 'Retrieval-Augmented Generation Academic Assistant',
-            proposalSummary: 'Attempt baru setelah mahasiswa merombak total topik tugas akhir.',
+            proposalSummary: 'Attempt baru setelah mahasiswa merombak total topik skripsi.',
             status: 'submitted',
             submittedBy: $student,
             submittedAt: $newSubmittedAt,
         );
         $this->upsertThesisDocument($newProject, $newTitle, $student, 'proposal', 1, 'Proposal Skripsi', 'thesis/proposals/laila-restart-proposal.pdf', $newSubmittedAt);
 
-        $this->recordEvent($historicalProject, $admin, 'project_closed', 'Proyek ditutup', 'Proyek tugas akhir dinyatakan selesai.', CarbonImmutable::parse('2025-11-19 16:00:00'));
-        $this->recordEvent($newProject, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Attempt baru dimulai setelah restart topik.', $newStartedAt);
+        $this->recordEvent($historicalProject, $admin, 'project_closed', 'Skripsi selesai', 'Skripsi dinyatakan selesai.', CarbonImmutable::parse('2025-11-19 16:00:00'));
+        $this->recordEvent($newProject, $student, 'project_created', 'Skripsi dimulai', 'Attempt baru dimulai setelah restart topik.', $newStartedAt);
     }
 
     private function seedSupervisorRotationAndSidang(User $admin, ProgramStudi $prodi, User $initialSupervisor, User $semproExaminer, User $newPrimarySupervisor, User $secondarySupervisor): void
@@ -438,7 +438,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertSupervisorAssignment($project, $newPrimarySupervisor, AdvisorType::Primary->value, 'active', $admin, CarbonImmutable::parse('2026-02-21 09:00:00'), null, 'Rotasi pembimbing utama karena penyesuaian topik riset.');
         $this->upsertSupervisorAssignment($project, $secondarySupervisor, AdvisorType::Secondary->value, 'active', $admin, CarbonImmutable::parse('2026-02-21 09:05:00'), null, 'Pembimbing kedua aktif setelah rotasi.');
 
-        $sidang = $this->upsertDefense($project, $title, 'sidang', 1, 'scheduled', 'pending', $sidangAt, 'Ruang Sidang A', 'offline', $admin, null, null, 'Sidang perdana terjadwal untuk proyek aktif dengan pembimbing yang sudah lengkap.');
+        $sidang = $this->upsertDefense($project, $title, 'sidang', 1, 'scheduled', 'pending', $sidangAt, 'Ruang Sidang A', 'offline', $admin, null, null, 'Sidang perdana terjadwal untuk skripsi aktif dengan pembimbing yang sudah lengkap.');
         $this->upsertDefenseExaminer($sidang, $newPrimarySupervisor, 'primary_supervisor', 1, 'pending', null, 'Pembimbing utama sidang.', $admin, null);
         $this->upsertDefenseExaminer($sidang, $secondarySupervisor, 'secondary_supervisor', 2, 'pending', null, 'Pembimbing kedua sidang.', $admin, null);
         $this->upsertDefenseExaminer($sidang, $semproExaminer, 'examiner', 3, 'pending', null, 'Penguji eksternal sidang.', $admin, null);
@@ -447,7 +447,7 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertMentorshipDocument($student, $newPrimarySupervisor, 'Draft Bab 4', 'draft-tugas-akhir', 1, 'mentorship/putra/draft-bab4-v1.pdf', 'submitted', CarbonImmutable::parse('2026-03-01 11:00:00'), null);
         $this->upsertMentorshipDocument($student, $secondarySupervisor, 'Draft Bab 4', 'draft-tugas-akhir', 1, 'mentorship/putra/draft-bab4-v1.pdf', 'submitted', CarbonImmutable::parse('2026-03-01 11:00:00'), null);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tugas akhir dimulai', 'Pengajuan judul dibuat.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Skripsi dimulai', 'Pengajuan judul dibuat.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Sempro dinyatakan lulus.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Terjadi rotasi pembimbing.', CarbonImmutable::parse('2026-02-21 09:10:00'));
         $this->recordEvent($project, $admin, 'sidang_scheduled', 'Sidang dijadwalkan', 'Sidang perdana terjadwal.', $sidangAt);

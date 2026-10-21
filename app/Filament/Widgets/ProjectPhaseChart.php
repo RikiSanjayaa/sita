@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\User;
 use App\Services\AdminDashboardService;
+use App\Support\AcademicTerminology;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,7 +18,10 @@ class ProjectPhaseChart extends ChartWidget
         'xl' => 6,
     ];
 
-    protected ?string $heading = 'Sebaran Fase Proyek';
+    public function getHeading(): ?string
+    {
+        return 'Sebaran Fase '.AcademicTerminology::neutral()['finalWork'];
+    }
 
     protected ?string $maxHeight = '20rem';
 
@@ -29,7 +33,7 @@ class ProjectPhaseChart extends ChartWidget
 
         return [
             'datasets' => [[
-                'label' => 'Proyek',
+                'label' => AcademicTerminology::neutral()['finalWork'],
                 'data' => $items->pluck('count')->all(),
                 'backgroundColor' => $items->pluck('hex')->all(),
                 'borderWidth' => 0,
@@ -46,7 +50,7 @@ class ProjectPhaseChart extends ChartWidget
         $items = app(AdminDashboardService::class)->phaseDistribution($user);
 
         return sprintf(
-            '%d proyek dalam scope admin saat ini, dibagi menurut fase utama yang sedang berjalan.',
+            '%d tugas akhir dalam scope admin saat ini, dibagi menurut fase utama yang sedang berjalan.',
             $items->sum('count'),
         );
     }

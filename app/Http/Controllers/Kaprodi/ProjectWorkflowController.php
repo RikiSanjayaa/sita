@@ -202,7 +202,7 @@ class ProjectWorkflowController extends Controller
 
         if ($project->state !== 'active') {
             throw ValidationException::withMessages([
-                'project' => 'Kaprodi hanya dapat mengubah proyek tugas akhir yang masih aktif.',
+                'project' => 'Kaprodi hanya dapat mengubah '.AcademicTerminology::forProject($project)['finalWorkLower'].' yang masih aktif.',
             ]);
         }
     }

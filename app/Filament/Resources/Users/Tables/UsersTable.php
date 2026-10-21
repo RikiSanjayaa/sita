@@ -8,6 +8,7 @@ use App\Filament\Resources\Users\Actions\SendPasswordResetLinkAction;
 use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -106,13 +107,13 @@ class UsersTable
                     ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
                     ->toggleable(),
                 TextColumn::make('scheduled_sempro_examiner_count')
-                    ->label('Sempro')
+                    ->label(AcademicTerminology::neutral()['proposalExamShort'])
                     ->numeric()
                     ->sortable()
                     ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))
                     ->toggleable(),
                 TextColumn::make('scheduled_sidang_examiner_count')
-                    ->label('Sidang')
+                    ->label(AcademicTerminology::neutral()['finalExamShort'])
                     ->numeric()
                     ->sortable()
                     ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'dosen'))

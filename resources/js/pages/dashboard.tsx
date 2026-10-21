@@ -154,8 +154,8 @@ export default function DashboardPage() {
                 ? 'Ajukan Judul'
                 : `Buka ${terms.finalWork}`,
             description: quickActionState.canSubmitTitle
-                ? `Mulai pengajuan judul dan proposal ${terms.finalWorkLower}.`
-                : `Lihat status proposal, dosen, dan detail ${terms.finalWorkLower}.`,
+                ? `Mulai pengajuan judul dan ${terms.proposalDocument.toLowerCase()} ${terms.finalWorkLower}.`
+                : `Lihat status ${terms.proposalDocument.toLowerCase()}, dosen, dan detail ${terms.finalWorkLower}.`,
             href: tugasAkhir().url,
             icon: FileText,
             enabled: true,
@@ -174,7 +174,7 @@ export default function DashboardPage() {
         {
             title: 'Upload Dokumen',
             description: quickActionState.canUploadDocument
-                ? 'Unggah proposal, revisi, atau dokumen terbaru.'
+                ? `Unggah ${terms.proposalDocument.toLowerCase()}, revisi, atau dokumen terbaru.`
                 : `Aktif saat ada pembimbing atau ${terms.proposalExamShort} aktif.`,
             href: uploadDokumen({ query: { open: 'unggah' } }).url,
             icon: Upload,

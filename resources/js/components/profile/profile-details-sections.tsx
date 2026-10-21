@@ -3,6 +3,7 @@ import { FileText, GraduationCap, type LucideIcon, Users } from 'lucide-react';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { type UserProfileDetail } from '@/types';
 
 function SectionHeader({
@@ -34,7 +35,9 @@ export function ProfileDetailsSections({
 }: {
     profile: UserProfileDetail;
 }) {
-    const finalWork = profile.academicTerminology?.finalWork ?? 'Tugas Akhir';
+    const finalWork =
+        profile.academicTerminology?.finalWork ??
+        neutralAcademicTerminology.finalWork;
 
     return (
         <div className="space-y-8">

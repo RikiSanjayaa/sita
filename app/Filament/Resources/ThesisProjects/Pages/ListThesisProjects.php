@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ThesisProjects\Pages;
 
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
+use App\Support\AcademicTerminology;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,8 +15,8 @@ class ListThesisProjects extends ListRecords
     public function getTabs(): array
     {
         return [
-            'all' => Tab::make('Semua Proyek'),
-            'perlu-sempro' => Tab::make('Perlu Sempro')
+            'all' => Tab::make('Semua '.AcademicTerminology::neutral()['finalWork']),
+            'perlu-sempro' => Tab::make('Perlu '.AcademicTerminology::neutral()['proposalExamShort'])
                 ->modifyQueryUsing(fn(Builder $query): Builder => $query
                     ->where('state', 'active')
                     ->whereIn('phase', ['title_review', 'sempro'])
@@ -26,7 +27,7 @@ class ListThesisProjects extends ListRecords
                     ->where('state', 'active')
                     ->whereIn('phase', ['research', 'sidang'])
                     ->has('activeSupervisorAssignments', '<', 2)),
-            'perlu-sidang' => Tab::make('Perlu Sidang')
+            'perlu-sidang' => Tab::make('Perlu '.AcademicTerminology::neutral()['finalExamShort'])
                 ->modifyQueryUsing(fn(Builder $query): Builder => $query
                     ->where('state', 'active')
                     ->whereIn('phase', ['research', 'sidang'])

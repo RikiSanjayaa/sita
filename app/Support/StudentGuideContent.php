@@ -42,6 +42,8 @@ class StudentGuideContent
      */
     public static function defaults(): array
     {
+        $terms = AcademicTerminology::forStudent(request()->user());
+
         return [
             'hero_title' => 'Panduan',
             'hero_subtitle' => 'Ringkas, bisa dicari, dan siap membantu kamu bergerak',
@@ -143,8 +145,8 @@ class StudentGuideContent
             'template_docs' => [
                 [
                     'id' => 'tpl-1',
-                    'title' => 'Template Proposal',
-                    'description' => 'Kerangka proposal sesuai format kampus.',
+                    'title' => 'Template '.$terms['proposalDocument'],
+                    'description' => 'Kerangka '.$terms['proposalDocument'].' sesuai format kampus.',
                     'format' => 'DOCX',
                     'badge' => 'Wajib',
                     'file_path' => null,
@@ -171,7 +173,7 @@ class StudentGuideContent
                 [
                     'id' => 'tpl-4',
                     'title' => 'Template Slide Seminar',
-                    'description' => 'Slide ringkas untuk presentasi proposal/sidang.',
+                    'description' => 'Slide ringkas untuk presentasi '.$terms['proposalExamShort'].'/'.$terms['finalExamShort'].'.',
                     'format' => 'PPTX',
                     'badge' => null,
                     'file_path' => null,
@@ -184,7 +186,7 @@ class StudentGuideContent
             'help_box_description' => 'Biasanya masalah selesai setelah: cari kata kunci, baca FAQ, lalu kirim pesan dengan konteks.',
             'message_template_title' => 'Format pesan yang efektif',
             'message_template_steps' => [
-                '1) Tahap: Bab 2 / Proposal / Revisi',
+                '1) Tahap: Bab 2 / '.$terms['proposalDocument'].' / Revisi',
                 '2) Tujuan: minta review atau keputusan',
                 '3) Tautan: dokumen yang dirujuk',
                 '4) Pertanyaan: pilihan A/B atau ya/tidak',

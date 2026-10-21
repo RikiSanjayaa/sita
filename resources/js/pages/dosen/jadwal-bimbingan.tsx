@@ -190,6 +190,7 @@ export default function DosenJadwalBimbinganPage() {
         flashMessage,
         workspaceEvents,
         auth,
+        academicTerminology: n,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
 
     const [workspaceFilter, setWorkspaceFilter] = useUrlState<WorkspaceFilter>(
@@ -556,7 +557,7 @@ export default function DosenJadwalBimbinganPage() {
 
     const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
         { label: 'Bimbingan', value: 'bimbingan' },
-        { label: 'Proposal / Ujian Akhir', value: 'ujian' },
+        { label: `${n.proposalExamShort} / ${n.finalExam}`, value: 'ujian' },
         { label: 'Semua', value: 'semua' },
     ];
 
@@ -598,8 +599,8 @@ export default function DosenJadwalBimbinganPage() {
                                 Workspace Jadwal
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Satu kalender untuk bimbingan, proposal, dan
-                                ujian akhir
+                                Satu kalender untuk bimbingan,{' '}
+                                {n.proposalExamShort}, dan {n.finalExam}
                             </p>
                         </div>
                         {/* filter pills */}

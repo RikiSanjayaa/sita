@@ -45,7 +45,7 @@ class ViewThesisProject extends ViewRecord
                 ->form([
                     Textarea::make('notes')
                         ->label('Catatan')
-                        ->default('Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap sempro.')
+                        ->default('Judul dan '.mb_strtolower($terms['proposalDocument']).' disetujui. Mahasiswa dapat lanjut ke '.$terms['proposalPhase'].'.')
                         ->rows(3),
                 ])
                 ->action(function (array $data) use ($record): void {
@@ -83,7 +83,7 @@ class ViewThesisProject extends ViewRecord
                 ->visible(fn(): bool => $this->canDecideTitleReview($record))
                 ->requiresConfirmation()
                 ->modalHeading('Tolak pengajuan judul?')
-                ->modalDescription('Proyek akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
+                ->modalDescription($terms['finalWork'].' akan ditandai dibatalkan dan mahasiswa dapat mengajukan judul baru.')
                 ->form([
                     Textarea::make('notes')
                         ->label('Alasan')
@@ -231,7 +231,7 @@ class ViewThesisProject extends ViewRecord
                         $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
                     } catch (\Throwable $exception) {
                         Notification::make()
-                            ->title('Gagal menjadwalkan sempro')
+                            ->title('Gagal menjadwalkan '.$terms['proposalExamShort'])
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();
@@ -262,7 +262,7 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record): void {
+                ->action(function (array $data) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -279,14 +279,14 @@ class ViewThesisProject extends ViewRecord
                         );
 
                         Notification::make()
-                            ->title('Hasil sempro berhasil dicatat')
+                            ->title('Hasil '.$terms['proposalExamShort'].' berhasil dicatat')
                             ->success()
                             ->send();
 
                         $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
                     } catch (\Throwable $exception) {
                         Notification::make()
-                            ->title('Gagal mencatat hasil sempro')
+                            ->title('Gagal mencatat hasil '.$terms['proposalExamShort'])
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();
@@ -428,8 +428,8 @@ class ViewThesisProject extends ViewRecord
                         ->minItems(fn(): int => $this->requiredSidangPanelUserIds($record) === [] ? 2 : 1)
                         ->helperText(
                             $this->requiredSidangPanelUserIds($record) === []
-                                ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel sidang.'
-                                : 'Pembimbing aktif otomatis masuk panel sidang. Pilih minimal satu dosen penguji tambahan.'
+                                ? 'Belum ada pembimbing aktif. Pilih minimal dua dosen sebagai panel '.$terms['finalExamShort'].'.'
+                                : 'Pembimbing aktif otomatis masuk panel '.$terms['finalExamShort'].'. Pilih minimal satu dosen penguji tambahan.'
                         )
                         ->native(false),
                     Textarea::make('notes')
@@ -471,7 +471,7 @@ class ViewThesisProject extends ViewRecord
                         $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
                     } catch (\Throwable $exception) {
                         Notification::make()
-                            ->title('Gagal menjadwalkan sidang')
+                            ->title('Gagal menjadwalkan '.$terms['finalExamShort'])
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();
@@ -531,7 +531,7 @@ class ViewThesisProject extends ViewRecord
                         $this->redirect(ThesisProjectResource::getUrl('view', ['record' => $record->getKey()]));
                     } catch (\Throwable $exception) {
                         Notification::make()
-                            ->title('Gagal memperbarui sidang')
+                            ->title('Gagal memperbarui '.$terms['finalExamShort'])
                             ->body($exception->getMessage())
                             ->danger()
                             ->send();
@@ -541,7 +541,7 @@ class ViewThesisProject extends ViewRecord
 
         return [
             Action::make('edit')
-                ->label('Edit Proyek')
+                ->label('Edit '.$terms['finalWork'])
                 ->icon('heroicon-m-pencil-square')
                 ->url(fn(): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
             ActionGroup::make($workflowActions)
@@ -674,6 +674,7 @@ class ViewThesisProject extends ViewRecord
 
     private function finalizeSemproTooltip(ThesisProject $project): ?string
     {
+        $terms = AcademicTerminology::forProject($project);
         $defense = $this->latestSempro($project);
 
         if (! $defense instanceof ThesisDefense) {
@@ -693,14 +694,15 @@ class ViewThesisProject extends ViewRecord
         }
 
         if ($defense->status === 'completed') {
-            return 'Hasil sempro sudah pernah dicatat. Jadwalkan ulang jika perlu attempt baru.';
+            return 'Hasil '.$terms['proposalExamShort'].' sudah pernah dicatat. Jadwalkan ulang jika perlu attempt baru.';
         }
 
-        return 'Hasil sempro belum bisa dicatat pada status saat ini.';
+        return 'Hasil '.$terms['proposalExamShort'].' belum bisa dicatat pada status saat ini.';
     }
 
     private function completeSidangTooltip(ThesisProject $project): ?string
     {
+        $terms = AcademicTerminology::forProject($project);
         $defense = $this->latestSidang($project);
 
         if (! $defense instanceof ThesisDefense) {
@@ -715,14 +717,14 @@ class ViewThesisProject extends ViewRecord
             $decidedCount = $defense->examiners->where('decision', '!=', 'pending')->count();
 
             return $decidedCount === 0
-                ? 'Belum ada nilai dari panel sidang.'
-                : 'Belum semua panel sidang mengirim keputusan.';
+                ? 'Belum ada nilai dari panel '.$terms['finalExamShort'].'.'
+                : 'Belum semua panel '.$terms['finalExamShort'].' mengirim keputusan.';
         }
 
         if ($defense->status === 'completed') {
-            return 'Hasil sidang sudah pernah dicatat. Jadwalkan ulang jika perlu attempt baru.';
+            return 'Hasil '.$terms['finalExamShort'].' sudah pernah dicatat. Jadwalkan ulang jika perlu attempt baru.';
         }
 
-        return 'Hasil sidang belum bisa dicatat pada status saat ini.';
+        return 'Hasil '.$terms['finalExamShort'].' belum bisa dicatat pada status saat ini.';
     }
 }

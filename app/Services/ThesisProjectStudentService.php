@@ -71,7 +71,7 @@ class ThesisProjectStudentService
                 'kind' => 'proposal',
                 'status' => 'active',
                 'version_no' => 1,
-                'title' => 'Proposal '.$terminology['finalWork'],
+                'title' => $terminology['proposalDocument'].' '.$terminology['finalWork'],
                 'storage_disk' => 'public',
                 'storage_path' => $path,
                 'stored_file_name' => basename($path),
@@ -88,7 +88,7 @@ class ThesisProjectStudentService
                 fileName: $proposalFile->getClientOriginalName(),
                 mimeType: $proposalFile->getMimeType() ?? 'application/pdf',
                 fileSizeKb: $this->toKilobytes($proposalFile->getSize()),
-                title: 'Proposal '.$terminology['finalWork'],
+                title: $terminology['proposalDocument'].' '.$terminology['finalWork'],
                 category: 'proposal',
             );
 
@@ -96,8 +96,8 @@ class ThesisProjectStudentService
                 $project,
                 actorUserId: $student->id,
                 eventType: 'project_created',
-                label: 'Proyek '.$terminology['finalWorkLower'].' dimulai',
-                description: 'Mahasiswa membuat pengajuan judul dan proposal baru.',
+                label: $terminology['finalWork'].' dimulai',
+                description: 'Mahasiswa membuat pengajuan judul dan '.$terminology['proposalDocument'].' baru.',
             );
 
             $this->recordEvent(
@@ -165,7 +165,7 @@ class ThesisProjectStudentService
                     fileName: $proposalFile->getClientOriginalName(),
                     mimeType: $proposalFile->getMimeType() ?? 'application/pdf',
                     fileSizeKb: $this->toKilobytes($proposalFile->getSize()),
-                    title: 'Proposal '.$terminology['finalWork'],
+                    title: $terminology['proposalDocument'].' '.$terminology['finalWork'],
                     category: 'proposal',
                 );
             }
@@ -224,7 +224,7 @@ class ThesisProjectStudentService
                     'uploaded_by_user_id' => $student->id,
                     'status' => 'active',
                     'version_no' => $title->version_no,
-                    'title' => 'Proposal '.$terminology['finalWork'],
+                    'title' => $terminology['proposalDocument'].' '.$terminology['finalWork'],
                     'storage_disk' => 'public',
                     'storage_path' => $updatedFileMeta['path'] ?? $proposalDocument?->storage_path,
                     'stored_file_name' => $updatedFileMeta['stored_file_name'] ?? $proposalDocument?->stored_file_name,
@@ -258,10 +258,10 @@ class ThesisProjectStudentService
             }
 
             $eventDescription = match ($mode) {
-                'sempro_scheduled' => sprintf('Mahasiswa memperbarui judul atau proposal untuk kebutuhan %s yang sudah dijadwalkan.', $terminology['proposalExamShort']),
-                'sempro_revision' => sprintf('Mahasiswa memperbarui judul atau proposal untuk menindaklanjuti revisi %s.', $terminology['proposalExamShort']),
-                'sempro_failed' => sprintf('Mahasiswa memperbarui judul atau proposal setelah %s dinyatakan gagal untuk persiapan attempt berikutnya.', $terminology['proposalExamShort']),
-                default => 'Mahasiswa memperbarui judul atau proposal sebelum direview admin.',
+                'sempro_scheduled' => sprintf('Mahasiswa memperbarui judul atau '.$terminology['proposalDocument'].' untuk kebutuhan %s yang sudah dijadwalkan.', $terminology['proposalExamShort']),
+                'sempro_revision' => sprintf('Mahasiswa memperbarui judul atau '.$terminology['proposalDocument'].' untuk menindaklanjuti revisi %s.', $terminology['proposalExamShort']),
+                'sempro_failed' => sprintf('Mahasiswa memperbarui judul atau '.$terminology['proposalDocument'].' setelah %s dinyatakan gagal untuk persiapan attempt berikutnya.', $terminology['proposalExamShort']),
+                default => 'Mahasiswa memperbarui judul atau '.$terminology['proposalDocument'].' sebelum direview admin.',
             };
 
             $this->recordEvent(
@@ -301,7 +301,7 @@ class ThesisProjectStudentService
             ->first();
 
         if (! $defense instanceof ThesisDefense) {
-            throw new RuntimeException(sprintf('%s belum tersedia untuk proyek ini.', $defenseLabel));
+            throw new RuntimeException(sprintf('%s belum tersedia untuk %s ini.', $defenseLabel, $terminology['finalWorkLower']));
         }
 
         if ($defense->status === 'completed') {
@@ -338,9 +338,9 @@ class ThesisProjectStudentService
             throw new RuntimeException('Dokumen utama tidak valid.');
         }
 
-        return DB::transaction(function () use ($defense, $defenseLabel, $mainDocument, $project, $student, $submittedAt, $supportingDocumentIds, $titleVersionId, $type, $workspaceDocuments): ThesisProject {
+        return DB::transaction(function () use ($defense, $defenseLabel, $mainDocument, $project, $student, $submittedAt, $supportingDocumentIds, $terminology, $titleVersionId, $type, $workspaceDocuments): ThesisProject {
             $primaryKind = $type === 'sidang' ? 'final_manuscript' : 'proposal';
-            $primaryTitle = $type === 'sidang' ? 'Naskah Akhir '.$defenseLabel : 'Proposal '.$defenseLabel;
+            $primaryTitle = $type === 'sidang' ? 'Naskah Akhir '.$defenseLabel : $terminology['proposalDocument'].' '.$defenseLabel;
 
             $this->replaceDefenseDocument(
                 defense: $defense,
@@ -376,7 +376,7 @@ class ThesisProjectStudentService
                 label: sprintf('Dokumen %s dipilih', $defenseLabel),
                 description: $type === 'sidang'
                     ? sprintf('Mahasiswa memperbarui naskah akhir dan lampiran %s dari workspace dokumen.', $defenseLabel)
-                    : sprintf('Mahasiswa memilih dokumen proposal dari workspace untuk %s aktif.', $defenseLabel),
+                    : sprintf('Mahasiswa memilih '.$terminology['proposalDocument'].' dari workspace untuk %s aktif.', $defenseLabel),
             );
 
             return $project->fresh(['documents', 'defenses.documents']);
