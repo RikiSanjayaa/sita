@@ -86,6 +86,7 @@ class UserProvisioningService
                     ),
                     'angkatan' => $this->nullableInt($data['angkatan'] ?? null),
                     'is_active' => (bool) ($data['is_active'] ?? true),
+                    'is_obe_curriculum' => (bool) ($data['is_obe_curriculum'] ?? $user->mahasiswaProfile?->is_obe_curriculum ?? false),
                 ],
             );
 

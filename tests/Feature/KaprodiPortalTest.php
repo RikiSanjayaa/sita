@@ -396,6 +396,35 @@ test('kaprodi lecturer directory stays scoped while assignment options load asyn
             ->where('lecturers.0.name', 'Kaprodi Merangkap Dosen'));
 });
 
+test('kaprodi mahasiswa page exposes kurikulum OBE flag per student', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser();
+
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $obeStudent = kaprodiStudent($prodi, 'Mahasiswa OBE');
+    $obeStudent->mahasiswaProfile?->forceFill(['is_obe_curriculum' => true])->save();
+    kaprodiProject($obeStudent, $prodi);
+
+    $legacyStudent = kaprodiStudent($prodi, 'Mahasiswa Lama');
+    kaprodiProject($legacyStudent, $prodi);
+
+    $this->actingAs($kaprodi)
+        ->get('/kaprodi/mahasiswa')
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('kaprodi/mahasiswa')
+            ->where('students', fn($students): bool => collect($students)->contains(
+                fn(array $student): bool => $student['name'] === 'Mahasiswa OBE' && $student['isObeCurriculum'] === true,
+            ) && collect($students)->contains(
+                fn(array $student): bool => $student['name'] === 'Mahasiswa Lama' && $student['isObeCurriculum'] === false,
+            )));
+});
+
 test('kaprodi mahasiswa page exposes progress risk from project and chat activity', function (): void {
     $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $kaprodi = kaprodiRoleUser();

@@ -70,6 +70,11 @@ class BadgeStyles
             'resolved' => 'success',
             'closed' => 'neutral',
         ],
+        // Curriculum framework flag on mahasiswa profiles (OBE vs legacy).
+        'curriculum' => [
+            'obe' => 'primary',
+            'non_obe' => 'neutral',
+        ],
         'active' => [
             'active' => 'success',
             'inactive' => 'neutral',

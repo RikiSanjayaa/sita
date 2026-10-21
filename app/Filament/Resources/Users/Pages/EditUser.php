@@ -55,6 +55,7 @@ class EditUser extends EditRecord
         $data['nik'] = $this->record->dosenProfile?->nik;
         $data['supervision_quota'] = $this->record->dosenProfile?->supervision_quota;
         $data['is_active'] = $this->record->mahasiswaProfile?->is_active ?? $this->record->dosenProfile?->is_active ?? true;
+        $data['is_obe_curriculum'] = $this->record->mahasiswaProfile?->is_obe_curriculum ?? false;
 
         return $data;
     }
@@ -80,6 +81,7 @@ class EditUser extends EditRecord
             'nik' => $data['nik'] ?? null,
             'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
+            'is_obe_curriculum' => (bool) ($data['is_obe_curriculum'] ?? false),
         ];
 
         unset(
@@ -94,6 +96,7 @@ class EditUser extends EditRecord
             $data['nik'],
             $data['supervision_quota'],
             $data['is_active'],
+            $data['is_obe_curriculum'],
         );
 
         return $data;

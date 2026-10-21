@@ -26,6 +26,14 @@ class MahasiswaProfileFactory extends Factory
             'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
             'angkatan' => (int) now()->format('Y'),
             'is_active' => true,
+            'is_obe_curriculum' => false,
         ];
+    }
+
+    public function obeCurriculum(): static
+    {
+        return $this->state(fn(): array => [
+            'is_obe_curriculum' => true,
+        ]);
     }
 }

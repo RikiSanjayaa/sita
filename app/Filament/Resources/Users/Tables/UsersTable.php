@@ -60,6 +60,13 @@ class UsersTable
                     ->formatStateUsing(fn(?string $state): string => strtoupper($state ?? '-'))
                     ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa'))
                     ->toggleable(),
+                TextColumn::make('mahasiswaProfile.is_obe_curriculum')
+                    ->label('Kurikulum OBE')
+                    ->badge()
+                    ->formatStateUsing(fn(?bool $state): string => $state ? 'OBE' : 'Non-OBE')
+                    ->color(fn(?bool $state): string => BadgeStyles::domainStatusColor('curriculum', $state ? 'obe' : 'non_obe'))
+                    ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa'))
+                    ->toggleable(),
                 TextColumn::make('dosenProfile.nik')
                     ->label('NIK')
                     ->searchable()
@@ -204,6 +211,19 @@ class UsersTable
 
                         return filled($value)
                             ? $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('degree_level', $value))
+                            : $query;
+                    }),
+                SelectFilter::make('is_obe_curriculum')
+                    ->label('Kurikulum OBE')
+                    ->options([
+                        '1' => 'OBE',
+                        '0' => 'Non-OBE',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        return filled($value)
+                            ? $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('is_obe_curriculum', (bool) $value))
                             : $query;
                     }),
                 SelectFilter::make('expertise_field_id')

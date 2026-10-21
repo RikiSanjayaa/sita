@@ -23,6 +23,7 @@ class MahasiswaProfile extends Model
         'concentration',
         'angkatan',
         'is_active',
+        'is_obe_curriculum',
     ];
 
     public function programStudi(): BelongsTo
@@ -34,6 +35,7 @@ class MahasiswaProfile extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_obe_curriculum' => 'boolean',
         ];
     }
 

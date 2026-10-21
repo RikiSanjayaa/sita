@@ -177,7 +177,34 @@ class UserExcelImportService
             ]);
         }
 
-        return Arr::map($validated, fn(mixed $value): mixed => $value === '' ? null : $value);
+        $mapped = Arr::map($validated, fn(mixed $value): mixed => $value === '' ? null : $value);
+
+        // Kolom kurikulum_obe opsional: file lama tanpa kolom tidak mengubah flag yang sudah ada.
+        if ($role === AppRole::Mahasiswa->value && array_key_exists('kurikulum_obe', $raw)) {
+            $mapped['is_obe_curriculum'] = $this->parseObeCurriculum($raw['kurikulum_obe']);
+        }
+
+        return $mapped;
+    }
+
+    /**
+     * Empty means the student is on the legacy curriculum (false).
+     */
+    private function parseObeCurriculum(string $value): bool
+    {
+        $normalized = strtolower(trim($value));
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        return match ($normalized) {
+            'ya', '1', 'true' => true,
+            'tidak', '0', 'false' => false,
+            default => throw ValidationException::withMessages([
+                'kurikulum_obe' => ["Nilai kurikulum_obe '{$value}' tidak valid. Gunakan ya/tidak, 1/0, atau true/false, atau kosongkan untuk tidak OBE."],
+            ]),
+        };
     }
 
     /**

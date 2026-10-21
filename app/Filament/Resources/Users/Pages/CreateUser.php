@@ -26,6 +26,7 @@ class CreateUser extends CreateRecord
             'nik' => $data['nik'] ?? null,
             'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
+            'is_obe_curriculum' => (bool) ($data['is_obe_curriculum'] ?? false),
         ];
 
         unset(
@@ -40,6 +41,7 @@ class CreateUser extends CreateRecord
             $data['nik'],
             $data['supervision_quota'],
             $data['is_active'],
+            $data['is_obe_curriculum'],
         );
 
         return $data;

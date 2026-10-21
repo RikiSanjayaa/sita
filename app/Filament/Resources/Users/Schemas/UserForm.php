@@ -141,6 +141,10 @@ class UserForm
                             ->label('Status (Aktif/Nonaktif)')
                             ->default(true)
                             ->required(),
+                        Toggle::make('is_obe_curriculum')
+                            ->label('Kurikulum OBE')
+                            ->helperText('Aktifkan jika mahasiswa mengikuti kurikulum berbasis OBE.')
+                            ->default(false),
                     ]),
                 Section::make('Dosen Profile')
                     ->visible(fn(Get $get): bool => $get('role') === AppRole::Dosen->value)

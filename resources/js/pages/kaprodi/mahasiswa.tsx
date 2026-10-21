@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ type StudentRow = {
     angkatan: string | null;
     degreeLevel: string;
     concentration: string | null;
+    isObeCurriculum: boolean;
     phase: string;
     phaseKey: string;
     projectState: string;
@@ -93,6 +95,7 @@ type ArchiveRow = {
     angkatan: string | null;
     degreeLevel: string;
     concentration: string | null;
+    isObeCurriculum: boolean;
     title: string;
     state: string;
     phase: string;
@@ -113,6 +116,7 @@ type DirectoryRow = {
     angkatan: string | null;
     degreeLevel: string;
     concentration: string | null;
+    isObeCurriculum: boolean;
     phase: string;
     phaseKey: ActivePhaseFilter;
     title: string;
@@ -275,6 +279,7 @@ function StudentTable({
                 angkatan: row.angkatan,
                 degreeLevel: row.degreeLevel,
                 concentration: row.concentration,
+                isObeCurriculum: row.isObeCurriculum,
                 phase: row.phase,
                 phaseKey: row.phaseKey as ActivePhaseFilter,
                 title: row.title,
@@ -300,6 +305,7 @@ function StudentTable({
                 angkatan: row.angkatan,
                 degreeLevel: row.degreeLevel,
                 concentration: row.concentration,
+                isObeCurriculum: row.isObeCurriculum,
                 phase: row.state,
                 phaseKey: isCancelled ? 'cancelled' : 'completed',
                 title: row.title,
@@ -528,6 +534,15 @@ function StudentTable({
                                         <p className="mt-0.5 text-xs text-muted-foreground">
                                             {row.concentration ?? '-'}
                                         </p>
+                                        {row.isObeCurriculum && (
+                                            <StatusBadge
+                                                domain="curriculum"
+                                                status="obe"
+                                                className="mt-1"
+                                            >
+                                                OBE
+                                            </StatusBadge>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex flex-col items-start gap-1.5">
@@ -736,6 +751,11 @@ function SupervisorDialog({
                         Tetapkan pembimbing aktif untuk {activeStudent.name} (
                         {activeStudent.nim}).
                     </DialogDescription>
+                    {activeStudent.isObeCurriculum && (
+                        <StatusBadge domain="curriculum" status="obe">
+                            OBE
+                        </StatusBadge>
+                    )}
                 </DialogHeader>
 
                 <div className="grid gap-4">
