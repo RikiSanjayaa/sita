@@ -24,6 +24,16 @@ it('labels a single student by degree level', function (DegreeLevel|string|null 
     'missing level falls back to S1' => [null, 'S1', 'Skripsi', 'Sidang Skripsi'],
 ]);
 
+it('labels the stage-1 exam by curriculum', function (bool $obe, string $proposalExam, string $proposalExamShort): void {
+    expect(AcademicTerminology::forDegreeLevel('s1', $obe))
+        ->proposalExam->toBe($proposalExam)
+        ->proposalExamShort->toBe($proposalExamShort)
+        ->finalExam->toBe('Sidang Skripsi');
+})->with([
+    'OBE' => [true, 'Ujian Sinopsis', 'Sinopsis'],
+    'non-OBE' => [false, 'Seminar Proposal', 'Sempro'],
+]);
+
 it('uses cross-degree labels for mixed lists', function (): void {
     expect(AcademicTerminology::neutral())
         ->degreeLevel->toBe('')

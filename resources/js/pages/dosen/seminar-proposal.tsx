@@ -83,6 +83,7 @@ type DefenseItem = {
     defenseId: number;
     type: 'sempro' | 'sidang';
     typeLabel: string;
+    scoreRequired: boolean;
     attemptNo: number;
     studentName: string;
     studentNim: string;
@@ -194,10 +195,12 @@ function MyDecisionBadge({
 function DecisionForm({
     defenseId,
     defenseType,
+    scoreRequired,
     onClose,
 }: {
     defenseId: number;
     defenseType: string;
+    scoreRequired: boolean;
     onClose: () => void;
 }) {
     const [decision, setDecision] = useState<string>('');
@@ -209,9 +212,11 @@ function DecisionForm({
         decision === 'pass_with_revision' ||
         (defenseType === 'sempro' && decision === 'pass');
     const revisionNotesRequired = decision === 'pass_with_revision';
+    const notesRequired = scoreRequired && defenseType === 'sempro';
 
     function submit() {
-        if (!decision || !score) return;
+        if (!decision || (scoreRequired && !score)) return;
+        if (notesRequired && decisionNotes.trim() === '') return;
         if (revisionNotesRequired && revisionNotes.trim() === '') return;
 
         setSubmitting(true);
@@ -219,8 +224,8 @@ function DecisionForm({
             `/dosen/seminar-proposal/${defenseId}/decision`,
             {
                 decision,
-                score: parseFloat(score),
-                decision_notes: decisionNotes || null,
+                ...(scoreRequired ? { score: parseFloat(score) } : {}),
+                decision_notes: decisionNotes.trim() || null,
                 revision_notes: showRevisionNotes
                     ? revisionNotes.trim() || null
                     : null,
@@ -297,23 +302,27 @@ function DecisionForm({
                     </div>
                 </div>
 
-                <div className="grid gap-1.5">
-                    <Label htmlFor="sheet-score">Nilai (0–100) *</Label>
-                    <Input
-                        id="sheet-score"
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.01}
-                        value={score}
-                        onChange={(e) => setScore(e.target.value)}
-                        placeholder="0 – 100"
-                    />
-                </div>
+                {scoreRequired && (
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="sheet-score">Nilai (0–100) *</Label>
+                        <Input
+                            id="sheet-score"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.01}
+                            value={score}
+                            onChange={(e) => setScore(e.target.value)}
+                            placeholder="0 – 100"
+                        />
+                    </div>
+                )}
             </div>
 
             <div className="grid gap-1.5">
-                <Label htmlFor="sheet-decision-notes">Catatan Keputusan</Label>
+                <Label htmlFor="sheet-decision-notes">
+                    Catatan Keputusan{notesRequired ? ' *' : ''}
+                </Label>
                 <Textarea
                     id="sheet-decision-notes"
                     rows={2}
@@ -348,7 +357,8 @@ function DecisionForm({
                     disabled={
                         submitting ||
                         !decision ||
-                        !score ||
+                        (scoreRequired && !score) ||
+                        (notesRequired && decisionNotes.trim() === '') ||
                         (revisionNotesRequired && revisionNotes.trim() === '')
                     }
                     className="flex-1 sm:flex-none"
@@ -661,6 +671,7 @@ function DefenseDetailSheet({
                                     <DecisionForm
                                         defenseId={item.defenseId}
                                         defenseType={item.type}
+                                        scoreRequired={item.scoreRequired}
                                         onClose={handleClose}
                                     />
                                 )}

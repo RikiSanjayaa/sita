@@ -79,14 +79,20 @@ function labels(
 
 export function academicTerminology(
     degreeLevel?: string | null,
+    isObeCurriculum = false,
 ): AcademicTerminology {
+    const proposalExam = isObeCurriculum
+        ? 'Ujian Sinopsis'
+        : 'Seminar Proposal';
+    const proposalExamShort = isObeCurriculum ? 'Sinopsis' : 'Sempro';
+
     switch (degreeLevel?.toLowerCase()) {
         case 'd3':
             return labels(
                 'D3',
                 'Tugas Akhir',
-                'Seminar Proposal',
-                'Sempro',
+                proposalExam,
+                proposalExamShort,
                 'Sidang Tugas Akhir',
                 'Sidang',
             );
@@ -94,8 +100,8 @@ export function academicTerminology(
             return labels(
                 'S2',
                 'Tesis',
-                'Seminar Proposal',
-                'Sempro',
+                proposalExam,
+                proposalExamShort,
                 'Sidang Tesis',
                 'Sidang',
             );
@@ -103,8 +109,8 @@ export function academicTerminology(
             return labels(
                 'S1',
                 'Skripsi',
-                'Seminar Proposal',
-                'Sempro',
+                proposalExam,
+                proposalExamShort,
                 'Sidang Skripsi',
                 'Sidang',
             );

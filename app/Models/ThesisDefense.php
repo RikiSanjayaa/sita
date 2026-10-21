@@ -70,6 +70,21 @@ class ThesisDefense extends Model
         return $this->hasMany(ThesisRevision::class, 'defense_id');
     }
 
+    /**
+     * Examiners grade with a score for sidang and for the OBE stage-1 exam
+     * (Ujian Sinopsis). Non-OBE sempro is decision-only.
+     */
+    public function requiresScore(): bool
+    {
+        if ($this->type !== 'sempro') {
+            return true;
+        }
+
+        $this->loadMissing('project.student.mahasiswaProfile');
+
+        return (bool) $this->project?->student?->mahasiswaProfile?->is_obe_curriculum;
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(ThesisDocument::class, 'defense_id');

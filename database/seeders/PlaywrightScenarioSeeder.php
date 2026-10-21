@@ -62,6 +62,18 @@ class PlaywrightScenarioSeeder extends Seeder
             [$dosen3->id, $dosen4->id],
         );
 
+        // OBE student: Ujian Sinopsis scheduled with two examiners (dosen3 + dosen4); score and comment required.
+        $student = $this->student($role, $prodi, 'e2e-sinopsis@sita.test', 'Wulan Ujian Sinopsis', '2210511006', isObeCurriculum: true);
+        $project = $this->project($student, $prodi, 'sempro', 'Deteksi Hoaks Berita Daring Dengan Model Bahasa');
+        $service->scheduleSempro(
+            $project,
+            $admin->id,
+            CarbonImmutable::now()->addDays(11)->setTime(9, 0)->toDateTimeString(),
+            'Ruang Sinopsis E2E',
+            'offline',
+            [$dosen3->id, $dosen4->id],
+        );
+
         // Approved title and proposal, no sempro yet: the kaprodi schedules it.
         $student = $this->student($role, $prodi, 'e2e-jadwalsempro@sita.test', 'Laras Siap Sempro', '2210511003');
         $this->project($student, $prodi, 'sempro', 'Aplikasi Pemantauan Kualitas Udara Dalam Ruangan');
@@ -86,7 +98,7 @@ class PlaywrightScenarioSeeder extends Seeder
         );
     }
 
-    private function student(Role $role, ProgramStudi $prodi, string $email, string $name, string $nim): User
+    private function student(Role $role, ProgramStudi $prodi, string $email, string $name, string $nim, bool $isObeCurriculum = false): User
     {
         $student = User::query()->updateOrCreate(
             ['email' => $email],
@@ -109,6 +121,7 @@ class PlaywrightScenarioSeeder extends Seeder
                 'concentration' => 'Sistem Cerdas',
                 'angkatan' => 2022,
                 'is_active' => true,
+                'is_obe_curriculum' => $isObeCurriculum,
             ],
         );
 

@@ -28,6 +28,11 @@ it('seeds one student per Playwright scenario and can be re-run to reset them', 
     expect($sempro->status)->toBe('scheduled')
         ->and($sempro->examiners)->toHaveCount(2);
 
+    $sinopsis = playwrightProject('e2e-sinopsis@sita.test');
+    expect($sinopsis->student->mahasiswaProfile->is_obe_curriculum)->toBeTrue()
+        ->and($sinopsis->semproDefenses->first()->examiners)->toHaveCount(2)
+        ->and($sempro->project->student->mahasiswaProfile->is_obe_curriculum)->toBeFalse();
+
     $unscheduled = playwrightProject('e2e-jadwalsempro@sita.test');
     expect($unscheduled->semproDefenses)->toBeEmpty();
 
@@ -39,5 +44,5 @@ it('seeds one student per Playwright scenario and can be re-run to reset them', 
     expect($sidang->status)->toBe('scheduled')
         ->and($sidang->examiners)->toHaveCount(3);
 
-    expect(ThesisProject::query()->whereIn('student_user_id', User::query()->where('email', 'like', 'e2e-%@sita.test')->pluck('id'))->count())->toBe(5);
+    expect(ThesisProject::query()->whereIn('student_user_id', User::query()->where('email', 'like', 'e2e-%@sita.test')->pluck('id'))->count())->toBe(6);
 });

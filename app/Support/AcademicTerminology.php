@@ -27,17 +27,17 @@ final class AcademicTerminology
     ];
 
     /**
-     * Labels for a single student of the given degree level.
+     * Labels for a single student of the given degree level and curriculum.
      *
      * @return array<string, string>
      */
-    public static function forDegreeLevel(DegreeLevel|string|null $degreeLevel): array
+    public static function forDegreeLevel(DegreeLevel|string|null $degreeLevel, bool $isObeCurriculum = false): array
     {
         $level = $degreeLevel instanceof DegreeLevel
             ? $degreeLevel
             : DegreeLevel::tryFrom(strtolower(trim((string) $degreeLevel)));
 
-        [$proposalExam, $proposalExamShort] = self::proposalExamLabels();
+        [$proposalExam, $proposalExamShort] = self::proposalExamLabels($isObeCurriculum);
 
         return match ($level) {
             DegreeLevel::D3 => self::labels(
@@ -95,7 +95,10 @@ final class AcademicTerminology
     {
         $student?->loadMissing('mahasiswaProfile');
 
-        return self::forDegreeLevel($student?->mahasiswaProfile?->degree_level);
+        return self::forDegreeLevel(
+            $student?->mahasiswaProfile?->degree_level,
+            (bool) $student?->mahasiswaProfile?->is_obe_curriculum,
+        );
     }
 
     /**
@@ -143,9 +146,11 @@ final class AcademicTerminology
      *
      * @return array{0: string, 1: string}
      */
-    private static function proposalExamLabels(): array
+    private static function proposalExamLabels(bool $isObeCurriculum): array
     {
-        return ['Seminar Proposal', 'Sempro'];
+        return $isObeCurriculum
+            ? ['Ujian Sinopsis', 'Sinopsis']
+            : ['Seminar Proposal', 'Sempro'];
     }
 
     /**

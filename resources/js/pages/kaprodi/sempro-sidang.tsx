@@ -91,6 +91,7 @@ type ExamRow = {
     statusKey: string;
     result: string;
     averageScore: number | null;
+    scoreRequired: boolean;
     grade: string | null;
     student: string;
     terminology: AcademicTerminology;
@@ -564,7 +565,9 @@ export default function KaprodiSemproSidangPage() {
                                                 {item.averageScore === null &&
                                                 item.grade === null ? (
                                                     <span className="text-xs text-muted-foreground">
-                                                        -
+                                                        {item.scoreRequired
+                                                            ? '-'
+                                                            : 'Tanpa nilai'}
                                                     </span>
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -760,15 +763,20 @@ function ExamDetailSheet({
                                 <MiniStat
                                     label="Nilai"
                                     value={
-                                        item.averageScore === null
-                                            ? '-'
-                                            : `${item.averageScore}`
+                                        item.averageScore !== null
+                                            ? `${item.averageScore}`
+                                            : item.scoreRequired
+                                              ? '-'
+                                              : 'Tanpa nilai'
                                     }
                                 />
-                                <MiniStat
-                                    label="Grade"
-                                    value={item.grade ?? '-'}
-                                />
+                                {(item.scoreRequired ||
+                                    item.averageScore !== null) && (
+                                    <MiniStat
+                                        label="Grade"
+                                        value={item.grade ?? '-'}
+                                    />
+                                )}
                                 <MiniStat
                                     label="Revisi"
                                     value={`${item.revisionCount}`}
