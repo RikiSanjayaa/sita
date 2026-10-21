@@ -116,7 +116,7 @@ test.describe('Chat attachment review visibility', () => {
             await openMahasiswaBimbinganThread(mahasiswaPage);
             await expect(
                 mahasiswaPage
-                    .getByText(/menandai dokumen .* perlu revisi/i)
+                    .getByText(/menandai lampiran .* perlu revisi/i)
                     .first(),
             ).toBeVisible();
         } finally {

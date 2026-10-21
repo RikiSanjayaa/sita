@@ -94,13 +94,12 @@ class DokumenRevisiController extends Controller
         $document->loadMissing('student');
 
         $verdict = $status === 'approved' ? 'disetujui' : 'perlu revisi';
-        $description = sprintf(
-            '%s menandai dokumen %s versi v%d %s.',
-            $lecturer->name,
-            $document->title,
-            $document->version_number,
-            $verdict,
-        );
+        // Chat attachments of one student share a document group, so their version
+        // number is only a counter; name the file instead.
+        $subject = $document->category === 'lampiran-chat'
+            ? sprintf('lampiran %s', $document->file_name)
+            : sprintf('dokumen %s versi v%d', $document->title, $document->version_number);
+        $description = sprintf('%s menandai %s %s.', $lecturer->name, $subject, $verdict);
 
         if ($document->student !== null) {
             $this->realtimeNotificationService->notifyUser($document->student, 'statusTugasAkhir', [

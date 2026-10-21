@@ -2102,9 +2102,41 @@ test('chat attachment reviewed by second lecturer shows review to mahasiswa on u
         'mentorship_chat_thread_id' => $thread->id,
         'sender_user_id' => $dosen2->id,
         'message_type' => 'document_event',
+        'message' => "{$dosen2->name} menandai lampiran bab-2.pdf perlu revisi.",
     ]);
 
     expect($student->notifications()->count())->toBe($notificationsBefore + 1);
+});
+
+test('chat attachment without a message is titled with its file name', function () {
+    Storage::fake('public');
+
+    $admin = createUserWithRole(AppRole::Admin->value);
+    $student = createUserWithRole(AppRole::Mahasiswa->value);
+    $dosen = createUserWithRole(AppRole::Dosen->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'is_active' => true,
+    ]);
+
+    createActiveMentorshipAssignment($student, $dosen, $admin, AdvisorType::Primary);
+    syncThesisSupervisor($student, $dosen, $admin, AdvisorType::Primary->value);
+
+    $thread = MentorshipChatThread::query()->create([
+        'student_user_id' => $student->id,
+        'type' => 'pembimbing',
+    ]);
+
+    $this->actingAs($student)
+        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
+            'message' => '',
+            'attachment' => UploadedFile::fake()->create('bab-3.pdf', 250, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    expect(MentorshipDocument::query()->where('category', 'lampiran-chat')->value('title'))
+        ->toBe('Lampiran: bab-3.pdf');
 });
 
 test('upload page document status aggregates reviews from every assigned lecturer', function (array $statuses, string $expectedStatus) {
