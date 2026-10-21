@@ -68,12 +68,12 @@ class UserProfilePresenter
     /**
      * @return array<string, mixed>
      */
-    public function detail(User $user): array
+    public function detail(User $user, User $viewer): array
     {
         $roleKey = $this->primaryRoleKey($user);
 
         return match ($roleKey) {
-            AppRole::Mahasiswa->value => $this->mahasiswaDetail($user),
+            AppRole::Mahasiswa->value => $this->mahasiswaDetail($user, $viewer),
             AppRole::Dosen->value => $this->dosenDetail($user),
             default => $this->genericDetail($user, $roleKey),
         };
@@ -82,7 +82,7 @@ class UserProfilePresenter
     /**
      * @return array<string, mixed>
      */
-    private function mahasiswaDetail(User $user): array
+    private function mahasiswaDetail(User $user, User $viewer): array
     {
         $user->loadMissing([
             'roles',
@@ -92,6 +92,8 @@ class UserProfilePresenter
         $projects = ThesisProject::query()
             ->with([
                 'latestTitle',
+                'approvedTitles',
+                'passedSemproDefenses',
                 'activeSupervisorAssignments.lecturer.roles',
                 'activeSupervisorAssignments.lecturer.dosenProfile.programStudi',
                 'defenses' => fn($query) => $query
@@ -156,6 +158,9 @@ class UserProfilePresenter
             ],
         ])->filter(fn(array $group): bool => $group['users'] !== [])->values()->all();
 
+        $canViewFullTitle = $project !== null && $this->canViewFullTitle($project, $viewer);
+        $thesisTitle = $canViewFullTitle ? $project?->latestTitle : $project?->publicTitle();
+
         $summary = $this->summary($user);
 
         return [
@@ -182,7 +187,8 @@ class UserProfilePresenter
                 ['label' => 'Total Ujian', 'value' => (string) $allDefenses->count()],
             ],
             'thesis' => [
-                'title' => $project?->latestTitle?->title_id,
+                'title' => $thesisTitle?->title_id,
+                'titleVisible' => $canViewFullTitle || ($project?->hasPublicTitle() ?? false),
                 'statusLabel' => $this->projectStatusLabel($project, $terminology),
                 'advisors' => $advisors,
                 'examiners' => $examiners,
@@ -190,6 +196,28 @@ class UserProfilePresenter
             ],
             'relatedUsers' => [],
         ];
+    }
+
+    /**
+     * The full thesis title is for the student, their supervisors and examiners,
+     * the kaprodi of the project's prodi, and admins. Everyone else sees it only
+     * when the project passes the public title rule.
+     */
+    private function canViewFullTitle(ThesisProject $project, User $viewer): bool
+    {
+        if ($project->student_user_id === $viewer->getKey()
+            || $viewer->hasAnyRole([AppRole::Admin, AppRole::SuperAdmin])
+            || $viewer->kaprodiAssignment?->program_studi_id === $project->program_studi_id) {
+            return true;
+        }
+
+        if ($project->supervisorAssignments()->where('lecturer_user_id', $viewer->getKey())->exists()) {
+            return true;
+        }
+
+        return $project->defenses->contains(
+            fn(ThesisDefense $defense): bool => $defense->examiners->contains('lecturer_user_id', $viewer->getKey()),
+        );
     }
 
     /**

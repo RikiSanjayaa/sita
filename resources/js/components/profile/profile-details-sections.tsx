@@ -109,7 +109,9 @@ export function ProfileDetailsSections({
                             </p>
                             <p className="mt-1 text-sm font-semibold text-foreground">
                                 {profile.thesis.title ??
-                                    'Belum ada judul aktif'}
+                                    (profile.thesis.titleVisible
+                                        ? 'Belum ada judul aktif'
+                                        : 'Judul belum tampil untuk publik')}
                             </p>
                             <Badge variant="secondary" className="mt-2">
                                 Status: {profile.thesis.statusLabel}

@@ -27,7 +27,7 @@ class ProfileShowController extends Controller
         }
 
         return Inertia::render('profile/show', [
-            'profile' => $this->userProfilePresenter->detail($user),
+            'profile' => $this->userProfilePresenter->detail($user, $viewer),
             'canEditProfile' => $viewer->is($user),
             'canStartPrivateChat' => ! $viewer->is($user)
                 && $this->privateChatService->canUsePrivateChat($viewer)

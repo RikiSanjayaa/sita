@@ -162,7 +162,7 @@ class WelcomeController extends Controller
             ->count();
 
         $topicCount = ThesisProject::query()
-            ->where('state', 'completed')
+            ->hasPublicTitle()
             ->count();
 
         return [
@@ -385,7 +385,8 @@ class WelcomeController extends Controller
     {
         $paginator = ThesisProject::query()
             ->with([
-                'latestTitle',
+                'approvedTitles',
+                'passedSemproDefenses',
                 'programStudi',
                 'student.mahasiswaProfile',
                 'semproDefenses' => function ($query): void {
@@ -406,7 +407,7 @@ class WelcomeController extends Controller
                     $query->where('status', 'completed');
                 },
             ], 'scheduled_for')
-            ->where('state', 'completed')
+            ->hasPublicTitle()
             ->when($program !== '', function ($query) use ($program): void {
                 $query->whereHas('programStudi', function ($programQuery) use ($program): void {
                     $programQuery->where('slug', $program);
@@ -424,7 +425,7 @@ class WelcomeController extends Controller
                         ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
                             $programQuery->where('name', 'like', "%{$search}%");
                         })
-                        ->orWhereHas('latestTitle', function ($titleQuery) use ($search): void {
+                        ->orWhereHas('approvedTitles', function ($titleQuery) use ($search): void {
                             $titleQuery->where('title_id', 'like', "%{$search}%")
                                 ->orWhere('title_en', 'like', "%{$search}%")
                                 ->orWhere('proposal_summary', 'like', "%{$search}%");
@@ -436,6 +437,7 @@ class WelcomeController extends Controller
             ->through(function (ThesisProject $project): array {
                 $latestSempro = $project->semproDefenses->first();
                 $latestSidang = $project->sidangDefenses->first();
+                $publicTitle = $project->publicTitle();
                 $displayAdvisors = $project->supervisorAssignments
                     ->sortByDesc(fn($assignment): int => $assignment->started_at?->getTimestamp() ?? 0)
                     ->unique('role')
@@ -448,10 +450,12 @@ class WelcomeController extends Controller
                     'programSlug' => $project->programStudi?->slug ?? 'umum',
                     'studentName' => $project->student?->name ?? '-',
                     'studentNim' => $project->student?->mahasiswaProfile?->nim ?? '-',
-                    'title' => $project->latestTitle?->title_id ?? '-',
-                    'titleEn' => $project->latestTitle?->title_en ?? '-',
-                    'summary' => $project->latestTitle?->proposal_summary ?? '-',
-                    'year' => $latestSidang?->scheduled_for?->format('Y') ?? '-',
+                    'title' => $publicTitle?->title_id ?? '-',
+                    'titleEn' => $publicTitle?->title_en ?? '-',
+                    'summary' => $publicTitle?->proposal_summary ?? '-',
+                    'year' => $latestSidang?->scheduled_for?->format('Y') ?? $latestSempro?->scheduled_for?->format('Y') ?? '-',
+                    'state' => $project->state,
+                    'stateLabel' => $project->state === 'completed' ? 'Selesai' : 'Sedang berjalan',
                     'seminarDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
                     'sidangDate' => $latestSidang?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
                     'proposalExamLabel' => AcademicTerminology::forProject($project)['proposalExamShort'],
@@ -480,7 +484,7 @@ class WelcomeController extends Controller
     {
         return ThesisProject::query()
             ->with('programStudi')
-            ->where('state', 'completed')
+            ->hasPublicTitle()
             ->get()
             ->map(fn(ThesisProject $project): array => [
                 'programSlug' => $project->programStudi?->slug ?? 'umum',

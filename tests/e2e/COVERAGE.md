@@ -91,7 +91,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | `/` beranda dan tautan ke halaman publik       | `public-pages` | tercakup | P2       |
 | `/jadwal` jadwal akan datang, pencarian        | `public-pages` | sebagian | P2       |
 | `/pembimbing` direktori, pencarian             | `public-pages` | sebagian | P2       |
-| `/topik` daftar topik, detail baris            | `public-pages` | sebagian | P2       |
+| `/topik` daftar topik, status, detail baris    | `public-pages` | sebagian | P2       |
 | `/mahasiswa-aktif` daftar dan pembimbing aktif | `public-pages` | sebagian | P2       |
 
 ## Known gaps worth closing next

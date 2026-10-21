@@ -107,6 +107,11 @@ test.describe('Public pages', () => {
             .filter({ hasText: 'Sistem Rekomendasi Ruang Belajar' })
             .first();
         await expect(row).toBeVisible();
+        // Wait for the server-side search to narrow the list; collapsed rows keep
+        // their detail markup, so other rows would also match below.
+        await expect(
+            page.getByRole('button', { name: 'Buka detail topik' }),
+        ).toHaveCount(1);
 
         await row.getByRole('button', { name: 'Buka detail topik' }).click();
         await expect(page.getByText('Judul Internasional')).toBeVisible();
@@ -118,6 +123,24 @@ test.describe('Public pages', () => {
                 page.getByText('Tidak ada topik', { exact: true }),
             ).toBeVisible({ timeout: 3_000 });
         }).toPass({ timeout: 15_000 });
+    });
+
+    test('topik shows an active topic once its sempro is passed', async ({
+        page,
+    }) => {
+        await page.goto('/topik');
+        await page
+            .getByPlaceholder('Cari judul, ringkasan, mahasiswa, atau NIM...')
+            .fill('Algoritma Genetika');
+
+        const row = page
+            .getByRole('row')
+            .filter({ hasText: 'Optimasi Rute Pengiriman Logistik' })
+            .first();
+        await expect(row).toBeVisible();
+        await expect(
+            row.getByText('Sedang berjalan', { exact: true }),
+        ).toBeVisible();
     });
 
     test('mahasiswa aktif shows a student with the active supervisors', async ({

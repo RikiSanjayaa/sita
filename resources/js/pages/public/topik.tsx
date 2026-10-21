@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,8 @@ type SemproTitleItem = {
     titleEn: string;
     summary: string;
     year: string;
+    state: string;
+    stateLabel: string;
     seminarDate: string | null;
     sidangDate: string | null;
     proposalExamLabel: string;
@@ -315,6 +318,9 @@ function PublicTopicsContent({
                                                 <th className="px-4 py-3 font-semibold">
                                                     Tahun
                                                 </th>
+                                                <th className="px-4 py-3 font-semibold">
+                                                    Status
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -370,11 +376,23 @@ function PublicTopicsContent({
                                                             <td className="px-4 py-3 text-muted-foreground">
                                                                 {item.year}
                                                             </td>
+                                                            <td className="px-4 py-3">
+                                                                <StatusBadge
+                                                                    domain="state"
+                                                                    status={
+                                                                        item.state
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        item.stateLabel
+                                                                    }
+                                                                </StatusBadge>
+                                                            </td>
                                                         </tr>
 
                                                         <tr className="bg-background">
                                                             <td
-                                                                colSpan={5}
+                                                                colSpan={6}
                                                                 className="p-0"
                                                             >
                                                                 <div

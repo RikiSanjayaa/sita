@@ -59,8 +59,7 @@ const featureLinks: FeatureLink[] = [
     {
         href: '/topik',
         title: 'Topik',
-        description:
-            'Telusuri topik karya akhir yang sudah final setelah ujian selesai dan dinyatakan lulus.',
+        description: `Telusuri topik karya akhir yang sudah lulus ${n.proposalExamShort}, baik yang masih berjalan maupun yang sudah selesai.`,
         icon: BookOpenText,
         highlightKey: 'Topik',
     },
