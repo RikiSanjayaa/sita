@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useUrlState } from '@/hooks/use-url-state';
 import AppLayout from '@/layouts/app-layout';
+import { statusClassName } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
 import * as routes from '@/routes';
 import * as mahasiswaUploadDokumenRoutes from '@/routes/mahasiswa/upload-dokumen';
@@ -54,9 +55,18 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type DokumenStatus =
     | 'Menunggu Review'
+    | 'Sebagian direview'
     | 'Disetujui'
     | 'Perlu Revisi'
     | 'Tersimpan';
+
+type UploadedDokumenReview = {
+    lecturerName: string;
+    role: string;
+    status: string;
+    notes: string | null;
+    reviewedAt: string | null;
+};
 
 type UploadedDokumenRow = {
     id: number;
@@ -67,7 +77,7 @@ type UploadedDokumenRow = {
     fileName: string;
     size: string;
     status: DokumenStatus;
-    revisionNotes?: string | null;
+    reviews: UploadedDokumenReview[];
     downloadUrl: string;
     canDelete: boolean;
     deleteBlockedReason?: string | null;
@@ -120,6 +130,19 @@ function StatusBadge({ status }: { status: DokumenStatus }) {
             </Badge>
         );
     }
+    if (status === 'Sebagian direview') {
+        return (
+            <Badge
+                className={cn(
+                    'gap-1 whitespace-nowrap',
+                    statusClassName('document', 'submitted'),
+                )}
+            >
+                <Clock className="size-3 text-muted-foreground" />
+                Sebagian direview
+            </Badge>
+        );
+    }
     return (
         <Badge
             variant="secondary"
@@ -130,6 +153,11 @@ function StatusBadge({ status }: { status: DokumenStatus }) {
         </Badge>
     );
 }
+
+const REVIEW_STATUS_LABELS: Record<string, string> = {
+    approved: 'Disetujui',
+    needs_revision: 'Perlu Revisi',
+};
 
 type StatusFilter = 'semua' | DokumenStatus;
 const PAGE_SIZE = 15;
@@ -207,6 +235,9 @@ export default function UploadDokumenPage() {
             review: page.props.uploadedDocuments.filter(
                 (d) => d.status === 'Menunggu Review',
             ).length,
+            partial: page.props.uploadedDocuments.filter(
+                (d) => d.status === 'Sebagian direview',
+            ).length,
             revisi: page.props.uploadedDocuments.filter(
                 (d) => d.status === 'Perlu Revisi',
             ).length,
@@ -242,6 +273,11 @@ export default function UploadDokumenPage() {
                     label: 'Menunggu Review',
                     value: 'Menunggu Review',
                     count: statusCounts.review,
+                },
+                {
+                    label: 'Sebagian direview',
+                    value: 'Sebagian direview',
+                    count: statusCounts.partial,
                 },
                 {
                     label: 'Perlu Revisi',
@@ -678,9 +714,36 @@ export default function UploadDokumenPage() {
 
                                                 {/* Catatan Revisi */}
                                                 <td className="px-5 py-3.5">
-                                                    {row.revisionNotes ? (
-                                                        <div className="max-h-16 overflow-y-auto rounded border border-amber-200 bg-amber-50/50 p-2 text-xs whitespace-pre-wrap text-muted-foreground dark:border-amber-900/30 dark:bg-amber-950/10 dark:text-amber-200/80">
-                                                            {row.revisionNotes}
+                                                    {row.reviews.length > 0 ? (
+                                                        <div className="flex max-h-24 flex-col gap-1.5 overflow-y-auto">
+                                                            {row.reviews.map(
+                                                                (
+                                                                    review,
+                                                                    index,
+                                                                ) => (
+                                                                    <div
+                                                                        key={`${review.lecturerName}-${index}`}
+                                                                        className={cn(
+                                                                            'rounded border p-2 text-xs',
+                                                                            statusClassName(
+                                                                                'document',
+                                                                                review.status,
+                                                                            ),
+                                                                        )}
+                                                                    >
+                                                                        <p className="font-medium text-foreground">
+                                                                            {`${review.lecturerName} (${review.role}) · ${REVIEW_STATUS_LABELS[review.status] ?? 'Menunggu Review'}`}
+                                                                        </p>
+                                                                        {review.notes ? (
+                                                                            <p className="whitespace-pre-wrap">
+                                                                                {
+                                                                                    review.notes
+                                                                                }
+                                                                            </p>
+                                                                        ) : null}
+                                                                    </div>
+                                                                ),
+                                                            )}
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground italic">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
+use App\Enums\AdvisorType;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
@@ -38,12 +39,76 @@ class UploadDokumenController extends Controller
         private readonly UserProfilePresenter $userProfilePresenter,
     ) {}
 
+    /**
+     * @param  Collection<int, MentorshipDocument>  $versions
+     */
+    private function reviewStatus(Collection $versions): string
+    {
+        $reviewCopies = $versions->whereNotNull('lecturer_user_id');
+
+        if ($reviewCopies->isEmpty()) {
+            return 'Tersimpan';
+        }
+
+        if ($reviewCopies->contains(fn(MentorshipDocument $version): bool => $version->status === 'needs_revision')) {
+            return 'Perlu Revisi';
+        }
+
+        $approvedCount = $reviewCopies->filter(fn(MentorshipDocument $version): bool => $version->status === 'approved')->count();
+
+        return match (true) {
+            $approvedCount === $reviewCopies->count() => 'Disetujui',
+            $approvedCount > 0 => 'Sebagian direview',
+            default => 'Menunggu Review',
+        };
+    }
+
+    /**
+     * @return array<int, string> peran dosen keyed by lecturer user id
+     */
+    private function reviewerRoles(User $student): array
+    {
+        $terms = AcademicTerminology::forStudent($student);
+        $roles = [];
+
+        $examinerGroups = [
+            [$this->activeSemproDefenses($student->id), 'Penguji '.$terms['proposalExamShort']],
+            [$this->activeSidangDefenses($student->id), 'Penguji '.$terms['finalExamShort']],
+        ];
+
+        foreach ($examinerGroups as [$defenses, $label]) {
+            foreach ($defenses as $defense) {
+                foreach ($defense->examiners as $examiner) {
+                    $roles[(int) $examiner->lecturer_user_id] ??= $label;
+                }
+            }
+        }
+
+        $supervisorAssignments = ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query
+                ->where('student_user_id', $student->id)
+                ->where('state', 'active'))
+            ->where('status', 'active')
+            ->get(['lecturer_user_id', 'role']);
+
+        foreach ($supervisorAssignments as $assignment) {
+            $roles[(int) $assignment->lecturer_user_id] = match ($assignment->role) {
+                AdvisorType::Primary->value => 'Pembimbing 1',
+                AdvisorType::Secondary->value => 'Pembimbing 2',
+                default => 'Dosen',
+            };
+        }
+
+        return $roles;
+    }
+
     public function index(Request $request): Response
     {
         $student = $request->user();
         abort_if($student === null, 401);
 
         $documents = MentorshipDocument::query()
+            ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->where('uploaded_by_role', 'mahasiswa')
             ->latest('created_at')
@@ -57,9 +122,11 @@ class UploadDokumenController extends Controller
             ->map(static fn($id): int => (int) $id)
             ->flip();
 
+        $reviewerRoles = $this->reviewerRoles($student);
+
         $documents = $documents
             ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
-            ->map(function ($versions) use ($linkedWorkspaceDocumentIds, $student): array {
+            ->map(function ($versions) use ($linkedWorkspaceDocumentIds, $reviewerRoles, $student): array {
                 /** @var MentorshipDocument $document */
                 $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
                 $isLinkedToDefense = $versions->contains(
@@ -74,14 +141,18 @@ class UploadDokumenController extends Controller
                     'uploadedAt' => $document->created_at->format('d M Y H:i'),
                     'fileName' => $document->file_name,
                     'size' => sprintf('%d KB', (int) $document->file_size_kb),
-                    'status' => $document->lecturer_user_id === null
-                        ? 'Tersimpan'
-                        : match ($document->status) {
-                            'approved' => 'Disetujui',
-                            'needs_revision' => 'Perlu Revisi',
-                            default => 'Menunggu Review',
-                        },
-                    'revisionNotes' => $document->revision_notes,
+                    'status' => $this->reviewStatus($versions),
+                    'reviews' => $versions
+                        ->whereNotNull('lecturer_user_id')
+                        ->map(fn(MentorshipDocument $version): array => [
+                            'lecturerName' => $version->lecturer?->name ?? '-',
+                            'role' => $reviewerRoles[(int) $version->lecturer_user_id] ?? 'Dosen',
+                            'status' => $version->status,
+                            'notes' => $version->revision_notes,
+                            'reviewedAt' => $version->reviewed_at?->format('d M Y H:i'),
+                        ])
+                        ->values()
+                        ->all(),
                     'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
                     'canDelete' => ! $isLinkedToDefense,
                     'deleteBlockedReason' => $isLinkedToDefense
