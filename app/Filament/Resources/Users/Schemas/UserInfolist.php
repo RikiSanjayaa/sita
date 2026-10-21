@@ -61,6 +61,11 @@ class UserInfolist
                             ->formatStateUsing(fn(?bool $state): string => BadgeStyles::activeStateLabel($state))
                             ->color(fn(?bool $state): string => BadgeStyles::activeStateColor($state))
                             ->icon(fn(?bool $state): string => BadgeStyles::activeStateIcon($state)),
+                        TextEntry::make('mahasiswaProfile.is_obe_curriculum')
+                            ->label('Kurikulum OBE')
+                            ->badge()
+                            ->formatStateUsing(fn(?bool $state): string => $state ? 'OBE' : 'Non-OBE')
+                            ->color(fn(?bool $state): string => BadgeStyles::domainStatusColor('curriculum', $state ? 'obe' : 'non_obe')),
                     ]),
                 Section::make('Dosen Profile')
                     ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)

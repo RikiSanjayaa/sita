@@ -15,7 +15,8 @@ export type StatusDomain =
     | 'document'
     | 'revision'
     | 'ticket'
-    | 'active';
+    | 'active'
+    | 'curriculum';
 
 /**
  * Raw backend status keys per domain. Keys are never localized labels.
@@ -86,6 +87,11 @@ const statusTones: Record<StatusDomain, Record<string, StatusTone>> = {
         overdue: 'danger',
         resolved: 'success',
         closed: 'neutral',
+    },
+    // MahasiswaProfile.is_obe_curriculum
+    curriculum: {
+        obe: 'primary',
+        non_obe: 'neutral',
     },
     // Boolean-like activation flags and assignment status
     active: {

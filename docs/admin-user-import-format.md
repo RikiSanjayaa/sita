@@ -13,6 +13,7 @@ Header wajib mengikuti format ini:
 - `prodi`
 - `angkatan`
 - `nik`
+- `kurikulum_obe` (opsional, khusus mahasiswa)
 
 ## Aturan
 
@@ -20,6 +21,7 @@ Header wajib mengikuti format ini:
 - Role valid: `mahasiswa`, `dosen`, `admin`
 - Mahasiswa wajib mengisi: `nim`, `prodi`, `angkatan`
 - Dosen wajib mengisi: `nik`, `prodi`
+- `kurikulum_obe` menerima `ya`/`tidak`, `1`/`0`, atau `true`/`false` (tidak peka huruf besar/kecil). Kosong berarti tidak OBE. Nilai lain menghasilkan error pada baris tersebut. File tanpa kolom ini tetap bisa diimport dan tidak mengubah flag yang sudah ada.
 
 ## Contoh Baris
 
