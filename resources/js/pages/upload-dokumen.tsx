@@ -322,7 +322,7 @@ export default function UploadDokumenPage() {
                                         Draft {terms.finalWork}
                                     </SelectItem>
                                     <SelectItem value="proposal">
-                                        Proposal
+                                        {terms.proposalDocument}
                                     </SelectItem>
                                     <SelectItem value="final-manuscript">
                                         Naskah Akhir

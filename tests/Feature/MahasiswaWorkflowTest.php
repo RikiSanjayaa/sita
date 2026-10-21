@@ -679,7 +679,7 @@ test('mahasiswa dashboard shows cancelled project instead of pending approval', 
         ->assertInertia(fn(Assert $page) => $page
             ->component('dashboard')
             ->where('summary.workflow.key', 'project_cancelled')
-            ->where('summary.workflow.label', 'Proyek Dibatalkan')
+            ->where('summary.workflow.label', 'Skripsi Dibatalkan')
             ->where('quickActionState.canSubmitTitle', true)
             ->where('timeline.0.status', 'current'));
 });
@@ -767,7 +767,7 @@ test('tugas akhir page shows completed sempro and sidang results', function () {
         ->get('/mahasiswa/tugas-akhir')
         ->assertInertia(fn(Assert $page) => $page
             ->component('tugas-akhir')
-            ->where('semproResult.label', 'Seminar Proposal Skripsi')
+            ->where('semproResult.label', 'Seminar Proposal')
             ->where('semproResult.resultLabel', 'Lulus')
             ->where('semproResult.examiners.0.name', $pengujiSempro->name)
             ->where('semproResult.examiners.0.score', '78.00')
@@ -994,7 +994,7 @@ test('mahasiswa can select workspace proposal for active sempro snapshot', funct
         ->firstOrFail();
 
     expect($snapshot->file_name)->toBe('source-sempro.pdf')
-        ->and($snapshot->title)->toBe('Proposal Sempro')
+        ->and($snapshot->title)->toBe('Naskah Proposal Sempro')
         ->and($snapshot->source_workspace_document_id)->toBe($workspaceDocument->id);
 
     Storage::disk('public')->assertExists((string) $snapshot->storage_path);

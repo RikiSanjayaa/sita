@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\User;
 use App\Services\AdminDashboardService;
+use App\Support\AcademicTerminology;
 use Filament\Support\Enums\IconPosition;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -22,24 +23,26 @@ class AdminOverviewStats extends StatsOverviewWidget
         $service = app(AdminDashboardService::class);
         $metrics = $service->metrics($user);
 
+        $terms = AcademicTerminology::neutral();
+
         return [
-            Stat::make('Gap Proposal Fase Awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
-                ->description("{$metrics['needsSempro']} dari {$metrics['earlyStageProjects']} proyek fase awal belum punya ujian proposal")
+            Stat::make('Gap '.$terms['proposalExamShort'].' Fase Awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
+                ->description("{$metrics['needsSempro']} dari {$metrics['earlyStageProjects']} {$terms['finalWorkLower']} fase awal belum punya agenda {$terms['proposalExamShort']}")
                 ->descriptionIcon('heroicon-m-clock', IconPosition::Before)
                 ->chart($service->weeklyMetricHistory($user, 'needs_sempro'))
                 ->color('warning'),
-            Stat::make('Gap Ujian Akhir Fase Lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
-                ->description("{$metrics['needsSidang']} dari {$metrics['lateStageProjects']} proyek fase lanjut belum punya ujian akhir")
+            Stat::make('Gap '.$terms['finalExam'].' Fase Lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
+                ->description("{$metrics['needsSidang']} dari {$metrics['lateStageProjects']} {$terms['finalWorkLower']} fase lanjut belum punya agenda {$terms['finalExam']}")
                 ->descriptionIcon('heroicon-m-academic-cap', IconPosition::Before)
                 ->chart($service->weeklyMetricHistory($user, 'needs_sidang'))
                 ->color('primary'),
-            Stat::make('Revisi Lewat Batas', $metrics['overdueRevisionProjects'].' proyek')
-                ->description("{$metrics['overdueRevisionProjects']} proyek aktif revisinya lewat batas")
+            Stat::make('Revisi Lewat Batas', $metrics['overdueRevisionProjects'].' '.$terms['finalWorkLower'])
+                ->description("{$metrics['overdueRevisionProjects']} {$terms['finalWorkLower']} aktif revisinya lewat batas")
                 ->descriptionIcon('heroicon-m-exclamation-triangle', IconPosition::Before)
                 ->chart($service->weeklyMetricHistory($user, 'overdue_revision_projects'))
                 ->color('danger'),
-            Stat::make('Belum Ada Pembimbing', $metrics['unassignedLateStageProjects'].' proyek')
-                ->description("{$metrics['unassignedLateStageProjects']} proyek fase lanjut belum diberi pembimbing")
+            Stat::make('Belum Ada Pembimbing', $metrics['unassignedLateStageProjects'].' '.$terms['finalWorkLower'])
+                ->description("{$metrics['unassignedLateStageProjects']} {$terms['finalWorkLower']} fase lanjut belum diberi pembimbing")
                 ->descriptionIcon('heroicon-m-user-group', IconPosition::Before)
                 ->chart($service->weeklyMetricHistory($user, 'unassigned_late_stage'))
                 ->color('info'),

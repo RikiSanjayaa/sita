@@ -9,6 +9,7 @@ use App\Filament\Resources\StudentGuides\Schemas\StudentGuideForm;
 use App\Filament\Resources\StudentGuides\Tables\StudentGuidesTable;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -65,7 +66,7 @@ class StudentGuideResource extends Resource
 
     public static function getNavigationGroup(): string
     {
-        return 'Tugas Akhir';
+        return AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getNavigationLabel(): string

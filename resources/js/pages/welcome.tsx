@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { dashboard, login } from '@/routes';
 import { type SharedData } from '@/types';
@@ -36,16 +37,14 @@ const featureLinks: FeatureLink[] = [
     {
         href: '/jadwal',
         title: 'Jadwal',
-        description:
-            'Lihat jadwal ujian proposal dan ujian akhir yang akan datang maupun yang sudah berlalu.',
+        description: `Lihat jadwal ${n.proposalExamShort.toLowerCase()} dan ${n.finalExam.toLowerCase()} yang akan datang maupun yang sudah berlalu.`,
         icon: CalendarClock,
         highlightKey: 'Jadwal',
     },
     {
         href: '/mahasiswa-aktif',
         title: 'Mahasiswa Aktif',
-        description:
-            'Lihat mahasiswa yang masih aktif mengambil karya akhir, dari yang baru terdaftar sampai tahap proposal, bimbingan, dan ujian akhir.',
+        description: `Lihat mahasiswa yang masih aktif mengambil karya akhir, dari yang baru terdaftar sampai ${n.proposalPhase.toLowerCase()}, bimbingan, dan ${n.finalExam.toLowerCase()}.`,
         icon: GraduationCap,
         highlightKey: 'Mahasiswa Aktif',
     },

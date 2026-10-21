@@ -62,7 +62,10 @@ import {
     type AcademicGrade,
     academicGradeClassName,
 } from '@/lib/academic-grade';
-import { type AcademicTerminology } from '@/lib/academic-terminology';
+import {
+    neutralAcademicTerminology,
+    type AcademicTerminology,
+} from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -170,10 +173,7 @@ function examScheduleBlockedReason(
     const defense =
         type === 'sempro' ? project.latestSempro : project.latestSidang;
     const terms = project.terminology;
-    const label =
-        type === 'sempro'
-            ? (terms.proposalExamShort ?? 'Sempro')
-            : (terms.finalExam ?? 'Ujian akhir');
+    const label = type === 'sempro' ? terms.proposalExamShort : terms.finalExam;
 
     if (!defense) {
         return null;
@@ -218,7 +218,10 @@ function examScheduleOptionHint(
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
-    { title: 'Proposal & Ujian Akhir', href: '/kaprodi/sempro-sidang' },
+    {
+        title: `${neutralAcademicTerminology.proposalExamShort} & ${neutralAcademicTerminology.finalExam}`,
+        href: '/kaprodi/sempro-sidang',
+    },
 ];
 
 const PAGE_SIZE = 15;
@@ -262,6 +265,7 @@ function DecisionBadge({ decision }: { decision: string }) {
 export default function KaprodiSemproSidangPage() {
     const { auth, programStudi, exams, schedulableProjects, calendarEvents } =
         usePage<SharedData & SemproSidangProps>().props;
+    const terms = neutralAcademicTerminology;
     const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
     const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
     const [search, setSearch] = useUrlState('search', '');
@@ -326,8 +330,8 @@ export default function KaprodiSemproSidangPage() {
 
     const typeTabs: { label: string; value: TypeFilter }[] = [
         { label: 'Semua', value: 'semua' },
-        { label: 'Proposal', value: 'sempro' },
-        { label: 'Ujian Akhir', value: 'sidang' },
+        { label: terms.proposalExamShort, value: 'sempro' },
+        { label: terms.finalExam, value: 'sidang' },
     ];
 
     const statusTabs: { label: string; value: StatusFilter; count?: number }[] =
@@ -357,15 +361,15 @@ export default function KaprodiSemproSidangPage() {
     return (
         <KaprodiLayout
             breadcrumbs={breadcrumbs}
-            title="Proposal & Ujian Akhir"
+            title={`${terms.proposalExamShort} & ${terms.finalExam}`}
             subtitle={`Monitoring ujian dan jadwal untuk ${programStudi.name}`}
         >
-            <Head title="Proposal & Ujian Akhir" />
+            <Head title={`${terms.proposalExamShort} & ${terms.finalExam}`} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
                 <SectionCard
                     title="Kalender Ujian Prodi"
-                    description="Kalender ujian proposal dan ujian akhir dari seluruh mahasiswa prodi."
+                    description={`Kalender ${terms.proposalExamShort} dan ${terms.finalExam} dari seluruh mahasiswa prodi.`}
                 >
                     <BimbinganCalendar
                         events={calendarEvents}
@@ -391,7 +395,7 @@ export default function KaprodiSemproSidangPage() {
                                         }
                                     >
                                         <Plus className="size-4" />
-                                        Jadwalkan Proposal
+                                        {`Jadwalkan ${terms.proposalExamShort}`}
                                     </Button>
                                 ) : null}
                                 {canScheduleSidang ? (
@@ -406,7 +410,7 @@ export default function KaprodiSemproSidangPage() {
                                         }
                                     >
                                         <Plus className="size-4" />
-                                        Jadwalkan Ujian Akhir
+                                        Jadwalkan {terms.finalExam}
                                     </Button>
                                 ) : null}
                             </>
@@ -856,11 +860,11 @@ function ScheduleDialog({
     const title =
         activeState.type === 'sempro'
             ? activeState.exam
-                ? `Ubah Jadwal ${terms?.proposalExamShort ?? 'Proposal'}`
-                : `Jadwalkan ${terms?.proposalExamShort ?? 'Proposal'}`
+                ? `Ubah Jadwal ${terms?.proposalExamShort ?? neutralAcademicTerminology.proposalExamShort}`
+                : `Jadwalkan ${terms?.proposalExamShort ?? neutralAcademicTerminology.proposalExamShort}`
             : activeState.exam
-              ? `Ubah Jadwal ${terms?.finalExam ?? 'Ujian Akhir'}`
-              : `Jadwalkan ${terms?.finalExam ?? 'Ujian Akhir'}`;
+              ? `Ubah Jadwal ${terms?.finalExam ?? neutralAcademicTerminology.finalExam}`
+              : `Jadwalkan ${terms?.finalExam ?? neutralAcademicTerminology.finalExam}`;
     const errors = form.errors as Record<string, string | undefined>;
     const projectError =
         errors.project_id ??
@@ -956,7 +960,7 @@ function ScheduleDialog({
                     {currentProject ? (
                         <div className="rounded-lg border bg-muted/20 p-3">
                             <p className="text-xs font-medium text-muted-foreground">
-                                Proyek
+                                {neutralAcademicTerminology.finalWork}
                             </p>
                             <p className="mt-1 text-sm font-medium">
                                 {currentProject.title}
@@ -1069,7 +1073,7 @@ function ScheduleDialog({
                             </p>
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                                 <LecturerSearchSelect
-                                    label={`Penguji ${terms?.proposalExamShort ?? 'Proposal'} 1`}
+                                    label={`Penguji ${terms?.proposalExamShort ?? neutralAcademicTerminology.proposalExamShort} 1`}
                                     value={form.data.examiner_1_user_id}
                                     onChange={(value) =>
                                         form.setData(
@@ -1085,7 +1089,7 @@ function ScheduleDialog({
                                     error={form.errors.examiner_1_user_id}
                                 />
                                 <LecturerSearchSelect
-                                    label={`Penguji ${terms?.proposalExamShort ?? 'Proposal'} 2 (Opsional)`}
+                                    label={`Penguji ${terms?.proposalExamShort ?? neutralAcademicTerminology.proposalExamShort} 2 (Opsional)`}
                                     value={form.data.examiner_2_user_id}
                                     onChange={(value) =>
                                         form.setData(
@@ -1105,7 +1109,7 @@ function ScheduleDialog({
                         </div>
                     ) : (
                         <LecturerMultiSearch
-                            label={`Penguji ${terms?.finalExam ?? 'Ujian Akhir'} Tambahan`}
+                            label={`Penguji ${terms?.finalExam ?? neutralAcademicTerminology.finalExam} Tambahan`}
                             values={form.data.additional_examiner_user_ids}
                             onChange={(values) =>
                                 form.setData(

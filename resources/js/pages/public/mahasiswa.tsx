@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { type SharedData } from '@/types';
 
 type StudentRow = {
@@ -201,7 +202,7 @@ function PublicStudentsContent({
             active="mahasiswa"
             headTitle="Mahasiswa Aktif"
             pageTitle="Mahasiswa Karya Akhir Aktif"
-            description="Daftar mahasiswa yang masih aktif menjalani proses karya akhir, termasuk mahasiswa baru terdaftar, ujian proposal, bimbingan aktif, hingga ujian akhir yang masih berjalan."
+            description={`Daftar mahasiswa yang masih aktif menjalani proses karya akhir, termasuk mahasiswa baru terdaftar, ${n.proposalExam.toLowerCase()}, bimbingan aktif, hingga ${n.finalExam.toLowerCase()} yang masih berjalan.`}
         >
             <div className="space-y-6">
                 <Card className={sectionCardClass}>

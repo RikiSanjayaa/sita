@@ -406,7 +406,7 @@ test('examiner decision sends notification to mahasiswa', function () {
         $data = $notification->toArray($student);
 
         return in_array('broadcast', $channels, true)
-            && $data['title'] === 'Nilai sempro dari penguji tersedia'
+            && $data['title'] === 'Nilai Sempro dari penguji tersedia'
             && str_contains($data['description'], $examinerOne->name)
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
@@ -909,14 +909,14 @@ test('dosen who requested sempro revision can resolve their own revision and adv
         $data = $notification->toArray($student);
 
         return in_array('database', $channels, true)
-            && $data['title'] === 'Revisi sempro disetujui'
+            && $data['title'] === 'Revisi Sempro disetujui'
             && $data['preferenceKey'] === 'statusTugasAkhir';
     });
 
     $adminNotifications = Notification::sent($admin, FilamentDatabaseNotification::class);
 
     expect($adminNotifications)->toHaveCount(1)
-        ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi sempro selesai');
+        ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi Sempro selesai');
 });
 
 test('sidang project completes only after all requesting lecturers resolve their revisions', function () {
@@ -1046,5 +1046,5 @@ test('sidang project completes only after all requesting lecturers resolve their
     $adminNotifications = Notification::sent($admin, FilamentDatabaseNotification::class);
 
     expect($adminNotifications)->toHaveCount(1)
-        ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi sidang selesai');
+        ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi Sidang selesai');
 });

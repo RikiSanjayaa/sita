@@ -151,7 +151,7 @@ class TugasAkhirController extends Controller
             ->exists();
 
         if ($exists) {
-            return back()->with('error', 'Anda sudah memiliki pengajuan Judul & Proposal aktif.');
+            return back()->with('error', 'Anda sudah memiliki pengajuan Judul & '.AcademicTerminology::forStudent($student)['proposalDocument'].' aktif.');
         }
 
         app(ThesisProjectStudentService::class)->submit(
@@ -160,7 +160,7 @@ class TugasAkhirController extends Controller
             proposalFile: $request->file('proposal_file'),
         );
 
-        return back()->with('success', 'Judul & Proposal berhasil diajukan dan sedang menunggu review Admin.');
+        return back()->with('success', 'Judul & '.AcademicTerminology::forStudent($student)['proposalDocument'].' berhasil diajukan dan sedang menunggu review Admin.');
     }
 
     public function update(Request $request, ThesisProject $project): RedirectResponse
@@ -195,7 +195,7 @@ class TugasAkhirController extends Controller
             proposalFile: $request->file('proposal_file'),
         );
 
-        return back()->with('success', 'Pengajuan Judul & Proposal berhasil diperbarui.');
+        return back()->with('success', 'Pengajuan Judul & '.AcademicTerminology::forProject($project)['proposalDocument'].' berhasil diperbarui.');
     }
 
     public function updateSemproDocuments(Request $request, ThesisProject $project): RedirectResponse
@@ -385,7 +385,7 @@ class TugasAkhirController extends Controller
             'title_review_pending' => 'Menunggu Persetujuan',
             'title_approved' => 'Judul Disetujui',
             'title_rejected' => 'Judul Tidak Disetujui',
-            'project_cancelled' => 'Proyek Dibatalkan',
+            'project_cancelled' => $terms['finalWork'].' Dibatalkan',
             'sempro_scheduled' => $terms['proposalExamShort'].' Dijadwalkan',
             'sempro_waiting_result' => 'Menunggu Hasil '.$terms['proposalExamShort'],
             'sempro_revision' => 'Revisi '.$terms['proposalExamShort'],
@@ -406,20 +406,20 @@ class TugasAkhirController extends Controller
         $terms = AcademicTerminology::forProject($project);
 
         return match ($key) {
-            'title_review_pending' => 'Pengajuan judul dan proposal Anda sedang ditinjau admin.',
-            'title_approved' => 'Judul dan proposal Anda sudah disetujui. Menunggu admin menjadwalkan '.$terms['proposalExamShort'].'.',
-            'title_rejected' => 'Pengajuan judul dan proposal tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
-            'project_cancelled' => 'Proyek '.$terms['finalWorkLower'].' ini sudah dibatalkan oleh admin.',
+            'title_review_pending' => 'Pengajuan judul dan '.$terms['proposalDocument'].' Anda sedang ditinjau admin.',
+            'title_approved' => 'Judul dan '.$terms['proposalDocument'].' Anda sudah disetujui. Menunggu admin menjadwalkan '.$terms['proposalExamShort'].'.',
+            'title_rejected' => 'Pengajuan judul dan '.$terms['proposalDocument'].' tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
+            'project_cancelled' => $terms['finalWork'].' ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',
             'sempro_revision' => $terms['proposalExamShort'].' lulus. Periksa catatan revisi dari penguji.',
             'sempro_failed' => $terms['proposalExamShort'].' belum lulus. Tunggu penjadwalan ulang dari admin untuk attempt berikutnya.',
-            'sempro_passed' => 'Tahap '.$terms['proposalExamShort'].' telah selesai. Menunggu pembimbing aktif atau progres penelitian berikutnya.',
+            'sempro_passed' => AcademicTerminology::phaseLabel('sempro').' telah selesai. Menunggu pembimbing aktif atau progres penelitian berikutnya.',
             'research_in_progress' => 'Dosen pembimbing sudah ditetapkan. Lanjutkan proses penelitian dan bimbingan.',
             'sidang_scheduled' => $terms['finalExam'].' sudah dijadwalkan. Siapkan dokumen akhir Anda dengan baik.',
             'sidang_waiting_result' => 'Seluruh keputusan dosen untuk '.$terms['finalExam'].' sudah masuk. Menunggu hasil resmi dari admin.',
             'sidang_revision' => $terms['finalExam'].' lulus dengan syarat. Periksa catatan revisi dari tim penguji.',
-            'completed' => 'Tahap '.$terms['finalExam'].' telah selesai.',
+            'completed' => $terms['finalWork'].' telah '.AcademicTerminology::phaseLabel('completed').'.',
             'sidang_failed' => $terms['finalExam'].' belum lulus. Hubungi admin dan pembimbing untuk langkah berikutnya.',
             default => 'Pengajuan sedang diproses admin.',
         };
@@ -533,7 +533,7 @@ class TugasAkhirController extends Controller
                     'titleId' => $title?->title_id ?? '-',
                     'titleEn' => $title?->title_en,
                     'proposalSummary' => $title?->proposal_summary,
-                    'primaryDocumentLabel' => $defense->type === 'sidang' ? 'Naskah akhir' : 'Proposal',
+                    'primaryDocumentLabel' => $defense->type === 'sidang' ? 'Naskah akhir' : AcademicTerminology::forProject($project)['proposalDocument'],
                     'primaryDocumentName' => $primaryDocument?->file_name,
                     'primaryDocumentViewUrl' => $primaryDocument?->id !== null
                         ? route('files.thesis-documents.download', ['document' => $primaryDocument->id, 'inline' => 1])

@@ -16,6 +16,7 @@ import {
     DataTablePagination,
     DataTableToolbar,
 } from '@/components/ui/data-table';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { type SharedData } from '@/types';
 
 type ScheduleItem = {
@@ -148,14 +149,14 @@ function ScheduleTable({
                                     count: items.length,
                                 },
                                 {
-                                    label: 'Proposal',
+                                    label: n.proposalExamShort,
                                     value: 'sempro',
                                     count: items.filter(
                                         (item) => item.type === 'sempro',
                                     ).length,
                                 },
                                 {
-                                    label: 'Ujian Akhir',
+                                    label: n.finalExam,
                                     value: 'sidang',
                                     count: items.filter(
                                         (item) => item.type === 'sidang',
@@ -459,8 +460,8 @@ function PublicSchedulesContent({
     return (
         <PublicLayout
             active="jadwal"
-            headTitle="Jadwal Proposal dan Ujian Akhir"
-            pageTitle="Jadwal Proposal dan Ujian Akhir"
+            headTitle={`Jadwal ${n.proposalExamShort} dan ${n.finalExam}`}
+            pageTitle={`Jadwal ${n.proposalExamShort} dan ${n.finalExam}`}
             description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
             <div className="grid gap-6">

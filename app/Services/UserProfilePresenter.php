@@ -174,16 +174,16 @@ class UserProfilePresenter
                 ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
             ],
             'stats' => [
-                ['label' => 'Status '.$terminology['finalWork'], 'value' => $this->projectStatusLabel($project)],
+                ['label' => 'Status '.$terminology['finalWork'], 'value' => $this->projectStatusLabel($project, $terminology)],
                 ['label' => 'Pembimbing Aktif', 'value' => (string) count($advisors)],
                 ['label' => 'Penguji Aktif', 'value' => (string) count($examiners)],
-                ['label' => 'Total Proyek', 'value' => (string) $projects->count()],
-                ['label' => 'Arsip Proyek', 'value' => (string) $projects->whereIn('state', ['completed', 'cancelled'])->count()],
+                ['label' => 'Total '.$terminology['finalWork'], 'value' => (string) $projects->count()],
+                ['label' => 'Arsip '.$terminology['finalWork'], 'value' => (string) $projects->whereIn('state', ['completed', 'cancelled'])->count()],
                 ['label' => 'Total Ujian', 'value' => (string) $allDefenses->count()],
             ],
             'thesis' => [
                 'title' => $project?->latestTitle?->title_id,
-                'statusLabel' => $this->projectStatusLabel($project),
+                'statusLabel' => $this->projectStatusLabel($project, $terminology),
                 'advisors' => $advisors,
                 'examiners' => $examiners,
                 'examinerGroups' => $examinerGroups,
@@ -250,8 +250,8 @@ class UserProfilePresenter
             ],
             'stats' => [
                 ['label' => 'Mahasiswa Bimbingan Aktif', 'value' => (string) $activeStudents->count()],
-                ['label' => 'Sempro Terjadwal', 'value' => (string) $scheduledSemproCount],
-                ['label' => 'Sidang Terjadwal', 'value' => (string) $scheduledSidangCount],
+                ['label' => AcademicTerminology::neutral()['proposalExamShort'].' Terjadwal', 'value' => (string) $scheduledSemproCount],
+                ['label' => AcademicTerminology::neutral()['finalExamShort'].' Terjadwal', 'value' => (string) $scheduledSidangCount],
             ],
             'thesis' => null,
             'relatedUsers' => [
@@ -358,10 +358,10 @@ class UserProfilePresenter
         return $summary !== '' ? $summary : $user->dosenProfile?->concentration;
     }
 
-    private function projectStatusLabel(?ThesisProject $project): string
+    private function projectStatusLabel(?ThesisProject $project, array $terms): string
     {
         if (! $project instanceof ThesisProject) {
-            return 'Belum ada proyek aktif';
+            return 'Belum ada '.$terms['finalWorkLower'].' aktif';
         }
 
         $project->loadMissing('defenses');
@@ -407,9 +407,9 @@ class UserProfilePresenter
         }
 
         return match ($project->phase) {
-            'title_review' => 'Menunggu review judul',
-            'sempro' => 'Tahap '.$terms['proposalExamShort'],
-            'research' => 'Tahap bimbingan',
+            'title_review' => AcademicTerminology::phaseLabel('title_review'),
+            'sempro' => AcademicTerminology::phaseLabel('sempro'),
+            'research' => AcademicTerminology::phaseLabel('research'),
             default => 'Dalam proses',
         };
     }

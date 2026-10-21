@@ -11,6 +11,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
+use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
@@ -163,7 +164,7 @@ class MahasiswaBimbinganController extends Controller
         $latestDocument = $studentUserId === null ? null : $latestDocByStudent->get($studentUserId);
         $threadId = $studentUserId === null ? null : $threadIdsByStudent->get($studentUserId);
 
-        $stage = $this->stageSummary($project);
+        $stage = $this->stageSummary($project, $student);
         $studentSummary = $this->userProfilePresenter->summary($student);
 
         return [
@@ -221,7 +222,7 @@ class MahasiswaBimbinganController extends Controller
             ? null
             : ($threadIdsByStudentAndType[$this->examThreadKey($studentUserId, $defense->type)] ?? null);
 
-        $stage = $this->stageSummary($project);
+        $stage = $this->stageSummary($project, $student);
         $studentSummary = $this->userProfilePresenter->summary($student);
         $terminology = $project === null
             ? AcademicTerminology::neutral()
@@ -336,12 +337,14 @@ class MahasiswaBimbinganController extends Controller
     /**
      * @return array{label: string, description: string}
      */
-    private function stageSummary(?ThesisProject $project): array
+    private function stageSummary(?ThesisProject $project, ?User $student): array
     {
         if (! $project instanceof ThesisProject) {
+            $terms = AcademicTerminology::forStudent($student);
+
             return [
-                'label' => 'Belum Ada Proyek',
-                'description' => 'Mahasiswa belum memiliki proyek tugas akhir aktif.',
+                'label' => 'Belum Ada '.$terms['finalWork'],
+                'description' => 'Mahasiswa belum memiliki '.$terms['finalWorkLower'].' aktif.',
             ];
         }
 
@@ -418,8 +421,8 @@ class MahasiswaBimbinganController extends Controller
 
         return match ($project->phase) {
             'title_review' => [
-                'label' => 'Review Judul',
-                'description' => 'Menunggu persetujuan judul dan proposal.',
+                'label' => AcademicTerminology::phaseLabel('title_review'),
+                'description' => 'Menunggu persetujuan judul dan '.mb_strtolower($terms['proposalDocument']).'.',
             ],
             'research' => [
                 'label' => 'Penelitian Berjalan',

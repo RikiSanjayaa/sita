@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 
@@ -204,7 +205,7 @@ function PublicTopicsContent({
             active="topik"
             headTitle="Topik Karya Akhir"
             pageTitle="Topik Karya Akhir"
-            description="Daftar topik karya akhir yang sudah menyelesaikan ujian proposal dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan."
+            description={`Daftar topik karya akhir yang sudah menyelesaikan ${n.proposalExam.toLowerCase()} dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan.`}
         >
             <div className="space-y-6">
                 <Card className="overflow-hidden py-0 shadow-sm">
@@ -398,8 +399,10 @@ function PublicTopicsContent({
                                                                                     <div className="space-y-5">
                                                                                         <div className="space-y-2">
                                                                                             <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                                Ringkasan
-                                                                                                Proposal
+                                                                                                Ringkasan{' '}
+                                                                                                {
+                                                                                                    n.proposalDocument
+                                                                                                }
                                                                                             </p>
                                                                                             <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
                                                                                                 {item.summary ||

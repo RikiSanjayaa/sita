@@ -9,6 +9,7 @@ use App\Filament\Resources\ThesisProjects\Schemas\ThesisProjectForm;
 use App\Filament\Resources\ThesisProjects\Schemas\ThesisProjectInfolist;
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
 use App\Models\ThesisProject;
+use App\Support\AcademicTerminology;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -28,22 +29,22 @@ class ThesisProjectResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'Proyek Tugas Akhir';
+        return AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getModelLabel(): string
     {
-        return 'Proyek Tugas Akhir';
+        return AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Proyek Tugas Akhir';
+        return AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getNavigationGroup(): string
     {
-        return 'Tugas Akhir';
+        return AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function infolist(Schema $schema): Schema
@@ -138,7 +139,7 @@ class ThesisProjectResource extends Resource
     public static function getGlobalSearchResultTitle(Model $record): string
     {
         /** @var ThesisProject $record */
-        return $record->latestTitle?->title_id ?? $record->student?->name ?? 'Proyek Tugas Akhir';
+        return $record->latestTitle?->title_id ?? $record->student?->name ?? AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array

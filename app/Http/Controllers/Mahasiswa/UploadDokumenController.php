@@ -10,8 +10,10 @@ use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisSupervisorAssignment;
+use App\Models\User;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +26,12 @@ use Throwable;
 
 class UploadDokumenController extends Controller
 {
-    private const LINKED_DOCUMENT_DELETE_MESSAGE = 'Dokumen ini sedang dipakai untuk Sempro atau Sidang dan tidak dapat dihapus.';
+    private function linkedDocumentDeleteMessage(User $student): string
+    {
+        $terms = AcademicTerminology::forStudent($student);
+
+        return 'Dokumen ini sedang dipakai untuk '.$terms['proposalExamShort'].' atau '.$terms['finalExamShort'].' dan tidak dapat dihapus.';
+    }
 
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
@@ -52,7 +59,7 @@ class UploadDokumenController extends Controller
 
         $documents = $documents
             ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
-            ->map(function ($versions) use ($linkedWorkspaceDocumentIds): array {
+            ->map(function ($versions) use ($linkedWorkspaceDocumentIds, $student): array {
                 /** @var MentorshipDocument $document */
                 $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
                 $isLinkedToDefense = $versions->contains(
@@ -78,7 +85,7 @@ class UploadDokumenController extends Controller
                     'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
                     'canDelete' => ! $isLinkedToDefense,
                     'deleteBlockedReason' => $isLinkedToDefense
-                        ? self::LINKED_DOCUMENT_DELETE_MESSAGE
+                        ? $this->linkedDocumentDeleteMessage($student)
                         : null,
                 ];
             })
@@ -140,7 +147,7 @@ class UploadDokumenController extends Controller
 
         if ($recipientLecturerIds->isEmpty()) {
             return back()->withErrors([
-                'document' => 'Belum ada dosen pembimbing atau penguji sempro aktif untuk menerima dokumen.',
+                'document' => 'Belum ada dosen pembimbing atau penguji '.AcademicTerminology::forStudent($student)['proposalExamShort'].' aktif untuk menerima dokumen.',
             ]);
         }
 
@@ -240,9 +247,10 @@ class UploadDokumenController extends Controller
                     'attachment_size_kb' => (int) ceil($file->getSize() / 1024),
                     'message_type' => 'document_event',
                     'message' => sprintf(
-                        'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread Sempro).',
+                        'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread %s).',
                         trim($data['category']),
                         $nextVersion,
+                        AcademicTerminology::forStudent($student)['proposalExamShort'],
                     ),
                     'sent_at' => now(),
                 ]);
@@ -261,9 +269,10 @@ class UploadDokumenController extends Controller
                     'attachment_size_kb' => (int) ceil($file->getSize() / 1024),
                     'message_type' => 'document_event',
                     'message' => sprintf(
-                        'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread Sidang).',
+                        'Mahasiswa mengunggah dokumen %s versi v%d (notifikasi ke thread %s).',
                         trim($data['category']),
                         $nextVersion,
+                        AcademicTerminology::forStudent($student)['finalExamShort'],
                     ),
                     'sent_at' => now(),
                 ]);
@@ -442,7 +451,7 @@ class UploadDokumenController extends Controller
         if ($this->workspaceDocumentIsLinkedToDefense($student->id, $document)) {
             return redirect()
                 ->route('mahasiswa.upload-dokumen')
-                ->with('error', self::LINKED_DOCUMENT_DELETE_MESSAGE);
+                ->with('error', $this->linkedDocumentDeleteMessage($student));
         }
 
         $documentsToDelete = MentorshipDocument::query()

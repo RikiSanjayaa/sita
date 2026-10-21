@@ -8,6 +8,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Models\User;
 use App\Services\ThesisProjectAdminEditService;
+use App\Support\AcademicTerminology;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
@@ -131,8 +132,8 @@ class EditThesisProject extends EditRecord
     {
         return parent::getSaveFormAction()
             ->requiresConfirmation()
-            ->modalHeading('Simpan perubahan proyek tugas akhir?')
-            ->modalDescription('Perubahan judul dan proposal akan langsung berlaku. Jika data inti proyek diubah, mahasiswa akan otomatis menerima notifikasi.')
+            ->modalHeading('Simpan perubahan '.strtolower(AcademicTerminology::forProject($this->getRecord())['finalWork']).'?')
+            ->modalDescription('Perubahan judul dan '.strtolower(AcademicTerminology::forProject($this->getRecord())['proposalDocument']).' akan langsung berlaku. Jika data inti '.strtolower(AcademicTerminology::forProject($this->getRecord())['finalWork']).' diubah, mahasiswa akan otomatis menerima notifikasi.')
             ->modalSubmitActionLabel('Ya, simpan perubahan');
     }
 
@@ -143,7 +144,7 @@ class EditThesisProject extends EditRecord
 
     protected function getSavedNotificationTitle(): ?string
     {
-        return 'Proyek tugas akhir berhasil diperbarui';
+        return AcademicTerminology::forProject($this->getRecord())['finalWork'].' berhasil diperbarui';
     }
 
     private function resolveCurrentTitle(ThesisProject $record): ?ThesisProjectTitle

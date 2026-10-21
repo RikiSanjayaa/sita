@@ -8,6 +8,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisRevision;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -32,7 +33,7 @@ class ThesisDefenseRevisionService
         $project = $revision->project;
 
         if (! $defense instanceof ThesisDefense || ! $project instanceof ThesisProject) {
-            throw new RuntimeException('Revisi tidak terkait dengan sempro atau sidang yang valid.');
+            throw new RuntimeException('Revisi tidak terkait dengan '.AcademicTerminology::neutral()['proposalExamShort'].' atau '.AcademicTerminology::neutral()['finalExamShort'].' yang valid.');
         }
 
         if (! in_array($revision->status, ['open', 'submitted'], true)) {
@@ -56,7 +57,8 @@ class ThesisDefenseRevisionService
             throw new RuntimeException('Revisi belum dapat diselesaikan pada status ujian saat ini.');
         }
 
-        $label = $defense->type === 'sidang' ? 'sidang' : 'sempro';
+        $terms = AcademicTerminology::forProject($project);
+        $label = AcademicTerminology::defenseLabel($terms, $defense->type, short: true);
         $notes = filled($resolutionNotes)
             ? $resolutionNotes
             : sprintf('Revisi %s dari %s disetujui.', $label, $lecturer->name);
@@ -120,7 +122,7 @@ class ThesisDefenseRevisionService
         $this->notifyStudentAboutRevisionApproval($updatedProject, $label, $notes, $allResolved);
 
         if ($allResolved) {
-            $this->notifyAdminsAboutRevisionCompletion($updatedProject, $label);
+            $this->notifyAdminsAboutRevisionCompletion($updatedProject, $defense->type);
         }
 
         return $updatedProject;
@@ -172,7 +174,7 @@ class ThesisDefenseRevisionService
         ]);
     }
 
-    private function notifyAdminsAboutRevisionCompletion(ThesisProject $project, string $label): void
+    private function notifyAdminsAboutRevisionCompletion(ThesisProject $project, string $defenseType): void
     {
         $project->loadMissing([
             'student',
@@ -193,13 +195,14 @@ class ThesisDefenseRevisionService
             })
             ->get();
 
-        $title = $label === 'sempro'
-            ? 'Revisi sempro selesai'
-            : 'Revisi sidang selesai';
+        $terms = AcademicTerminology::forProject($project);
 
-        $body = $label === 'sempro'
-            ? 'Semua revisi sempro telah disetujui dosen dan siap ditindaklanjuti admin untuk penetapan pembimbing.'
-            : 'Semua revisi sidang telah disetujui dosen.';
+        $title = $defenseType === 'sidang'
+            ? 'Revisi '.$terms['finalExamShort'].' selesai'
+            : 'Revisi '.$terms['proposalExamShort'].' selesai';
+        $body = $defenseType === 'sidang'
+            ? 'Semua revisi '.$terms['finalExamShort'].' telah disetujui dosen.'
+            : 'Semua revisi '.$terms['proposalExamShort'].' telah disetujui dosen dan siap ditindaklanjuti admin untuk penetapan pembimbing.';
 
         foreach ($recipients as $recipient) {
             Notification::make()

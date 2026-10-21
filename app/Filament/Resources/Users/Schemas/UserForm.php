@@ -6,6 +6,7 @@ use App\Enums\AppRole;
 use App\Models\ExpertiseField;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -124,7 +125,7 @@ class UserForm
                             ->label('Jenjang')
                             ->hintIcon(
                                 'heroicon-m-question-mark-circle',
-                                'Jenjang menentukan istilah akademik yang tampil: D3 Tugas Akhir, S1 Skripsi, dan S2 Tesis.',
+                                'Jenjang menentukan istilah akademik yang tampil: D3 '.AcademicTerminology::forDegreeLevel('d3')['finalWork'].', S1 '.AcademicTerminology::forDegreeLevel('s1')['finalWork'].', dan S2 '.AcademicTerminology::forDegreeLevel('s2')['finalWork'].'.',
                             )
                             ->options(fn(Get $get): array => self::degreeLevelOptions($get))
                             ->required()

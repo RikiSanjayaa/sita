@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 class PesanController extends Controller
 {
@@ -248,10 +248,11 @@ class PesanController extends Controller
             return back();
         }
 
+        $terms = AcademicTerminology::forStudent($student);
         $activeSemproDefenses = $this->activeSemproDefenses($student->id);
         $semproThreads = $this->activeSemproThreads($student->id, $activeSemproDefenses);
 
-        $result = DB::transaction(function () use ($activeSemproDefenses, $attachment, $semproThreads, $student, $thread, $trimmedMessage): array {
+        $result = DB::transaction(function () use ($activeSemproDefenses, $attachment, $semproThreads, $student, $terms, $thread, $trimmedMessage): array {
             if ($attachment === null) {
                 return [
                     'primary' => collect([
@@ -289,7 +290,8 @@ class PesanController extends Controller
                 ->values();
 
             if ($recipientLecturerIds->isEmpty()) {
-                abort(422, 'Belum ada dosen pembimbing atau penguji sempro aktif untuk menerima lampiran.');
+                $terms = AcademicTerminology::forStudent($student);
+                abort(422, 'Belum ada dosen pembimbing atau penguji '.$terms['proposalExamShort'].' aktif untuk menerima lampiran.');
             }
 
             $disk = 'public';
@@ -370,7 +372,7 @@ class PesanController extends Controller
                     'attachment_mime' => $attachment->getClientMimeType(),
                     'attachment_size_kb' => (int) ceil($attachment->getSize() / 1024),
                     'message_type' => 'document_event',
-                    'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d (notifikasi ke thread Sempro).', $nextVersion),
+                    'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d (notifikasi ke thread %s).', $nextVersion, $terms['proposalExamShort']),
                     'sent_at' => now(),
                 ]));
 
@@ -530,9 +532,11 @@ class PesanController extends Controller
                 }
                 $notifiedUserIds[] = $participant->user->id;
 
+                $terms = AcademicTerminology::forStudent($student);
+                $examTerm = $thread->type === 'sidang' ? $terms['finalExamShort'] : $terms['proposalExamShort'];
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
-                    'title' => 'Pesan sempro baru',
-                    'description' => sprintf('%s mengirim pesan di thread Sempro.', $student->name),
+                    'title' => $examTerm.' baru',
+                    'description' => sprintf('%s mengirim pesan di thread %s.', $student->name, $examTerm),
                     'url' => '/dosen/pesan',
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),

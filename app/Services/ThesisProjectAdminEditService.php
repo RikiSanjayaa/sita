@@ -34,6 +34,7 @@ class ThesisProjectAdminEditService
             'documents',
         ]);
 
+        $terminology = AcademicTerminology::forProject($project);
         $currentTitle = $this->resolveCurrentTitle($project);
         $currentProposal = $this->resolveCurrentProposalDocument($project, $currentTitle);
 
@@ -76,7 +77,7 @@ class ThesisProjectAdminEditService
         }
 
         if (! $currentProposal instanceof ThesisDocument && ! $proposalChanged) {
-            throw new RuntimeException('Proposal aktif belum tersedia. Upload file proposal baru saat memperbarui data inti proyek.');
+            throw new RuntimeException($terminology['proposalDocument'].' aktif belum tersedia. Upload file '.$terminology['proposalDocument'].' baru saat memperbarui data inti '.$terminology['finalWorkLower'].' ini.');
         }
 
         if ($proposalChanged) {
@@ -98,7 +99,7 @@ class ThesisProjectAdminEditService
                     'uploaded_by_user_id' => $admin->id,
                     'status' => 'active',
                     'version_no' => $currentTitle->version_no,
-                    'title' => 'Proposal '.AcademicTerminology::forProject($project)['finalWork'],
+                    'title' => $terminology['proposalDocument'].' '.$terminology['finalWork'],
                     'notes' => $currentProposal?->notes,
                     'storage_disk' => 'public',
                     'storage_path' => $path,
@@ -116,18 +117,19 @@ class ThesisProjectAdminEditService
             newTitleId: $titleId,
             titleChanged: $titleChanged,
             proposalChanged: $proposalChanged,
+            terminology: $terminology,
         );
 
         ThesisProjectEvent::query()->create([
             'project_id' => $project->id,
             'actor_user_id' => $admin->id,
             'event_type' => 'core_submission_updated_by_admin',
-            'label' => 'Judul/proposal diperbarui admin',
+            'label' => 'Judul/'.mb_strtolower($terminology['proposalDocument']).' diperbarui admin',
             'description' => $changeSummary,
             'occurred_at' => $updatedAt,
         ]);
 
-        $this->notifyStudentAboutCoreUpdate($project, $changeSummary);
+        $this->notifyStudentAboutCoreUpdate($project, $changeSummary, $terminology);
 
         return $project->fresh(['latestTitle', 'documents', 'student']);
     }
@@ -172,6 +174,7 @@ class ThesisProjectAdminEditService
         string $newTitleId,
         bool $titleChanged,
         bool $proposalChanged,
+        array $terminology,
     ): string {
         $parts = [];
 
@@ -184,25 +187,25 @@ class ThesisProjectAdminEditService
         }
 
         if ($proposalChanged) {
-            $parts[] = 'File proposal diperbarui oleh admin.';
+            $parts[] = 'File '.$terminology['proposalDocument'].' diperbarui oleh admin.';
         }
 
         if ($parts === []) {
-            $parts[] = 'Admin memperbarui data inti tugas akhir.';
+            $parts[] = 'Admin memperbarui data inti '.$terminology['finalWorkLower'].'.';
         }
 
         return implode(' ', $parts);
     }
 
-    private function notifyStudentAboutCoreUpdate(ThesisProject $project, string $changeSummary): void
+    private function notifyStudentAboutCoreUpdate(ThesisProject $project, string $changeSummary, array $terminology): void
     {
         if (! $project->student instanceof User) {
             return;
         }
 
         $this->realtimeNotificationService->notifyUser($project->student, 'statusTugasAkhir', [
-            'title' => 'Judul / proposal diperbarui admin',
-            'description' => $changeSummary.' Silakan cek data terbaru pada halaman Tugas Akhir.',
+            'title' => 'Judul / '.$terminology['proposalDocument'].' diperbarui admin',
+            'description' => $changeSummary.' Silakan cek data terbaru pada halaman '.$terminology['finalWork'].'.',
             'url' => '/tugas-akhir',
             'icon' => 'file-pen-line',
             'createdAt' => now()->toIso8601String(),

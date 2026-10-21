@@ -6,6 +6,7 @@ use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ProgramStudi;
 use App\Models\ThesisProjectEvent;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Support\Enums\Width;
@@ -118,7 +119,7 @@ class ThesisProjectEventsTable
             ->columnManagerResetActionPosition(ColumnManagerResetActionPosition::Footer)
             ->recordActions([
                 Action::make('openProject')
-                    ->label('Buka Proyek')
+                    ->label('Buka '.AcademicTerminology::neutral()['finalWork'])
                     ->url(fn(ThesisProjectEvent $record): string => ThesisProjectResource::getUrl('view', ['record' => $record->project]))
                     ->icon('heroicon-m-arrow-top-right-on-square'),
             ]);

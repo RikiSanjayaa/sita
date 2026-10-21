@@ -47,12 +47,16 @@ import {
     calculateAverageAcademicScore,
     resolveAcademicGrade,
 } from '@/lib/academic-grade';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dosen/dashboard' },
-    { title: 'Proposal & Ujian Akhir', href: '/dosen/seminar-proposal' },
+    {
+        title: `${n.proposalExamShort} & ${n.finalExam}`,
+        href: '/dosen/seminar-proposal',
+    },
 ];
 
 type OtherExaminer = {
@@ -675,9 +679,13 @@ type StatusFilter = 'semua' | 'pending' | 'done';
 type WorkspaceFilter = 'ujian' | 'bimbingan' | 'semua';
 
 export default function DosenSeminarProposalPage() {
-    const { defenses, workspaceEvents, flashMessage, errorMessage } = usePage<
-        SharedData & PageProps
-    >().props;
+    const {
+        defenses,
+        workspaceEvents,
+        flashMessage,
+        errorMessage,
+        academicTerminology: n,
+    } = usePage<SharedData & PageProps>().props;
 
     const [search, setSearch] = useUrlState('search', '');
     const [typeFilter, setTypeFilter] = useUrlState<TypeFilter>(
@@ -810,15 +818,15 @@ export default function DosenSeminarProposalPage() {
     }
 
     const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
-        { label: 'Proposal / Ujian Akhir', value: 'ujian' },
+        { label: `${n.proposalExamShort} / ${n.finalExam}`, value: 'ujian' },
         { label: 'Bimbingan', value: 'bimbingan' },
         { label: 'Semua', value: 'semua' },
     ];
 
     const typeFilterTabs: { label: string; value: TypeFilter }[] = [
         { label: 'Semua', value: 'semua' },
-        { label: 'Proposal', value: 'sempro' },
-        { label: 'Ujian Akhir', value: 'sidang' },
+        { label: n.proposalExamShort, value: 'sempro' },
+        { label: n.finalExam, value: 'sidang' },
     ];
 
     const statusFilterTabs: {
@@ -834,10 +842,10 @@ export default function DosenSeminarProposalPage() {
     return (
         <DosenLayout
             breadcrumbs={breadcrumbs}
-            title="Proposal & Ujian Akhir"
-            subtitle="Jadwal dan penilaian proposal serta ujian akhir"
+            title={`${n.proposalExamShort} & ${n.finalExam}`}
+            subtitle={`Jadwal dan penilaian ${n.proposalExamShort} serta ${n.finalExam}`}
         >
-            <Head title="Proposal & Ujian Akhir — Dosen" />
+            <Head title={`${n.proposalExamShort} & ${n.finalExam} — Dosen`} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
                 {/* Flash / Error */}
@@ -860,8 +868,8 @@ export default function DosenSeminarProposalPage() {
                                 Workspace Jadwal
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Lihat jadwal proposal, ujian akhir, dan
-                                bimbingan dalam satu kalender
+                                Lihat jadwal {n.proposalExamShort},{' '}
+                                {n.finalExam}, dan bimbingan dalam satu kalender
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -897,7 +905,7 @@ export default function DosenSeminarProposalPage() {
                     <div className="mb-4 flex items-center justify-between">
                         <div>
                             <h2 className="text-base font-semibold">
-                                Daftar Proposal & Ujian Akhir
+                                Daftar {n.proposalExamShort} & {n.finalExam}
                             </h2>
                             <p className="text-sm text-muted-foreground">
                                 Klik baris untuk melihat detail dan menginput
@@ -998,7 +1006,7 @@ export default function DosenSeminarProposalPage() {
                             </p>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 {defenses.length === 0
-                                    ? 'Anda belum ditugaskan sebagai penguji proposal atau ujian akhir manapun.'
+                                    ? `Anda belum ditugaskan sebagai penguji ${n.proposalExamShort} atau ${n.finalExam} manapun.`
                                     : 'Coba ubah filter atau kata kunci pencarian.'}
                             </p>
                         </div>

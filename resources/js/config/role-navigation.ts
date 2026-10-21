@@ -15,7 +15,8 @@ import {
     UsersRound,
 } from 'lucide-react';
 
-import { AppRole, NavItem } from '@/types';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
+import { type AppRole, type NavItem } from '@/types';
 
 type RoleNavigation = {
     main: NavItem[];
@@ -31,7 +32,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Tugas Akhir',
+                title: n.finalWork,
                 href: '/mahasiswa/tugas-akhir',
                 icon: FileText,
             },
@@ -70,7 +71,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Proposal & Ujian Akhir',
+                title: `${n.proposalExamShort} & ${n.finalExam}`,
                 href: '/dosen/seminar-proposal',
                 icon: ClipboardCheck,
             },
@@ -114,7 +115,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UsersRound,
             },
             {
-                title: 'Proposal & Ujian Akhir',
+                title: `${n.proposalExamShort} & ${n.finalExam}`,
                 href: '/kaprodi/sempro-sidang',
                 icon: ClipboardCheck,
             },
@@ -148,12 +149,12 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UserCog,
             },
             {
-                title: 'Sempro',
+                title: n.proposalExamShort,
                 href: '/admin/sempros',
                 icon: ShieldCheck,
             },
             {
-                title: 'Judul & Proposal',
+                title: `Judul & ${n.proposalDocument}`,
                 href: '/admin/thesis-submissions',
                 icon: Users,
             },

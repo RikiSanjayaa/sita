@@ -130,7 +130,7 @@ export default function UploadDokumenForm() {
                                                 Draft {terms.finalWork}
                                             </SelectItem>
                                             <SelectItem value="proposal">
-                                                Proposal
+                                                {terms.proposalDocument}
                                             </SelectItem>
                                             <SelectItem value="laporan">
                                                 Laporan

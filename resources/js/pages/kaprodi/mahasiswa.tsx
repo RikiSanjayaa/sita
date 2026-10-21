@@ -38,6 +38,10 @@ import {
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
+import {
+    neutralAcademicTerminology,
+    phaseLabels,
+} from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -151,10 +155,10 @@ function searchUrl(path: string, value: string) {
 }
 
 export default function KaprodiMahasiswaPage() {
-    const { auth } = usePage<SharedData>().props;
-    const { programStudi, filters, students, archives } = usePage<
+    const { auth, programStudi, filters, students, archives } = usePage<
         SharedData & MahasiswaProps
     >().props;
+    const terms = neutralAcademicTerminology;
     const canManageSupervisors =
         auth.kaprodiCapabilities?.manage_supervisors ?? true;
 
@@ -169,7 +173,7 @@ export default function KaprodiMahasiswaPage() {
         <KaprodiLayout
             breadcrumbs={breadcrumbs}
             title="Mahasiswa Prodi"
-            subtitle={`Daftar mahasiswa dan arsip proyek di ${programStudi.name}`}
+            subtitle={`Daftar mahasiswa dan arsip ${terms.finalWorkLower} di ${programStudi.name}`}
         >
             <Head title="Mahasiswa Prodi" />
 
@@ -184,7 +188,8 @@ export default function KaprodiMahasiswaPage() {
                             <span className="font-semibold text-foreground">
                                 {totalRows}
                             </span>{' '}
-                            mahasiswa dan arsip proyek di {programStudi.name}
+                            mahasiswa dan arsip {terms.finalWorkLower} di{' '}
+                            {programStudi.name}
                         </p>
                     </div>
                     <StudentTable
@@ -192,7 +197,7 @@ export default function KaprodiMahasiswaPage() {
                         archives={archives}
                         filters={filters}
                         canManageSupervisors={canManageSupervisors}
-                        emptyText="Belum ada mahasiswa atau arsip proyek"
+                        emptyText={`Belum ada mahasiswa atau arsip ${terms.finalWorkLower}`}
                     />
                 </section>
             </div>
@@ -213,6 +218,7 @@ function StudentTable({
     canManageSupervisors: boolean;
     emptyText: string;
 }) {
+    const { academicTerminology: terms } = usePage<SharedData>().props;
     const getInitials = useInitials();
     const [search, setSearch] = useUrlState('activeSearch', '');
     const [phaseFilter, setPhaseFilter] = useUrlState<ActivePhaseFilter>(
@@ -238,13 +244,16 @@ function StudentTable({
     );
 
     const phaseOptions: { label: string; value: ActivePhaseFilter }[] = [
-        { label: 'Review Judul', value: 'title_review' },
-        { label: 'Proposal', value: 'sempro' },
-        { label: 'Penelitian', value: 'research' },
-        { label: 'Ujian Akhir', value: 'sidang' },
-        { label: 'Selesai', value: 'completed' },
+        { label: phaseLabels.title_review, value: 'title_review' },
+        { label: phaseLabels.sempro, value: 'sempro' },
+        { label: phaseLabels.research, value: 'research' },
+        { label: phaseLabels.sidang, value: 'sidang' },
+        { label: phaseLabels.completed, value: 'completed' },
         { label: 'Dibatalkan', value: 'cancelled' },
-        { label: 'Belum Ada Proyek', value: 'none' },
+        {
+            label: `Belum Ada ${neutralAcademicTerminology.finalWork}`,
+            value: 'none',
+        },
     ];
 
     const riskOptions: { label: string; value: RiskFilter }[] = [
@@ -585,7 +594,7 @@ function StudentTable({
                                                     '/kaprodi/sempro-sidang',
                                                     row.nim,
                                                 )}
-                                                title="Lihat jadwal sempro dan sidang"
+                                                title={`Lihat jadwal ${terms.proposalExamShort} dan ${terms.finalExamShort}`}
                                                 className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
                                             >
                                                 <CalendarClock className="size-4" />

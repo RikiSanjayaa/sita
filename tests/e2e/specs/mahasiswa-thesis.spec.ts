@@ -48,7 +48,9 @@ function semproDocumentSection(page: Page) {
 }
 
 function sidangDocumentSection(page: Page) {
-    return page.locator('section').filter({ hasText: 'Dokumen Sidang' });
+    return page
+        .locator('section')
+        .filter({ hasText: 'Dokumen Sidang Skripsi' });
 }
 
 function assertSemproSnapshotSelected(
@@ -95,12 +97,12 @@ test.describe('Mahasiswa title and proposal flow', () => {
                 'Implementasi Blockchain untuk Sistem Voting Digital Terdistribusi',
             );
         await page
-            .getByLabel('Ringkasan Proposal')
+            .getByLabel('Ringkasan Naskah Proposal')
             .fill(
                 'Proposal diperbarui dari Playwright untuk memastikan mahasiswa masih dapat mengedit pengajuan yang belum diputuskan admin.',
             );
         await page
-            .getByLabel('Ganti File Proposal (Opsional)')
+            .getByLabel('Ganti File Naskah Proposal (Opsional)')
             .setInputFiles(
                 path.join(
                     process.cwd(),
@@ -148,12 +150,12 @@ test.describe('Mahasiswa title and proposal flow', () => {
                     'Zero-Trust Architecture for Securing Computing Laboratory Access',
                 );
             await mahasiswaPage
-                .getByLabel('Ringkasan Proposal')
+                .getByLabel('Ringkasan Naskah Proposal')
                 .fill(
                     'Proposal Playwright ini mengajukan rancangan kontrol akses laboratorium berbasis zero-trust dengan evaluasi kebijakan identitas, perangkat, dan sesi penggunaan.',
                 );
             await mahasiswaPage
-                .getByLabel('File Proposal (PDF)')
+                .getByLabel('File Naskah Proposal (PDF)')
                 .setInputFiles(
                     path.join(
                         process.cwd(),

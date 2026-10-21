@@ -6,6 +6,7 @@ use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ThesisProject;
 use App\Models\User;
 use App\Services\AdminDashboardService;
+use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -28,8 +29,8 @@ class ProjectsNeedingAttentionWidget extends TableWidget
         $service = app(AdminDashboardService::class);
 
         return $table
-            ->heading('Antrian Proyek Prioritas')
-            ->description('Proyek yang paling perlu tindakan admin berikutnya.')
+            ->heading('Antrian '.AcademicTerminology::neutral()['finalWork'].' Prioritas')
+            ->description(AcademicTerminology::neutral()['finalWork'].' yang paling perlu tindakan admin berikutnya.')
             ->query($service->attentionProjectsQuery($user))
             ->defaultPaginationPageOption(5)
             ->paginated([5, 10, 15, 25, 50, 100])
@@ -56,7 +57,7 @@ class ProjectsNeedingAttentionWidget extends TableWidget
             ])
             ->recordActions([
                 Action::make('openProject')
-                    ->label('Buka')
+                    ->label('Buka '.AcademicTerminology::neutral()['finalWork'])
                     ->url(fn(ThesisProject $record): string => ThesisProjectResource::getUrl('view', ['record' => $record]))
                     ->icon('heroicon-m-arrow-top-right-on-square'),
             ]);

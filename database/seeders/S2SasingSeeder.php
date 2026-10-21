@@ -297,7 +297,7 @@ class S2SasingSeeder extends Seeder
                 uploadedAt: $submittedAt,
             );
 
-            $this->recordEvent($project, $submission['student'], 'project_created', 'Proyek tesis dimulai', 'Mahasiswa membuat pengajuan judul awal.', $startedAt);
+            $this->recordEvent($project, $submission['student'], 'project_created', 'Tesis dimulai', 'Mahasiswa membuat pengajuan judul awal.', $startedAt);
             $this->recordEvent($project, $submission['student'], 'title_submitted', 'Judul diajukan', $submission['title_id'], $submittedAt);
         }
     }
@@ -330,7 +330,7 @@ class S2SasingSeeder extends Seeder
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'pending', null, 'Penguji kedua sempro.', null, $admin, null);
         $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_scheduled', 'Sempro dijadwalkan', 'Sempro akan dilaksanakan dalam waktu dekat.', $semproAt);
     }
@@ -363,7 +363,7 @@ class S2SasingSeeder extends Seeder
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'pass_with_revision', 80, 'Perlu memperjelas kerangka teori pada bab kajian pustaka.', 'Tegaskan posisi teori queer yang dipakai.', $admin, $semproAt->addMinutes(100));
         $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_scheduled', 'Sempro dijadwalkan', 'Sempro sudah terlaksana dan menunggu finalisasi.', $semproAt);
     }
@@ -433,7 +433,7 @@ class S2SasingSeeder extends Seeder
             approvedScheduledAt: $this->at(3, 10),
         );
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai dengan revisi', 'Mahasiswa perlu menindaklanjuti catatan penguji.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'revision_opened', 'Revisi sempro dibuka', $revision->notes, $semproAt->addHours(2));
@@ -481,7 +481,7 @@ class S2SasingSeeder extends Seeder
         $this->upsertDefenseExaminer($sempro, $examinerTwo, 'examiner', 2, 'fail', 59, 'Metode dan kontribusi ilmiah belum cukup jelas.', null, $admin, $semproAt->addMinutes(97));
         $this->createSemproThread($sempro, $student, [$examinerOne, $examinerTwo], $semproAt);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_failed', 'Sempro tidak lulus', 'Mahasiswa perlu memperbaiki proposal untuk attempt berikutnya.', $semproAt->addHours(2));
     }
@@ -552,7 +552,7 @@ class S2SasingSeeder extends Seeder
             approvedScheduledAt: $this->at(5, 10),
         );
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa lanjut ke tahap penelitian.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Dua dosen pembimbing aktif telah ditetapkan.', $assignedAt->addMinutes(10));
@@ -623,7 +623,7 @@ class S2SasingSeeder extends Seeder
             approvedScheduledAt: $this->at(6, 9),
         );
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'title_approved', 'Judul disetujui', $title->title_id, $approvedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa melanjutkan penelitian dengan satu pembimbing aktif.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Pembimbing utama telah ditetapkan.', $assignedAt);
@@ -638,7 +638,7 @@ class S2SasingSeeder extends Seeder
         $rotationAt = $this->at(-78, 9);
         $sidangAt = $this->at(8, 9);
 
-        $project = $this->upsertProject($student, $programStudi, $startedAt, 'sidang', 'active', notes: 'Proyek aktif dengan riwayat rotasi pembimbing dan sidang terjadwal.');
+        $project = $this->upsertProject($student, $programStudi, $startedAt, 'sidang', 'active', notes: 'Tesis aktif dengan riwayat rotasi pembimbing dan sidang terjadwal.');
         $title = $this->upsertTitle(
             $project,
             1,
@@ -704,7 +704,7 @@ class S2SasingSeeder extends Seeder
         $this->createSidangThread($sidang, $student, [$newPrimary, $secondarySupervisor, $externalExaminer], $sidangAt);
         $this->upsertThesisDocument($project, $title, $student, 'final_manuscript', 1, 'Naskah Akhir', 'showcase/s2-sasing/final/kirana-naskah-akhir.pdf', $this->at(-1, 15), $sidang);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa dinyatakan lulus sempro.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Terjadi rotasi pembimbing utama.', $rotationAt);
         $this->recordEvent($project, $admin, 'sidang_scheduled', 'Sidang dijadwalkan', 'Sidang perdana sudah masuk agenda publik.', $sidangAt);
@@ -764,7 +764,7 @@ class S2SasingSeeder extends Seeder
         $this->createSidangThread($sidang, $student, [$primarySupervisor, $secondarySupervisor, $externalExaminer], $sidangAt);
         $this->upsertThesisDocument($project, $title, $student, 'final_manuscript', 1, 'Naskah Akhir', 'showcase/s2-sasing/final/luthfi-naskah-akhir.pdf', $this->at(-3, 15), $sidang);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa melanjutkan penelitian.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Dua pembimbing aktif telah ditetapkan.', $assignedAt->addMinutes(10));
         $this->recordEvent($project, $admin, 'sidang_scheduled', 'Sidang dijadwalkan', 'Sidang telah terlaksana dan menunggu finalisasi admin.', $sidangAt);
@@ -880,7 +880,7 @@ class S2SasingSeeder extends Seeder
             approvedScheduledAt: $this->at(4, 14),
         );
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa melanjutkan penelitian.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Dua pembimbing aktif telah ditetapkan.', $assignedAt->addMinutes(10));
         $this->recordEvent($project, $admin, 'sidang_completed', 'Sidang selesai dengan revisi', 'Mahasiswa perlu menyelesaikan revisi sebelum pengesahan.', $sidangAt->addHours(2));
@@ -905,7 +905,7 @@ class S2SasingSeeder extends Seeder
             state: 'completed',
             completedAt: $completedAt,
             closedBy: $admin,
-            notes: 'Proyek tesis sudah selesai dan siap tampil pada topik yang telah lulus.',
+            notes: 'Tesis sudah selesai dan siap tampil pada topik yang telah lulus.',
         );
         $title = $this->upsertTitle(
             $project,
@@ -941,8 +941,8 @@ class S2SasingSeeder extends Seeder
         $this->upsertDefenseExaminer($sempro, $externalExaminer, 'examiner', 2, 'pass', 85, 'Layak dilanjutkan.', null, $admin, $semproAt->addMinutes(88));
         $this->createSemproThread($sempro, $student, [$primarySupervisor, $externalExaminer], $semproAt);
 
-        $this->upsertSupervisorAssignment($project, $primarySupervisor, AdvisorType::Primary->value, 'ended', $admin, $assignedAt, $completedAt, 'Pembimbing utama proyek selesai.');
-        $this->upsertSupervisorAssignment($project, $secondarySupervisor, AdvisorType::Secondary->value, 'ended', $admin, $assignedAt->addMinutes(5), $completedAt, 'Pembimbing kedua proyek selesai.');
+        $this->upsertSupervisorAssignment($project, $primarySupervisor, AdvisorType::Primary->value, 'ended', $admin, $assignedAt, $completedAt, 'Pembimbing utama tesis selesai.');
+        $this->upsertSupervisorAssignment($project, $secondarySupervisor, AdvisorType::Secondary->value, 'ended', $admin, $assignedAt->addMinutes(5), $completedAt, 'Pembimbing kedua tesis selesai.');
 
         $sidang = $this->upsertDefense(
             $project,
@@ -965,7 +965,7 @@ class S2SasingSeeder extends Seeder
         $this->createSidangThread($sidang, $student, [$primarySupervisor, $secondarySupervisor, $externalExaminer], $sidangAt);
         $this->upsertThesisDocument($project, $title, $student, 'final_manuscript', 1, 'Naskah Akhir', 'showcase/s2-sasing/final/nabila-naskah-akhir.pdf', $this->at(-7, 15), $sidang);
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa melanjutkan penelitian.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Dua pembimbing aktif telah ditetapkan.', $assignedAt->addMinutes(10));
         $this->recordEvent($project, $admin, 'sidang_completed', 'Sidang selesai', 'Mahasiswa dinyatakan lulus.', $completedAt);
@@ -1038,10 +1038,10 @@ class S2SasingSeeder extends Seeder
             approvedScheduledAt: $this->at(-6, 14),
         );
 
-        $this->recordEvent($project, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
+        $this->recordEvent($project, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai pengajuan tesis.', $startedAt);
         $this->recordEvent($project, $admin, 'sempro_completed', 'Sempro selesai', 'Mahasiswa melanjutkan penelitian.', $semproAt->addHours(2));
         $this->recordEvent($project, $admin, 'supervisor_assigned', 'Pembimbing diperbarui', 'Dua pembimbing aktif telah ditetapkan.', $assignedAt->addMinutes(10));
-        $this->recordEvent($project, $admin, 'project_on_hold', 'Proyek ditunda', 'Proyek sementara ditunda sambil menunggu kelengkapan data lapangan.', $onHoldAt);
+        $this->recordEvent($project, $admin, 'project_on_hold', 'Tesis ditunda', 'Tesis sementara ditunda sambil menunggu kelengkapan data lapangan.', $onHoldAt);
     }
 
     private function seedRestartedProject(User $admin, ProgramStudi $programStudi, User $student, User $historicalSupervisor, User $historicalExaminer, User $newExaminer): void
@@ -1106,7 +1106,7 @@ class S2SasingSeeder extends Seeder
             startedAt: $newStartedAt,
             phase: 'title_review',
             state: 'active',
-            notes: 'Mahasiswa memulai ulang proyek dengan topik baru setelah pembatalan topik lama.',
+            notes: 'Mahasiswa memulai ulang tesis dengan topik baru setelah pembatalan topik lama.',
         );
         $newTitle = $this->upsertTitle(
             $newProject,
@@ -1120,9 +1120,9 @@ class S2SasingSeeder extends Seeder
         );
         $this->upsertThesisDocument($newProject, $newTitle, $student, 'proposal', 1, 'Proposal Tesis', 'showcase/s2-sasing/proposals/putri-restart.pdf', $newSubmittedAt);
 
-        $this->recordEvent($historicalProject, $student, 'project_created', 'Proyek tesis dimulai', 'Topik lama sempat diajukan dan berjalan.', $historicalStartedAt);
-        $this->recordEvent($historicalProject, $admin, 'project_cancelled', 'Proyek dibatalkan', 'Topik lama dihentikan untuk memberi ruang pada topik baru.', $cancelledAt);
-        $this->recordEvent($newProject, $student, 'project_created', 'Proyek tesis dimulai', 'Mahasiswa memulai ulang tesis dengan topik baru.', $newStartedAt);
+        $this->recordEvent($historicalProject, $student, 'project_created', 'Tesis dimulai', 'Topik lama sempat diajukan dan berjalan.', $historicalStartedAt);
+        $this->recordEvent($historicalProject, $admin, 'project_cancelled', 'Tesis dibatalkan', 'Topik lama dihentikan untuk memberi ruang pada topik baru.', $cancelledAt);
+        $this->recordEvent($newProject, $student, 'project_created', 'Tesis dimulai', 'Mahasiswa memulai ulang tesis dengan topik baru.', $newStartedAt);
         $this->recordEvent($newProject, $student, 'title_submitted', 'Judul diajukan', $newTitle->title_id, $newSubmittedAt);
 
         $newExaminer->refresh();

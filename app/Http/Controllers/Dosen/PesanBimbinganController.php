@@ -9,12 +9,14 @@ use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\ThesisDefense;
+use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -151,7 +153,7 @@ class PesanBimbinganController extends Controller
                     'threadType' => $thread->type,
                     'threadLabel' => $thread->type === 'private'
                         ? ($privatePartnerProfile['roleLabel'] ?? 'Pribadi')
-                        : $this->threadLabel($thread),
+                        : $this->threadLabel($thread, $defensesById->get($thread->context_id)?->project),
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
@@ -336,12 +338,14 @@ class PesanBimbinganController extends Controller
             ->exists();
     }
 
-    private function threadLabel(MentorshipChatThread $thread): string
+    private function threadLabel(MentorshipChatThread $thread, ?ThesisProject $project): string
     {
+        $terms = $project === null ? AcademicTerminology::neutral() : AcademicTerminology::forProject($project);
+
         return match ($thread->type) {
             'pembimbing' => 'Bimbingan',
-            'sempro' => 'Penguji Sempro',
-            'sidang' => 'Penguji Sidang',
+            'sempro' => 'Penguji '.$terms['proposalExamShort'],
+            'sidang' => 'Penguji '.$terms['finalExamShort'],
             'private' => 'Pribadi',
             default => $thread->label ?? 'Penguji',
         };

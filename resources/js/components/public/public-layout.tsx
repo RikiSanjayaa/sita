@@ -5,6 +5,7 @@ import { type PropsWithChildren } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { ThemeSettingsFab } from '@/components/public/theme-settings-fab';
 import { Button } from '@/components/ui/button';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { dashboard, home, login } from '@/routes';
 import { type SharedData } from '@/types';
@@ -28,7 +29,7 @@ const footerLinks = [
     { label: 'Jadwal Publik', href: '/jadwal' },
     { label: 'Mahasiswa Aktif', href: '/mahasiswa-aktif' },
     { label: 'Direktori Pembimbing', href: '/pembimbing' },
-    { label: 'Topik Tugas Akhir', href: '/topik' },
+    { label: `Topik ${n.finalWork}`, href: '/topik' },
 ] as const;
 
 export function PublicLayout({
@@ -164,15 +165,16 @@ export function PublicLayout({
                                         SiTA Universitas Bumigora
                                     </span>
                                     <span className="text-xs text-muted-foreground">
-                                        Portal informasi publik tugas akhir.
+                                        {`Portal informasi publik ${n.finalWorkLower}.`}
                                     </span>
                                 </div>
                             </div>
                             <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-                                Akses ringkas untuk melihat jadwal proposal dan
-                                ujian akhir, direktori pembimbing, mahasiswa
-                                aktif, dan daftar topik tugas akhir yang sudah
-                                dipublikasikan.
+                                Akses ringkas untuk melihat jadwal{' '}
+                                {n.proposalExamShort} dan {n.finalExam},
+                                direktori pembimbing, mahasiswa aktif, dan
+                                daftar topik {n.finalWork.toLowerCase()} yang
+                                sudah dipublikasikan.
                             </p>
                         </div>
 

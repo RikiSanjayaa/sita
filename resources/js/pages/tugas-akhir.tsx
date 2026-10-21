@@ -323,6 +323,7 @@ function SubmissionFields({
     idPrefix: string;
     finalWork: string;
 }) {
+    const { academicTerminology: terms } = usePage<SharedData>().props;
     return (
         <div className="space-y-5">
             <div className="grid gap-1.5">
@@ -362,7 +363,7 @@ function SubmissionFields({
 
             <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}proposal_summary`}>
-                    Ringkasan Proposal
+                    Ringkasan {terms.proposalDocument}
                 </Label>
                 <Textarea
                     id={`${idPrefix}proposal_summary`}
@@ -383,8 +384,8 @@ function SubmissionFields({
             <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}proposal_file`}>
                     {fileRequired
-                        ? 'File Proposal (PDF)'
-                        : 'Ganti File Proposal (Opsional)'}
+                        ? `File ${terms.proposalDocument} (PDF)`
+                        : `Ganti File ${terms.proposalDocument} (Opsional)`}
                 </Label>
                 <Input
                     id={`${idPrefix}proposal_file`}
@@ -483,6 +484,7 @@ function DefenseDocumentSelectionSection({
     allowSupportingFiles: boolean;
     finalExamLabel: string;
 }) {
+    const { academicTerminology: terms } = usePage<SharedData>().props;
     const [mainSearch, setMainSearch] = useState('');
     const [supportingSearch, setSupportingSearch] = useState('');
     const filteredMainOptions = useMemo(() => {
@@ -542,7 +544,7 @@ function DefenseDocumentSelectionSection({
                         label={
                             allowSupportingFiles
                                 ? 'Naskah akhir aktif'
-                                : 'Proposal aktif'
+                                : `${terms.proposalDocument} aktif`
                         }
                         fileName={selection.mainFileName}
                         viewUrl={selection.mainFileViewUrl}
@@ -599,7 +601,7 @@ function DefenseDocumentSelectionSection({
                                 <Label>
                                     {allowSupportingFiles
                                         ? 'Pilih naskah akhir'
-                                        : 'Pilih file proposal'}
+                                        : `Pilih file ${terms.proposalDocument.toLowerCase()}`}
                                 </Label>
                                 <div className="space-y-3">
                                     <div className="flex min-h-11 items-center rounded-md border px-3 py-2">
@@ -1533,7 +1535,7 @@ export default function TugasAkhirSaya() {
                 { title: terms.finalWork, href: tugasAkhir().url },
             ]}
             title={terms.finalWork}
-            subtitle={`Judul, proposal, seminar, dan ${terms.finalExam.toLowerCase()} Anda`}
+            subtitle={`Judul, ${terms.proposalDocument.toLowerCase()}, ${terms.proposalExamShort}, dan ${terms.finalExam} Anda`}
         >
             <Head title={terms.finalWork} />
 
@@ -1552,12 +1554,12 @@ export default function TugasAkhirSaya() {
                     <section>
                         <div className="mb-3">
                             <h2 className="text-base font-semibold">
-                                Ajukan Judul & Proposal
+                                Ajukan Judul & {terms.proposalDocument}
                             </h2>
                             <p className="text-sm text-muted-foreground">
                                 {submission === null
                                     ? `Isi formulir di bawah ini untuk memulai pengajuan ${terms.finalWorkLower} Anda.`
-                                    : 'Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan proposal baru dari formulir ini.'}
+                                    : `Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan ${terms.proposalDocument.toLowerCase()} baru dari formulir ini.`}
                             </p>
                         </div>
                         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -1627,7 +1629,7 @@ export default function TugasAkhirSaya() {
                             <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
                                 <SectionHeader
                                     title="Informasi Judul"
-                                    description={`Judul dan ringkasan proposal ${terms.finalWorkLower} terbaru`}
+                                    description={`Judul dan ringkasan ${terms.proposalDocument.toLowerCase()} terbaru`}
                                     action={
                                         !isEditing ? (
                                             <Button
@@ -1721,7 +1723,7 @@ export default function TugasAkhirSaya() {
                                         <div className="rounded-lg border bg-muted/10 p-4">
                                             <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
                                                 <FileText className="size-3" />
-                                                Ringkasan Proposal
+                                                {`Ringkasan ${terms.proposalDocument}`}
                                             </div>
                                             <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
                                                 {submission.proposal_summary}
@@ -1746,8 +1748,8 @@ export default function TugasAkhirSaya() {
                             <section>
                                 <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
                                     <SectionHeader
-                                        title="File Proposal Terkirim"
-                                        description="Anda dapat melihat dan mengunduh ulang file proposal"
+                                        title={`File ${terms.proposalDocument} Terkirim`}
+                                        description={`Anda dapat melihat dan mengunduh ulang file ${terms.proposalDocument.toLowerCase()}`}
                                     />
                                     <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                                         <div className="flex items-center gap-3">
@@ -1760,8 +1762,7 @@ export default function TugasAkhirSaya() {
                                                         'Proposal.pdf'}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Dokumen proposal yang
-                                                    tersimpan
+                                                    {`${terms.proposalDocument} yang tersimpan`}
                                                 </p>
                                             </div>
                                         </div>

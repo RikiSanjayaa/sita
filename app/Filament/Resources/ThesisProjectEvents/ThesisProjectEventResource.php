@@ -6,6 +6,7 @@ use App\Filament\Resources\ThesisProjectEvents\Pages\ListThesisProjectEvents;
 use App\Filament\Resources\ThesisProjectEvents\Tables\ThesisProjectEventsTable;
 use App\Models\ThesisProjectEvent;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -26,22 +27,22 @@ class ThesisProjectEventResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Tugas Akhir';
+        return AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'Audit Tugas Akhir';
+        return 'Audit '.AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getModelLabel(): string
     {
-        return 'Audit Tugas Akhir';
+        return 'Audit '.AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Audit Tugas Akhir';
+        return 'Audit '.AcademicTerminology::neutral()['finalWork'];
     }
 
     public static function table(Table $table): Table

@@ -101,7 +101,7 @@ async function sidangAssignmentRow(
 ): Promise<ReturnType<typeof defenseRow>> {
     await page.goto('/dosen/seminar-proposal');
     await page
-        .getByRole('button', { name: 'Ujian Akhir', exact: true })
+        .getByRole('button', { name: 'Sidang Akhir', exact: true })
         .click();
     await page.getByPlaceholder(/cari nama/i).fill(studentName);
 
@@ -111,7 +111,7 @@ async function sidangAssignmentRow(
 async function openThreadList(
     page: Page,
     studentName: string,
-    filterLabel: 'Bimbingan' | 'Ujian Akhir',
+    filterLabel: 'Bimbingan' | 'Sidang Akhir',
     threadLabel: 'Bimbingan' | 'Sidang',
 ): Promise<Locator> {
     const redirect = page.waitForURL(/\/dosen\/pesan(?:\?.*)?$/);
@@ -135,7 +135,7 @@ async function sidangThreadRow(
     page: Page,
     studentName: string,
 ): Promise<Locator> {
-    return openThreadList(page, studentName, 'Ujian Akhir', 'Sidang');
+    return openThreadList(page, studentName, 'Sidang Akhir', 'Sidang');
 }
 
 async function bimbinganThreadRow(

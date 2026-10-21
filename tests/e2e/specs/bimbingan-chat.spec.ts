@@ -21,7 +21,7 @@ function toDateTimeLocalString(date: Date): string {
 async function uploadThesisDocument(
     page: Page,
     title: string,
-    categoryLabel: 'Draft Skripsi' | 'Proposal' | 'Laporan' | 'Lampiran',
+    categoryLabel: 'Draft Skripsi' | 'Naskah Proposal' | 'Laporan' | 'Lampiran',
 ): Promise<void> {
     await page.goto('/mahasiswa/upload-dokumen?open=unggah');
     await expect(

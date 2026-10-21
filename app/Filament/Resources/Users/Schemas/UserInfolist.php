@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\AppRole;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -91,7 +92,7 @@ class UserInfolist
                             ->color(fn(?bool $state): string => BadgeStyles::activeStateColor($state))
                             ->icon(fn(?bool $state): string => BadgeStyles::activeStateIcon($state)),
                     ]),
-                Section::make('Beban Tugas Akhir')
+                Section::make('Beban '.AcademicTerminology::neutral()['finalWork'])
                     ->visible(fn(?User $record): bool => $record?->hasRole(AppRole::Dosen) ?? false)
                     ->columnSpanFull()
                     ->columns(2)
@@ -103,10 +104,10 @@ class UserInfolist
                             ->label('Pembimbing 2 Aktif')
                             ->placeholder('0'),
                         TextEntry::make('scheduled_sempro_examiner_count')
-                            ->label('Sempro Terjadwal')
+                            ->label(AcademicTerminology::neutral()['proposalExamShort'].' Terjadwal')
                             ->placeholder('0'),
                         TextEntry::make('scheduled_sidang_examiner_count')
-                            ->label('Sidang Terjadwal')
+                            ->label(AcademicTerminology::neutral()['finalExamShort'].' Terjadwal')
                             ->placeholder('0'),
                         TextEntry::make('thesis_load_note')
                             ->label('Catatan')

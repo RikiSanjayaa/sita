@@ -28,7 +28,7 @@ class ThesisProjectInfolist
     {
         return $schema
             ->components([
-                Section::make('Ringkasan Proyek')
+                Section::make(fn(ThesisProject $record): string => 'Ringkasan '.AcademicTerminology::forProject($record)['finalWork'])
                     ->columns(2)
                     ->schema([
                         TextEntry::make('student.name')
@@ -75,7 +75,7 @@ class ThesisProjectInfolist
                             ->columnSpanFull(),
                     ]),
                 Section::make('Status Workflow')
-                    ->description('Ringkasan singkat untuk membantu admin memahami kondisi proyek dan tindakan berikutnya.')
+                    ->description(fn(ThesisProject $record): string => 'Ringkasan singkat untuk membantu admin memahami kondisi '.strtolower(AcademicTerminology::forProject($record)['finalWork']).' dan tindakan berikutnya.')
                     ->columns(2)
                     ->schema([
                         TextEntry::make('next_admin_step')
@@ -98,7 +98,7 @@ class ThesisProjectInfolist
                             ->state(fn(ThesisProject $record): string => self::activeSupervisorsSummary($record))
                             ->columnSpanFull(),
                     ]),
-                Tabs::make('Detail proyek')
+                Tabs::make('Detail')
                     ->contained(false)
                     ->columnSpanFull()
                     ->tabs([
@@ -137,7 +137,7 @@ class ThesisProjectInfolist
                                         self::thesisDocumentsEntry(),
                                     ])
                                     ->visible(fn(ThesisProject $record): bool => $record->documents->isNotEmpty()),
-                                Section::make('Dokumen Bimbingan Proyek')
+                                Section::make('Dokumen Bimbingan')
                                     ->schema([
                                         self::mentorshipDocumentsEntry(),
                                     ])
@@ -426,7 +426,7 @@ class ThesisProjectInfolist
             'sidang' => $latestSidang instanceof ThesisDefense
                 ? self::nextSidangStepLabel($record, $latestSidang)
             : 'Jadwalkan '.$terms['finalExam'],
-            default => 'Monitoring Proyek',
+            default => 'Monitoring '.$terms['finalWork'],
         };
     }
 
@@ -450,6 +450,7 @@ class ThesisProjectInfolist
 
     private static function workflowAttention(ThesisProject $record): string
     {
+        $terms = AcademicTerminology::forProject($record);
         if ($record->open_revisions_count > 0) {
             return sprintf('%d revisi masih terbuka dan perlu ditindaklanjuti.', $record->open_revisions_count);
         }
@@ -462,14 +463,14 @@ class ThesisProjectInfolist
         }
 
         if ($record->activeSupervisorAssignments->isEmpty()) {
-            return 'Belum ada pembimbing aktif yang tercatat pada proyek ini.';
+            return 'Belum ada pembimbing aktif yang tercatat.';
         }
 
         if ($record->state === 'on_hold') {
-            return 'Proyek sedang ditunda, cek catatan dan timeline terakhir.';
+            return $terms['finalWork'].' sedang ditunda, cek catatan dan timeline terakhir.';
         }
 
-        return 'Proyek aktif tanpa revisi terbuka. Fokus pada agenda dan progres fase saat ini.';
+        return $terms['finalWork'].' aktif tanpa revisi terbuka. Fokus pada agenda dan progres fase saat ini.';
     }
 
     private static function latestDefenseSummary(ThesisProject $record, string $type): string
@@ -789,7 +790,7 @@ class ThesisProjectInfolist
     private static function documentKindLabel(string $kind): string
     {
         return match ($kind) {
-            'proposal' => 'Proposal',
+            'proposal' => AcademicTerminology::neutral()['proposalDocument'],
             'revision_submission' => 'Dokumen Revisi',
             'final_manuscript' => 'Naskah Akhir',
             'supporting_document' => 'Lampiran',
@@ -802,7 +803,7 @@ class ThesisProjectInfolist
         if ($document->defense instanceof ThesisDefense) {
             return sprintf(
                 '%s #%d',
-                $document->defense->type === 'sidang' ? 'Sidang' : 'Sempro',
+                AcademicTerminology::defenseLabel(AcademicTerminology::forProject($document->project), $document->defense->type, true),
                 $document->defense->attempt_no,
             );
         }
@@ -811,7 +812,7 @@ class ThesisProjectInfolist
             return 'Revisi';
         }
 
-        return 'Proyek';
+        return AcademicTerminology::forProject($document->project)['finalWork'];
     }
 
     private static function mentorshipDocumentStatusLabel(string $status): string

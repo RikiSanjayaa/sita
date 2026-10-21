@@ -20,6 +20,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import DosenLayout from '@/layouts/dosen-layout';
+import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import {
     type BreadcrumbItem,
@@ -61,9 +62,12 @@ const sectionCardClass = 'overflow-hidden gap-0 py-0 shadow-sm';
 const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
 
 export default function DosenDashboardPage() {
-    const { summary, upcomingActivities, activeStudents } = usePage<
-        SharedData & DashboardProps
-    >().props;
+    const {
+        summary,
+        upcomingActivities,
+        activeStudents,
+        academicTerminology: terms,
+    } = usePage<SharedData & DashboardProps>().props;
 
     const quickActions = [
         {
@@ -83,9 +87,8 @@ export default function DosenDashboardPage() {
             primary: false,
         },
         {
-            title: 'Proposal & Ujian Akhir',
-            description:
-                'Pantau agenda proposal dan ujian akhir yang perlu Anda nilai.',
+            title: `${n.proposalExamShort} & ${n.finalExam}`,
+            description: `Pantau agenda ${n.proposalExamShort} dan ${n.finalExam} yang perlu Anda nilai.`,
             href: '/dosen/seminar-proposal',
             icon: Presentation,
             primary: false,
@@ -159,8 +162,8 @@ export default function DosenDashboardPage() {
                                         SITA menghadirkan ruang kerja terpadu
                                         untuk dosen pembimbing — mulai dari
                                         pemantauan progres mahasiswa,
-                                        pengelolaan jadwal bimbingan, hingga
-                                        penilaian proposal dan ujian akhir,
+                                        pengelolaan jadwal bimbingan, hingga{' '}
+                                        {`penilaian ${terms.proposalExamShort} dan ${terms.finalExam},`}{' '}
                                         semuanya dalam satu platform tanpa perlu
                                         berpindah sistem.
                                     </p>

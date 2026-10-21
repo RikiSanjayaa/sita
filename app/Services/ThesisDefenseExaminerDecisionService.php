@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -50,17 +51,19 @@ class ThesisDefenseExaminerDecisionService
             $this->recalculateDefenseOutcome($defense->fresh('examiners'));
 
             $student = $defense->project?->student;
+            $project = $defense->project;
+            $terms = $project instanceof \App\Models\ThesisProject ? AcademicTerminology::forProject($project) : AcademicTerminology::neutral();
 
             if ($student instanceof User) {
                 $this->realtimeNotificationService->notifyUser($student, 'statusTugasAkhir', [
                     'title' => sprintf(
                         'Nilai %s dari penguji tersedia',
-                        $defense->type === 'sidang' ? 'sidang' : 'sempro',
+                        AcademicTerminology::defenseLabel($terms, $defense->type, short: true),
                     ),
                     'description' => sprintf(
                         '%s sudah mengirim nilai dan keputusan untuk %s Anda.',
                         $lecturer->name,
-                        $defense->type === 'sidang' ? 'sidang' : 'sempro',
+                        AcademicTerminology::defenseLabel($terms, $defense->type, short: true),
                     ),
                     'url' => '/tugas-akhir',
                     'icon' => 'check-circle',

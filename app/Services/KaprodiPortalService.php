@@ -599,27 +599,27 @@ class KaprodiPortalService
 
     private function progressRisk(?ThesisProject $project, ?MentorshipChatMessage $latestChat, ?MentorshipDocument $latestMentorshipDocument): array
     {
+        $terms = AcademicTerminology::neutral();
         if (! $project instanceof ThesisProject) {
             return [
                 'level' => 'medium',
                 'label' => 'Perlu Data',
-                'description' => 'Mahasiswa belum memiliki proyek tugas akhir yang tercatat.',
+                'description' => 'Mahasiswa belum memiliki '.$terms['finalWorkLower'].' yang tercatat.',
                 'lastActivityAt' => '-',
-                'lastActivityLabel' => 'Belum ada proyek',
+                'lastActivityLabel' => 'Belum ada '.$terms['finalWorkLower'],
                 'daysIdle' => null,
-                'signals' => ['Belum ada proyek'],
+                'signals' => ['Belum ada '.$terms['finalWorkLower']],
             ];
         }
-
         if (in_array($project->state, ['completed', 'cancelled'], true)) {
             return [
                 'level' => 'low',
                 'label' => 'Arsip',
-                'description' => 'Proyek sudah masuk arsip prodi.',
+                'description' => $terms['finalWork'].' sudah masuk arsip prodi.',
                 'lastActivityAt' => WitaDateTime::format($project->completed_at ?? $project->cancelled_at ?? $project->updated_at, 'd M Y', false),
-                'lastActivityLabel' => 'Proyek selesai/diarsipkan',
+                'lastActivityLabel' => $terms['finalWork'].' selesai/diarsipkan',
                 'daysIdle' => null,
-                'signals' => ['Proyek arsip'],
+                'signals' => [$terms['finalWork'].' arsip'],
             ];
         }
 
@@ -686,10 +686,11 @@ class KaprodiPortalService
      */
     private function latestProjectActivity(ThesisProject $project, ?MentorshipChatMessage $latestChat, ?MentorshipDocument $latestMentorshipDocument): array
     {
+        $terms = AcademicTerminology::neutral();
         $candidates = collect([
             [
                 'at' => $project->updated_at ?? $project->started_at,
-                'label' => 'Update proyek',
+                'label' => 'Update '.$terms['finalWork'],
             ],
             [
                 'at' => $project->events->max('occurred_at'),
@@ -737,23 +738,14 @@ class KaprodiPortalService
     private function phaseLabel(?string $phase): string
     {
         return match ($phase) {
-            'title_review' => 'Review Judul',
-            'sempro' => 'Proposal',
-            'research' => 'Penelitian',
-            'sidang' => 'Ujian Akhir',
-            'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
-            default => '-',
+            default => AcademicTerminology::phaseLabel($phase),
         };
     }
 
     private function defenseTypeLabel(?string $type): string
     {
-        return match ($type) {
-            'sempro' => 'Proposal',
-            'sidang' => 'Ujian Akhir',
-            default => 'Ujian',
-        };
+        return AcademicTerminology::defenseLabel(AcademicTerminology::neutral(), $type);
     }
 
     private function defenseTypeLabelForProject(?string $type, ?ThesisProject $project): string
@@ -1061,6 +1053,7 @@ class KaprodiPortalService
 
     private function attentionItems(ProgramStudi $programStudi, EloquentCollection $projects, EloquentCollection $students, Collection $latestChatByStudent, Collection $latestDocumentByStudent): Collection
     {
+        $terms = AcademicTerminology::neutral();
         $unfinalizedDefenses = ThesisDefense::query()
             ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
             ->where('status', 'awaiting_finalization')
@@ -1096,7 +1089,7 @@ class KaprodiPortalService
                 'id' => 'unfinalized-defenses',
                 'label' => 'Ujian belum final',
                 'value' => $unfinalizedDefenses,
-                'description' => 'Sempro/sidang menunggu finalisasi hasil.',
+                'description' => 'Semua '.AcademicTerminology::neutral()['proposalExamShort'].' / '.AcademicTerminology::neutral()['finalExamShort'].' menunggu finalisasi hasil.',
                 'href' => route('kaprodi.sempro-sidang'),
             ],
             [
@@ -1108,16 +1101,16 @@ class KaprodiPortalService
             ],
             [
                 'id' => 'students-without-project',
-                'label' => 'Tanpa proyek',
+                'label' => 'Tanpa '.$terms['finalWorkLower'],
                 'value' => $studentsWithoutProject,
-                'description' => 'Mahasiswa prodi belum memiliki proyek aktif/arsip.',
+                'description' => 'Mahasiswa prodi belum memiliki '.$terms['finalWorkLower'].' aktif/arsip.',
                 'href' => route('kaprodi.mahasiswa.index'),
             ],
             [
                 'id' => 'projects-without-supervisor',
                 'label' => 'Tanpa pembimbing',
                 'value' => $projectsWithoutSupervisor,
-                'description' => 'Proyek aktif belum memiliki pembimbing aktif.',
+                'description' => $terms['finalWork'].' aktif belum memiliki pembimbing aktif.',
                 'href' => route('kaprodi.dosen-prodi'),
             ],
         ])->filter(fn(array $item): bool => $item['value'] > 0)->values();

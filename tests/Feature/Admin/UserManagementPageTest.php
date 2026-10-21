@@ -361,8 +361,8 @@ test('admin sees thesis-native dosen load counts in users resource', function ()
         ->assertSee('Beban Tugas Akhir')
         ->assertSee('Pembimbing 1 Aktif')
         ->assertSee('Pembimbing 2 Aktif')
-        ->assertSee('Sempro Terjadwal')
-        ->assertSee('Sidang Terjadwal')
+        ->assertSee('Sempro / Sinopsis Terjadwal')
+        ->assertSee('Sidang Akhir Terjadwal')
         ->assertSee('Kuota pembimbing dapat diatur oleh superadmin.');
 });
 

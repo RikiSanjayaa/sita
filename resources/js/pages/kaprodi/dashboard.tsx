@@ -21,6 +21,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
+import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -106,6 +107,7 @@ export default function KaprodiDashboardPage() {
         phaseDistribution,
         defenseProgress,
     } = usePage<SharedData & DashboardProps>().props;
+    const terms = neutralAcademicTerminology;
 
     const canViewDocuments = auth.kaprodiCapabilities?.view_documents ?? true;
     const quickActions = [
@@ -118,7 +120,7 @@ export default function KaprodiDashboardPage() {
             primary: true,
         },
         {
-            title: 'Proposal & Ujian Akhir',
+            title: `${terms.proposalExamShort} & ${terms.finalExam}`,
             description:
                 'Pantau jadwal, status ujian, hasil, dan revisi terbuka.',
             href: '/kaprodi/sempro-sidang',
@@ -179,11 +181,12 @@ export default function KaprodiDashboardPage() {
                                 <div className="flex gap-4">
                                     <div className="w-0.5 shrink-0 rounded-full bg-primary/30" />
                                     <p className="text-sm leading-7 text-muted-foreground">
-                                        Portal kaprodi membantu memantau progres
-                                        tugas akhir seluruh mahasiswa prodi,
-                                        agenda sempro dan sidang, beban dosen,
-                                        serta arsip proyek tanpa mengubah data
-                                        operasional.
+                                        Portal kaprodi membantu memantau progres{' '}
+                                        {terms.finalWorkLower} seluruh mahasiswa
+                                        prodi, agenda {terms.proposalExamShort}{' '}
+                                        dan {terms.finalExamShort}, beban dosen,
+                                        serta arsip {terms.finalWorkLower} tanpa
+                                        mengubah data operasional.
                                     </p>
                                 </div>
 
@@ -344,7 +347,8 @@ export default function KaprodiDashboardPage() {
                             <CardHeader className={sectionCardHeaderClass}>
                                 <CardTitle>Fase Mahasiswa</CardTitle>
                                 <CardDescription>
-                                    Snapshot cepat progres proyek di prodi.
+                                    Snapshot cepat progres{' '}
+                                    {terms.finalWorkLower} di prodi.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-3 py-5 sm:grid-cols-2">
@@ -414,7 +418,7 @@ export default function KaprodiDashboardPage() {
 
                         <Card className={sectionCardClass}>
                             <CardHeader className={sectionCardHeaderClass}>
-                                <CardTitle>Proposal & Ujian Akhir</CardTitle>
+                                <CardTitle>{`${terms.proposalExamShort} & ${terms.finalExam}`}</CardTitle>
                                 <CardDescription>
                                     Ringkasan status attempt ujian.
                                 </CardDescription>
@@ -437,7 +441,7 @@ export default function KaprodiDashboardPage() {
                                 ) : (
                                     <EmptyState
                                         icon={ClipboardCheck}
-                                        title="Belum ada ujian proposal atau ujian akhir"
+                                        title={`Belum ada ${terms.proposalExamShort.toLowerCase()} atau ${terms.finalExam.toLowerCase()}`}
                                         description="Attempt ujian akan tampil saat data tersedia."
                                     />
                                 )}
@@ -498,7 +502,7 @@ export default function KaprodiDashboardPage() {
                         <CardHeader className={sectionCardHeaderClass}>
                             <CardTitle>Arsip Terbaru</CardTitle>
                             <CardDescription>
-                                Proyek selesai atau dibatalkan paling baru.
+                                {`${terms.finalWork} selesai atau dibatalkan paling baru.`}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="divide-y p-0">
@@ -535,7 +539,7 @@ export default function KaprodiDashboardPage() {
                                     <EmptyState
                                         icon={FileArchive}
                                         title="Belum ada arsip"
-                                        description="Proyek selesai atau dibatalkan akan muncul di sini."
+                                        description={`${terms.finalWork} selesai atau dibatalkan akan muncul di sini.`}
                                     />
                                 </div>
                             )}

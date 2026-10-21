@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\UserProfilePresenter;
+use App\Support\AcademicTerminology;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -29,6 +30,7 @@ class DashboardController extends Controller
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
+        $terms = AcademicTerminology::neutral();
         $lecturer->loadMissing('activeDosenProgramStudiAssignments.programStudi');
 
         $studentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
@@ -92,12 +94,14 @@ class DashboardController extends Controller
             })
             ->sortBy('start')
             ->take(6)
-            ->map(function (array $event): array {
+            ->map(function (array $event) use ($terms): array {
                 $start = Carbon::parse((string) $event['start']);
 
                 return [
                     'id' => (string) $event['id'],
-                    'badge' => $event['category'] === 'ujian' ? 'Sempro / Sidang' : 'Bimbingan',
+                    'badge' => $event['category'] === 'ujian'
+                        ? $terms['proposalExamShort'].' / '.$terms['finalExamShort']
+                        : 'Bimbingan',
                     'title' => (string) $event['topic'],
                     'subtitle' => collect([
                         $event['person'] ?? null,
@@ -127,7 +131,7 @@ class DashboardController extends Controller
                     },
                     'description' => match ($summaryKey) {
                         'needs_attention' => 'Masih ada jadwal, dokumen, atau pesan yang menunggu respons Anda.',
-                        'defense_preparation' => 'Agenda ujian sudah dekat. Pastikan penilaian dan kesiapan sempro terpantau.',
+                        'defense_preparation' => 'Agenda ujian sudah dekat. Pastikan penilaian dan kesiapan '.$terms['proposalExamShort'].' terpantau.',
                         'no_active_students' => 'Saat ini belum ada mahasiswa aktif dalam kuota bimbingan Anda.',
                         default => 'Ritme bimbingan berjalan stabil. Pantau agenda dan kebutuhan mahasiswa secara berkala.',
                     },

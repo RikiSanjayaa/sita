@@ -1,0 +1,61 @@
+# Glossary
+
+Academic terms shown in SITA. Every user-facing label comes from `App\Support\AcademicTerminology` (PHP) or `resources/js/lib/academic-terminology.ts` (TS); this file says which label to use and why. A Pest test (`tests/Unit/ForbiddenTerminologyTest.php`) fails when a retired phrase shows up in `app/` or `resources/js/`.
+
+## Two audiences
+
+- **Single student**: the mahasiswa portal, a dosen looking at one student, any detail page. Labels follow the student's degree level (`forStudent()`, `forProject()`, `forDegreeLevel()`).
+- **Cross-degree**: admin and kaprodi lists, menus, dashboards, public pages, reports, anything that mixes D3, S1, and S2 students. Labels come from `neutral()`.
+
+## Labels
+
+| Concept             | Key                 | Single student                                                  | Cross-degree        |
+| ------------------- | ------------------- | --------------------------------------------------------------- | ------------------- |
+| Final work          | `finalWork`         | D3 "Tugas Akhir", S1 "Skripsi", S2 "Tesis"                      | "Tugas Akhir"       |
+| Stage 1 exam        | `proposalExam`      | "Seminar Proposal" (OBE: "Ujian Sinopsis", from #7)             | "Sempro / Sinopsis" |
+| Stage 1 exam, short | `proposalExamShort` | "Sempro" (OBE: "Sinopsis", from #7)                             | "Sempro / Sinopsis" |
+| Stage 1 document    | `proposalDocument`  | "Naskah Proposal"                                               | "Naskah Proposal"   |
+| Final exam          | `finalExam`         | D3 "Sidang Tugas Akhir", S1 "Sidang Skripsi", S2 "Sidang Tesis" | "Sidang Akhir"      |
+| Final exam, short   | `finalExamShort`    | "Sidang"                                                        | "Sidang Akhir"      |
+
+Exam names never carry the degree's final work ("Sempro Tugas Akhir" and "Seminar Proposal Tesis" are gone). The word "Proposal" alone is ambiguous (document, phase, or exam), so say "Naskah Proposal", "Tahap Proposal", or the exam label.
+
+## Phases
+
+`thesis_projects.phase`, same label for every audience (`phaseLabel()`, or the `*Phase` keys).
+
+| Value          | Key                | Label            |
+| -------------- | ------------------ | ---------------- |
+| `title_review` | `titleReviewPhase` | "Review Judul"   |
+| `sempro`       | `proposalPhase`    | "Tahap Proposal" |
+| `research`     | `researchPhase`    | "Riset"          |
+| `sidang`       | `finalExamPhase`   | "Tahap Sidang"   |
+| `completed`    | `completedPhase`   | "Selesai"        |
+
+## Code equivalents
+
+| Code                                | Value                 | Label                                                  |
+| ----------------------------------- | --------------------- | ------------------------------------------------------ |
+| `thesis_projects` / `ThesisProject` | one row               | the student's final work (`finalWork`); never "Proyek" |
+| `thesis_defenses.type`              | `sempro`              | stage 1 exam (`proposalExam` / `proposalExamShort`)    |
+| `thesis_defenses.type`              | `sidang`              | final exam (`finalExam` / `finalExamShort`)            |
+| `ThesisDocument.kind`               | `proposal`            | "Naskah Proposal" (`proposalDocument`)                 |
+| `ThesisDocument.kind`               | `revision_submission` | "Dokumen Revisi"                                       |
+| `ThesisDocument.kind`               | `final_manuscript`    | "Naskah Akhir"                                         |
+| `ThesisDocument.kind`               | `supporting_document` | "Lampiran"                                             |
+
+`defenseLabel($terms, $type, $short)` turns a `thesis_defenses.type` into the right label for either audience. Database values and enum names (`sempro`, `sidang`, `ThesisProject`) stay as they are; only labels changed.
+
+## Retired phrases
+
+Do not write these anywhere in the UI:
+
+| Retired                                                                                                    | Use instead                                            |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| "Proyek", "Proyek Tugas Akhir", "Proyek tesis"                                                             | `finalWork` ("Skripsi", "Tugas Akhir", ...)            |
+| "Ujian Proposal", "Proposal" as an exam                                                                    | `proposalExam` / `proposalExamShort`                   |
+| "Sempro Tugas Akhir", "Seminar Proposal Tesis", "Seminar Proposal Skripsi", "Seminar Proposal Tugas Akhir" | "Seminar Proposal" / "Sempro"                          |
+| "Ujian Akhir", "Ujian Tesis"                                                                               | `finalExam` ("Sidang Skripsi", ..., or "Sidang Akhir") |
+| "Proyek akhir"                                                                                             | `finalWork`                                            |
+
+Event labels already stored in `thesis_project_events.label` keep their old wording; only new events use these labels.

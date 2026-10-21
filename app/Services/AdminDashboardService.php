@@ -9,6 +9,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisRevision;
 use App\Models\User;
+use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -129,11 +130,11 @@ class AdminDashboardService
             ->pluck('aggregate', 'phase');
 
         return collect([
-            ['phase' => 'title_review', 'label' => 'Review Judul', 'color' => 'gray', 'hex' => '#94a3b8'],
-            ['phase' => 'sempro', 'label' => 'Proposal', 'color' => 'info', 'hex' => '#06b6d4'],
-            ['phase' => 'research', 'label' => 'Riset', 'color' => 'warning', 'hex' => '#f59e0b'],
-            ['phase' => 'sidang', 'label' => 'Ujian Akhir', 'color' => 'primary', 'hex' => '#2563eb'],
-            ['phase' => 'completed', 'label' => 'Selesai', 'color' => 'success', 'hex' => '#16a34a'],
+            ['phase' => 'title_review', 'label' => AcademicTerminology::phaseLabel('title_review'), 'color' => 'gray', 'hex' => '#94a3b8'],
+            ['phase' => 'sempro', 'label' => AcademicTerminology::phaseLabel('sempro'), 'color' => 'info', 'hex' => '#06b6d4'],
+            ['phase' => 'research', 'label' => AcademicTerminology::phaseLabel('research'), 'color' => 'warning', 'hex' => '#f59e0b'],
+            ['phase' => 'sidang', 'label' => AcademicTerminology::phaseLabel('sidang'), 'color' => 'primary', 'hex' => '#2563eb'],
+            ['phase' => 'completed', 'label' => AcademicTerminology::phaseLabel('completed'), 'color' => 'success', 'hex' => '#16a34a'],
         ])->map(function (array $item) use ($counts): array {
             $item['count'] = (int) ($counts[$item['phase']] ?? 0);
 
@@ -170,27 +171,27 @@ class AdminDashboardService
 
         return [
             [
-                'label' => 'Perlu Ujian Proposal',
+                'label' => 'Perlu '.AcademicTerminology::neutral()['proposalExamShort'],
                 'count' => $metrics['needsSempro'],
-                'description' => 'Mahasiswa masih berada di review judul/proposal tetapi belum punya agenda ujian proposal.',
+                'description' => 'Mahasiswa masih berada di '.mb_strtolower(AcademicTerminology::neutral()['titleReviewPhase']).' atau '.mb_strtolower(AcademicTerminology::neutral()['proposalPhase']).' tetapi belum punya agenda '.AcademicTerminology::neutral()['proposalExamShort'].'.',
                 'url' => $baseUrl.'?activeTab=perlu-sempro',
             ],
             [
-                'label' => 'Perlu Ujian Akhir',
+                'label' => 'Perlu '.AcademicTerminology::neutral()['finalExam'],
                 'count' => $metrics['needsSidang'],
-                'description' => 'Proyek riset/ujian akhir belum memiliki jadwal atau riwayat ujian akhir.',
+                'description' => AcademicTerminology::neutral()['finalWork'].' pada '.mb_strtolower(AcademicTerminology::neutral()['researchPhase']).' atau '.mb_strtolower(AcademicTerminology::neutral()['finalExamPhase']).' belum memiliki jadwal atau riwayat '.AcademicTerminology::neutral()['finalExam'].'.',
                 'url' => $baseUrl.'?activeTab=perlu-sidang',
             ],
             [
                 'label' => 'Pembimbing Kurang',
                 'count' => $metrics['incompleteSupervisors'],
-                'description' => 'Proyek aktif di fase lanjut dengan jumlah pembimbing belum lengkap.',
+                'description' => AcademicTerminology::neutral()['finalWork'].' aktif di fase lanjut dengan jumlah pembimbing belum lengkap.',
                 'url' => $baseUrl.'?activeTab=perlu-pembimbing',
             ],
             [
                 'label' => 'Revisi Terbuka',
                 'count' => $metrics['openRevisions'],
-                'description' => 'Revisi yang masih perlu dipantau sebelum proyek bisa bergerak maju.',
+                'description' => 'Revisi yang masih perlu dipantau sebelum '.AcademicTerminology::neutral()['finalWork'].' bisa bergerak maju.',
                 'url' => $baseUrl.'?activeTab=revisi-terbuka',
             ],
         ];
@@ -276,7 +277,7 @@ class AdminDashboardService
             ->limit($limit)
             ->get()
             ->map(fn(ThesisDefense $defense): array => [
-                'label' => $defense->type === 'sidang' ? 'Ujian Akhir' : 'Proposal',
+                'label' => AcademicTerminology::defenseLabel(AcademicTerminology::neutral(), $defense->type),
                 'student' => $defense->project?->student?->name ?? '-',
                 'nim' => $defense->project?->student?->mahasiswaProfile?->nim ?? '-',
                 'programStudi' => $defense->project?->programStudi?->name ?? '-',
@@ -453,11 +454,11 @@ class AdminDashboardService
         }
 
         if (in_array($record->phase, ['title_review', 'sempro'], true) && $record->defenses->where('type', 'sempro')->whereIn('status', ['scheduled', 'completed'])->isEmpty()) {
-            return 'Belum ada ujian proposal yang dijadwalkan atau diselesaikan.';
+            return 'Belum ada '.AcademicTerminology::neutral()['proposalExam'].' yang dijadwalkan atau diselesaikan.';
         }
 
         if (in_array($record->phase, ['research', 'sidang'], true) && $record->defenses->where('type', 'sidang')->whereIn('status', ['scheduled', 'completed'])->isEmpty()) {
-            return 'Belum ada ujian akhir yang dijadwalkan atau diselesaikan.';
+            return 'Belum ada '.AcademicTerminology::neutral()['finalExam'].' yang dijadwalkan atau diselesaikan.';
         }
 
         return 'Perlu pengecekan manual dari admin.';

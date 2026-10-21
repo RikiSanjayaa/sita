@@ -637,10 +637,13 @@ class WelcomeController extends Controller
      */
     private function publicStudentStage(?ThesisProject $project): array
     {
+        $terms = $project instanceof ThesisProject
+            ? AcademicTerminology::forProject($project)
+            : AcademicTerminology::neutral();
         if (! $project instanceof ThesisProject) {
             return [
                 'label' => 'Baru Terdaftar',
-                'description' => 'Mahasiswa aktif dan siap memulai proses tugas akhir.',
+                'description' => 'Mahasiswa aktif dan siap memulai proses '.$terms['finalWorkLower'].'.',
             ];
         }
 
@@ -689,15 +692,15 @@ class WelcomeController extends Controller
                 ],
                 default => [
                     'label' => 'Tahap '.$terms['proposalExamShort'],
-                    'description' => 'Proposal dan kesiapan seminar masih diproses.',
+                    'description' => $terms['proposalDocument'].' dan kesiapan '.$terms['proposalExamShort'].' masih diproses.',
                 ],
             };
         }
 
         return match ($project->phase) {
             'title_review' => [
-                'label' => 'Review Judul',
-                'description' => 'Judul atau proposal awal sedang ditinjau.',
+                'label' => AcademicTerminology::phaseLabel('title_review'),
+                'description' => 'Judul atau '.mb_strtolower($terms['proposalDocument']).' awal sedang ditinjau.',
             ],
             'research' => [
                 'label' => 'Bimbingan Aktif',

@@ -96,9 +96,11 @@ test.describe('Kaprodi sempro-sidang design patterns', () => {
             const completed = statusGroup.getByRole('radio', {
                 name: /^Selesai\s*0$/,
             });
-            const sempro = typeGroup.getByRole('radio', { name: 'Proposal' });
+            const sempro = typeGroup.getByRole('radio', {
+                name: 'Sempro / Sinopsis',
+            });
             const sidang = typeGroup.getByRole('radio', {
-                name: 'Ujian Akhir',
+                name: 'Sidang Akhir',
             });
 
             // Known fixture distribution: one scheduled exam, none completed.
@@ -191,7 +193,9 @@ test.describe('Kaprodi sempro-sidang design patterns', () => {
                 name: 'Filter tipe ujian',
             });
             const all = typeGroup.getByRole('radio', { name: 'Semua' });
-            const sempro = typeGroup.getByRole('radio', { name: 'Proposal' });
+            const sempro = typeGroup.getByRole('radio', {
+                name: 'Sempro / Sinopsis',
+            });
 
             await expect(all).toBeChecked();
 

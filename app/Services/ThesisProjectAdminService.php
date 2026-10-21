@@ -32,8 +32,8 @@ class ThesisProjectAdminService
         $title = $this->resolveSubmittedTitleForReview($project);
         $terminology = AcademicTerminology::forProject($project);
         $notes = $notes ?: sprintf(
-            'Judul dan proposal disetujui. Mahasiswa dapat lanjut ke tahap %s.',
-            $terminology['proposalExamShort'],
+            'Judul dan '.mb_strtolower($terminology['proposalDocument']).' disetujui. Mahasiswa dapat lanjut ke tahap %s.',
+            $terminology['proposalPhase'],
         );
 
         $updatedProject = DB::transaction(function () use ($decidedBy, $notes, $project, $title): ThesisProject {
@@ -129,9 +129,10 @@ class ThesisProjectAdminService
         array $examinerUserIds,
         ?string $scheduledUntil = null,
     ): ThesisProject {
+        $terminology = AcademicTerminology::forProject($project);
         $wasRescheduled = false;
 
-        $updatedProject = DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $scheduledUntil, $location, $mode, $examinerUserIds, &$wasRescheduled): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $scheduledBy, $scheduledFor, $scheduledUntil, $location, $mode, $examinerUserIds, $terminology, &$wasRescheduled): ThesisProject {
             $defense = $project->semproDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
                 ->latest('attempt_no')
@@ -182,9 +183,9 @@ class ThesisProjectAdminService
                 $project->fresh(),
                 actorUserId: $scheduledBy,
                 eventType: $wasRescheduled ? 'sempro_rescheduled' : 'sempro_scheduled',
-                label: $wasRescheduled ? 'Sempro dijadwalkan ulang' : 'Sempro dijadwalkan',
+                label: $wasRescheduled ? $terminology['proposalExamShort'].' dijadwalkan ulang' : $terminology['proposalExamShort'].' dijadwalkan',
                 description: sprintf(
-                    $wasRescheduled ? 'Sempro dijadwalkan ulang di %s.' : 'Sempro dijadwalkan di %s.',
+                    $wasRescheduled ? $terminology['proposalExamShort'].' dijadwalkan ulang di %s.' : $terminology['proposalExamShort'].' dijadwalkan di %s.',
                     $location,
                 ),
                 occurredAt: $scheduledFor,
@@ -221,28 +222,29 @@ class ThesisProjectAdminService
         string $notes,
         ?string $revisionDueAt = null,
     ): ThesisProject {
+        $terminology = AcademicTerminology::forProject($project);
         $defense = $project->semproDefenses()
             ->latest('attempt_no')
             ->with(['examiners', 'revisions'])
             ->first();
 
         if (! $defense instanceof ThesisDefense) {
-            throw new RuntimeException('Sempro belum tersedia untuk proyek ini.');
+            throw new RuntimeException($terminology['proposalExamShort'].' belum tersedia untuk '.$terminology['finalWorkLower'].' ini.');
         }
 
         if ($defense->status !== 'awaiting_finalization') {
-            throw new RuntimeException('Sempro belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
+            throw new RuntimeException($terminology['proposalExamShort'].' belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
         }
 
         if ($result === 'pass_with_revision' && blank($revisionDueAt)) {
-            throw new RuntimeException('Batas revisi wajib diisi untuk hasil sempro lulus.');
+            throw new RuntimeException('Batas revisi wajib diisi untuk hasil '.mb_strtolower($terminology['proposalExamShort']).' lulus.');
         }
 
         if ($result === 'pass_with_revision' && blank($notes)) {
-            throw new RuntimeException('Catatan revisi wajib diisi untuk hasil sempro lulus.');
+            throw new RuntimeException('Catatan revisi wajib diisi untuk hasil '.mb_strtolower($terminology['proposalExamShort']).' lulus.');
         }
 
-        $updatedProject = DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $defense, $decidedBy, $result, $notes, $revisionDueAt, $terminology): ThesisProject {
             $defense->forceFill([
                 'status' => 'completed',
                 'result' => $result,
@@ -286,9 +288,9 @@ class ThesisProjectAdminService
                     default => 'sempro_completed',
                 },
                 label: match ($result) {
-                    'pass_with_revision' => 'Sempro selesai',
-                    'fail' => 'Sempro tidak lulus',
-                    default => 'Hasil sempro ditetapkan',
+                    'pass_with_revision' => $terminology['proposalExamShort'].' selesai',
+                    'fail' => $terminology['proposalExamShort'].' tidak lulus',
+                    default => 'Hasil '.mb_strtolower($terminology['proposalExamShort']).' ditetapkan',
                 },
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
@@ -299,7 +301,7 @@ class ThesisProjectAdminService
                     $freshProject,
                     actorUserId: $decidedBy,
                     eventType: 'revision_opened',
-                    label: 'Revisi sempro dibuka',
+                    label: 'Revisi '.$terminology['proposalExamShort'].' dibuka',
                     description: $notes,
                     occurredAt: now()->toDateTimeString(),
                 );
@@ -323,22 +325,23 @@ class ThesisProjectAdminService
         int $resolvedBy,
         ?string $resolutionNotes = null,
     ): ThesisProject {
+        $terminology = AcademicTerminology::forProject($project);
         $defense = $project->semproDefenses()
             ->latest('attempt_no')
             ->with('revisions')
             ->first();
 
         if (! $defense instanceof ThesisDefense || $defense->status !== 'completed' || $defense->result !== 'pass_with_revision') {
-            throw new RuntimeException('Revisi sempro belum tersedia untuk proyek ini.');
+            throw new RuntimeException('Revisi '.$terminology['proposalExamShort'].' belum tersedia untuk '.$terminology['finalWorkLower'].' ini.');
         }
 
         if (! $defense->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty()) {
-            throw new RuntimeException('Tidak ada revisi sempro aktif yang perlu disetujui.');
+            throw new RuntimeException('Tidak ada revisi '.mb_strtolower($terminology['proposalExamShort']).' aktif yang perlu disetujui.');
         }
 
-        $notes = $resolutionNotes ?: 'Revisi sempro disetujui. Mahasiswa dapat lanjut ke tahap penelitian.';
+        $notes = $resolutionNotes ?: 'Revisi '.$terminology['proposalExamShort'].' disetujui. Mahasiswa dapat lanjut ke tahap '.mb_strtolower($terminology['researchPhase']).'.';
 
-        $updatedProject = DB::transaction(function () use ($defense, $notes, $project, $resolvedBy): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($defense, $notes, $project, $resolvedBy, $terminology): ThesisProject {
             $this->closeDefenseRevisions($defense, $resolvedBy, $notes);
 
             $project->forceFill([
@@ -354,7 +357,7 @@ class ThesisProjectAdminService
                 $freshProject,
                 actorUserId: $resolvedBy,
                 eventType: 'revision_resolved',
-                label: 'Revisi sempro disetujui',
+                label: 'Revisi '.$terminology['proposalExamShort'].' disetujui',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
             );
@@ -440,9 +443,10 @@ class ThesisProjectAdminService
         ?string $notes = null,
         ?string $scheduledUntil = null,
     ): ThesisDefense {
+        $terminology = AcademicTerminology::forProject($project);
         $wasRescheduled = false;
 
-        $defense = DB::transaction(function () use ($project, $createdBy, $scheduledFor, $scheduledUntil, $location, $mode, $panelUserIds, $notes, &$wasRescheduled): ThesisDefense {
+        $defense = DB::transaction(function () use ($project, $createdBy, $scheduledFor, $scheduledUntil, $location, $mode, $panelUserIds, $notes, $terminology, &$wasRescheduled): ThesisDefense {
             $attemptNo = (int) $project->sidangDefenses()->max('attempt_no');
             $openDefense = $project->sidangDefenses()
                 ->whereIn('status', ['draft', 'scheduled'])
@@ -495,7 +499,7 @@ class ThesisProjectAdminService
                 $project->fresh(),
                 actorUserId: $createdBy,
                 eventType: $wasRescheduled ? 'sidang_rescheduled' : 'sidang_scheduled',
-                label: $wasRescheduled ? 'Sidang dijadwalkan ulang' : 'Sidang dijadwalkan',
+                label: $wasRescheduled ? $terminology['finalExamShort'].' dijadwalkan ulang' : $terminology['finalExamShort'].' dijadwalkan',
                 description: $notes,
                 occurredAt: $scheduledFor,
             );
@@ -533,16 +537,17 @@ class ThesisProjectAdminService
         ?string $mode,
         ?string $notes,
     ): ThesisDefense {
+        $terminology = AcademicTerminology::forProject($project);
         $defense = $project->sidangDefenses()
             ->whereIn('status', ['draft', 'scheduled'])
             ->latest('attempt_no')
             ->first();
 
         if (! $defense instanceof ThesisDefense) {
-            throw new RuntimeException('Tidak ada sidang aktif untuk diperbarui jadwalnya.');
+            throw new RuntimeException('Tidak ada '.$terminology['finalExamShort'].' aktif untuk diperbarui jadwalnya.');
         }
 
-        DB::transaction(function () use ($defense, $project, $updatedBy, $scheduledFor, $scheduledUntil, $location, $mode, $notes): void {
+        DB::transaction(function () use ($defense, $project, $updatedBy, $scheduledFor, $scheduledUntil, $location, $mode, $notes, $terminology): void {
             $updates = [
                 'scheduled_for' => $scheduledFor,
                 'scheduled_until' => $scheduledUntil,
@@ -566,8 +571,8 @@ class ThesisProjectAdminService
                 $project->fresh(),
                 actorUserId: $updatedBy,
                 eventType: 'sidang_rescheduled',
-                label: 'Jadwal sidang diperbarui',
-                description: $notes ?? 'Jadwal sidang telah diperbarui.',
+                label: 'Jadwal '.$terminology['finalExamShort'].' diperbarui',
+                description: $notes ?? 'Jadwal '.$terminology['finalExamShort'].' telah diperbarui.',
                 occurredAt: $scheduledFor,
             );
         });
@@ -604,18 +609,19 @@ class ThesisProjectAdminService
         ?string $revisionNotes = null,
         ?string $revisionDueAt = null,
     ): ThesisProject {
-        $updatedProject = DB::transaction(function () use ($project, $decidedBy, $result, $notes, $revisionNotes, $revisionDueAt): ThesisProject {
+        $terminology = AcademicTerminology::forProject($project);
+        $updatedProject = DB::transaction(function () use ($project, $decidedBy, $result, $notes, $revisionNotes, $revisionDueAt, $terminology): ThesisProject {
             $defense = $project->sidangDefenses()
                 ->latest('attempt_no')
                 ->with('examiners')
                 ->first();
 
             if (! $defense instanceof ThesisDefense) {
-                throw new RuntimeException('Sidang belum dijadwalkan untuk proyek ini.');
+                throw new RuntimeException($terminology['finalExamShort'].' belum dijadwalkan untuk '.$terminology['finalWorkLower'].' ini.');
             }
 
             if ($defense->status !== 'awaiting_finalization') {
-                throw new RuntimeException('Sidang belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
+                throw new RuntimeException($terminology['finalExamShort'].' belum siap ditetapkan. Tunggu seluruh dosen penguji mengirim keputusan.');
             }
 
             $defense->forceFill([
@@ -648,11 +654,11 @@ class ThesisProjectAdminService
 
             if ($result === 'pass_with_revision') {
                 if (blank($revisionDueAt)) {
-                    throw new RuntimeException('Batas revisi wajib diisi untuk hasil sidang lulus dengan syarat.');
+                    throw new RuntimeException('Batas revisi wajib diisi untuk hasil '.$terminology['finalExamShort'].' lulus dengan syarat.');
                 }
 
                 if (blank($revisionNotes)) {
-                    throw new RuntimeException('Catatan revisi wajib diisi untuk hasil sidang lulus dengan syarat.');
+                    throw new RuntimeException('Catatan revisi wajib diisi untuk hasil '.$terminology['finalExamShort'].' lulus dengan syarat.');
                 }
 
                 $this->syncDefenseRevisionsFromExaminers($defense, $revisionNotes, $revisionDueAt, $decidedBy);
@@ -684,10 +690,10 @@ class ThesisProjectAdminService
                     default => 'sidang_completed',
                 },
                 label: match ($result) {
-                    'pass' => 'Sidang selesai',
-                    'pass_with_revision' => 'Sidang selesai dengan syarat',
-                    'fail' => 'Sidang tidak lulus',
-                    default => 'Hasil sidang ditetapkan',
+                    'pass' => $terminology['finalExamShort'].' selesai',
+                    'pass_with_revision' => $terminology['finalExamShort'].' selesai dengan syarat',
+                    'fail' => $terminology['finalExamShort'].' tidak lulus',
+                    default => 'Hasil '.mb_strtolower($terminology['finalExamShort']).' ditetapkan',
                 },
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
@@ -698,7 +704,7 @@ class ThesisProjectAdminService
                     $project->fresh(),
                     actorUserId: $decidedBy,
                     eventType: 'revision_opened',
-                    label: 'Revisi sidang dibuka',
+                    label: 'Revisi '.$terminology['finalExamShort'].' dibuka',
                     description: $revisionNotes ?? $notes,
                     occurredAt: now()->toDateTimeString(),
                 );
@@ -722,22 +728,23 @@ class ThesisProjectAdminService
         int $resolvedBy,
         ?string $resolutionNotes = null,
     ): ThesisProject {
+        $terminology = AcademicTerminology::forProject($project);
         $defense = $project->sidangDefenses()
             ->latest('attempt_no')
             ->with('revisions')
             ->first();
 
         if (! $defense instanceof ThesisDefense || $defense->status !== 'completed' || $defense->result !== 'pass_with_revision') {
-            throw new RuntimeException('Revisi sidang belum tersedia untuk proyek ini.');
+            throw new RuntimeException('Revisi '.$terminology['finalExamShort'].' belum tersedia untuk '.$terminology['finalWorkLower'].' ini.');
         }
 
         if (! $defense->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty()) {
-            throw new RuntimeException('Tidak ada revisi sidang aktif yang perlu disetujui.');
+            throw new RuntimeException('Tidak ada revisi '.mb_strtolower($terminology['finalExamShort']).' aktif yang perlu disetujui.');
         }
 
-        $notes = $resolutionNotes ?: 'Revisi sidang disetujui. Proyek tugas akhir dinyatakan selesai.';
+        $notes = $resolutionNotes ?: 'Revisi '.$terminology['finalExamShort'].' disetujui. '.$terminology['finalWork'].' dinyatakan selesai.';
 
-        $updatedProject = DB::transaction(function () use ($defense, $notes, $project, $resolvedBy): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($defense, $notes, $project, $resolvedBy, $terminology): ThesisProject {
             $this->closeDefenseRevisions($defense, $resolvedBy, $notes);
 
             $project->supervisorAssignments()
@@ -760,7 +767,7 @@ class ThesisProjectAdminService
                 $freshProject,
                 actorUserId: $resolvedBy,
                 eventType: 'revision_resolved',
-                label: 'Revisi sidang disetujui',
+                label: 'Revisi '.$terminology['finalExamShort'].' disetujui',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
             );
@@ -789,13 +796,14 @@ class ThesisProjectAdminService
     private function resolveSubmittedTitleForReview(ThesisProject $project): ThesisProjectTitle
     {
         $project->loadMissing(['latestTitle', 'titles', 'defenses', 'activeSupervisorAssignments']);
+        $terminology = AcademicTerminology::forProject($project);
 
         if ($project->state !== 'active' || $project->phase !== 'title_review') {
-            throw new RuntimeException('Proyek tidak sedang berada pada tahap review judul.');
+            throw new RuntimeException($terminology['finalWork'].' tidak sedang berada pada tahap '.mb_strtolower($terminology['titleReviewPhase']).'.');
         }
 
         if ($project->defenses->isNotEmpty() || $project->activeSupervisorAssignments->isNotEmpty()) {
-            throw new RuntimeException('Review judul tidak dapat diubah karena proyek sudah masuk tahap lanjutan.');
+            throw new RuntimeException('Review judul tidak dapat diubah karena '.$terminology['finalWorkLower'].' sudah masuk tahap lanjutan.');
         }
 
         $title = $project->latestTitle;
@@ -906,13 +914,14 @@ class ThesisProjectAdminService
      */
     private function syncDefenseExaminers(ThesisDefense $defense, array $examinerUserIds, int $assignedBy): void
     {
+        $terminology = AcademicTerminology::forProject($defense->project);
         $normalizedExaminerIds = collect($examinerUserIds)
             ->map(static fn($id): int => (int) $id)
             ->filter(static fn(int $id): bool => $id > 0)
             ->values();
 
         if ($normalizedExaminerIds->isEmpty() || $normalizedExaminerIds->unique()->count() !== $normalizedExaminerIds->count()) {
-            throw new RuntimeException('Sempro harus memiliki minimal satu penguji dan setiap penguji harus berbeda.');
+            throw new RuntimeException($terminology['proposalExamShort'].' harus memiliki minimal satu penguji dan setiap penguji harus berbeda.');
         }
 
         $defense->examiners()->delete();
@@ -934,6 +943,7 @@ class ThesisProjectAdminService
      */
     private function syncSidangExaminers(ThesisProject $project, ThesisDefense $defense, array $panelUserIds, int $assignedBy): void
     {
+        $terminology = AcademicTerminology::forProject($project);
         $project->loadMissing('activeSupervisorAssignments');
 
         $normalizedPanelIds = collect($panelUserIds)
@@ -943,7 +953,7 @@ class ThesisProjectAdminService
             ->values();
 
         if ($normalizedPanelIds->isEmpty() || $normalizedPanelIds->count() < 2) {
-            throw new RuntimeException('Panel sidang harus berisi minimal dua dosen yang berbeda.');
+            throw new RuntimeException('Panel '.$terminology['finalExamShort'].' harus berisi minimal dua dosen yang berbeda.');
         }
 
         $activeSupervisors = $project->activeSupervisorAssignments
@@ -958,7 +968,7 @@ class ThesisProjectAdminService
         // If supervisors exist, ensure they are included in the panel
         foreach ($supervisorIds as $index => $supervisorId) {
             if (! $normalizedPanelIds->contains($supervisorId)) {
-                throw new RuntimeException(sprintf('Panel sidang harus menyertakan Pembimbing %d.', $index + 1));
+                throw new RuntimeException(sprintf('Panel '.$terminology['finalExamShort'].' harus menyertakan Pembimbing %d.', $index + 1));
             }
         }
 
@@ -968,7 +978,7 @@ class ThesisProjectAdminService
             : $normalizedPanelIds;
 
         foreach ($orderedPanelIds as $index => $lecturerUserId) {
-            $this->assertDefenseExaminerEligible($project, $lecturerUserId, sprintf('Panel sidang #%d', $index + 1));
+            $this->assertDefenseExaminerEligible($project, $lecturerUserId, sprintf('Panel '.$terminology['finalExamShort'].' #%d', $index + 1));
         }
 
         $roleByLecturerId = $activeSupervisors
@@ -1046,6 +1056,7 @@ class ThesisProjectAdminService
 
     private function createOrRefreshSidangThread(ThesisDefense $defense, int $studentUserId): void
     {
+        $terminology = AcademicTerminology::forProject($defense->project);
         $thread = MentorshipChatThread::query()
             ->where('student_user_id', $studentUserId)
             ->where('type', 'sidang')
@@ -1109,7 +1120,7 @@ class ThesisProjectAdminService
             $thread->messages()->create([
                 'sender_user_id' => null,
                 'message_type' => 'text',
-                'message' => 'Ruang Sidang siap digunakan.',
+                'message' => 'Ruang '.$terminology['finalExam'].' siap digunakan.',
                 'sent_at' => now(),
             ]);
         }
@@ -1117,6 +1128,7 @@ class ThesisProjectAdminService
 
     private function createOrRefreshSemproThread(ThesisDefense $defense, int $studentUserId): void
     {
+        $terminology = AcademicTerminology::forProject($defense->project);
         $thread = MentorshipChatThread::query()
             ->where('student_user_id', $studentUserId)
             ->where('type', 'sempro')
@@ -1185,7 +1197,7 @@ class ThesisProjectAdminService
             $thread->messages()->create([
                 'sender_user_id' => null,
                 'message_type' => 'text',
-                'message' => 'Ruang Seminar Proposal siap digunakan.',
+                'message' => 'Ruang '.$terminology['proposalExam'].' siap digunakan.',
                 'sent_at' => now(),
             ]);
         }

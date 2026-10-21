@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\User;
 use App\Services\AdminDashboardService;
+use App\Support\AcademicTerminology;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Auth;
 
@@ -63,13 +64,13 @@ class AdminWorkloadChart extends ChartWidget
         $delta = $trend['currentTotal'] - $trend['previousTotal'];
 
         if ($delta === 0) {
-            return "{$trend['currentTotal']} aktivitas proyek, ritmenya stabil dibanding 6 bulan sebelumnya.";
+            return "{$trend['currentTotal']} aktivitas ".AcademicTerminology::neutral()['finalWorkLower'].', ritmenya stabil dibanding 6 bulan sebelumnya.';
         }
 
         $direction = $delta > 0 ? 'naik' : 'turun';
 
         return sprintf(
-            '%d aktivitas proyek, %s %d dibanding 6 bulan sebelumnya.',
+            '%d aktivitas '.AcademicTerminology::neutral()['finalWorkLower'].', %s %d dibanding 6 bulan sebelumnya.',
             $trend['currentTotal'],
             $direction,
             abs($delta),
