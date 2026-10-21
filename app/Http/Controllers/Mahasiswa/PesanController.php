@@ -312,7 +312,7 @@ class PesanController extends Controller
                     'mentorship_assignment_id' => $assignmentIdsByLecturer->get($lecturerUserId),
                     'title' => $trimmedMessage !== ''
                         ? $trimmedMessage
-                        : sprintf('Lampiran chat v%d', $nextVersion),
+                        : 'Lampiran: '.$attachment->getClientOriginalName(),
                     'category' => 'lampiran-chat',
                     'document_group' => $documentGroup,
                     'version_number' => $nextVersion,
