@@ -96,15 +96,19 @@ class PlaywrightScenarioSeeder extends Seeder
             'offline',
             [$dosen1->id, $dosen2->id, $dosen3->id],
         );
+
+        // Mahasiswa without a phone number: the pop-up must block until one is saved.
+        $this->student($role, $prodi, 'e2e-popup@sita.test', 'Yudha Nomor HP Kosong', '2210511007', withPhoneNumber: false);
     }
 
-    private function student(Role $role, ProgramStudi $prodi, string $email, string $name, string $nim, bool $isObeCurriculum = false): User
+    private function student(Role $role, ProgramStudi $prodi, string $email, string $name, string $nim, bool $isObeCurriculum = false, bool $withPhoneNumber = true): User
     {
         $student = User::query()->updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
-                'phone_number' => '08'.str_pad(substr(sprintf('%u', crc32($email)), -10), 10, '0', STR_PAD_LEFT),
+                'phone_number' => $withPhoneNumber ? '08'.str_pad(substr(sprintf('%u', crc32($email)), -10), 10, '0', STR_PAD_LEFT) : null,
+                'phone_number_confirmed_at' => $withPhoneNumber ? now() : null,
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
                 'last_active_role' => AppRole::Mahasiswa->value,

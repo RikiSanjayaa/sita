@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\CsatResponseController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
+use App\Http\Controllers\Settings\PhoneConfirmationController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,9 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::patch('settings/phone-confirmation', [PhoneConfirmationController::class, 'update'])
+        ->name('settings.phone-confirmation.update');
 
     Route::get('settings/notifications', function () {
         return Inertia::render('settings/notifications');

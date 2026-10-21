@@ -1,10 +1,12 @@
+import { usePage } from '@inertiajs/react';
 import { type PropsWithChildren, type ReactNode } from 'react';
 
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
-import { type AppRole, type BreadcrumbItem } from '@/types';
+import PhonePromptDialog from '@/components/phone-prompt-dialog';
+import { type AppRole, type BreadcrumbItem, type SharedData } from '@/types';
 
 export default function AppSidebarLayout({
     children,
@@ -18,6 +20,8 @@ export default function AppSidebarLayout({
     subtitle?: ReactNode;
     role?: AppRole | null;
 }>) {
+    const { phonePrompt } = usePage<SharedData>().props;
+
     return (
         <AppShell variant="sidebar">
             <AppSidebar role={role} />
@@ -29,6 +33,7 @@ export default function AppSidebarLayout({
                 />
                 {children}
             </AppContent>
+            {phonePrompt && <PhonePromptDialog prompt={phonePrompt} />}
         </AppShell>
     );
 }

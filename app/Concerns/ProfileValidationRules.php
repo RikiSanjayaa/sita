@@ -3,6 +3,7 @@
 namespace App\Concerns;
 
 use App\Models\User;
+use App\Rules\IndonesianPhoneNumber;
 use Illuminate\Validation\Rule;
 
 trait ProfileValidationRules
@@ -17,7 +18,7 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
-            'phone_number' => ['nullable', 'string', 'max:30'],
+            'phone_number' => ['nullable', 'string', 'max:30', new IndonesianPhoneNumber],
         ];
     }
 

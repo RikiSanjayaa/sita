@@ -28,6 +28,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Pesan (thread bimbingan, sempro, sidang)                                  | `bimbingan-chat`, `admin-sempro`, `admin-sidang` | tercakup | P1       |
 | Panduan (`/mahasiswa/panduan`)                                            | none                                             | belum    | P3       |
 | Pengaturan Akun: profil                                                   | `profile`                                        | tercakup | P2       |
+| Pop-up nomor HP: wajib diisi, konfirmasi impor (issue #26)                | `phone-prompt`, plus Pest (`PhonePromptTest`)    | tercakup | P1       |
 | Pengaturan Akun: 2FA                                                      | `two-factor-auth`                                | tercakup | P2       |
 | Pengaturan Akun: notifikasi                                               | `notifications`                                  | tercakup | P2       |
 | Notifikasi pesan dan pengumuman                                           | `notifications`, `system-announcements`          | tercakup | P2       |

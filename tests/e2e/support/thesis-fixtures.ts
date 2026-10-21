@@ -176,6 +176,12 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
+    phonePrompt: {
+        email: 'e2e-popup@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
 };
 
 export const thesisScenarios = {

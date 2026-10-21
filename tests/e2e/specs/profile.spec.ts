@@ -6,7 +6,7 @@ import { authStatePath } from '../support/thesis-fixtures';
 function resetProfileForUser(): void {
     runArtisan([
         'tinker',
-        '--execute=$user = App\\Models\\User::query()->whereIn("email", ["farhan@sita.test", "farhan.playwright@sita.test"])->firstOrFail(); $user->forceFill(["name" => "Farhan Maulana", "email" => "farhan@sita.test", "phone_number" => null])->save();',
+        '--execute=$user = App\\Models\\User::query()->whereIn("email", ["farhan@sita.test", "farhan.playwright@sita.test"])->firstOrFail(); $user->forceFill(["name" => "Farhan Maulana", "email" => "farhan@sita.test", "phone_number" => "081200000001", "phone_number_confirmed_at" => now()])->save();',
     ]);
 }
 
