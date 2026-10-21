@@ -107,12 +107,14 @@ test.describe('Public pages', () => {
             .filter({ hasText: 'Sistem Rekomendasi Ruang Belajar' })
             .first();
         await expect(row).toBeVisible();
+        // Wait for the server-side search to narrow the list; collapsed rows keep
+        // their detail markup, so other rows would also match below.
+        await expect(
+            page.getByRole('button', { name: 'Buka detail topik' }),
+        ).toHaveCount(1);
 
         await row.getByRole('button', { name: 'Buka detail topik' }).click();
-        // Collapsed rows keep their detail markup, so match only the opened one.
-        await expect(
-            page.getByText('Judul Internasional').filter({ visible: true }),
-        ).toBeVisible();
+        await expect(page.getByText('Judul Internasional')).toBeVisible();
 
         // Retry the fill: a late response to the previous search can reset the input.
         await expect(async () => {
