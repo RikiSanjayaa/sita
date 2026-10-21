@@ -62,6 +62,10 @@ class ProfileController extends Controller
             $user->email_verified_at = null;
         }
 
+        if ($user->isDirty('phone_number')) {
+            $user->phone_number_confirmed_at = $user->phone_number === null ? null : now();
+        }
+
         $user->save();
 
         return to_route('profile.edit');

@@ -49,6 +49,11 @@ export interface SystemActivityEvent {
     timestamp: string;
 }
 
+export interface PhonePrompt {
+    mode: 'required' | 'confirm';
+    phoneNumber: string | null;
+}
+
 export interface SharedData {
     name: string;
     auth: Auth;
@@ -57,6 +62,7 @@ export interface SharedData {
     notifications?: HeaderNotification[];
     unreadNotificationCount?: number;
     academicTerminology: AcademicTerminology;
+    phonePrompt?: PhonePrompt | null;
     [key: string]: unknown;
 }
 

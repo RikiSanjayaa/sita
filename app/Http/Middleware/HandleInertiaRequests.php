@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\AppRole;
 use App\Models\KaprodiAssignment;
+use App\Models\User;
 use App\Support\AcademicTerminology;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -104,6 +106,29 @@ class HandleInertiaRequests extends Middleware
             'academicTerminology' => $user?->hasRole('mahasiswa')
                 ? AcademicTerminology::forStudent($user)
                 : AcademicTerminology::neutral(),
+            'phonePrompt' => $this->phonePrompt($user, $activeRole),
         ];
+    }
+
+    /**
+     * Tells the app shell whether a mahasiswa must enter or confirm a phone number.
+     *
+     * @return array{mode: string, phoneNumber: ?string}|null
+     */
+    private function phonePrompt(?User $user, ?string $activeRole): ?array
+    {
+        if ($user === null || $activeRole !== AppRole::Mahasiswa->value) {
+            return null;
+        }
+
+        if (blank($user->phone_number)) {
+            return ['mode' => 'required', 'phoneNumber' => null];
+        }
+
+        if ($user->phone_number_confirmed_at === null) {
+            return ['mode' => 'confirm', 'phoneNumber' => $user->phone_number];
+        }
+
+        return null;
     }
 }

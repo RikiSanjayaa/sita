@@ -1180,6 +1180,7 @@ class S2SasingSeeder extends Seeder
             [
                 'name' => $name,
                 'phone_number' => $this->generatedPhoneNumber($email),
+                'phone_number_confirmed_at' => now(),
                 'password' => Hash::make(self::SHARED_PASSWORD),
                 'last_active_role' => $lastActiveRole,
             ],

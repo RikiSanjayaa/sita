@@ -325,6 +325,7 @@ class UserSeeder extends Seeder
             ], [
                 'name' => (string) $account['name'],
                 'phone_number' => $this->generatedPhoneNumber((string) $account['email']),
+                'phone_number_confirmed_at' => now(),
                 'password' => Hash::make('password'),
                 'last_active_role' => AppRole::Mahasiswa->value,
             ]);
@@ -420,6 +421,7 @@ class UserSeeder extends Seeder
             ], [
                 'name' => $name,
                 'phone_number' => $this->generatedPhoneNumber("{$emailSlug}@sita.test"),
+                'phone_number_confirmed_at' => now(),
                 'password' => Hash::make('password'),
                 'last_active_role' => AppRole::Mahasiswa->value,
             ]);
