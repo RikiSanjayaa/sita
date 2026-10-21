@@ -24,7 +24,8 @@ export type PlaywrightAccountKey =
     | 'dimas'
     | 'laras'
     | 'raka'
-    | 'sinta';
+    | 'sinta'
+    | 'wulan';
 
 type PlaywrightAccount = {
     email: string;
@@ -169,6 +170,12 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
+    wulan: {
+        email: 'e2e-sinopsis@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
 };
 
 export const thesisScenarios = {
@@ -235,6 +242,13 @@ export const thesisScenarios = {
             'Klasifikasi Citra Daun Padi Menggunakan Jaringan Konvolusi',
         examinerKeys: ['dosen3', 'dosen4'] as const,
         location: 'Ruang Seminar E2E',
+    },
+    sinopsisObe: {
+        studentKey: 'wulan' as const,
+        studentName: 'Wulan Ujian Sinopsis',
+        currentTitle: 'Deteksi Hoaks Berita Daring Dengan Model Bahasa',
+        examinerKeys: ['dosen3', 'dosen4'] as const,
+        location: 'Ruang Sinopsis E2E',
     },
     semproUnscheduled: {
         studentKey: 'laras' as const,

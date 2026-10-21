@@ -899,6 +899,7 @@ function DefenseResultSection({
         result.examiners.map((e) => e.score),
     );
     const finalGrade = resolveAcademicGrade(averageScore);
+    const hasScores = result.examiners.some((e) => e.score !== null);
 
     return (
         <section>
@@ -945,9 +946,11 @@ function DefenseResultSection({
                             <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                 Keputusan
                             </th>
-                            <th className="px-5 py-2.5 text-right text-xs font-medium text-muted-foreground">
-                                Nilai
-                            </th>
+                            {hasScores && (
+                                <th className="px-5 py-2.5 text-right text-xs font-medium text-muted-foreground">
+                                    Nilai
+                                </th>
+                            )}
                             <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
                                 Catatan
                             </th>
@@ -973,18 +976,20 @@ function DefenseResultSection({
                                         {examiner.decisionLabel}
                                     </Badge>
                                 </td>
-                                <td className="px-5 py-3 text-right">
-                                    {examiner.score !== null ? (
-                                        <span className="inline-flex items-center gap-1 text-sm font-semibold">
-                                            <Star className="size-3 text-amber-500" />
-                                            {examiner.score}
-                                        </span>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground/50 italic">
-                                            —
-                                        </span>
-                                    )}
-                                </td>
+                                {hasScores && (
+                                    <td className="px-5 py-3 text-right">
+                                        {examiner.score !== null ? (
+                                            <span className="inline-flex items-center gap-1 text-sm font-semibold">
+                                                <Star className="size-3 text-amber-500" />
+                                                {examiner.score}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground/50 italic">
+                                                —
+                                            </span>
+                                        )}
+                                    </td>
+                                )}
                                 <td className="px-5 py-3 text-xs text-muted-foreground">
                                     {examiner.decisionNotes ?? (
                                         <span className="italic opacity-50">

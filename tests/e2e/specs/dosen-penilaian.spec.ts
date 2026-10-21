@@ -14,6 +14,7 @@ import {
 // examiners, one scheduled sidang panel), reset in beforeAll.
 const sempro = thesisScenarios.semproTwoExaminers;
 const sidang = thesisScenarios.sidangWithPanel;
+const sinopsis = thesisScenarios.sinopsisObe;
 
 async function openDefenseSheet(
     page: Page,
@@ -50,14 +51,21 @@ async function submitDecision(
         revisionNotes,
     }: {
         decisionLabel: RegExp;
-        score: string;
+        score?: string;
         decisionNotes: string;
         revisionNotes?: string;
     },
 ): Promise<void> {
     await page.getByRole('button', { name: 'Input Keputusan Saya' }).click();
     await page.getByRole('button', { name: decisionLabel }).click();
-    await page.getByLabel(/^Nilai/).fill(score);
+
+    if (score === undefined) {
+        // Non-OBE sempro is decision-only: the score field is not rendered.
+        await expect(page.getByLabel(/^Nilai/)).toHaveCount(0);
+    } else {
+        await page.getByLabel(/^Nilai/).fill(score);
+    }
+
     await page.getByLabel('Catatan Keputusan').fill(decisionNotes);
 
     if (revisionNotes !== undefined) {
@@ -115,7 +123,6 @@ test.describe('Dosen penilaian ujian', () => {
             );
             await submitDecision(examinerOnePage, {
                 decisionLabel: /^Lulus$/,
-                score: '84',
                 decisionNotes: 'Proposal layak lanjut setelah revisi.',
                 revisionNotes: 'Perjelas metrik evaluasi pada bab tiga.',
             });
@@ -139,7 +146,6 @@ test.describe('Dosen penilaian ujian', () => {
             );
             await submitDecision(examinerTwoPage, {
                 decisionLabel: /^Lulus$/,
-                score: '88',
                 decisionNotes: 'Topik sudah matang.',
             });
 
@@ -194,6 +200,70 @@ test.describe('Dosen penilaian ujian', () => {
         } finally {
             await examinerOneContext.close();
             await examinerTwoContext.close();
+            await studentContext.close();
+        }
+    });
+
+    test('an OBE student takes Ujian Sinopsis: the examiner must give a score and a comment', async ({
+        browser,
+    }) => {
+        const examinerContext = await browser.newContext({
+            storageState: authStatePath(sinopsis.examinerKeys[0]),
+        });
+        const studentContext = await browser.newContext({
+            storageState: authStatePath(sinopsis.studentKey),
+        });
+
+        try {
+            const examinerPage = await examinerContext.newPage();
+            const studentPage = await studentContext.newPage();
+
+            await openDefenseSheet(
+                examinerPage,
+                sinopsis.studentName,
+                'Sempro / Sinopsis',
+            );
+            await expect(
+                examinerPage.getByRole('dialog').getByText('Sinopsis').first(),
+            ).toBeVisible();
+
+            await examinerPage
+                .getByRole('button', { name: 'Input Keputusan Saya' })
+                .click();
+            await examinerPage.getByRole('button', { name: /^Lulus$/ }).click();
+
+            // Score and comment are both required before the form can be sent.
+            const submitButton = examinerPage.getByRole('button', {
+                name: 'Submit Keputusan',
+            });
+            await expect(submitButton).toBeDisabled();
+            await examinerPage.getByLabel(/^Nilai/).fill('90');
+            await expect(submitButton).toBeDisabled();
+            await examinerPage
+                .getByLabel(/^Catatan Keputusan/)
+                .fill('Sinopsis jelas dan terukur.');
+            await expect(submitButton).toBeEnabled();
+
+            await Promise.all([
+                examinerPage.waitForResponse(
+                    (response) =>
+                        response.request().method() === 'POST' &&
+                        /\/dosen\/seminar-proposal\/\d+\/decision$/.test(
+                            response.url(),
+                        ),
+                ),
+                submitButton.click(),
+            ]);
+
+            await studentPage.goto('/mahasiswa/tugas-akhir');
+            await expect(
+                studentPage.getByText(/Ujian Sinopsis|Sinopsis/).first(),
+            ).toBeVisible();
+            await expect(studentPage.getByText('Seminar Proposal')).toHaveCount(
+                0,
+            );
+        } finally {
+            await examinerContext.close();
             await studentContext.close();
         }
     });

@@ -77,7 +77,7 @@ async function submitDefenseDecision(
     }: {
         studentName: string;
         decision: 'pass' | 'pass_with_revision' | 'fail';
-        score: string;
+        score?: string;
         decisionNotes: string;
         revisionNotes?: string;
         attemptLabel?: string;
@@ -96,7 +96,12 @@ async function submitDefenseDecision(
                       : /^Tidak Lulus$/i,
         })
         .click();
-    await page.getByLabel(/Nilai/i).fill(score);
+    if (score === undefined) {
+        // Non-OBE sempro is decision-only: no score field.
+        await expect(page.getByLabel(/Nilai/i)).toHaveCount(0);
+    } else {
+        await page.getByLabel(/Nilai/i).fill(score);
+    }
     await page.getByLabel('Catatan Keputusan').fill(decisionNotes);
 
     if (decision === 'pass_with_revision') {
@@ -120,7 +125,9 @@ async function submitDefenseDecision(
               ? 'Lulus'
               : 'Tidak Lulus',
     );
-    await expect(row).toContainText(score);
+    if (score !== undefined) {
+        await expect(row).toContainText(score);
+    }
 }
 
 function finalizeSemproForStudent(
@@ -391,7 +398,6 @@ test.describe('Admin sempro workflow', () => {
             await submitDefenseDecision(examinerOnePage, {
                 studentName: thesisScenarios.semproRetry.studentName,
                 decision: 'fail',
-                score: '56',
                 decisionNotes:
                     'Proposal belum siap dipresentasikan dan analisis rubrik masih lemah.',
                 attemptLabel: 'Sempro #2',
@@ -400,7 +406,6 @@ test.describe('Admin sempro workflow', () => {
             await submitDefenseDecision(examinerTwoPage, {
                 studentName: thesisScenarios.semproRetry.studentName,
                 decision: 'fail',
-                score: '58',
                 decisionNotes:
                     'Instrumen evaluasi dan skenario validasi perlu disusun ulang.',
                 attemptLabel: 'Sempro #2',
@@ -439,7 +444,6 @@ test.describe('Admin sempro workflow', () => {
             await submitDefenseDecision(examinerOnePage, {
                 studentName: thesisScenarios.semproRetry.studentName,
                 decision: 'pass_with_revision',
-                score: '85',
                 decisionNotes:
                     'Attempt baru sudah siap dan dapat dilanjutkan ke penelitian.',
                 revisionNotes:
@@ -450,7 +454,6 @@ test.describe('Admin sempro workflow', () => {
             await submitDefenseDecision(examinerTwoPage, {
                 studentName: thesisScenarios.semproRetry.studentName,
                 decision: 'pass_with_revision',
-                score: '87',
                 decisionNotes:
                     'Perbaikan attempt baru memadai untuk lolos sempro.',
                 revisionNotes: 'Lengkapi lampiran validasi proposal final.',

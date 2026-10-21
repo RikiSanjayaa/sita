@@ -435,7 +435,6 @@ test('sempro examiner submits lulus with optional revision notes through simplif
         ->from(route('dosen.seminar-proposal'))
         ->post(route('dosen.seminar-proposal.decision', $defense), [
             'decision' => 'pass_with_revision',
-            'score' => 82,
             'decision_notes' => 'Tidak boleh dikirim langsung dari opsi sempro.',
             'revision_notes' => 'Catatan revisi.',
         ])
@@ -451,7 +450,6 @@ test('sempro examiner submits lulus with optional revision notes through simplif
         ->from(route('dosen.seminar-proposal'))
         ->post(route('dosen.seminar-proposal.decision', $defense), [
             'decision' => 'pass',
-            'score' => 82,
             'decision_notes' => 'Lulus dengan revisi minor.',
             'revision_notes' => 'Perbaiki latar belakang dan rumusan masalah.',
         ])

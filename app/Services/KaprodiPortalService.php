@@ -122,6 +122,7 @@ class KaprodiPortalService
                 'statusKey' => $defense->status,
                 'result' => $this->defenseResultLabel($defense),
                 'averageScore' => $this->averageScore($defense),
+                'scoreRequired' => $defense->requiresScore(),
                 'grade' => $this->grade($this->averageScore($defense)),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
                 'terminology' => $defense->project instanceof ThesisProject
@@ -492,7 +493,7 @@ class KaprodiPortalService
                     'status' => $profile->is_active ? 'Aktif' : 'Nonaktif',
                     'angkatan' => $profile->angkatan,
                     'degreeLevel' => strtoupper((string) $profile->degree_level),
-                    'terminology' => AcademicTerminology::forDegreeLevel($profile->degree_level),
+                    'terminology' => AcademicTerminology::forDegreeLevel($profile->degree_level, (bool) $profile->is_obe_curriculum),
                     'concentration' => $profile->concentration,
                     'isObeCurriculum' => (bool) $profile->is_obe_curriculum,
                     'phase' => $this->phaseLabel($project?->phase),

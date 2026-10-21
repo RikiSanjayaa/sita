@@ -237,9 +237,10 @@ class WelcomeController extends Controller
                     return $revision->due_at !== null && $revision->due_at->lt($now);
                 });
                 $hasOpenRevision = $openRevisions->isNotEmpty();
+                $requiresScore = $defense->requiresScore();
                 $hasPendingGrades = $defense->examiners->isNotEmpty()
-                    && $defense->examiners->contains(function ($examiner): bool {
-                        return $examiner->decision === null || $examiner->score === null;
+                    && $defense->examiners->contains(function ($examiner) use ($requiresScore): bool {
+                        return $examiner->decision === null || ($requiresScore && $examiner->score === null);
                     });
 
                 $statusLabel = 'Perlu Tindak Lanjut';
@@ -765,9 +766,16 @@ class WelcomeController extends Controller
                         $revisionQuery->whereIn('status', ['open', 'submitted']);
                     })
                     ->orWhereHas('examiners', function ($examinerQuery): void {
-                        $examinerQuery->where(function ($pendingQuery): void {
-                            $pendingQuery->whereNull('decision')
-                                ->orWhereNull('score');
+                        $examinerQuery->whereNull('decision');
+                    })
+                    ->orWhere(function ($ungradedQuery): void {
+                        $ungradedQuery->whereHas('examiners', function ($examinerQuery): void {
+                            $examinerQuery->whereNull('score');
+                        })->where(function ($scoredQuery): void {
+                            $scoredQuery->where('type', '!=', 'sempro')
+                                ->orWhereHas('project.student.mahasiswaProfile', function ($profileQuery): void {
+                                    $profileQuery->where('is_obe_curriculum', true);
+                                });
                         });
                     });
             });

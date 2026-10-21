@@ -35,20 +35,20 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Dosen
 
-| Flow (menu)                                                               | Spec                                                              | Status   | Priority |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/dosen/dashboard`)                                            | landing only, via auth setup                                      | belum    | P2       |
-| Sempro / Sinopsis & Sidang Akhir: penilaian penguji (UI)                  | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
-| Sempro / Sinopsis & Sidang Akhir: sidang panel, lulus dengan syarat       | `dosen-penilaian`, `admin-sidang`                                 | tercakup | P1       |
-| Sempro / Sinopsis & Sidang Akhir: selesaikan revisi                       | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
-| Sempro / Sinopsis & Sidang Akhir: dosen di luar panel tidak melihat ujian | `dosen-penilaian`                                                 | tercakup | P2       |
-| Mahasiswa Dosen (`/dosen/mahasiswa-bimbingan`)                            | `bimbingan-chat`, `kaprodi-portal`                                | sebagian | P1       |
-| Jadwal Bimbingan: approve, tolak, berulang                                | `bimbingan-chat`                                                  | tercakup | P1       |
-| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua               | `jadwal-bimbingan`                                                | tercakup | P1       |
-| Dokumen & Revisi: minta revisi, setujui                                   | `bimbingan-chat`                                                  | tercakup | P1       |
-| Dokumen & Revisi: beberapa reviewer (pembimbing 1 + 2, penguji)           | `chat-attachment-review` (issue #10), plus Pest                   | tercakup | P1       |
-| Pesan (bimbingan, grup sempro/sidang)                                     | `bimbingan-chat`, `admin-sempro`, `admin-sidang`, `notifications` | tercakup | P1       |
-| Ganti peran dosen / kaprodi                                               | none (flow changes in #30)                                        | belum    | P2       |
+| Flow (menu)                                                                                                                     | Spec                                                              | Status   | Priority |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | -------- |
+| Dashboard (`/dosen/dashboard`)                                                                                                  | landing only, via auth setup                                      | belum    | P2       |
+| Sempro / Sinopsis & Sidang Akhir: penilaian penguji (UI; sempro non-OBE tanpa nilai, Ujian Sinopsis OBE wajib nilai + komentar) | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: sidang panel, lulus dengan syarat                                                             | `dosen-penilaian`, `admin-sidang`                                 | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: selesaikan revisi                                                                             | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
+| Sempro / Sinopsis & Sidang Akhir: dosen di luar panel tidak melihat ujian                                                       | `dosen-penilaian`                                                 | tercakup | P2       |
+| Mahasiswa Dosen (`/dosen/mahasiswa-bimbingan`)                                                                                  | `bimbingan-chat`, `kaprodi-portal`                                | sebagian | P1       |
+| Jadwal Bimbingan: approve, tolak, berulang                                                                                      | `bimbingan-chat`                                                  | tercakup | P1       |
+| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua                                                                     | `jadwal-bimbingan`                                                | tercakup | P1       |
+| Dokumen & Revisi: minta revisi, setujui                                                                                         | `bimbingan-chat`                                                  | tercakup | P1       |
+| Dokumen & Revisi: beberapa reviewer (pembimbing 1 + 2, penguji)                                                                 | `chat-attachment-review` (issue #10), plus Pest                   | tercakup | P1       |
+| Pesan (bimbingan, grup sempro/sidang)                                                                                           | `bimbingan-chat`, `admin-sempro`, `admin-sidang`, `notifications` | tercakup | P1       |
+| Ganti peran dosen / kaprodi                                                                                                     | none (flow changes in #30)                                        | belum    | P2       |
 
 ## Kaprodi
 

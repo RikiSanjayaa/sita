@@ -16,7 +16,7 @@ class ThesisDefenseExaminerDecisionService
     ) {}
 
     /**
-     * @param  array{decision:string,score:float|int,decision_notes:?string,revision_notes:?string}  $data
+     * @param  array{decision:string,score?:float|int|null,decision_notes:?string,revision_notes:?string}  $data
      */
     public function submit(User $lecturer, ThesisDefense $defense, array $data): ThesisDefenseExaminer
     {
@@ -40,8 +40,8 @@ class ThesisDefenseExaminerDecisionService
         DB::transaction(function () use ($data, $defense, $examiner, $lecturer): void {
             $examiner->forceFill([
                 'decision' => $data['decision'],
-                'score' => $data['score'],
-                'notes' => $data['decision_notes'],
+                'score' => $data['score'] ?? null,
+                'notes' => $data['decision_notes'] ?? null,
                 'revision_notes' => $data['decision'] === 'pass_with_revision'
                     ? $data['revision_notes']
                     : null,

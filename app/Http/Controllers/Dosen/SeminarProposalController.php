@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dosen\SubmitDefenseDecisionRequest;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisRevision;
@@ -13,7 +14,6 @@ use App\Services\ThesisDefenseRevisionService;
 use App\Support\AcademicTerminology;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -86,6 +86,7 @@ class SeminarProposalController extends Controller
                     ? $terminology['finalExam']
                     : $terminology['proposalExamShort'],
                 'terminology' => $terminology,
+                'scoreRequired' => $defense?->requiresScore() ?? true,
                 'attemptNo' => $defense?->attempt_no,
                 'studentName' => $student?->name ?? '-',
                 'studentNim' => $student?->mahasiswaProfile?->nim ?? '-',
@@ -114,29 +115,12 @@ class SeminarProposalController extends Controller
         ]);
     }
 
-    public function submitDecision(Request $request, ThesisDefense $defense): RedirectResponse
+    public function submitDecision(SubmitDefenseDecisionRequest $request, ThesisDefense $defense): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $allowedDecisions = $defense->type === 'sempro'
-            ? ['pass', 'fail']
-            : ['pass', 'pass_with_revision', 'fail'];
-        $revisionNotesRules = ['nullable', 'string', 'max:2000'];
-
-        if ($defense->type !== 'sempro') {
-            array_splice($revisionNotesRules, 1, 0, 'required_if:decision,pass_with_revision');
-        }
-
-        $validated = $request->validate([
-            'decision' => [
-                'required',
-                Rule::in($allowedDecisions),
-            ],
-            'score' => ['required', 'numeric', 'min:0', 'max:100'],
-            'decision_notes' => ['nullable', 'string', 'max:2000'],
-            'revision_notes' => $revisionNotesRules,
-        ]);
+        $validated = $request->validated();
 
         if ($defense->type === 'sempro' && $validated['decision'] === 'pass' && filled($validated['revision_notes'] ?? null)) {
             $validated['decision'] = 'pass_with_revision';
