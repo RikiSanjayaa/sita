@@ -84,6 +84,7 @@ export interface ProfileFieldItem {
 
 export interface ThesisProfileSection {
     title: string | null;
+    titleVisible: boolean;
     statusLabel: string;
     advisors: UserProfileSummary[];
     examiners: UserProfileSummary[];

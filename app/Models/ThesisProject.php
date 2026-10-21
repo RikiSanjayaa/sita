@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class ThesisProject extends Model
 {
     use HasFactory;
+
+    /**
+     * Sempro results that make the final title public. A failed sempro never does.
+     */
+    public const PUBLIC_TITLE_SEMPRO_RESULTS = ['pass', 'pass_with_revision'];
 
     protected $fillable = [
         'student_user_id',
@@ -99,6 +105,21 @@ class ThesisProject extends Model
             ->where('type', 'sidang');
     }
 
+    public function passedSemproDefenses(): HasMany
+    {
+        return $this->hasMany(ThesisDefense::class, 'project_id')
+            ->where('type', 'sempro')
+            ->where('status', 'completed')
+            ->whereIn('result', self::PUBLIC_TITLE_SEMPRO_RESULTS);
+    }
+
+    public function approvedTitles(): HasMany
+    {
+        return $this->hasMany(ThesisProjectTitle::class, 'project_id')
+            ->where('status', 'approved')
+            ->orderByDesc('version_no');
+    }
+
     public function revisions(): HasMany
     {
         return $this->hasMany(ThesisRevision::class, 'project_id');
@@ -112,5 +133,32 @@ class ThesisProject extends Model
     public function events(): HasMany
     {
         return $this->hasMany(ThesisProjectEvent::class, 'project_id');
+    }
+
+    /**
+     * Projects whose final title may be shown publicly: a passed sempro, or a
+     * completed thesis. Cancelled projects never qualify.
+     */
+    public function scopeHasPublicTitle(Builder $query): void
+    {
+        $query->where('state', '!=', 'cancelled')
+            ->where(function (Builder $query): void {
+                $query->where('state', 'completed')
+                    ->orWhereHas('passedSemproDefenses');
+            });
+    }
+
+    public function hasPublicTitle(): bool
+    {
+        return $this->state !== 'cancelled'
+            && ($this->state === 'completed' || $this->passedSemproDefenses->isNotEmpty());
+    }
+
+    /**
+     * The approved title students may see publicly, or null while the rule fails.
+     */
+    public function publicTitle(): ?ThesisProjectTitle
+    {
+        return $this->hasPublicTitle() ? $this->approvedTitles->first() : null;
     }
 }

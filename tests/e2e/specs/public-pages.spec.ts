@@ -120,6 +120,24 @@ test.describe('Public pages', () => {
         }).toPass({ timeout: 15_000 });
     });
 
+    test('topik shows an active topic once its sempro is passed', async ({
+        page,
+    }) => {
+        await page.goto('/topik');
+        await page
+            .getByPlaceholder('Cari judul, ringkasan, mahasiswa, atau NIM...')
+            .fill('Algoritma Genetika');
+
+        const row = page
+            .getByRole('row')
+            .filter({ hasText: 'Optimasi Rute Pengiriman Logistik' })
+            .first();
+        await expect(row).toBeVisible();
+        await expect(
+            row.getByText('Sedang berjalan', { exact: true }),
+        ).toBeVisible();
+    });
+
     test('mahasiswa aktif shows a student with the active supervisors', async ({
         page,
     }) => {

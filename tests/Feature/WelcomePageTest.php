@@ -457,7 +457,7 @@ test('public topic and schedule pages support query filters and pagination props
 
     $topicsSecondPage = $topicsSecondPageResponse->viewData('page');
 
-    expect(data_get($topicsSecondPage, 'props.semproTitles'))->toHaveCount(1)
+    expect(data_get($topicsSecondPage, 'props.semproTitles'))->toHaveCount(10)
         ->and(data_get($topicsSecondPage, 'props.topicPagination.currentPage'))->toBe(2)
         ->and(data_get($topicsSecondPage, 'props.topicPagination.previousPage'))->toBe(1);
 
