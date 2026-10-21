@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type PhonePrompt } from '@/types';
 
-
 export default function PhonePromptDialog({ prompt }: { prompt: PhonePrompt }) {
     const isRequired = prompt.mode === 'required';
 
