@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
+use App\Http\Controllers\Mahasiswa\LecturerSearchController;
 use App\Http\Controllers\Mahasiswa\PanduanController;
 use App\Http\Controllers\Mahasiswa\PesanController;
 use App\Http\Controllers\Mahasiswa\TugasAkhirController;
@@ -12,6 +13,7 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('tugas-akhir', [TugasAkhirController::class, 'index'])->name('tugas-akhir');
+    Route::get('tugas-akhir/lecturers/search', LecturerSearchController::class)->name('tugas-akhir.lecturers.search');
     Route::post('tugas-akhir', [TugasAkhirController::class, 'store'])->name('tugas-akhir.store');
     Route::patch('tugas-akhir/{project}', [TugasAkhirController::class, 'update'])->name('tugas-akhir.update');
     Route::patch('tugas-akhir/{project}/sempro-documents', [TugasAkhirController::class, 'updateSemproDocuments'])->name('tugas-akhir.sempro-documents.update');

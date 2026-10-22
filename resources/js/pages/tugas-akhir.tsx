@@ -22,6 +22,7 @@ import {
 import { FormEventHandler, useMemo, useState } from 'react';
 
 import { DeadlineBadge } from '@/components/deadline-badge';
+import { LecturerSearchSelect } from '@/components/lecturer-search-select';
 import {
     MentorshipProgressList,
     type MentorshipProgressRow,
@@ -54,6 +55,8 @@ type Submission = {
     title_id: string;
     title_en: string;
     proposal_summary: string;
+    proposed_primary_lecturer_user_id: number | null;
+    proposed_secondary_lecturer_user_id: number | null;
     workflow: {
         key: string;
         label: string;
@@ -238,6 +241,8 @@ type FormData = {
     title_id: string;
     title_en: string;
     proposal_summary: string;
+    proposed_primary_lecturer_user_id: string;
+    proposed_secondary_lecturer_user_id: string;
     proposal_file: File | null;
 };
 
@@ -256,6 +261,10 @@ function submissionDefaults(submission: Submission | null): FormData {
         title_id: submission?.title_id ?? '',
         title_en: normalizeTitleEn(submission?.title_en),
         proposal_summary: submission?.proposal_summary ?? '',
+        proposed_primary_lecturer_user_id:
+            submission?.proposed_primary_lecturer_user_id?.toString() ?? '',
+        proposed_secondary_lecturer_user_id:
+            submission?.proposed_secondary_lecturer_user_id?.toString() ?? '',
         proposal_file: null,
     };
 }
@@ -390,6 +399,32 @@ function SubmissionFields({
                     </p>
                 )}
             </div>
+
+            <LecturerSearchSelect
+                label="Usulan Dosen Pembimbing 1 (Opsional)"
+                value={form.data.proposed_primary_lecturer_user_id}
+                onChange={(value) =>
+                    form.setData('proposed_primary_lecturer_user_id', value)
+                }
+                projectId={null}
+                searchUrl="/mahasiswa/tugas-akhir/lecturers/search"
+                purpose="supervisor"
+                error={form.errors.proposed_primary_lecturer_user_id}
+                optional
+            />
+
+            <LecturerSearchSelect
+                label="Usulan Dosen Pembimbing 2 (Opsional)"
+                value={form.data.proposed_secondary_lecturer_user_id}
+                onChange={(value) =>
+                    form.setData('proposed_secondary_lecturer_user_id', value)
+                }
+                projectId={null}
+                searchUrl="/mahasiswa/tugas-akhir/lecturers/search"
+                purpose="supervisor"
+                error={form.errors.proposed_secondary_lecturer_user_id}
+                optional
+            />
 
             <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}proposal_file`}>

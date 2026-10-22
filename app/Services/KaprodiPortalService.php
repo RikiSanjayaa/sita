@@ -320,6 +320,8 @@ class KaprodiPortalService
             ->where('student_user_id', $student->id)
             ->with([
                 'latestTitle',
+                'latestTitle.proposedPrimaryLecturer',
+                'latestTitle.proposedSecondaryLecturer',
                 'supervisorAssignments.lecturer',
                 'defenses.examiners.lecturer',
                 'defenses.revisions',
@@ -509,6 +511,7 @@ class KaprodiPortalService
                         ->map(fn($assignment): string => $assignment->lecturer?->name ?? '-')
                         ->values()
                         ->all() ?? [],
+                    'proposedSupervisors' => $this->proposedSupervisors($project),
                     'supervisorAssignments' => $project?->activeSupervisorAssignments
                         ->sortBy('role')
                         ->map(fn($assignment): array => [
@@ -531,6 +534,34 @@ class KaprodiPortalService
     }
 
     /**
+     * @return array{primary: array{lecturerUserId: int, name: string}|null, secondary: array{lecturerUserId: int, name: string}|null}
+     */
+    private function proposedSupervisors(?ThesisProject $project): array
+    {
+        $title = $project?->latestTitle;
+
+        return [
+            'primary' => $this->proposedLecturerPayload($title?->proposedPrimaryLecturer),
+            'secondary' => $this->proposedLecturerPayload($title?->proposedSecondaryLecturer),
+        ];
+    }
+
+    /**
+     * @return array{lecturerUserId: int, name: string}|null
+     */
+    private function proposedLecturerPayload(?User $lecturer): ?array
+    {
+        if ($lecturer === null) {
+            return null;
+        }
+
+        return [
+            'lecturerUserId' => (int) $lecturer->id,
+            'name' => $lecturer->name,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function projectDetail(ThesisProject $project): array
@@ -538,6 +569,7 @@ class KaprodiPortalService
         return [
             'id' => $project->id,
             'title' => $project->latestTitle?->title_id ?? '-',
+            'proposedSupervisors' => $this->proposedSupervisors($project),
             'phase' => $this->phaseLabel($project->phase),
             'state' => $this->statusLabel($project->state),
             'startedAt' => WitaDateTime::format($project->started_at, 'd M Y', false),
@@ -996,6 +1028,8 @@ class KaprodiPortalService
             ->with([
                 'student.mahasiswaProfile',
                 'latestTitle',
+                'latestTitle.proposedPrimaryLecturer',
+                'latestTitle.proposedSecondaryLecturer',
                 'supervisorAssignments.lecturer',
                 'activeSupervisorAssignments.lecturer',
                 'defenses.examiners.lecturer',

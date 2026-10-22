@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Enums\AdvisorType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Mahasiswa\ThesisTitleRequest;
 use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
@@ -70,6 +71,8 @@ class TugasAkhirController extends Controller
                 'title_id' => $currentTitle?->title_id ?? '-',
                 'title_en' => $currentTitle?->title_en ?? '-',
                 'proposal_summary' => $currentTitle?->proposal_summary ?? '-',
+                'proposed_primary_lecturer_user_id' => $currentTitle?->proposed_primary_lecturer_user_id,
+                'proposed_secondary_lecturer_user_id' => $currentTitle?->proposed_secondary_lecturer_user_id,
                 'workflow' => $workflow,
                 'proposal_file_name' => $proposalDocument?->file_name,
                 'proposal_file_view_url' => $proposalDocument?->id !== null
@@ -133,17 +136,12 @@ class TugasAkhirController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(ThesisTitleRequest $request): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
 
-        $validated = $request->validate([
-            'title_id' => ['required', 'string', 'max:255'],
-            'title_en' => ['nullable', 'string', 'max:255'],
-            'proposal_summary' => ['required', 'string'],
-            'proposal_file' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-        ]);
+        $validated = $request->validated();
 
         $programStudiId = $student->mahasiswaProfile?->program_studi_id;
 
@@ -169,7 +167,7 @@ class TugasAkhirController extends Controller
         return back()->with('success', 'Judul & '.AcademicTerminology::forStudent($student)['proposalDocument'].' berhasil diajukan dan sedang menunggu review Admin.');
     }
 
-    public function update(Request $request, ThesisProject $project): RedirectResponse
+    public function update(ThesisTitleRequest $request, ThesisProject $project): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -181,12 +179,7 @@ class TugasAkhirController extends Controller
             return back()->with('error', "Pengajuan hanya dapat diedit saat masih ditinjau admin, {$proposalExam} terjadwal, {$proposalExam} gagal, atau revisinya masih aktif.");
         }
 
-        $validated = $request->validate([
-            'title_id' => ['required', 'string', 'max:255'],
-            'title_en' => ['nullable', 'string', 'max:255'],
-            'proposal_summary' => ['required', 'string'],
-            'proposal_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-        ]);
+        $validated = $request->validated();
 
         $programStudiId = $student->mahasiswaProfile?->program_studi_id;
 

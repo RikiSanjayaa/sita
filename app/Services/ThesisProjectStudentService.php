@@ -59,6 +59,8 @@ class ThesisProjectStudentService
                 'title_id' => (string) $data['title_id'],
                 'title_en' => (string) ($data['title_en'] ?? '-'),
                 'proposal_summary' => (string) $data['proposal_summary'],
+                'proposed_primary_lecturer_user_id' => $data['proposed_primary_lecturer_user_id'] ?? null,
+                'proposed_secondary_lecturer_user_id' => $data['proposed_secondary_lecturer_user_id'] ?? null,
                 'status' => 'submitted',
                 'submitted_by_user_id' => $student->id,
                 'submitted_at' => $submittedAt,
@@ -192,6 +194,8 @@ class ThesisProjectStudentService
                 'title_id' => (string) $data['title_id'],
                 'title_en' => (string) ($data['title_en'] ?? '-'),
                 'proposal_summary' => (string) $data['proposal_summary'],
+                'proposed_primary_lecturer_user_id' => $data['proposed_primary_lecturer_user_id'] ?? null,
+                'proposed_secondary_lecturer_user_id' => $data['proposed_secondary_lecturer_user_id'] ?? null,
                 'status' => $titleStatus,
                 'submitted_by_user_id' => $student->id,
                 'submitted_at' => $submittedAt,
@@ -201,6 +205,8 @@ class ThesisProjectStudentService
                 'title_id' => (string) $data['title_id'],
                 'title_en' => (string) ($data['title_en'] ?? '-'),
                 'proposal_summary' => (string) $data['proposal_summary'],
+                'proposed_primary_lecturer_user_id' => $data['proposed_primary_lecturer_user_id'] ?? null,
+                'proposed_secondary_lecturer_user_id' => $data['proposed_secondary_lecturer_user_id'] ?? null,
                 'status' => $titleStatus,
             ];
 

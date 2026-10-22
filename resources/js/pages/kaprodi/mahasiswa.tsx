@@ -92,6 +92,10 @@ type StudentRow = {
         role: string;
     }[];
     mentorshipProgress: MentorshipProgressRow[];
+    proposedSupervisors: {
+        primary: { lecturerUserId: number; name: string } | null;
+        secondary: { lecturerUserId: number; name: string } | null;
+    };
     progressRisk: {
         level: 'high' | 'medium' | 'low';
         label: string;
@@ -745,12 +749,20 @@ function SupervisorDialog({
     const secondary = student?.supervisorAssignments.find((assignment) =>
         assignment.role.includes('2'),
     );
+    const initialPrimaryId =
+        primary?.lecturerUserId ??
+        student?.proposedSupervisors.primary?.lecturerUserId ??
+        null;
+    const initialSecondaryId =
+        secondary?.lecturerUserId ??
+        student?.proposedSupervisors.secondary?.lecturerUserId ??
+        null;
     const form = useForm({
-        primary_lecturer_user_id: primary?.lecturerUserId
-            ? String(primary.lecturerUserId)
+        primary_lecturer_user_id: initialPrimaryId
+            ? String(initialPrimaryId)
             : '',
-        secondary_lecturer_user_id: secondary?.lecturerUserId
-            ? String(secondary.lecturerUserId)
+        secondary_lecturer_user_id: initialSecondaryId
+            ? String(initialSecondaryId)
             : '',
         notes: '',
     });
@@ -758,19 +770,19 @@ function SupervisorDialog({
 
     useEffect(() => {
         setData({
-            primary_lecturer_user_id: primary?.lecturerUserId
-                ? String(primary.lecturerUserId)
+            primary_lecturer_user_id: initialPrimaryId
+                ? String(initialPrimaryId)
                 : '',
-            secondary_lecturer_user_id: secondary?.lecturerUserId
-                ? String(secondary.lecturerUserId)
+            secondary_lecturer_user_id: initialSecondaryId
+                ? String(initialSecondaryId)
                 : '',
             notes: '',
         });
         clearErrors();
     }, [
         clearErrors,
-        primary?.lecturerUserId,
-        secondary?.lecturerUserId,
+        initialPrimaryId,
+        initialSecondaryId,
         setData,
         student?.projectId,
     ]);
@@ -877,6 +889,20 @@ function SupervisorDialog({
                             error={form.errors.secondary_lecturer_user_id}
                         />
                     </div>
+
+                    {(activeStudent.proposedSupervisors.primary ||
+                        activeStudent.proposedSupervisors.secondary) && (
+                        <p className="text-xs text-muted-foreground">
+                            Usulan mahasiswa:{' '}
+                            {[
+                                activeStudent.proposedSupervisors.primary?.name,
+                                activeStudent.proposedSupervisors.secondary
+                                    ?.name,
+                            ]
+                                .filter(Boolean)
+                                .join(', ')}
+                        </p>
+                    )}
 
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Catatan</label>
