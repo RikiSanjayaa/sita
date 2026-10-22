@@ -28,6 +28,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Upload Dokumen: unggah, unduh, hapus                                                                        | `upload-dokumen`, `bimbingan-chat`                        | tercakup | P1       |
 | Upload Dokumen: lampiran chat ditinjau dosen kedua, status gabungan                                         | `chat-attachment-review` (issue #10), plus Pest           | tercakup | P1       |
 | Pesan (thread bimbingan, sempro, sidang)                                                                    | `bimbingan-chat`, `admin-sempro`, `admin-sidang`          | tercakup | P1       |
+| Pesan: kirim file (pratinjau, nama dokumen, gambar thumbnail, validasi tipe, kartu status)                  | `bimbingan-chat`, plus Pest (`ChatAttachmentTest`)        | tercakup | P1       |
 | Panduan (`/mahasiswa/panduan`)                                                                              | none                                                      | belum    | P3       |
 | Pengaturan Akun: profil                                                                                     | `profile`                                                 | tercakup | P2       |
 | Pop-up nomor HP: wajib diisi, konfirmasi impor (issue #26)                                                  | `phone-prompt`, plus Pest (`PhonePromptTest`)             | tercakup | P1       |
@@ -53,6 +54,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Dokumen & Revisi: minta revisi, setujui                                                                                         | `bimbingan-chat`                                                  | tercakup | P1       |
 | Dokumen & Revisi: beberapa reviewer (pembimbing 1 + 2, penguji)                                                                 | `chat-attachment-review` (issue #10), plus Pest                   | tercakup | P1       |
 | Pesan (bimbingan, grup sempro/sidang)                                                                                           | `bimbingan-chat`, `admin-sempro`, `admin-sidang`, `notifications` | tercakup | P1       |
+| Pesan dosen: gambar thumbnail dan kartu file dari mahasiswa, lightbox                                                           | `bimbingan-chat`                                                  | tercakup | P1       |
 | Ganti peran dosen / kaprodi                                                                                                     | none (flow changes in #30)                                        | belum    | P2       |
 
 ## Kaprodi

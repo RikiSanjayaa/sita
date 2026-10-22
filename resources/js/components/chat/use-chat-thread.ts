@@ -3,12 +3,16 @@ import {
     useEffect,
     useMemo,
     useState,
-    type ChangeEvent,
     type Dispatch,
     type SetStateAction,
 } from 'react';
 
-import { type ChatMessage, type ChatThread } from './types';
+import { isImageFile, validateChatAttachment } from './attachment';
+import {
+    type ChatAttachmentKind,
+    type ChatMessage,
+    type ChatThread,
+} from './types';
 import {
     mergeMessages,
     resolveInitialThreadId,
@@ -34,19 +38,36 @@ type ChatThreadOptions<T extends ChatThread> = {
     selectVisible: (threads: T[], activeThreadId: number | null) => T[];
     /** Endpoint for posting a message to a thread. */
     sendUrl: (threadId: number) => string;
+    /** Whether a thread accepts a custom "Nama dokumen" for file attachments. */
+    supportsDocumentName?: (thread: T) => boolean;
     userId?: number | null;
 };
 
 export type ChatComposerState = {
-    attachmentName: string | null;
+    /** Staged file, or null when nothing is attached. */
+    attachment: File | null;
     canSend: boolean;
-    errors: { attachment?: string; message?: string };
-    /** Changes after each send so the file input remounts empty. */
+    /** Aborts the upload in progress; the staged file stays for a retry. */
+    cancelSend: () => void;
+    /** Custom "Nama dokumen"; empty means the file name is used. */
+    documentName: string;
+    errors: { attachment: string | null; message: string | null };
+    /** Changes whenever the file input must remount. */
     inputKey: number;
     message: string;
-    pickAttachment: (event: ChangeEvent<HTMLInputElement>) => void;
+    /** Validates and stages a file. Null is ignored; invalid files keep the previous selection. */
+    pickAttachment: (file: File | null) => void;
+    /** Object URL for a staged image; null for documents. */
+    previewUrl: string | null;
+    processing: boolean;
+    /** Upload percentage, or null before Inertia reports one. */
+    progress: number | null;
+    removeAttachment: () => void;
     send: () => void;
+    setDocumentName: (value: string) => void;
     setMessage: (value: string) => void;
+    /** Whether the "Nama dokumen" field applies to the staged file. */
+    showDocumentName: boolean;
 };
 
 type ChatThreadState<T extends ChatThread> = {
@@ -64,6 +85,9 @@ type ChatThreadState<T extends ChatThread> = {
     visibleThreads: T[];
 };
 
+/** Message shown optimistically while an upload is in flight. */
+type PendingSend = { threadId: number; message: ChatMessage };
+
 type WithUnread = { unread: number };
 
 /**
@@ -78,6 +102,7 @@ export function useChatThread<T extends ChatThread>({
     readUrl,
     selectVisible,
     sendUrl,
+    supportsDocumentName,
     userId,
 }: ChatThreadOptions<T>): ChatThreadState<T> {
     const [threadItems, setThreadItems] = useState<T[]>(() =>
@@ -89,13 +114,48 @@ export function useChatThread<T extends ChatThread>({
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ChatMessage[]>
     >({});
-    const [attachmentName, setAttachmentName] = useState<string | null>(null);
+    const [clientError, setClientError] = useState<string | null>(null);
     const [inputKey, setInputKey] = useState(0);
+    const [pendingSend, setPendingSend] = useState<PendingSend | null>(null);
 
-    const form = useForm<{ message: string; attachment: File | null }>({
+    const form = useForm<{
+        message: string;
+        attachment: File | null;
+        document_name: string;
+    }>({
         message: '',
         attachment: null,
+        document_name: '',
     });
+
+    const attachment = form.data.attachment;
+
+    // Object URLs for previews are revoked when the file changes or unmounts.
+    const previewUrl = useMemo(
+        () =>
+            attachment !== null && isImageFile(attachment)
+                ? URL.createObjectURL(attachment)
+                : null,
+        [attachment],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl !== null) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
+
+    useEffect(() => {
+        const url = pendingSend?.message.previewUrl ?? null;
+
+        return () => {
+            if (url !== null) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [pendingSend]);
 
     const visibleThreads = useMemo(
         () => selectVisible(threadItems, requestedThreadId),
@@ -113,16 +173,27 @@ export function useChatThread<T extends ChatThread>({
     const activeThread =
         visibleThreads.find((thread) => thread.id === activeThreadId) ?? null;
 
-    const activeMessages = useMemo(
-        () =>
+    const activeMessages = useMemo(() => {
+        const messages =
             activeThread === null
                 ? []
                 : mergeMessages(
                       activeThread.messages,
                       messagesByThread[activeThread.id] ?? [],
-                  ),
-        [activeThread, messagesByThread],
-    );
+                  );
+
+        if (pendingSend === null || pendingSend.threadId !== activeThread?.id) {
+            return messages;
+        }
+
+        return [...messages, pendingSend.message];
+    }, [activeThread, messagesByThread, pendingSend]);
+
+    const showDocumentName =
+        attachment !== null &&
+        !isImageFile(attachment) &&
+        activeThread !== null &&
+        (supportsDocumentName?.(activeThread) ?? false);
 
     async function markThreadAsRead(threadId: number): Promise<void> {
         if (!readUrl) {
@@ -265,10 +336,35 @@ export function useChatThread<T extends ChatThread>({
         ],
     );
 
-    function pickAttachment(event: ChangeEvent<HTMLInputElement>): void {
-        const nextFile = event.target.files?.[0] ?? null;
-        form.setData('attachment', nextFile);
-        setAttachmentName(nextFile?.name ?? null);
+    function pickAttachment(file: File | null): void {
+        if (file === null) {
+            return;
+        }
+
+        const problem = validateChatAttachment(file);
+
+        setClientError(problem);
+        form.clearErrors('attachment', 'document_name');
+
+        if (problem === null) {
+            form.setData('attachment', file);
+        }
+
+        // Remount the file input so picking the same file again fires change.
+        setInputKey((current) => current + 1);
+    }
+
+    function removeAttachment(): void {
+        setClientError(null);
+        form.clearErrors('attachment', 'document_name');
+        form.setData('attachment', null);
+        form.setData('document_name', '');
+        setInputKey((current) => current + 1);
+    }
+
+    function cancelSend(): void {
+        form.cancel();
+        setPendingSend(null);
     }
 
     function send(): void {
@@ -280,16 +376,55 @@ export function useChatThread<T extends ChatThread>({
 
         syncThreadSearchParam(threadId, clearParams);
         const trimmedMessage = form.data.message.trim();
-        const currentAttachmentName = attachmentName;
+        const file = form.data.attachment;
+        const documentName = showDocumentName
+            ? form.data.document_name.trim()
+            : '';
+        const sentFileName = file === null ? null : documentName || file.name;
+
+        let attachmentKind: ChatAttachmentKind | null = null;
+
+        if (file !== null) {
+            attachmentKind = isImageFile(file) ? 'image' : 'document';
+        }
+
+        const pendingPreviewUrl =
+            file !== null && attachmentKind === 'image'
+                ? URL.createObjectURL(file)
+                : null;
+
+        setPendingSend({
+            threadId,
+            message: {
+                id: -Date.now(),
+                senderUserId: userId ?? null,
+                author: '',
+                authorAvatar: null,
+                authorProfileUrl: null,
+                message: trimmedMessage,
+                time: 'Mengirim...',
+                type: 'pending',
+                documentName: sentFileName,
+                documentUrl: null,
+                attachmentKind,
+                attachmentSizeKb:
+                    file === null ? null : Math.ceil(file.size / 1024),
+                previewUrl: pendingPreviewUrl,
+                relatedDocumentId: null,
+                reviewStatus: null,
+            },
+        });
 
         form.transform((data) => ({
             ...data,
             message: trimmedMessage,
+            document_name: documentName,
         }));
 
         form.post(sendUrl(threadId), {
             preserveScroll: true,
             forceFormData: true,
+            onFinish: () => setPendingSend(null),
             onSuccess: () => {
                 setThreadItems((current) =>
                     sortThreads(
@@ -299,7 +434,7 @@ export function useChatThread<T extends ChatThread>({
                                       ...thread,
                                       preview:
                                           trimmedMessage ||
-                                          currentAttachmentName ||
+                                          sentFileName ||
                                           thread.preview,
                                       lastTime: 'baru saja',
                                       latestActivityAt:
@@ -309,8 +444,8 @@ export function useChatThread<T extends ChatThread>({
                         ),
                     ),
                 );
-                form.reset('message', 'attachment');
-                setAttachmentName(null);
+                form.reset('message', 'attachment', 'document_name');
+                setClientError(null);
                 setInputKey((current) => current + 1);
 
                 onSent?.();
@@ -323,14 +458,29 @@ export function useChatThread<T extends ChatThread>({
         activeThread,
         activeThreadId,
         composer: {
-            attachmentName,
+            attachment,
             canSend,
-            errors: form.errors,
+            cancelSend,
+            documentName: form.data.document_name,
+            errors: {
+                attachment:
+                    clientError ??
+                    form.errors.attachment ??
+                    form.errors.document_name ??
+                    null,
+                message: form.errors.message ?? null,
+            },
             inputKey,
             message: form.data.message,
             pickAttachment,
+            previewUrl,
+            processing: form.processing,
+            progress: form.progress?.percentage ?? null,
+            removeAttachment,
             send,
+            setDocumentName: (value) => form.setData('document_name', value),
             setMessage: (value) => form.setData('message', value),
+            showDocumentName,
         },
         markThreadAsRead,
         messagesFor: (thread) =>

@@ -1,138 +1,45 @@
 import { Link } from '@inertiajs/react';
-import { Download, FileText } from 'lucide-react';
-import { Fragment } from 'react';
+import { FileText } from 'lucide-react';
+import { useState } from 'react';
 
+import { AttachmentCard } from '@/components/chat/attachment-card';
+import { FilenameLabel, highlightText } from '@/components/chat/highlight-text';
+import { ImageLightbox } from '@/components/chat/image-lightbox';
+import { type ChatMessage } from '@/components/chat/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { getInitials } from '@/lib/initials';
 import { cn } from '@/lib/utils';
 
-export type ChatMessagePayload = {
-    id: number | string;
-    author: string;
-    authorAvatar?: string | null;
-    authorProfileUrl?: string | null;
-    message: string;
-    time: string;
-    type: string;
-    documentName: string | null;
-    documentUrl: string | null;
-};
-
 interface ChatBubbleProps {
-    message: ChatMessagePayload;
+    message: ChatMessage;
     isMe: boolean;
     searchTerm?: string;
     isActiveMatch?: boolean;
+    /** Latest review status of the bubble's document; falls back to the row's own. */
+    reviewStatus?: string | null;
 }
 
-function truncateFilename(name: string | null, maxLength = 28) {
-    if (!name) {
-        return '';
-    }
-
-    if (name.length <= maxLength) {
-        return name;
-    }
-
-    return `${name.slice(0, maxLength - 3)}...`;
-}
-
-function escapeRegExp(value: string) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function highlightText(text: string, query?: string, inverse = false) {
-    const normalizedQuery = query?.trim() ?? '';
-
-    if (!normalizedQuery) {
-        return text;
-    }
-
-    const parts = text.split(
-        new RegExp(`(${escapeRegExp(normalizedQuery)})`, 'gi'),
-    );
-
-    return parts.map((part, index) => {
-        if (part.toLowerCase() !== normalizedQuery.toLowerCase()) {
-            return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
-        }
-
-        return (
-            <mark
-                key={`${part}-${index}`}
-                className={cn(
-                    'rounded px-0.5',
-                    inverse
-                        ? 'bg-primary-foreground/25 text-primary-foreground'
-                        : 'bg-yellow-200/80 text-foreground dark:bg-yellow-500/30 dark:text-foreground',
-                )}
-            >
-                {part}
-            </mark>
-        );
-    });
-}
-
-function FilenameLabel({
-    name,
-    className,
-    searchTerm,
-    inverse,
-}: {
-    name: string | null;
-    className?: string;
-    searchTerm?: string;
-    inverse?: boolean;
-}) {
-    if (!name) {
-        return null;
-    }
-
-    const shortName = truncateFilename(name);
-
-    if (shortName === name) {
-        return (
-            <span className={className}>
-                {highlightText(name, searchTerm, inverse)}
-            </span>
-        );
-    }
-
-    return (
-        <TooltipProvider delayDuration={0}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <span className={className}>
-                        {highlightText(shortName, searchTerm, inverse)}
-                    </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p className="max-w-xs break-all">{name}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
-}
+const DOCUMENT_CAPTIONS: Partial<Record<string, string>> = {
+    document_event: 'Dokumen Baru Diunggah',
+    revision_suggestion: 'File Revisi dari Dosen',
+};
 
 export function ChatBubble({
     message,
     isMe,
+    reviewStatus = null,
     searchTerm = '',
     isActiveMatch = false,
 }: ChatBubbleProps) {
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const isPending = message.type === 'pending';
+    const thumbnailUrl =
+        message.attachmentKind === 'image' ? message.previewUrl : null;
     if (
-        message.type === 'document_event' ||
-        message.type === 'revision_suggestion'
+        (message.type === 'document_event' ||
+            message.type === 'revision_suggestion') &&
+        message.documentUrl === null
     ) {
-        const isRevision = message.type === 'revision_suggestion';
-
         return (
             <div className="animate-pop my-4 flex flex-col items-center gap-1.5">
                 <div
@@ -148,9 +55,7 @@ export function ChatBubble({
                         </div>
                         <div className="min-w-0">
                             <p className="text-xs font-medium text-muted-foreground">
-                                {isRevision
-                                    ? 'File Revisi dari Dosen'
-                                    : 'Dokumen Baru Diunggah'}
+                                {DOCUMENT_CAPTIONS[message.type]}
                             </p>
                             <FilenameLabel
                                 name={message.documentName}
@@ -159,35 +64,6 @@ export function ChatBubble({
                             />
                         </div>
                     </div>
-
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 w-full shrink-0 gap-1.5 rounded-full px-3 text-primary hover:text-primary min-[520px]:w-auto sm:px-4"
-                        disabled={!message.documentUrl}
-                        asChild={!!message.documentUrl}
-                    >
-                        {message.documentUrl ? (
-                            <a
-                                href={message.documentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex w-full items-center justify-center"
-                            >
-                                <Download className="size-3.5" />
-                                <span className="text-xs font-semibold">
-                                    Unduh
-                                </span>
-                            </a>
-                        ) : (
-                            <div className="flex w-full items-center justify-center">
-                                <Download className="size-3.5" />
-                                <span className="text-xs font-semibold">
-                                    Unduh
-                                </span>
-                            </div>
-                        )}
-                    </Button>
                 </div>
                 <span className="text-xs text-muted-foreground">
                     {message.time}
@@ -267,42 +143,43 @@ export function ChatBubble({
                                     : 'border-primary ring-2 ring-primary/20'),
                         )}
                     >
-                        {message.documentName && (
-                            <div
-                                className={cn(
-                                    'mb-2 overflow-hidden rounded border text-xs break-all',
-                                    isMe
-                                        ? 'border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground'
-                                        : 'border-border bg-muted/30',
-                                )}
+                        {thumbnailUrl !== null && (
+                            <button
+                                type="button"
+                                onClick={() => setIsLightboxOpen(true)}
+                                disabled={isPending}
+                                aria-label={`Perbesar ${message.documentName ?? 'gambar'}`}
+                                className="mb-2 block overflow-hidden rounded-xl"
                             >
-                                {message.documentUrl ? (
-                                    <a
-                                        href={message.documentUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex min-w-0 items-center gap-2 p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                                    >
-                                        <FileText className="size-3.5 shrink-0" />
-                                        <FilenameLabel
-                                            name={message.documentName}
-                                            className="block min-w-0 truncate font-semibold underline decoration-primary-foreground/30 underline-offset-2 hover:decoration-primary-foreground"
-                                            searchTerm={searchTerm}
-                                            inverse={isMe}
-                                        />
-                                    </a>
-                                ) : (
-                                    <div className="flex min-w-0 items-center gap-2 p-2">
-                                        <FileText className="size-3.5 shrink-0" />
-                                        <FilenameLabel
-                                            name={message.documentName}
-                                            className="block min-w-0 truncate"
-                                            searchTerm={searchTerm}
-                                            inverse={isMe}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                                <img
+                                    src={thumbnailUrl}
+                                    alt={message.documentName ?? 'Gambar'}
+                                    loading="lazy"
+                                    className="block max-h-64 max-w-full object-cover"
+                                />
+                            </button>
+                        )}
+                        {message.documentName && thumbnailUrl === null && (
+                            <AttachmentCard
+                                caption={DOCUMENT_CAPTIONS[message.type]}
+                                href={message.documentUrl}
+                                inverse={isMe}
+                                name={message.documentName}
+                                reviewStatus={
+                                    reviewStatus ?? message.reviewStatus
+                                }
+                                searchTerm={searchTerm}
+                                sizeKb={message.attachmentSizeKb}
+                            />
+                        )}
+                        {thumbnailUrl !== null && !isPending && (
+                            <ImageLightbox
+                                downloadHref={message.documentUrl}
+                                name={message.documentName ?? 'Gambar'}
+                                onOpenChange={setIsLightboxOpen}
+                                open={isLightboxOpen}
+                                src={thumbnailUrl}
+                            />
                         )}
                         {message.message && (
                             <div className="break-words whitespace-pre-wrap">

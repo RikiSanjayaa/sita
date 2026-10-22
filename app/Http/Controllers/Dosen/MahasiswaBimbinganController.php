@@ -63,6 +63,7 @@ class MahasiswaBimbinganController extends Controller
             ->values();
 
         $threadIdsByStudent = MentorshipChatThread::query()
+            ->where('type', 'pembimbing')
             ->whereIn('student_user_id', $studentIds)
             ->pluck('id', 'student_user_id');
 

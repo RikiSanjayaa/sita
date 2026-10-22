@@ -1,5 +1,7 @@
 import { type UserProfileSummary } from '@/types';
 
+export type ChatAttachmentKind = 'image' | 'document';
+
 export type ChatMessage = {
     id: number;
     senderUserId: number | null;
@@ -11,6 +13,13 @@ export type ChatMessage = {
     type: string;
     documentName: string | null;
     documentUrl: string | null;
+    attachmentKind: ChatAttachmentKind | null;
+    attachmentSizeKb: number | null;
+    /** Inline image URL; null for documents and for other rows. */
+    previewUrl: string | null;
+    relatedDocumentId: number | null;
+    /** MentorshipDocument.status at the time the row was built. */
+    reviewStatus: string | null;
 };
 
 /** Fields every chat thread must carry, regardless of the portal. */

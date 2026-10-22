@@ -12,8 +12,8 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\ChatMessagePayloadBuilder;
 use App\Services\RealtimeNotificationService;
-use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -36,7 +36,7 @@ class UploadDokumenController extends Controller
 
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
-        private readonly UserProfilePresenter $userProfilePresenter,
+        private readonly ChatMessagePayloadBuilder $payloadBuilder,
     ) {}
 
     /**
@@ -283,7 +283,7 @@ class UploadDokumenController extends Controller
                     'sent_at' => now(),
                 ]);
 
-                $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+                $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
             }
 
             $notifiedUserIds = [];
@@ -326,7 +326,7 @@ class UploadDokumenController extends Controller
                     'sent_at' => now(),
                 ]);
 
-                $this->broadcastChatMessage($pengujiThread->id, $this->mapMessagePayload($pengujiMessage));
+                $this->broadcastChatMessage($pengujiThread->id, $this->payloadBuilder->build($pengujiMessage));
             }
 
             foreach ($sidangThreads as $sidangThread) {
@@ -348,7 +348,7 @@ class UploadDokumenController extends Controller
                     'sent_at' => now(),
                 ]);
 
-                $this->broadcastChatMessage($sidangThread->id, $this->mapMessagePayload($sidangMessage));
+                $this->broadcastChatMessage($sidangThread->id, $this->payloadBuilder->build($sidangMessage));
             }
         });
 
@@ -468,31 +468,6 @@ class UploadDokumenController extends Controller
             ->mapWithKeys(fn(MentorshipAssignment $assignment): array => [
                 (int) $assignment->lecturer_user_id => $assignment->getKey(),
             ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function mapMessagePayload($message): array
-    {
-        $author = $this->userProfilePresenter->summary($message->sender);
-
-        return [
-            'id' => $message->id,
-            'senderUserId' => $message->sender_user_id,
-            'author' => $message->sender?->name ?? 'Sistem',
-            'authorAvatar' => $author['avatar'] ?? null,
-            'authorProfileUrl' => $author['profileUrl'] ?? null,
-            'message' => $message->message,
-            'time' => $message->created_at->format('d M Y H:i'),
-            'type' => $message->message_type,
-            'documentName' => $message->relatedDocument?->file_name ?? $message->attachment_name,
-            'documentUrl' => $message->attachment_path === null
-                ? ($message->related_document_id === null
-                    ? null
-                    : route('files.documents.download', ['document' => $message->related_document_id]))
-                : route('files.chat-attachments.download', ['message' => $message->id]),
-        ];
     }
 
     /**

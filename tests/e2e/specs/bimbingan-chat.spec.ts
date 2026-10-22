@@ -117,6 +117,36 @@ async function sendChatMessage(
     await waitForThreadSubscription(page, true);
 }
 
+async function sendChatAttachment(
+    page: Page,
+    urlPattern: RegExp,
+    filePath: string,
+    caption: string | null,
+): Promise<void> {
+    await captureThreadChannel(page);
+    const submitRequest = page.waitForResponse(
+        (response) =>
+            response.request().method() === 'POST' &&
+            urlPattern.test(response.url()),
+    );
+
+    await page.locator('input[type="file"]').setInputFiles(filePath);
+    await expect(
+        page.getByRole('button', { name: 'Hapus lampiran' }),
+    ).toBeVisible();
+
+    if (caption !== null) {
+        await page.getByPlaceholder('Tulis pesan...').fill(caption);
+    }
+
+    await page.getByRole('button', { name: 'Kirim pesan' }).click();
+    await submitRequest;
+    await expect(
+        page.getByRole('button', { name: 'Hapus lampiran' }),
+    ).toHaveCount(0);
+    await waitForThreadSubscription(page, true);
+}
+
 async function openMahasiswaBimbinganThread(page: Page): Promise<void> {
     await page.goto('/mahasiswa/pesan');
 
@@ -604,6 +634,137 @@ test.describe('Bimbingan and chat integration', () => {
         } finally {
             await mahasiswaContext.close();
             await dosenContext.close();
+        }
+    });
+
+    test('mahasiswa sends a document without a caption and its card shows the review status', async ({
+        browser,
+    }) => {
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath(
+                thesisScenarios.activeResearch.studentKey,
+            ),
+        });
+        const attachmentName = path.basename(
+            thesisFixtures.thesisDocumentUploadPath,
+        );
+
+        try {
+            const mahasiswaPage = await mahasiswaContext.newPage();
+
+            await openMahasiswaBimbinganThread(mahasiswaPage);
+            await sendChatAttachment(
+                mahasiswaPage,
+                /\/mahasiswa\/pesan\/\d+\/messages$/,
+                path.join(
+                    process.cwd(),
+                    thesisFixtures.thesisDocumentUploadPath,
+                ),
+                null,
+            );
+
+            await expect(
+                mahasiswaPage.getByText(attachmentName).last(),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByText('Menunggu Review').last(),
+            ).toBeVisible();
+        } finally {
+            await mahasiswaContext.close();
+        }
+    });
+
+    test('mahasiswa sends an image with a caption; it shows as a thumbnail for both roles and opens in a lightbox', async ({
+        browser,
+    }) => {
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath(
+                thesisScenarios.activeResearch.studentKey,
+            ),
+        });
+        const dosenContext = await browser.newContext({
+            storageState: authStatePath('dosen1'),
+        });
+
+        const caption = `Playwright grafik ${Date.now()}`;
+        const imagePath = path.join(
+            process.cwd(),
+            'tests',
+            'fixtures',
+            'chat-image.png',
+        );
+
+        try {
+            const mahasiswaPage = await mahasiswaContext.newPage();
+            const dosenPage = await dosenContext.newPage();
+
+            await openMahasiswaBimbinganThread(mahasiswaPage);
+            await openDosenBimbinganThread(
+                dosenPage,
+                thesisScenarios.activeResearch.studentName,
+            );
+            await waitForThreadSubscription(dosenPage);
+
+            await sendChatAttachment(
+                mahasiswaPage,
+                /\/mahasiswa\/pesan\/\d+\/messages$/,
+                imagePath,
+                caption,
+            );
+
+            await expect(mahasiswaPage.getByText(caption).last()).toBeVisible();
+
+            const mahasiswaThumbnail = mahasiswaPage
+                .getByRole('button', { name: /^Perbesar/ })
+                .last();
+
+            await expect(mahasiswaThumbnail).toBeVisible();
+            await mahasiswaThumbnail.click();
+            await expect(mahasiswaPage.getByRole('dialog')).toBeVisible();
+            await mahasiswaPage.keyboard.press('Escape');
+            await expect(mahasiswaPage.getByRole('dialog')).toBeHidden();
+
+            await expect(dosenPage.getByText(caption).last()).toBeVisible({
+                timeout: 15_000,
+            });
+            await expect(
+                dosenPage.getByRole('button', { name: /^Perbesar/ }).last(),
+            ).toBeVisible({ timeout: 15_000 });
+        } finally {
+            await mahasiswaContext.close();
+            await dosenContext.close();
+        }
+    });
+
+    test('a file type the chat does not accept is rejected in the preview panel and cannot be sent', async ({
+        browser,
+    }) => {
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath(
+                thesisScenarios.activeResearch.studentKey,
+            ),
+        });
+
+        try {
+            const mahasiswaPage = await mahasiswaContext.newPage();
+
+            await openMahasiswaBimbinganThread(mahasiswaPage);
+            await mahasiswaPage.locator('input[type="file"]').setInputFiles({
+                name: 'catatan.txt',
+                mimeType: 'text/plain',
+                buffer: Buffer.from('catatan'),
+            });
+
+            await expect(
+                mahasiswaPage.getByText(
+                    'Format file tidak didukung. Gunakan PDF, DOC, DOCX, JPG, PNG, atau WEBP.',
+                ),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByRole('button', { name: 'Kirim pesan' }),
+            ).toBeDisabled();
+        } finally {
+            await mahasiswaContext.close();
         }
     });
 

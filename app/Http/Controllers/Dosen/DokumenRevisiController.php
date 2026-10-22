@@ -149,6 +149,11 @@ class DokumenRevisiController extends Controller
             'type' => 'document_event',
             'documentName' => $document->file_name,
             'documentUrl' => null,
+            'relatedDocumentId' => $document->id,
+            'reviewStatus' => $document->status,
+            'attachmentKind' => null,
+            'attachmentSizeKb' => null,
+            'previewUrl' => null,
         ]);
     }
 

@@ -1,5 +1,5 @@
 import { Users } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { CardContent } from '@/components/ui/card';
@@ -34,6 +34,22 @@ export function MessageList({
 }: MessageListProps) {
     const endRef = useRef<HTMLDivElement | null>(null);
     const messageCount = messages.length;
+
+    /** Newest review status per document; later rows win over earlier ones. */
+    const reviewStatusByDocument = useMemo(() => {
+        const statuses = new Map<number, string>();
+
+        for (const message of messages) {
+            if (
+                message.relatedDocumentId !== null &&
+                message.reviewStatus !== null
+            ) {
+                statuses.set(message.relatedDocumentId, message.reviewStatus);
+            }
+        }
+
+        return statuses;
+    }, [messages]);
 
     useEffect(() => {
         if (messageCount < 1 || threadId === null) {
@@ -70,6 +86,14 @@ export function MessageList({
                                     >
                                         <ChatBubble
                                             message={message}
+                                            reviewStatus={
+                                                message.relatedDocumentId ===
+                                                null
+                                                    ? null
+                                                    : (reviewStatusByDocument.get(
+                                                          message.relatedDocumentId,
+                                                      ) ?? null)
+                                            }
                                             isMe={
                                                 message.senderUserId === userId
                                             }

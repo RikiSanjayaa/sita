@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
@@ -12,6 +13,7 @@ use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\ChatMessagePayloadBuilder;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
@@ -19,6 +21,7 @@ use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -30,6 +33,7 @@ class PesanController extends Controller
         private readonly PrivateChatService $privateChatService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
+        private readonly ChatMessagePayloadBuilder $payloadBuilder,
     ) {}
 
     public function index(Request $request): Response
@@ -89,7 +93,7 @@ class PesanController extends Controller
 
         $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($student, $advisors) {
             $messages = $thread->messages
-                ->map(fn(MentorshipChatMessage $m): array => $this->mapMessagePayload($m))
+                ->map(fn(MentorshipChatMessage $m): array => $this->payloadBuilder->build($m))
                 ->values()
                 ->all();
 
@@ -137,7 +141,7 @@ class PesanController extends Controller
                 'members' => $members,
                 'memberProfiles' => $memberProfiles,
                 'messages' => $messages,
-                'preview' => $this->displayMessageText($thread->latestMessage?->message) ?? 'Belum ada pesan',
+                'preview' => $this->payloadBuilder->displayText($thread->latestMessage?->message) ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
                 'latestActivityAt' => $thread->latestMessage?->created_at?->toIso8601String(),
             ];
@@ -168,7 +172,7 @@ class PesanController extends Controller
         return redirect()->route('mahasiswa.pesan', ['thread' => $thread->id]);
     }
 
-    public function storeMessage(Request $request, MentorshipChatThread $thread): RedirectResponse
+    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -182,13 +186,15 @@ class PesanController extends Controller
             : $thread->student_user_id === $student->id;
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
-        $data = $request->validate([
-            'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
-            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
-        ]);
+        $data = $request->validated();
 
         $attachment = $data['attachment'] ?? null;
         $trimmedMessage = trim((string) ($data['message'] ?? ''));
+        $documentName = trim((string) ($data['document_name'] ?? ''));
+
+        if ($attachment !== null && str_starts_with((string) $attachment->getMimeType(), 'image/')) {
+            return $this->storeImageMessage($thread, $student, $attachment, $trimmedMessage);
+        }
 
         if ($thread->type === 'private') {
             $messages = DB::transaction(function () use ($attachment, $student, $thread, $trimmedMessage) {
@@ -240,7 +246,7 @@ class PesanController extends Controller
             });
 
             foreach ($messages as $message) {
-                $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+                $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
             }
 
             $this->notifyThreadMembers($student, $thread);
@@ -252,7 +258,7 @@ class PesanController extends Controller
         $activeSemproDefenses = $this->activeSemproDefenses($student->id);
         $semproThreads = $this->activeSemproThreads($student->id, $activeSemproDefenses);
 
-        $result = DB::transaction(function () use ($activeSemproDefenses, $attachment, $semproThreads, $student, $terms, $thread, $trimmedMessage): array {
+        $result = DB::transaction(function () use ($activeSemproDefenses, $attachment, $documentName, $semproThreads, $student, $terms, $thread, $trimmedMessage): array {
             if ($attachment === null) {
                 return [
                     'primary' => collect([
@@ -310,9 +316,7 @@ class PesanController extends Controller
                     'student_user_id' => $student->id,
                     'lecturer_user_id' => $lecturerUserId,
                     'mentorship_assignment_id' => $assignmentIdsByLecturer->get($lecturerUserId),
-                    'title' => $trimmedMessage !== ''
-                        ? $trimmedMessage
-                        : 'Lampiran: '.$attachment->getClientOriginalName(),
+                    'title' => $documentName !== '' ? $documentName : $attachment->getClientOriginalName(),
                     'category' => 'lampiran-chat',
                     'document_group' => $documentGroup,
                     'version_number' => $nextVersion,
@@ -342,7 +346,7 @@ class PesanController extends Controller
                 'attachment_mime' => $attachment->getClientMimeType(),
                 'attachment_size_kb' => (int) ceil($attachment->getSize() / 1024),
                 'message_type' => 'document_event',
-                'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d.', $nextVersion),
+                'message' => sprintf('Mahasiswa mengunggah lampiran %s.', $attachment->getClientOriginalName()),
                 'sent_at' => now(),
             ]));
 
@@ -372,7 +376,7 @@ class PesanController extends Controller
                     'attachment_mime' => $attachment->getClientMimeType(),
                     'attachment_size_kb' => (int) ceil($attachment->getSize() / 1024),
                     'message_type' => 'document_event',
-                    'message' => sprintf('Mahasiswa mengunggah dokumen lampiran chat versi v%d (notifikasi ke thread %s).', $nextVersion, $terms['proposalExamShort']),
+                    'message' => sprintf('Mahasiswa mengunggah lampiran %s (notifikasi ke thread %s).', $attachment->getClientOriginalName(), $terms['proposalExamShort']),
                     'sent_at' => now(),
                 ]));
 
@@ -400,11 +404,51 @@ class PesanController extends Controller
         $mirroredMessages = $result['mirrored'];
 
         foreach ($messages as $message) {
-            $this->broadcastChatMessage($thread->id, $this->mapMessagePayload($message));
+            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
         }
 
         foreach ($mirroredMessages as $mirroredMessage) {
-            $this->broadcastChatMessage($mirroredMessage->mentorship_chat_thread_id, $this->mapMessagePayload($mirroredMessage));
+            $this->broadcastChatMessage($mirroredMessage->mentorship_chat_thread_id, $this->payloadBuilder->build($mirroredMessage));
+        }
+
+        $this->notifyThreadMembers($student, $thread);
+
+        return back();
+    }
+
+    private function storeImageMessage(MentorshipChatThread $thread, User $student, UploadedFile $attachment, string $caption): RedirectResponse
+    {
+        $messages = DB::transaction(function () use ($attachment, $caption, $student, $thread) {
+            $storedPath = $attachment->store(sprintf('chat/mahasiswa/%d/thread/%d', $student->id, $thread->id), 'public');
+
+            $createdMessages = collect([
+                $thread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'attachment_disk' => 'public',
+                    'attachment_path' => $storedPath,
+                    'attachment_name' => $attachment->getClientOriginalName(),
+                    'attachment_mime' => $attachment->getMimeType(),
+                    'attachment_size_kb' => (int) ceil($attachment->getSize() / 1024),
+                    'message_type' => 'attachment',
+                    'message' => 'Mengirim gambar',
+                    'sent_at' => now(),
+                ]),
+            ]);
+
+            if ($caption !== '') {
+                $createdMessages->push($thread->messages()->create([
+                    'sender_user_id' => $student->id,
+                    'message_type' => 'text',
+                    'message' => $caption,
+                    'sent_at' => now()->addSecond(),
+                ]));
+            }
+
+            return $createdMessages;
+        });
+
+        foreach ($messages as $message) {
+            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
         }
 
         $this->notifyThreadMembers($student, $thread);
@@ -567,42 +611,6 @@ class PesanController extends Controller
                 'createdAt' => now()->toIso8601String(),
             ]);
         }
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function mapMessagePayload(MentorshipChatMessage $message): array
-    {
-        $author = $this->userProfilePresenter->summary($message->sender);
-
-        return [
-            'id' => $message->id,
-            'senderUserId' => $message->sender_user_id,
-            'author' => $message->sender?->name ?? 'Sistem',
-            'authorAvatar' => $author['avatar'] ?? null,
-            'authorProfileUrl' => $author['profileUrl'] ?? null,
-            'message' => $this->displayMessageText($message->message),
-            'time' => $message->created_at->format('d M Y H:i'),
-            'type' => $message->message_type,
-            'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
-            'documentUrl' => $message->attachment_path === null
-                ? ($message->related_document_id === null
-                    ? null
-                    : route('files.documents.download', ['document' => $message->related_document_id]))
-                : route('files.chat-attachments.download', ['message' => $message->id]),
-        ];
-    }
-
-    private function displayMessageText(?string $message): ?string
-    {
-        return match ($message) {
-            'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
-            'Thread Seminar Proposal telah dibuat. Gunakan thread ini untuk koordinasi sempro.' => 'Ruang Seminar Proposal siap digunakan.',
-            'Thread Sidang telah dibuat. Silahkan berdiskusi mengenai sidang di sini.',
-            'Thread Sidang telah dibuat. Gunakan thread ini untuk koordinasi sidang.' => 'Ruang Sidang siap digunakan.',
-            default => $message,
-        };
     }
 
     /**

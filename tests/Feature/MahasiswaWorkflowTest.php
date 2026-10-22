@@ -2,17 +2,14 @@
 
 use App\Enums\AdvisorType;
 use App\Enums\AppRole;
-use App\Enums\AssignmentStatus;
 use App\Models\AdminProfile;
 use App\Models\DosenProfile;
-use App\Models\DosenProgramStudiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipAssignment;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
-use App\Models\Role;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
@@ -25,104 +22,6 @@ use App\Services\ThesisProjectStudentService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
-
-function createUserWithRole(string $role): User
-{
-    $user = User::factory()->create(['last_active_role' => $role]);
-    $roleModel = Role::query()->firstOrCreate(['name' => $role]);
-    $user->roles()->sync([$roleModel->id]);
-
-    if ($role === AppRole::Dosen->value) {
-        DosenProfile::factory()->create([
-            'user_id' => $user->id,
-            'is_active' => true,
-        ]);
-    }
-
-    return $user;
-}
-
-function ensureActiveThesisProject(User $student): ThesisProject
-{
-    $profile = $student->mahasiswaProfile;
-    $programStudiId = $profile?->program_studi_id ?? ProgramStudi::factory()->create()->id;
-
-    return ThesisProject::query()->firstOrCreate(
-        [
-            'student_user_id' => $student->id,
-            'state' => 'active',
-        ],
-        [
-            'program_studi_id' => $programStudiId,
-            'phase' => 'research',
-            'started_at' => now()->subWeek(),
-            'created_by' => $student->id,
-        ],
-    );
-}
-
-function ensureLecturerTeachesStudent(User $lecturer, User $student): void
-{
-    $profile = $student->mahasiswaProfile;
-
-    if ($profile === null || $profile->program_studi_id === null || $profile->concentration === null) {
-        return;
-    }
-
-    $lecturer->dosenProfile()->updateOrCreate(
-        ['user_id' => $lecturer->id],
-        [
-            'program_studi_id' => $profile->program_studi_id,
-            'concentration' => $profile->concentration,
-            'is_active' => true,
-        ],
-    );
-
-    DosenProgramStudiAssignment::query()->updateOrCreate(
-        [
-            'user_id' => $lecturer->id,
-            'program_studi_id' => $profile->program_studi_id,
-            'concentration' => $profile->concentration,
-        ],
-        [
-            'is_primary' => true,
-            'is_active' => true,
-        ],
-    );
-}
-
-function createActiveMentorshipAssignment(User $student, User $lecturer, User $admin, AdvisorType $advisorType): void
-{
-    ensureLecturerTeachesStudent($lecturer, $student);
-
-    MentorshipAssignment::query()->create([
-        'student_user_id' => $student->id,
-        'lecturer_user_id' => $lecturer->id,
-        'advisor_type' => $advisorType->value,
-        'status' => AssignmentStatus::Active->value,
-        'assigned_by' => $admin->id,
-    ]);
-}
-
-function syncThesisSupervisor(User $student, User $lecturer, User $admin, string $role): void
-{
-    ensureLecturerTeachesStudent($lecturer, $student);
-
-    $project = ensureActiveThesisProject($student);
-
-    ThesisSupervisorAssignment::query()->updateOrCreate(
-        [
-            'project_id' => $project->id,
-            'role' => $role,
-            'status' => 'active',
-        ],
-        [
-            'lecturer_user_id' => $lecturer->id,
-            'assigned_by' => $admin->id,
-            'started_at' => now(),
-        ],
-    );
-}
 
 test('mahasiswa can request schedule to selected active advisor', function () {
     $admin = createUserWithRole(AppRole::Admin->value);
@@ -321,11 +220,11 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
     $this->assertDatabaseCount('mentorship_chat_messages', 4);
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'message_type' => 'document_event',
-        'message' => 'Mahasiswa mengunggah dokumen lampiran chat versi v1.',
+        'message' => 'Mahasiswa mengunggah lampiran lampiran-v1.pdf.',
     ]);
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'message_type' => 'document_event',
-        'message' => 'Mahasiswa mengunggah dokumen lampiran chat versi v2.',
+        'message' => 'Mahasiswa mengunggah lampiran lampiran-v2.pdf.',
     ]);
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'message_type' => 'text',
@@ -2136,7 +2035,7 @@ test('chat attachment without a message is titled with its file name', function 
         ->assertRedirect();
 
     expect(MentorshipDocument::query()->where('category', 'lampiran-chat')->value('title'))
-        ->toBe('Lampiran: bab-3.pdf');
+        ->toBe('bab-3.pdf');
 });
 
 test('upload page document status aggregates reviews from every assigned lecturer', function (array $statuses, string $expectedStatus) {

@@ -43,9 +43,7 @@ test.describe('Chat attachment review visibility', () => {
 
             await openMahasiswaBimbinganThread(mahasiswaPage);
 
-            const attachmentInput = mahasiswaPage.locator(
-                'input[type="file"][accept=".pdf,.doc,.docx"]',
-            );
+            const attachmentInput = mahasiswaPage.locator('input[type="file"]');
             await attachmentInput.setInputFiles(
                 path.join(
                     process.cwd(),
@@ -53,7 +51,10 @@ test.describe('Chat attachment review visibility', () => {
                 ),
             );
             await expect(
-                mahasiswaPage.getByText(`Lampiran: ${attachmentName}`),
+                mahasiswaPage.getByLabel('Nama dokumen'),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByText(attachmentName).first(),
             ).toBeVisible();
 
             const messageInput =

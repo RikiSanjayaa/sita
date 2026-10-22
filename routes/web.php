@@ -23,6 +23,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('profil/{user}', ProfileShowController::class)->name('users.profile.show');
     Route::get('files/documents/{document}/download', DocumentDownloadController::class)->name('files.documents.download');
     Route::get('files/chat-attachments/{message}/download', ChatAttachmentDownloadController::class)->name('files.chat-attachments.download');
+    Route::get('files/chat-attachments/{message}/preview', [ChatAttachmentDownloadController::class, 'preview'])->name('files.chat-attachments.preview');
     Route::get('files/thesis-documents/{document}/download', ThesisDocumentDownloadController::class)->name('files.thesis-documents.download');
 });
 
