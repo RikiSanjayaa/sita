@@ -23,6 +23,10 @@ import { FormEventHandler, useMemo, useState } from 'react';
 
 import { DeadlineBadge } from '@/components/deadline-badge';
 import { PersonCardLink } from '@/components/profile/person-card-link';
+import {
+    type ThesisNote,
+    ThesisNotesPanel,
+} from '@/components/thesis-notes-panel';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,6 +98,7 @@ type DefenseSelection = {
 
 type TugasAkhirPageProps = {
     submission: Submission | null;
+    thesisNotes: ThesisNote[];
     canCreateSubmission: boolean;
     workspaceDocuments: WorkspaceDocument[];
     semproSelection: DefenseSelection | null;
@@ -1457,6 +1462,7 @@ function DefenseHistorySection({
 export default function TugasAkhirSaya() {
     const {
         submission,
+        thesisNotes,
         canCreateSubmission,
         workspaceDocuments,
         semproSelection,
@@ -1944,6 +1950,28 @@ export default function TugasAkhirSaya() {
                                 </div>
                             </div>
                         </section>
+
+                        {/* ── Catatan Dosen (hanya yang untuk mahasiswa) ── */}
+                        {thesisNotes.length > 0 && (
+                            <section aria-label="Catatan Dosen">
+                                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                                    <SectionHeader
+                                        title="Catatan Dosen"
+                                        description={`Catatan dari pembimbing dan penguji untuk ${terms.finalWorkLower} Anda`}
+                                    />
+                                    <div className="p-5">
+                                        <ThesisNotesPanel
+                                            projectId={submission.id}
+                                            data={{
+                                                canWrite: false,
+                                                notes: thesisNotes,
+                                            }}
+                                            showVisibility={false}
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+                        )}
 
                         {/* ── Hasil sidang ── */}
                         {semproResult && (

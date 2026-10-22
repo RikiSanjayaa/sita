@@ -92,6 +92,7 @@ class ThesisProjectResource extends Resource
                     ->orderBy('type')
                     ->orderBy('attempt_no'),
                 'events.actor',
+                'lecturerNotes.author',
             ])
             ->withCount([
                 'semproDefenses as sempro_attempts_count',

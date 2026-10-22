@@ -6,11 +6,16 @@ import {
     MessageCircle,
     MessageSquareText,
     MessagesSquare,
+    NotebookPen,
     Search,
     UserRound,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
+import {
+    type ProjectNotes,
+    ThesisNotesPanel,
+} from '@/components/thesis-notes-panel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +33,13 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
@@ -45,6 +57,7 @@ type RoleFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2' | 'penguji';
 
 type MahasiswaRow = {
     studentUserId: number | null;
+    projectId: number | null;
     nim: string;
     name: string;
     avatar: string | null;
@@ -69,6 +82,7 @@ type MahasiswaBimbinganProps = {
     activeCount: number;
     relatedCount: number;
     capacityLimit: number;
+    projectNotes: Record<string, ProjectNotes>;
 };
 
 const roleTabs: { label: string; value: RoleFilter }[] = [
@@ -102,13 +116,16 @@ function StudentTable({
     emptyText,
     showActions = true,
     queryPrefix,
+    projectNotes,
 }: {
     rows: MahasiswaRow[];
     emptyText: string;
     showActions?: boolean;
     queryPrefix: string;
+    projectNotes: Record<string, ProjectNotes>;
 }) {
     const getInitials = useInitials();
+    const [notesRow, setNotesRow] = useState<MahasiswaRow | null>(null);
     const [search, setSearch] = useUrlState(`${queryPrefix}Search`, '');
     const [roleFilter, setRoleFilter] = useUrlState<RoleFilter>(
         `${queryPrefix}Role`,
@@ -307,6 +324,38 @@ function StudentTable({
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 px-2.5 text-xs"
+                                                    disabled={
+                                                        row.projectId === null
+                                                    }
+                                                    onClick={() =>
+                                                        setNotesRow(row)
+                                                    }
+                                                >
+                                                    <NotebookPen className="size-3.5" />
+                                                    Catatan
+                                                    {row.projectId !== null &&
+                                                        (projectNotes[
+                                                            row.projectId
+                                                        ]?.notes.length ?? 0) >
+                                                            0 && (
+                                                            <span className="tabular-nums">
+                                                                (
+                                                                {
+                                                                    projectNotes[
+                                                                        row
+                                                                            .projectId
+                                                                    ].notes
+                                                                        .length
+                                                                }
+                                                                )
+                                                            </span>
+                                                        )}
+                                                </Button>
+                                                <Button
                                                     asChild
                                                     size="sm"
                                                     variant="outline"
@@ -442,6 +491,37 @@ function StudentTable({
                     {filtered.length} dari {rows.length} mahasiswa
                 </p>
             )}
+
+            <Sheet
+                open={notesRow !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setNotesRow(null);
+                    }
+                }}
+            >
+                <SheetContent
+                    side="right"
+                    className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl"
+                >
+                    <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+                        <SheetTitle>Catatan</SheetTitle>
+                        <SheetDescription>
+                            {notesRow?.name} ({notesRow?.nim})
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="p-6">
+                        <ThesisNotesPanel
+                            projectId={notesRow?.projectId ?? null}
+                            data={
+                                notesRow?.projectId == null
+                                    ? undefined
+                                    : projectNotes[notesRow.projectId]
+                            }
+                        />
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }
@@ -453,6 +533,7 @@ export default function DosenMahasiswaBimbinganPage() {
         activeCount,
         relatedCount,
         capacityLimit,
+        projectNotes,
     } = usePage<SharedData & MahasiswaBimbinganProps>().props;
 
     return (
@@ -492,6 +573,7 @@ export default function DosenMahasiswaBimbinganPage() {
                         emptyText="Belum ada mahasiswa aktif"
                         showActions
                         queryPrefix="active"
+                        projectNotes={projectNotes}
                     />
                 </section>
 
@@ -509,6 +591,7 @@ export default function DosenMahasiswaBimbinganPage() {
                         emptyText="Belum ada riwayat mahasiswa"
                         showActions={false}
                         queryPrefix="history"
+                        projectNotes={projectNotes}
                     />
                 </section>
             </div>

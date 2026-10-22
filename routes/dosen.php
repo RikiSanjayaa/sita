@@ -6,6 +6,7 @@ use App\Http\Controllers\Dosen\JadwalBimbinganController;
 use App\Http\Controllers\Dosen\MahasiswaBimbinganController;
 use App\Http\Controllers\Dosen\PesanBimbinganController;
 use App\Http\Controllers\Dosen\SeminarProposalController;
+use App\Http\Controllers\Dosen\ThesisProjectNoteController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,13 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
         ->name('seminar-proposal.decision');
     Route::post('seminar-proposal/revisions/{revision}/resolve', [SeminarProposalController::class, 'resolveRevision'])
         ->name('seminar-proposal.revisions.resolve');
+
+    Route::post('tugas-akhir/{project}/catatan', [ThesisProjectNoteController::class, 'store'])
+        ->name('project-notes.store');
+    Route::patch('catatan/{note}', [ThesisProjectNoteController::class, 'update'])
+        ->name('project-notes.update');
+    Route::delete('catatan/{note}', [ThesisProjectNoteController::class, 'destroy'])
+        ->name('project-notes.destroy');
 
     Route::get('mahasiswa-bimbingan', MahasiswaBimbinganController::class)->name('mahasiswa-bimbingan');
 
