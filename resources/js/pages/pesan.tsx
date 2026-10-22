@@ -122,6 +122,7 @@ function PesanPageContent({
     const chat = useChatThread<ThreadItem>({
         initialThreads,
         userId: auth.user?.id,
+        supportsDocumentName: (thread) => thread.threadType !== 'private',
         selectVisible,
         sendUrl: (threadId) => `/mahasiswa/pesan/${threadId}/messages`,
         onSent: () => setMobileView('chat'),

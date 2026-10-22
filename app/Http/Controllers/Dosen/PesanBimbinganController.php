@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
@@ -12,6 +13,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\ChatMessagePayloadBuilder;
 use App\Services\DosenBimbinganService;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
@@ -32,6 +34,7 @@ class PesanBimbinganController extends Controller
         private readonly PrivateChatService $privateChatService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
+        private readonly ChatMessagePayloadBuilder $payloadBuilder,
     ) {}
 
     public function index(Request $request): Response
@@ -145,7 +148,7 @@ class PesanBimbinganController extends Controller
                     'members' => $members,
                     'memberProfiles' => $memberProfiles,
                     'unread' => $unreadCount,
-                    'preview' => $this->displayMessageText($latestMessage?->message) ?? 'Belum ada pesan',
+                    'preview' => $this->payloadBuilder->displayText($latestMessage?->message) ?? 'Belum ada pesan',
                     'lastTime' => $latestMessage?->created_at?->diffForHumans() ?? '-',
                     'latestActivityAt' => $latestMessage?->created_at?->toIso8601String(),
                     'isEscalated' => $thread->is_escalated,
@@ -157,26 +160,7 @@ class PesanBimbinganController extends Controller
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
-                        ->map(function (MentorshipChatMessage $message): array {
-                            $author = $this->userProfilePresenter->summary($message->sender);
-
-                            return [
-                                'id' => $message->id,
-                                'senderUserId' => $message->sender_user_id,
-                                'author' => $message->sender?->name ?? 'Sistem',
-                                'authorAvatar' => $author['avatar'] ?? null,
-                                'authorProfileUrl' => $author['profileUrl'] ?? null,
-                                'message' => $this->displayMessageText($message->message),
-                                'time' => $message->created_at->format('d M Y H:i'),
-                                'type' => $message->message_type,
-                                'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
-                                'documentUrl' => $message->attachment_path === null
-                                    ? ($message->related_document_id === null
-                                        ? null
-                                        : route('files.documents.download', ['document' => $message->related_document_id]))
-                                    : route('files.chat-attachments.download', ['message' => $message->id]),
-                            ];
-                        })
+                        ->map(fn(MentorshipChatMessage $message): array => $this->payloadBuilder->build($message))
                         ->all(),
                 ];
             })
@@ -228,7 +212,7 @@ class PesanBimbinganController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function storeMessage(Request $request, MentorshipChatThread $thread): RedirectResponse
+    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
@@ -236,10 +220,7 @@ class PesanBimbinganController extends Controller
         $canAccess = $this->canAccessThread($lecturer, $thread);
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
-        $data = $request->validate([
-            'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
-            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
-        ]);
+        $data = $request->validated();
 
         $attachment = $data['attachment'] ?? null;
         $attachmentPath = null;
@@ -247,6 +228,7 @@ class PesanBimbinganController extends Controller
         $attachmentName = null;
         $attachmentMime = null;
         $attachmentSizeKb = null;
+        $isImage = $attachment !== null && str_starts_with((string) $attachment->getMimeType(), 'image/');
 
         if ($attachment !== null) {
             $attachmentDisk = 'public';
@@ -265,8 +247,8 @@ class PesanBimbinganController extends Controller
         if ($attachment !== null) {
             $messagesToSend->push($thread->messages()->create([
                 'sender_user_id' => $lecturer->id,
-                'message_type' => 'revision_suggestion',
-                'message' => 'Mengirim lampiran revisi',
+                'message_type' => $isImage ? 'attachment' : 'revision_suggestion',
+                'message' => $isImage ? 'Mengirim gambar' : 'Mengirim lampiran revisi',
                 'attachment_disk' => $attachmentDisk,
                 'attachment_path' => $attachmentPath,
                 'attachment_name' => $attachmentName,
@@ -290,23 +272,8 @@ class PesanBimbinganController extends Controller
             ]));
         }
 
-        $author = $this->userProfilePresenter->summary($lecturer);
-
         foreach ($messagesToSend as $message) {
-            $this->broadcastChatMessage($thread->id, [
-                'id' => $message->id,
-                'senderUserId' => $message->sender_user_id,
-                'author' => $lecturer->name,
-                'authorAvatar' => $author['avatar'] ?? null,
-                'authorProfileUrl' => $author['profileUrl'] ?? null,
-                'message' => $message->message,
-                'time' => $message->created_at->format('d M Y H:i'),
-                'type' => $message->message_type,
-                'documentName' => $message->attachment_name,
-                'documentUrl' => $message->attachment_path === null
-                    ? null
-                    : route('files.chat-attachments.download', ['message' => $message->id]),
-            ]);
+            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
 
             $this->notifyThreadMembers($thread, $lecturer, $message->message_type);
         }
@@ -348,17 +315,6 @@ class PesanBimbinganController extends Controller
             'sidang' => 'Penguji '.$terms['finalExamShort'],
             'private' => 'Pribadi',
             default => $thread->label ?? 'Penguji',
-        };
-    }
-
-    private function displayMessageText(?string $message): ?string
-    {
-        return match ($message) {
-            'Thread Seminar Proposal telah dibuat. Silahkan berdiskusi mengenai sempro di sini.',
-            'Thread Seminar Proposal telah dibuat. Gunakan thread ini untuk koordinasi sempro.' => 'Ruang Seminar Proposal siap digunakan.',
-            'Thread Sidang telah dibuat. Silahkan berdiskusi mengenai sidang di sini.',
-            'Thread Sidang telah dibuat. Gunakan thread ini untuk koordinasi sidang.' => 'Ruang Sidang siap digunakan.',
-            default => $message,
         };
     }
 
