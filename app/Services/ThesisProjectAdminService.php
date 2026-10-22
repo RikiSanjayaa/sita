@@ -25,6 +25,7 @@ class ThesisProjectAdminService
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly MentorshipProgressService $mentorshipProgressService,
     ) {}
 
     public function approveTitleReview(ThesisProject $project, int $decidedBy, ?string $notes = null): ThesisProject
@@ -502,6 +503,7 @@ class ThesisProjectAdminService
                 label: $wasRescheduled ? $terminology['finalExamShort'].' dijadwalkan ulang' : $terminology['finalExamShort'].' dijadwalkan',
                 description: $notes,
                 occurredAt: $scheduledFor,
+                payload: $this->mentorshipProgressService->auditPayload($project),
             );
 
             return $defense->fresh(['examiners.lecturer']);
@@ -1273,6 +1275,7 @@ class ThesisProjectAdminService
         string $label,
         ?string $description,
         string $occurredAt,
+        ?array $payload = null,
     ): void {
         ThesisProjectEvent::query()->create([
             'project_id' => $project->getKey(),
@@ -1280,7 +1283,7 @@ class ThesisProjectAdminService
             'event_type' => $eventType,
             'label' => $label,
             'description' => $description,
-            'payload' => null,
+            'payload' => $payload,
             'occurred_at' => $occurredAt,
         ]);
 

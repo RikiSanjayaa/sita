@@ -13,6 +13,10 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
+import {
+    MentorshipProgressList,
+    type MentorshipProgressRow,
+} from '@/components/mentorship-progress';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import {
     type ProjectNotes,
@@ -87,6 +91,7 @@ type StudentRow = {
         name: string;
         role: string;
     }[];
+    mentorshipProgress: MentorshipProgressRow[];
     progressRisk: {
         level: 'high' | 'medium' | 'low';
         label: string;
@@ -833,6 +838,17 @@ function SupervisorDialog({
                             {activeStudent.title}
                         </p>
                     </div>
+
+                    {activeStudent.mentorshipProgress.length > 0 ? (
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                            <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Bimbingan Selesai per Pembimbing
+                            </p>
+                            <MentorshipProgressList
+                                progress={activeStudent.mentorshipProgress}
+                            />
+                        </div>
+                    ) : null}
 
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                         <LecturerSearchSelect

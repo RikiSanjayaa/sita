@@ -149,11 +149,21 @@ test.describe('Kaprodi portal', () => {
             await expect(
                 studentPage.getByText('Dr. Ratna Kusuma, M.Kom.').first(),
             ).toBeVisible();
+            // Progress starts at 0 of the 6-session minimum per supervisor.
+            await expect(
+                studentPage.getByTestId('mentorship-progress').getByText('0/6'),
+            ).toHaveCount(2);
 
             const dosenPage = await dosenContext.newPage();
             await dosenPage.goto('/dosen/mahasiswa-bimbingan');
             await expect(
                 dosenPage.getByText(withoutSupervisors.studentName).first(),
+            ).toBeVisible();
+            await expect(
+                dosenPage
+                    .getByTestId('mentorship-progress')
+                    .getByText('0/6')
+                    .first(),
             ).toBeVisible();
         } finally {
             await studentContext.close();
@@ -223,7 +233,15 @@ test.describe('Kaprodi portal', () => {
 
         await chooseStudentInDialog(page, withoutSupervisors.studentName);
         // Both supervisors from the previous test belong to the panel.
-        await expect(dialog.getByText(/Pembimbing 1.*Budi/)).toBeVisible();
+        await expect(
+            dialog.getByText(/Pembimbing 1.*Budi/).first(),
+        ).toBeVisible();
+
+        // Fresh supervisors have no completed mentorship yet: warn, never block.
+        const warning = dialog.getByTestId('mentorship-minimum-warning');
+        await expect(warning).toContainText('Bimbingan belum memenuhi minimal');
+        await expect(warning).toContainText('Dr. Budi Santoso, M.Kom. (0/6)');
+        await expect(warning).toContainText('Dr. Ratna Kusuma, M.Kom. (0/6)');
 
         const nextMonth = new Date();
         nextMonth.setMonth(nextMonth.getMonth() + 1, 16);

@@ -13,6 +13,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
+use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectNoteService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
@@ -26,6 +27,7 @@ class MahasiswaBimbinganController extends Controller
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ThesisProjectNoteService $noteService,
+        private readonly MentorshipProgressService $mentorshipProgressService,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -198,6 +200,7 @@ class MahasiswaBimbinganController extends Controller
                 ))
                 ->values()
                 ->all() ?? [],
+            'mentorshipProgress' => $project === null ? [] : $this->mentorshipProgressService->forProject($project),
             'stageLabel' => $stage['label'],
             'stageDescription' => $stage['description'],
             'status' => ($profile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
@@ -262,6 +265,7 @@ class MahasiswaBimbinganController extends Controller
                 ))
                 ->values()
                 ->all() ?? [],
+            'mentorshipProgress' => [],
             'stageLabel' => $stage['label'],
             'stageDescription' => $stage['description'],
             'status' => $this->defenseStatusLabel($defense?->status, $defense?->result),
