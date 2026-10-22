@@ -311,6 +311,8 @@ class ViewThesisProject extends ViewRecord
                         ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'supervisor'))
                         ->searchPrompt('Ketik minimal 2 karakter nama, NIK, prodi, konsentrasi, atau bidang keilmuan')
                         ->required()
+                        ->default(fn(): ?int => $record->latestTitle?->proposed_primary_lecturer_user_id)
+                        ->helperText(fn(): ?string => $record->latestTitle?->proposedPrimaryLecturer?->name ? 'Usulan mahasiswa: '.$record->latestTitle->proposedPrimaryLecturer->name : null)
                         ->native(false),
                     Select::make('pembimbing_2')
                         ->label('Pembimbing 2')
@@ -323,6 +325,8 @@ class ViewThesisProject extends ViewRecord
                         ->getOptionLabelUsing(fn($value): ?string => app(LecturerSearchService::class)->filamentOptionLabel($record, $value, 'supervisor'))
                         ->searchPrompt('Ketik minimal 2 karakter untuk mencari dosen')
                         ->required()
+                        ->default(fn(): ?int => $record->latestTitle?->proposed_secondary_lecturer_user_id)
+                        ->helperText(fn(): ?string => $record->latestTitle?->proposedSecondaryLecturer?->name ? 'Usulan mahasiswa: '.$record->latestTitle->proposedSecondaryLecturer->name : null)
                         ->different('pembimbing_1')
                         ->native(false),
                     Textarea::make('notes')

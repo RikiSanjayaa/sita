@@ -23,6 +23,8 @@ class ThesisProjectTitle extends Model
         'decided_by_user_id',
         'decided_at',
         'decision_notes',
+        'proposed_primary_lecturer_user_id',
+        'proposed_secondary_lecturer_user_id',
     ];
 
     protected function casts(): array
@@ -52,6 +54,16 @@ class ThesisProjectTitle extends Model
     public function defenses(): HasMany
     {
         return $this->hasMany(ThesisDefense::class, 'title_version_id');
+    }
+
+    public function proposedPrimaryLecturer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'proposed_primary_lecturer_user_id');
+    }
+
+    public function proposedSecondaryLecturer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'proposed_secondary_lecturer_user_id');
     }
 
     public function documents(): HasMany

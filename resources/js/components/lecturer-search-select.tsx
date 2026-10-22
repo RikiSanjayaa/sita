@@ -25,16 +25,19 @@ type LecturerSearchResult = {
 
 type CommonProps = {
     projectId: number | null;
+    searchUrl?: string;
     purpose: LecturerSearchPurpose;
     error?: string;
     excludeIds?: string[];
 };
 
 function useLecturerSearch({
+    endpoint,
     projectId,
     purpose,
     selectedIds,
 }: {
+    endpoint: string | null;
     projectId: number | null;
     purpose: LecturerSearchPurpose;
     selectedIds: string[];
@@ -50,20 +53,20 @@ function useLecturerSearch({
     const selectedKey = selectedIds.filter(Boolean).sort().join(',');
 
     useEffect(() => {
-        if (!projectId || selectedKey === '') {
+        if (!endpoint || selectedKey === '') {
             return;
         }
 
         const controller = new AbortController();
-        const parameters = new URLSearchParams({
-            project_id: String(projectId),
-            purpose,
-        });
+        const parameters = new URLSearchParams({ purpose });
+        if (projectId !== null) {
+            parameters.set('project_id', String(projectId));
+        }
         selectedKey
             .split(',')
             .forEach((id) => parameters.append('selected_ids[]', id));
 
-        fetch(`/kaprodi/lecturers/search?${parameters.toString()}`, {
+        fetch(`${endpoint}?${parameters.toString()}`, {
             signal: controller.signal,
             headers: { Accept: 'application/json' },
         })
@@ -83,25 +86,24 @@ function useLecturerSearch({
             });
 
         return () => controller.abort();
-    }, [projectId, purpose, selectedKey]);
+    }, [endpoint, projectId, purpose, selectedKey]);
 
     useEffect(() => {
         const search = query.trim();
 
-        if (!projectId || search.length < 2) {
+        if (!endpoint || search.length < 2) {
             return;
         }
 
         const controller = new AbortController();
         const timer = window.setTimeout(() => {
             setLoading(true);
-            const parameters = new URLSearchParams({
-                project_id: String(projectId),
-                purpose,
-                q: search,
-            });
+            const parameters = new URLSearchParams({ purpose, q: search });
+            if (projectId !== null) {
+                parameters.set('project_id', String(projectId));
+            }
 
-            fetch(`/kaprodi/lecturers/search?${parameters.toString()}`, {
+            fetch(`${endpoint}?${parameters.toString()}`, {
                 signal: controller.signal,
                 headers: { Accept: 'application/json' },
             })
@@ -128,7 +130,7 @@ function useLecturerSearch({
             window.clearTimeout(timer);
             controller.abort();
         };
-    }, [projectId, purpose, query]);
+    }, [endpoint, projectId, purpose, query]);
 
     return {
         query,
@@ -189,6 +191,7 @@ export function LecturerSearchSelect({
     value,
     onChange,
     projectId,
+    searchUrl,
     purpose,
     error,
     excludeIds = [],
@@ -199,7 +202,10 @@ export function LecturerSearchSelect({
     onChange: (value: string) => void;
     optional?: boolean;
 }) {
+    const endpoint =
+        searchUrl ?? (projectId !== null ? '/kaprodi/lecturers/search' : null);
     const { query, setQuery, results, selected, loading } = useLecturerSearch({
+        endpoint,
         projectId,
         purpose,
         selectedIds: value ? [value] : [],
@@ -238,7 +244,7 @@ export function LecturerSearchSelect({
                 <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
                 <Input
                     value={query}
-                    disabled={!projectId}
+                    disabled={!endpoint}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Ketik min. 2 karakter..."
                     className="pl-8"
@@ -286,6 +292,7 @@ export function LecturerMultiSearch({
     values,
     onChange,
     projectId,
+    searchUrl,
     purpose,
     error,
     excludeIds = [],
@@ -294,7 +301,10 @@ export function LecturerMultiSearch({
     values: string[];
     onChange: (values: string[]) => void;
 }) {
+    const endpoint =
+        searchUrl ?? (projectId !== null ? '/kaprodi/lecturers/search' : null);
     const { query, setQuery, results, selected, loading } = useLecturerSearch({
+        endpoint,
         projectId,
         purpose,
         selectedIds: values,
@@ -347,7 +357,7 @@ export function LecturerMultiSearch({
                 <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
                 <Input
                     value={query}
-                    disabled={!projectId}
+                    disabled={!endpoint}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Cari dosen penguji (min. 2 karakter)..."
                     className="pl-8"

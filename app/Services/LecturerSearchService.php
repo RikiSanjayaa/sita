@@ -23,6 +23,68 @@ class LecturerSearchService
         string $purpose,
         array $selectedIds = [],
     ): Collection {
+        return $this->searchLecturers(
+            programStudiId: (int) $project->program_studi_id,
+            search: $search,
+            purpose: $purpose,
+            selectedIds: $selectedIds,
+            project: $project,
+            restrictToProgramStudi: false,
+        );
+    }
+
+    /**
+     * Searches lecturers teaching in the student's program studi, for the proposal form.
+     *
+     * @param  array<int, int|string>  $selectedIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function searchForStudent(User $student, ?string $search, array $selectedIds = []): Collection
+    {
+        $programStudiId = $student->mahasiswaProfile?->program_studi_id;
+
+        if ($programStudiId === null) {
+            return collect();
+        }
+
+        return $this->searchLecturers(
+            programStudiId: (int) $programStudiId,
+            search: $search,
+            purpose: 'supervisor',
+            selectedIds: $selectedIds,
+            project: null,
+            restrictToProgramStudi: true,
+        );
+    }
+
+    /**
+     * Returns the IDs from $lecturerIds that are active lecturers teaching in the program studi.
+     *
+     * @param  array<int, int>  $lecturerIds
+     * @return array<int, int>
+     */
+    public function eligibleIdsInProgramStudi(int $programStudiId, array $lecturerIds): array
+    {
+        return $this->eligibleLecturersQuery($programStudiId)
+            ->whereIn('id', $lecturerIds)
+            ->whereHas('activeDosenProgramStudiAssignments', fn(Builder $query) => $query->where('program_studi_id', $programStudiId))
+            ->pluck('id')
+            ->map(fn($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int|string>  $selectedIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function searchLecturers(
+        int $programStudiId,
+        ?string $search,
+        string $purpose,
+        array $selectedIds,
+        ?ThesisProject $project,
+        bool $restrictToProgramStudi,
+    ): Collection {
         $term = trim((string) $search);
         $selectedIds = collect($selectedIds)
             ->map(static fn($id): int => (int) $id)
@@ -34,7 +96,11 @@ class LecturerSearchService
             return collect();
         }
 
-        $query = $this->eligibleLecturersQuery((int) $project->program_studi_id);
+        $query = $this->eligibleLecturersQuery($programStudiId);
+
+        if ($restrictToProgramStudi) {
+            $query->whereHas('activeDosenProgramStudiAssignments', fn(Builder $query) => $query->where('program_studi_id', $programStudiId));
+        }
 
         $query->where(function (Builder $query) use ($term, $selectedIds): void {
             if (mb_strlen($term) >= self::MINIMUM_QUERY_LENGTH) {
@@ -130,12 +196,12 @@ class LecturerSearchService
     /**
      * @return array<string, mixed>
      */
-    private function present(User $lecturer, ThesisProject $project, string $purpose): array
+    private function present(User $lecturer, ?ThesisProject $project, string $purpose): array
     {
         $quota = max(1, (int) ($lecturer->dosenProfile?->supervision_quota ?? 14));
         $workload = (int) ($lecturer->active_supervision_count ?? 0);
-        $isSelectedSupervisor = $project->activeSupervisorAssignments
-            ->contains('lecturer_user_id', $lecturer->id);
+        $isSelectedSupervisor = $project?->activeSupervisorAssignments
+            ->contains('lecturer_user_id', $lecturer->id) ?? false;
         $available = $purpose !== 'supervisor' || $workload < $quota || $isSelectedSupervisor;
 
         return [
