@@ -23,6 +23,10 @@ import {
     LecturerMultiSearch,
     LecturerSearchSelect,
 } from '@/components/lecturer-search-select';
+import {
+    MentorshipMinimumAlert,
+    type MentorshipProgressRow,
+} from '@/components/mentorship-progress';
 import { EmptyState } from '@/components/patterns/empty-state';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { FilterPills } from '@/components/patterns/filter-pills';
@@ -122,6 +126,7 @@ type SchedulableProject = {
         name: string;
         role: string;
     }[];
+    mentorshipProgress: MentorshipProgressRow[];
     latestSempro: DefenseSummary | null;
     latestSidang: DefenseSummary | null;
 };
@@ -901,7 +906,7 @@ function ScheduleDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>
@@ -994,6 +999,12 @@ function ScheduleDialog({
                                 </div>
                             ) : null}
                         </div>
+                    ) : null}
+
+                    {currentProject && activeState.type === 'sidang' ? (
+                        <MentorshipMinimumAlert
+                            progress={currentProject.mentorshipProgress}
+                        />
                     ) : null}
 
                     <div className="grid gap-3 sm:grid-cols-4">

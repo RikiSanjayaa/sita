@@ -9,6 +9,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\User;
+use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisProjectStudentService;
 use App\Services\UserProfilePresenter;
@@ -24,6 +25,7 @@ class TugasAkhirController extends Controller
     public function __construct(
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ThesisProjectNoteService $noteService,
+        private readonly MentorshipProgressService $mentorshipProgressService,
     ) {}
 
     public function index(Request $request): Response
@@ -83,6 +85,7 @@ class TugasAkhirController extends Controller
                     : null,
             ],
             'thesisNotes' => $this->noteService->studentPayload($student, $project),
+            'mentorshipProgress' => $project === null ? [] : $this->mentorshipProgressService->forProject($project),
             'canCreateSubmission' => ! ($project instanceof ThesisProject) || $project->state !== 'active',
             'workspaceDocuments' => $this->workspaceDocumentsForStudent($student->id),
             'semproSelection' => $this->mapActiveDefenseSelection($latestSempro, 'sempro'),

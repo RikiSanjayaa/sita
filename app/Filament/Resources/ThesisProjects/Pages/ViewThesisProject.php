@@ -7,6 +7,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Services\LecturerSearchService;
+use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
 use Filament\Actions\Action;
@@ -19,6 +20,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Enums\Alignment;
@@ -365,6 +367,11 @@ class ViewThesisProject extends ViewRecord
                 ->color('warning')
                 ->visible(fn(): bool => $this->canScheduleDefense($record, 'sidang'))
                 ->form([
+                    Callout::make('Bimbingan belum memenuhi minimal')
+                        ->key('mentorship_minimum_warning')
+                        ->description(fn(): string => $this->unmetMentorshipSummary($record))
+                        ->warning()
+                        ->visible(fn(): bool => $this->unmetMentorshipSummary($record) !== ''),
                     Grid::make([
                         'default' => 1,
                         'md' => 3,
@@ -597,6 +604,22 @@ class ViewThesisProject extends ViewRecord
                 return sprintf('Pembimbing %d: %s', $index + 1, $assignment->lecturer?->name ?? '-');
             })
             ->implode(PHP_EOL);
+    }
+
+    private function unmetMentorshipSummary(ThesisProject $project): string
+    {
+        $mentorshipProgress = app(MentorshipProgressService::class);
+        $unmet = $mentorshipProgress->unmet($mentorshipProgress->forProject($project));
+
+        if ($unmet === []) {
+            return '';
+        }
+
+        return 'Pembimbing berikut belum memenuhi minimal bimbingan selesai: '
+            .collect($unmet)
+                ->map(fn(array $row): string => sprintf('%s (%d/%d)', $row['lecturer']['name'], $row['completed'], $row['minimum']))
+                ->implode(', ')
+            .'. Penjadwalan tetap dapat disimpan.';
     }
 
     private function latestSempro(ThesisProject $project): ?ThesisDefense

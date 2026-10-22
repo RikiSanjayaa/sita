@@ -19,6 +19,10 @@ use Illuminate\Support\Collection;
 
 class KaprodiPortalService
 {
+    public function __construct(
+        private readonly MentorshipProgressService $mentorshipProgressService,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -514,6 +518,7 @@ class KaprodiPortalService
                         ])
                         ->values()
                         ->all() ?? [],
+                    'mentorshipProgress' => $project instanceof ThesisProject ? $this->mentorshipProgressService->forProject($project) : [],
                     'progressRisk' => $this->progressRisk(
                         $project,
                         $latestChatByStudent->get((int) $profile->user_id),
@@ -537,6 +542,7 @@ class KaprodiPortalService
             'state' => $this->statusLabel($project->state),
             'startedAt' => WitaDateTime::format($project->started_at, 'd M Y', false),
             'completedAt' => WitaDateTime::format($project->completed_at, 'd M Y', false),
+            'mentorshipProgress' => $this->mentorshipProgressService->forProject($project),
             'supervisors' => $project->supervisorAssignments
                 ->sortBy('role')
                 ->map(fn($assignment): array => [
@@ -910,6 +916,7 @@ class KaprodiPortalService
                     ])
                     ->values()
                     ->all(),
+                'mentorshipProgress' => $this->mentorshipProgressService->forProject($project),
                 'latestSempro' => $this->latestDefenseSummary($project, 'sempro'),
                 'latestSidang' => $this->latestDefenseSummary($project, 'sidang'),
             ])

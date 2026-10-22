@@ -22,6 +22,10 @@ import {
 import { FormEventHandler, useMemo, useState } from 'react';
 
 import { DeadlineBadge } from '@/components/deadline-badge';
+import {
+    MentorshipProgressList,
+    type MentorshipProgressRow,
+} from '@/components/mentorship-progress';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import {
     type ThesisNote,
@@ -99,6 +103,7 @@ type DefenseSelection = {
 type TugasAkhirPageProps = {
     submission: Submission | null;
     thesisNotes: ThesisNote[];
+    mentorshipProgress: MentorshipProgressRow[];
     canCreateSubmission: boolean;
     workspaceDocuments: WorkspaceDocument[];
     semproSelection: DefenseSelection | null;
@@ -1463,6 +1468,7 @@ export default function TugasAkhirSaya() {
     const {
         submission,
         thesisNotes,
+        mentorshipProgress,
         canCreateSubmission,
         workspaceDocuments,
         semproSelection,
@@ -1879,6 +1885,19 @@ export default function TugasAkhirSaya() {
                                                 aktif.
                                             </div>
                                         )}
+                                        {mentorshipProgress.length > 0 ? (
+                                            <div className="grid gap-2 rounded-xl border p-3">
+                                                <p className="text-xs font-medium text-muted-foreground">
+                                                    Bimbingan selesai per
+                                                    pembimbing
+                                                </p>
+                                                <MentorshipProgressList
+                                                    progress={
+                                                        mentorshipProgress
+                                                    }
+                                                />
+                                            </div>
+                                        ) : null}
                                     </div>
 
                                     {/* Penguji Sempro */}

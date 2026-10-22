@@ -10,6 +10,7 @@ use App\Models\KaprodiAssignment;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
+use App\Services\MentorshipProgressService;
 use App\Services\SystemAuditLogService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
@@ -23,6 +24,7 @@ class ProjectWorkflowController extends Controller
     public function __construct(
         private readonly ThesisProjectAdminService $thesisProjectAdminService,
         private readonly SystemAuditLogService $systemAuditLogService,
+        private readonly MentorshipProgressService $mentorshipProgressService,
     ) {}
 
     public function assignSupervisors(AssignProjectSupervisorsRequest $request, ThesisProject $project): RedirectResponse
@@ -127,6 +129,7 @@ class ProjectWorkflowController extends Controller
             ->all();
         $scheduledFor = $this->scheduledForFromDefenseRequest($request);
         $scheduledUntil = $this->scheduledUntilFromDefenseRequest($request);
+        $mentorshipPayload = $this->mentorshipProgressService->auditPayload($project);
 
         try {
             $this->thesisProjectAdminService->scheduleSidang(
@@ -161,6 +164,7 @@ class ProjectWorkflowController extends Controller
                 'mode' => $request->validated('mode'),
                 'supervisor_user_ids' => $supervisorIds,
                 'additional_examiner_user_ids' => array_map(static fn($id): int => (int) $id, $request->validated('additional_examiner_user_ids')),
+                ...$mentorshipPayload,
             ],
         );
 

@@ -13,6 +13,10 @@ import {
 import { useMemo, useState } from 'react';
 
 import {
+    MentorshipProgressList,
+    type MentorshipProgressRow,
+} from '@/components/mentorship-progress';
+import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
@@ -68,6 +72,7 @@ type MahasiswaRow = {
     contextLabel: string;
     contextDescription: string;
     otherAdvisors: string[];
+    mentorshipProgress: MentorshipProgressRow[];
     stageLabel: string;
     stageDescription: string;
     status: string;
@@ -314,6 +319,10 @@ function StudentTable({
                                         <p className="mt-0.5 max-w-[220px] truncate text-xs text-muted-foreground">
                                             {row.stageDescription}
                                         </p>
+                                        <MentorshipProgressList
+                                            progress={row.mentorshipProgress}
+                                            className="mt-2 max-w-[260px] text-xs"
+                                        />
                                     </td>
 
                                     <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
