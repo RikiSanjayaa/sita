@@ -11,6 +11,7 @@ use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisDefenseRevisionService;
+use App\Services\ThesisProjectNoteService;
 use App\Support\AcademicTerminology;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class SeminarProposalController extends Controller
         private readonly DosenThesisWorkspaceService $dosenThesisWorkspaceService,
         private readonly ThesisDefenseExaminerDecisionService $decisionService,
         private readonly ThesisDefenseRevisionService $revisionService,
+        private readonly ThesisProjectNoteService $noteService,
     ) {}
 
     public function index(Request $request): Response
@@ -81,6 +83,7 @@ class SeminarProposalController extends Controller
 
             return [
                 'defenseId' => $defense?->id,
+                'projectId' => $project?->id,
                 'type' => $defense?->type,
                 'typeLabel' => $defense?->type === 'sidang'
                     ? $terminology['finalExam']
@@ -110,6 +113,10 @@ class SeminarProposalController extends Controller
 
         return Inertia::render('dosen/seminar-proposal', [
             'defenses' => $defenses,
+            'projectNotes' => $this->noteService->payload(
+                $lecturer,
+                $examinerRecords->pluck('defense.project')->filter()->unique('id'),
+            ),
             'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
             'errorMessage' => $request->session()->get('error'),
         ]);

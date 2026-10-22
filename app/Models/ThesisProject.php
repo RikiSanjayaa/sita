@@ -130,6 +130,11 @@ class ThesisProject extends Model
         return $this->hasMany(ThesisDocument::class, 'project_id');
     }
 
+    public function lecturerNotes(): HasMany
+    {
+        return $this->hasMany(ThesisProjectNote::class, 'project_id');
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(ThesisProjectEvent::class, 'project_id');

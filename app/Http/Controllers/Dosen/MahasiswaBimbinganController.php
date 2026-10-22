@@ -13,6 +13,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
+use App\Services\ThesisProjectNoteService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class MahasiswaBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly UserProfilePresenter $userProfilePresenter,
+        private readonly ThesisProjectNoteService $noteService,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -141,6 +143,13 @@ class MahasiswaBimbinganController extends Controller
             'activeCount' => $assignments->count(),
             'relatedCount' => count($rows),
             'capacityLimit' => $this->dosenBimbinganService->lecturerQuota($lecturer),
+            'projectNotes' => $this->noteService->payload(
+                $lecturer,
+                $assignments->pluck('project')
+                    ->merge($activeExaminerRecords->pluck('defense.project'))
+                    ->filter()
+                    ->unique('id'),
+            ),
         ]);
     }
 
@@ -170,6 +179,7 @@ class MahasiswaBimbinganController extends Controller
         return [
             'nim' => $profile?->nim ?? '-',
             'studentUserId' => $student?->id,
+            'projectId' => $project?->id,
             'name' => $student?->name ?? '-',
             'avatar' => $studentSummary['avatar'] ?? null,
             'profileUrl' => $studentSummary['profileUrl'] ?? null,
@@ -234,6 +244,7 @@ class MahasiswaBimbinganController extends Controller
         return [
             'nim' => $profile?->nim ?? '-',
             'studentUserId' => $student?->id,
+            'projectId' => $project?->id,
             'name' => $student?->name ?? '-',
             'avatar' => $studentSummary['avatar'] ?? null,
             'profileUrl' => $studentSummary['profileUrl'] ?? null,

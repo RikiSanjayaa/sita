@@ -8,6 +8,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
+use App\Models\ThesisProjectNote;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
@@ -151,6 +152,16 @@ class ThesisProjectInfolist
                                         self::timelineEntry(),
                                     ])
                                     ->visible(fn(ThesisProject $record): bool => $record->events->isNotEmpty()),
+                            ]),
+                        Tab::make('Catatan')
+                            ->icon('heroicon-m-chat-bubble-left-ellipsis')
+                            ->schema([
+                                Section::make('Catatan Dosen')
+                                    ->description('Catatan pembimbing dan penguji. Hanya dapat dibaca di sini.')
+                                    ->schema([
+                                        self::projectNotesEntry(),
+                                    ])
+                                    ->visible(fn(ThesisProject $record): bool => $record->lecturerNotes->isNotEmpty()),
                             ]),
                     ]),
             ]);
@@ -402,6 +413,37 @@ class ThesisProjectInfolist
                 TextEntry::make('description'),
                 TextEntry::make('actor'),
                 TextEntry::make('occurred_at'),
+            ])
+            ->contained(false);
+    }
+
+    private static function projectNotesEntry(): RepeatableEntry
+    {
+        return RepeatableEntry::make('project_notes')
+            ->label('')
+            ->state(fn(ThesisProject $record): array => $record->lecturerNotes
+                ->sortByDesc('created_at')
+                ->map(fn(ThesisProjectNote $note): array => [
+                    'author' => $note->author?->name ?? '-',
+                    'visibility' => $note->visibility->label(),
+                    'body' => $note->body,
+                    'created_at' => WitaDateTime::format($note->created_at),
+                ])
+                ->values()
+                ->all())
+            ->table([
+                TableColumn::make('Penulis'),
+                TableColumn::make('Visibilitas'),
+                TableColumn::make('Catatan'),
+                TableColumn::make('Waktu'),
+            ])
+            ->schema([
+                TextEntry::make('author'),
+                TextEntry::make('visibility')
+                    ->badge()
+                    ->color(fn(string $state): string => $state === 'Internal dosen' ? 'warning' : 'success'),
+                TextEntry::make('body'),
+                TextEntry::make('created_at'),
             ])
             ->contained(false);
     }

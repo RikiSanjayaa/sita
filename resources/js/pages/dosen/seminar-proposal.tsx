@@ -22,6 +22,10 @@ import {
 } from '@/components/bimbingan-calendar';
 import { DeadlineBadge } from '@/components/deadline-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import {
+    type ProjectNotes,
+    ThesisNotesPanel,
+} from '@/components/thesis-notes-panel';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +85,7 @@ type Revision = {
 
 type DefenseItem = {
     defenseId: number;
+    projectId: number | null;
     type: 'sempro' | 'sidang';
     typeLabel: string;
     scoreRequired: boolean;
@@ -106,6 +111,7 @@ type DefenseItem = {
 
 type PageProps = {
     defenses: DefenseItem[];
+    projectNotes: Record<string, ProjectNotes>;
     workspaceEvents: BimbinganEvent[];
     flashMessage?: string | null;
     errorMessage?: string | null;
@@ -384,6 +390,7 @@ function DefenseDetailSheet({
     open: boolean;
     onOpenChange: (v: boolean) => void;
 }) {
+    const { projectNotes } = usePage<SharedData & PageProps>().props;
     const [showDecisionForm, setShowDecisionForm] = useState(false);
     const [resolvingRevisionId, setResolvingRevisionId] = useState<
         number | null
@@ -652,6 +659,21 @@ function DefenseDetailSheet({
                                 </div>
                             </div>
                         )}
+
+                        {/* ── Catatan ── */}
+                        <div>
+                            <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Catatan
+                            </p>
+                            <ThesisNotesPanel
+                                projectId={item.projectId}
+                                data={
+                                    item.projectId === null
+                                        ? undefined
+                                        : projectNotes[item.projectId]
+                                }
+                            />
+                        </div>
 
                         {/* ── Form Keputusan ── */}
                         {canDecide && (

@@ -5,6 +5,7 @@ import {
     ChevronRight,
     CircleHelp,
     FileText,
+    NotebookPen,
     Search,
     UserCog,
     UserRound,
@@ -13,6 +14,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import {
+    type ProjectNotes,
+    ThesisNotesPanel,
+} from '@/components/thesis-notes-panel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +34,13 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
@@ -135,6 +147,7 @@ type MahasiswaProps = {
     };
     students: StudentRow[];
     archives: ArchiveRow[];
+    projectNotes: Record<string, ProjectNotes>;
 };
 
 type ActivePhaseFilter =
@@ -222,8 +235,11 @@ function StudentTable({
     canManageSupervisors: boolean;
     emptyText: string;
 }) {
-    const { academicTerminology: terms } = usePage<SharedData>().props;
+    const { academicTerminology: terms, projectNotes } = usePage<
+        SharedData & MahasiswaProps
+    >().props;
     const getInitials = useInitials();
+    const [notesRow, setNotesRow] = useState<DirectoryRow | null>(null);
     const [search, setSearch] = useUrlState('activeSearch', '');
     const [phaseFilter, setPhaseFilter] = useUrlState<ActivePhaseFilter>(
         'activePhase',
@@ -614,6 +630,15 @@ function StudentTable({
                                             >
                                                 <CalendarClock className="size-4" />
                                             </Link>
+                                            <button
+                                                type="button"
+                                                title="Lihat catatan dosen"
+                                                aria-label={`Catatan dosen ${row.name}`}
+                                                onClick={() => setNotesRow(row)}
+                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <NotebookPen className="size-4" />
+                                            </button>
                                             {canManageSupervisors &&
                                             row.canManageSupervisors &&
                                             row.projectId !== null &&
@@ -648,6 +673,30 @@ function StudentTable({
             ) : (
                 <EmptyBlock icon={AlertCircle} text={emptyText} />
             )}
+            <Sheet
+                open={notesRow !== null}
+                onOpenChange={(open) => {
+                    if (!open) setNotesRow(null);
+                }}
+            >
+                <SheetContent
+                    side="right"
+                    className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl"
+                >
+                    <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+                        <SheetTitle>Catatan Dosen</SheetTitle>
+                        <SheetDescription>
+                            {notesRow?.name} ({notesRow?.nim})
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="p-6">
+                        <ThesisNotesPanel
+                            projectId={notesProjectId(notesRow)}
+                            data={notesFor(projectNotes, notesRow)}
+                        />
+                    </div>
+                </SheetContent>
+            </Sheet>
             <SupervisorDialog
                 student={supervisorDialog}
                 open={supervisorDialog !== null}
@@ -657,6 +706,23 @@ function StudentTable({
             />
         </div>
     );
+}
+
+function notesProjectId(row: DirectoryRow | null): number | null {
+    if (row === null) {
+        return null;
+    }
+
+    return row.projectId ?? (row.kind === 'archive' ? row.id : null);
+}
+
+function notesFor(
+    projectNotes: Record<string, ProjectNotes>,
+    row: DirectoryRow | null,
+): ProjectNotes | undefined {
+    const projectId = notesProjectId(row);
+
+    return projectId === null ? undefined : projectNotes[projectId];
 }
 
 function SupervisorDialog({
