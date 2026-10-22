@@ -16,10 +16,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-    BimbinganCalendar,
-    type BimbinganEvent,
-} from '@/components/bimbingan-calendar';
+import { type BimbinganEvent } from '@/components/bimbingan-calendar';
+import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { DateRangePicker } from '@/components/date-range-picker';
 import {
     LecturerMultiSearch,
@@ -30,6 +28,7 @@ import { FilterBar } from '@/components/patterns/filter-bar';
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { SectionCard } from '@/components/patterns/section-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -368,15 +367,13 @@ export default function KaprodiSemproSidangPage() {
             <Head title={`${terms.proposalExamShort} & ${terms.finalExam}`} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
-                <SectionCard
+                <CollapsibleCalendarSection
+                    storageKey="kaprodi-sempro-sidang"
                     title="Kalender Ujian Prodi"
                     description={`Kalender ${terms.proposalExamShort} dan ${terms.finalExam} dari seluruh mahasiswa prodi.`}
-                >
-                    <BimbinganCalendar
-                        events={calendarEvents}
-                        onEventClick={setSelectedEvent}
-                    />
-                </SectionCard>
+                    events={calendarEvents}
+                    onEventClick={setSelectedEvent}
+                />
 
                 <SectionCard
                     title="Monitoring Ujian"
@@ -419,38 +416,40 @@ export default function KaprodiSemproSidangPage() {
                     }
                     contentClassName="space-y-3"
                 >
-                    <FilterBar>
-                        <div className="relative w-full max-w-xs">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                placeholder="Cari nama, NIM, judul, atau dosen..."
-                                className="h-8 pl-8 text-sm"
-                            />
-                        </div>
+                    <StickyFilterBar>
+                        <FilterBar>
+                            <div className="relative w-full max-w-xs">
+                                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Cari nama, NIM, judul, atau dosen..."
+                                    className="h-8 pl-8 text-sm"
+                                />
+                            </div>
 
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                            <FilterPills
-                                label="Filter tipe ujian"
-                                value={typeFilter}
-                                onValueChange={setTypeFilter}
-                                options={typeTabs}
-                            />
-                            <span
-                                aria-hidden="true"
-                                className="hidden h-5 w-px bg-border sm:block"
-                            />
-                            <FilterPills
-                                label="Filter status ujian"
-                                value={statusFilter}
-                                onValueChange={setStatusFilter}
-                                options={statusTabs}
-                            />
-                        </div>
-                    </FilterBar>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <FilterPills
+                                    label="Filter tipe ujian"
+                                    value={typeFilter}
+                                    onValueChange={setTypeFilter}
+                                    options={typeTabs}
+                                />
+                                <span
+                                    aria-hidden="true"
+                                    className="hidden h-5 w-px bg-border sm:block"
+                                />
+                                <FilterPills
+                                    label="Filter status ujian"
+                                    value={statusFilter}
+                                    onValueChange={setStatusFilter}
+                                    options={statusTabs}
+                                />
+                            </div>
+                        </FilterBar>
+                    </StickyFilterBar>
 
                     {filtered.length === 0 ? (
                         <EmptyState

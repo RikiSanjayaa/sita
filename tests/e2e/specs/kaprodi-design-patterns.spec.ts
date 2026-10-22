@@ -235,4 +235,58 @@ test.describe('Kaprodi sempro-sidang design patterns', () => {
             await context.close();
         }
     });
+
+    test('the exam calendar starts collapsed, remembers its state after reload and the filter bar stays sticky', async ({
+        browser,
+    }) => {
+        const context = await browser.newContext();
+        const page = await context.newPage();
+
+        try {
+            await loginAsFixtureKaprodi(page);
+            await page.goto('/kaprodi/sempro-sidang');
+
+            const calendar = page.getByRole('region', {
+                name: 'Kalender Ujian Prodi',
+            });
+            const toggle = calendar.getByRole('button', {
+                name: 'Buka kalender',
+            });
+
+            await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+            await expect(
+                calendar.getByTestId('calendar-summary'),
+            ).toContainText(/\d+ jadwal minggu ini, \d+ hari ini/);
+            await expect(calendar.locator('.fc')).toHaveCount(0);
+            await expect(
+                page.getByRole('heading', { name: 'Monitoring Ujian' }),
+            ).toBeInViewport();
+
+            await toggle.click();
+            await expect(calendar.locator('.fc')).toBeVisible();
+            await expect(calendar.getByTestId('calendar-summary')).toHaveCount(
+                0,
+            );
+
+            await page.reload();
+            await expect(
+                calendar.getByRole('button', { name: 'Ciutkan kalender' }),
+            ).toHaveAttribute('aria-expanded', 'true');
+            await expect(calendar.locator('.fc')).toBeVisible();
+
+            await calendar
+                .getByRole('button', { name: 'Ciutkan kalender' })
+                .click();
+            await page.reload();
+            await expect(
+                calendar.getByRole('button', { name: 'Buka kalender' }),
+            ).toHaveAttribute('aria-expanded', 'false');
+
+            const stickyBar = page.locator('[data-slot="sticky-filter-bar"]');
+            await expect(stickyBar).toHaveCSS('position', 'sticky');
+            await expect(stickyBar).toHaveCSS('top', '64px');
+        } finally {
+            await context.close();
+        }
+    });
 });

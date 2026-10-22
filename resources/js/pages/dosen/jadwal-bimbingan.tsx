@@ -11,11 +11,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-    BimbinganCalendar,
-    type BimbinganEvent,
-} from '@/components/bimbingan-calendar';
+import { type BimbinganEvent } from '@/components/bimbingan-calendar';
+import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { EmptyState } from '@/components/patterns/empty-state';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -592,18 +591,16 @@ export default function DosenJadwalBimbinganPage() {
                 )}
 
                 {/* ---------------- WORKSPACE CALENDAR ---------------- */}
-                <section>
-                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Workspace Jadwal
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Satu kalender untuk bimbingan,{' '}
-                                {n.proposalExamShort}, dan {n.finalExam}
-                            </p>
-                        </div>
-                        {/* filter pills */}
+                <CollapsibleCalendarSection
+                    storageKey="dosen-jadwal-bimbingan"
+                    title="Workspace Jadwal"
+                    description={
+                        <>
+                            Satu kalender untuk bimbingan, {n.proposalExamShort}
+                            , dan {n.finalExam}
+                        </>
+                    }
+                    toolbar={
                         <div className="flex flex-wrap gap-1.5">
                             {workspaceFilterTabs.map((tab) => (
                                 <button
@@ -623,14 +620,12 @@ export default function DosenJadwalBimbinganPage() {
                                 </button>
                             ))}
                         </div>
-                    </div>
-                    <BimbinganCalendar
-                        events={filteredWorkspaceEvents}
-                        onEventClick={handleEventClick}
-                        defaultView="calendar"
-                        showLegend={false}
-                    />
-                </section>
+                    }
+                    events={filteredWorkspaceEvents}
+                    onEventClick={handleEventClick}
+                    defaultView="calendar"
+                    showLegend={false}
+                />
 
                 {/* ---------------- TWO-COLUMN: PENDING + UPCOMING ---------------- */}
                 <div className="grid gap-8 lg:grid-cols-2">
@@ -1417,13 +1412,14 @@ export default function DosenJadwalBimbinganPage() {
                     </div>
 
                     {/* Toolbar: search (left) + filter pills (right) */}
-                    <DataTableToolbar
-                        search={historySearch}
-                        onSearchChange={setHistorySearch}
-                        searchPlaceholder="Cari mahasiswa, topik, atau lokasi..."
-                        filterGroups={historyFilterGroups}
-                        className="mb-3"
-                    />
+                    <StickyFilterBar className="mb-3">
+                        <DataTableToolbar
+                            search={historySearch}
+                            onSearchChange={setHistorySearch}
+                            searchPlaceholder="Cari mahasiswa, topik, atau lokasi..."
+                            filterGroups={historyFilterGroups}
+                        />
+                    </StickyFilterBar>
 
                     {historyPagination.totalItems > 0 ? (
                         <>
