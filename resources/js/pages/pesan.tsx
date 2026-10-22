@@ -1,102 +1,40 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    ChevronDown,
-    ChevronUp,
-    Inbox,
-    Paperclip,
-    Search,
-    Send,
-    UserPlus,
-    Users,
-} from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { useCallback, useState } from 'react';
 
-import { ChatBubble } from '@/components/chat-bubble';
+import { ChatPanel } from '@/components/chat/chat-panel';
+import { Composer } from '@/components/chat/composer';
+import { MessageList } from '@/components/chat/message-list';
+import { ThreadList } from '@/components/chat/thread-list';
+import {
+    type ChatThread,
+    type MobileView,
+    type ThreadMode,
+} from '@/components/chat/types';
+import { useChatThread } from '@/components/chat/use-chat-thread';
+import { useMessageSearch } from '@/components/chat/use-message-search';
+import { usePrivateThread } from '@/components/chat/use-private-thread';
+import {
+    buildThreadStateKey,
+    privateTargetProfile,
+    resolveInitialMobileView,
+    syncThreadSearchParam,
+} from '@/components/chat/utils';
 import { MentorshipChatFrame } from '@/components/mentorship-chat-layout';
-import {
-    PrivateRecipientCombobox,
-    type PrivateRecipientOption,
-} from '@/components/private-recipient-combobox';
+import { type PrivateRecipientOption } from '@/components/private-recipient-combobox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { useInitials } from '@/hooks/use-initials';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import { dashboard, pesan } from '@/routes';
-import {
-    type BreadcrumbItem,
-    type SharedData,
-    type UserProfileSummary,
-} from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
     { title: 'Pesan', href: pesan().url },
 ];
 
-const panelCardClass = 'overflow-hidden border-border/70 !gap-0 !p-0 shadow-sm';
-const panelHeaderClass = 'shrink-0 border-b bg-muted/20 px-6 py-4';
-
-type ChatMessage = {
-    id: number;
-    senderUserId: number | null;
-    author: string;
-    authorAvatar: string | null;
-    authorProfileUrl: string | null;
-    message: string;
-    time: string;
-    type: string;
-    documentName: string | null;
-    documentUrl: string | null;
-};
-
-type ThreadItem = {
-    id: number;
+type ThreadItem = ChatThread & {
     name: string;
-    threadType: string;
-    threadLabel: string;
-    members: string[];
-    memberProfiles: UserProfileSummary[];
-    messages: ChatMessage[];
-    preview: string;
-    lastTime: string;
-    latestActivityAt: string | null;
 };
-
-type ThreadMode = 'group' | 'private';
-
-function messageMatches(message: ChatMessage, query: string) {
-    if (!query) {
-        return false;
-    }
-
-    return [message.author, message.message, message.documentName, message.type]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
-}
 
 type PesanPageProps = {
     hasDosbing: boolean;
@@ -110,90 +48,22 @@ type PesanPageContentProps = Pick<SharedData, 'auth'> & {
     privateRecipients: PrivateRecipientOption[];
 };
 
-function buildThreadStateKey(threads: ThreadItem[]): string {
-    return threads.map((thread) => String(thread.id)).join('|');
+function threadBadgeClassName(thread: ThreadItem): string {
+    return thread.threadType === 'pembimbing'
+        ? 'bg-primary/10 text-primary hover:bg-primary/20'
+        : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20';
 }
 
-function sortThreads(threads: ThreadItem[]): ThreadItem[] {
-    return [...threads].sort((a, b) => {
-        if (a.latestActivityAt === b.latestActivityAt) {
-            return b.id - a.id;
-        }
+function initialThreadMode(threads: ThreadItem[]): ThreadMode {
+    const queryThread =
+        typeof window === 'undefined'
+            ? null
+            : Number(new URLSearchParams(window.location.search).get('thread'));
 
-        if (a.latestActivityAt === null) {
-            return 1;
-        }
-
-        if (b.latestActivityAt === null) {
-            return -1;
-        }
-
-        return b.latestActivityAt.localeCompare(a.latestActivityAt);
-    });
-}
-
-function syncThreadSearchParam(threadId: number | null): void {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    const nextUrl = new URL(window.location.href);
-
-    if (threadId === null) {
-        nextUrl.searchParams.delete('thread');
-    } else {
-        nextUrl.searchParams.set('thread', String(threadId));
-    }
-
-    window.history.replaceState(
-        window.history.state,
-        '',
-        `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`,
-    );
-}
-
-function resolveInitialThreadId(threads: ThreadItem[]): number | null {
-    if (typeof window !== 'undefined') {
-        const queryThread = Number(
-            new URLSearchParams(window.location.search).get('thread'),
-        );
-        if (
-            Number.isInteger(queryThread) &&
-            threads.some((t) => t.id === queryThread)
-        ) {
-            return queryThread;
-        }
-    }
-    return threads[0]?.id ?? null;
-}
-
-function resolveInitialMobileView(threads: ThreadItem[]): 'threads' | 'chat' {
-    if (typeof window === 'undefined') {
-        return 'threads';
-    }
-
-    const queryThread = Number(
-        new URLSearchParams(window.location.search).get('thread'),
-    );
-
-    return Number.isInteger(queryThread) &&
-        threads.some((thread) => thread.id === queryThread)
-        ? 'chat'
-        : 'threads';
-}
-
-function privateTargetProfile(
-    thread: ThreadItem | null,
-    currentUserId?: number | null,
-): UserProfileSummary | null {
-    if (thread?.threadType !== 'private') {
-        return null;
-    }
-
-    return (
-        thread.memberProfiles.find((member) => member.id !== currentUserId) ??
-        null
-    );
+    return threads.find((thread) => thread.id === queryThread)?.threadType ===
+        'private'
+        ? 'private'
+        : 'group';
 }
 
 export default function PesanPage() {
@@ -221,55 +91,21 @@ function PesanPageContent({
     privateRecipients,
     auth,
 }: PesanPageContentProps) {
-    const getInitials = useInitials();
     const isMobile = useIsMobile();
 
-    const [mobileView, setMobileView] = useState<'threads' | 'chat'>(() =>
+    const [mobileView, setMobileView] = useState<MobileView>(() =>
         resolveInitialMobileView(initialThreads),
     );
-    const [threadMode, setThreadMode] = useState<ThreadMode>(() => {
-        const queryThread =
-            typeof window === 'undefined'
-                ? null
-                : Number(
-                      new URLSearchParams(window.location.search).get('thread'),
-                  );
-        const initialThread = initialThreads.find(
-            (thread) => thread.id === queryThread,
-        );
-
-        return initialThread?.threadType === 'private' ? 'private' : 'group';
-    });
-    const [activeThreadId, setActiveThreadId] = useState<number | null>(
-        resolveInitialThreadId(initialThreads),
+    const [threadMode, setThreadMode] = useState<ThreadMode>(() =>
+        initialThreadMode(initialThreads),
     );
     const [threadListSearch, setThreadListSearch] = useState('');
-    const [threadSearch, setThreadSearch] = useState('');
-    const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
-    const [isPrivatePickerOpen, setIsPrivatePickerOpen] = useState(false);
-    const [activeMatchIndex, setActiveMatchIndex] = useState(0);
-    const [threadItems, setThreadItems] = useState<ThreadItem[]>(() =>
-        sortThreads(initialThreads),
-    );
-    const [messagesByThread, setMessagesByThread] = useState<
-        Record<number, ChatMessage[]>
-    >({});
-    const [attachmentName, setAttachmentName] = useState<string | null>(null);
-    const fileRef = useRef<HTMLInputElement | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
-    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-    const form = useForm<{ message: string; attachment: File | null }>({
-        message: '',
-        attachment: null,
-    });
-    const privateThreadForm = useForm<{ recipient_id: string }>({
-        recipient_id: '',
-    });
+    const privateThread = usePrivateThread('/mahasiswa/pesan/private');
 
-    const visibleThreadItems = useMemo(
-        () =>
-            threadItems
+    const selectVisible = useCallback(
+        (threads: ThreadItem[]) =>
+            threads
                 .filter((thread) =>
                     threadMode === 'private'
                         ? thread.threadType === 'private'
@@ -280,316 +116,43 @@ function PesanPageContent({
                         .toLowerCase()
                         .includes(threadListSearch.trim().toLowerCase()),
                 ),
-        [threadItems, threadListSearch, threadMode],
+        [threadListSearch, threadMode],
     );
 
-    const resolvedActiveThreadId = useMemo(() => {
-        if (activeThreadId !== null) {
-            const matchingThread = visibleThreadItems.find(
-                (thread) => thread.id === activeThreadId,
-            );
+    const chat = useChatThread<ThreadItem>({
+        initialThreads,
+        userId: auth.user?.id,
+        selectVisible,
+        sendUrl: (threadId) => `/mahasiswa/pesan/${threadId}/messages`,
+        onSent: () => setMobileView('chat'),
+    });
+    const messageSearch = useMessageSearch(chat.activeMessages);
 
-            if (matchingThread) {
-                return matchingThread.id;
-            }
-        }
-
-        return visibleThreadItems[0]?.id ?? null;
-    }, [activeThreadId, visibleThreadItems]);
-
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.Echo) {
-            return;
-        }
-
-        const channels = initialThreads.map((thread) => {
-            const channelName = `mentorship.thread.${thread.id}`;
-
-            return window.Echo.private(channelName).listen(
-                '.chat.message.created',
-                (event: { threadId: number; message: ChatMessage }) => {
-                    setMessagesByThread((current) => {
-                        const currentThread = initialThreads.find(
-                            (thread) => thread.id === event.threadId,
-                        );
-                        const serverMessages = currentThread?.messages ?? [];
-                        const currentMessages = current[event.threadId] ?? [];
-                        const knownMessageIds = new Set([
-                            ...serverMessages.map((message) => message.id),
-                            ...currentMessages.map((message) => message.id),
-                        ]);
-
-                        if (knownMessageIds.has(event.message.id)) {
-                            return current;
-                        }
-
-                        return {
-                            ...current,
-                            [event.threadId]: [
-                                ...currentMessages,
-                                event.message,
-                            ],
-                        };
-                    });
-
-                    setThreadItems((current) => {
-                        const targetThread = current.find(
-                            (thread) => thread.id === event.threadId,
-                        );
-
-                        if (!targetThread) {
-                            return current;
-                        }
-
-                        const updatedThread: ThreadItem = {
-                            ...targetThread,
-                            preview:
-                                event.message.message ||
-                                event.message.documentName ||
-                                targetThread.preview,
-                            lastTime: 'baru saja',
-                            latestActivityAt: new Date().toISOString(),
-                        };
-
-                        return sortThreads([
-                            updatedThread,
-                            ...current.filter(
-                                (thread) => thread.id !== event.threadId,
-                            ),
-                        ]);
-                    });
-                },
-            );
-        });
-
-        return () => {
-            for (const [index, thread] of initialThreads.entries()) {
-                channels[index]?.stopListening('.chat.message.created');
-                window.Echo.leave(`mentorship.thread.${thread.id}`);
-            }
-        };
-    }, [auth.user?.id, initialThreads, resolvedActiveThreadId]);
-
-    const activeThread = useMemo(
-        () =>
-            threadItems.find(
-                (thread) => thread.id === resolvedActiveThreadId,
-            ) ?? null,
-        [resolvedActiveThreadId, threadItems],
-    );
+    const { activeThread } = chat;
     const activePrivateTarget = privateTargetProfile(
         activeThread,
         auth.user?.id,
     );
 
-    function mergedMessages(thread: ThreadItem): ChatMessage[] {
-        const localMessages = messagesByThread[thread.id] ?? [];
-
-        if (localMessages.length === 0) {
-            return thread.messages;
-        }
-
-        const serverMessageIds = new Set(
-            thread.messages.map((message) => message.id),
-        );
-
-        return [
-            ...thread.messages,
-            ...localMessages.filter(
-                (message) => !serverMessageIds.has(message.id),
-            ),
-        ];
-    }
-
-    const activeMessages = useMemo(() => {
-        if (activeThread === null) {
-            return [];
-        }
-
-        const localMessages = messagesByThread[activeThread.id] ?? [];
-
-        if (localMessages.length === 0) {
-            return activeThread.messages;
-        }
-
-        const serverMessageIds = new Set(
-            activeThread.messages.map((message) => message.id),
-        );
-
-        return [
-            ...activeThread.messages,
-            ...localMessages.filter(
-                (message) => !serverMessageIds.has(message.id),
-            ),
-        ];
-    }, [activeThread, messagesByThread]);
-    const activeMessageCount = activeMessages.length;
-
-    const normalizedThreadSearch = threadSearch.trim().toLowerCase();
-
-    const matchingMessageIds = useMemo(
-        () =>
-            normalizedThreadSearch
-                ? activeMessages
-                      .filter((message) =>
-                          messageMatches(message, normalizedThreadSearch),
-                      )
-                      .map((message) => String(message.id))
-                : [],
-        [activeMessages, normalizedThreadSearch],
-    );
-
-    const matchingMessageIdSet = useMemo(
-        () => new Set(matchingMessageIds),
-        [matchingMessageIds],
-    );
-
-    const resolvedActiveMatchIndex =
-        matchingMessageIds.length > 0
-            ? Math.min(activeMatchIndex, matchingMessageIds.length - 1)
-            : 0;
-
-    const activeMatchMessageId =
-        matchingMessageIds.length > 0
-            ? matchingMessageIds[resolvedActiveMatchIndex]
-            : null;
-
-    useEffect(() => {
-        if (activeMessageCount < 1 || resolvedActiveThreadId === null) {
-            return;
-        }
-
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [activeMessageCount, resolvedActiveThreadId]);
-
-    useEffect(() => {
-        if (!activeMatchMessageId) {
-            return;
-        }
-
-        messageRefs.current[activeMatchMessageId]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-        });
-    }, [activeMatchMessageId]);
-
-    const canSend = useMemo(
-        () =>
-            !form.processing &&
-            activeThread !== null &&
-            (form.data.message.trim() !== '' || form.data.attachment !== null),
-        [
-            activeThread,
-            form.data.attachment,
-            form.data.message,
-            form.processing,
-        ],
-    );
-
     function selectThread(threadId: number) {
-        setActiveThreadId(threadId);
-        setThreadSearch('');
-        setIsThreadSearchOpen(false);
-        setActiveMatchIndex(0);
+        chat.setActiveThreadId(threadId);
+        messageSearch.reset();
         syncThreadSearchParam(threadId);
         setMobileView('chat');
     }
 
     function changeThreadMode(nextMode: ThreadMode) {
-        const nextThread = threadItems.find((thread) =>
+        const nextThread = chat.threadItems.find((thread) =>
             nextMode === 'private'
                 ? thread.threadType === 'private'
                 : thread.threadType !== 'private',
         );
 
         setThreadMode(nextMode);
-        setIsPrivatePickerOpen(false);
-        setActiveThreadId(nextThread?.id ?? null);
+        privateThread.close();
+        chat.setActiveThreadId(nextThread?.id ?? null);
         syncThreadSearchParam(nextThread?.id ?? null);
         setMobileView('threads');
-    }
-
-    function startPrivateThread() {
-        if (privateThreadForm.data.recipient_id === '') {
-            return;
-        }
-
-        privateThreadForm.post('/mahasiswa/pesan/private', {
-            preserveScroll: true,
-        });
-    }
-
-    function handleThreadSearchChange(value: string) {
-        setThreadSearch(value);
-        setActiveMatchIndex(0);
-    }
-
-    function pickAttachment(event: ChangeEvent<HTMLInputElement>) {
-        const nextFile = event.target.files?.[0] ?? null;
-        form.setData('attachment', nextFile);
-        setAttachmentName(nextFile?.name ?? null);
-    }
-
-    function sendMessage() {
-        if (!canSend || activeThread === null) return;
-
-        syncThreadSearchParam(activeThread.id);
-        const trimmedMessage = form.data.message.trim();
-        const currentAttachmentName = attachmentName;
-
-        form.transform((data) => ({
-            ...data,
-            message: trimmedMessage,
-        }));
-
-        form.post(`/mahasiswa/pesan/${activeThread.id}/messages`, {
-            preserveScroll: true,
-            forceFormData: true,
-            onSuccess: () => {
-                setThreadItems((current) =>
-                    sortThreads(
-                        current.map((thread) =>
-                            thread.id === activeThread.id
-                                ? {
-                                      ...thread,
-                                      preview:
-                                          trimmedMessage ||
-                                          currentAttachmentName ||
-                                          thread.preview,
-                                      lastTime: 'baru saja',
-                                      latestActivityAt:
-                                          new Date().toISOString(),
-                                  }
-                                : thread,
-                        ),
-                    ),
-                );
-                form.reset('message', 'attachment');
-                setAttachmentName(null);
-                if (fileRef.current) fileRef.current.value = '';
-                setMobileView('chat');
-            },
-        });
-    }
-
-    function stepMatch(direction: 1 | -1) {
-        if (matchingMessageIds.length === 0) {
-            return;
-        }
-
-        setActiveMatchIndex((current) => {
-            const next = current + direction;
-
-            if (next < 0) {
-                return matchingMessageIds.length - 1;
-            }
-
-            if (next >= matchingMessageIds.length) {
-                return 0;
-            }
-
-            return next;
-        });
     }
 
     return (
@@ -597,592 +160,75 @@ function PesanPageContent({
             <Head title="Pesan" />
 
             <MentorshipChatFrame isMobile={isMobile}>
-                {/* Thread List */}
-                <Card
-                    className={cn(
-                        'flex min-h-0 min-w-0 flex-col lg:h-full lg:w-[340px] lg:shrink-0',
-                        isMobile
-                            ? 'rounded-none border-0 shadow-none'
-                            : panelCardClass,
-                        mobileView === 'chat' && 'hidden lg:flex',
-                        mobileView === 'threads' && 'flex-1 lg:flex-initial',
-                    )}
-                >
-                    <CardHeader
-                        className={cn(
-                            panelHeaderClass,
-                            isMobile && 'px-4 py-4',
-                        )}
-                    >
-                        <CardTitle>Pesan</CardTitle>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                            {[
-                                ['group', 'Grup'],
-                                ['private', 'Pribadi'],
-                            ].map(([value, label]) => (
-                                <Button
-                                    key={value}
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        threadMode === value
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        changeThreadMode(value as ThreadMode)
-                                    }
-                                >
-                                    {label}
-                                </Button>
-                            ))}
-                        </div>
+                <ThreadList
+                    activeThreadId={activeThread?.id ?? null}
+                    badgeClassName={threadBadgeClassName}
+                    emptyState={{
+                        title: 'Belum ada percakapan',
+                        description:
+                            threadMode === 'private'
+                                ? 'Mulai dari tombol tambah kontak.'
+                                : 'Grup akan tampil setelah dosen pembimbing atau penguji ditetapkan.',
+                    }}
+                    isMobile={isMobile}
+                    messagesFor={chat.messagesFor}
+                    mobileView={mobileView}
+                    mode={threadMode}
+                    onModeChange={changeThreadMode}
+                    onSearchChange={setThreadListSearch}
+                    onSelect={selectThread}
+                    privateRecipients={privateRecipients}
+                    privateThread={privateThread}
+                    search={threadListSearch}
+                    threadTitle={(thread) => thread.name}
+                    threads={chat.visibleThreads}
+                    title="Pesan"
+                    tone="raised"
+                />
 
-                        <div className="mt-3 flex items-center gap-2">
-                            <div className="relative min-w-0 flex-1">
-                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={threadListSearch}
-                                    onChange={(event) =>
-                                        setThreadListSearch(event.target.value)
-                                    }
-                                    className="pl-9"
-                                    placeholder={
-                                        threadMode === 'private'
-                                            ? 'Cari chat pribadi...'
-                                            : 'Cari grup...'
-                                    }
-                                />
-                            </div>
-                            {threadMode === 'private' ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-9 shrink-0"
-                                    onClick={() =>
-                                        setIsPrivatePickerOpen(
-                                            (current) => !current,
-                                        )
-                                    }
-                                >
-                                    <UserPlus className="size-4" />
-                                </Button>
-                            ) : null}
-                        </div>
-
-                        {threadMode === 'private' ? (
-                            <div
-                                className={cn(
-                                    'mt-3',
-                                    !isPrivatePickerOpen && 'hidden',
-                                )}
-                            >
-                                <PrivateRecipientCombobox
-                                    recipients={privateRecipients}
-                                    value={privateThreadForm.data.recipient_id}
-                                    onValueChange={(value) =>
-                                        privateThreadForm.setData(
-                                            'recipient_id',
-                                            value,
-                                        )
-                                    }
-                                    onSubmit={startPrivateThread}
-                                    disabled={privateThreadForm.processing}
-                                />
-                            </div>
-                        ) : null}
-                    </CardHeader>
-                    <CardContent className="relative flex-1 overflow-hidden p-0">
-                        <ScrollArea className="h-full w-full">
-                            <div className="flex flex-col">
-                                {visibleThreadItems.length > 0 ? (
-                                    visibleThreadItems.map((thread) => {
-                                        const threadMessages =
-                                            mergedMessages(thread);
-                                        const latestMessage =
-                                            threadMessages.at(-1);
-
-                                        return (
-                                            <button
-                                                key={thread.id}
-                                                type="button"
-                                                className={cn(
-                                                    'flex w-full shrink-0 flex-col border-b border-l-[3px] border-l-transparent p-4 text-left transition-all last:border-b-0 hover:bg-muted/50',
-                                                    activeThread?.id ===
-                                                        thread.id &&
-                                                        'border-l-primary',
-                                                )}
-                                                onClick={() =>
-                                                    selectThread(thread.id)
-                                                }
-                                            >
-                                                <div className="flex w-full items-start justify-between gap-3">
-                                                    <div className="flex min-w-0 flex-col gap-1.5">
-                                                        <p
-                                                            className={cn(
-                                                                'truncate font-semibold',
-                                                                activeThread?.id ===
-                                                                    thread.id
-                                                                    ? 'text-[15px] text-primary'
-                                                                    : 'text-sm text-foreground',
-                                                            )}
-                                                        >
-                                                            {thread.name}
-                                                        </p>
-                                                        <p
-                                                            className={cn(
-                                                                'line-clamp-2 text-[13px]',
-                                                                activeThread?.id ===
-                                                                    thread.id
-                                                                    ? 'font-medium text-primary/90'
-                                                                    : 'text-muted-foreground',
-                                                            )}
-                                                        >
-                                                            {latestMessage?.message ||
-                                                                latestMessage?.documentName ||
-                                                                thread.preview}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex shrink-0 flex-col items-end gap-2">
-                                                        <Badge
-                                                            variant="soft"
-                                                            className={cn(
-                                                                'px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase',
-                                                                thread.threadType ===
-                                                                    'pembimbing'
-                                                                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                                    : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
-                                                            )}
-                                                        >
-                                                            {thread.threadLabel}
-                                                        </Badge>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[11px] font-medium text-muted-foreground">
-                                                                {
-                                                                    thread.lastTime
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="rounded-xl border border-dashed bg-muted/50 p-6 text-center shadow-sm">
-                                        <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm">
-                                            <Inbox className="size-5" />
-                                        </span>
-                                        <p className="text-sm font-semibold text-foreground">
-                                            Belum ada percakapan
-                                        </p>
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            {threadMode === 'private'
-                                                ? 'Mulai dari tombol tambah kontak.'
-                                                : 'Grup akan tampil setelah dosen pembimbing atau penguji ditetapkan.'}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-
-                {/* Chat Panel */}
-                <Card
-                    className={cn(
-                        'flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
-                        isMobile
-                            ? 'rounded-none border-0 shadow-none'
-                            : panelCardClass,
-                        mobileView === 'threads' && 'hidden lg:flex',
-                    )}
-                >
-                    <CardHeader
-                        className={cn(
-                            panelHeaderClass,
-                            isMobile && 'px-4 py-4',
-                        )}
-                    >
-                        {activeThread ? (
-                            <>
-                                <div className="flex min-w-0 items-center gap-4">
-                                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="-ml-2 shrink-0 lg:hidden"
-                                            onClick={() =>
-                                                setMobileView('threads')
-                                            }
-                                        >
-                                            <ArrowLeft className="size-5" />
-                                        </Button>
-
-                                        {activeThread.threadType ===
-                                            'private' && activePrivateTarget ? (
-                                            <Link
-                                                href={
-                                                    activePrivateTarget.profileUrl
-                                                }
-                                                className="hidden shrink-0 sm:block"
-                                            >
-                                                <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
-                                                    <AvatarImage
-                                                        src={
-                                                            activePrivateTarget.avatar ??
-                                                            undefined
-                                                        }
-                                                        alt={
-                                                            activePrivateTarget.name
-                                                        }
-                                                    />
-                                                    <AvatarFallback className="bg-primary/10 text-xs text-primary">
-                                                        {getInitials(
-                                                            activePrivateTarget.name,
-                                                        )}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                            </Link>
-                                        ) : activeThread.memberProfiles.length >
-                                          0 ? (
-                                            <TooltipProvider delayDuration={0}>
-                                                <div className="hidden shrink-0 items-center -space-x-3 sm:flex">
-                                                    {activeThread.memberProfiles.map(
-                                                        (member) => (
-                                                            <Tooltip
-                                                                key={member.id}
-                                                            >
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <Link
-                                                                        href={
-                                                                            member.profileUrl
-                                                                        }
-                                                                        className="relative z-0 transition-transform hover:z-10 hover:scale-110"
-                                                                    >
-                                                                        <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
-                                                                            <AvatarImage
-                                                                                src={
-                                                                                    member.avatar ??
-                                                                                    undefined
-                                                                                }
-                                                                                alt={
-                                                                                    member.name
-                                                                                }
-                                                                            />
-                                                                            <AvatarFallback className="bg-primary/10 text-xs text-primary">
-                                                                                {getInitials(
-                                                                                    member.name,
-                                                                                )}
-                                                                            </AvatarFallback>
-                                                                        </Avatar>
-                                                                    </Link>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="px-3 py-1.5 text-xs">
-                                                                    <p className="font-semibold">
-                                                                        {
-                                                                            member.name
-                                                                        }
-                                                                    </p>
-                                                                    {member.subtitle && (
-                                                                        <p className="opacity-80">
-                                                                            {
-                                                                                member.subtitle
-                                                                            }
-                                                                        </p>
-                                                                    )}
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        ),
-                                                    )}
-                                                </div>
-                                            </TooltipProvider>
-                                        ) : null}
-
-                                        <div className="min-w-0 flex-1 overflow-hidden">
-                                            <div className="flex min-w-0 items-center gap-2">
-                                                <CardTitle className="min-w-0 truncate">
-                                                    {activeThread.threadType ===
-                                                        'private' &&
-                                                    activePrivateTarget ? (
-                                                        <Link
-                                                            href={
-                                                                activePrivateTarget.profileUrl
-                                                            }
-                                                            className="transition hover:text-primary"
-                                                        >
-                                                            {
-                                                                activePrivateTarget.name
-                                                            }
-                                                        </Link>
-                                                    ) : (
-                                                        activeThread.name
-                                                    )}
-                                                </CardTitle>
-                                                <Badge
-                                                    variant="soft"
-                                                    className={cn(
-                                                        'shrink-0 font-medium',
-                                                        activeThread.threadType ===
-                                                            'pembimbing'
-                                                            ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                            : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
-                                                    )}
-                                                >
-                                                    {activeThread.threadLabel}
-                                                </Badge>
-                                            </div>
-                                            <CardDescription className="truncate">
-                                                {activeThread.threadType ===
-                                                    'private' &&
-                                                activePrivateTarget
-                                                    ? activePrivateTarget.email
-                                                    : activeThread.members.join(
-                                                          ', ',
-                                                      )}
-                                            </CardDescription>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="size-8 text-muted-foreground hover:text-foreground"
-                                            onClick={() => {
-                                                setIsThreadSearchOpen(
-                                                    (current) => !current,
-                                                );
-                                                if (isThreadSearchOpen) {
-                                                    setThreadSearch('');
-                                                    setActiveMatchIndex(0);
-                                                }
-                                            }}
-                                        >
-                                            <Search className="size-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                {isThreadSearchOpen ? (
-                                    <div className="mt-3 space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                value={threadSearch}
-                                                onChange={(event) =>
-                                                    handleThreadSearchChange(
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                placeholder="Cari di percakapan ini..."
-                                                className="h-9 flex-1"
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon"
-                                                className="size-9"
-                                                disabled={
-                                                    matchingMessageIds.length ===
-                                                    0
-                                                }
-                                                onClick={() => stepMatch(-1)}
-                                            >
-                                                <ChevronUp className="size-4" />
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon"
-                                                className="size-9"
-                                                disabled={
-                                                    matchingMessageIds.length ===
-                                                    0
-                                                }
-                                                onClick={() => stepMatch(1)}
-                                            >
-                                                <ChevronDown className="size-4" />
-                                            </Button>
-                                        </div>
-                                        {threadSearch.trim() ? (
-                                            <p className="text-xs text-muted-foreground">
-                                                {matchingMessageIds.length > 0
-                                                    ? `${resolvedActiveMatchIndex + 1} dari ${matchingMessageIds.length} hasil`
-                                                    : 'Tidak ada hasil yang cocok'}
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-                            </>
-                        ) : (
-                            <>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="-ml-2 lg:hidden"
-                                        onClick={() => setMobileView('threads')}
-                                    >
-                                        <ArrowLeft className="size-5" />
-                                    </Button>
-                                    <CardTitle>Pilih Percakapan</CardTitle>
-                                </div>
-                            </>
-                        )}
-                    </CardHeader>
-                    <CardContent className="relative flex-1 overflow-hidden p-0">
-                        <ScrollArea className="h-full w-full">
-                            <div
-                                className={cn(
-                                    'flex min-h-full flex-col',
-                                    isMobile ? 'px-4 py-3' : 'p-4',
-                                )}
-                            >
-                                {activeThread &&
-                                    !hasDosbing &&
-                                    activeThread.threadType ===
-                                        'pembimbing' && (
-                                        <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
-                                            <AlertTitle className="text-red-900 dark:text-red-200">
-                                                Belum ada Dosen Pembimbing
-                                            </AlertTitle>
-                                            <AlertDescription className="text-red-800 dark:text-red-300">
-                                                Anda belum memiliki dosen
-                                                pembimbing aktif. Pesan akan
-                                                tersedia setelah dosen
-                                                pembimbing ditetapkan.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-
-                                {activeThread ? (
-                                    <div className="grid">
-                                        {activeMessages.map((message) => {
-                                            const isMe =
-                                                message.senderUserId ===
-                                                auth.user?.id;
-                                            const messageId = String(
-                                                message.id,
-                                            );
-
-                                            return (
-                                                <div
-                                                    key={message.id}
-                                                    ref={(element) => {
-                                                        messageRefs.current[
-                                                            messageId
-                                                        ] = element;
-                                                    }}
-                                                >
-                                                    <ChatBubble
-                                                        message={message}
-                                                        isMe={isMe}
-                                                        searchTerm={
-                                                            matchingMessageIdSet.has(
-                                                                messageId,
-                                                            )
-                                                                ? normalizedThreadSearch
-                                                                : ''
-                                                        }
-                                                        isActiveMatch={
-                                                            activeMatchMessageId ===
-                                                            messageId
-                                                        }
-                                                    />
-                                                </div>
-                                            );
-                                        })}
-                                        <div
-                                            ref={messagesEndRef}
-                                            className="h-1"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="mt-10 rounded-xl border border-dashed bg-muted/50 p-8 text-center shadow-sm">
-                                        <span className="mx-auto mb-3 inline-flex size-10 items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm">
-                                            <Users className="size-5" />
-                                        </span>
-                                        <p className="text-sm font-semibold text-foreground">
-                                            Pilih percakapan
-                                        </p>
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            Chat akan tampil di sini.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-
-                    <Separator />
-
-                    <CardFooter
-                        className={cn(
-                            'shrink-0 flex-col items-stretch gap-3 pt-4',
-                            isMobile ? 'px-4 pb-4' : 'p-6',
-                        )}
-                    >
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            accept=".pdf,.doc,.docx"
-                            className="hidden"
-                            onChange={pickAttachment}
+                <ChatPanel
+                    emptyTitle="Pilih Percakapan"
+                    footer={
+                        <Composer
+                            composer={chat.composer}
+                            disabled={activeThread === null}
+                            isMobile={isMobile}
                         />
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => fileRef.current?.click()}
-                                disabled={activeThread === null}
-                            >
-                                <Paperclip className="size-4" />
-                            </Button>
-                            <Input
-                                value={form.data.message}
-                                onChange={(event) =>
-                                    form.setData('message', event.target.value)
-                                }
-                                placeholder="Tulis pesan..."
-                                disabled={activeThread === null}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        event.preventDefault();
-                                        sendMessage();
-                                    }
-                                }}
-                            />
-                            <Button
-                                type="button"
-                                onClick={sendMessage}
-                                disabled={!canSend}
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                            >
-                                <Send className="size-4" />
-                            </Button>
-                        </div>
-                        {attachmentName && (
-                            <div className="truncate text-xs text-muted-foreground">
-                                Lampiran: {attachmentName}
-                            </div>
-                        )}
-                        {form.errors.attachment && (
-                            <p className="text-xs text-destructive">
-                                {form.errors.attachment}
-                            </p>
-                        )}
-                        {form.errors.message && (
-                            <p className="text-xs text-destructive">
-                                {form.errors.message}
-                            </p>
-                        )}
-                    </CardFooter>
-                </Card>
+                    }
+                    isMobile={isMobile}
+                    mobileView={mobileView}
+                    onBack={() => setMobileView('threads')}
+                    privateTarget={activePrivateTarget}
+                    search={messageSearch}
+                    thread={activeThread}
+                    titleProfile={null}
+                    titleText={activeThread?.name ?? ''}
+                    tone="raised"
+                >
+                    <MessageList
+                        isMobile={isMobile}
+                        messages={chat.activeMessages}
+                        notice={
+                            !hasDosbing &&
+                            activeThread?.threadType === 'pembimbing' ? (
+                                <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
+                                    <AlertTitle className="text-red-900 dark:text-red-200">
+                                        Belum ada Dosen Pembimbing
+                                    </AlertTitle>
+                                    <AlertDescription className="text-red-800 dark:text-red-300">
+                                        Anda belum memiliki dosen pembimbing
+                                        aktif. Pesan akan tersedia setelah dosen
+                                        pembimbing ditetapkan.
+                                    </AlertDescription>
+                                </Alert>
+                            ) : null
+                        }
+                        search={messageSearch}
+                        threadId={activeThread?.id ?? null}
+                        tone="raised"
+                        userId={auth.user?.id}
+                    />
+                </ChatPanel>
             </MentorshipChatFrame>
         </AppLayout>
     );
