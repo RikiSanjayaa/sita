@@ -44,6 +44,11 @@ async function addNote(
         dialog.getByRole('button', { name: 'Simpan catatan' }).click(),
     ]);
     await expect(dialog.getByText(body)).toBeVisible();
+    // The form clears itself after a successful save; wait for it so the next
+    // note is not typed into a field that is about to be reset.
+    await expect(dialog.getByLabel('Catatan', { exact: true })).toHaveValue(
+        '',
+    );
 }
 
 test.describe('Catatan dosen pada tugas akhir', () => {
