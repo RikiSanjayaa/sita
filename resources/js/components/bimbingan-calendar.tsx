@@ -441,3 +441,26 @@ export function BimbinganCalendar({
         </div>
     );
 }
+
+/** Counts events falling today and in the current (Monday-based) week. */
+export function summarizeSchedule(
+    events: BimbinganEvent[],
+    now: Date = new Date(),
+): { today: number; week: number } {
+    const day = { start: startOfDay(now), end: endOfDay(now) };
+    const week = { start: startOfWeek(now), end: endOfWeek(now) };
+    const within = (t: number, range: { start: Date; end: Date }) =>
+        t >= range.start.getTime() && t <= range.end.getTime();
+
+    return events.reduce(
+        (acc, event) => {
+            const t = new Date(event.start).getTime();
+
+            return {
+                today: acc.today + (within(t, day) ? 1 : 0),
+                week: acc.week + (within(t, week) ? 1 : 0),
+            };
+        },
+        { today: 0, week: 0 },
+    );
+}

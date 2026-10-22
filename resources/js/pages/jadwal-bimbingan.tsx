@@ -13,10 +13,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-    BimbinganCalendar,
-    type BimbinganEvent,
-} from '@/components/bimbingan-calendar';
+import { type BimbinganEvent } from '@/components/bimbingan-calendar';
+import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -683,13 +682,14 @@ export default function JadwalBimbinganPage() {
                         )}
 
                         {/* Calendar */}
-                        <section>
-                            <BimbinganCalendar
-                                events={calendarEvents}
-                                onEventClick={handleEventClick}
-                                defaultView="list"
-                            />
-                        </section>
+                        <CollapsibleCalendarSection
+                            storageKey="jadwal-bimbingan-mahasiswa"
+                            title="Kalender Bimbingan"
+                            description="Jadwal bimbingan Anda dalam tampilan kalender atau daftar"
+                            events={calendarEvents}
+                            onEventClick={handleEventClick}
+                            defaultView="list"
+                        />
 
                         {/* Upcoming — full data table with horizontal scroll + pagination */}
                         <section>
@@ -859,39 +859,42 @@ export default function JadwalBimbinganPage() {
                                 </p>
                             </div>
 
-                            <DataTableToolbar
-                                search={historySearch}
-                                onSearchChange={setHistorySearch}
-                                searchPlaceholder="Cari topik, dosen, atau lokasi..."
-                                filterGroups={[
-                                    {
-                                        value: historyStatusFilter,
-                                        onChange: (v) =>
-                                            setHistoryStatusFilter(
-                                                v as 'semua' | ScheduleStatus,
-                                            ),
-                                        tabs: [
-                                            {
-                                                label: 'Semua',
-                                                value: 'semua',
-                                            },
-                                            {
-                                                label: 'Selesai',
-                                                value: 'completed',
-                                            },
-                                            {
-                                                label: 'Ditolak',
-                                                value: 'rejected',
-                                            },
-                                            {
-                                                label: 'Dibatalkan',
-                                                value: 'cancelled',
-                                            },
-                                        ],
-                                    },
-                                ]}
-                                className="mb-3"
-                            />
+                            <StickyFilterBar className="mb-3">
+                                <DataTableToolbar
+                                    search={historySearch}
+                                    onSearchChange={setHistorySearch}
+                                    searchPlaceholder="Cari topik, dosen, atau lokasi..."
+                                    filterGroups={[
+                                        {
+                                            value: historyStatusFilter,
+                                            onChange: (v) =>
+                                                setHistoryStatusFilter(
+                                                    v as
+                                                        | 'semua'
+                                                        | ScheduleStatus,
+                                                ),
+                                            tabs: [
+                                                {
+                                                    label: 'Semua',
+                                                    value: 'semua',
+                                                },
+                                                {
+                                                    label: 'Selesai',
+                                                    value: 'completed',
+                                                },
+                                                {
+                                                    label: 'Ditolak',
+                                                    value: 'rejected',
+                                                },
+                                                {
+                                                    label: 'Dibatalkan',
+                                                    value: 'cancelled',
+                                                },
+                                            ],
+                                        },
+                                    ]}
+                                />
+                            </StickyFilterBar>
 
                             {historyPagination.totalItems > 0 ? (
                                 <DataTableContainer

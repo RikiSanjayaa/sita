@@ -138,6 +138,9 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
             // Upcoming sessions open a sheet with the complete action.
             await dosenPage.goto('/dosen/jadwal-bimbingan');
             await dosenPage
+                .getByRole('button', { name: 'Buka kalender' })
+                .click();
+            await dosenPage
                 .getByRole('button', { name: 'Daftar', exact: true })
                 .click();
             await historyRow(dosenPage, topic).click();
@@ -206,6 +209,9 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
                 .getByRole('button', { name: 'Konfirmasi', exact: true })
                 .click();
 
+            await secondSupervisorPage
+                .getByRole('button', { name: 'Buka kalender' })
+                .click();
             await secondSupervisorPage
                 .getByRole('button', { name: 'Daftar', exact: true })
                 .click();

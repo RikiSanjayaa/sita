@@ -16,11 +16,10 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import {
-    BimbinganCalendar,
-    type BimbinganEvent,
-} from '@/components/bimbingan-calendar';
+import { type BimbinganEvent } from '@/components/bimbingan-calendar';
+import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { DeadlineBadge } from '@/components/deadline-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import {
     type ProjectNotes,
@@ -894,17 +893,16 @@ export default function DosenSeminarProposalPage() {
                 )}
 
                 {/* ── WORKSPACE CALENDAR ── */}
-                <section>
-                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Workspace Jadwal
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Lihat jadwal {n.proposalExamShort},{' '}
-                                {n.finalExam}, dan bimbingan dalam satu kalender
-                            </p>
-                        </div>
+                <CollapsibleCalendarSection
+                    storageKey="dosen-seminar-proposal"
+                    title="Workspace Jadwal"
+                    description={
+                        <>
+                            Lihat jadwal {n.proposalExamShort}, {n.finalExam},
+                            dan bimbingan dalam satu kalender
+                        </>
+                    }
+                    toolbar={
                         <div className="flex flex-wrap gap-1.5">
                             {workspaceFilterTabs.map((tab) => (
                                 <button
@@ -924,14 +922,12 @@ export default function DosenSeminarProposalPage() {
                                 </button>
                             ))}
                         </div>
-                    </div>
-                    <BimbinganCalendar
-                        events={filteredWorkspaceEvents}
-                        onEventClick={handleEventClick}
-                        defaultView="calendar"
-                        showLegend={false}
-                    />
-                </section>
+                    }
+                    events={filteredWorkspaceEvents}
+                    onEventClick={handleEventClick}
+                    defaultView="calendar"
+                    showLegend={false}
+                />
 
                 {/* ── TABEL UNIFIED ── */}
                 <section>
@@ -954,79 +950,81 @@ export default function DosenSeminarProposalPage() {
                     </div>
 
                     {/* Toolbar: search + filters */}
-                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        {/* Search */}
-                        <div className="relative w-full max-w-xs">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value);
-                                    resetPage();
-                                }}
-                                placeholder="Cari nama, NIM, atau judul..."
-                                className="h-8 pl-8 text-sm"
-                            />
-                        </div>
+                    <StickyFilterBar className="mb-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            {/* Search */}
+                            <div className="relative w-full max-w-xs">
+                                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(e) => {
+                                        setSearch(e.target.value);
+                                        resetPage();
+                                    }}
+                                    placeholder="Cari nama, NIM, atau judul..."
+                                    className="h-8 pl-8 text-sm"
+                                />
+                            </div>
 
-                        {/* Filter pills */}
-                        <div className="flex flex-wrap gap-2">
-                            <div className="flex gap-1">
-                                {typeFilterTabs.map((tab) => (
-                                    <button
-                                        key={tab.value}
-                                        type="button"
-                                        onClick={() => {
-                                            setTypeFilter(tab.value);
-                                            resetPage();
-                                        }}
-                                        className={cn(
-                                            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                            typeFilter === tab.value
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                        )}
-                                    >
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="flex gap-1">
-                                {statusFilterTabs.map((tab) => (
-                                    <button
-                                        key={tab.value}
-                                        type="button"
-                                        onClick={() => {
-                                            setStatusFilter(tab.value);
-                                            resetPage();
-                                        }}
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                            statusFilter === tab.value
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                        )}
-                                    >
-                                        {tab.label}
-                                        {tab.count !== undefined &&
-                                            tab.count > 0 && (
-                                                <span
-                                                    className={cn(
-                                                        'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
-                                                        statusFilter ===
-                                                            tab.value
-                                                            ? 'bg-primary-foreground text-primary'
-                                                            : 'bg-warning-muted text-warning-muted-foreground',
-                                                    )}
-                                                >
-                                                    {tab.count}
-                                                </span>
+                            {/* Filter pills */}
+                            <div className="flex flex-wrap gap-2">
+                                <div className="flex gap-1">
+                                    {typeFilterTabs.map((tab) => (
+                                        <button
+                                            key={tab.value}
+                                            type="button"
+                                            onClick={() => {
+                                                setTypeFilter(tab.value);
+                                                resetPage();
+                                            }}
+                                            className={cn(
+                                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                                typeFilter === tab.value
+                                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
                                             )}
-                                    </button>
-                                ))}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-1">
+                                    {statusFilterTabs.map((tab) => (
+                                        <button
+                                            key={tab.value}
+                                            type="button"
+                                            onClick={() => {
+                                                setStatusFilter(tab.value);
+                                                resetPage();
+                                            }}
+                                            className={cn(
+                                                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                                                statusFilter === tab.value
+                                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                                            )}
+                                        >
+                                            {tab.label}
+                                            {tab.count !== undefined &&
+                                                tab.count > 0 && (
+                                                    <span
+                                                        className={cn(
+                                                            'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
+                                                            statusFilter ===
+                                                                tab.value
+                                                                ? 'bg-primary-foreground text-primary'
+                                                                : 'bg-warning-muted text-warning-muted-foreground',
+                                                        )}
+                                                    >
+                                                        {tab.count}
+                                                    </span>
+                                                )}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </StickyFilterBar>
 
                     {/* Table */}
                     {filteredDefenses.length === 0 ? (
