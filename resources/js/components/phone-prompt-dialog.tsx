@@ -8,6 +8,7 @@ import {
     DialogContent,
     DialogDescription,
     DialogFooter,
+    DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,16 +26,23 @@ export default function PhonePromptDialog({ prompt }: { prompt: PhonePrompt }) {
                 onPointerDownOutside={(event) => event.preventDefault()}
                 onInteractOutside={(event) => event.preventDefault()}
             >
-                <DialogTitle>
-                    {isRequired ? 'Lengkapi nomor HP' : 'Konfirmasi nomor HP'}
-                </DialogTitle>
-                <DialogDescription>
-                    {isRequired
-                        ? 'Nomor HP Anda belum tercatat. Isi nomor yang aktif untuk melanjutkan.'
-                        : 'Nomor HP ini berasal dari data kampus. Pastikan masih aktif, lalu konfirmasi.'}
-                </DialogDescription>
+                <DialogHeader>
+                    <DialogTitle>
+                        {isRequired
+                            ? 'Lengkapi nomor HP'
+                            : 'Konfirmasi nomor HP'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {isRequired
+                            ? 'Nomor HP Anda belum tercatat. Isi nomor yang aktif untuk melanjutkan.'
+                            : 'Nomor HP ini berasal dari data kampus. Pastikan masih aktif, lalu konfirmasi.'}
+                    </DialogDescription>
+                </DialogHeader>
 
-                <Form {...PhoneConfirmationController.update.form()}>
+                <Form
+                    {...PhoneConfirmationController.update.form()}
+                    className="grid gap-6"
+                >
                     {({ errors, processing }) => (
                         <>
                             <div className="grid gap-2">
