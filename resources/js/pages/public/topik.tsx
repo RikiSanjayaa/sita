@@ -2,24 +2,22 @@ import { router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
+import {
+    DataSection,
+    DataSelect,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { PublicLayout } from '@/components/public/public-layout';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
 } from '@/components/ui/data-table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
@@ -154,14 +152,6 @@ function PublicTopicsContent({
         return semproTitles.filter((item) => item.year === yearFilter);
     }, [semproTitles, yearFilter]);
 
-    const rangeStart =
-        filteredTitles.length === 0
-            ? 0
-            : (topicPagination.currentPage - 1) * topicPagination.perPage + 1;
-    const rangeEnd =
-        filteredTitles.length === 0
-            ? 0
-            : rangeStart + filteredTitles.length - 1;
     const hasActiveFilter =
         filters.search.trim() !== '' || filters.program.trim() !== '';
 
@@ -210,332 +200,287 @@ function PublicTopicsContent({
             pageTitle="Topik Karya Akhir"
             description={`Daftar topik karya akhir yang sudah menyelesaikan ${n.proposalExam.toLowerCase()} dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan.`}
         >
-            <div className="space-y-6">
-                <Card className="overflow-hidden py-0 shadow-sm">
-                    <CardHeader className="border-b bg-muted/20 px-6 py-4">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-1.5">
-                                <CardTitle>Daftar Topik</CardTitle>
-                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                    <span>
-                                        Menampilkan {rangeStart}-{rangeEnd} dari
-                                        halaman ini
-                                    </span>
-                                    <Badge variant="outline">
-                                        Halaman {topicPagination.currentPage}
-                                    </Badge>
-                                </div>
-                            </div>
+            <DataSection title="Daftar Topik">
+                <DataToolbar
+                    search={search}
+                    onSearchChange={(value) => {
+                        setSearch(value);
+                        setOpenRowId(null);
+                    }}
+                    placeholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
+                >
+                    <DataSelect
+                        label="Program studi"
+                        value={programFilter}
+                        onValueChange={(value) => {
+                            setProgramFilter(value);
+                            setOpenRowId(null);
+                        }}
+                        placeholder="Filter prodi"
+                        options={[
+                            { value: 'semua', label: 'Semua Prodi' },
+                            ...topicPrograms.map((program) => ({
+                                value: program.slug,
+                                label: program.name,
+                            })),
+                        ]}
+                    />
+                </DataToolbar>
 
-                            <div className="w-full lg:max-w-xs">
-                                <Select
-                                    value={programFilter}
-                                    onValueChange={(value) => {
-                                        setProgramFilter(value);
-                                        setOpenRowId(null);
-                                    }}
-                                >
-                                    <SelectTrigger className="bg-background">
-                                        <SelectValue placeholder="Filter prodi" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="semua">
-                                            Semua Prodi
-                                        </SelectItem>
-                                        {topicPrograms.map((program) => (
-                                            <SelectItem
-                                                key={program.slug}
-                                                value={program.slug}
-                                            >
-                                                {program.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4 py-6">
-                        <DataTableToolbar
-                            search={search}
-                            onSearchChange={(value) => {
-                                setSearch(value);
-                                setOpenRowId(null);
-                            }}
-                            searchPlaceholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
-                            filterGroups={[
-                                {
-                                    tabs: yearTabs,
-                                    value: yearFilter,
-                                    onChange: (value) => {
-                                        setYearFilter(value);
-                                        setOpenRowId(null);
-                                    },
-                                },
-                            ]}
-                        />
+                <FilterPills
+                    label="Tahun topik"
+                    value={yearFilter}
+                    onValueChange={(value) => {
+                        setYearFilter(value);
+                        setOpenRowId(null);
+                    }}
+                    itemClassName="max-md:h-11 max-md:px-4"
+                    options={yearTabs}
+                />
 
-                        {filteredTitles.length > 0 ? (
-                            <>
-                                <DataTableContainer
-                                    pagination={
-                                        <DataTablePagination
-                                            currentPage={
-                                                topicPagination.currentPage
-                                            }
-                                            totalPages={Math.max(
-                                                1,
-                                                topicPagination.currentPage +
-                                                    (topicPagination.hasMorePages
-                                                        ? 1
-                                                        : 0),
-                                            )}
-                                            currentItemCount={
-                                                filteredTitles.length
-                                            }
-                                            pageSize={topicPagination.perPage}
-                                            onPageChange={visitPage}
-                                            onPageSizeChange={changePageSize}
-                                            itemLabel="topik"
-                                        />
-                                    }
-                                >
-                                    <table className="w-full min-w-[980px] text-sm">
-                                        <thead className="bg-muted/30 text-left">
-                                            <tr>
-                                                <th className="w-14 px-4 py-3 font-semibold">
-                                                    Detail
-                                                </th>
-                                                <th className="px-4 py-3 font-semibold">
-                                                    Mahasiswa
-                                                </th>
-                                                <th className="px-4 py-3 font-semibold">
-                                                    Judul
-                                                </th>
-                                                <th className="px-4 py-3 font-semibold">
-                                                    Prodi
-                                                </th>
-                                                <th className="px-4 py-3 font-semibold">
-                                                    Tahun
-                                                </th>
-                                                <th className="px-4 py-3 font-semibold">
-                                                    Status
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredTitles.map((item) => {
-                                                const isOpen =
-                                                    openRowId === item.id;
-
-                                                return (
-                                                    <Fragment key={item.id}>
-                                                        <tr className="border-t align-top transition-colors hover:bg-muted/5">
-                                                            <td className="px-4 py-3">
-                                                                <Button
-                                                                    type="button"
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    className="size-8 rounded-full transition-transform duration-300"
-                                                                    onClick={() =>
-                                                                        toggleRow(
-                                                                            item.id,
-                                                                        )
-                                                                    }
-                                                                    aria-label="Buka detail topik"
-                                                                >
-                                                                    <ChevronRight
-                                                                        className={`size-4 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}
-                                                                    />
-                                                                </Button>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <div className="space-y-1">
-                                                                    <div className="font-medium text-foreground">
-                                                                        {
-                                                                            item.studentName
-                                                                        }
-                                                                    </div>
-                                                                    <div className="text-muted-foreground">
-                                                                        {
-                                                                            item.studentNim
-                                                                        }
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <div className="max-w-md leading-6 font-medium text-foreground">
-                                                                    {item.title}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-muted-foreground">
-                                                                {
-                                                                    item.programStudi
-                                                                }
-                                                            </td>
-                                                            <td className="px-4 py-3 text-muted-foreground">
-                                                                {item.year}
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <StatusBadge
-                                                                    domain="state"
-                                                                    status={
-                                                                        item.state
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        item.stateLabel
-                                                                    }
-                                                                </StatusBadge>
-                                                            </td>
-                                                        </tr>
-
-                                                        <tr className="bg-background">
-                                                            <td
-                                                                colSpan={6}
-                                                                className="p-0"
-                                                            >
-                                                                <div
-                                                                    className={cn(
-                                                                        'grid transition-all duration-300 ease-out',
-                                                                        isOpen
-                                                                            ? 'grid-rows-[1fr] opacity-100'
-                                                                            : 'grid-rows-[0fr] opacity-0',
-                                                                    )}
-                                                                >
-                                                                    <div className="overflow-hidden">
-                                                                        <div
-                                                                            className={cn(
-                                                                                'border-t border-b px-6 transition-[padding,transform,opacity] duration-300',
-                                                                                isOpen
-                                                                                    ? 'translate-y-0 py-5 opacity-100'
-                                                                                    : '-translate-y-2 py-0 opacity-0',
-                                                                            )}
-                                                                        >
-                                                                            <div className="rounded-b-2xl bg-muted/20">
-                                                                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
-                                                                                    <div className="space-y-5">
-                                                                                        <div className="space-y-2">
-                                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                                Ringkasan{' '}
-                                                                                                {
-                                                                                                    n.proposalDocument
-                                                                                                }
-                                                                                            </p>
-                                                                                            <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
-                                                                                                {item.summary ||
-                                                                                                    '-'}
-                                                                                            </p>
-                                                                                        </div>
-
-                                                                                        <div className="space-y-2">
-                                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                                Judul
-                                                                                                Internasional
-                                                                                            </p>
-                                                                                            <p className="text-sm text-muted-foreground italic">
-                                                                                                {item.titleEn ||
-                                                                                                    '-'}
-                                                                                            </p>
-                                                                                        </div>
-                                                                                    </div>
-
-                                                                                    <div className="space-y-5 border-t pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-                                                                                        <div className="space-y-2">
-                                                                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                                                                Pembimbing
-                                                                                            </p>
-                                                                                            <div className="flex flex-wrap gap-2">
-                                                                                                {item
-                                                                                                    .advisors
-                                                                                                    .length >
-                                                                                                0 ? (
-                                                                                                    item.advisors.map(
-                                                                                                        (
-                                                                                                            advisor,
-                                                                                                        ) => (
-                                                                                                            <Badge
-                                                                                                                key={`${item.id}-${advisor.label}`}
-                                                                                                                variant="secondary"
-                                                                                                            >
-                                                                                                                {
-                                                                                                                    advisor.label
-                                                                                                                }
-
-                                                                                                                :{' '}
-                                                                                                                {
-                                                                                                                    advisor.name
-                                                                                                                }
-                                                                                                            </Badge>
-                                                                                                        ),
-                                                                                                    )
-                                                                                                ) : (
-                                                                                                    <span className="text-sm text-muted-foreground">
-                                                                                                        Belum
-                                                                                                        ada
-                                                                                                        data
-                                                                                                        pembimbing.
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-
-                                                                                        <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-1">
-                                                                                            <div>
-                                                                                                <span className="font-medium text-foreground">
-                                                                                                    Tahun:
-                                                                                                </span>{' '}
-                                                                                                {
-                                                                                                    item.year
-                                                                                                }
-                                                                                            </div>
-                                                                                            <div>
-                                                                                                <span className="font-medium text-foreground">
-                                                                                                    Seminar
-                                                                                                    selesai:
-                                                                                                </span>{' '}
-                                                                                                {item.seminarDate ||
-                                                                                                    '-'}
-                                                                                            </div>
-                                                                                            <div>
-                                                                                                <span className="font-medium text-foreground">
-                                                                                                    {
-                                                                                                        item.finalExamLabel
-                                                                                                    }
-                                                                                                    selesai:
-                                                                                                </span>{' '}
-                                                                                                {item.sidangDate ||
-                                                                                                    '-'}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    </Fragment>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </DataTableContainer>
-                            </>
-                        ) : (
-                            <DataTableEmptyState
-                                title="Tidak ada topik"
-                                description={
-                                    hasActiveFilter || yearFilter !== 'semua'
-                                        ? 'Tidak ada topik yang cocok dengan pencarian ini.'
-                                        : 'Belum ada topik yang dapat ditampilkan.'
-                                }
+                {filteredTitles.length > 0 ? (
+                    <DataTableContainer
+                        pagination={
+                            <DataTablePagination
+                                currentPage={topicPagination.currentPage}
+                                totalPages={Math.max(
+                                    1,
+                                    topicPagination.currentPage +
+                                        (topicPagination.hasMorePages ? 1 : 0),
+                                )}
+                                currentItemCount={filteredTitles.length}
+                                pageSize={topicPagination.perPage}
+                                onPageChange={visitPage}
+                                onPageSizeChange={changePageSize}
+                                itemLabel="topik"
                             />
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                        }
+                    >
+                        <table
+                            className={cn(
+                                stackedTable.table,
+                                'md:min-w-[920px]',
+                            )}
+                        >
+                            <thead className={stackedTable.thead}>
+                                <tr className="border-b bg-muted/40">
+                                    <th className={cn(dataTh, 'w-14')}>
+                                        Detail
+                                    </th>
+                                    <th className={dataTh}>Mahasiswa</th>
+                                    <th className={dataTh}>Judul</th>
+                                    <th className={dataTh}>Prodi</th>
+                                    <th className={dataTh}>Tahun</th>
+                                    <th className={dataTh}>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody
+                                className={cn(
+                                    stackedTable.tbody,
+                                    'md:divide-y',
+                                )}
+                            >
+                                {filteredTitles.map((item) => {
+                                    const isOpen = openRowId === item.id;
+
+                                    return (
+                                        <Fragment key={item.id}>
+                                            <tr
+                                                className={cn(
+                                                    stackedTable.tr,
+                                                    'align-top transition-colors hover:bg-muted/40 max-md:relative max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:pr-14',
+                                                    isOpen && 'bg-muted/40',
+                                                )}
+                                            >
+                                                <td className="px-4 py-3 max-md:absolute max-md:top-1 max-md:right-1 max-md:p-0">
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="size-11 rounded-full md:size-9"
+                                                        onClick={() =>
+                                                            toggleRow(item.id)
+                                                        }
+                                                        aria-label="Buka detail topik"
+                                                        aria-expanded={isOpen}
+                                                    >
+                                                        <ChevronRight
+                                                            className={cn(
+                                                                'size-4 transition-transform',
+                                                                isOpen &&
+                                                                    'rotate-90',
+                                                            )}
+                                                        />
+                                                    </Button>
+                                                </td>
+                                                <td
+                                                    className={cn(
+                                                        stackedTable.tdPlain,
+                                                        'max-md:order-2 max-md:basis-full',
+                                                    )}
+                                                >
+                                                    <div className="font-medium text-foreground">
+                                                        {item.studentName}
+                                                    </div>
+                                                    <div className="text-muted-foreground">
+                                                        {item.studentNim}
+                                                    </div>
+                                                </td>
+                                                <td
+                                                    className={cn(
+                                                        stackedTable.tdPlain,
+                                                        'max-md:order-1 max-md:basis-full',
+                                                    )}
+                                                >
+                                                    <div className="max-w-md leading-6 font-medium text-foreground">
+                                                        {item.title}
+                                                    </div>
+                                                </td>
+                                                <td
+                                                    className={cn(
+                                                        stackedTable.tdPlain,
+                                                        'text-muted-foreground max-md:order-3',
+                                                    )}
+                                                >
+                                                    {item.programStudi}
+                                                </td>
+                                                <td
+                                                    className={cn(
+                                                        stackedTable.tdPlain,
+                                                        'text-muted-foreground tabular-nums max-md:order-4',
+                                                    )}
+                                                >
+                                                    {item.year}
+                                                </td>
+                                                <td
+                                                    className={cn(
+                                                        stackedTable.tdPlain,
+                                                        'max-md:order-5',
+                                                    )}
+                                                >
+                                                    <StatusBadge
+                                                        domain="state"
+                                                        status={item.state}
+                                                    >
+                                                        {item.stateLabel}
+                                                    </StatusBadge>
+                                                </td>
+                                            </tr>
+
+                                            {isOpen ? (
+                                                <tr className="bg-muted/40 max-md:block">
+                                                    <td
+                                                        colSpan={6}
+                                                        className="px-4 pt-1 pb-5 max-md:block"
+                                                    >
+                                                        <div className="grid gap-6 md:ml-14 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
+                                                            <div className="space-y-4">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-xs font-medium text-muted-foreground">
+                                                                        Ringkasan{' '}
+                                                                        {
+                                                                            n.proposalDocument
+                                                                        }
+                                                                    </p>
+                                                                    <p className="max-w-3xl text-sm leading-6">
+                                                                        {item.summary ||
+                                                                            '-'}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <p className="text-xs font-medium text-muted-foreground">
+                                                                        Judul
+                                                                        Internasional
+                                                                    </p>
+                                                                    <p className="text-sm italic">
+                                                                        {item.titleEn ||
+                                                                            '-'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <dl className="space-y-4 text-sm">
+                                                                <div className="space-y-1">
+                                                                    <dt className="text-xs font-medium text-muted-foreground">
+                                                                        Pembimbing
+                                                                    </dt>
+                                                                    <dd>
+                                                                        {item
+                                                                            .advisors
+                                                                            .length >
+                                                                        0 ? (
+                                                                            <ul className="space-y-0.5">
+                                                                                {item.advisors.map(
+                                                                                    (
+                                                                                        advisor,
+                                                                                    ) => (
+                                                                                        <li
+                                                                                            key={`${item.id}-${advisor.label}`}
+                                                                                        >
+                                                                                            <span className="text-muted-foreground">
+                                                                                                {
+                                                                                                    advisor.label
+                                                                                                }
+
+                                                                                                :
+                                                                                            </span>{' '}
+                                                                                            {
+                                                                                                advisor.name
+                                                                                            }
+                                                                                        </li>
+                                                                                    ),
+                                                                                )}
+                                                                            </ul>
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground">
+                                                                                Belum
+                                                                                ada
+                                                                                data
+                                                                                pembimbing.
+                                                                            </span>
+                                                                        )}
+                                                                    </dd>
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <dt className="text-xs font-medium text-muted-foreground">
+                                                                        {`${item.proposalExamLabel} selesai`}
+                                                                    </dt>
+                                                                    <dd>
+                                                                        {item.seminarDate ||
+                                                                            '-'}
+                                                                    </dd>
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <dt className="text-xs font-medium text-muted-foreground">
+                                                                        {`${item.finalExamLabel} selesai`}
+                                                                    </dt>
+                                                                    <dd>
+                                                                        {item.sidangDate ||
+                                                                            '-'}
+                                                                    </dd>
+                                                                </div>
+                                                            </dl>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </DataTableContainer>
+                ) : (
+                    <DataTableEmptyState
+                        title="Tidak ada topik"
+                        description={
+                            hasActiveFilter || yearFilter !== 'semua'
+                                ? 'Tidak ada topik yang cocok dengan pencarian ini.'
+                                : 'Belum ada topik yang dapat ditampilkan.'
+                        }
+                    />
+                )}
+            </DataSection>
         </PublicLayout>
     );
 }

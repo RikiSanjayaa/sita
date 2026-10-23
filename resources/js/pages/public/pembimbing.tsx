@@ -1,23 +1,19 @@
 import { usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
+import {
+    DataSection,
+    DataSelect,
+    DataToolbar,
+    dataTh,
+} from '@/components/patterns/data-section';
 import { PublicLayout } from '@/components/public/public-layout';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
     usePagination,
 } from '@/components/ui/data-table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { type SharedData } from '@/types';
 
 type AdvisorDirectoryItem = {
@@ -42,8 +38,6 @@ type PageProps = {
     concentrationStudentTotals: Record<string, Record<string, number>>;
 };
 
-const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
-const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
 const ADVISOR_PAGE_SIZE = 10;
 
 function AdvisorGroupTable({
@@ -69,14 +63,7 @@ function AdvisorGroupTable({
     ]);
 
     return (
-        <section className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base font-semibold text-foreground">
-                    {concentration}
-                </h2>
-                <Badge variant="outline">{advisors.length} dosen</Badge>
-            </div>
-
+        <DataSection title={concentration} summary={`${advisors.length} dosen`}>
             <DataTableContainer
                 pagination={
                     <DataTablePagination
@@ -90,30 +77,32 @@ function AdvisorGroupTable({
                     />
                 }
             >
-                <table className="w-full min-w-[640px] text-sm">
-                    <thead className="bg-muted/30 text-left">
-                        <tr>
-                            <th className="px-4 py-3 font-semibold">
-                                Dosen Pembimbing
-                            </th>
-                            <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b bg-muted/40">
+                            <th className={dataTh}>Dosen Pembimbing</th>
+                            <th
+                                className={`${dataTh} w-24 text-center md:w-36`}
+                            >
                                 Pembimbing 1
                             </th>
-                            <th className="w-[8.5rem] px-4 py-3 text-center font-semibold whitespace-nowrap">
+                            <th
+                                className={`${dataTh} w-24 text-center md:w-36`}
+                            >
                                 Pembimbing 2
                             </th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y">
                         {paginated.map((advisor) => (
-                            <tr key={advisor.id} className="border-t">
+                            <tr key={advisor.id}>
                                 <td className="px-4 py-3 font-medium text-foreground">
                                     {advisor.name}
                                 </td>
-                                <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
+                                <td className="px-4 py-3 text-center text-muted-foreground tabular-nums">
                                     {advisor.primaryCount}
                                 </td>
-                                <td className="px-4 py-3 text-center font-medium text-muted-foreground tabular-nums">
+                                <td className="px-4 py-3 text-center text-muted-foreground tabular-nums">
                                     {advisor.secondaryCount}
                                 </td>
                             </tr>
@@ -122,13 +111,13 @@ function AdvisorGroupTable({
                 </table>
             </DataTableContainer>
 
-            <div className="flex justify-end text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
                 Total mahasiswa aktif pada konsentrasi ini:{' '}
-                <span className="ml-1 font-semibold text-foreground">
+                <span className="font-semibold text-foreground tabular-nums">
                     {totalActiveStudents}
                 </span>
-            </div>
-        </section>
+            </p>
+        </DataSection>
     );
 }
 
@@ -172,10 +161,6 @@ export default function PublicAdvisorsPage() {
         );
     }, [visibleAdvisors]);
 
-    const selectedProgram =
-        advisorPrograms.find((program) => program.slug === programFilter) ??
-        null;
-
     return (
         <PublicLayout
             active="pembimbing"
@@ -183,85 +168,51 @@ export default function PublicAdvisorsPage() {
             pageTitle="Direktori Pembimbing"
             description="Daftar dosen pembimbing aktif yang dikelompokkan per konsentrasi dan dapat difilter berdasarkan program studi."
         >
-            <div className="space-y-6">
-                <Card className={sectionCardClass}>
-                    <CardHeader className={sectionCardHeaderClass}>
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-1.5">
-                                <CardTitle>Direktori Pembimbing</CardTitle>
-                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                    <span>
-                                        {selectedProgram?.name ??
-                                            'Program Studi'}
-                                    </span>
-                                    {advisorGroups.length > 0 ? (
-                                        <Badge variant="outline">
-                                            {advisorGroups.length} konsentrasi
-                                        </Badge>
-                                    ) : null}
-                                </div>
-                            </div>
+            <div className="space-y-8">
+                <DataToolbar
+                    search={search}
+                    onSearchChange={setSearch}
+                    placeholder="Cari dosen atau konsentrasi..."
+                >
+                    <DataSelect
+                        label="Program studi"
+                        value={programFilter}
+                        onValueChange={setProgramFilter}
+                        placeholder="Pilih program studi"
+                        options={advisorPrograms.map((program) => ({
+                            value: program.slug,
+                            label: program.name,
+                        }))}
+                    />
+                </DataToolbar>
 
-                            <div className="w-full lg:max-w-xs">
-                                <Select
-                                    value={programFilter}
-                                    onValueChange={setProgramFilter}
-                                >
-                                    <SelectTrigger className="bg-background">
-                                        <SelectValue placeholder="Pilih program studi" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {advisorPrograms.map((program) => (
-                                            <SelectItem
-                                                key={program.slug}
-                                                value={program.slug}
-                                            >
-                                                {program.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6 py-6">
-                        <DataTableToolbar
-                            search={search}
-                            onSearchChange={setSearch}
-                            searchPlaceholder="Cari dosen atau konsentrasi..."
-                        />
+                {advisorGroups.length > 0 ? (
+                    advisorGroups.map(([concentration, advisors]) => {
+                        const totalActiveStudents =
+                            concentrationStudentTotals[programFilter]?.[
+                                concentration
+                            ] ??
+                            advisors.reduce(
+                                (total, advisor) =>
+                                    total + advisor.totalActiveCount,
+                                0,
+                            );
 
-                        {advisorGroups.length > 0 ? (
-                            advisorGroups.map(([concentration, advisors]) => {
-                                const totalActiveStudents =
-                                    concentrationStudentTotals[programFilter]?.[
-                                        concentration
-                                    ] ??
-                                    advisors.reduce(
-                                        (total, advisor) =>
-                                            total + advisor.totalActiveCount,
-                                        0,
-                                    );
-
-                                return (
-                                    <AdvisorGroupTable
-                                        key={concentration}
-                                        advisors={advisors}
-                                        concentration={concentration}
-                                        totalActiveStudents={
-                                            totalActiveStudents
-                                        }
-                                    />
-                                );
-                            })
-                        ) : (
-                            <DataTableEmptyState
-                                title="Tidak ada pembimbing"
-                                description="Belum ada data pembimbing aktif pada filter ini."
+                        return (
+                            <AdvisorGroupTable
+                                key={concentration}
+                                advisors={advisors}
+                                concentration={concentration}
+                                totalActiveStudents={totalActiveStudents}
                             />
-                        )}
-                    </CardContent>
-                </Card>
+                        );
+                    })
+                ) : (
+                    <DataTableEmptyState
+                        title="Tidak ada pembimbing"
+                        description="Belum ada data pembimbing aktif pada filter ini."
+                    />
+                )}
             </div>
         </PublicLayout>
     );

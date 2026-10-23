@@ -265,7 +265,7 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 - **Title** (600, 20px / `text-xl` for level 2, 18px / `text-lg` for level 3, tracking-tight): `PageHeader` levels 2 and 3. Card titles are `font-semibold leading-none`.
 - **Stat** (700, 30px / `text-3xl`, tracking-tight): the headline number in `StatCard`.
 - **Body** (400, 14px / `text-sm`): descriptions, table cells, form fields (16px on mobile inputs, `text-base md:text-sm`), buttons (500).
-- **Label** (500, 12px / `text-xs`): badges, pills, column headers, micro-copy, in `text-muted-foreground` when secondary. Count chips inside pills use 10px bold with `tabular-nums` (see known drift).
+- **Label** (500, 12px / `text-xs`): badges, pills, column headers, micro-copy, in `text-muted-foreground` when secondary. Count chips inside pills use 12px bold with `tabular-nums`.
 
 ### Named Rules
 
@@ -279,7 +279,13 @@ A sidebar shell for the portals and a centered content column. The sidebar is 16
 
 Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Mahasiswa pages are designed for a phone first; dosen, kaprodi and admin pages for a laptop first, without breaking the other.
 
-Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns.
+Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns. They are a read-and-look-up surface, not a landing page: `PublicLayout` (`resources/js/components/public/`) gives a header with the page nav, a `PageHeader` h1 with description, and a footer; the page content sits directly on the page background in a `max-w-6xl` column with no outer card.
+
+Public list pages compose the data-list patterns (see Components, Data lists and tables), with the page content directly on the background and the header not sticky on phones. Expanded detail (topik) is rendered only when open. The product owner approved this treatment for the list pages (#82); tables and lists in the mahasiswa, dosen and kaprodi portals adopt it too.
+
+The home page (`welcome.tsx`) is the exception: it keeps its designed hero (gradient panel, badges, large headline) and the four-card snapshot with count-up numbers. In #82 a flattened version (plain headline plus a divided list) was rejected as "basic, without any style". Do not flatten or strip the home page during refinement; change it only on an explicit request. The detector spec keeps `/` advisory for that reason (`ADVISORY_PAGES`).
+
+Direction decisions from #82: refinement of the incumbent identity was chosen. A redesign into a new visual world ("The Map Sheet": condensed type, mint ground, sharp corners, full-width nav rail) was rejected as too opinionated for an academic campus tool. Overhauls of later areas refine within this system; they do not introduce a new visual world.
 
 ## Elevation & Depth
 
@@ -342,6 +348,16 @@ A fully round pill (`rounded-full`, 12px medium text, `px-2 py-0.5`) with the mu
 ### Stat card and empty state
 
 `StatCard` is a card with a 30px bold value, a muted description and a 40px `primary-muted` icon chip. `EmptyState` is a dashed `rounded-xl` frame with a 40px round `muted` icon holder, a 14px medium title and a muted description.
+
+### Data lists and tables
+
+Approved in #82 for the public list pages; tables and lists in the mahasiswa, dosen and kaprodi portals adopt the same patterns. They live in `resources/js/components/patterns/data-section.tsx`.
+
+- **Compose:** `DataSection` (h2 title, optional summary) > `DataToolbar` (search left, filters right, with `DataSelect` for a select filter) > `FilterPills` for the quick filter > one `DataTableContainer` with `DataTablePagination`. The container is the only bordered surface: no `Card` around it, and no card per row.
+- **Stacked on phones:** below `md` the table becomes a divided list through the `stackedTable` classes (`table`, `thead`, `tbody`, `tr`, `td`, `tdPlain`) instead of scrolling sideways. Name-like cells use `tdPlain`; secondary cells use `td` with a `data-label`, shown above the value. Header cells use `dataTh`. The breakpoint is the viewport's, so a portal table that is too wide beside the sidebar between `md` and `lg` keeps a `min-w-*` and scrolls inside its container.
+- **44px on phones:** search, select, filter pills (`itemClassName="max-md:h-11 max-md:px-4"`) and icon buttons are 44px high below `md` and 36px from `md`.
+- **Actions cell:** the last cell uses `stackedTable.tdActions`: a compact icon or menu cluster at the right of the row (`flex items-center justify-end gap-1 max-md:justify-start`), and the last line of the entry on phones. Its header cell holds `<span className="sr-only">Aksi</span>`. Keep the cluster to two icon buttons or one menu; icon buttons carry an `aria-label`.
+- **Detail on demand:** expanded detail is rendered only when open, never hidden at rest.
 
 ### Calendar
 
@@ -555,7 +571,6 @@ The `design-detector` Playwright spec runs `impeccable detect` against the key p
 
 These are defects the build carries today. They are not part of the system and new surfaces must not copy them.
 
-- Instrument Sans is flagged by the detector as an overused font; the face is documented because it is what ships, and may be replaced by the overhaul.
-- `/` has a kicker above its heading; `/jadwal` and `/topik` nest cards; collapsed rows on `/topik` hide content at rest.
-- `.animate-pop` uses an overshoot cubic-bezier (`0.175, 0.885, 0.32, 1.275`), and `FilterPills` and `DataTable` count chips use `text-[10px]`.
+- Instrument Sans is flagged by the detector as an overused font; it is the incumbent brand face and is kept on purpose. The exception is recorded in `.impeccable/config.json` (`impeccable ignores add-value overused-font "Instrument Sans"`).
+- `.animate-pop` uses an overshoot cubic-bezier (`0.175, 0.885, 0.32, 1.275`), and `DataTable` count chips use `text-[10px]`.
 - The `shadcn` destructive button uses `text-white`, and the proof-of-concept theme presets fail AA.

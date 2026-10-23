@@ -1,22 +1,24 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
 } from '@/components/ui/data-table';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
+import { toneClassName, type StatusTone } from '@/lib/status-styles';
+import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 
 type ScheduleItem = {
@@ -52,34 +54,45 @@ type PageProps = {
     followUpPagination: PaginationData;
 };
 
-const statusClassName: Record<ScheduleItem['statusTone'], string> = {
-    default: 'bg-primary/10 text-primary hover:bg-primary/20',
-    warning:
-        'bg-amber-600/10 text-amber-700 hover:bg-amber-600/20 dark:text-amber-400',
-    danger: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
-    muted: 'bg-muted text-muted-foreground hover:bg-muted',
+const scheduleToneStatus: Record<ScheduleItem['statusTone'], StatusTone> = {
+    default: 'primary',
+    warning: 'warning',
+    danger: 'danger',
+    muted: 'neutral',
 };
 
-const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
-const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
+function ScheduleBadges({ item }: { item: ScheduleItem }) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            <StatusBadge domain="phase" status={item.type}>
+                {item.typeLabel}
+            </StatusBadge>
+            <Badge
+                variant="outline"
+                className={cn(
+                    'rounded-full border-transparent',
+                    toneClassName(scheduleToneStatus[item.statusTone]),
+                )}
+            >
+                {item.statusLabel}
+            </Badge>
+        </div>
+    );
+}
 
 function ScheduleTable({
     emptyMessage,
     items,
     pagination,
-    search,
     onPageChange,
     onPageSizeChange,
-    onSearchChange,
     title,
 }: {
     emptyMessage: string;
     items: ScheduleItem[];
     pagination: PaginationData;
-    search: string;
     onPageChange: (page: number) => void;
     onPageSizeChange: (pageSize: number) => void;
-    onSearchChange: (value: string) => void;
     title: string;
 }) {
     const [typeFilter, setTypeFilter] = useState<
@@ -94,257 +107,125 @@ function ScheduleTable({
         return items.filter((item) => item.type === typeFilter);
     }, [items, typeFilter]);
 
-    const rangeStart =
-        filteredItems.length === 0
-            ? 0
-            : (pagination.currentPage - 1) * pagination.perPage + 1;
-    const rangeEnd =
-        filteredItems.length === 0 ? 0 : rangeStart + filteredItems.length - 1;
-    const renderPaginationControl = () => (
-        <DataTablePagination
-            currentPage={pagination.currentPage}
-            totalPages={Math.max(
-                1,
-                pagination.currentPage + (pagination.hasMorePages ? 1 : 0),
-            )}
-            currentItemCount={filteredItems.length}
-            pageSize={pagination.perPage}
-            onPageChange={onPageChange}
-            onPageSizeChange={onPageSizeChange}
-            itemLabel="jadwal"
-        />
-    );
-
     return (
-        <Card className={sectionCardClass}>
-            <CardHeader
-                className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
-            >
-                <div>
-                    <CardTitle>{title}</CardTitle>
-                    <CardDescription>
-                        Jadwal yang tersedia pada bagian ini.
-                    </CardDescription>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>
-                        Menampilkan {rangeStart}-{rangeEnd}
-                    </span>
-                    <Badge variant="outline">
-                        Halaman {pagination.currentPage}
-                    </Badge>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-4 py-6">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={onSearchChange}
-                    searchPlaceholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
-                    filterGroups={[
+        <DataSection title={title}>
+            {items.length > 0 ? (
+                <FilterPills
+                    label={`Jenis ujian, ${title.toLowerCase()}`}
+                    value={typeFilter}
+                    onValueChange={setTypeFilter}
+                    itemClassName="max-md:h-11 max-md:px-4"
+                    options={[
+                        { label: 'Semua', value: 'semua', count: items.length },
                         {
-                            tabs: [
-                                {
-                                    label: 'Semua',
-                                    value: 'semua',
-                                    count: items.length,
-                                },
-                                {
-                                    label: n.proposalExamShort,
-                                    value: 'sempro',
-                                    count: items.filter(
-                                        (item) => item.type === 'sempro',
-                                    ).length,
-                                },
-                                {
-                                    label: n.finalExam,
-                                    value: 'sidang',
-                                    count: items.filter(
-                                        (item) => item.type === 'sidang',
-                                    ).length,
-                                },
-                            ],
-                            value: typeFilter,
-                            onChange: (value) =>
-                                setTypeFilter(
-                                    value as 'semua' | ScheduleItem['type'],
-                                ),
+                            label: n.proposalExamShort,
+                            value: 'sempro',
+                            count: items.filter(
+                                (item) => item.type === 'sempro',
+                            ).length,
+                        },
+                        {
+                            label: n.finalExam,
+                            value: 'sidang',
+                            count: items.filter(
+                                (item) => item.type === 'sidang',
+                            ).length,
                         },
                     ]}
                 />
+            ) : null}
 
-                {filteredItems.length > 0 ? (
-                    <>
-                        <div className="md:hidden">
-                            {renderPaginationControl()}
-                        </div>
-                        <div className="grid gap-3 md:hidden">
+            {filteredItems.length > 0 ? (
+                <DataTableContainer
+                    pagination={
+                        <DataTablePagination
+                            currentPage={pagination.currentPage}
+                            totalPages={Math.max(
+                                1,
+                                pagination.currentPage +
+                                    (pagination.hasMorePages ? 1 : 0),
+                            )}
+                            currentItemCount={filteredItems.length}
+                            pageSize={pagination.perPage}
+                            onPageChange={onPageChange}
+                            onPageSizeChange={onPageSizeChange}
+                            itemLabel="jadwal"
+                        />
+                    }
+                >
+                    <table
+                        className={cn(stackedTable.table, 'md:min-w-[760px]')}
+                    >
+                        <thead className={stackedTable.thead}>
+                            <tr className="border-b bg-muted/40">
+                                <th className={dataTh}>Jenis</th>
+                                <th className={dataTh}>Waktu</th>
+                                <th className={dataTh}>Mahasiswa</th>
+                                <th className={dataTh}>Prodi</th>
+                                <th className={dataTh}>Lokasi</th>
+                            </tr>
+                        </thead>
+                        <tbody
+                            className={cn(stackedTable.tbody, 'md:divide-y')}
+                        >
                             {filteredItems.map((item) => (
-                                <div
+                                <tr
                                     key={`${title}-${item.id}`}
-                                    className="rounded-xl border bg-background p-4"
+                                    className={cn(stackedTable.tr, 'align-top')}
                                 >
-                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div className="space-y-2">
-                                            <div className="flex flex-wrap gap-2">
-                                                <Badge
-                                                    className={
-                                                        item.type === 'sempro'
-                                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                                            : 'bg-emerald-600 text-white hover:bg-emerald-600/90'
-                                                    }
-                                                >
-                                                    {item.typeLabel}
-                                                </Badge>
-                                                <Badge
-                                                    variant="soft"
-                                                    className={
-                                                        statusClassName[
-                                                            item.statusTone
-                                                        ]
-                                                    }
-                                                >
-                                                    {item.statusLabel}
-                                                </Badge>
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-foreground">
-                                                    {item.studentName}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {item.studentNim}
-                                                </p>
-                                            </div>
+                                    <td className={stackedTable.tdPlain}>
+                                        <ScheduleBadges item={item} />
+                                    </td>
+                                    <td
+                                        className={cn(
+                                            stackedTable.tdPlain,
+                                            'text-muted-foreground',
+                                        )}
+                                    >
+                                        {item.scheduledFor ?? '-'}
+                                    </td>
+                                    <td className={stackedTable.tdPlain}>
+                                        <div className="font-medium text-foreground">
+                                            {item.studentName}
                                         </div>
-                                        <div className="text-right text-sm text-muted-foreground">
-                                            {item.scheduledFor ?? '-'}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 space-y-3 text-sm">
-                                        <div>
-                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                Prodi
-                                            </p>
-                                            <p className="mt-1 text-foreground">
-                                                {item.programStudi}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                Lokasi
-                                            </p>
-                                            <p className="mt-1 text-muted-foreground">
-                                                {item.location} ({item.mode})
-                                            </p>
+                                        <div className="text-muted-foreground">
+                                            {item.studentNim}
                                         </div>
                                         {item.statusDetail ? (
-                                            <div>
-                                                <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                                                    Detail
-                                                </p>
-                                                <p className="mt-1 leading-5 text-muted-foreground">
-                                                    {item.statusDetail}
-                                                </p>
+                                            <div className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
+                                                {item.statusDetail}
                                             </div>
                                         ) : null}
-                                    </div>
-                                </div>
+                                    </td>
+                                    <td
+                                        className={cn(
+                                            stackedTable.tdPlain,
+                                            'text-muted-foreground',
+                                        )}
+                                    >
+                                        {item.programStudi}
+                                    </td>
+                                    <td
+                                        data-label="Lokasi"
+                                        className={cn(
+                                            stackedTable.td,
+                                            'text-muted-foreground',
+                                        )}
+                                    >
+                                        {item.location} ({item.mode})
+                                    </td>
+                                </tr>
                             ))}
-                        </div>
-                        <div className="md:hidden">
-                            {renderPaginationControl()}
-                        </div>
-
-                        <DataTableContainer
-                            className="hidden md:block"
-                            pagination={renderPaginationControl()}
-                        >
-                            <table className="w-full min-w-[760px] text-sm">
-                                <thead className="bg-muted/30 text-left">
-                                    <tr>
-                                        <th className="px-4 py-3 font-semibold">
-                                            Jenis
-                                        </th>
-                                        <th className="px-4 py-3 font-semibold">
-                                            Waktu
-                                        </th>
-                                        <th className="px-4 py-3 font-semibold">
-                                            Mahasiswa
-                                        </th>
-                                        <th className="px-4 py-3 font-semibold">
-                                            Prodi
-                                        </th>
-                                        <th className="px-4 py-3 font-semibold">
-                                            Lokasi
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredItems.map((item) => (
-                                        <tr
-                                            key={`${title}-${item.id}`}
-                                            className="border-t align-top"
-                                        >
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col gap-2">
-                                                    <Badge
-                                                        className={
-                                                            item.type ===
-                                                            'sempro'
-                                                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                                                : 'bg-emerald-600 text-white hover:bg-emerald-600/90'
-                                                        }
-                                                    >
-                                                        {item.typeLabel}
-                                                    </Badge>
-                                                    <Badge
-                                                        variant="soft"
-                                                        className={
-                                                            statusClassName[
-                                                                item.statusTone
-                                                            ]
-                                                        }
-                                                    >
-                                                        {item.statusLabel}
-                                                    </Badge>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {item.scheduledFor ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="font-medium text-foreground">
-                                                    {item.studentName}
-                                                </div>
-                                                <div className="text-muted-foreground">
-                                                    {item.studentNim}
-                                                </div>
-                                                {item.statusDetail ? (
-                                                    <div className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
-                                                        {item.statusDetail}
-                                                    </div>
-                                                ) : null}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {item.programStudi}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {item.location} ({item.mode})
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </DataTableContainer>
-                    </>
-                ) : (
-                    <DataTableEmptyState
-                        title="Tidak ada jadwal"
-                        description={emptyMessage}
-                    />
-                )}
-            </CardContent>
-        </Card>
+                        </tbody>
+                    </table>
+                </DataTableContainer>
+            ) : (
+                <DataTableEmptyState
+                    title="Tidak ada jadwal"
+                    description={emptyMessage}
+                />
+            )}
+        </DataSection>
     );
 }
 
@@ -464,13 +345,16 @@ function PublicSchedulesContent({
             pageTitle={`Jadwal ${n.proposalExamShort} dan ${n.finalExam}`}
             description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
-            <div className="grid gap-6">
+            <div className="space-y-8">
+                <DataToolbar
+                    search={search}
+                    onSearchChange={setSearch}
+                    placeholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
+                />
                 <ScheduleTable
                     title="Jadwal Akan Datang"
                     items={upcomingSchedules}
                     pagination={upcomingPagination}
-                    search={search}
-                    onSearchChange={setSearch}
                     emptyMessage={
                         hasActiveSearch
                             ? 'Tidak ada jadwal mendatang yang cocok dengan pencarian ini.'
@@ -485,8 +369,6 @@ function PublicSchedulesContent({
                     title="Tindak Lanjut Terbaru"
                     items={followUpSchedules}
                     pagination={followUpPagination}
-                    search={search}
-                    onSearchChange={setSearch}
                     emptyMessage={
                         hasActiveSearch
                             ? 'Tidak ada tindak lanjut yang cocok dengan pencarian ini.'

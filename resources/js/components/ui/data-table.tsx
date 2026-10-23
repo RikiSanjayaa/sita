@@ -276,7 +276,7 @@ export function DataTablePagination({
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() => onPageChange(Math.max(1, safePage - 1))}
-                className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                className="rounded px-3 py-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 md:px-2 md:py-1"
             >
                 Sebelumnya
             </button>
@@ -291,7 +291,7 @@ export function DataTablePagination({
                 onClick={() =>
                     onPageChange(Math.min(totalPages, safePage + 1))
                 }
-                className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                className="rounded px-3 py-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 md:px-2 md:py-1"
             >
                 Berikutnya
             </button>
@@ -322,7 +322,7 @@ export function DataTablePagination({
                             onChange={(event) =>
                                 onPageSizeChange(Number(event.target.value))
                             }
-                            className="h-8 rounded-lg border bg-transparent px-3 text-xs text-foreground outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/20"
+                            className="h-11 rounded-lg border bg-transparent px-3 text-xs md:h-8 text-foreground outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/20"
                         >
                             {normalizedPageSizeOptions.map((option) => (
                                 <option key={option} value={option}>
