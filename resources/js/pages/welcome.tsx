@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { PublicIntro } from '@/components/public/public-intro';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -207,7 +208,7 @@ export default function Welcome() {
                             <Badge variant="outline">Portal Publik SiTA</Badge>
                         </div>
 
-                        <div className="space-y-4">
+                        <PublicIntro className="space-y-4">
                             <h2 className="max-w-4xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-[4rem] lg:leading-[1.05]">
                                 Akses cepat ke ritme karya akhir yang sedang
                                 berjalan.
@@ -219,7 +220,7 @@ export default function Welcome() {
                                 membuat pengalaman terasa seperti dashboard
                                 internal.
                             </p>
-                        </div>
+                        </PublicIntro>
 
                         <div className="flex flex-wrap items-center gap-3">
                             {isAuthenticated ? (
