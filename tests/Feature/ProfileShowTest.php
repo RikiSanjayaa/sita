@@ -34,7 +34,7 @@ test('authenticated user can view mahasiswa profile page', function () {
 });
 
 test('mahasiswa profile separates sempro and sidang examiners', function () {
-    $viewer = User::factory()->create();
+    $viewer = User::factory()->asDosen()->create();
     $student = User::factory()->asMahasiswa()->create();
     $examiner = User::factory()->asDosen()->create(['name' => 'Dosen Penguji Sama']);
     $programStudi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
@@ -202,7 +202,7 @@ test('dosen profile only counts active supervised students', function () {
 });
 
 test('dosen examination list follows open defenses on the current active thesis', function (string $status, string $state, bool $visible) {
-    $viewer = User::factory()->create();
+    $viewer = User::factory()->asDosen()->create();
     $lecturer = User::factory()->asDosen()->create();
     $student = User::factory()->asMahasiswa()->create();
     $programStudi = ProgramStudi::factory()->create();
@@ -241,7 +241,7 @@ test('dosen examination list follows open defenses on the current active thesis'
 ]);
 
 test('dosen examination list deduplicates attempts and excludes supervised and superseded students', function () {
-    $viewer = User::factory()->create();
+    $viewer = User::factory()->asDosen()->create();
     $lecturer = User::factory()->asDosen()->create();
     $programStudi = ProgramStudi::factory()->create();
     $students = User::factory()->asMahasiswa()->count(3)->create();
@@ -296,7 +296,7 @@ test('dosen examination list deduplicates attempts and excludes supervised and s
 });
 
 test('examined student disappears after defense completion or graduation without deleting history', function (bool $graduate) {
-    $viewer = User::factory()->create();
+    $viewer = User::factory()->asDosen()->create();
     $lecturer = User::factory()->asDosen()->create();
     $student = User::factory()->asMahasiswa()->create();
     $project = ThesisProject::factory()->create(['student_user_id' => $student->id, 'state' => 'active', 'phase' => 'sidang']);

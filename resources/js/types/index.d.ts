@@ -112,6 +112,7 @@ export interface ThesisProfileSection {
 export interface RelatedUserGroup {
     title: string;
     emptyMessage: string;
+    note?: string | null;
     users: UserProfileSummary[];
 }
 

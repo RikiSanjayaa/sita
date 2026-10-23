@@ -379,18 +379,20 @@ class ThesisProjectAdminService
         int $primaryLecturerUserId,
         ?int $secondaryLecturerUserId,
         ?string $notes,
+        bool $silent = false,
+        bool $enforceQuota = true,
     ): ThesisProject {
         if ($secondaryLecturerUserId !== null && $primaryLecturerUserId === $secondaryLecturerUserId) {
             throw new RuntimeException('Pembimbing 1 dan Pembimbing 2 harus berbeda.');
         }
 
-        $this->assertSupervisorEligible($project, $primaryLecturerUserId, 'Pembimbing 1');
+        $this->assertSupervisorEligible($project, $primaryLecturerUserId, 'Pembimbing 1', $enforceQuota);
 
         if ($secondaryLecturerUserId !== null) {
-            $this->assertSupervisorEligible($project, $secondaryLecturerUserId, 'Pembimbing 2');
+            $this->assertSupervisorEligible($project, $secondaryLecturerUserId, 'Pembimbing 2', $enforceQuota);
         }
 
-        $updatedProject = DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes, $silent): ThesisProject {
             $this->syncSupervisorAssignment(
                 project: $project,
                 assignedBy: $assignedBy,
@@ -424,12 +426,15 @@ class ThesisProjectAdminService
                 label: 'Pembimbing diperbarui',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
+                notifyAdmins: ! $silent,
             );
 
             return $freshProject;
         });
 
-        $this->notifyStudentAboutSupervisorAssignment($updatedProject);
+        if (! $silent) {
+            $this->notifyStudentAboutSupervisorAssignment($updatedProject);
+        }
 
         return $updatedProject;
     }
@@ -686,6 +691,9 @@ class ThesisProjectAdminService
                 'decision_at' => now(),
                 'notes' => $notes,
             ])->save();
+
+            // The panel stops being secret now: bring the additional examiners into the Sidang thread.
+            $this->createOrRefreshSidangThread($defense, (int) $project->student_user_id);
 
             if ($result !== 'pass_with_revision') {
                 $this->closeDefenseRevisions($defense, $decidedBy, $notes);
@@ -1143,11 +1151,18 @@ class ThesisProjectAdminService
             ],
         );
 
-        $panelIds = $defense->examiners
+        // Only the panel members the mahasiswa may see are in the thread. The additional
+        // examiners join once the Sidang is completed (see ThesisDefense::examinersVisibleToStudent()).
+        $panelIds = $defense->examinersForStudent()
             ->pluck('lecturer_user_id')
             ->filter()
             ->map(static fn($id): int => (int) $id)
             ->values();
+        $additionalExaminerIds = $defense->examiners
+            ->reject(fn(ThesisDefenseExaminer $examiner): bool => $examiner->isSupervisorRole())
+            ->pluck('lecturer_user_id')
+            ->map(static fn($id): int => (int) $id);
+        $newlyAddedExaminer = false;
 
         MentorshipChatThreadParticipant::query()
             ->where('thread_id', $thread->getKey())
@@ -1160,7 +1175,7 @@ class ThesisProjectAdminService
             ->delete();
 
         foreach ($panelIds as $panelId) {
-            MentorshipChatThreadParticipant::query()->updateOrCreate(
+            $participant = MentorshipChatThreadParticipant::query()->updateOrCreate(
                 [
                     'thread_id' => $thread->getKey(),
                     'user_id' => $panelId,
@@ -1169,6 +1184,19 @@ class ThesisProjectAdminService
                     'role' => 'examiner',
                 ],
             );
+
+            if ($participant->wasRecentlyCreated && $additionalExaminerIds->contains($panelId)) {
+                $newlyAddedExaminer = true;
+            }
+        }
+
+        if ($newlyAddedExaminer) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Penguji '.$terminology['finalExamShort'].' ditambahkan untuk koordinasi revisi.',
+                'sent_at' => now(),
+            ]);
         }
 
         if ($wasRecentlyCreated) {
@@ -1258,7 +1286,7 @@ class ThesisProjectAdminService
         }
     }
 
-    private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label): void
+    private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label, bool $enforceQuota = true): void
     {
         $lecturer = User::query()
             ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
@@ -1272,6 +1300,10 @@ class ThesisProjectAdminService
 
         if ($lecturerProfile === null || ! $lecturerProfile->is_active) {
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
+        }
+
+        if (! $enforceQuota) {
+            return;
         }
 
         $quota = max(1, (int) ($lecturerProfile->supervision_quota ?? 14));
@@ -1349,6 +1381,7 @@ class ThesisProjectAdminService
         ?string $description,
         string $occurredAt,
         ?array $payload = null,
+        bool $notifyAdmins = true,
     ): void {
         ThesisProjectEvent::query()->create([
             'project_id' => $project->getKey(),
@@ -1359,6 +1392,10 @@ class ThesisProjectAdminService
             'payload' => $payload,
             'occurred_at' => $occurredAt,
         ]);
+
+        if (! $notifyAdmins) {
+            return;
+        }
 
         $this->notifyAdminsAboutEvent(
             project: $project,

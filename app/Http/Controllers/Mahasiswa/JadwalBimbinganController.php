@@ -12,6 +12,7 @@ use App\Services\MentorshipScheduleService;
 use App\Services\ThesisArchiveService;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
+use App\Services\SecretSidangExaminers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -31,11 +32,15 @@ class JadwalBimbinganController extends Controller
         $student = $request->user();
         abort_if($student === null, 401);
 
+        $secretExaminers = app(SecretSidangExaminers::class);
+
         $schedules = MentorshipSchedule::query()
             ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->latest('created_at')
-            ->get();
+            ->get()
+            ->reject(fn(MentorshipSchedule $schedule): bool => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id
+                && $secretExaminers->isSecret($student->id, (int) $schedule->lecturer_user_id));
 
         $advisorAssignments = ThesisSupervisorAssignment::query()
             ->with('lecturer')
@@ -72,6 +77,7 @@ class JadwalBimbinganController extends Controller
             ->whereIn('thread_id', $studentThreadIds)
             ->where('role', 'examiner')
             ->get()
+            ->reject(fn(MentorshipChatThreadParticipant $participant): bool => $secretExaminers->isSecret($student->id, (int) $participant->user_id))
             ->map(fn(MentorshipChatThreadParticipant $participant): array => [
                 'assignmentId' => null, // Examiners don't have mentorship assignment IDs
                 'lecturerUserId' => $participant->user_id,
@@ -177,10 +183,12 @@ class JadwalBimbinganController extends Controller
             ->where('user_id', $student->id)
             ->pluck('thread_id');
 
+        $secretExaminers = app(SecretSidangExaminers::class);
         $examinerUserIds = MentorshipChatThreadParticipant::query()
             ->whereIn('thread_id', $studentThreadIds)
             ->where('role', 'examiner')
-            ->pluck('user_id');
+            ->pluck('user_id')
+            ->reject(fn($userId): bool => $secretExaminers->isSecret($student->id, (int) $userId));
 
         $isAssigned = $assignments->contains('lecturer_user_id', (int) $data['lecturer_user_id']);
         $isExaminer = $examinerUserIds->contains((int) $data['lecturer_user_id']);

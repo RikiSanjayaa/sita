@@ -18,6 +18,7 @@ use App\Services\CompletedChatThreadService;
 use App\Services\MentorshipTicketService;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
+use App\Services\SecretSidangExaminers;
 use App\Services\ThesisArchiveService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
@@ -99,12 +100,19 @@ class PesanController extends Controller
             ->all();
 
         $completedThreadIds = $this->completedChatThreads->completedThreadIds($threads);
+        $secretExaminers = app(SecretSidangExaminers::class);
 
-        $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($advisors, $completedThreadIds, $student) {
+        $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($advisors, $completedThreadIds, $secretExaminers, $student) {
             $messages = $thread->messages
                 ->map(fn(MentorshipChatMessage $m): array => $this->payloadBuilder->build($m))
                 ->values()
                 ->all();
+
+            // Sidang examiners the mahasiswa may not know yet never reach the payload, even if a
+            // participant row was left behind (see ThesisDefense::examinersVisibleToStudent()).
+            $participants = $thread->type === 'sidang'
+                ? $thread->participants->reject(fn(MentorshipChatThreadParticipant $participant): bool => $secretExaminers->isSecret($student->id, (int) $participant->user_id))
+                : $thread->participants;
 
             // Determine members list
             if ($thread->type === 'pembimbing') {
@@ -113,8 +121,9 @@ class PesanController extends Controller
                     ...$advisors,
                 ]));
             } else {
-                $members = $thread->participants
+                $members = $participants
                     ->map(fn(MentorshipChatThreadParticipant $participant): string => $participant->user?->name ?? '-')
+                    ->values()
                     ->all();
             }
 
@@ -131,7 +140,7 @@ class PesanController extends Controller
                         ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->userProfilePresenter->summary($assignment->lecturer))
                         ->all(),
                 ]))
-                : $thread->participants
+                : $participants
                     ->map(fn(MentorshipChatThreadParticipant $participant): ?array => $this->userProfilePresenter->summary($participant->user))
                     ->filter()
                     ->values()
