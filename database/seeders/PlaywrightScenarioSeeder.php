@@ -146,7 +146,8 @@ class PlaywrightScenarioSeeder extends Seeder
             'phase' => 'completed',
             'state' => 'completed',
             'completed_at' => $completedAt,
-            'started_at' => CarbonImmutable::now()->subMonths(8),
+            // Older than every other seeded project so these rows sort last in lists that other specs page through.
+            'started_at' => CarbonImmutable::now()->subYears(2),
         ])->save();
 
         ThesisSupervisorAssignment::query()->create([
