@@ -23,10 +23,7 @@ import { FormEventHandler, useMemo, useState } from 'react';
 
 import { DeadlineBadge } from '@/components/deadline-badge';
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
-import {
-    MentorshipProgressList,
-    type MentorshipProgressRow,
-} from '@/components/mentorship-progress';
+import { type MentorshipProgressRow } from '@/components/mentorship-progress';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import {
     type ThesisNote,
@@ -1896,6 +1893,20 @@ export default function TugasAkhirSaya() {
                                                             key={person.id}
                                                             person={person}
                                                             label={`Pembimbing ${index + 1}`}
+                                                            detail={(() => {
+                                                                const progress =
+                                                                    mentorshipProgress.find(
+                                                                        (row) =>
+                                                                            row
+                                                                                .lecturer
+                                                                                .id ===
+                                                                            person.id,
+                                                                    );
+
+                                                                return progress
+                                                                    ? `${progress.completed} bimbingan`
+                                                                    : undefined;
+                                                            })()}
                                                         />
                                                     ),
                                                 )}
@@ -1906,19 +1917,6 @@ export default function TugasAkhirSaya() {
                                                 aktif.
                                             </div>
                                         )}
-                                        {mentorshipProgress.length > 0 ? (
-                                            <div className="grid gap-2 rounded-xl border p-3">
-                                                <p className="text-xs font-medium text-muted-foreground">
-                                                    Bimbingan selesai per
-                                                    pembimbing
-                                                </p>
-                                                <MentorshipProgressList
-                                                    progress={
-                                                        mentorshipProgress
-                                                    }
-                                                />
-                                            </div>
-                                        ) : null}
                                     </div>
 
                                     {/* Penguji Sempro */}

@@ -137,7 +137,7 @@ class UploadDokumenController extends Controller
                     'id' => $document->id,
                     'title' => $document->title,
                     'category' => $document->category ?? '-',
-                    'version' => sprintf('v%d', $document->version_number),
+                    'version' => $document->category === 'lampiran-chat' ? null : sprintf('v%d', $document->version_number),
                     'uploadedAt' => $document->created_at->format('d M Y H:i'),
                     'fileName' => $document->file_name,
                     'size' => sprintf('%d KB', (int) $document->file_size_kb),

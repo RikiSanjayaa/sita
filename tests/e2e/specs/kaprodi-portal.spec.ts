@@ -149,10 +149,9 @@ test.describe('Kaprodi portal', () => {
             await expect(
                 studentPage.getByText('Dr. Ratna Kusuma, M.Kom.').first(),
             ).toBeVisible();
-            // Progress starts at 0 of the 6-session minimum per supervisor.
-            await expect(
-                studentPage.getByTestId('mentorship-progress').getByText('0/6'),
-            ).toHaveCount(2);
+            // Progress is a plain count per supervisor, not a target.
+            await expect(studentPage.getByText('0 bimbingan')).toHaveCount(2);
+            await expect(studentPage.getByText('0/6')).toHaveCount(0);
 
             const dosenPage = await dosenContext.newPage();
             await dosenPage.goto('/dosen/mahasiswa-bimbingan');
@@ -162,7 +161,7 @@ test.describe('Kaprodi portal', () => {
             await expect(
                 dosenPage
                     .getByTestId('mentorship-progress')
-                    .getByText('0/6')
+                    .getByText('0 bimbingan')
                     .first(),
             ).toBeVisible();
         } finally {

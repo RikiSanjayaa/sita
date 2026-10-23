@@ -1,7 +1,6 @@
 import { TriangleAlert } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export type MentorshipProgressRow = {
@@ -43,9 +42,9 @@ export function MentorshipProgressList({
                         </span>{' '}
                         {row.lecturer.name}
                     </span>
-                    <Badge variant={row.met ? 'secondary' : 'outline'}>
-                        {row.completed}/{row.minimum}
-                    </Badge>
+                    <span className="font-medium whitespace-nowrap">
+                        {row.completed} bimbingan
+                    </span>
                 </li>
             ))}
         </ul>
