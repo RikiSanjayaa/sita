@@ -5,6 +5,7 @@ import {
     CircleAlert,
     Clock,
     Download,
+    Eye,
     FileText,
     Inbox,
     Trash2,
@@ -39,6 +40,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
 import {
     Tooltip,
@@ -72,7 +80,7 @@ type UploadedDokumenRow = {
     id: number;
     title: string;
     category: string;
-    version: string;
+    version: string | null;
     uploadedAt: string;
     fileName: string;
     size: string;
@@ -177,6 +185,8 @@ export default function UploadDokumenPage() {
     );
     const pageState = useUrlState('page', 1);
     const [documentPendingDelete, setDocumentPendingDelete] =
+        useState<UploadedDokumenRow | null>(null);
+    const [detailDocument, setDetailDocument] =
         useState<UploadedDokumenRow | null>(null);
 
     const form = useForm<{
@@ -485,8 +495,10 @@ export default function UploadDokumenPage() {
                                 {documentPendingDelete.title}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                                {documentPendingDelete.fileName} -{' '}
-                                {documentPendingDelete.version}
+                                {documentPendingDelete.fileName}
+                                {documentPendingDelete.version
+                                    ? ` - ${documentPendingDelete.version}`
+                                    : ''}
                             </p>
                         </div>
                     )}
@@ -518,6 +530,153 @@ export default function UploadDokumenPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <Sheet
+                open={detailDocument !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDetailDocument(null);
+                    }
+                }}
+            >
+                <SheetContent
+                    side="right"
+                    className="w-full gap-0 p-0 sm:max-w-xl"
+                    data-testid="dokumen-detail-drawer"
+                >
+                    {detailDocument ? (
+                        <>
+                            <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+                                <div className="flex items-start gap-3 pr-8">
+                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                        <FileText className="size-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <SheetTitle className="line-clamp-2 text-base break-words">
+                                            {detailDocument.title}
+                                        </SheetTitle>
+                                        <SheetDescription className="mt-1 break-all">
+                                            {detailDocument.fileName}
+                                            {detailDocument.version
+                                                ? ` — ${detailDocument.version}`
+                                                : ''}
+                                        </SheetDescription>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                                <div className="grid gap-4 rounded-lg border bg-background p-4 sm:grid-cols-2">
+                                    <div>
+                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                            Kategori
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium">
+                                            {detailDocument.category}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                            Status
+                                        </p>
+                                        <div className="mt-1">
+                                            <StatusBadge
+                                                status={detailDocument.status}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                            Tanggal Upload
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium">
+                                            {detailDocument.uploadedAt}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                            Ukuran
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium">
+                                            {detailDocument.size}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold">
+                                        Review Dosen
+                                    </h3>
+                                    {detailDocument.reviews.length > 0 ? (
+                                        detailDocument.reviews.map(
+                                            (review, index) => (
+                                                <div
+                                                    key={`${review.lecturerName}-${index}`}
+                                                    className="space-y-2 rounded-lg border bg-background p-4"
+                                                >
+                                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-medium break-words">
+                                                                {
+                                                                    review.lecturerName
+                                                                }
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {review.role}
+                                                            </p>
+                                                        </div>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={cn(
+                                                                'whitespace-nowrap',
+                                                                statusClassName(
+                                                                    'document',
+                                                                    review.status,
+                                                                ),
+                                                            )}
+                                                        >
+                                                            {REVIEW_STATUS_LABELS[
+                                                                review.status
+                                                            ] ??
+                                                                'Menunggu Review'}
+                                                        </Badge>
+                                                    </div>
+                                                    {review.notes ? (
+                                                        <p className="text-sm break-words whitespace-pre-wrap">
+                                                            {review.notes}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-xs text-muted-foreground italic">
+                                                            Tidak ada catatan.
+                                                        </p>
+                                                    )}
+                                                    {review.reviewedAt ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Direview{' '}
+                                                            {review.reviewedAt}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            ),
+                                        )
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            Belum ada review dari dosen.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <Button asChild variant="outline">
+                                    <a href={detailDocument.downloadUrl}>
+                                        <Download className="size-4" />
+                                        Unduh Dokumen
+                                    </a>
+                                </Button>
+                            </div>
+                        </>
+                    ) : null}
+                </SheetContent>
+            </Sheet>
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 {/* Page header */}
@@ -646,8 +805,8 @@ export default function UploadDokumenPage() {
                                         <th className="px-5 py-3 font-medium">
                                             Status
                                         </th>
-                                        <th className="w-[22%] px-5 py-3 font-medium">
-                                            Catatan Revisi
+                                        <th className="px-5 py-3 font-medium">
+                                            Review
                                         </th>
                                         <th className="px-5 py-3 text-right font-medium">
                                             Aksi
@@ -660,9 +819,12 @@ export default function UploadDokumenPage() {
                                             row.status === 'Perlu Revisi';
                                         return (
                                             <tr
-                                                key={`${row.id}-${row.version}`}
+                                                key={`${row.id}-${row.version ?? 'lampiran'}`}
+                                                onClick={() =>
+                                                    setDetailDocument(row)
+                                                }
                                                 className={cn(
-                                                    'transition-colors hover:bg-muted/20',
+                                                    'cursor-pointer transition-colors hover:bg-muted/20',
                                                     hasRevision &&
                                                         'bg-destructive/5 dark:bg-destructive/5',
                                                 )}
@@ -678,8 +840,10 @@ export default function UploadDokumenPage() {
                                                                 {row.title}
                                                             </div>
                                                             <div className="max-w-[180px] truncate text-xs text-muted-foreground">
-                                                                {row.fileName} —{' '}
-                                                                {row.version}
+                                                                {row.fileName}
+                                                                {row.version
+                                                                    ? ` — ${row.version}`
+                                                                    : ''}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -712,49 +876,36 @@ export default function UploadDokumenPage() {
                                                     />
                                                 </td>
 
-                                                {/* Catatan Revisi */}
-                                                <td className="px-5 py-3.5">
-                                                    {row.reviews.length > 0 ? (
-                                                        <div className="flex max-h-24 flex-col gap-1.5 overflow-y-auto">
-                                                            {row.reviews.map(
-                                                                (
-                                                                    review,
-                                                                    index,
-                                                                ) => (
-                                                                    <div
-                                                                        key={`${review.lecturerName}-${index}`}
-                                                                        className={cn(
-                                                                            'rounded border p-2 text-xs',
-                                                                            statusClassName(
-                                                                                'document',
-                                                                                review.status,
-                                                                            ),
-                                                                        )}
-                                                                    >
-                                                                        <p className="font-medium text-foreground">
-                                                                            {`${review.lecturerName} (${review.role}) · ${REVIEW_STATUS_LABELS[review.status] ?? 'Menunggu Review'}`}
-                                                                        </p>
-                                                                        {review.notes ? (
-                                                                            <p className="whitespace-pre-wrap">
-                                                                                {
-                                                                                    review.notes
-                                                                                }
-                                                                            </p>
-                                                                        ) : null}
-                                                                    </div>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground italic">
-                                                            —
-                                                        </span>
-                                                    )}
+                                                {/* Review */}
+                                                <td className="px-5 py-3.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                    {row.reviews.length > 0
+                                                        ? `${row.reviews.length} review`
+                                                        : '—'}
                                                 </td>
 
                                                 {/* Aksi */}
-                                                <td className="px-5 py-3.5">
+                                                <td
+                                                    className="px-5 py-3.5"
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
                                                     <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8"
+                                                            onClick={() =>
+                                                                setDetailDocument(
+                                                                    row,
+                                                                )
+                                                            }
+                                                            aria-label={`Detail dokumen ${row.title}`}
+                                                        >
+                                                            <Eye className="size-4" />
+                                                            Detail
+                                                        </Button>
                                                         <Tooltip>
                                                             <TooltipTrigger
                                                                 asChild

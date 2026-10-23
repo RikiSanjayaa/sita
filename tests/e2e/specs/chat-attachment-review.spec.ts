@@ -112,7 +112,17 @@ test.describe('Chat attachment review visibility', () => {
 
             await expect(studentRow).toBeVisible();
             await expect(studentRow).toContainText('Perlu Revisi');
-            await expect(studentRow).toContainText(revisionNotes);
+            await expect(studentRow).toContainText('2 review');
+            await expect(studentRow).not.toContainText(revisionNotes);
+            await expect(studentRow).not.toContainText(/\bv\d+\b/);
+
+            await studentRow.getByRole('button', { name: /^Detail/ }).click();
+            const detailDrawer = mahasiswaPage.getByRole('dialog');
+            await expect(detailDrawer).toContainText(revisionNotes);
+            await expect(detailDrawer).toContainText('Perlu Revisi');
+            await expect(detailDrawer).not.toContainText(/\bv\d+\b/);
+            await mahasiswaPage.keyboard.press('Escape');
+            await expect(detailDrawer).toBeHidden();
 
             await openMahasiswaBimbinganThread(mahasiswaPage);
             await expect(

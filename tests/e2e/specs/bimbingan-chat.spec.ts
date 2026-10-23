@@ -525,7 +525,14 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(initialStudentRow).toBeVisible();
             await expect(initialStudentRow).toContainText('Perlu Revisi');
-            await expect(initialStudentRow).toContainText(revisionNotes);
+            await expect(initialStudentRow).toContainText(/ — v\d+/);
+            await initialStudentRow
+                .getByRole('button', { name: /^Detail/ })
+                .click();
+            await expect(mahasiswaPage.getByRole('dialog')).toContainText(
+                revisionNotes,
+            );
+            await mahasiswaPage.keyboard.press('Escape');
 
             await uploadThesisDocument(
                 mahasiswaPage,
@@ -577,7 +584,17 @@ test.describe('Bimbingan and chat integration', () => {
                 .first();
 
             await expect(revisedStudentApprovedRow).toBeVisible();
-            await expect(revisedStudentApprovedRow).toContainText('Disetujui');
+            // Only one of the two supervisors approved: aggregated status is
+            // partial, and the drawer shows the per-lecturer approval.
+            await expect(revisedStudentApprovedRow).toContainText(
+                'Sebagian direview',
+            );
+            await revisedStudentApprovedRow
+                .getByRole('button', { name: /^Detail/ })
+                .click();
+            await expect(mahasiswaPage.getByRole('dialog')).toContainText(
+                'Disetujui',
+            );
         } finally {
             await mahasiswaContext.close();
             await dosenContext.close();

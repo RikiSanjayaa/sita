@@ -9,12 +9,14 @@ import { type UserProfileSummary } from '@/types';
 type PersonCardLinkProps = {
     person: UserProfileSummary;
     label?: string;
+    detail?: string;
     className?: string;
 };
 
 export function PersonCardLink({
     person,
     label,
+    detail,
     className,
 }: PersonCardLinkProps) {
     const getInitials = useInitials();
@@ -74,6 +76,11 @@ export function PersonCardLink({
                 {chips.length === 0 && person.roleLabel && (
                     <p className="mt-0.5 text-xs text-muted-foreground">
                         {person.roleLabel}
+                    </p>
+                )}
+                {detail && (
+                    <p className="mt-1 text-xs font-medium text-foreground">
+                        {detail}
                     </p>
                 )}
             </div>

@@ -240,7 +240,9 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
         ->get('/mahasiswa/upload-dokumen')
         ->assertInertia(fn(Assert $page) => $page
             ->component('upload-dokumen')
-            ->has('uploadedDocuments', 2));
+            ->has('uploadedDocuments', 2)
+            ->where('uploadedDocuments.0.version', null)
+            ->where('uploadedDocuments.1.version', null));
 });
 
 test('tugas akhir page includes proposal file, dosen assignments, and sempro schedule', function () {
@@ -1995,6 +1997,7 @@ test('chat attachment reviewed by second lecturer shows review to mahasiswa on u
 
     expect($documents)->toHaveCount(1)
         ->and($documents[0]['status'])->toBe('Perlu Revisi')
+        ->and($documents[0]['version'])->toBeNull()
         ->and(collect($documents[0]['reviews'])->firstWhere('lecturerName', $dosen2->name))
         ->toMatchArray([
             'status' => 'needs_revision',
