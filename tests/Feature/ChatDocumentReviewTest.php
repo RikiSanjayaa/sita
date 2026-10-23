@@ -140,6 +140,41 @@ test('a non-document message has no review copy even for a lecturer viewer', fun
     expect($payload['ownReview'])->toBeNull();
 });
 
+test('the review copy keeps the lecturer own status after they review it', function () {
+    ['first' => $first, 'second' => $second, 'copies' => $copies, 'message' => $message] = createSharedChatUpload();
+
+    $copies['first']->update(['status' => 'needs_revision']);
+
+    expect(payloadFor($message->fresh(), $first)['ownReview'])->toBe(['id' => $copies['first']->id, 'status' => 'needs_revision']);
+    expect(payloadFor($message->fresh(), $second)['ownReview']['status'])->toBe('submitted');
+});
+
+test('document events are labelled as upload or review by their sender', function () {
+    ['first' => $first, 'message' => $message] = createSharedChatUpload();
+
+    expect(payloadFor($message, $first)['documentEventKind'])->toBe('upload');
+
+    $message->update(['sender_user_id' => $first->id]);
+
+    expect(payloadFor($message->fresh(), $first)['documentEventKind'])->toBe('review');
+});
+
+test('review and status events and lecturer-sent files carry no review copy', function (string $case) {
+    ['first' => $first, 'student' => $student, 'message' => $message] = createSharedChatUpload();
+
+    $message->update(match ($case) {
+        'review event by the lecturer' => ['sender_user_id' => $first->id, 'message' => 'menandai lampiran perlu revisi.', 'attachment_name' => null],
+        'file sent by the lecturer' => ['sender_user_id' => $first->id],
+        'file sent by the other lecturer' => ['sender_user_id' => createUserWithRole(AppRole::Dosen->value)->id],
+    });
+
+    expect(payloadFor($message->fresh(), $first)['ownReview'])->toBeNull();
+})->with([
+    'review event by the lecturer',
+    'file sent by the lecturer',
+    'file sent by the other lecturer',
+]);
+
 test('a lecturer can review their copy from chat and the status is stored on that copy', function (string $status, ?string $notes) {
     ['first' => $first, 'copies' => $copies] = createSharedChatUpload();
 

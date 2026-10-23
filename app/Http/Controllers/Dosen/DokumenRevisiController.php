@@ -144,6 +144,7 @@ class DokumenRevisiController extends Controller
             'message' => $message->message,
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => 'document_event',
+            'documentEventKind' => 'review',
             'documentName' => $document->file_name,
             'documentUrl' => null,
             'relatedDocumentId' => $document->id,

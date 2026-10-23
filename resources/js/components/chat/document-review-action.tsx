@@ -76,13 +76,13 @@ export function DocumentReviewAction({
         <>
             <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                className="mt-2 w-full"
+                className="h-7 gap-1.5 px-2.5 text-xs"
                 onClick={() => setIsOpen(true)}
                 aria-label={`Tinjau ${documentName}`}
             >
-                <ClipboardCheck className="size-4" />
+                <ClipboardCheck className="size-3.5" />
                 Tinjau
             </Button>
 

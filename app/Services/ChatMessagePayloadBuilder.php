@@ -50,6 +50,7 @@ class ChatMessagePayloadBuilder
                 : null,
             'relatedDocumentId' => $message->related_document_id,
             'reviewStatus' => $message->relatedDocument?->status,
+            'documentEventKind' => $this->documentEventKind($message),
             'ownReview' => $this->ownReview($message, $ownReviews),
         ];
     }
@@ -93,6 +94,20 @@ class ChatMessagePayloadBuilder
     }
 
     /**
+     * 'upload' for the event announcing a student's file, 'review' for lecturer review/status events.
+     */
+    private function documentEventKind(MentorshipChatMessage $message): ?string
+    {
+        if ($message->message_type !== 'document_event') {
+            return null;
+        }
+
+        $student = $message->relatedDocument?->student_user_id;
+
+        return $student === null || (int) $message->sender_user_id === (int) $student ? 'upload' : 'review';
+    }
+
+    /**
      * @param  array<string, array{id: int, status: string}>  $ownReviews
      * @return array{id: int, status: string}|null
      */
@@ -100,7 +115,13 @@ class ChatMessagePayloadBuilder
     {
         $related = $message->relatedDocument;
 
-        if ($message->message_type !== 'document_event' || $related === null) {
+        // Only the event announcing the student's own upload is reviewable. Review/status
+        // events and files sent by lecturers are authored by someone other than the student.
+        if (
+            $message->message_type !== 'document_event'
+            || $related === null
+            || (int) $message->sender_user_id !== (int) $related->student_user_id
+        ) {
             return null;
         }
 
