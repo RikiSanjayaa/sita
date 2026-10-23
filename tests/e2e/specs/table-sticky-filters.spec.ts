@@ -277,24 +277,24 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                 bar.getByRole('searchbox'),
                             ).toBeInViewport();
                             if (item.role !== 'guest') {
-                                await page
-                                    .locator('[data-slot="sidebar-trigger"]')
-                                    .click();
-                                await expect
-                                    .poll(
-                                        async () =>
-                                            (await bar.boundingBox())?.y,
-                                    )
-                                    .toBe(48);
-                                await page
-                                    .locator('[data-slot="sidebar-trigger"]')
-                                    .click();
-                                await expect
-                                    .poll(
-                                        async () =>
-                                            (await bar.boundingBox())?.y,
-                                    )
-                                    .toBe(64);
+                                // The width change reflows the table and can move the
+                                // scroll position, so scroll into the rows again after
+                                // each toggle before asserting the sticky offset.
+                                for (const expectedTop of [48, 64]) {
+                                    await page
+                                        .locator(
+                                            '[data-slot="sidebar-trigger"]',
+                                        )
+                                        .click();
+                                    await page.waitForTimeout(400);
+                                    await scrollIntoRows(page, bar);
+                                    await expect
+                                        .poll(
+                                            async () =>
+                                                (await bar.boundingBox())?.y,
+                                        )
+                                        .toBe(expectedTop);
+                                }
                             }
                         } else {
                             // Tall phone controls scroll away instead of obscuring the rows.

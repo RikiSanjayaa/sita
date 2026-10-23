@@ -531,10 +531,12 @@ test('kaprodi mahasiswa page exposes progress risk from project and chat activit
             ->where('students.1.name', 'Bima Terkendali')
             ->where('students.1.progressRisk.level', 'low')
             ->where('students.1.progressRisk.label', 'Terkendali')
-            ->where('students.1.progressRisk.lastActivityLabel', 'Chat terakhir')
+            ->where('students.1.progressRisk.lastActivityLabel', 'Aktivitas mahasiswa')
+            ->where('students.1.progress.detail.lastActivityAt', now()->format('d M Y'))
             ->where('students.2.name', 'Citra Dokumen')
             ->where('students.2.progressRisk.level', 'low')
-            ->where('students.2.progressRisk.lastActivityLabel', 'Dokumen bimbingan'));
+            ->where('students.2.progressRisk.lastActivityLabel', 'Aktivitas mahasiswa')
+            ->where('students.2.progress.detail.lastActivityAt', now()->format('d M Y')));
 });
 
 test('kaprodi can assign supervisors and schedule exams for own active prodi project', function (): void {

@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\ThesisDefenseExaminer;
+use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -11,6 +13,49 @@ use Illuminate\Support\Facades\DB;
 
 class StudentActivityService
 {
+    /**
+     * The one "last activity" value for a student's project, keyed by project id: the
+     * newest of every supervisor and non-cancelled examiner relation on that project
+     * (see latest()). Same value on the dosen and kaprodi lists, profile cards and
+     * Progres Mahasiswa. Constant query count however many projects are passed.
+     *
+     * @param  Collection<int, ThesisProject>  $projects
+     * @return array<int, CarbonInterface>
+     */
+    public function latestByProject(Collection $projects): array
+    {
+        $projectIds = $projects->map(fn (ThesisProject $project): int => (int) $project->getKey())->unique()->values()->all();
+        if ($projectIds === []) {
+            return [];
+        }
+
+        $assignments = ThesisSupervisorAssignment::query()
+            ->whereIntegerInRaw('project_id', $projectIds)
+            ->get(['id', 'project_id']);
+        $examiners = ThesisDefenseExaminer::query()
+            ->with('defense:id,project_id,updated_at')
+            ->whereHas('defense', fn ($query) => $query
+                ->whereIntegerInRaw('project_id', $projectIds)
+                ->where('status', '!=', 'cancelled'))
+            ->get();
+        $latest = $this->latest($assignments, $examiners);
+
+        $byProject = [];
+        $consider = function (int $projectId, ?CarbonInterface $time) use (&$byProject): void {
+            if ($time !== null && (! isset($byProject[$projectId]) || $time->gt($byProject[$projectId]))) {
+                $byProject[$projectId] = $time;
+            }
+        };
+        foreach ($assignments as $assignment) {
+            $consider((int) $assignment->project_id, $latest['supervisor:'.$assignment->id] ?? null);
+        }
+        foreach ($examiners as $examiner) {
+            $consider((int) $examiner->defense?->project_id, $latest['examiner:'.$examiner->id] ?? null);
+        }
+
+        return $byProject;
+    }
+
     /**
      * Legacy mentorship records have no thesis project foreign key. Bound them
      * to the project/assignment lifetime instead of mixing a student's attempts.

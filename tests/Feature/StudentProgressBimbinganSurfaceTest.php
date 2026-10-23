@@ -9,6 +9,7 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\MentorshipProgressService;
+use App\Services\StudentActivityService;
 use App\Services\StudentProgressSnapshot;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -181,15 +182,15 @@ it('builds one snapshot for active and history rows together', function (): void
     bimbinganSurfaceProject($lecturer);
     bimbinganSurfaceProject($lecturer, 'ended');
 
-    $spy = new class(app(MentorshipProgressService::class)) extends StudentProgressSnapshot
+    $spy = new class(app(MentorshipProgressService::class), app(StudentActivityService::class)) extends StudentProgressSnapshot
     {
         public int $calls = 0;
 
-        public function forProjects(Collection $projects, ?User $viewer, bool $detailForAll = false): array
+        public function forProjects(Collection $projects, ?User $viewer, bool $detailForAll = false, ?array $lastActivity = null): array
         {
             $this->calls++;
 
-            return parent::forProjects($projects, $viewer, $detailForAll);
+            return parent::forProjects($projects, $viewer, $detailForAll, $lastActivity);
         }
     };
     $this->app->instance(StudentProgressSnapshot::class, $spy);

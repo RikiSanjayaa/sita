@@ -7,18 +7,33 @@ use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
+use App\Services\StudentProgressMoments;
 use App\Services\StudentProgressSnapshot;
 use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Progres Mahasiswa: the same student population as the kaprodi "Mahasiswa Prodi" page
+ * (see KaprodiPortalService::studentIndex()) across every program studi. Each student is shown
+ * with the current thesis project (ThesisProject::current()); students without one are
+ * "Belum ada tugas akhir". Newest stage progress first, see StudentProgressMoments.
+ */
 class StudentProgressController extends Controller
 {
-    public function __invoke(StudentProgressIndexRequest $request, StudentProgressSnapshot $snapshot): Response
-    {
+    private const NO_PROJECT = 'none';
+
+    public function __invoke(
+        StudentProgressIndexRequest $request,
+        StudentProgressSnapshot $snapshot,
+        StudentProgressMoments $moments,
+    ): Response {
         $filters = [
             'search' => $this->searchTerm($request->validated('search')),
             'prodi' => $request->validated('prodi') ?: null,
@@ -28,22 +43,36 @@ class StudentProgressController extends Controller
         ];
 
         $counts = $this->filteredQuery($filters, includePhase: false)
-            ->reorder()
-            ->select('thesis_projects.phase as phase', DB::raw('count(*) as total'))
-            ->groupBy('thesis_projects.phase')
-            ->pluck('total', 'phase');
+            ->select(DB::raw($this->phaseKeySql().' as phase_key'), DB::raw('count(*) as total'))
+            ->groupBy('phase_key')
+            ->pluck('total', 'phase_key');
 
         $paginator = $this->filteredQuery($filters, includePhase: true)
-            ->with(['student.mahasiswaProfile', 'programStudi', 'approvedTitles'])
+            ->leftJoinSub($moments->latestPerProject(), 'progress_moments', 'progress_moments.project_id', '=', 'thesis_projects.id')
+            ->select('mahasiswa_profiles.*', 'thesis_projects.id as current_project_id')
+            ->orderByRaw('CASE WHEN thesis_projects.id IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('progress_moments.moment')
             ->orderBy('users.name')
-            ->orderBy('thesis_projects.id')
+            ->orderBy('mahasiswa_profiles.id')
+            ->with(['user', 'programStudi'])
             ->paginate($filters['perPage'])
             ->withQueryString();
 
-        $progress = $snapshot->forProjects($paginator->getCollection(), $request->user(), detailForAll: true);
+        $projects = $this->projectsFor($paginator->getCollection());
+        $progress = $snapshot->forProjects($projects, $request->user(), detailForAll: true);
+        $latestMoments = $moments->forProjects($projects->keys()->all(), $projects);
 
         $rows = $paginator->getCollection()
-            ->map(fn (ThesisProject $project): array => $this->row($project, $progress[$project->id]))
+            ->map(function (MahasiswaProfile $profile) use ($projects, $progress, $latestMoments): array {
+                $project = $projects[(int) $profile->getAttribute('current_project_id')] ?? null;
+
+                return $this->row(
+                    $profile,
+                    $project,
+                    $project instanceof ThesisProject ? $progress[$project->id] : null,
+                    $project instanceof ThesisProject ? ($latestMoments[$project->id] ?? null) : null,
+                );
+            })
             ->values()
             ->all();
 
@@ -86,49 +115,108 @@ class StudentProgressController extends Controller
     }
 
     /**
-     * Active thesis projects of active students, filtered in SQL so every count and page
-     * is computed over the full filtered set.
+     * Phase key of a student as the kaprodi page shows it: a completed project is always
+     * "completed", no current project is "none", anything else is the project phase.
+     */
+    private function phaseKeySql(): string
+    {
+        return "CASE WHEN thesis_projects.id IS NULL THEN 'none' WHEN thesis_projects.state = 'completed' THEN 'completed' ELSE thesis_projects.phase END";
+    }
+
+    /**
+     * Mahasiswa profiles with their current project, filtered in SQL so every count and page is
+     * computed over the full filtered set. Population = KaprodiPortalService: active students
+     * (with or without a thesis) plus every completed current project.
      *
      * @param  array{search: ?string, prodi: ?int, phase: ?string, angkatan: ?int, perPage: int}  $filters
-     * @return Builder<ThesisProject>
+     * @return Builder<MahasiswaProfile>
      */
     private function filteredQuery(array $filters, bool $includePhase): Builder
     {
-        return ThesisProject::query()
-            ->select('thesis_projects.*')
-            ->join('users', 'users.id', '=', 'thesis_projects.student_user_id')
-            ->join('mahasiswa_profiles', 'mahasiswa_profiles.user_id', '=', 'thesis_projects.student_user_id')
-            ->join('program_studis', 'program_studis.id', '=', 'thesis_projects.program_studi_id')
-            ->where('thesis_projects.state', 'active')
-            ->where('mahasiswa_profiles.is_active', true)
+        return MahasiswaProfile::query()
+            ->join('users', 'users.id', '=', 'mahasiswa_profiles.user_id')
+            ->leftJoin('program_studis', 'program_studis.id', '=', 'mahasiswa_profiles.program_studi_id')
+            ->leftJoin('thesis_projects', function (JoinClause $join): void {
+                $join->on('thesis_projects.student_user_id', '=', 'mahasiswa_profiles.user_id')
+                    ->whereIn('thesis_projects.id', ThesisProject::query()->current()->select('thesis_projects.id'));
+            })
+            ->where(fn (Builder $query): Builder => $query
+                ->where('mahasiswa_profiles.is_active', true)
+                ->orWhere('thesis_projects.state', 'completed'))
             ->when($filters['search'], fn (Builder $query, string $search): Builder => $query->where(fn (Builder $inner): Builder => $inner
                 ->whereLike('users.name', "%{$search}%")
                 ->orWhereLike('mahasiswa_profiles.nim', "%{$search}%")
                 ->orWhereLike('program_studis.name', "%{$search}%")))
-            ->when($filters['prodi'], fn (Builder $query, int $prodi): Builder => $query->where('thesis_projects.program_studi_id', $prodi))
+            ->when($filters['prodi'], fn (Builder $query, int $prodi): Builder => $query->where('mahasiswa_profiles.program_studi_id', $prodi))
             ->when($filters['angkatan'], fn (Builder $query, int $angkatan): Builder => $query->where('mahasiswa_profiles.angkatan', $angkatan))
-            ->when($includePhase ? $filters['phase'] : null, fn (Builder $query, string $phase): Builder => $query->where('thesis_projects.phase', $phase));
+            ->when($includePhase ? $filters['phase'] : null, fn (Builder $query, string $phase): Builder => $query->whereRaw($this->phaseKeySql().' = ?', [$phase]));
     }
 
     /**
-     * @param  array<string, mixed>  $progress  result of StudentProgressSnapshot::forProjects()
+     * Current projects of the page, keyed by project id, with everything the rows and the
+     * snapshot read loaded up front.
+     *
+     * @param  Collection<int, MahasiswaProfile>  $profiles
+     * @return EloquentCollection<int, ThesisProject>
+     */
+    private function projectsFor(Collection $profiles): EloquentCollection
+    {
+        $ids = $profiles->pluck('current_project_id')->filter()->map(fn ($id): int => (int) $id)->values()->all();
+
+        return ThesisProject::query()
+            ->whereKey($ids)
+            ->with(['student.mahasiswaProfile', 'programStudi', 'approvedTitles', 'passedSemproDefenses'])
+            ->get()
+            ->keyBy('id');
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $progress  result of StudentProgressSnapshot::forProjects()
+     * @param  array<string, mixed>|null  $moment
      * @return array<string, mixed>
      */
-    private function row(ThesisProject $project, array $progress): array
+    private function row(MahasiswaProfile $profile, ?ThesisProject $project, ?array $progress, ?array $moment): array
     {
-        $student = $project->student;
-        $profile = $student->mahasiswaProfile;
+        $student = $profile->user;
+        $phaseKey = match (true) {
+            ! $project instanceof ThesisProject => self::NO_PROJECT,
+            $project->state === 'completed' => 'completed',
+            default => (string) $project->phase,
+        };
+
+        if ($progress !== null) {
+            $progress['phase'] = $phaseKey;
+            $progress['phaseLabel'] = $phaseKey === 'cancelled' ? 'Dibatalkan' : AcademicTerminology::phaseLabel($phaseKey);
+        }
 
         return [
-            'id' => $project->id,
-            'name' => $student->name,
-            'nim' => $profile?->nim,
-            'profileUrl' => route('users.profile.show', ['user' => $student->id]),
-            'prodi' => $project->programStudi?->name,
-            'angkatan' => $profile?->angkatan,
-            'title' => $project->publicTitle()?->title_id,
+            'id' => $profile->user_id,
+            'projectId' => $project?->id,
+            'name' => $student?->name ?? '-',
+            'nim' => $profile->nim,
+            'avatar' => $student?->avatar,
+            'profileUrl' => route('users.profile.show', ['user' => $profile->user_id]),
+            'prodi' => $profile->programStudi?->name,
+            'degreeLevel' => strtoupper((string) $profile->degree_level),
+            'angkatan' => $profile->angkatan,
+            'concentration' => $profile->concentration,
+            'isObeCurriculum' => (bool) $profile->is_obe_curriculum,
+            'phaseKey' => $phaseKey,
+            'phaseLabel' => match ($phaseKey) {
+                self::NO_PROJECT => $this->noProjectLabel(),
+                'cancelled' => 'Dibatalkan',
+                default => AcademicTerminology::phaseLabel($phaseKey),
+            },
+            'title' => $project?->publicTitle()?->title_id,
             'progress' => $progress,
+            'moment' => $moment,
         ];
+    }
+
+    /** Cross-degree list, so the neutral label. */
+    private function noProjectLabel(): string
+    {
+        return 'Belum ada '.mb_strtolower(AcademicTerminology::neutral()['finalWork']);
     }
 
     /**
@@ -143,7 +231,10 @@ class StudentProgressController extends Controller
             'count' => (int) $counts->sum(),
         ]];
 
-        foreach (AcademicTerminology::phaseLabels() as $value => $label) {
+        $labels = AcademicTerminology::phaseLabels()
+            + ['cancelled' => 'Dibatalkan', self::NO_PROJECT => $this->noProjectLabel()];
+
+        foreach ($labels as $value => $label) {
             $pills[] = [
                 'value' => $value,
                 'label' => $label,
@@ -162,13 +253,13 @@ class StudentProgressController extends Controller
     private function agenda(): array
     {
         return ThesisDefense::query()
-            ->with(['project.student', 'project.programStudi'])
+            ->with(['project.student.mahasiswaProfile', 'project.programStudi'])
             ->where('status', 'scheduled')
             ->whereIn('type', ['sempro', 'sidang'])
             ->where('scheduled_for', '>=', now())
-            ->whereHas('project', fn (Builder $query): Builder => $query->where('state', 'active'))
+            ->whereHas('project', fn (Builder $query): Builder => $query->current()->where('state', 'active'))
             ->orderBy('scheduled_for')
-            ->limit(8)
+            ->limit(5)
             ->get()
             ->map(fn (ThesisDefense $defense): array => [
                 'id' => $defense->id,

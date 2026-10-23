@@ -104,7 +104,7 @@ Mahasiswa tetap menerima status dan alasan penolakan pengajuan terakhir miliknya
 
 Profil dosen menampilkan mahasiswa pengujian pada tugas akhir aktif terkini dengan ujian draft, terjadwal, atau menunggu finalisasi. Ujian selesai/cancelled dan tugas akhir lulus tidak menumpuk di daftar aktif; mahasiswa yang juga dibimbing tidak ditampilkan dua kali.
 
-Kolom aktivitas terbaru di Mahasiswa Dosen mengambil waktu paling baru dari dokumen terkait, pesan mahasiswa pada grup terkait atau chat pribadi dengan dosen tersebut, dan bimbingan yang dikonfirmasi selesai oleh dosen. Pesan dosen/sistem, chat pribadi dengan penerima lain, serta permintaan atau penjadwalan bimbingan yang belum selesai tidak dihitung. Data bimbingan lama yang belum memiliki ID tugas akhir dibatasi menggunakan masa tugas akhir dan penugasan pembimbing.
+Satu definisi aktivitas terakhir mahasiswa (`StudentActivityService`) dipakai di daftar Mahasiswa Dosen, daftar Mahasiswa Prodi kaprodi, kartu mahasiswa di profil, dan halaman Progres Mahasiswa. Nilainya waktu paling baru dari dokumen terkait, pesan mahasiswa pada grup terkait atau chat pribadi dengan salah satu pembimbing/penguji tugas akhir itu, dan bimbingan yang dikonfirmasi selesai oleh dosen. Pesan dosen/sistem, chat pribadi dengan dosen di luar tugas akhir itu, serta permintaan atau penjadwalan bimbingan yang belum selesai tidak dihitung. Data bimbingan lama yang belum memiliki ID tugas akhir dibatasi menggunakan masa tugas akhir dan penugasan pembimbing. Baris riwayat dosen (pembimbing sudah berakhir) hanya menampilkan aktivitas selama dosen itu terkait dengan mahasiswa. Indikator "tidak aktif" memakai nilai yang sama dengan `SITA_INACTIVE_AFTER_DAYS`.
 
 ## Pengujian dan kualitas kode
 

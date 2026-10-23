@@ -8,14 +8,15 @@ use App\Support\WitaDateTime;
 class MentorshipTicketService
 {
     /**
-     * The student's active thesis project, whose ticket governs mentorship activity.
+     * The student's current thesis project (same notion as ThesisProject::current()),
+     * whose ticket governs mentorship activity. Null when the current one is not active.
      */
     public function activeProjectForStudent(int $studentUserId): ?ThesisProject
     {
         return ThesisProject::query()
+            ->current()
             ->where('student_user_id', $studentUserId)
             ->where('state', 'active')
-            ->latest('id')
             ->first();
     }
 

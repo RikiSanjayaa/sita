@@ -21,7 +21,7 @@ class StudentProgressIndexRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:100'],
             'prodi' => ['nullable', 'integer', Rule::exists('program_studis', 'id')],
-            'phase' => ['nullable', 'string', Rule::in(array_keys(AcademicTerminology::phaseLabels()))],
+            'phase' => ['nullable', 'string', Rule::in([...array_keys(AcademicTerminology::phaseLabels()), 'cancelled', 'none'])],
             'angkatan' => ['nullable', 'integer', 'digits:4'],
             'per_page' => ['nullable', 'integer', Rule::in([10, 15, 25, 50, 100])],
         ];

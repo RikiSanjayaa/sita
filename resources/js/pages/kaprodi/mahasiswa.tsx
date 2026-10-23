@@ -29,6 +29,11 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
+    StudentCohort,
+    StudentIdentity,
+    StudentTitleAdvisors,
+} from '@/components/patterns/student-cells';
+import {
     StudentProgressPeek,
     type StudentProgress,
 } from '@/components/profile/student-progress-peek';
@@ -36,7 +41,6 @@ import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,7 +76,6 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import {
@@ -263,7 +266,6 @@ function StudentTable({
     const { academicTerminology: terms, projectNotes } = usePage<
         SharedData & MahasiswaProps
     >().props;
-    const getInitials = useInitials();
     const [notesRow, setNotesRow] = useState<DirectoryRow | null>(null);
     const [search, setSearch] = useUrlState('activeSearch', '');
     const [phaseFilter, setPhaseFilter] = useUrlState<ActivePhaseFilter>(
@@ -588,51 +590,25 @@ function StudentTable({
                                     )}
                                 >
                                     <td className={stackedTable.tdPlain}>
-                                        <Link
-                                            href={row.profileUrl}
-                                            className="group flex items-center gap-3"
-                                        >
-                                            <Avatar className="size-8 shrink-0 border">
-                                                <AvatarImage
-                                                    src={
-                                                        row.avatar ?? undefined
-                                                    }
-                                                    alt=""
-                                                />
-                                                <AvatarFallback className="bg-primary-muted text-xs text-primary-muted-foreground">
-                                                    {getInitials(row.name)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className="min-w-0">
-                                                <p className="font-medium group-hover:text-primary">
-                                                    {row.name}
-                                                </p>
-                                                <p className="text-muted-foreground tabular-nums">
-                                                    {row.nim}
-                                                </p>
-                                            </div>
-                                        </Link>
+                                        <StudentIdentity
+                                            name={row.name}
+                                            nim={row.nim}
+                                            avatar={row.avatar}
+                                            profileUrl={row.profileUrl}
+                                        />
                                     </td>
                                     <td
                                         data-label="Angkatan"
                                         className={stackedTable.td}
                                     >
-                                        <p className="font-medium">
-                                            {row.degreeLevel} ·{' '}
-                                            {row.angkatan ?? '-'}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {row.concentration ?? '-'}
-                                        </p>
-                                        {row.isObeCurriculum && (
-                                            <StatusBadge
-                                                domain="curriculum"
-                                                status="obe"
-                                                className="mt-1"
-                                            >
-                                                OBE
-                                            </StatusBadge>
-                                        )}
+                                        <StudentCohort
+                                            degreeLevel={row.degreeLevel}
+                                            angkatan={row.angkatan}
+                                            concentration={row.concentration}
+                                            isObeCurriculum={
+                                                row.isObeCurriculum
+                                            }
+                                        />
                                     </td>
                                     <td
                                         data-label="Tahap"
@@ -690,20 +666,10 @@ function StudentTable({
                                             'md:max-w-xs',
                                         )}
                                     >
-                                        {row.title ? (
-                                            <p className="line-clamp-2 text-pretty">
-                                                {row.title}
-                                            </p>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                -
-                                            </span>
-                                        )}
-                                        {row.advisors.length > 0 ? (
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                {row.advisors.join(', ')}
-                                            </p>
-                                        ) : null}
+                                        <StudentTitleAdvisors
+                                            title={row.title}
+                                            advisors={row.advisors}
+                                        />
                                     </td>
                                     <td className={stackedTable.tdActions}>
                                         <div className="flex items-center justify-end gap-1 max-md:justify-start">

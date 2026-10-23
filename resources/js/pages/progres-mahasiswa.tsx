@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -10,39 +10,49 @@ import {
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
-import { SectionCard } from '@/components/patterns/section-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
-    StudentProgressPeek,
-    SupervisorCounts,
-    type StudentProgress,
-} from '@/components/profile/student-progress-peek';
+    StudentCohort,
+    StudentIdentity,
+    StudentTitleAdvisors,
+} from '@/components/patterns/student-cells';
+import { type StudentProgress } from '@/components/profile/student-progress-peek';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
 } from '@/components/ui/data-table';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { progresMahasiswa } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
+type ProgressMoment = {
+    kind: string;
+    label: string;
+    at: string;
+    relative: string;
+};
+
 type ProgressRow = {
     id: number;
+    projectId: number | null;
     name: string;
     nim: string | null;
+    avatar: string | null;
     profileUrl: string;
     prodi: string | null;
+    degreeLevel: string;
     angkatan: number | null;
+    concentration: string | null;
+    isObeCurriculum: boolean;
+    phaseKey: string;
+    phaseLabel: string;
     title: string | null;
-    progress: StudentProgress;
+    progress: StudentProgress | null;
+    moment: ProgressMoment | null;
 };
 
 type AgendaItem = {
@@ -102,7 +112,6 @@ function ProgresMahasiswaContent({
     agenda,
 }: PageProps) {
     const [search, setSearch] = useState(filters.search ?? '');
-    const [selected, setSelected] = useState<ProgressRow | null>(null);
 
     function visit(next: Partial<Filters> & { page?: number }): void {
         const merged = { ...filters, ...next };
@@ -142,302 +151,307 @@ function ProgresMahasiswaContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
-    const phaseOptions = [
-        {
-            value: 'all',
-            label: 'Semua',
-            count: phases.find((phase) => phase.value === 'all')?.count,
-        },
-        ...phases.filter((phase) => phase.value !== 'all'),
-    ];
-    const totalCount = pagination.total;
     const hasActiveFilter =
-        (filters.search ?? '') !== '' ||
         filters.prodi !== null ||
         filters.phase !== null ||
         filters.angkatan !== null;
+    const hasAnyFilter = hasActiveFilter || (filters.search ?? '') !== '';
 
     return (
-        <div className="space-y-6 p-4 md:p-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
             <PageHeader
                 title="Progres Mahasiswa"
-                description="Pantau tahap, pembimbing, dan aktivitas terakhir seluruh mahasiswa aktif. Halaman ini hanya untuk melihat, tanpa tindakan."
+                description="Pantau tahap, pembimbing, dan aktivitas terakhir semua mahasiswa. Yang paling baru maju ada di atas. Halaman ini hanya untuk melihat."
             />
 
-            <SectionCard
-                title="Agenda sempro dan sidang"
-                description="Jadwal terdekat yang masih akan berlangsung."
-            >
-                {agenda.length > 0 ? (
-                    <ol className="space-y-4">
-                        {agenda.map((item) => (
-                            <li key={item.id} className="space-y-0.5">
-                                <div className="text-xs text-muted-foreground tabular-nums">
-                                    {item.when}
-                                </div>
-                                <div className="font-medium">
-                                    {item.type}: {item.name}
-                                </div>
-                                {item.prodi ? (
-                                    <div className="text-sm text-muted-foreground">
-                                        {item.prodi}
-                                    </div>
-                                ) : null}
-                            </li>
-                        ))}
-                    </ol>
-                ) : (
-                    <p className="text-sm text-muted-foreground">
-                        Belum ada agenda sempro atau sidang yang dijadwalkan.
-                    </p>
-                )}
-            </SectionCard>
+            <AgendaStrip agenda={agenda} />
+
             <DataSection
-                title="Daftar mahasiswa"
-                summary={`${totalCount} mahasiswa`}
+                title="Daftar Mahasiswa"
+                summary={`${pagination.total} mahasiswa`}
             >
-                <DataToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    placeholder="Cari nama, NIM, atau prodi..."
-                >
-                    <DataSelect
-                        label="Program studi"
-                        value={
-                            filters.prodi !== null
-                                ? String(filters.prodi)
-                                : 'semua'
-                        }
-                        onValueChange={(value) =>
-                            visit({
-                                prodi: value === 'semua' ? null : Number(value),
-                                page: undefined,
-                            })
-                        }
-                        placeholder="Semua prodi"
-                        options={[
-                            { value: 'semua', label: 'Semua prodi' },
-                            ...filterOptions.prodi.map((option) => ({
-                                value: String(option.value),
-                                label: option.label,
-                            })),
-                        ]}
-                    />
-                    <DataSelect
-                        label="Angkatan"
-                        value={
-                            filters.angkatan !== null
-                                ? String(filters.angkatan)
-                                : 'semua'
-                        }
-                        onValueChange={(value) =>
-                            visit({
-                                angkatan:
-                                    value === 'semua' ? null : Number(value),
-                                page: undefined,
-                            })
-                        }
-                        placeholder="Semua angkatan"
-                        className="md:w-44"
-                        options={[
-                            { value: 'semua', label: 'Semua angkatan' },
-                            ...filterOptions.angkatan.map((option) => ({
-                                value: String(option.value),
-                                label: option.label,
-                            })),
-                        ]}
-                    />
-                </DataToolbar>
-
-                <FilterPills
-                    label="Tahap mahasiswa"
-                    value={filters.phase ?? 'all'}
-                    onValueChange={(value) =>
-                        visit({ phase: value, page: undefined })
-                    }
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={phaseOptions}
-                />
-
-                {rows.length > 0 ? (
-                    <DataTableContainer
-                        pagination={
-                            <DataTablePagination
-                                currentPage={pagination.currentPage}
-                                totalPages={pagination.lastPage}
-                                totalItems={pagination.total}
-                                pageSize={pagination.perPage}
-                                onPageChange={(page) => visit({ page })}
-                                onPageSizeChange={(perPage) =>
-                                    visit({ perPage, page: undefined })
-                                }
-                                itemLabel="mahasiswa"
-                            />
-                        }
-                    >
-                        <table
-                            className={stackedTable.table + ' md:min-w-[900px]'}
+                <div className="space-y-4">
+                    <StickyFilterBar>
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            placeholder="Cari nama, NIM, atau prodi..."
                         >
-                            <thead className={stackedTable.thead}>
-                                <tr className="border-b bg-muted/40">
-                                    <th className={dataTh}>Mahasiswa</th>
-                                    <th className={dataTh}>Prodi</th>
-                                    <th className={dataTh}>Tahap</th>
-                                    <th className={dataTh}>Pembimbing</th>
-                                    <th className={dataTh}>
-                                        Aktivitas terakhir
-                                    </th>
-                                    <th className={dataTh}>
-                                        <span className="sr-only">Detail</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className={stackedTable.tbody}>
-                                {rows.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className={stackedTable.tr}
-                                    >
-                                        <td className={stackedTable.tdPlain}>
-                                            <Link
-                                                href={row.profileUrl}
-                                                className="font-medium text-foreground underline-offset-4 hover:underline"
-                                            >
-                                                {row.name}
-                                            </Link>
-                                            <div className="text-muted-foreground">
-                                                {row.nim ?? '-'}
-                                            </div>
-                                        </td>
-                                        <td
-                                            className={
-                                                stackedTable.tdPlain +
-                                                ' text-muted-foreground'
-                                            }
-                                        >
-                                            {row.prodi ?? '-'}
-                                            {row.angkatan ? (
-                                                <div className="tabular-nums">
-                                                    Angkatan {row.angkatan}
-                                                </div>
-                                            ) : null}
-                                        </td>
-                                        <td className={stackedTable.tdPlain}>
-                                            <div className="font-medium">
-                                                {row.progress.phaseLabel}
-                                            </div>
-                                            {row.progress.detail
-                                                ?.statusLabel ? (
-                                                <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
-                                                    {
-                                                        row.progress.detail
-                                                            .statusLabel
-                                                    }
-                                                </p>
-                                            ) : null}
-                                        </td>
-                                        <td className={stackedTable.tdPlain}>
-                                            <SupervisorCounts
-                                                supervisors={
-                                                    row.progress.detail
-                                                        ?.supervisors ?? []
-                                                }
-                                            />
-                                        </td>
-                                        <td className={stackedTable.tdPlain}>
-                                            <div className="tabular-nums">
-                                                {row.progress.detail
-                                                    ?.lastActivityAt ??
-                                                    'Belum ada'}
-                                            </div>
-                                            {row.progress.detail?.isInactive ? (
-                                                <div className="mt-1">
-                                                    <StatusBadge
-                                                        domain="active"
-                                                        status="inactive"
-                                                    >
-                                                        Tidak aktif
-                                                    </StatusBadge>
-                                                </div>
-                                            ) : null}
-                                        </td>
-                                        <td className={stackedTable.tdPlain}>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-11 md:h-9"
-                                                onClick={() => setSelected(row)}
-                                            >
-                                                Detail
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </DataTableContainer>
-                ) : (
-                    <DataTableEmptyState
-                        title="Tidak ada mahasiswa"
-                        description={
-                            hasActiveFilter
-                                ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
-                                : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'
-                        }
-                    />
-                )}
-            </DataSection>
+                            <DataSelect
+                                label="Program studi"
+                                value={
+                                    filters.prodi !== null
+                                        ? String(filters.prodi)
+                                        : 'semua'
+                                }
+                                onValueChange={(value) =>
+                                    visit({
+                                        prodi:
+                                            value === 'semua'
+                                                ? null
+                                                : Number(value),
+                                        page: undefined,
+                                    })
+                                }
+                                placeholder="Semua prodi"
+                                options={[
+                                    { value: 'semua', label: 'Semua prodi' },
+                                    ...filterOptions.prodi.map((option) => ({
+                                        value: String(option.value),
+                                        label: option.label,
+                                    })),
+                                ]}
+                                className="md:w-56"
+                            />
+                            <DataSelect
+                                label="Angkatan"
+                                value={
+                                    filters.angkatan !== null
+                                        ? String(filters.angkatan)
+                                        : 'semua'
+                                }
+                                onValueChange={(value) =>
+                                    visit({
+                                        angkatan:
+                                            value === 'semua'
+                                                ? null
+                                                : Number(value),
+                                        page: undefined,
+                                    })
+                                }
+                                placeholder="Semua angkatan"
+                                className="md:w-40"
+                                options={[
+                                    {
+                                        value: 'semua',
+                                        label: 'Semua angkatan',
+                                    },
+                                    ...filterOptions.angkatan.map((option) => ({
+                                        value: String(option.value),
+                                        label: option.label,
+                                    })),
+                                ]}
+                            />
+                        </DataToolbar>
 
-            <Sheet
-                open={selected !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setSelected(null);
-                    }
-                }}
-            >
-                <SheetContent
-                    side="right"
-                    className="w-full overflow-y-auto sm:max-w-md"
-                >
-                    {selected ? (
-                        <>
-                            <SheetHeader>
-                                <SheetTitle>{selected.name}</SheetTitle>
-                                <SheetDescription>
-                                    {[selected.nim, selected.prodi]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </SheetDescription>
-                            </SheetHeader>
-                            <div className="space-y-5 px-4 pb-6">
-                                <div className="space-y-1">
-                                    <h3 className="text-sm font-medium text-muted-foreground">
-                                        Judul
-                                    </h3>
-                                    <p>
-                                        {selected.title ??
-                                            'Judul belum dapat ditampilkan.'}
-                                    </p>
-                                </div>
-                                <StudentProgressPeek
-                                    progress={selected.progress}
-                                />
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <FilterPills
+                                label="Tahap mahasiswa"
+                                value={filters.phase ?? 'all'}
+                                onValueChange={(value) =>
+                                    visit({ phase: value, page: undefined })
+                                }
+                                itemClassName="max-md:h-11 max-md:px-4"
+                                options={phases}
+                            />
+                            {hasActiveFilter ? (
                                 <Button
-                                    asChild
-                                    variant="outline"
-                                    className="h-11 w-full"
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground max-md:h-11"
+                                    onClick={() =>
+                                        visit({
+                                            prodi: null,
+                                            phase: null,
+                                            angkatan: null,
+                                            page: undefined,
+                                        })
+                                    }
                                 >
-                                    <Link href={selected.profileUrl}>
-                                        Buka profil
-                                    </Link>
+                                    Reset filter
                                 </Button>
-                            </div>
-                        </>
-                    ) : null}
-                </SheetContent>
-            </Sheet>
+                            ) : null}
+                        </div>
+                    </StickyFilterBar>
+
+                    {rows.length > 0 ? (
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={pagination.currentPage}
+                                    totalPages={pagination.lastPage}
+                                    totalItems={pagination.total}
+                                    pageSize={pagination.perPage}
+                                    onPageChange={(page) => visit({ page })}
+                                    onPageSizeChange={(perPage) =>
+                                        visit({ perPage, page: undefined })
+                                    }
+                                    itemLabel="mahasiswa"
+                                />
+                            }
+                        >
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[880px]',
+                                )}
+                            >
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Mahasiswa</th>
+                                        <th className={dataTh}>
+                                            Prodi dan angkatan
+                                        </th>
+                                        <th className={dataTh}>Tahap</th>
+                                        <th className={dataTh}>
+                                            Aktivitas terakhir
+                                        </th>
+                                        <th className={dataTh}>
+                                            Judul dan pembimbing
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
+                                    {rows.map((row) => (
+                                        <ProgressTableRow
+                                            key={row.id}
+                                            row={row}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </DataTableContainer>
+                    ) : (
+                        <DataTableEmptyState
+                            title="Tidak ada mahasiswa yang cocok"
+                            description={
+                                hasAnyFilter
+                                    ? 'Coba ubah filter atau kata kunci pencarian.'
+                                    : 'Belum ada mahasiswa yang dapat ditampilkan.'
+                            }
+                        />
+                    )}
+                </div>
+            </DataSection>
         </div>
+    );
+}
+
+function ProgressTableRow({ row }: { row: ProgressRow }) {
+    const detail = row.progress?.detail ?? null;
+
+    return (
+        <tr
+            className={cn(
+                stackedTable.tr,
+                'align-top transition-colors hover:bg-muted/30',
+            )}
+        >
+            <td className={stackedTable.tdPlain}>
+                <StudentIdentity
+                    name={row.name}
+                    nim={row.nim}
+                    avatar={row.avatar}
+                    profileUrl={row.profileUrl}
+                />
+            </td>
+            <td data-label="Prodi dan angkatan" className={stackedTable.td}>
+                <StudentCohort
+                    degreeLevel={row.degreeLevel}
+                    angkatan={row.angkatan}
+                    concentration={row.concentration}
+                    isObeCurriculum={row.isObeCurriculum}
+                    prodi={row.prodi}
+                />
+            </td>
+            <td data-label="Tahap" className={stackedTable.td}>
+                <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge domain="phase" status={row.phaseKey}>
+                        {row.phaseLabel}
+                    </StatusBadge>
+                    {detail?.ticket.suspended ? (
+                        <StatusBadge domain="ticket" status="overdue">
+                            Tiket habis
+                        </StatusBadge>
+                    ) : null}
+                </div>
+                {detail?.statusLabel ? (
+                    <p className="mt-1 text-xs text-pretty text-muted-foreground">
+                        {detail.statusLabel}
+                    </p>
+                ) : null}
+                {row.moment &&
+                !detail?.statusLabel?.startsWith(row.moment.label) ? (
+                    <p className="mt-1 text-xs text-pretty text-muted-foreground">
+                        {row.moment.label} · {row.moment.relative}
+                    </p>
+                ) : null}
+            </td>
+            <td data-label="Aktivitas terakhir" className={stackedTable.td}>
+                {row.progress ? (
+                    <p className="tabular-nums">
+                        {detail?.lastActivityAt ?? 'Belum ada'}
+                    </p>
+                ) : (
+                    <span className="text-muted-foreground">-</span>
+                )}
+                {detail?.isInactive ? (
+                    <StatusBadge
+                        domain="active"
+                        status="inactive"
+                        className="mt-1"
+                    >
+                        Tidak aktif
+                    </StatusBadge>
+                ) : null}
+            </td>
+            <td
+                data-label="Judul dan pembimbing"
+                className={cn(stackedTable.td, 'md:max-w-xs')}
+            >
+                <StudentTitleAdvisors
+                    title={row.title}
+                    advisors={
+                        detail?.supervisors.map(
+                            (supervisor) => supervisor.name,
+                        ) ?? []
+                    }
+                />
+            </td>
+        </tr>
+    );
+}
+
+/** Upcoming sempro and sidang, kept to a few short lines so the table stays the focus. */
+function AgendaStrip({ agenda }: { agenda: AgendaItem[] }) {
+    return (
+        <section
+            aria-labelledby="agenda-heading"
+            className="rounded-lg border bg-card px-4 py-3"
+        >
+            <h2 id="agenda-heading" className="text-sm font-semibold">
+                Agenda sempro dan sidang
+            </h2>
+            {agenda.length > 0 ? (
+                <ol className="mt-2 grid gap-x-6 gap-y-1 text-sm md:grid-cols-2">
+                    {agenda.map((item) => (
+                        <li key={item.id} className="min-w-0 md:truncate">
+                            <span className="text-muted-foreground tabular-nums">
+                                {item.when}
+                            </span>{' '}
+                            <span className="font-medium">
+                                {item.type}: {item.name}
+                            </span>
+                            {item.prodi ? (
+                                <span className="text-muted-foreground">
+                                    {' '}
+                                    · {item.prodi}
+                                </span>
+                            ) : null}
+                        </li>
+                    ))}
+                </ol>
+            ) : (
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Belum ada agenda sempro atau sidang yang dijadwalkan.
+                </p>
+            )}
+        </section>
     );
 }

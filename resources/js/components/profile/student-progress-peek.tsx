@@ -82,7 +82,10 @@ export function SupervisorCounts({
     return (
         <ul className="space-y-1">
             {supervisors.map((supervisor) => (
-                <li key={`${supervisor.roleLabel}-${supervisor.name}`}>
+                <li
+                    key={`${supervisor.roleLabel}-${supervisor.name}`}
+                    className="text-pretty"
+                >
                     <span className="text-muted-foreground">
                         {supervisor.roleLabel}:
                     </span>{' '}

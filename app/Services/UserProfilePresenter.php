@@ -304,6 +304,7 @@ class UserProfilePresenter
         // current active thesis are open assignments. Completed/cancelled attempts
         // remain in administrative history, not this list. Count each student once,
         // and leave supervised students in the supervision list with their counts.
+        // Examined-only students never get a mentorship count; counts exist only for supervision.
         $supervisedStudentIds = $supervisedProjects->pluck('student_user_id')->map(fn($id): int => (int) $id);
 
         $examinedProjects = ThesisDefenseExaminer::query()
