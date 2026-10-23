@@ -46,6 +46,29 @@ function seedMentorshipCounts(): { studentId: number; primaryId: number } {
     return { studentId: Number(match[1]), primaryId: Number(match[2]) };
 }
 
+/**
+ * Resolves a seeded user's id from its login email, for opening profile pages.
+ */
+function userIdByEmail(email: string): number {
+    const script = `echo "ID:" . App\\Models\\User::query()->where("email", "${email}")->firstOrFail()->id;`;
+    const output = execFileSync(
+        'php',
+        ['artisan', 'tinker', `--execute=${script}`],
+        {
+            cwd: repositoryRoot,
+            env: playwrightEnvironment(),
+            encoding: 'utf8',
+        },
+    );
+    const match = output.match(/ID:(\d+)/);
+
+    if (match === null) {
+        throw new Error(`Could not resolve user ${email}: ${output}`);
+    }
+
+    return Number(match[1]);
+}
+
 function resetProfileForUser(): void {
     runArtisan([
         'tinker',
@@ -155,7 +178,32 @@ test.describe('Jumlah bimbingan di profil (issue #70)', () => {
                 name: new RegExp(supervised.studentName),
             });
             await expect(student.getByText('2 bimbingan')).toBeVisible();
+            await expect(student.getByText('Riset')).toBeVisible();
             await expect(page.getByText('/6')).toHaveCount(0);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test('lecturer profile shows phase per student and no count for a student only examined', async ({
+        browser,
+    }) => {
+        const examinerId = userIdByEmail('dosen3@sita.test');
+        const context = await browser.newContext({
+            storageState: authStatePath('dosen3'),
+        });
+
+        try {
+            const page = await context.newPage();
+            await page.goto(`/profil/${examinerId}`);
+
+            const examined = page.getByRole('link', {
+                name: new RegExp(
+                    thesisScenarios.semproTwoExaminers.studentName,
+                ),
+            });
+            await expect(examined.getByText('Tahap Proposal')).toBeVisible();
+            await expect(examined.getByText(/bimbingan/)).toHaveCount(0);
         } finally {
             await context.close();
         }

@@ -255,10 +255,10 @@ class UserProfilePresenter
             ->whereHas('project', fn($query) => $query->where('state', 'active'))
             ->get();
 
-        $activeStudents = $activeAssignments
-            ->map(fn(ThesisSupervisorAssignment $assignment): ?User => $assignment->project?->student)
+        $supervisedProjects = $activeAssignments
+            ->map(fn(ThesisSupervisorAssignment $assignment): ?ThesisProject => $assignment->project?->student instanceof User ? $assignment->project : null)
             ->filter()
-            ->unique('id')
+            ->unique(fn(ThesisProject $project): int => (int) $project->student_user_id)
             ->values();
 
         $mentorshipCounts = $this->mentorshipProgressService
@@ -281,6 +281,50 @@ class UserProfilePresenter
         $summary = $this->summary($user);
         $quota = max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14));
 
+        $supervisedStudents = $supervisedProjects
+            ->map(fn(ThesisProject $project): ?array => $this->studentProfileRow(
+                $project,
+                $mentorshipCounts[(int) $project->student_user_id] ?? 0,
+            ))
+            ->filter()
+            ->values()
+            ->all();
+
+        // Students this lecturer examines on an open defense without supervising them.
+        // They never get a mentorship count; counts exist only for supervision.
+        $supervisedStudentIds = $supervisedProjects->pluck('student_user_id')->map(fn($id): int => (int) $id);
+
+        $examinedStudents = ThesisDefenseExaminer::query()
+            ->with(['defense.project.student.roles', 'defense.project.student.mahasiswaProfile.programStudi'])
+            ->where('lecturer_user_id', $user->getKey())
+            ->whereHas('defense', fn($query) => $query
+                ->where('status', '!=', 'completed')
+                ->whereHas('project', fn($query) => $query->where('state', 'active')))
+            ->get()
+            ->map(fn(ThesisDefenseExaminer $examiner): ?ThesisProject => $examiner->defense?->project)
+            ->filter(fn(?ThesisProject $project): bool => $project instanceof ThesisProject
+                && $project->student instanceof User
+                && ! $supervisedStudentIds->contains((int) $project->student_user_id))
+            ->unique(fn(ThesisProject $project): int => (int) $project->student_user_id)
+            ->map(fn(ThesisProject $project): ?array => $this->studentProfileRow($project, null))
+            ->filter()
+            ->values()
+            ->all();
+
+        $relatedUsers = [[
+            'title' => 'Mahasiswa bimbingan aktif',
+            'emptyMessage' => 'Belum ada mahasiswa bimbingan aktif pada dosen ini.',
+            'users' => $supervisedStudents,
+        ]];
+
+        if ($examinedStudents !== []) {
+            $relatedUsers[] = [
+                'title' => 'Mahasiswa yang Anda uji',
+                'emptyMessage' => 'Belum ada mahasiswa yang diuji.',
+                'users' => $examinedStudents,
+            ];
+        }
+
         return [
             ...($summary ?? []),
             'headline' => 'Profil dosen',
@@ -296,29 +340,30 @@ class UserProfilePresenter
                 ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
             ],
             'stats' => [
-                ['label' => 'Mahasiswa Bimbingan Aktif', 'value' => (string) $activeStudents->count()],
+                ['label' => 'Mahasiswa Bimbingan Aktif', 'value' => (string) $supervisedProjects->count()],
                 ['label' => AcademicTerminology::neutral()['proposalExamShort'].' Terjadwal', 'value' => (string) $scheduledSemproCount],
                 ['label' => AcademicTerminology::neutral()['finalExamShort'].' Terjadwal', 'value' => (string) $scheduledSidangCount],
             ],
             'thesis' => null,
-            'relatedUsers' => [
-                [
-                    'title' => 'Mahasiswa bimbingan aktif',
-                    'emptyMessage' => 'Belum ada mahasiswa bimbingan aktif pada dosen ini.',
-                    'users' => $activeStudents
-                        ->map(function (User $student) use ($mentorshipCounts): ?array {
-                            $summary = $this->summary($student);
-
-                            return $summary === null
-                                ? null
-                                : [...$summary, 'mentorshipCount' => $mentorshipCounts[(int) $student->getKey()] ?? 0];
-                        })
-                        ->filter()
-                        ->values()
-                        ->all(),
-                ],
-            ],
+            'relatedUsers' => $relatedUsers,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function studentProfileRow(ThesisProject $project, ?int $mentorshipCount): ?array
+    {
+        $summary = $this->summary($project->student);
+
+        return $summary === null
+            ? null
+            : [
+                ...$summary,
+                'phase' => $project->phase,
+                'phaseLabel' => AcademicTerminology::phaseLabel($project->phase),
+                'mentorshipCount' => $mentorshipCount,
+            ];
     }
 
     /**
