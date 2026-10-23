@@ -85,6 +85,7 @@ function PeopleList({
                         mentorshipCount={
                             showCount ? person.mentorshipCount : undefined
                         }
+                        progress={person.progress}
                         className="px-4 md:px-6"
                     />
                 </li>

@@ -82,7 +82,8 @@ function validateFile(file: File) {
 }
 
 export default function UploadDokumenForm() {
-    const { academicTerminology: terms } = usePage<SharedData>().props;
+    const { academicTerminology: terms, mentorshipTicket } =
+        usePage<SharedData>().props;
     const [kategori, setKategori] = React.useState<string>('draft-tugas-akhir');
     const [file, setFile] = React.useState<File | null>(null);
     const [fileError, setFileError] = React.useState<string | null>(null);
@@ -228,7 +229,11 @@ export default function UploadDokumenForm() {
                                     <Button
                                         type="submit"
                                         className="bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11"
-                                        disabled={!kategori || !file}
+                                        disabled={
+                                            !kategori ||
+                                            !file ||
+                                            mentorshipTicket?.suspended === true
+                                        }
                                     >
                                         Upload
                                     </Button>

@@ -273,7 +273,7 @@ test('keyboard activation changes state without motion, even after a pointer cli
 });
 
 test.describe('reduced motion', () => {
-    test.use({ reducedMotion: 'reduce' });
+    test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
     test('pointer and keyboard changes are immediate and readable', async ({
         page,
@@ -329,7 +329,9 @@ test('search, filters and pagination leave no stale details and keep their URLs'
     await triggers(page).first().click();
     await triggers(page).first().click();
     await search.fill(`tidak-ada-${fixture.prefix}`);
-    await expect(page.getByText('Tidak ada topik')).toBeVisible();
+    await expect(
+        page.getByText('Tidak ada topik', { exact: true }),
+    ).toBeVisible();
     await expect(exposedDetails(page)).toHaveCount(0);
 
     await search.fill(fixture.prefix);
@@ -369,6 +371,17 @@ test('search, filters and pagination leave no stale details and keep their URLs'
     await page.getByRole('button', { name: 'Berikutnya' }).first().click();
     await expect(page).toHaveURL(/page=2/);
     await expect(triggers(page)).toHaveCount(2);
+    await expect(exposedDetails(page)).toHaveCount(0);
+    await expect(search).toHaveValue(fixture.prefix);
+
+    await triggers(page).first().click();
+    await expect(exposedDetails(page)).toHaveCount(1);
+    await page
+        .getByRole('combobox', { name: 'Per halaman' })
+        .first()
+        .selectOption('15');
+    await expect(page).toHaveURL(/per_page=15/);
+    await expect(triggers(page)).toHaveCount(12);
     await expect(exposedDetails(page)).toHaveCount(0);
     await expect(search).toHaveValue(fixture.prefix);
 });

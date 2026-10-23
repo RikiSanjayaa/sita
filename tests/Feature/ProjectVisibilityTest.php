@@ -122,7 +122,7 @@ test('latest cancellation never revives older work and leaves one neutral studen
     directoryVisibilityProject($student, $program, 'completed', 'Older completed title', '2025-09-10');
     directoryVisibilityProject($student, $program, 'cancelled', 'Latest cancelled title', '2026-03-01');
 
-    $rows = app(KaprodiPortalService::class)->studentIndex($program);
+    $rows = app(KaprodiPortalService::class)->studentIndex($program, null);
     expect($rows['students'])->toHaveCount(1)
         ->and($rows['students'][0]['projectId'])->toBeNull()
         ->and($rows['archives'])->toBe([]);

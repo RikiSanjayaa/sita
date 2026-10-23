@@ -684,7 +684,11 @@ export default function JadwalBimbinganPage() {
                             <Button
                                 type="submit"
                                 className="w-full max-md:h-11 sm:w-auto"
-                                disabled={form.processing}
+                                disabled={
+                                    form.processing ||
+                                    page.props.mentorshipTicket?.suspended ===
+                                        true
+                                }
                             >
                                 <Send className="size-4" />
                                 Kirim Permintaan
@@ -703,6 +707,10 @@ export default function JadwalBimbinganPage() {
                             <Button
                                 type="button"
                                 className="w-full gap-2 max-md:h-11 sm:w-auto"
+                                disabled={
+                                    page.props.mentorshipTicket?.suspended ===
+                                    true
+                                }
                                 onClick={() => setIsAjukanOpen(true)}
                             >
                                 <Plus className="size-4" />

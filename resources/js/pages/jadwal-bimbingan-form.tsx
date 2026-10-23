@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Calendar, Clock, Send } from 'lucide-react';
 
 import { PageHeader } from '@/components/patterns/page-header';
@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard, jadwalBimbingan } from '@/routes';
 import { create as jadwalBimbinganCreate } from '@/routes/jadwal-bimbingan';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -36,6 +36,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function JadwalBimbinganForm() {
+    const { mentorshipTicket } = usePage<SharedData>().props;
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
@@ -200,6 +201,9 @@ export default function JadwalBimbinganForm() {
                                 </Button>
                                 <Button
                                     type="submit"
+                                    disabled={
+                                        mentorshipTicket?.suspended === true
+                                    }
                                     className="bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11"
                                 >
                                     <Send className="size-4" />

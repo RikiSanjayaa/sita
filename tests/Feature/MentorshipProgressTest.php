@@ -408,7 +408,8 @@ it('counts mentorship for the lecturer profile without per-student queries', fun
         return $count;
     };
 
-    expect($sessionQueries())->toBe(1);
+    // One batched query per source (completed by lecturer, last activity, supervision counts), not per student.
+    expect($sessionQueries())->toBe(3);
 
     $users = collect(app(App\Services\UserProfilePresenter::class)->detail($primary, $primary)['relatedUsers'][0]['users'])
         ->pluck('mentorshipCount', 'id');

@@ -50,6 +50,13 @@ class PlaywrightScenarioSeeder extends Seeder
         $this->completedSempro($project, $admin, $dosen3, $dosen4);
         $service->assignSupervisors($project, $admin->id, $dosen1->id, $dosen2->id, 'Pembimbing skenario Playwright.');
 
+        // Expired mentorship ticket (issue #21): bimbingan entry points are blocked, reading still works.
+        $student = $this->student($role, $prodi, 'e2e-tiket-habis@sita.test', 'Tiara Tiket Habis', '2210511010');
+        $project = $this->project($student, $prodi, 'research', 'Pengaruh Pembelajaran Adaptif Terhadap Motivasi Belajar');
+        $this->completedSempro($project, $admin, $dosen3, $dosen4);
+        $service->assignSupervisors($project, $admin->id, $dosen1->id, null, 'Pembimbing skenario Playwright.');
+        $project->forceFill(['mentorship_valid_until' => CarbonImmutable::now()->subDay()->toDateString()])->save();
+
         // Sempro scheduled with two examiners (dosen3 + dosen4).
         $student = $this->student($role, $prodi, 'e2e-sempro@sita.test', 'Dimas Penguji Sempro', '2210511002');
         $project = $this->project($student, $prodi, 'sempro', 'Klasifikasi Citra Daun Padi Menggunakan Jaringan Konvolusi');

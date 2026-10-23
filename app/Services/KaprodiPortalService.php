@@ -21,6 +21,7 @@ class KaprodiPortalService
 {
     public function __construct(
         private readonly MentorshipProgressService $mentorshipProgressService,
+        private readonly StudentProgressSnapshot $studentProgressSnapshot,
     ) {}
 
     /**
@@ -66,13 +67,19 @@ class KaprodiPortalService
     /**
      * @return array<string, mixed>
      */
-    public function studentIndex(ProgramStudi $programStudi): array
+    public function studentIndex(ProgramStudi $programStudi, ?User $viewer): array
     {
         $projects = $this->projects($programStudi);
         $students = $this->studentProfiles($programStudi);
         $latestChatByStudent = $this->latestChatActivityByStudent($students->pluck('user_id'));
         $latestDocumentByStudent = $this->latestMentorshipDocumentActivityByStudent($students->pluck('user_id'));
-        $studentRows = $this->studentRows($students, $projects, $latestChatByStudent, $latestDocumentByStudent);
+        $studentRows = $this->studentRows(
+            $students,
+            $projects,
+            $latestChatByStudent,
+            $latestDocumentByStudent,
+            $this->studentProgressSnapshot->forProjects($projects, $viewer),
+        );
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
@@ -479,11 +486,13 @@ class KaprodiPortalService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function studentRows(EloquentCollection $students, EloquentCollection $projects, Collection $latestChatByStudent, Collection $latestDocumentByStudent): Collection
+    private function studentRows(EloquentCollection $students, EloquentCollection $projects, Collection $latestChatByStudent, Collection $latestDocumentByStudent, array $progress): Collection
     {
+        $mentorshipProgress = $this->mentorshipProgressService->forProjects($projects);
+
         return $students
             ->sortBy(fn(MahasiswaProfile $profile): string => $profile->user?->name ?? '')
-            ->map(function (MahasiswaProfile $profile) use ($latestChatByStudent, $latestDocumentByStudent, $projects): array {
+            ->map(function (MahasiswaProfile $profile) use ($latestChatByStudent, $latestDocumentByStudent, $mentorshipProgress, $progress, $projects): array {
                 $project = $projects
                     ->where('student_user_id', $profile->user_id)
                     ->sortByDesc('started_at')
@@ -506,6 +515,10 @@ class KaprodiPortalService
                     'phaseKey' => $project?->phase ?? 'none',
                     'projectState' => $this->statusLabel($project?->state),
                     'projectStateKey' => $project?->state ?? 'none',
+                    'mentorshipTicket' => $project instanceof ThesisProject ? [
+                        'suspended' => $project->isMentorshipSuspended(),
+                        'validUntil' => $project->mentorship_valid_until?->format('Y-m-d'),
+                    ] : null,
                     'title' => $project?->latestTitle?->title_id ?? '-',
                     'advisors' => $project?->activeSupervisorAssignments
                         ->map(fn($assignment): string => $assignment->lecturer?->name ?? '-')
@@ -521,12 +534,13 @@ class KaprodiPortalService
                         ])
                         ->values()
                         ->all() ?? [],
-                    'mentorshipProgress' => $project instanceof ThesisProject ? $this->mentorshipProgressService->forProject($project) : [],
+                    'mentorshipProgress' => $project instanceof ThesisProject ? $mentorshipProgress[$project->getKey()] ?? [] : [],
                     'progressRisk' => $this->progressRisk(
                         $project,
                         $latestChatByStudent->get((int) $profile->user_id),
                         $latestDocumentByStudent->get((int) $profile->user_id),
                     ),
+                    'progress' => $progress[$project?->id] ?? null,
                     'profileUrl' => route('users.profile.show', ['user' => $profile->user_id]),
                 ];
             })
@@ -1104,7 +1118,8 @@ class KaprodiPortalService
             ->filter(fn(ThesisProject $project): bool => $project->state === 'active' && $project->activeSupervisorAssignments->isEmpty())
             ->count();
 
-        $riskStudents = $this->studentRows($students, $projects, $latestChatByStudent, $latestDocumentByStudent)
+        // The risk count only reads progressRisk, so no peek snapshot is built here.
+        $riskStudents = $this->studentRows($students, $projects, $latestChatByStudent, $latestDocumentByStudent, [])
             ->where('status', 'Aktif')
             ->where('progressRisk.level', 'high')
             ->count();

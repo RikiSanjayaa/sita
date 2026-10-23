@@ -6,6 +6,7 @@ import {
     FileText,
     Gauge,
     LayoutGrid,
+    ListChecks,
     MessageSquareText,
     Settings,
     ShieldCheck,
@@ -18,8 +19,17 @@ import {
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { type AppRole, type NavItem } from '@/types';
 
+type NavSection = {
+    label: string;
+    items: NavItem[];
+};
+
 type RoleNavigation = {
     main: NavItem[];
+    /** Label for `main`. Defaults to "Menu utama". */
+    mainLabel?: string;
+    /** Extra labelled groups rendered after `main`. */
+    sections?: NavSection[];
     settings: NavItem;
 };
 
@@ -30,6 +40,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dashboard',
                 href: '/mahasiswa/dashboard',
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
             {
                 title: n.finalWork,
@@ -81,6 +96,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UsersRound,
             },
             {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
+            },
+            {
                 title: 'Jadwal Bimbingan',
                 href: '/dosen/jadwal-bimbingan',
                 icon: CalendarClock,
@@ -103,6 +123,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
         },
     },
     kaprodi: {
+        mainLabel: 'Kaprodi',
         main: [
             {
                 title: 'Dashboard',
@@ -113,6 +134,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Mahasiswa Prodi',
                 href: '/kaprodi/mahasiswa',
                 icon: UsersRound,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
             {
                 title: `${n.proposalExamShort} & ${n.finalExam}`,
@@ -130,6 +156,38 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UserCog,
             },
         ],
+        sections: [
+            {
+                label: 'Bimbingan Saya',
+                items: [
+                    {
+                        title: 'Mahasiswa Bimbingan',
+                        href: '/dosen/mahasiswa-bimbingan',
+                        icon: UsersRound,
+                    },
+                    {
+                        title: 'Jadwal Bimbingan',
+                        href: '/dosen/jadwal-bimbingan',
+                        icon: CalendarClock,
+                    },
+                    {
+                        title: 'Dokumen & Revisi',
+                        href: '/dosen/dokumen-revisi',
+                        icon: FileStack,
+                    },
+                    {
+                        title: 'Penilaian Ujian',
+                        href: '/dosen/seminar-proposal',
+                        icon: ClipboardCheck,
+                    },
+                    {
+                        title: 'Pesan',
+                        href: '/dosen/pesan',
+                        icon: MessageSquareText,
+                    },
+                ],
+            },
+        ],
         settings: {
             title: 'Pengaturan Akun',
             href: '/settings',
@@ -142,6 +200,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dashboard',
                 href: '/admin',
                 icon: Gauge,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
             {
                 title: 'Users',
@@ -171,6 +234,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dashboard',
                 href: '/mahasiswa/dashboard',
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
         ],
         settings: {

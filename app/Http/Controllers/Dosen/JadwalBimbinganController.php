@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\MentorshipScheduleService;
+use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -146,13 +147,19 @@ class JadwalBimbinganController extends Controller
         ]);
     }
 
-    public function store(StoreJadwalBimbinganRequest $request): RedirectResponse
+    public function store(StoreJadwalBimbinganRequest $request, MentorshipTicketService $tickets): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
         $data = $request->validated();
         $student = User::query()->findOrFail((int) $data['student_user_id']);
+
+        $suspension = $tickets->suspensionMessageForStudent($student->id);
+
+        if ($suspension !== null) {
+            return back()->withErrors(['ticket' => $suspension]);
+        }
 
         $isRecurring = ! empty($data['is_recurring']);
         $recurringCount = $isRecurring ? (int) $data['recurring_count'] : 1;
@@ -197,7 +204,7 @@ class JadwalBimbinganController extends Controller
         return back()->with('success', $successMessage);
     }
 
-    public function decide(Request $request, MentorshipSchedule $schedule): RedirectResponse
+    public function decide(Request $request, MentorshipSchedule $schedule, MentorshipTicketService $tickets): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
@@ -209,6 +216,14 @@ class JadwalBimbinganController extends Controller
             'location' => ['nullable', 'string', 'max:255'],
             'lecturer_note' => ['nullable', 'string'],
         ]);
+
+        if (in_array($data['decision'], ['approve', 'reschedule'], true)) {
+            $suspension = $tickets->suspensionMessageForStudent($schedule->student_user_id);
+
+            if ($suspension !== null) {
+                return back()->withErrors(['decision' => $suspension]);
+            }
+        }
 
         if ($data['decision'] === 'reschedule' && empty($data['scheduled_for'])) {
             return back()->withErrors([
@@ -257,7 +272,7 @@ class JadwalBimbinganController extends Controller
         return back()->with('success', 'Keputusan jadwal berhasil disimpan.');
     }
 
-    public function decideRecurringGroup(Request $request, string $groupId): RedirectResponse
+    public function decideRecurringGroup(Request $request, string $groupId, MentorshipTicketService $tickets): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
@@ -267,6 +282,18 @@ class JadwalBimbinganController extends Controller
             'location' => ['nullable', 'string', 'max:255'],
             'lecturer_note' => ['nullable', 'string'],
         ]);
+
+        if ($data['decision'] === 'approve') {
+            $studentUserId = MentorshipSchedule::query()
+                ->where('recurring_group_id', $groupId)
+                ->where('lecturer_user_id', $lecturer->id)
+                ->value('student_user_id');
+            $suspension = $studentUserId === null ? null : $tickets->suspensionMessageForStudent((int) $studentUserId);
+
+            if ($suspension !== null) {
+                return back()->withErrors(['decision' => $suspension]);
+            }
+        }
 
         if (blank($data['lecturer_note'] ?? null)) {
             return back()->withErrors([

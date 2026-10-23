@@ -344,9 +344,30 @@ class User extends Authenticatable implements FilamentUser
         ));
     }
 
+    /**
+     * Kaprodi workspace already covers the dosen area, so dosen is never a separate active role for a kaprodi.
+     *
+     * @return array<int, string>
+     */
+    private function activeRoleCandidates(): array
+    {
+        $roles = $this->availableRoles();
+
+        if (in_array(AppRole::Kaprodi->value, $roles, true)) {
+            return array_values(array_diff($roles, [AppRole::Dosen->value]));
+        }
+
+        return $roles;
+    }
+
+    public function canActivateRole(string $role): bool
+    {
+        return in_array($role, $this->activeRoleCandidates(), true);
+    }
+
     public function resolveActiveRole(?string $requestedRole = null): string
     {
-        $availableRoles = $this->availableRoles();
+        $availableRoles = $this->activeRoleCandidates();
 
         if (count($availableRoles) === 0) {
             return AppRole::Mahasiswa->value;

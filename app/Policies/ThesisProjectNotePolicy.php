@@ -52,9 +52,10 @@ class ThesisProjectNotePolicy
     }
 
     /**
-     * Internal notes are visible to everyone who is not the student.
+     * Internal notes are visible to everyone who is not the student. Callers that
+     * already resolved note-writer membership in a batch pass it as $isNoteWriter.
      */
-    public function canReadInternal(User $user, ThesisProject $project): bool
+    public function canReadInternal(User $user, ThesisProject $project, ?bool $isNoteWriter = null): bool
     {
         if ($user->hasRole(AppRole::SuperAdmin)) {
             return true;
@@ -76,13 +77,13 @@ class ThesisProjectNotePolicy
             return true;
         }
 
-        return $this->isNoteWriter($user, $project);
+        return $isNoteWriter ?? $this->isNoteWriter($user, $project);
     }
 
-    public function canReadStudentVisible(User $user, ThesisProject $project): bool
+    public function canReadStudentVisible(User $user, ThesisProject $project, ?bool $isNoteWriter = null): bool
     {
         return $user->id === $project->student_user_id
-            || $this->canReadInternal($user, $project);
+            || $this->canReadInternal($user, $project, $isNoteWriter);
     }
 
     public function isNoteWriter(User $user, ThesisProject $project): bool
@@ -96,5 +97,35 @@ class ThesisProjectNotePolicy
                 ->where('lecturer_user_id', $user->id)
                 ->whereHas('defense', fn ($query) => $query->where('project_id', $project->id))
                 ->exists();
+    }
+
+    /**
+     * Batch form of isNoteWriter() for many projects in two queries.
+     *
+     * @param  list<int>  $projectIds
+     * @return array<int, bool> keyed by project id
+     */
+    public function noteWriterProjectIds(User $user, array $projectIds): array
+    {
+        if ($projectIds === []) {
+            return [];
+        }
+
+        $supervised = ThesisSupervisorAssignment::query()
+            ->where('lecturer_user_id', $user->id)
+            ->where('status', 'active')
+            ->whereIn('project_id', $projectIds)
+            ->pluck('project_id');
+
+        $examined = ThesisDefenseExaminer::query()
+            ->join('thesis_defenses', 'thesis_defenses.id', '=', 'thesis_defense_examiners.defense_id')
+            ->where('thesis_defense_examiners.lecturer_user_id', $user->id)
+            ->whereIn('thesis_defenses.project_id', $projectIds)
+            ->pluck('thesis_defenses.project_id');
+
+        return array_fill_keys(
+            $supervised->merge($examined)->map(fn ($id): int => (int) $id)->unique()->values()->all(),
+            true,
+        );
     }
 }

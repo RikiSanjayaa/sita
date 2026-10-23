@@ -10,11 +10,13 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class UserProfilePresenter
 {
     public function __construct(
         private readonly MentorshipProgressService $mentorshipProgressService,
+        private readonly StudentProgressSnapshot $studentProgressSnapshot,
     ) {}
 
     /**
@@ -78,7 +80,7 @@ class UserProfilePresenter
 
         return match ($roleKey) {
             AppRole::Mahasiswa->value => $this->mahasiswaDetail($user, $viewer),
-            AppRole::Dosen->value => $this->dosenDetail($user),
+            AppRole::Dosen->value => $this->dosenDetail($user, $viewer),
             default => $this->genericDetail($user, $roleKey),
         };
     }
@@ -179,10 +181,15 @@ class UserProfilePresenter
         $canViewFullTitle = $project !== null && $this->canViewFullTitle($project, $viewer);
         $thesisTitle = $canViewFullTitle ? $project?->latestTitle : $project?->publicTitle();
 
+        $progress = $project === null
+            ? null
+            : ($this->studentProgressSnapshot->forProjects(new EloquentCollection([$project]), $viewer)[(int) $project->getKey()] ?? null);
+
         $summary = $this->summary($user);
 
         return [
             ...($summary ?? []),
+            'progress' => $progress,
             'headline' => 'Profil mahasiswa',
             'description' => 'Ringkasan identitas akademik dan progres '.$terminology['finalWorkLower'].' saat ini.',
             'academicTerminology' => $terminology,
@@ -241,7 +248,7 @@ class UserProfilePresenter
     /**
      * @return array<string, mixed>
      */
-    private function dosenDetail(User $user): array
+    private function dosenDetail(User $user, ?User $viewer): array
     {
         $user->loadMissing([
             'roles',
@@ -251,7 +258,15 @@ class UserProfilePresenter
         ]);
 
         $activeAssignments = ThesisSupervisorAssignment::query()
-            ->with(['project.student.roles', 'project.student.mahasiswaProfile.programStudi'])
+            ->with([
+                'project.student.roles',
+                'project.student.adminProfile.programStudi',
+                'project.student.dosenProfile.programStudi',
+                'project.student.expertiseFields',
+                'project.student.activeDosenProgramStudiAssignments.programStudi',
+                'project.student.kaprodiAssignment.programStudi',
+                'project.student.mahasiswaProfile.programStudi',
+            ])
             ->where('lecturer_user_id', $user->getKey())
             ->where('status', 'active')
             ->whereHas('project', fn($query) => $query->current()->where('state', 'active'))
@@ -285,23 +300,22 @@ class UserProfilePresenter
         $summary = $this->summary($user);
         $quota = max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14));
 
-        $supervisedStudents = $supervisedProjects
-            ->map(fn(ThesisProject $project): ?array => $this->studentProfileRow(
-                $project,
-                $mentorshipCounts[(int) $project->student_user_id] ?? 0,
-            ))
-            ->filter()
-            ->values()
-            ->all();
-
         // Only draft, scheduled and awaiting-finalization defenses on the student's
         // current active thesis are open assignments. Completed/cancelled attempts
         // remain in administrative history, not this list. Count each student once,
         // and leave supervised students in the supervision list with their counts.
         $supervisedStudentIds = $supervisedProjects->pluck('student_user_id')->map(fn($id): int => (int) $id);
 
-        $examinedStudents = ThesisDefenseExaminer::query()
-            ->with(['defense.project.student.roles', 'defense.project.student.mahasiswaProfile.programStudi'])
+        $examinedProjects = ThesisDefenseExaminer::query()
+            ->with([
+                'defense.project.student.roles',
+                'defense.project.student.adminProfile.programStudi',
+                'defense.project.student.dosenProfile.programStudi',
+                'defense.project.student.expertiseFields',
+                'defense.project.student.activeDosenProgramStudiAssignments.programStudi',
+                'defense.project.student.kaprodiAssignment.programStudi',
+                'defense.project.student.mahasiswaProfile.programStudi',
+            ])
             ->where('lecturer_user_id', $user->getKey())
             ->whereHas('defense', fn($query) => $query
                 ->whereIn('status', ['draft', 'scheduled', 'awaiting_finalization'])
@@ -312,7 +326,30 @@ class UserProfilePresenter
                 && $project->student instanceof User
                 && ! $supervisedStudentIds->contains((int) $project->student_user_id))
             ->unique(fn(ThesisProject $project): int => (int) $project->student_user_id)
-            ->map(fn(ThesisProject $project): ?array => $this->studentProfileRow($project, null))
+            ->values();
+
+        // One batched snapshot for every student card on this profile.
+        $progress = $this->studentProgressSnapshot->forProjects(
+            new EloquentCollection($supervisedProjects->merge($examinedProjects)->all()),
+            $viewer,
+        );
+
+        $supervisedStudents = $supervisedProjects
+            ->map(fn(ThesisProject $project): ?array => $this->studentProfileRow(
+                $project,
+                $mentorshipCounts[(int) $project->student_user_id] ?? 0,
+                $progress[(int) $project->getKey()] ?? null,
+            ))
+            ->filter()
+            ->values()
+            ->all();
+
+        $examinedStudents = $examinedProjects
+            ->map(fn(ThesisProject $project): ?array => $this->studentProfileRow(
+                $project,
+                null,
+                $progress[(int) $project->getKey()] ?? null,
+            ))
             ->filter()
             ->values()
             ->all();
@@ -356,9 +393,10 @@ class UserProfilePresenter
     }
 
     /**
+     * @param  array<string, mixed>|null  $progress  Entry from StudentProgressSnapshot for this row's project.
      * @return array<string, mixed>|null
      */
-    private function studentProfileRow(ThesisProject $project, ?int $mentorshipCount): ?array
+    private function studentProfileRow(ThesisProject $project, ?int $mentorshipCount, ?array $progress): ?array
     {
         $summary = $this->summary($project->student);
 
@@ -369,6 +407,7 @@ class UserProfilePresenter
                 'phase' => $project->phase,
                 'phaseLabel' => AcademicTerminology::phaseLabel($project->phase),
                 'mentorshipCount' => $mentorshipCount,
+                'progress' => $progress,
             ];
     }
 

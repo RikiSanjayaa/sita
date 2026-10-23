@@ -186,6 +186,13 @@ test('searching, filtering and paginating /topik never replays the entrance', as
     await expect(page).toHaveURL(/page=2/);
     await expect(rows).toHaveCount(2);
 
+    await page
+        .getByRole('combobox', { name: 'Per halaman' })
+        .first()
+        .selectOption('15');
+    await expect(page).toHaveURL(/per_page=15/);
+    await expect(rows).toHaveCount(12);
+
     await search.fill('');
     await expect(page).not.toHaveURL(/search=/);
     await expect(heading).toBeVisible();
@@ -256,7 +263,7 @@ test('a full reload starts one fresh entrance', async ({ page }) => {
 });
 
 test.describe('reduced motion', () => {
-    test.use({ reducedMotion: 'reduce' });
+    test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
     for (const route of routes) {
         test(`${route.path} is settled with no entrance`, async ({ page }) => {

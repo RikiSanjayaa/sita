@@ -553,6 +553,26 @@ class ViewThesisProject extends ViewRecord
                 ->label('Edit '.$terms['finalWork'])
                 ->icon('heroicon-m-pencil-square')
                 ->url(fn(): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
+            Action::make('renew_mentorship_ticket')
+                ->label('Perpanjang Tiket 1 Tahun')
+                ->icon('heroicon-m-arrow-path')
+                ->color('gray')
+                ->visible(fn(): bool => $record->state === 'active')
+                ->requiresConfirmation()
+                ->action(function () use ($record): void {
+                    $userId = Auth::id();
+
+                    if ($userId === null) {
+                        return;
+                    }
+
+                    app(ThesisProjectAdminService::class)->renewMentorshipTicket($record, $userId);
+
+                    Notification::make()
+                        ->title('Tiket bimbingan diperpanjang 1 tahun')
+                        ->success()
+                        ->send();
+                }),
             ActionGroup::make($workflowActions)
                 ->label('Aksi Workflow')
                 ->icon('heroicon-m-bolt')
