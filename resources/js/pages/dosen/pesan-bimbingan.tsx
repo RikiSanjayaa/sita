@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 
 import { ChatPanel } from '@/components/chat/chat-panel';
@@ -172,6 +172,7 @@ function DosenPesanBimbinganContent({
         sendUrl: (threadId) => `/dosen/pesan/${threadId}/messages`,
         readUrl: (threadId) => `/dosen/pesan/${threadId}/read`,
         clearParams: clearedUrlParams,
+        onDocumentEvent: () => router.reload({ only: ['threads'] }),
         onSent: () => setMobileView('chat'),
     });
     const messageSearch = useMessageSearch(chat.activeMessages);

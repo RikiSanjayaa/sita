@@ -3,6 +3,7 @@ import { FileText } from 'lucide-react';
 import { useState } from 'react';
 
 import { AttachmentCard } from '@/components/chat/attachment-card';
+import { DocumentReviewAction } from '@/components/chat/document-review-action';
 import { FilenameLabel, highlightText } from '@/components/chat/highlight-text';
 import { ImageLightbox } from '@/components/chat/image-lightbox';
 import { type ChatMessage } from '@/components/chat/types';
@@ -172,6 +173,14 @@ export function ChatBubble({
                                 sizeKb={message.attachmentSizeKb}
                             />
                         )}
+                        {message.type === 'document_event' &&
+                            message.ownReview &&
+                            message.documentName && (
+                                <DocumentReviewAction
+                                    document={message.ownReview}
+                                    documentName={message.documentName}
+                                />
+                            )}
                         {thumbnailUrl !== null && !isPending && (
                             <ImageLightbox
                                 downloadHref={message.documentUrl}

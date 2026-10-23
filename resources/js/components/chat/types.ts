@@ -1,6 +1,10 @@
 import { type UserProfileSummary } from '@/types';
 
 export type ChatAttachmentKind = 'image' | 'document';
+export type ChatOwnReview = {
+    id: number;
+    status: string;
+};
 
 export type ChatMessage = {
     id: number;
@@ -20,6 +24,11 @@ export type ChatMessage = {
     relatedDocumentId: number | null;
     /** MentorshipDocument.status at the time the row was built. */
     reviewStatus: string | null;
+    /**
+     * The viewing lecturer's own copy of the document, set only for dosen payloads built
+     * for a recipient. Null in broadcasts and for everyone else.
+     */
+    ownReview?: ChatOwnReview | null;
 };
 
 /** Fields every chat thread must carry, regardless of the portal. */
