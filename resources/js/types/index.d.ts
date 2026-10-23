@@ -81,6 +81,7 @@ export interface UserProfileSummary {
     concentration?: string | null;
     expertiseFields?: string[];
     subtitle?: string | null;
+    mentorshipCount?: number;
 }
 
 export interface ProfileFieldItem {

@@ -1,7 +1,50 @@
+import { execFileSync } from 'node:child_process';
+
 import { expect, test } from '@playwright/test';
 
-import { runArtisan } from '../support/db';
-import { authStatePath } from '../support/thesis-fixtures';
+import {
+    playwrightEnvironment,
+    repositoryRoot,
+    runArtisan,
+    seedPlaywrightScenarios,
+} from '../support/db';
+import { authStatePath, thesisScenarios } from '../support/thesis-fixtures';
+
+const supervised = thesisScenarios.twoSupervisors;
+
+/**
+ * Gives the supervised scenario student a known number of completed sessions
+ * per supervisor and returns the user ids used to open the profile pages.
+ */
+function seedMentorshipCounts(): { studentId: number; primaryId: number } {
+    const script = [
+        '$student = App\\Models\\User::query()->where("name", "' +
+            supervised.studentName +
+            '")->firstOrFail();',
+        '$primary = App\\Models\\User::query()->where("email", "dosen@sita.test")->firstOrFail();',
+        '$secondary = App\\Models\\User::query()->where("email", "dosen2@sita.test")->firstOrFail();',
+        'App\\Models\\MentorshipSchedule::query()->where("student_user_id", $student->id)->delete();',
+        'foreach ([[$primary, 2], [$secondary, 1]] as [$lecturer, $count]) { App\\Models\\MentorshipSchedule::factory()->count($count)->create(["student_user_id" => $student->id, "lecturer_user_id" => $lecturer->id, "status" => "completed", "requested_for" => now()->addMinute(), "scheduled_for" => now()->addMinute()]); }',
+        'echo "IDS:" . $student->id . ":" . $primary->id;',
+    ].join(' ');
+
+    const output = execFileSync(
+        'php',
+        ['artisan', 'tinker', `--execute=${script}`],
+        {
+            cwd: repositoryRoot,
+            env: playwrightEnvironment(),
+            encoding: 'utf8',
+        },
+    );
+    const match = output.match(/IDS:(\d+):(\d+)/);
+
+    if (match === null) {
+        throw new Error(`Could not seed mentorship counts: ${output}`);
+    }
+
+    return { studentId: Number(match[1]), primaryId: Number(match[2]) };
+}
 
 function resetProfileForUser(): void {
     runArtisan([
@@ -59,6 +102,62 @@ test.describe('Profile settings', () => {
         } finally {
             await context.close();
             resetProfileForUser();
+        }
+    });
+});
+
+test.describe('Jumlah bimbingan di profil (issue #70)', () => {
+    let studentId = 0;
+    let primaryId = 0;
+
+    test.beforeAll(() => {
+        seedPlaywrightScenarios();
+        ({ studentId, primaryId } = seedMentorshipCounts());
+    });
+
+    test('student profile shows x bimbingan per active supervisor, as a plain count', async ({
+        browser,
+    }) => {
+        const context = await browser.newContext({
+            storageState: authStatePath('dosen3'),
+        });
+
+        try {
+            const page = await context.newPage();
+            await page.goto(`/profil/${studentId}`);
+
+            const budi = page.getByRole('link', {
+                name: /Dr\. Budi Santoso/,
+            });
+            const ratna = page.getByRole('link', {
+                name: /Dr\. Ratna Kusuma/,
+            });
+            await expect(budi.getByText('2 bimbingan')).toBeVisible();
+            await expect(ratna.getByText('1 bimbingan')).toBeVisible();
+            await expect(page.getByText('/6')).toHaveCount(0);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test('supervisor profile shows x bimbingan per supervised student', async ({
+        browser,
+    }) => {
+        const context = await browser.newContext({
+            storageState: authStatePath('dosen3'),
+        });
+
+        try {
+            const page = await context.newPage();
+            await page.goto(`/profil/${primaryId}`);
+
+            const student = page.getByRole('link', {
+                name: new RegExp(supervised.studentName),
+            });
+            await expect(student.getByText('2 bimbingan')).toBeVisible();
+            await expect(page.getByText('/6')).toHaveCount(0);
+        } finally {
+            await context.close();
         }
     });
 });

@@ -6,6 +6,7 @@ use App\Models\MentorshipSchedule;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class MentorshipProgressService
 {
@@ -74,6 +75,52 @@ class MentorshipProgressService
                 'minimum' => $row['minimum'],
             ], $progress),
         ];
+    }
+
+    /**
+     * Completed mentorship sessions for one lecturer's supervised students, in a
+     * single query. Uses the same rule as forProject(): sessions since the start
+     * of the supervisor assignment.
+     *
+     * @param  Collection<int, ThesisSupervisorAssignment>  $assignments  assignments of one lecturer
+     * @return array<int, int> completed count keyed by student user id
+     */
+    public function completedByStudentForLecturer(int $lecturerId, Collection $assignments): array
+    {
+        $assignments = $assignments
+            ->filter(static fn(ThesisSupervisorAssignment $assignment): bool => $assignment->project !== null)
+            ->unique(static fn(ThesisSupervisorAssignment $assignment): int => (int) $assignment->project->student_user_id);
+
+        if ($assignments->isEmpty()) {
+            return [];
+        }
+
+        $counts = MentorshipSchedule::query()
+            ->selectRaw('student_user_id, count(*) as completed_count')
+            ->where('lecturer_user_id', $lecturerId)
+            ->where('status', 'completed')
+            ->where(function (Builder $query) use ($assignments): void {
+                foreach ($assignments as $assignment) {
+                    $query->orWhere(function (Builder $inner) use ($assignment): void {
+                        $inner->where('student_user_id', $assignment->project->student_user_id)
+                            ->when($assignment->started_at, static function (Builder $query, $startedAt): void {
+                                $query->whereRaw('coalesce(scheduled_for, requested_for) >= ?', [$startedAt]);
+                            });
+                    });
+                }
+            })
+            ->groupBy('student_user_id')
+            ->pluck('completed_count', 'student_user_id')
+            ->map(static fn($count): int => (int) $count)
+            ->all();
+
+        $result = [];
+        foreach ($assignments as $assignment) {
+            $studentId = (int) $assignment->project->student_user_id;
+            $result[$studentId] = $counts[$studentId] ?? 0;
+        }
+
+        return $result;
     }
 
     private function completedCount(ThesisProject $project, ThesisSupervisorAssignment $assignment): int
