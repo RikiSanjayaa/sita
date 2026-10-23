@@ -13,7 +13,7 @@ const paletteUtilities =
 // Matches e.g. `bg-red-500`, `dark:text-amber-300`, `border-emerald-200/60`, `!bg-sky-50`.
 const rawPaletteRegex = `/(^|\\W)(${paletteUtilities})-(${paletteHues})-[0-9]{2,3}(\\W|$)/`;
 const rawPaletteMessage =
-    'Raw Tailwind palette color. Use semantic tokens (success, warning, danger, info, primary, muted), StatusBadge from @/components/patterns/status-badge, or statusClassName from @/lib/status-styles. See docs/DESIGN_SYSTEM.md.';
+    'Raw Tailwind palette color. Use semantic tokens (success, warning, danger, info, primary, muted), StatusBadge from @/components/patterns/status-badge, or statusClassName from @/lib/status-styles. See DESIGN.md.';
 const legacyChatPage = 'resources/js/pages/dosen/pesan-bimbingan.tsx';
 
 /** @type {import('eslint').Linter.Config[]} */
@@ -82,7 +82,7 @@ export default [
     {
         // Warning-only guard: pages must use semantic status tokens
         // (success/warning/danger/info/primary/muted) or patterns from
-        // @/components/patterns, not raw Tailwind palette hues. See docs/DESIGN_SYSTEM.md.
+        // @/components/patterns, not raw Tailwind palette hues. See DESIGN.md.
         files: ['resources/js/pages/**/*.tsx'],
         languageOptions: { parser: typescript.parser },
         rules: {

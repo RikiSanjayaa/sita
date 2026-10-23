@@ -63,7 +63,8 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The design-detector spec adds about 4 minutes (40 page scans).
+    timeout-minutes: 30
     # A real Reverb server is started by the Playwright config, and the build must compile the same keys.
     env:
       REVERB_APP_ID: local-app
@@ -136,6 +137,21 @@ jobs:
       - name: Install Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: Cache Impeccable engine
+        uses: actions/cache@v4
+        with:
+          path: ~/.impeccable/bin
+          key: ${{ runner.os }}-impeccable-${{ hashFiles('.claude/skills/impeccable/scripts/VERSION') }}
+
+      # The engine binary is not committed. The launcher downloads the version
+      # pinned in scripts/VERSION (checksum verified) into ~/.impeccable/bin;
+      # doing it here fails the job early if the download is blocked.
+      - name: Install Impeccable engine
+        run: .claude/skills/impeccable/scripts/impeccable engine-probe
+
+      - name: Point Impeccable at Playwright Chromium
+        run: echo "IMPECCABLE_BROWSER=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
 
       - name: Record e2e start time
         run: echo "E2E_START=$(date +%s)" >> "$GITHUB_ENV"
