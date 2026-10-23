@@ -104,10 +104,12 @@ class UserProfilePresenter
                 'activeSupervisorAssignments.lecturer.dosenProfile.programStudi',
                 'defenses' => fn($query) => $query
                     ->with(['examiners.lecturer.roles', 'examiners.lecturer.dosenProfile.programStudi'])
+                    ->when(! $viewer->hasAnyRole([AppRole::Admin, AppRole::SuperAdmin]), fn($query) => $query->where('status', '!=', 'cancelled'))
                     ->orderBy('type')
                     ->orderByDesc('attempt_no'),
             ])
             ->where('student_user_id', $user->getKey())
+            ->when(! $viewer->hasAnyRole([AppRole::Admin, AppRole::SuperAdmin]), fn($query) => $query->current())
             ->latest('started_at')
             ->get();
 
@@ -267,7 +269,7 @@ class UserProfilePresenter
             ])
             ->where('lecturer_user_id', $user->getKey())
             ->where('status', 'active')
-            ->whereHas('project', fn($query) => $query->where('state', 'active'))
+            ->whereHas('project', fn($query) => $query->current()->where('state', 'active'))
             ->get();
 
         $supervisedProjects = $activeAssignments
@@ -283,21 +285,26 @@ class UserProfilePresenter
             ->where('lecturer_user_id', $user->getKey())
             ->whereHas('defense', fn($query) => $query
                 ->where('type', 'sempro')
-                ->where('status', 'scheduled'))
+                ->where('status', 'scheduled')
+                ->whereHas('project', fn($query) => $query->current()->where('state', 'active')))
             ->count();
 
         $scheduledSidangCount = ThesisDefenseExaminer::query()
             ->where('lecturer_user_id', $user->getKey())
             ->whereHas('defense', fn($query) => $query
                 ->where('type', 'sidang')
-                ->where('status', 'scheduled'))
+                ->where('status', 'scheduled')
+                ->whereHas('project', fn($query) => $query->current()->where('state', 'active')))
             ->count();
 
         $summary = $this->summary($user);
         $quota = max(1, (int) ($user->dosenProfile?->supervision_quota ?? 14));
 
-        // Students this lecturer examines on an open defense without supervising them.
-        // They never get a mentorship count; counts exist only for supervision.
+        // Only draft, scheduled and awaiting-finalization defenses on the student's
+        // current active thesis are open assignments. Completed/cancelled attempts
+        // remain in administrative history, not this list. Count each student once,
+        // and leave supervised students in the supervision list with their counts.
+        // Examined-only students never get a mentorship count; counts exist only for supervision.
         $supervisedStudentIds = $supervisedProjects->pluck('student_user_id')->map(fn($id): int => (int) $id);
 
         $examinedProjects = ThesisDefenseExaminer::query()
@@ -312,8 +319,8 @@ class UserProfilePresenter
             ])
             ->where('lecturer_user_id', $user->getKey())
             ->whereHas('defense', fn($query) => $query
-                ->where('status', '!=', 'completed')
-                ->whereHas('project', fn($query) => $query->where('state', 'active')))
+                ->whereIn('status', ['draft', 'scheduled', 'awaiting_finalization'])
+                ->whereHas('project', fn($query) => $query->current()->where('state', 'active')))
             ->get()
             ->map(fn(ThesisDefenseExaminer $examiner): ?ThesisProject => $examiner->defense?->project)
             ->filter(fn(?ThesisProject $project): bool => $project instanceof ThesisProject

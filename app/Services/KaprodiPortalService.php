@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\MahasiswaProfile;
-use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
@@ -14,6 +13,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
@@ -22,6 +22,7 @@ class KaprodiPortalService
     public function __construct(
         private readonly MentorshipProgressService $mentorshipProgressService,
         private readonly StudentProgressSnapshot $studentProgressSnapshot,
+        private readonly StudentActivityService $studentActivityService,
     ) {}
 
     /**
@@ -31,9 +32,8 @@ class KaprodiPortalService
     {
         $projects = $this->projects($programStudi);
         $students = $this->studentProfiles($programStudi);
-        $latestChatByStudent = $this->latestChatActivityByStudent($students->pluck('user_id'));
-        $latestDocumentByStudent = $this->latestMentorshipDocumentActivityByStudent($students->pluck('user_id'));
-        $attentionItems = $this->attentionItems($programStudi, $projects, $students, $latestChatByStudent, $latestDocumentByStudent);
+        $lastActivityByProject = $this->studentActivityService->latestByProject($projects);
+        $attentionItems = $this->attentionItems($programStudi, $projects, $students, $lastActivityByProject);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
@@ -71,14 +71,12 @@ class KaprodiPortalService
     {
         $projects = $this->projects($programStudi);
         $students = $this->studentProfiles($programStudi);
-        $latestChatByStudent = $this->latestChatActivityByStudent($students->pluck('user_id'));
-        $latestDocumentByStudent = $this->latestMentorshipDocumentActivityByStudent($students->pluck('user_id'));
+        $lastActivityByProject = $this->studentActivityService->latestByProject($projects);
         $studentRows = $this->studentRows(
             $students,
             $projects,
-            $latestChatByStudent,
-            $latestDocumentByStudent,
-            $this->studentProgressSnapshot->forProjects($projects, $viewer),
+            $lastActivityByProject,
+            $this->studentProgressSnapshot->forProjects($projects, $viewer, lastActivity: $lastActivityByProject),
         );
 
         return [
@@ -103,7 +101,7 @@ class KaprodiPortalService
     public function exams(ProgramStudi $programStudi): array
     {
         $defenses = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
@@ -262,7 +260,7 @@ class KaprodiPortalService
             ->values();
 
         $thesisDocuments = ThesisDocument::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->with(['project.student', 'defense'])
             ->latest('uploaded_at')
             ->get()
@@ -323,6 +321,7 @@ class KaprodiPortalService
         abort_unless($profile !== null && (int) $profile->program_studi_id === (int) $programStudi->id, 404);
 
         $projects = ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->where('student_user_id', $student->id)
             ->with([
@@ -380,7 +379,7 @@ class KaprodiPortalService
     private function defenseProgress(ProgramStudi $programStudi): Collection
     {
         $rows = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->get()
             ->groupBy(fn(ThesisDefense $defense): string => $defense->type.'|'.$defense->status);
 
@@ -444,7 +443,7 @@ class KaprodiPortalService
     private function deadlines(ProgramStudi $programStudi, int $limit = 8): array
     {
         $defenseDeadlines = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '>=', now()->subDay())
             ->with('project.student')
@@ -460,7 +459,7 @@ class KaprodiPortalService
             ]);
 
         $revisionDeadlines = ThesisRevision::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('due_at')
             ->whereNull('resolved_at')
             ->with('project.student')
@@ -485,13 +484,13 @@ class KaprodiPortalService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function studentRows(EloquentCollection $students, EloquentCollection $projects, Collection $latestChatByStudent, Collection $latestDocumentByStudent, array $progress): Collection
+    private function studentRows(EloquentCollection $students, EloquentCollection $projects, array $lastActivityByProject, array $progress): Collection
     {
         $mentorshipProgress = $this->mentorshipProgressService->forProjects($projects);
 
         return $students
             ->sortBy(fn(MahasiswaProfile $profile): string => $profile->user?->name ?? '')
-            ->map(function (MahasiswaProfile $profile) use ($latestChatByStudent, $latestDocumentByStudent, $mentorshipProgress, $progress, $projects): array {
+            ->map(function (MahasiswaProfile $profile) use ($lastActivityByProject, $mentorshipProgress, $progress, $projects): array {
                 $project = $projects
                     ->where('student_user_id', $profile->user_id)
                     ->sortByDesc('started_at')
@@ -536,8 +535,7 @@ class KaprodiPortalService
                     'mentorshipProgress' => $project instanceof ThesisProject ? $mentorshipProgress[$project->getKey()] ?? [] : [],
                     'progressRisk' => $this->progressRisk(
                         $project,
-                        $latestChatByStudent->get((int) $profile->user_id),
-                        $latestDocumentByStudent->get((int) $profile->user_id),
+                        $lastActivityByProject[$project?->id] ?? null,
                     ),
                     'progress' => $progress[$project?->id] ?? null,
                     'profileUrl' => route('users.profile.show', ['user' => $profile->user_id]),
@@ -638,7 +636,7 @@ class KaprodiPortalService
         ];
     }
 
-    private function progressRisk(?ThesisProject $project, ?MentorshipChatMessage $latestChat, ?MentorshipDocument $latestMentorshipDocument): array
+    private function progressRisk(?ThesisProject $project, ?CarbonInterface $lastStudentActivity): array
     {
         $terms = AcademicTerminology::neutral();
         if (! $project instanceof ThesisProject) {
@@ -664,7 +662,7 @@ class KaprodiPortalService
             ];
         }
 
-        $latestActivity = $this->latestProjectActivity($project, $latestChat, $latestMentorshipDocument);
+        $latestActivity = $this->latestProjectActivity($project, $lastStudentActivity);
         $daysIdle = $latestActivity['at'] === null
             ? null
             : ($latestActivity['at']->isFuture() ? 0 : (int) $latestActivity['at']->diffInDays(now()));
@@ -723,10 +721,18 @@ class KaprodiPortalService
     }
 
     /**
+     * Student activity (StudentActivityService, the same value the progress peek shows)
+     * is the last activity whenever it exists. Project-side signals are only a fallback
+     * for projects without any, so one row never shows two different dates.
+     *
      * @return array{at: mixed, label: string}
      */
-    private function latestProjectActivity(ThesisProject $project, ?MentorshipChatMessage $latestChat, ?MentorshipDocument $latestMentorshipDocument): array
+    private function latestProjectActivity(ThesisProject $project, ?CarbonInterface $lastStudentActivity): array
     {
+        if ($lastStudentActivity !== null) {
+            return ['at' => $lastStudentActivity, 'label' => 'Aktivitas mahasiswa'];
+        }
+
         $terms = AcademicTerminology::neutral();
         $candidates = collect([
             [
@@ -744,14 +750,6 @@ class KaprodiPortalService
             [
                 'at' => $project->defenses->max('scheduled_for'),
                 'label' => 'Jadwal ujian',
-            ],
-            [
-                'at' => $latestChat?->created_at,
-                'label' => 'Chat terakhir',
-            ],
-            [
-                'at' => $latestMentorshipDocument?->reviewed_at ?? $latestMentorshipDocument?->updated_at ?? $latestMentorshipDocument?->created_at,
-                'label' => 'Dokumen bimbingan',
             ],
         ])->filter(fn(array $candidate): bool => $candidate['at'] !== null);
 
@@ -922,6 +920,7 @@ class KaprodiPortalService
     private function schedulableProjects(ProgramStudi $programStudi): Collection
     {
         return ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->where('state', 'active')
             ->with([
@@ -1024,6 +1023,7 @@ class KaprodiPortalService
     private function projects(ProgramStudi $programStudi): EloquentCollection
     {
         return ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->with([
                 'student.mahasiswaProfile',
@@ -1048,62 +1048,16 @@ class KaprodiPortalService
             ->get();
     }
 
-    private function latestChatActivityByStudent(Collection $studentIds): Collection
-    {
-        $ids = $studentIds
-            ->filter()
-            ->map(fn($id): int => (int) $id)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return collect();
-        }
-
-        return MentorshipChatMessage::query()
-            ->whereHas('thread', fn($query) => $query->whereIn('student_user_id', $ids->all()))
-            ->with('thread:id,student_user_id')
-            ->latest('created_at')
-            ->get()
-            ->filter(fn(MentorshipChatMessage $message): bool => $message->thread?->student_user_id !== null)
-            ->unique(fn(MentorshipChatMessage $message): int => (int) $message->thread->student_user_id)
-            ->mapWithKeys(fn(MentorshipChatMessage $message): array => [
-                (int) $message->thread->student_user_id => $message,
-            ]);
-    }
-
-    private function latestMentorshipDocumentActivityByStudent(Collection $studentIds): Collection
-    {
-        $ids = $studentIds
-            ->filter()
-            ->map(fn($id): int => (int) $id)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return collect();
-        }
-
-        return MentorshipDocument::query()
-            ->whereIn('student_user_id', $ids->all())
-            ->latest('updated_at')
-            ->get()
-            ->unique(fn(MentorshipDocument $document): int => (int) $document->student_user_id)
-            ->mapWithKeys(fn(MentorshipDocument $document): array => [
-                (int) $document->student_user_id => $document,
-            ]);
-    }
-
-    private function attentionItems(ProgramStudi $programStudi, EloquentCollection $projects, EloquentCollection $students, Collection $latestChatByStudent, Collection $latestDocumentByStudent): Collection
+    private function attentionItems(ProgramStudi $programStudi, EloquentCollection $projects, EloquentCollection $students, array $lastActivityByProject): Collection
     {
         $terms = AcademicTerminology::neutral();
         $unfinalizedDefenses = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->where('status', 'awaiting_finalization')
             ->count();
 
         $openRevisions = ThesisRevision::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNull('resolved_at')
             ->count();
 
@@ -1116,7 +1070,7 @@ class KaprodiPortalService
             ->count();
 
         // The risk count only reads progressRisk, so no peek snapshot is built here.
-        $riskStudents = $this->studentRows($students, $projects, $latestChatByStudent, $latestDocumentByStudent, [])
+        $riskStudents = $this->studentRows($students, $projects, $lastActivityByProject, [])
             ->where('status', 'Aktif')
             ->where('progressRisk.level', 'high')
             ->count();
@@ -1163,8 +1117,9 @@ class KaprodiPortalService
     private function archiveRows(ProgramStudi $programStudi, ?int $limit): Collection
     {
         $query = ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
-            ->whereIn('state', ['completed', 'cancelled'])
+            ->where('state', 'completed')
             ->with([
                 'student.mahasiswaProfile',
                 'latestTitle',
@@ -1221,12 +1176,12 @@ class KaprodiPortalService
 
                 $supervisorAssignments = ThesisSupervisorAssignment::query()
                     ->where('lecturer_user_id', $lecturer->id)
-                    ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+                    ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
                     ->with('project.student')
                     ->get();
 
                 $examinerDefenses = ThesisDefense::query()
-                    ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+                    ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
                     ->whereHas('examiners', fn($query) => $query->where('lecturer_user_id', $lecturer->id))
                     ->with('project.student')
                     ->get();
@@ -1269,8 +1224,9 @@ class KaprodiPortalService
     {
         return ThesisDocument::query()
             ->whereHas('project', fn($query) => $query
+                ->current()
                 ->where('program_studi_id', $programStudi->id)
-                ->whereIn('state', ['completed', 'cancelled']))
+                ->where('state', 'completed'))
             ->with('project.student')
             ->latest('uploaded_at')
             ->limit(12)

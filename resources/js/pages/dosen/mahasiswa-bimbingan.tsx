@@ -21,6 +21,7 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
     type StudentProgress,
     StudentProgressPeek,
@@ -205,23 +206,25 @@ function StudentTable({
 
     return (
         <DataSection title={title} summary={summary}>
-            <DataToolbar
-                search={search}
-                onSearchChange={setSearch}
-                placeholder="Cari nama atau NIM..."
-            />
+            <StickyFilterBar>
+                <DataToolbar
+                    search={search}
+                    onSearchChange={setSearch}
+                    placeholder="Cari nama atau NIM..."
+                />
 
-            <FilterPills
-                label={`Peran, ${title.toLowerCase()}`}
-                value={roleFilter}
-                onValueChange={setRoleFilter}
-                itemClassName="max-md:h-11 max-md:px-4"
-                options={roleTabs.map((tab) => ({
-                    ...tab,
-                    count: rows.filter((row) => matchesRole(row, tab.value))
-                        .length,
-                }))}
-            />
+                <FilterPills
+                    label={`Peran, ${title.toLowerCase()}`}
+                    value={roleFilter}
+                    onValueChange={setRoleFilter}
+                    itemClassName="max-md:h-11 max-md:px-4"
+                    options={roleTabs.map((tab) => ({
+                        ...tab,
+                        count: rows.filter((row) => matchesRole(row, tab.value))
+                            .length,
+                    }))}
+                />
+            </StickyFilterBar>
 
             {filtered.length > 0 ? (
                 <DataTableContainer

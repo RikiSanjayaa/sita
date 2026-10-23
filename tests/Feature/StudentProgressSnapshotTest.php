@@ -78,12 +78,14 @@ function snapshotSession(User $student, User $lecturer, int $daysAgo): void
         'status' => 'completed',
         'requested_for' => now()->subDays($daysAgo),
         'scheduled_for' => now()->subDays($daysAgo),
+        'created_at' => now()->subDays($daysAgo + 1),
+        'updated_at' => now()->subDays($daysAgo),
     ]);
 }
 
 function snapshotChatFrom(User $student, User $sender, int $daysAgo): void
 {
-    $thread = MentorshipChatThread::factory()->create(['student_user_id' => $student->id]);
+    $thread = MentorshipChatThread::factory()->create(['student_user_id' => $student->id, 'type' => 'pembimbing']);
 
     MentorshipChatMessage::factory()->create([
         'mentorship_chat_thread_id' => $thread->id,

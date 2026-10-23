@@ -11,6 +11,7 @@ import {
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Button } from '@/components/ui/button';
 import {
@@ -225,39 +226,41 @@ function PublicTopicsContent({
             description={`Daftar topik karya akhir yang sudah menyelesaikan ${n.proposalExam.toLowerCase()} dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan.`}
         >
             <DataSection title="Daftar Topik">
-                <DataToolbar
-                    search={search}
-                    onSearchChange={(value) => {
-                        setSearch(value);
-                        setOpenRowId(null);
-                    }}
-                    placeholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
-                >
-                    <DataSelect
-                        label="Program studi"
-                        value={programFilter}
-                        onValueChange={(value) => {
-                            setProgramFilter(value);
+                <StickyFilterBar layout="public">
+                    <DataToolbar
+                        search={search}
+                        onSearchChange={(value) => {
+                            setSearch(value);
                             setOpenRowId(null);
                         }}
-                        placeholder="Filter prodi"
-                        options={[
-                            { value: 'semua', label: 'Semua Prodi' },
-                            ...topicPrograms.map((program) => ({
-                                value: program.slug,
-                                label: program.name,
-                            })),
-                        ]}
-                    />
-                </DataToolbar>
+                        placeholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
+                    >
+                        <DataSelect
+                            label="Program studi"
+                            value={programFilter}
+                            onValueChange={(value) => {
+                                setProgramFilter(value);
+                                setOpenRowId(null);
+                            }}
+                            placeholder="Filter prodi"
+                            options={[
+                                { value: 'semua', label: 'Semua Prodi' },
+                                ...topicPrograms.map((program) => ({
+                                    value: program.slug,
+                                    label: program.name,
+                                })),
+                            ]}
+                        />
+                    </DataToolbar>
 
-                <FilterPills
-                    label="Tahun topik"
-                    value={filters.year || 'semua'}
-                    onValueChange={changeYear}
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={yearTabs}
-                />
+                    <FilterPills
+                        label="Tahun topik"
+                        value={filters.year || 'semua'}
+                        onValueChange={changeYear}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={yearTabs}
+                    />
+                </StickyFilterBar>
 
                 {semproTitles.length > 0 ? (
                     <DataTableContainer

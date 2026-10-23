@@ -7,6 +7,7 @@ import {
     DataToolbar,
     dataTh,
 } from '@/components/patterns/data-section';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { PublicLayout } from '@/components/public/public-layout';
 import {
     DataTableContainer,
@@ -169,22 +170,24 @@ export default function PublicAdvisorsPage() {
             description="Daftar dosen pembimbing aktif yang dikelompokkan per konsentrasi dan dapat difilter berdasarkan program studi."
         >
             <div className="space-y-8">
-                <DataToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    placeholder="Cari dosen atau konsentrasi..."
-                >
-                    <DataSelect
-                        label="Program studi"
-                        value={programFilter}
-                        onValueChange={setProgramFilter}
-                        placeholder="Pilih program studi"
-                        options={advisorPrograms.map((program) => ({
-                            value: program.slug,
-                            label: program.name,
-                        }))}
-                    />
-                </DataToolbar>
+                <StickyFilterBar layout="public">
+                    <DataToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        placeholder="Cari dosen atau konsentrasi..."
+                    >
+                        <DataSelect
+                            label="Program studi"
+                            value={programFilter}
+                            onValueChange={setProgramFilter}
+                            placeholder="Pilih program studi"
+                            options={advisorPrograms.map((program) => ({
+                                value: program.slug,
+                                label: program.name,
+                            }))}
+                        />
+                    </DataToolbar>
+                </StickyFilterBar>
 
                 {advisorGroups.length > 0 ? (
                     advisorGroups.map(([concentration, advisors]) => {

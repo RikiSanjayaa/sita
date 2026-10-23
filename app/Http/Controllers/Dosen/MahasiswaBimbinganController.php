@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Dosen;
 use App\Enums\AdvisorType;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatThread;
-use App\Models\MentorshipDocument;
-use App\Models\MentorshipSchedule;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisProject;
@@ -14,6 +12,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\MentorshipProgressService;
+use App\Services\StudentActivityService;
 use App\Services\StudentProgressSnapshot;
 use App\Services\ThesisProjectNoteService;
 use App\Services\UserProfilePresenter;
@@ -30,6 +29,7 @@ class MahasiswaBimbinganController extends Controller
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ThesisProjectNoteService $noteService,
         private readonly MentorshipProgressService $mentorshipProgressService,
+        private readonly StudentActivityService $studentActivityService,
         private readonly StudentProgressSnapshot $studentProgressSnapshot,
     ) {}
 
@@ -47,7 +47,8 @@ class MahasiswaBimbinganController extends Controller
                 'defense.project.activeSupervisorAssignments.lecturer.roles',
             ])
             ->where('lecturer_user_id', $lecturer->id)
-            ->whereHas('defense.project.student')
+            ->whereHas('defense', fn ($query) => $query->where('status', '!=', 'cancelled'))
+            ->whereHas('defense.project', fn ($query) => $query->current()->whereHas('student'))
             ->get();
 
         $activeExaminerRecords = $examinerRecords
@@ -72,20 +73,6 @@ class MahasiswaBimbinganController extends Controller
 
         $examThreadIdsByStudentAndType = $this->examThreadIdsByStudentAndType($studentIds->all());
 
-        $latestScheduleByStudent = MentorshipSchedule::query()
-            ->where('lecturer_user_id', $lecturer->id)
-            ->whereIn('student_user_id', $studentIds)
-            ->orderByDesc('updated_at')
-            ->get()
-            ->keyBy('student_user_id');
-
-        $latestDocumentByStudent = MentorshipDocument::query()
-            ->where('lecturer_user_id', $lecturer->id)
-            ->whereIn('student_user_id', $studentIds)
-            ->orderByDesc('updated_at')
-            ->get()
-            ->keyBy('student_user_id');
-
         $completedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $assignments);
         $archivedAssignments = $this->dosenBimbinganService->archivedAssignmentsWithStudent($lecturer);
         $projects = $assignments->pluck('project')
@@ -93,7 +80,11 @@ class MahasiswaBimbinganController extends Controller
             ->merge($examinerRecords->pluck('defense.project'))
             ->filter()
             ->values();
-        $progressByProject = $this->studentProgressSnapshot->forProjects(new EloquentCollection($projects->unique('id')->values()->all()), $lecturer);
+        $uniqueProjects = new EloquentCollection($projects->unique('id')->values()->all());
+        // One last-activity rule everywhere: the snapshot's value is what the active rows show.
+        $lastActivityByProject = $this->studentProgressSnapshot->lastActivity($uniqueProjects, $lecturer);
+        $progressByProject = $this->studentProgressSnapshot->forProjects($uniqueProjects, $lecturer, lastActivity: $lastActivityByProject);
+        $latestActivity = $this->activityByRelation($assignments, $activeExaminerRecords, $lastActivityByProject);
 
         // Row building calls UserProfilePresenter::summary() per student; preload what it needs once.
         (new EloquentCollection($projects->pluck('student')->filter()->all()))->loadMissing([
@@ -105,11 +96,11 @@ class MahasiswaBimbinganController extends Controller
             'kaprodiAssignment.programStudi',
             'mahasiswaProfile.programStudi',
         ]);
-        $rows = collect($assignments->map(function ($assignment) use ($latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent, $progressByProject): array {
-            return $this->buildRow($assignment, $latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent, $progressByProject);
+        $rows = collect($assignments->map(function ($assignment) use ($latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject): array {
+            return $this->buildRow($assignment, $latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject);
         }))
-            ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestDocumentByStudent, $latestScheduleByStudent, $progressByProject): array {
-                return $this->buildExaminerRow($examiner, $latestDocumentByStudent, $latestScheduleByStudent, $examThreadIdsByStudentAndType, $progressByProject);
+            ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestActivity, $progressByProject): array {
+                return $this->buildExaminerRow($examiner, $latestActivity, $examThreadIdsByStudentAndType, $progressByProject);
             }))
             ->sortBy([
                 ['name', 'asc'],
@@ -128,32 +119,21 @@ class MahasiswaBimbinganController extends Controller
             ->values();
 
         $archivedThreadIds = MentorshipChatThread::query()
+            ->where('type', 'pembimbing')
             ->whereIn('student_user_id', $archivedStudentIds)
             ->pluck('id', 'student_user_id');
 
         $archivedExamThreadIdsByStudentAndType = $this->examThreadIdsByStudentAndType($archivedStudentIds->all());
 
-        $archivedLatestDoc = MentorshipDocument::query()
-            ->where('lecturer_user_id', $lecturer->id)
-            ->whereIn('student_user_id', $archivedStudentIds)
-            ->orderByDesc('updated_at')
-            ->get()
-            ->keyBy('student_user_id');
-
-        $archivedLatestSchedule = MentorshipSchedule::query()
-            ->where('lecturer_user_id', $lecturer->id)
-            ->whereIn('student_user_id', $archivedStudentIds)
-            ->orderByDesc('updated_at')
-            ->get()
-            ->keyBy('student_user_id');
-
         $archivedCompletedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $archivedAssignments);
 
-        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject): array {
-            return $this->buildRow($assignment, $archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject);
+        // History rows stay within the window in which this lecturer was related to the student.
+        $archivedLatestActivity = $this->studentActivityService->latest($archivedAssignments, $historyExaminerRecords);
+        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestActivity, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject): array {
+            return $this->buildRow($assignment, $archivedLatestActivity, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject);
         }))
-            ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestDoc, $archivedLatestSchedule, $progressByProject): array {
-                return $this->buildExaminerRow($examiner, $archivedLatestDoc, $archivedLatestSchedule, $archivedExamThreadIdsByStudentAndType, $progressByProject);
+            ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestActivity, $progressByProject): array {
+                return $this->buildExaminerRow($examiner, $archivedLatestActivity, $archivedExamThreadIdsByStudentAndType, $progressByProject);
             }))
             ->sortBy([
                 ['name', 'asc'],
@@ -180,8 +160,7 @@ class MahasiswaBimbinganController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<string,mixed>  $latestDocByStudent
-     * @param  \Illuminate\Support\Collection<string,mixed>  $latestScheduleByStudent
+     * @param  array<string, \Illuminate\Support\Carbon>  $latestActivity
      * @param  \Illuminate\Support\Collection<string,mixed>  $threadIdsByStudent
      * @param  array<int,int>  $completedByStudent
      * @param  array<int, array<string, mixed>>  $progressByProject
@@ -189,8 +168,7 @@ class MahasiswaBimbinganController extends Controller
      */
     private function buildRow(
         mixed $assignment,
-        mixed $latestDocByStudent,
-        mixed $latestScheduleByStudent,
+        array $latestActivity,
         mixed $threadIdsByStudent,
         array $completedByStudent,
         array $progressByProject,
@@ -199,8 +177,6 @@ class MahasiswaBimbinganController extends Controller
         $profile = $student?->mahasiswaProfile;
         $project = $assignment->project;
         $studentUserId = $assignment->project?->student_user_id;
-        $latestSchedule = $studentUserId === null ? null : $latestScheduleByStudent->get($studentUserId);
-        $latestDocument = $studentUserId === null ? null : $latestDocByStudent->get($studentUserId);
         $threadId = $studentUserId === null ? null : $threadIdsByStudent->get($studentUserId);
 
         $stage = $this->stageSummary($project, $student);
@@ -233,8 +209,7 @@ class MahasiswaBimbinganController extends Controller
             'stageDescription' => $stage['description'],
             'phase' => $project?->phase,
             'status' => ($profile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
-            'lastUpdate' => $latestDocument?->updated_at?->locale('id')->diffForHumans()
-                ?? $latestSchedule?->updated_at?->locale('id')->diffForHumans()
+            'lastUpdate' => ($latestActivity['supervisor:'.$assignment->id] ?? null)?->locale('id')->diffForHumans()
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
@@ -243,16 +218,14 @@ class MahasiswaBimbinganController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<string,mixed>  $latestDocByStudent
-     * @param  \Illuminate\Support\Collection<string,mixed>  $latestScheduleByStudent
+     * @param  array<string, \Illuminate\Support\Carbon>  $latestActivity
      * @param  array<string, int>  $threadIdsByStudentAndType
      * @param  array<int, array<string, mixed>>  $progressByProject
      * @return array<string,mixed>
      */
     private function buildExaminerRow(
         ThesisDefenseExaminer $examiner,
-        mixed $latestDocByStudent,
-        mixed $latestScheduleByStudent,
+        array $latestActivity,
         array $threadIdsByStudentAndType,
         array $progressByProject,
     ): array {
@@ -261,11 +234,9 @@ class MahasiswaBimbinganController extends Controller
         $student = $project?->student;
         $profile = $student?->mahasiswaProfile;
         $studentUserId = $project?->student_user_id;
-        $latestSchedule = $studentUserId === null ? null : $latestScheduleByStudent->get($studentUserId);
-        $latestDocument = $studentUserId === null ? null : $latestDocByStudent->get($studentUserId);
         $threadId = $studentUserId === null || $defense === null
             ? null
-            : ($threadIdsByStudentAndType[$this->examThreadKey($studentUserId, $defense->type)] ?? null);
+            : ($threadIdsByStudentAndType[$this->examThreadKey($studentUserId, $defense->type, $defense->id)] ?? null);
 
         $stage = $this->stageSummary($project, $student);
         $studentSummary = $this->userProfilePresenter->summary($student);
@@ -302,15 +273,39 @@ class MahasiswaBimbinganController extends Controller
             'stageDescription' => $stage['description'],
             'phase' => $project?->phase,
             'status' => $this->defenseStatusLabel($defense?->status, $defense?->result),
-            'lastUpdate' => $examiner->decided_at?->locale('id')->diffForHumans()
-                ?? $defense?->updated_at?->locale('id')->diffForHumans()
-                ?? $latestDocument?->updated_at?->locale('id')->diffForHumans()
-                ?? $latestSchedule?->updated_at?->locale('id')->diffForHumans()
+            'lastUpdate' => ($latestActivity['examiner:'.$examiner->id] ?? null)?->locale('id')->diffForHumans()
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
             'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
         ];
+    }
+
+    /**
+     * Keys active rows the way StudentActivityService::latest() keys relations, with
+     * the project-level value that the progress snapshot shows.
+     *
+     * @param  EloquentCollection<int, ThesisSupervisorAssignment>  $assignments
+     * @param  \Illuminate\Support\Collection<int, ThesisDefenseExaminer>  $examiners
+     * @param  array<int, \Carbon\CarbonInterface>  $lastActivityByProject
+     * @return array<string, \Carbon\CarbonInterface>
+     */
+    private function activityByRelation(EloquentCollection $assignments, \Illuminate\Support\Collection $examiners, array $lastActivityByProject): array
+    {
+        $latest = [];
+        foreach ($assignments as $assignment) {
+            if (isset($lastActivityByProject[(int) $assignment->project_id])) {
+                $latest['supervisor:'.$assignment->id] = $lastActivityByProject[(int) $assignment->project_id];
+            }
+        }
+        foreach ($examiners as $examiner) {
+            $projectId = (int) $examiner->defense?->project_id;
+            if (isset($lastActivityByProject[$projectId])) {
+                $latest['examiner:'.$examiner->id] = $lastActivityByProject[$projectId];
+            }
+        }
+
+        return $latest;
     }
 
     private function isActiveExaminerRecord(ThesisDefenseExaminer $examiner): bool
@@ -326,7 +321,7 @@ class MahasiswaBimbinganController extends Controller
             return false;
         }
 
-        return $defense->status !== 'completed';
+        return in_array($defense->status, ['draft', 'scheduled', 'awaiting_finalization'], true);
     }
 
     /**
@@ -343,16 +338,16 @@ class MahasiswaBimbinganController extends Controller
             ->whereIn('student_user_id', $studentIds)
             ->whereIn('type', ['sempro', 'sidang'])
             ->orderBy('id')
-            ->get(['id', 'student_user_id', 'type'])
+            ->get(['id', 'student_user_id', 'type', 'context_id'])
             ->mapWithKeys(fn (MentorshipChatThread $thread): array => [
-                $this->examThreadKey((int) $thread->student_user_id, $thread->type) => $thread->id,
+                $this->examThreadKey((int) $thread->student_user_id, $thread->type, (int) $thread->context_id) => $thread->id,
             ])
             ->all();
     }
 
-    private function examThreadKey(int $studentUserId, string $type): string
+    private function examThreadKey(int $studentUserId, string $type, int $defenseId): string
     {
-        return "{$studentUserId}:{$type}";
+        return "{$studentUserId}:{$type}:{$defenseId}";
     }
 
     private function defenseRoleLabel(string $role, ?int $orderNo): string

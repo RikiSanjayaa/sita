@@ -120,11 +120,11 @@ it('builds one snapshot per student index request', function (): void {
         {
             public function __construct(private StudentProgressSnapshot $inner, private ArrayObject $viewers) {}
 
-            public function forProjects(Illuminate\Database\Eloquent\Collection $projects, ?User $viewer, bool $detailForAll = false): array
+            public function forProjects(Illuminate\Database\Eloquent\Collection $projects, ?User $viewer, bool $detailForAll = false, ?array $lastActivity = null): array
             {
                 $this->viewers->append($viewer?->id);
 
-                return $this->inner->forProjects($projects, $viewer, $detailForAll);
+                return $this->inner->forProjects($projects, $viewer, $detailForAll, $lastActivity);
             }
         };
     });

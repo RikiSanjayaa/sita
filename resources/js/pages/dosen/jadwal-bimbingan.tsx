@@ -26,6 +26,7 @@ import { EmptyState } from '@/components/patterns/empty-state';
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -1139,21 +1140,32 @@ export default function DosenJadwalBimbinganPage() {
                     )}
                 </DataSection>
 
-                <DataSection
-                    title="Jadwal Mendatang"
-                    summary={
-                        upcomingSchedules.length > 0
-                            ? `${upcomingSchedules.length} jadwal`
-                            : undefined
-                    }
-                >
+                <section aria-label="Jadwal Mendatang" className="space-y-4">
+                    <StickyFilterBar>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+                            <PageHeader
+                                title="Jadwal Mendatang"
+                                level={2}
+                                description={
+                                    upcomingSchedules.length > 0
+                                        ? `${upcomingSchedules.length} jadwal`
+                                        : undefined
+                                }
+                                className="shrink-0"
+                            />
+                            {upcomingSchedules.length > 0 ? (
+                                <div className="min-w-0 flex-1">
+                                    <DataToolbar
+                                        search={upcomingSearch}
+                                        onSearchChange={setUpcomingSearch}
+                                        placeholder="Cari mahasiswa, topik, atau lokasi..."
+                                    />
+                                </div>
+                            ) : null}
+                        </div>
+                    </StickyFilterBar>
                     {upcomingSchedules.length > 0 ? (
                         <>
-                            <DataToolbar
-                                search={upcomingSearch}
-                                onSearchChange={setUpcomingSearch}
-                                placeholder="Cari mahasiswa, topik, atau lokasi..."
-                            />
                             {upcomingPagination.totalItems > 0 ? (
                                 <DataTableContainer
                                     pagination={
@@ -1341,24 +1353,34 @@ export default function DosenJadwalBimbinganPage() {
                             description="Agenda yang sudah dikonfirmasi akan muncul di bagian ini."
                         />
                     )}
-                </DataSection>
+                </section>
 
-                <DataSection
-                    title="Riwayat Jadwal"
-                    summary="Sesi bimbingan yang sudah selesai, ditolak, atau dibatalkan"
-                >
-                    <DataToolbar
-                        search={historySearch}
-                        onSearchChange={setHistorySearch}
-                        placeholder="Cari mahasiswa, topik, atau lokasi..."
-                    />
-                    <FilterPills
-                        label="Status riwayat"
-                        value={historyFilter}
-                        onValueChange={setHistoryFilter}
-                        itemClassName="max-md:h-11 max-md:px-4"
-                        options={historyFilterOptions}
-                    />
+                <section aria-label="Riwayat Jadwal" className="space-y-4">
+                    <StickyFilterBar>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+                            <PageHeader
+                                title="Riwayat Jadwal"
+                                level={2}
+                                description="Sesi bimbingan yang sudah selesai, ditolak, atau dibatalkan"
+                                className="lg:max-w-64 lg:shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                                <DataToolbar
+                                    search={historySearch}
+                                    onSearchChange={setHistorySearch}
+                                    placeholder="Cari mahasiswa, topik, atau lokasi..."
+                                >
+                                    <FilterPills
+                                        label="Status riwayat"
+                                        value={historyFilter}
+                                        onValueChange={setHistoryFilter}
+                                        itemClassName="max-md:h-11 max-md:px-4"
+                                        options={historyFilterOptions}
+                                    />
+                                </DataToolbar>
+                            </div>
+                        </div>
+                    </StickyFilterBar>
 
                     {historyPagination.totalItems > 0 ? (
                         <DataTableContainer
@@ -1480,7 +1502,7 @@ export default function DosenJadwalBimbinganPage() {
                             }
                         />
                     )}
-                </DataSection>
+                </section>
             </div>
 
             <ScheduleDetailModal

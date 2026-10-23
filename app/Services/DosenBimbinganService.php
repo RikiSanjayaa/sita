@@ -16,6 +16,7 @@ class DosenBimbinganService
     public function activeAssignmentsWithStudent(User $lecturer): Collection
     {
         return ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query->current()->where('state', 'active'))
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.defenses',
@@ -33,6 +34,7 @@ class DosenBimbinganService
     public function archivedAssignmentsWithStudent(User $lecturer): Collection
     {
         return ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query->current())
             ->with(['project.student.mahasiswaProfile', 'project.defenses'])
             ->where('lecturer_user_id', $lecturer->id)
             ->where('status', 'ended')

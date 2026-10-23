@@ -23,6 +23,7 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -763,28 +764,30 @@ export default function UploadDokumenPage() {
                         ) : undefined
                     }
                 >
-                    <DataToolbar
-                        search={search}
-                        onSearchChange={setSearch}
-                        placeholder="Cari judul atau file..."
-                    >
-                        <DataSelect
-                            label="Kategori"
-                            value={categoryFilter}
-                            onValueChange={setCategoryFilter}
-                            placeholder="Semua kategori"
-                            options={categoryOptions}
-                            className="md:w-52"
-                        />
-                    </DataToolbar>
+                    <StickyFilterBar>
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            placeholder="Cari judul atau file..."
+                        >
+                            <DataSelect
+                                label="Kategori"
+                                value={categoryFilter}
+                                onValueChange={setCategoryFilter}
+                                placeholder="Semua kategori"
+                                options={categoryOptions}
+                                className="md:w-52"
+                            />
+                        </DataToolbar>
 
-                    <FilterPills
-                        label="Status dokumen"
-                        value={statusFilter}
-                        onValueChange={setStatusFilter}
-                        options={statusOptions}
-                        itemClassName="max-md:h-11 max-md:px-4"
-                    />
+                        <FilterPills
+                            label="Status dokumen"
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                            options={statusOptions}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                        />
+                    </StickyFilterBar>
 
                     {totalItems > 0 ? (
                         <DataTableContainer

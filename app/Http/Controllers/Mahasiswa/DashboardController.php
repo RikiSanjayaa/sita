@@ -43,6 +43,20 @@ class DashboardController extends Controller
                 'description' => 'Anda belum memiliki '.$terms['finalWorkLower'].' aktif.',
             ];
 
+        // Cancellation is feedback for the owner, not a current thesis payload.
+        if ($project === null) {
+            $latest = ThesisProject::query()
+                ->where('student_user_id', $student->id)
+                ->latestPerStudent()
+                ->where('state', 'cancelled')
+                ->with('latestTitle')
+                ->first();
+
+            if ($latest !== null) {
+                $workflow = $this->resolveProjectWorkflow($latest);
+            }
+        }
+
         $advisorAssignments = $project?->activeSupervisorAssignments
             ? $project->activeSupervisorAssignments->sortBy('role')->values()
             : collect();
@@ -121,17 +135,8 @@ class DashboardController extends Controller
 
     private function resolveProjectForStudent(User $student): ?ThesisProject
     {
-        $activeProject = $this->projectQueryForStudent($student->id)
-            ->where('state', 'active')
-            ->latest('started_at')
-            ->first();
-
-        if ($activeProject instanceof ThesisProject) {
-            return $activeProject;
-        }
-
         return $this->projectQueryForStudent($student->id)
-            ->latest('started_at')
+            ->current()
             ->first();
     }
 
@@ -242,7 +247,7 @@ class DashboardController extends Controller
             });
 
         $defenses = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('student_user_id', $student->id))
+            ->whereHas('project', fn($query) => $query->current()->where('student_user_id', $student->id))
             ->where('status', 'scheduled')
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '>=', $now->copy()->startOfDay())
@@ -291,7 +296,7 @@ class DashboardController extends Controller
     private function activeSemproDefenses(int $studentUserId): Collection
     {
         return ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('student_user_id', $studentUserId))
+            ->whereHas('project', fn($query) => $query->current()->where('student_user_id', $studentUserId))
             ->where('type', 'sempro')
             ->where(function ($query): void {
                 $query->where('status', 'scheduled')
@@ -338,7 +343,7 @@ class DashboardController extends Controller
                     ? (in_array($workflow['key'], ['title_review_pending', 'title_approved'], true)
                         ? 'current'
                         : (in_array($workflow['key'], ['title_rejected', 'project_cancelled'], true) ? 'current' : 'done'))
-                    : 'upcoming',
+                    : (in_array($workflow['key'], ['title_rejected', 'project_cancelled'], true) ? 'current' : 'upcoming'),
             ],
             [
                 'title' => $terms['proposalExam'],
@@ -446,7 +451,7 @@ class DashboardController extends Controller
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan '.mb_strtolower($terms['proposalDocument']).' Anda sedang ditinjau admin.',
             'title_approved' => 'Judul dan '.mb_strtolower($terms['proposalDocument']).' Anda sudah disetujui. Menunggu admin menjadwalkan '.$terms['proposalExamShort'].'.',
-            'title_rejected' => 'Pengajuan judul dan '.mb_strtolower($terms['proposalDocument']).' tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
+            'title_rejected' => $project->latestTitle?->decision_notes ?: 'Pengajuan judul dan '.mb_strtolower($terms['proposalDocument']).' tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
             'project_cancelled' => $terms['finalWork'].' ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Siapkan '.mb_strtolower($terms['proposalDocument']).' dan presentasi terbaik Anda.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',

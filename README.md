@@ -96,6 +96,16 @@ Tersedia setelah seeding; semua memakai password `password`.
 | Kaprodi                | `kaprodi@sita.test`   |
 | Admin (panel `/admin`) | `admin@sita.test`     |
 
+## Direktori dan aktivitas mahasiswa
+
+Direktori publik dan portal non-admin memakai tugas akhir terkini per mahasiswa, berdasarkan `started_at` lalu ID; tanggal mulai kosong berada paling akhir. Tugas akhir cancelled atau yang sudah digantikan tidak muncul sebagai tugas akhir berjalan, tetapi tetap tersimpan dan dapat dibuka di admin. Pembatalan tugas akhir terbaru tidak mengaktifkan kembali data lama. Publikasi tugas akhir completed yang belum digantikan tetap mengikuti aturan visibilitas judul. Perubahan judul pada tugas akhir yang sama tetap menyimpan riwayat versinya.
+
+Mahasiswa tetap menerima status dan alasan penolakan pengajuan terakhir miliknya agar dapat mengajukan ulang. Ini bukan akses ke daftar arsip: setelah ada tugas akhir baru, pengajuan lama tidak dipakai kembali sebagai tugas akhir berjalan.
+
+Profil dosen menampilkan mahasiswa pengujian pada tugas akhir aktif terkini dengan ujian draft, terjadwal, atau menunggu finalisasi. Ujian selesai/cancelled dan tugas akhir lulus tidak menumpuk di daftar aktif; mahasiswa yang juga dibimbing tidak ditampilkan dua kali.
+
+Satu definisi aktivitas terakhir mahasiswa (`StudentActivityService`) dipakai di daftar Mahasiswa Dosen, daftar Mahasiswa Prodi kaprodi, kartu mahasiswa di profil, dan halaman Progres Mahasiswa. Nilainya waktu paling baru dari dokumen terkait, pesan mahasiswa pada grup terkait atau chat pribadi dengan salah satu pembimbing/penguji tugas akhir itu, dan bimbingan yang dikonfirmasi selesai oleh dosen. Pesan dosen/sistem, chat pribadi dengan dosen di luar tugas akhir itu, serta permintaan atau penjadwalan bimbingan yang belum selesai tidak dihitung. Data bimbingan lama yang belum memiliki ID tugas akhir dibatasi menggunakan masa tugas akhir dan penugasan pembimbing. Baris riwayat dosen (pembimbing sudah berakhir) hanya menampilkan aktivitas selama dosen itu terkait dengan mahasiswa. Indikator "tidak aktif" memakai nilai yang sama dengan `SITA_INACTIVE_AFTER_DAYS`.
+
 ## Pengujian dan kualitas kode
 
 | Perintah                                          | Fungsi                                                                       |

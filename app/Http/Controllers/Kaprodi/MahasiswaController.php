@@ -25,6 +25,7 @@ class MahasiswaController extends Controller
         abort_unless($programStudi instanceof ProgramStudi, 403);
 
         $projects = ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->get(['id', 'student_user_id', 'program_studi_id']);
 

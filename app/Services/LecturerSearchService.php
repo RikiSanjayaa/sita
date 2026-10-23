@@ -187,7 +187,7 @@ class LecturerSearchService
             ->withCount([
                 'thesisSupervisorAssignments as active_supervision_count' => static fn(Builder $query) => $query
                     ->where('status', 'active')
-                    ->whereHas('project', static fn(Builder $query) => $query->where('state', 'active')),
+                    ->whereHas('project', static fn(Builder $query) => $query->current()->where('state', 'active')),
             ])
             ->orderByDesc('is_same_program')
             ->orderBy('name');

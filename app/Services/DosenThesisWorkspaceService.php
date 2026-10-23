@@ -15,6 +15,7 @@ class DosenThesisWorkspaceService
     public function activeSupervisionAssignments(User $lecturer): Collection
     {
         return ThesisSupervisorAssignment::query()
+            ->whereHas('project', fn($query) => $query->current()->where('state', 'active'))
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
@@ -34,6 +35,7 @@ class DosenThesisWorkspaceService
     public function defenseExaminerAssignments(User $lecturer): Collection
     {
         return ThesisDefenseExaminer::query()
+            ->whereHas('defense.project', fn($query) => $query->current())
             ->with([
                 'defense.project.student.mahasiswaProfile',
                 'defense.project.latestTitle',

@@ -354,6 +354,7 @@ A fully round pill (`rounded-full`, 12px medium text, `px-2 py-0.5`) with the mu
 Approved in #82 for the public list pages; tables and lists in the mahasiswa, dosen and kaprodi portals adopt the same patterns. They live in `resources/js/components/patterns/data-section.tsx`.
 
 - **Compose:** `DataSection` (h2 title, optional summary) > `DataToolbar` (search left, filters right, with `DataSelect` for a select filter) > `FilterPills` for the quick filter > one `DataTableContainer` with `DataTablePagination`. The container is the only bordered surface: no `Card` around it, and no card per row.
+- **Sticky controls (#94):** group search, selects, quick filters and reset controls inside one `StickyFilterBar` per table. From `md`, it stays beneath the portal header (64px, 48px with collapsed sidebar) or public header (81px, `layout="public"`). Below `md`, controls scroll normally so stacked filters do not obscure the list. Multi-table public schedules repeat the synchronized search in each table's filter bar.
 - **Stacked on phones:** below `md` the table becomes a divided list through the `stackedTable` classes (`table`, `thead`, `tbody`, `tr`, `td`, `tdPlain`) instead of scrolling sideways. Name-like cells use `tdPlain`; secondary cells use `td` with a `data-label`, shown above the value. Header cells use `dataTh`. The breakpoint is the viewport's, so a portal table that is too wide beside the sidebar between `md` and `lg` keeps a `min-w-*` and scrolls inside its container.
 - **44px on phones:** search, select, filter pills (`itemClassName="max-md:h-11 max-md:px-4"`) and icon buttons are 44px high below `md` and 36px from `md`.
 - **Actions cell:** the last cell uses `stackedTable.tdActions`: a compact icon or menu cluster at the right of the row (`flex items-center justify-end gap-1 max-md:justify-start`), and the last line of the entry on phones. Its header cell holds `<span className="sr-only">Aksi</span>`. Keep the cluster to two icon buttons or one menu; icon buttons carry an `aria-label`.
@@ -365,9 +366,8 @@ Decided in #85, desktop-first and clean at 390px. The five kaprodi pages (dashbo
 
 - **Row actions:** one primary action stays visible; the rest sit in an "Aksi lainnya" `DropdownMenu`. Mahasiswa Prodi keeps "Atur pembimbing" visible and moves profile, documents, exam schedule and lecturer notes into the menu; Sempro / Sidang keeps "Ubah jadwal"; Dokumen and Dosen Prodi keep two icon buttons. Icon-only buttons are `RowIconButton` (`components/kaprodi/row-icon-button.tsx`): ghost icon button, tooltip, `aria-label`, 44px below `md`.
 - **Filters:** one quick filter per list as `FilterPills` with counts over the whole list (phase on Mahasiswa Prodi, status on Dokumen, concentration on Dosen Prodi, type and status on Sempro / Sidang). Secondary filters (risk, angkatan, konsentrasi) are `DataSelect`s in the toolbar. These lists are paginated in the browser over the complete list, so filters and counts cover every row. A separate "Reset filter" ghost button appears only while a filter is set.
-- **Cells:** the exam table folds title and NIM under the student name, and the lecturer table folds concentration and expertise under the name. A missing value is a single muted `-`. Status and phase use `StatusBadge` through the `phase`, `defense`, `document` and `state` domains; risk uses `toneClassName`. Counts and constant values (P1/P2, quota, exam counts) are plain tabular text, not pills.
+- **Cells:** the exam table folds title and NIM under the student name, and the lecturer table folds concentration and expertise under the name. A missing value is a single muted `-`. Status and phase use `StatusBadge` through the `phase`, `defense`, `document` and `state` domains; risk uses `toneClassName`. Dosen Prodi distinguishes P1 with the primary-muted pair and P2 with the success-muted pair (#96); only these role labels are pills. Their counts, quota and exam counts stay plain tabular text.
 - **Dashboard:** the welcome panel keeps its gradient and the "Ringkasan prodi" aside. The four navigation shortcuts, phase and exam counts, attention items, agenda and archives are `SectionCard`s holding divided rows (no nested cards, no filled primary tile); count values are tabular text.
-- **Sticky filter on Sempro / Sidang:** `StickyFilterBar` stays sticky from `md`; on phones it scrolls with the page so the two stacked pill groups do not cover the list.
 
 ### Calendar
 
@@ -547,13 +547,13 @@ State changes use `transition-[color,box-shadow]` or `transition-colors`. Overla
 - **Don't** use `bg-primary/10 text-primary` for tinted text; use the primary-muted pair.
 - **Don't** put `text-white` or `bg-white/20` on primary, and no translucent `primary-foreground/20` chip under white text.
 - **Don't** add `shadow-sm` to a `Card`, or a shadowed card inside a card.
-- **Don't** wrap constant values, column-header repeats or plain counts in a pill.
+- **Don't** wrap constant values, column-header repeats or plain counts in a pill, except the explicitly requested P1/P2 role labels on Dosen Prodi (#96).
 - **Don't** switch to a palette hue when no token fits; use an opacity modifier on a token (`bg-success/10`).
 
 ### Composition rules
 
 - One surface per block. A `SectionCard`/`Card` already has border and shadow; content inside it uses borders or dividers, not another shadowed card. `DataTableContainer` has a border but no shadow for that reason, and a page must not add `shadow-sm` to a `Card` (it is the default).
-- Badges carry state. Do not wrap constant values, column-header repeats or plain counts in a pill; render them as text (`tabular-nums` for numbers). A missing value is a single muted `-`, never a badge.
+- Badges carry state. Constant values, column-header repeats and plain counts remain text (`tabular-nums` for numbers). The P1/P2 role-label exception is defined under Portal: kaprodi. A missing value is a single muted `-`, never a badge.
 - Two adjacent `FilterPills` groups are separated (`gap-x-3` plus a vertical divider, or a label) so each group's "Semua" reads as its own selection.
 - Labels are Indonesian, sentence case, at least `text-xs` (12px). Avoid `text-[9px]`/`text-[10px]` and uppercase `tracking-widest` micro-labels for content; use `text-xs font-medium text-muted-foreground`.
 - `DataTablePagination` prints the range and page-size select once (top bar) and page navigation only when there is more than one page; pass `itemLabel` so the range reads "Menampilkan 1-10 dari 24 ujian".

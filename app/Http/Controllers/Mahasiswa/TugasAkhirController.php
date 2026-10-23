@@ -151,6 +151,7 @@ class TugasAkhirController extends Controller
         }
 
         $exists = ThesisProject::query()
+            ->current()
             ->where('student_user_id', $student->id)
             ->where('state', 'active')
             ->exists();
@@ -261,17 +262,12 @@ class TugasAkhirController extends Controller
 
     private function resolveProjectForStudent(User $student): ?ThesisProject
     {
-        $activeProject = $this->projectQueryForStudent($student->id)
-            ->where('state', 'active')
-            ->latest('started_at')
-            ->first();
-
-        if ($activeProject instanceof ThesisProject) {
-            return $activeProject;
-        }
-
         return $this->projectQueryForStudent($student->id)
-            ->latest('started_at')
+            ->latestPerStudent()
+            ->where(function ($query): void {
+                $query->where('state', '!=', 'cancelled')
+                    ->orWhereHas('latestTitle', fn($title) => $title->where('status', 'rejected'));
+            })
             ->first();
     }
 
@@ -336,7 +332,7 @@ class TugasAkhirController extends Controller
         return match ($key) {
             'title_review_pending' => 'Pengajuan judul dan '.$terms['proposalDocument'].' Anda sedang ditinjau admin.',
             'title_approved' => 'Judul dan '.$terms['proposalDocument'].' Anda sudah disetujui. Menunggu admin menjadwalkan '.$terms['proposalExamShort'].'.',
-            'title_rejected' => 'Pengajuan judul dan '.$terms['proposalDocument'].' tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
+            'title_rejected' => $project->latestTitle?->decision_notes ?: 'Pengajuan judul dan '.$terms['proposalDocument'].' tidak disetujui. Silakan cek catatan admin dan ajukan kembali.',
             'project_cancelled' => $terms['finalWork'].' ini sudah dibatalkan oleh admin.',
             'sempro_scheduled' => $terms['proposalExamShort'].' sudah dijadwalkan. Cek dosen dan tanggal pada halaman ini.',
             'sempro_waiting_result' => 'Semua keputusan dosen untuk '.$terms['proposalExamShort'].' sudah masuk. Menunggu hasil resmi dari admin.',

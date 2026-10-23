@@ -20,6 +20,7 @@ class MentorshipScheduleService
     {
         return User::query()
             ->whereIn('id', ThesisProject::query()
+                ->current()
                 ->where('state', 'active')
                 ->whereIn('id', ThesisSupervisorAssignment::query()
                     ->where('lecturer_user_id', $lecturer->id)
