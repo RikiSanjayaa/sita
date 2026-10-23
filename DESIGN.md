@@ -527,6 +527,10 @@ import { KeyValueList } from '@/components/patterns/key-value-list';
 
 State changes use `transition-[color,box-shadow]` or `transition-colors`. Overlays use `tw-animate-css` fade and zoom (200ms for dialogs; sheets slide in 500ms and out in 300ms). Respect reduced motion for anything new.
 
+Public topic details (`/topik`) are the one disclosure with motion. A pointer or touch activation fades and slides only the inner detail content: entry 180ms from opacity 0.9 and `translateY(4px)`, exit 120ms to opacity 0.9 and `translateY(-2px)`, both on the existing `--ease-out` curve and the `--public-motion-enter-duration` / `--public-motion-exit-duration` variables. The chevron rotates 150ms. Nothing animates height, padding or row position, so later rows reflow at once. Keyboard activation, filter, search and pagination actions, and `prefers-reduced-motion` skip the motion and settle immediately. A closing row is `aria-hidden` and `inert` from the first frame, keeps focus on its trigger, and is removed when its own transition finishes. Reversing mid-exit retargets the same element.
+
+The public introduction (the homepage hero title with its description, and the `PageHeader` that `PublicLayout` renders on `/topik`, `/jadwal`, `/pembimbing` and `/mahasiswa-aktif`) plays one entrance per browser document: 180ms, opacity 0.9 to 1 and `translateY(4px)` to 0, on `--ease-out`, as a single group with no delay or stagger. Only the document the browser first loaded can play it, and only when that document is one of those five pages. Inertia visits, search and filter changes, pagination, history navigation and keyed remounts on the same document stay settled; a full reload may play it again. Reduced motion shows the text settled and a later preference change never starts it. `PublicIntro` keeps base styles visible, so unsupported animation leaves readable text. Do not extend it to portal headers, rows or counts.
+
 ## Do's and Don'ts
 
 ### Do:

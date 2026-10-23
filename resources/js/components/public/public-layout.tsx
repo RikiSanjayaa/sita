@@ -3,6 +3,7 @@ import { type PropsWithChildren } from 'react';
 
 import AppLogoIcon from '@/components/app-logo-icon';
 import { PageHeader } from '@/components/patterns/page-header';
+import { PublicIntro } from '@/components/public/public-intro';
 import { ThemeSettingsButton } from '@/components/public/theme-settings-button';
 import { Button } from '@/components/ui/button';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
@@ -127,11 +128,13 @@ export function PublicLayout({
 
                 <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-6 md:py-10">
                     {pageTitle ? (
-                        <PageHeader
-                            title={pageTitle}
-                            description={description}
-                            className="[&_p]:max-w-2xl"
-                        />
+                        <PublicIntro>
+                            <PageHeader
+                                title={pageTitle}
+                                description={description}
+                                className="[&_p]:max-w-2xl"
+                            />
+                        </PublicIntro>
                     ) : null}
 
                     {children}
