@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\MentorshipChatMessage;
+use App\Models\MentorshipDocument;
+use App\Models\User;
+use Illuminate\Support\Collection;
 
 class ChatMessagePayloadBuilder
 {
@@ -11,9 +14,13 @@ class ChatMessagePayloadBuilder
     ) {}
 
     /**
+     * The viewer's own copy of a document event, looked up in $ownReviews (see ownReviewsFor()).
+     * Broadcasts are shared by all thread members and pass no map, so they carry null.
+     *
+     * @param  array<string, array{id: int, status: string}>  $ownReviews
      * @return array<string, mixed>
      */
-    public function build(MentorshipChatMessage $message): array
+    public function build(MentorshipChatMessage $message, array $ownReviews = []): array
     {
         $message->loadMissing(['sender', 'relatedDocument']);
 
@@ -43,6 +50,7 @@ class ChatMessagePayloadBuilder
                 : null,
             'relatedDocumentId' => $message->related_document_id,
             'reviewStatus' => $message->relatedDocument?->status,
+            'ownReview' => $this->ownReview($message, $ownReviews),
         ];
     }
 
@@ -58,5 +66,52 @@ class ChatMessagePayloadBuilder
             'Thread Sidang telah dibuat. Gunakan thread ini untuk koordinasi sidang.' => 'Ruang Sidang siap digunakan.',
             default => $message,
         };
+    }
+
+    /**
+     * Loads the viewer's copies of every document referenced by the given events in one query.
+     * Keyed by {@see copyKey()} so each message resolves its own copy without another query.
+     *
+     * @param  Collection<int, MentorshipDocument>  $documents
+     * @return array<string, array{id: int, status: string}>
+     */
+    public function ownReviewsFor(User $viewer, Collection $documents): array
+    {
+        if ($documents->isEmpty()) {
+            return [];
+        }
+
+        return MentorshipDocument::query()
+            ->where('lecturer_user_id', $viewer->id)
+            ->whereIn('student_user_id', $documents->pluck('student_user_id')->unique()->values()->all())
+            ->whereIn('document_group', $documents->pluck('document_group')->unique()->values()->all())
+            ->get()
+            ->mapWithKeys(fn (MentorshipDocument $copy): array => [
+                self::copyKey($copy) => ['id' => $copy->id, 'status' => $copy->status],
+            ])
+            ->all();
+    }
+
+    /**
+     * @param  array<string, array{id: int, status: string}>  $ownReviews
+     * @return array{id: int, status: string}|null
+     */
+    private function ownReview(MentorshipChatMessage $message, array $ownReviews): ?array
+    {
+        $related = $message->relatedDocument;
+
+        if ($message->message_type !== 'document_event' || $related === null) {
+            return null;
+        }
+
+        return $ownReviews[self::copyKey($related)] ?? null;
+    }
+
+    /**
+     * Copies of one upload share student, document group and version; the lecturer id tells them apart.
+     */
+    private static function copyKey(MentorshipDocument $document): string
+    {
+        return $document->student_user_id.'|'.$document->document_group.'|'.$document->version_number;
     }
 }

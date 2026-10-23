@@ -24,6 +24,7 @@ async function openMahasiswaBimbinganThread(page: Page): Promise<void> {
 }
 
 test.describe('Chat attachment review visibility', () => {
+    test.describe.configure({ mode: 'serial' });
     test('chat attachment reviewed by second lecturer shows status to mahasiswa', async ({
         browser,
     }) => {
@@ -130,6 +131,106 @@ test.describe('Chat attachment review visibility', () => {
                     .getByText(/menandai lampiran .* perlu revisi/i)
                     .first(),
             ).toBeVisible();
+        } finally {
+            await mahasiswaContext.close();
+            await secondLecturerContext.close();
+        }
+    });
+
+    test('second lecturer reviews a chat upload from the notification card', async ({
+        browser,
+    }) => {
+        const revisionNotes = `Tambahkan daftar pustaka ${Date.now()}`;
+
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath(
+                thesisScenarios.activeResearch.studentKey,
+            ),
+        });
+        const secondLecturerContext = await browser.newContext({
+            storageState: authStatePath('dosen5'),
+        });
+
+        try {
+            const mahasiswaPage = await mahasiswaContext.newPage();
+
+            await openMahasiswaBimbinganThread(mahasiswaPage);
+
+            await mahasiswaPage
+                .locator('input[type="file"]')
+                .setInputFiles(
+                    path.join(
+                        process.cwd(),
+                        thesisFixtures.thesisDocumentUploadPath,
+                    ),
+                );
+            await expect(
+                mahasiswaPage.getByLabel('Nama dokumen'),
+            ).toBeVisible();
+
+            const messageInput =
+                mahasiswaPage.getByPlaceholder('Tulis pesan...');
+            const submitRequest = mahasiswaPage.waitForResponse(
+                (response) =>
+                    response.request().method() === 'POST' &&
+                    response.url().includes('/mahasiswa/pesan/'),
+            );
+            await messageInput.press('Enter');
+            await submitRequest;
+
+            const secondLecturerPage = await secondLecturerContext.newPage();
+
+            await secondLecturerPage.goto('/dosen/pesan-bimbingan');
+            await secondLecturerPage
+                .locator('button')
+                .filter({ hasText: 'Bimbingan' })
+                .first()
+                .click();
+            await secondLecturerPage
+                .locator('button')
+                .filter({ hasText: thesisScenarios.activeResearch.studentName })
+                .first()
+                .click();
+
+            await secondLecturerPage
+                .getByRole('button', { name: `Tinjau ${attachmentName}` })
+                .last()
+                .click();
+
+            const revisionDialog = secondLecturerPage.getByRole('dialog', {
+                name: 'Kirim Catatan Revisi',
+            });
+
+            await expect(revisionDialog).toBeVisible();
+            await revisionDialog
+                .getByRole('textbox', { name: 'Catatan Revisi' })
+                .fill(revisionNotes);
+            await revisionDialog
+                .getByRole('button', { name: 'Kirim Catatan' })
+                .click();
+
+            await expect(revisionDialog).toBeHidden();
+            await expect(
+                secondLecturerPage
+                    .getByText(/menandai lampiran .* perlu revisi/i)
+                    .first(),
+            ).toBeVisible();
+
+            await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
+            await mahasiswaPage
+                .getByPlaceholder('Cari judul atau file...')
+                .fill(attachmentName);
+
+            const studentRow = mahasiswaPage
+                .locator('tr')
+                .filter({ hasText: attachmentName })
+                .first();
+
+            await expect(studentRow).toContainText('Perlu Revisi');
+            await studentRow.getByRole('button', { name: /^Detail/ }).click();
+            await expect(mahasiswaPage.getByRole('dialog')).toContainText(
+                revisionNotes,
+            );
         } finally {
             await mahasiswaContext.close();
             await secondLecturerContext.close();

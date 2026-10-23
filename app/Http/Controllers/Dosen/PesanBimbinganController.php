@@ -99,8 +99,18 @@ class PesanBimbinganController extends Controller
             ->get()
             ->keyBy('id');
 
+        $ownReviews = $this->payloadBuilder->ownReviewsFor(
+            $lecturer,
+            $threads
+                ->flatMap(fn (MentorshipChatThread $thread) => $thread->messages)
+                ->where('message_type', 'document_event')
+                ->map(fn (MentorshipChatMessage $message) => $message->relatedDocument)
+                ->filter()
+                ->values(),
+        );
+
         $threads = $threads
-            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $defensesById, $lecturer, $readsByThread): array {
+            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $defensesById, $lecturer, $ownReviews, $readsByThread): array {
                 $latestMessage = $thread->latestMessage;
                 $lastReadAt = $readsByThread->get($thread->id)?->last_read_at;
                 $unreadCount = MentorshipChatMessage::query()
@@ -160,7 +170,7 @@ class PesanBimbinganController extends Controller
                     'messages' => $thread->messages
                         ->sortBy('created_at')
                         ->values()
-                        ->map(fn(MentorshipChatMessage $message): array => $this->payloadBuilder->build($message))
+                        ->map(fn(MentorshipChatMessage $message): array => $this->payloadBuilder->build($message, $ownReviews))
                         ->all(),
                 ];
             })

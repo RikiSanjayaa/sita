@@ -56,6 +56,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Dokumen & Revisi: beberapa reviewer (pembimbing 1 + 2, penguji)                                                                 | `chat-attachment-review` (issue #10), plus Pest                   | tercakup | P1       |
 | Pesan (bimbingan, grup sempro/sidang)                                                                                           | `bimbingan-chat`, `admin-sempro`, `admin-sidang`, `notifications` | tercakup | P1       |
 | Pesan dosen: gambar thumbnail dan kartu file dari mahasiswa, lightbox                                                           | `bimbingan-chat`                                                  | tercakup | P1       |
+| Pesan dosen: tinjau lampiran mahasiswa langsung dari kartu unggahan chat (issue #57), hanya untuk dosen penerima                | `chat-attachment-review`, plus Pest (`ChatDocumentReviewTest`)    | tercakup | P1       |
 | Ganti peran dosen / kaprodi                                                                                                     | none (flow changes in #30)                                        | belum    | P2       |
 
 ## Kaprodi

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dosen\ReviewMentorshipDocumentRequest;
 use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
@@ -67,16 +68,12 @@ class DokumenRevisiController extends Controller
         ]);
     }
 
-    public function review(Request $request, MentorshipDocument $document): RedirectResponse
+    public function review(ReviewMentorshipDocumentRequest $request, MentorshipDocument $document): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
-        abort_unless($document->lecturer_user_id === $lecturer->id, 403);
 
-        $data = $request->validate([
-            'status' => ['required', 'in:needs_revision,approved'],
-            'revision_notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $document->forceFill([
             'status' => $data['status'],

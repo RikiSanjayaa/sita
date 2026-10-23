@@ -41,6 +41,8 @@ type ChatThreadOptions<T extends ChatThread> = {
     /** Whether a thread accepts a custom "Nama dokumen" for file attachments. */
     supportsDocumentName?: (thread: T) => boolean;
     userId?: number | null;
+    /** Called when a document event arrives live; lets the page refetch per-viewer data. */
+    onDocumentEvent?: () => void;
 };
 
 export type ChatComposerState = {
@@ -98,6 +100,7 @@ type WithUnread = { unread: number };
 export function useChatThread<T extends ChatThread>({
     clearParams,
     initialThreads,
+    onDocumentEvent,
     onSent,
     readUrl,
     selectVisible,
@@ -156,6 +159,12 @@ export function useChatThread<T extends ChatThread>({
             }
         };
     }, [pendingSend]);
+
+    // Server refreshes (after a send, review, or reload) replace the thread list;
+    // realtime rows stay in messagesByThread and are deduplicated against it.
+    useEffect(() => {
+        setThreadItems(sortThreads(initialThreads));
+    }, [initialThreads]);
 
     const visibleThreads = useMemo(
         () => selectVisible(threadItems, requestedThreadId),
@@ -260,6 +269,10 @@ export function useChatThread<T extends ChatThread>({
                             ],
                         };
                     });
+
+                    if (event.message.type === 'document_event') {
+                        onDocumentEvent?.();
+                    }
 
                     const isIncomingMessage =
                         event.message.senderUserId !== null &&
