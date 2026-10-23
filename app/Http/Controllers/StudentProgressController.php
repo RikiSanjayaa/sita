@@ -99,6 +99,7 @@ class StudentProgressController extends Controller
             ->join('users', 'users.id', '=', 'thesis_projects.student_user_id')
             ->join('mahasiswa_profiles', 'mahasiswa_profiles.user_id', '=', 'thesis_projects.student_user_id')
             ->join('program_studis', 'program_studis.id', '=', 'thesis_projects.program_studi_id')
+            ->current()
             ->where('thesis_projects.state', 'active')
             ->where('mahasiswa_profiles.is_active', true)
             ->when($filters['search'], fn (Builder $query, string $search): Builder => $query->where(fn (Builder $inner): Builder => $inner
@@ -166,7 +167,7 @@ class StudentProgressController extends Controller
             ->where('status', 'scheduled')
             ->whereIn('type', ['sempro', 'sidang'])
             ->where('scheduled_for', '>=', now())
-            ->whereHas('project', fn (Builder $query): Builder => $query->where('state', 'active'))
+            ->whereHas('project', fn (Builder $query): Builder => $query->current()->where('state', 'active'))
             ->orderBy('scheduled_for')
             ->limit(8)
             ->get()

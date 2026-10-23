@@ -12,6 +12,7 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { SectionCard } from '@/components/patterns/section-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
     StudentProgressPeek,
     SupervisorCounts,
@@ -196,68 +197,75 @@ function ProgresMahasiswaContent({
                 title="Daftar mahasiswa"
                 summary={`${totalCount} mahasiswa`}
             >
-                <DataToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    placeholder="Cari nama, NIM, atau prodi..."
-                >
-                    <DataSelect
-                        label="Program studi"
-                        value={
-                            filters.prodi !== null
-                                ? String(filters.prodi)
-                                : 'semua'
-                        }
-                        onValueChange={(value) =>
-                            visit({
-                                prodi: value === 'semua' ? null : Number(value),
-                                page: undefined,
-                            })
-                        }
-                        placeholder="Semua prodi"
-                        options={[
-                            { value: 'semua', label: 'Semua prodi' },
-                            ...filterOptions.prodi.map((option) => ({
-                                value: String(option.value),
-                                label: option.label,
-                            })),
-                        ]}
-                    />
-                    <DataSelect
-                        label="Angkatan"
-                        value={
-                            filters.angkatan !== null
-                                ? String(filters.angkatan)
-                                : 'semua'
-                        }
-                        onValueChange={(value) =>
-                            visit({
-                                angkatan:
-                                    value === 'semua' ? null : Number(value),
-                                page: undefined,
-                            })
-                        }
-                        placeholder="Semua angkatan"
-                        className="md:w-44"
-                        options={[
-                            { value: 'semua', label: 'Semua angkatan' },
-                            ...filterOptions.angkatan.map((option) => ({
-                                value: String(option.value),
-                                label: option.label,
-                            })),
-                        ]}
-                    />
-                </DataToolbar>
+                <StickyFilterBar>
+                    <DataToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        placeholder="Cari nama, NIM, atau prodi..."
+                    >
+                        <DataSelect
+                            label="Program studi"
+                            value={
+                                filters.prodi !== null
+                                    ? String(filters.prodi)
+                                    : 'semua'
+                            }
+                            onValueChange={(value) =>
+                                visit({
+                                    prodi:
+                                        value === 'semua'
+                                            ? null
+                                            : Number(value),
+                                    page: undefined,
+                                })
+                            }
+                            placeholder="Semua prodi"
+                            options={[
+                                { value: 'semua', label: 'Semua prodi' },
+                                ...filterOptions.prodi.map((option) => ({
+                                    value: String(option.value),
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <DataSelect
+                            label="Angkatan"
+                            value={
+                                filters.angkatan !== null
+                                    ? String(filters.angkatan)
+                                    : 'semua'
+                            }
+                            onValueChange={(value) =>
+                                visit({
+                                    angkatan:
+                                        value === 'semua'
+                                            ? null
+                                            : Number(value),
+                                    page: undefined,
+                                })
+                            }
+                            placeholder="Semua angkatan"
+                            className="md:w-44"
+                            options={[
+                                { value: 'semua', label: 'Semua angkatan' },
+                                ...filterOptions.angkatan.map((option) => ({
+                                    value: String(option.value),
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                    </DataToolbar>
 
-                <FilterPills
-                    label="Tahap mahasiswa"
-                    value={filters.phase ?? 'all'}
-                    onValueChange={(value) =>
-                        visit({ phase: value, page: undefined })
-                    }
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={phaseOptions}
-                />
+                    <FilterPills
+                        label="Tahap mahasiswa"
+                        value={filters.phase ?? 'all'}
+                        onValueChange={(value) =>
+                            visit({ phase: value, page: undefined })
+                        }
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={phaseOptions}
+                    />
+                </StickyFilterBar>
 
                 {rows.length > 0 ? (
                     <DataTableContainer
