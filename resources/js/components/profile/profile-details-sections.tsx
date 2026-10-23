@@ -4,7 +4,13 @@ import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
-import { type UserProfileDetail } from '@/types';
+import { type UserProfileDetail, type UserProfileSummary } from '@/types';
+
+function mentorshipDetail(person: UserProfileSummary): string | undefined {
+    return person.mentorshipCount === undefined
+        ? undefined
+        : `${person.mentorshipCount} bimbingan`;
+}
 
 function SectionHeader({
     title,
@@ -135,6 +141,9 @@ export function ProfileDetailsSections({
                                                     key={person.id}
                                                     person={person}
                                                     label={`Pembimbing ${index + 1}`}
+                                                    detail={mentorshipDetail(
+                                                        person,
+                                                    )}
                                                 />
                                             ),
                                         )}
@@ -234,6 +243,7 @@ export function ProfileDetailsSections({
                                     <PersonCardLink
                                         key={person.id}
                                         person={person}
+                                        detail={mentorshipDetail(person)}
                                     />
                                 ))}
                             </div>

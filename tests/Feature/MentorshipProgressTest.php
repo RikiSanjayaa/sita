@@ -331,3 +331,89 @@ it('shares mentorship progress with the student, lecturer and kaprodi pages', fu
         ->assertInertia(fn(Assert $page): Assert => $page
             ->where('students.0.mentorshipProgress.0.completed', 3));
 });
+
+it('shows the same mentorship counts on the student and lecturer profiles', function (): void {
+    ['project' => $project, 'student' => $student, 'primary' => $primary, 'secondary' => $secondary] = mentorshipProject();
+    $service = app(MentorshipProgressService::class);
+
+    mentorshipSessions($student, $primary, 3);
+    mentorshipSessions($student, $secondary, 1);
+    mentorshipSessions($student, $primary, 2, 'cancelled');
+
+    $expected = collect($service->forProject($project))
+        ->mapWithKeys(fn(array $row): array => [$row['lecturer']['id'] => $row['completed']])
+        ->all();
+    expect($expected)->toBe([$primary->id => 3, $secondary->id => 1]);
+
+    $this->actingAs($student)
+        ->get(route('users.profile.show', $student))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('profile.thesis.advisors.0.id', $primary->id)
+            ->where('profile.thesis.advisors.0.mentorshipCount', $expected[$primary->id])
+            ->where('profile.thesis.advisors.1.id', $secondary->id)
+            ->where('profile.thesis.advisors.1.mentorshipCount', $expected[$secondary->id]));
+
+    $this->actingAs($secondary)
+        ->get(route('users.profile.show', $primary))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('profile.relatedUsers.0.users.0.id', $student->id)
+            ->where('profile.relatedUsers.0.users.0.mentorshipCount', $expected[$primary->id]));
+
+    $this->actingAs($student)
+        ->get(route('users.profile.show', $secondary))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->where('profile.relatedUsers.0.users.0.mentorshipCount', $expected[$secondary->id]));
+});
+
+it('counts mentorship for the lecturer profile without per-student queries', function (): void {
+    ['student' => $student, 'prodi' => $prodi, 'primary' => $primary] = mentorshipProject();
+    mentorshipSessions($student, $primary, 2);
+
+    $others = collect(range(1, 3))->map(function () use ($prodi, $primary): User {
+        $other = User::factory()->asMahasiswa()->create();
+        MahasiswaProfile::factory()->create(['user_id' => $other->id, 'program_studi_id' => $prodi->id, 'is_active' => true]);
+        $project = ThesisProject::query()->create([
+            'student_user_id' => $other->id,
+            'program_studi_id' => $prodi->id,
+            'phase' => 'research',
+            'state' => 'active',
+            'started_at' => now()->subMonths(6),
+            'created_by' => $other->id,
+        ]);
+        ThesisSupervisorAssignment::query()->create([
+            'project_id' => $project->id,
+            'lecturer_user_id' => $primary->id,
+            'role' => 'primary',
+            'status' => 'active',
+            'assigned_by' => $other->id,
+            'started_at' => now()->subMonths(5),
+        ]);
+
+        return $other;
+    });
+    mentorshipSessions($others[1], $primary, 4);
+
+    $sessionQueries = function () use ($primary): int {
+        $count = 0;
+        DB::listen(function ($query) use (&$count): void {
+            if (str_contains($query->sql, 'mentorship_schedules')) {
+                $count++;
+            }
+        });
+        app(App\Services\UserProfilePresenter::class)->detail($primary, $primary);
+
+        return $count;
+    };
+
+    expect($sessionQueries())->toBe(1);
+
+    $users = collect(app(App\Services\UserProfilePresenter::class)->detail($primary, $primary)['relatedUsers'][0]['users'])
+        ->pluck('mentorshipCount', 'id');
+
+    expect($users[$student->id])->toBe(2)
+        ->and($users[$others[0]->id])->toBe(0)
+        ->and($users[$others[1]->id])->toBe(4);
+});

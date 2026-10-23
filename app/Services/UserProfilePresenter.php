@@ -13,6 +13,10 @@ use App\Support\AcademicTerminology;
 
 class UserProfilePresenter
 {
+    public function __construct(
+        private readonly MentorshipProgressService $mentorshipProgressService,
+    ) {}
+
     /**
      * @return array<string, mixed>|null
      */
@@ -117,9 +121,21 @@ class UserProfilePresenter
             ->sortByDesc('attempt_no')
             ->first();
 
+        $mentorshipCounts = $project === null
+            ? []
+            : collect($this->mentorshipProgressService->forProject($project))
+                ->mapWithKeys(fn(array $row): array => [$row['lecturer']['id'] => $row['completed']])
+                ->all();
+
         $advisors = $project?->activeSupervisorAssignments
             ->sortBy('role')
-            ->map(fn(ThesisSupervisorAssignment $assignment): ?array => $this->summary($assignment->lecturer))
+            ->map(function (ThesisSupervisorAssignment $assignment) use ($mentorshipCounts): ?array {
+                $summary = $this->summary($assignment->lecturer);
+
+                return $summary === null
+                    ? null
+                    : [...$summary, 'mentorshipCount' => $mentorshipCounts[(int) $assignment->lecturer_user_id] ?? 0];
+            })
             ->filter()
             ->values()
             ->all() ?? [];
@@ -245,6 +261,9 @@ class UserProfilePresenter
             ->unique('id')
             ->values();
 
+        $mentorshipCounts = $this->mentorshipProgressService
+            ->completedByStudentForLecturer((int) $user->getKey(), $activeAssignments);
+
         $scheduledSemproCount = ThesisDefenseExaminer::query()
             ->where('lecturer_user_id', $user->getKey())
             ->whereHas('defense', fn($query) => $query
@@ -287,7 +306,13 @@ class UserProfilePresenter
                     'title' => 'Mahasiswa bimbingan aktif',
                     'emptyMessage' => 'Belum ada mahasiswa bimbingan aktif pada dosen ini.',
                     'users' => $activeStudents
-                        ->map(fn(User $student): ?array => $this->summary($student))
+                        ->map(function (User $student) use ($mentorshipCounts): ?array {
+                            $summary = $this->summary($student);
+
+                            return $summary === null
+                                ? null
+                                : [...$summary, 'mentorshipCount' => $mentorshipCounts[(int) $student->getKey()] ?? 0];
+                        })
                         ->filter()
                         ->values()
                         ->all(),

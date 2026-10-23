@@ -31,6 +31,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Pesan: kirim file (pratinjau, nama dokumen, gambar thumbnail, validasi tipe, kartu status)                 | `bimbingan-chat`, plus Pest (`ChatAttachmentTest`)                | tercakup | P1       |
 | Panduan (`/mahasiswa/panduan`)                                                                             | none                                                              | belum    | P3       |
 | Pengaturan Akun: profil                                                                                    | `profile`                                                         | tercakup | P2       |
+| Profil mahasiswa/dosen: jumlah "x bimbingan" per pembimbing dan per mahasiswa bimbingan (issue #70)        | `profile`, plus Pest (`MentorshipProgressTest`)                   | tercakup | P2       |
 | Pop-up nomor HP: wajib diisi, konfirmasi impor (issue #26)                                                 | `phone-prompt`, plus Pest (`PhonePromptTest`)                     | tercakup | P1       |
 | Pengaturan Akun: 2FA                                                                                       | `two-factor-auth`                                                 | tercakup | P2       |
 | Pengaturan Akun: notifikasi                                                                                | `notifications`                                                   | tercakup | P2       |
