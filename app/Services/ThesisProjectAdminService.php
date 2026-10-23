@@ -379,18 +379,20 @@ class ThesisProjectAdminService
         int $primaryLecturerUserId,
         ?int $secondaryLecturerUserId,
         ?string $notes,
+        bool $silent = false,
+        bool $enforceQuota = true,
     ): ThesisProject {
         if ($secondaryLecturerUserId !== null && $primaryLecturerUserId === $secondaryLecturerUserId) {
             throw new RuntimeException('Pembimbing 1 dan Pembimbing 2 harus berbeda.');
         }
 
-        $this->assertSupervisorEligible($project, $primaryLecturerUserId, 'Pembimbing 1');
+        $this->assertSupervisorEligible($project, $primaryLecturerUserId, 'Pembimbing 1', $enforceQuota);
 
         if ($secondaryLecturerUserId !== null) {
-            $this->assertSupervisorEligible($project, $secondaryLecturerUserId, 'Pembimbing 2');
+            $this->assertSupervisorEligible($project, $secondaryLecturerUserId, 'Pembimbing 2', $enforceQuota);
         }
 
-        $updatedProject = DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes): ThesisProject {
+        $updatedProject = DB::transaction(function () use ($project, $assignedBy, $primaryLecturerUserId, $secondaryLecturerUserId, $notes, $silent): ThesisProject {
             $this->syncSupervisorAssignment(
                 project: $project,
                 assignedBy: $assignedBy,
@@ -424,12 +426,15 @@ class ThesisProjectAdminService
                 label: 'Pembimbing diperbarui',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
+                notifyAdmins: ! $silent,
             );
 
             return $freshProject;
         });
 
-        $this->notifyStudentAboutSupervisorAssignment($updatedProject);
+        if (! $silent) {
+            $this->notifyStudentAboutSupervisorAssignment($updatedProject);
+        }
 
         return $updatedProject;
     }
@@ -1258,7 +1263,7 @@ class ThesisProjectAdminService
         }
     }
 
-    private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label): void
+    private function assertSupervisorEligible(ThesisProject $project, int $lecturerUserId, string $label, bool $enforceQuota = true): void
     {
         $lecturer = User::query()
             ->with(['dosenProfile', 'activeDosenProgramStudiAssignments'])
@@ -1272,6 +1277,10 @@ class ThesisProjectAdminService
 
         if ($lecturerProfile === null || ! $lecturerProfile->is_active) {
             throw new RuntimeException(sprintf('%s belum memiliki profil dosen aktif.', $label));
+        }
+
+        if (! $enforceQuota) {
+            return;
         }
 
         $quota = max(1, (int) ($lecturerProfile->supervision_quota ?? 14));
@@ -1349,6 +1358,7 @@ class ThesisProjectAdminService
         ?string $description,
         string $occurredAt,
         ?array $payload = null,
+        bool $notifyAdmins = true,
     ): void {
         ThesisProjectEvent::query()->create([
             'project_id' => $project->getKey(),
@@ -1359,6 +1369,10 @@ class ThesisProjectAdminService
             'payload' => $payload,
             'occurred_at' => $occurredAt,
         ]);
+
+        if (! $notifyAdmins) {
+            return;
+        }
 
         $this->notifyAdminsAboutEvent(
             project: $project,
