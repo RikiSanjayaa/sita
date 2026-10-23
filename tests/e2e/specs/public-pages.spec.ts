@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { seedPlaywrightScenarios } from '../support/db';
+import { runArtisan, seedPlaywrightScenarios } from '../support/db';
 import { thesisScenarios } from '../support/thesis-fixtures';
 
 // Guest-visible pages. No storage state: these must work without logging in.
@@ -90,39 +90,44 @@ test.describe('Public pages', () => {
         ).toBeVisible();
     });
 
-    test('topik lists completed topics and expands a detail row', async ({
+    test('topik publishes an unsuperseded completed topic and expands its details', async ({
         page,
     }) => {
-        await page.goto('/topik');
-        await expect(
-            page.getByText('Daftar Topik', { exact: true }),
-        ).toBeVisible();
-
-        const search = page.getByPlaceholder(
-            'Cari judul, ringkasan, mahasiswa, atau NIM...',
-        );
-        await search.fill('Ruang Belajar Kolaboratif');
-        const row = page
-            .getByRole('row')
-            .filter({ hasText: 'Sistem Rekomendasi Ruang Belajar' })
-            .first();
-        await expect(row).toBeVisible();
-        // Wait for the server-side search to narrow the list; collapsed rows keep
-        // their detail markup, so other rows would also match below.
-        await expect(
-            page.getByRole('button', { name: 'Buka detail topik' }),
-        ).toHaveCount(1);
-
-        await row.getByRole('button', { name: 'Buka detail topik' }).click();
-        await expect(page.getByText('Judul Internasional')).toBeVisible();
-
-        // Retry the fill: a late response to the previous search can reset the input.
-        await expect(async () => {
+        runArtisan([
+            'tinker',
+            '--execute',
+            "App\\Models\\ThesisProject::query()->where('student_user_id', App\\Models\\User::query()->where('email', 'e2e-pembimbingbaru@sita.test')->value('id'))->update(['state' => 'completed', 'phase' => 'completed']);",
+        ]);
+        try {
+            await page.goto('/topik');
+            const search = page.getByPlaceholder(
+                'Cari judul, ringkasan, mahasiswa, atau NIM...',
+            );
+            await search.fill('Algoritma Genetika');
+            const row = page
+                .getByRole('row')
+                .filter({ hasText: 'Optimasi Rute Pengiriman Logistik' })
+                .first();
+            await expect(
+                row.getByText('Selesai', { exact: true }),
+            ).toBeVisible();
+            await expect(
+                page.getByRole('button', { name: 'Buka detail topik' }),
+            ).toHaveCount(1);
+            await row
+                .getByRole('button', { name: 'Buka detail topik' })
+                .click();
+            await expect(page.getByText('Judul Internasional')).toBeVisible();
+            await expect(
+                page.getByText('Ringkasan proposal skenario Playwright.'),
+            ).toBeVisible();
             await search.fill('tidak-ada-topik-seperti-ini');
             await expect(
                 page.getByText('Tidak ada topik', { exact: true }),
-            ).toBeVisible({ timeout: 3_000 });
-        }).toPass({ timeout: 15_000 });
+            ).toBeVisible();
+        } finally {
+            seedPlaywrightScenarios();
+        }
     });
 
     test('topik shows an active topic once its sempro is passed', async ({

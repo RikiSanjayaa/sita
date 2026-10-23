@@ -27,6 +27,7 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
     type ProjectNotes,
     ThesisNotesPanel,
@@ -444,84 +445,89 @@ function StudentTable({
 
     return (
         <div className="space-y-4">
-            <DataToolbar
-                search={search}
-                onSearchChange={(value) => {
-                    setSearch(value);
-                    resetPage();
-                }}
-                placeholder="Cari nama atau NIM..."
-            >
-                <DataSelect
-                    label="Filter risiko"
-                    value={riskFilter}
-                    onValueChange={(value) => {
-                        setRiskFilter(value as RiskFilter);
+            <StickyFilterBar>
+                <DataToolbar
+                    search={search}
+                    onSearchChange={(value) => {
+                        setSearch(value);
                         resetPage();
                     }}
-                    placeholder="Semua risiko"
-                    options={[
-                        { value: 'semua', label: 'Semua risiko' },
-                        ...riskOptions,
-                    ]}
-                    className="md:w-40"
-                />
-                <DataSelect
-                    label="Filter angkatan"
-                    value={angkatanFilter}
-                    onValueChange={(value) => {
-                        setAngkatanFilter(value);
-                        resetPage();
-                    }}
-                    placeholder="Semua angkatan"
-                    options={selectOptions('Semua angkatan', filters.angkatan)}
-                    className="md:w-40"
-                />
-                <DataSelect
-                    label="Filter konsentrasi"
-                    value={concentrationFilter}
-                    onValueChange={(value) => {
-                        setConcentrationFilter(value);
-                        resetPage();
-                    }}
-                    placeholder="Semua konsentrasi"
-                    options={selectOptions(
-                        'Semua konsentrasi',
-                        filters.concentrations,
-                    )}
-                    className="md:w-48"
-                />
-            </DataToolbar>
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <FilterPills
-                    label="Filter tahap"
-                    value={phaseFilter}
-                    onValueChange={(value) => {
-                        setPhaseFilter(value);
-                        resetPage();
-                    }}
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={phasePills}
-                />
-                {hasActiveFilter ? (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground max-md:h-11"
-                        onClick={() => {
-                            setPhaseFilter('semua');
-                            setRiskFilter('semua');
-                            setAngkatanFilter('semua');
-                            setConcentrationFilter('semua');
+                    placeholder="Cari nama atau NIM..."
+                >
+                    <DataSelect
+                        label="Filter risiko"
+                        value={riskFilter}
+                        onValueChange={(value) => {
+                            setRiskFilter(value as RiskFilter);
                             resetPage();
                         }}
-                    >
-                        Reset filter
-                    </Button>
-                ) : null}
-            </div>
+                        placeholder="Semua risiko"
+                        options={[
+                            { value: 'semua', label: 'Semua risiko' },
+                            ...riskOptions,
+                        ]}
+                        className="md:w-40"
+                    />
+                    <DataSelect
+                        label="Filter angkatan"
+                        value={angkatanFilter}
+                        onValueChange={(value) => {
+                            setAngkatanFilter(value);
+                            resetPage();
+                        }}
+                        placeholder="Semua angkatan"
+                        options={selectOptions(
+                            'Semua angkatan',
+                            filters.angkatan,
+                        )}
+                        className="md:w-40"
+                    />
+                    <DataSelect
+                        label="Filter konsentrasi"
+                        value={concentrationFilter}
+                        onValueChange={(value) => {
+                            setConcentrationFilter(value);
+                            resetPage();
+                        }}
+                        placeholder="Semua konsentrasi"
+                        options={selectOptions(
+                            'Semua konsentrasi',
+                            filters.concentrations,
+                        )}
+                        className="md:w-48"
+                    />
+                </DataToolbar>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <FilterPills
+                        label="Filter tahap"
+                        value={phaseFilter}
+                        onValueChange={(value) => {
+                            setPhaseFilter(value);
+                            resetPage();
+                        }}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={phasePills}
+                    />
+                    {hasActiveFilter ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground max-md:h-11"
+                            onClick={() => {
+                                setPhaseFilter('semua');
+                                setRiskFilter('semua');
+                                setAngkatanFilter('semua');
+                                setConcentrationFilter('semua');
+                                resetPage();
+                            }}
+                        >
+                            Reset filter
+                        </Button>
+                    ) : null}
+                </div>
+            </StickyFilterBar>
 
             {paginated.length > 0 ? (
                 <DataTableContainer

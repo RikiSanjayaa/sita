@@ -22,6 +22,7 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { KeyValueList } from '@/components/patterns/key-value-list';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import {
     type ProjectNotes,
@@ -864,41 +865,43 @@ export default function DosenSeminarProposalPage() {
                             : undefined
                     }
                 >
-                    <DataToolbar
-                        search={search}
-                        onSearchChange={setSearch}
-                        placeholder="Cari nama, NIM, atau judul..."
-                    />
-                    <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-4 md:gap-y-2">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="text-xs font-medium text-muted-foreground max-md:w-full">
-                                Jenis
-                            </span>
-                            <FilterPills
-                                label="Jenis ujian"
-                                value={typeFilter}
-                                onValueChange={setTypeFilter}
-                                itemClassName="max-md:h-11 max-md:px-4"
-                                options={typeFilterTabs}
-                            />
-                        </div>
-                        <span
-                            aria-hidden="true"
-                            className="h-5 w-px bg-border max-md:hidden"
+                    <StickyFilterBar>
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            placeholder="Cari nama, NIM, atau judul..."
                         />
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="text-xs font-medium text-muted-foreground max-md:w-full">
-                                Status
-                            </span>
-                            <FilterPills
-                                label="Status keputusan"
-                                value={statusFilter}
-                                onValueChange={setStatusFilter}
-                                itemClassName="max-md:h-11 max-md:px-4"
-                                options={statusFilterTabs}
+                        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-4 md:gap-y-2">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-xs font-medium text-muted-foreground max-md:w-full">
+                                    Jenis
+                                </span>
+                                <FilterPills
+                                    label="Jenis ujian"
+                                    value={typeFilter}
+                                    onValueChange={setTypeFilter}
+                                    itemClassName="max-md:h-11 max-md:px-4"
+                                    options={typeFilterTabs}
+                                />
+                            </div>
+                            <span
+                                aria-hidden="true"
+                                className="h-5 w-px bg-border max-md:hidden"
                             />
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-xs font-medium text-muted-foreground max-md:w-full">
+                                    Status
+                                </span>
+                                <FilterPills
+                                    label="Status keputusan"
+                                    value={statusFilter}
+                                    onValueChange={setStatusFilter}
+                                    itemClassName="max-md:h-11 max-md:px-4"
+                                    options={statusFilterTabs}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    </StickyFilterBar>
 
                     {filteredDefenses.length === 0 ? (
                         <DataTableEmptyState

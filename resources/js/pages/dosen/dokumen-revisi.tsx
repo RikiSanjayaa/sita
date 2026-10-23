@@ -11,6 +11,7 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -202,40 +203,42 @@ export default function DosenDokumenRevisiPage() {
                             : 'Tidak ada dokumen yang menunggu review'
                     }
                 >
-                    <DataToolbar
-                        search={search}
-                        onSearchChange={setSearch}
-                        placeholder="Cari mahasiswa, NIM, atau file..."
-                    />
+                    <StickyFilterBar>
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            placeholder="Cari mahasiswa, NIM, atau file..."
+                        />
 
-                    <FilterPills
-                        label="Status dokumen"
-                        value={statusFilter}
-                        onValueChange={setStatusFilter}
-                        itemClassName="max-md:h-11 max-md:px-4"
-                        options={[
-                            {
-                                label: 'Semua',
-                                value: 'semua',
-                                count: documentQueue.length,
-                            },
-                            {
-                                label: 'Perlu Review',
-                                value: 'Perlu Review',
-                                count: statusCounts.review,
-                            },
-                            {
-                                label: 'Perlu Revisi',
-                                value: 'Perlu Revisi',
-                                count: statusCounts.revisi,
-                            },
-                            {
-                                label: 'Disetujui',
-                                value: 'Disetujui',
-                                count: statusCounts.disetujui,
-                            },
-                        ]}
-                    />
+                        <FilterPills
+                            label="Status dokumen"
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                            options={[
+                                {
+                                    label: 'Semua',
+                                    value: 'semua',
+                                    count: documentQueue.length,
+                                },
+                                {
+                                    label: 'Perlu Review',
+                                    value: 'Perlu Review',
+                                    count: statusCounts.review,
+                                },
+                                {
+                                    label: 'Perlu Revisi',
+                                    value: 'Perlu Revisi',
+                                    count: statusCounts.revisi,
+                                },
+                                {
+                                    label: 'Disetujui',
+                                    value: 'Disetujui',
+                                    count: statusCounts.disetujui,
+                                },
+                            ]}
+                        />
+                    </StickyFilterBar>
 
                     {totalItems > 0 ? (
                         <DataTableContainer

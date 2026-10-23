@@ -236,8 +236,11 @@ test('dashboard counts active and archived data and detail returns full project 
     ]);
     $student = kaprodiStudent($prodi, 'Mahasiswa Arsip');
     $activeProject = kaprodiProject($student, $prodi, 'sempro', 'active');
-    $archivedProject = kaprodiProject($student, $prodi, 'completed', 'completed');
-    $archivedProject->forceFill(['started_at' => now()->subMonths(2)])->save();
+    $supersededProject = kaprodiProject($student, $prodi, 'completed', 'completed');
+    $supersededProject->forceFill(['started_at' => now()->subMonths(2)])->save();
+    $supersededProject->latestTitle()->firstOrFail()->update(['title_id' => 'Riwayat yang sudah digantikan']);
+    $completedStudent = kaprodiStudent($prodi, 'Mahasiswa Lulus');
+    $archivedProject = kaprodiProject($completedStudent, $prodi, 'completed', 'completed');
 
     KaprodiAssignment::factory()->create([
         'program_studi_id' => $prodi->id,
@@ -265,7 +268,7 @@ test('dashboard counts active and archived data and detail returns full project 
 
     ThesisDocument::query()->create([
         'project_id' => $archivedProject->id,
-        'uploaded_by_user_id' => $student->id,
+        'uploaded_by_user_id' => $completedStudent->id,
         'kind' => 'final_report',
         'status' => 'approved',
         'version_no' => 1,
@@ -313,6 +316,8 @@ test('dashboard counts active and archived data and detail returns full project 
             ->component('kaprodi/dashboard')
             ->missing('summaryCards')
             ->where('workSummary.metrics.1.value', '1')
+            ->has('recentArchives', 1)
+            ->where('recentArchives.0.id', $archivedProject->id)
             ->where('defenseProgress.0.count', 1)
             ->where('upcomingAgenda.0.title', 'Mahasiswa Arsip')
             ->missing('students'));
@@ -324,7 +329,11 @@ test('dashboard counts active and archived data and detail returns full project 
             ->component('kaprodi/mahasiswa')
             ->where('students.0.name', 'Mahasiswa Arsip')
             ->where('students.0.projectState', 'Aktif')
-            ->where('archives.0.student', 'Mahasiswa Arsip')
+            ->where('students.0.projectId', $activeProject->id)
+            ->has('archives', 1)
+            ->where('archives.0.id', $archivedProject->id)
+            ->where('archives', fn($archives): bool => ! collect($archives)->contains('id', $supersededProject->id))
+            ->where('archives.0.student', 'Mahasiswa Lulus')
             ->where('archives.0.title', 'Portal Monitoring Kaprodi'));
 
     $this->actingAs($kaprodi)

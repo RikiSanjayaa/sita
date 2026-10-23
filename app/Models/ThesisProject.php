@@ -141,12 +141,37 @@ class ThesisProject extends Model
     }
 
     /**
+     * Only the latest thesis per student may be current, and cancellation never
+     * revives an older thesis. All historical rows remain available to admin.
+     */
+    public function scopeCurrent(Builder $query): void
+    {
+        $query->latestPerStudent()->where($query->getModel()->qualifyColumn('state'), '!=', 'cancelled');
+    }
+
+    /** Latest lifecycle row, including owner-only cancellation feedback. */
+    public function scopeLatestPerStudent(Builder $query): void
+    {
+        $table = $query->getModel()->getTable();
+
+        $query->where($table.'.id', function ($latest) use ($table): void {
+            $latest->select('latest_project.id')
+                ->from('thesis_projects as latest_project')
+                ->whereColumn('latest_project.student_user_id', $table.'.student_user_id')
+                ->orderByRaw('CASE WHEN latest_project.started_at IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('latest_project.started_at')
+                ->orderByDesc('latest_project.id')
+                ->limit(1);
+        });
+    }
+
+    /**
      * Projects whose final title may be shown publicly: a passed sempro, or a
-     * completed thesis. Cancelled projects never qualify.
+     * completed thesis. Cancelled and superseded projects never qualify.
      */
     public function scopeHasPublicTitle(Builder $query): void
     {
-        $query->where('state', '!=', 'cancelled')
+        $query->current()
             ->where(function (Builder $query): void {
                 $query->where('state', 'completed')
                     ->orWhereHas('passedSemproDefenses');

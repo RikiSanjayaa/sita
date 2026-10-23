@@ -432,7 +432,7 @@ export default function KaprodiDashboardPage() {
 
                     <SectionCard
                         title="Arsip Terbaru"
-                        description={`${terms.finalWork} selesai atau dibatalkan paling baru.`}
+                        description={`${terms.finalWork} terkini yang telah selesai.`}
                         contentClassName={
                             recentArchives.length > 0
                                 ? listContentClass
@@ -488,7 +488,8 @@ export default function KaprodiDashboardPage() {
                             <EmptyState
                                 icon={FileArchive}
                                 title="Belum ada arsip"
-                                description={`${terms.finalWork} selesai atau dibatalkan akan muncul di sini.`}
+                                description={`${terms.finalWork} terkini yang telah selesai akan muncul di sini.`}
+                                className="rounded-none border-0 bg-transparent"
                             />
                         )}
                     </SectionCard>

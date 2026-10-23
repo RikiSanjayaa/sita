@@ -493,6 +493,20 @@ test('tugas akhir page shows rejected title review instead of pending approval',
         'is_active' => true,
     ]);
 
+    $olderProject = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'completed',
+        'state' => 'completed',
+        'started_at' => now()->subYear(),
+    ]);
+    ThesisProjectTitle::query()->create([
+        'project_id' => $olderProject->id,
+        'version_no' => 1,
+        'title_id' => 'Riwayat selesai sebelum penolakan',
+        'status' => 'approved',
+    ]);
+
     $project = ThesisProject::query()->create([
         'student_user_id' => $student->id,
         'program_studi_id' => $prodi->id,
@@ -525,7 +539,18 @@ test('tugas akhir page shows rejected title review instead of pending approval',
             ->where('canCreateSubmission', true)
             ->where('submission.workflow.key', 'title_rejected')
             ->where('submission.workflow.label', 'Judul Tidak Disetujui')
+            ->where('submission.workflow.description', 'Topik perlu difokuskan ulang.')
+            ->where('submission.id', $project->id)
             ->where('submission.workflow.can_edit', false));
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/dashboard')
+        ->assertInertia(fn(Assert $page) => $page
+            ->where('summary.workflow.key', 'title_rejected')
+            ->where('summary.workflow.description', 'Topik perlu difokuskan ulang.')
+            ->where('summary.projectTitle', null)
+            ->where('summary.hasProject', false)
+            ->where('quickActionState.canSubmitTitle', true));
 
     $this->actingAs($student)
         ->post('/mahasiswa/tugas-akhir', [
@@ -537,12 +562,19 @@ test('tugas akhir page shows rejected title review instead of pending approval',
         ])
         ->assertRedirect();
 
-    expect(ThesisProject::query()->where('student_user_id', $student->id)->count())->toBe(2)
+    expect(ThesisProject::query()->where('student_user_id', $student->id)->count())->toBe(3)
         ->and(ThesisProject::query()
             ->where('student_user_id', $student->id)
             ->where('state', 'active')
             ->where('phase', 'title_review')
             ->exists())->toBeTrue();
+
+    $this->actingAs($student)
+        ->get('/mahasiswa/tugas-akhir')
+        ->assertInertia(fn(Assert $page) => $page
+            ->where('submission.title_id', 'Judul Pengajuan Ulang')
+            ->where('submission.workflow.key', 'title_review_pending')
+            ->where('canCreateSubmission', false));
 });
 
 test('mahasiswa dashboard shows cancelled project instead of pending approval', function () {
@@ -585,6 +617,8 @@ test('mahasiswa dashboard shows cancelled project instead of pending approval', 
             ->where('summary.workflow.key', 'project_cancelled')
             ->where('summary.workflow.label', 'Skripsi Dibatalkan')
             ->where('quickActionState.canSubmitTitle', true)
+            ->where('summary.projectTitle', null)
+            ->where('summary.hasProject', false)
             ->where('timeline.0.status', 'current'));
 });
 

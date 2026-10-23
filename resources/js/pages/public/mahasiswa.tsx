@@ -9,6 +9,7 @@ import {
     stackedTable,
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -207,33 +208,35 @@ function PublicStudentsContent({
             description={`Daftar mahasiswa yang masih aktif menjalani proses karya akhir, termasuk mahasiswa baru terdaftar, ${n.proposalExam.toLowerCase()}, bimbingan aktif, hingga ${n.finalExam.toLowerCase()} yang masih berjalan.`}
         >
             <DataSection title="Daftar Mahasiswa">
-                <DataToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    placeholder="Cari nama, NIM, atau prodi..."
-                >
-                    <DataSelect
-                        label="Program studi"
-                        value={programFilter}
-                        onValueChange={setProgramFilter}
-                        placeholder="Filter prodi"
-                        options={[
-                            { value: 'semua', label: 'Semua Prodi' },
-                            ...studentPrograms.map((program) => ({
-                                value: program.slug,
-                                label: program.name,
-                            })),
-                        ]}
-                    />
-                </DataToolbar>
+                <StickyFilterBar layout="public">
+                    <DataToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        placeholder="Cari nama, NIM, atau prodi..."
+                    >
+                        <DataSelect
+                            label="Program studi"
+                            value={programFilter}
+                            onValueChange={setProgramFilter}
+                            placeholder="Filter prodi"
+                            options={[
+                                { value: 'semua', label: 'Semua Prodi' },
+                                ...studentPrograms.map((program) => ({
+                                    value: program.slug,
+                                    label: program.name,
+                                })),
+                            ]}
+                        />
+                    </DataToolbar>
 
-                <FilterPills
-                    label="Tahap mahasiswa"
-                    value={filters.stage || 'semua'}
-                    onValueChange={changeStage}
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={stageTabs}
-                />
+                    <FilterPills
+                        label="Tahap mahasiswa"
+                        value={filters.stage || 'semua'}
+                        onValueChange={changeStage}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={stageTabs}
+                    />
+                </StickyFilterBar>
 
                 {activeStudents.length > 0 ? (
                     <DataTableContainer

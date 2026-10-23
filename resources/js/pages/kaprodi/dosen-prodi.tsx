@@ -12,7 +12,9 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -172,34 +174,36 @@ export default function KaprodiDosenProdiPage() {
                     title="Daftar Dosen"
                     summary={`${lecturers.length} dosen tercatat`}
                 >
-                    <DataToolbar
-                        search={search}
-                        onSearchChange={setSearch}
-                        placeholder="Cari nama, NIK, konsentrasi..."
-                    />
-
-                    {concentrations.length > 0 ? (
-                        <FilterPills
-                            label="Filter konsentrasi"
-                            value={concentrationFilter}
-                            onValueChange={setConcentrationFilter}
-                            itemClassName="max-md:h-11 max-md:px-4"
-                            options={[
-                                {
-                                    label: 'Semua',
-                                    value: 'semua',
-                                    count: lecturers.length,
-                                },
-                                ...concentrations.map((item) => ({
-                                    label: item,
-                                    value: item,
-                                    count: lecturers.filter((lecturer) =>
-                                        inConcentration(lecturer, item),
-                                    ).length,
-                                })),
-                            ]}
+                    <StickyFilterBar>
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            placeholder="Cari nama, NIK, konsentrasi..."
                         />
-                    ) : null}
+
+                        {concentrations.length > 0 ? (
+                            <FilterPills
+                                label="Filter konsentrasi"
+                                value={concentrationFilter}
+                                onValueChange={setConcentrationFilter}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                                options={[
+                                    {
+                                        label: 'Semua',
+                                        value: 'semua',
+                                        count: lecturers.length,
+                                    },
+                                    ...concentrations.map((item) => ({
+                                        label: item,
+                                        value: item,
+                                        count: lecturers.filter((lecturer) =>
+                                            inConcentration(lecturer, item),
+                                        ).length,
+                                    })),
+                                ]}
+                            />
+                        ) : null}
+                    </StickyFilterBar>
 
                     {filtered.length > 0 ? (
                         <DataTableContainer
@@ -305,10 +309,34 @@ export default function KaprodiDosenProdiPage() {
                                                 data-label="Bimbingan"
                                                 className={stackedTable.td}
                                             >
-                                                <p className="tabular-nums">
-                                                    P1 {lecturer.primaryCount} ·
-                                                    P2 {lecturer.secondaryCount}
-                                                </p>
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="rounded-full border-transparent bg-primary-muted text-primary-muted-foreground"
+                                                        >
+                                                            P1
+                                                        </Badge>
+                                                        <span className="tabular-nums">
+                                                            {
+                                                                lecturer.primaryCount
+                                                            }
+                                                        </span>
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="rounded-full border-transparent bg-success-muted text-success-muted-foreground"
+                                                        >
+                                                            P2
+                                                        </Badge>
+                                                        <span className="tabular-nums">
+                                                            {
+                                                                lecturer.secondaryCount
+                                                            }
+                                                        </span>
+                                                    </span>
+                                                </div>
                                                 <p className="font-medium tabular-nums">
                                                     Kuota {lecturer.quota}
                                                 </p>

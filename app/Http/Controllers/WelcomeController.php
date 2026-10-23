@@ -174,9 +174,9 @@ class WelcomeController extends Controller
                 $query->where('is_active', true);
             })
             ->where(function ($query): void {
-                $query->whereDoesntHave('thesisProjects')
+                $query->whereDoesntHave('thesisProjects', fn($projectQuery) => $projectQuery->current())
                     ->orWhereHas('thesisProjects', function ($projectQuery): void {
-                        $projectQuery->where(function ($visibleProjectQuery): void {
+                        $projectQuery->current()->where(function ($visibleProjectQuery): void {
                             $visibleProjectQuery->whereDoesntHave('defenses', function ($defenseQuery): void {
                                 $defenseQuery->where('type', 'sidang')
                                     ->where('status', 'completed')
@@ -335,14 +335,14 @@ class WelcomeController extends Controller
                     $query->where('role', AdvisorType::Primary->value)
                         ->where('status', 'active')
                         ->whereHas('project', function ($projectQuery): void {
-                            $projectQuery->where('state', 'active');
+                            $projectQuery->current()->where('state', 'active');
                         });
                 },
                 'thesisSupervisorAssignments as secondary_advisee_count' => function ($query): void {
                     $query->where('role', AdvisorType::Secondary->value)
                         ->where('status', 'active')
                         ->whereHas('project', function ($projectQuery): void {
-                            $projectQuery->where('state', 'active');
+                            $projectQuery->current()->where('state', 'active');
                         });
                 },
             ])
@@ -380,7 +380,7 @@ class WelcomeController extends Controller
             ])
             ->where('status', 'active')
             ->whereHas('project', function ($query): void {
-                $query->where('state', 'active');
+                $query->current()->where('state', 'active');
             })
             ->whereHas('lecturer.dosenProfile', function ($query): void {
                 $query->where('is_active', true);
@@ -593,7 +593,7 @@ class WelcomeController extends Controller
             ->with([
                 'mahasiswaProfile.programStudi',
                 'thesisProjects' => function ($query): void {
-                    $query->orderByDesc('started_at')
+                    $query->current()->orderByDesc('started_at')
                         ->orderByDesc('id');
                 },
                 'thesisProjects.activeSupervisorAssignments.lecturer',
@@ -815,6 +815,7 @@ class WelcomeController extends Controller
     private function upcomingScheduleQuery(string $search = ''): Builder
     {
         return ThesisDefense::query()
+            ->whereHas('project', fn($query) => $query->current())
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.programStudi',
@@ -834,6 +835,7 @@ class WelcomeController extends Controller
         $now = $referenceTime ?? now();
 
         return ThesisDefense::query()
+            ->whereHas('project', fn($query) => $query->current())
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.programStudi',

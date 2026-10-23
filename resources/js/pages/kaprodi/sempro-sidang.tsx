@@ -397,7 +397,7 @@ export default function KaprodiSemproSidangPage() {
                     title="Monitoring Ujian"
                     summary={`${filtered.length} ujian`}
                 >
-                    <StickyFilterBar className="space-y-3 rounded-none border-0 p-0 py-3 shadow-none max-md:static">
+                    <StickyFilterBar>
                         <DataToolbar
                             search={search}
                             onSearchChange={setSearch}

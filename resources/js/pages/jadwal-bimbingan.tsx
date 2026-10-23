@@ -24,6 +24,7 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -962,18 +963,20 @@ export default function JadwalBimbinganPage() {
                             title="Riwayat Bimbingan"
                             summary={`${filteredHistory.length} riwayat selesai atau ditutup`}
                         >
-                            <DataToolbar
-                                search={historySearch}
-                                onSearchChange={setHistorySearch}
-                                placeholder="Cari topik, dosen, atau lokasi..."
-                            />
-                            <FilterPills
-                                label="Filter status riwayat"
-                                value={historyStatusFilter}
-                                onValueChange={setHistoryStatusFilter}
-                                options={historyFilterOptions}
-                                itemClassName="max-md:h-11 max-md:px-4"
-                            />
+                            <StickyFilterBar>
+                                <DataToolbar
+                                    search={historySearch}
+                                    onSearchChange={setHistorySearch}
+                                    placeholder="Cari topik, dosen, atau lokasi..."
+                                />
+                                <FilterPills
+                                    label="Filter status riwayat"
+                                    value={historyStatusFilter}
+                                    onValueChange={setHistoryStatusFilter}
+                                    options={historyFilterOptions}
+                                    itemClassName="max-md:h-11 max-md:px-4"
+                                />
+                            </StickyFilterBar>
 
                             {historyPagination.totalItems > 0 ? (
                                 <DataTableContainer

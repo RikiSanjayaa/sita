@@ -2,13 +2,14 @@ import { router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 import {
-    DataSection,
     DataToolbar,
     dataTh,
     stackedTable,
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
+import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -102,6 +103,8 @@ function ScheduleTable({
     onPageChange,
     onPageSizeChange,
     title,
+    search,
+    onSearchChange,
 }: {
     emptyMessage: string;
     items: ScheduleItem[];
@@ -112,36 +115,53 @@ function ScheduleTable({
     onPageChange: (page: number) => void;
     onPageSizeChange: (pageSize: number) => void;
     title: string;
+    search: string;
+    onSearchChange: (value: string) => void;
 }) {
     return (
-        <DataSection title={title}>
-            {typeCounts.semua > 0 ? (
-                <FilterPills
-                    label={`Jenis ujian, ${title.toLowerCase()}`}
-                    value={typeFilter || 'semua'}
-                    onValueChange={(value) =>
-                        onTypeChange(value === 'semua' ? '' : value)
-                    }
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={[
-                        {
-                            label: 'Semua',
-                            value: 'semua',
-                            count: typeCounts.semua,
-                        },
-                        {
-                            label: n.proposalExamShort,
-                            value: 'sempro',
-                            count: typeCounts.sempro,
-                        },
-                        {
-                            label: n.finalExam,
-                            value: 'sidang',
-                            count: typeCounts.sidang,
-                        },
-                    ]}
-                />
-            ) : null}
+        <section aria-label={title} className="space-y-4">
+            <StickyFilterBar layout="public">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+                    <PageHeader title={title} level={2} className="shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={onSearchChange}
+                            placeholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
+                        >
+                            {typeCounts.semua > 0 ? (
+                                <FilterPills
+                                    label={`Jenis ujian, ${title.toLowerCase()}`}
+                                    value={typeFilter || 'semua'}
+                                    onValueChange={(value) =>
+                                        onTypeChange(
+                                            value === 'semua' ? '' : value,
+                                        )
+                                    }
+                                    itemClassName="max-md:h-11 max-md:px-4"
+                                    options={[
+                                        {
+                                            label: 'Semua',
+                                            value: 'semua',
+                                            count: typeCounts.semua,
+                                        },
+                                        {
+                                            label: n.proposalExamShort,
+                                            value: 'sempro',
+                                            count: typeCounts.sempro,
+                                        },
+                                        {
+                                            label: n.finalExam,
+                                            value: 'sidang',
+                                            count: typeCounts.sidang,
+                                        },
+                                    ]}
+                                />
+                            ) : null}
+                        </DataToolbar>
+                    </div>
+                </div>
+            </StickyFilterBar>
 
             {items.length > 0 ? (
                 <DataTableContainer
@@ -233,7 +253,7 @@ function ScheduleTable({
                     description={emptyMessage}
                 />
             )}
-        </DataSection>
+        </section>
     );
 }
 
@@ -337,13 +357,10 @@ function PublicSchedulesContent({
             description="Agenda publik yang akan datang, serta seminar terbaru yang masih memerlukan tindak lanjut seperti revisi atau pelengkapan nilai."
         >
             <div className="space-y-8">
-                <DataToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    placeholder="Cari mahasiswa, NIM, prodi, atau lokasi..."
-                />
                 <ScheduleTable
                     title="Jadwal Akan Datang"
+                    search={search}
+                    onSearchChange={setSearch}
                     items={upcomingSchedules}
                     pagination={upcomingPagination}
                     emptyMessage={
@@ -363,6 +380,8 @@ function PublicSchedulesContent({
                 />
                 <ScheduleTable
                     title="Tindak Lanjut Terbaru"
+                    search={search}
+                    onSearchChange={setSearch}
                     items={followUpSchedules}
                     pagination={followUpPagination}
                     emptyMessage={

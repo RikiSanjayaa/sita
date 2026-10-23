@@ -96,7 +96,7 @@ class KaprodiPortalService
     public function exams(ProgramStudi $programStudi): array
     {
         $defenses = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
@@ -255,7 +255,7 @@ class KaprodiPortalService
             ->values();
 
         $thesisDocuments = ThesisDocument::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->with(['project.student', 'defense'])
             ->latest('uploaded_at')
             ->get()
@@ -316,6 +316,7 @@ class KaprodiPortalService
         abort_unless($profile !== null && (int) $profile->program_studi_id === (int) $programStudi->id, 404);
 
         $projects = ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->where('student_user_id', $student->id)
             ->with([
@@ -373,7 +374,7 @@ class KaprodiPortalService
     private function defenseProgress(ProgramStudi $programStudi): Collection
     {
         $rows = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->get()
             ->groupBy(fn(ThesisDefense $defense): string => $defense->type.'|'.$defense->status);
 
@@ -437,7 +438,7 @@ class KaprodiPortalService
     private function deadlines(ProgramStudi $programStudi, int $limit = 8): array
     {
         $defenseDeadlines = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '>=', now()->subDay())
             ->with('project.student')
@@ -453,7 +454,7 @@ class KaprodiPortalService
             ]);
 
         $revisionDeadlines = ThesisRevision::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('due_at')
             ->whereNull('resolved_at')
             ->with('project.student')
@@ -908,6 +909,7 @@ class KaprodiPortalService
     private function schedulableProjects(ProgramStudi $programStudi): Collection
     {
         return ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->where('state', 'active')
             ->with([
@@ -1010,6 +1012,7 @@ class KaprodiPortalService
     private function projects(ProgramStudi $programStudi): EloquentCollection
     {
         return ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
             ->with([
                 'student.mahasiswaProfile',
@@ -1084,12 +1087,12 @@ class KaprodiPortalService
     {
         $terms = AcademicTerminology::neutral();
         $unfinalizedDefenses = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->where('status', 'awaiting_finalization')
             ->count();
 
         $openRevisions = ThesisRevision::query()
-            ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNull('resolved_at')
             ->count();
 
@@ -1148,8 +1151,9 @@ class KaprodiPortalService
     private function archiveRows(ProgramStudi $programStudi, ?int $limit): Collection
     {
         $query = ThesisProject::query()
+            ->current()
             ->where('program_studi_id', $programStudi->id)
-            ->whereIn('state', ['completed', 'cancelled'])
+            ->where('state', 'completed')
             ->with([
                 'student.mahasiswaProfile',
                 'latestTitle',
@@ -1206,12 +1210,12 @@ class KaprodiPortalService
 
                 $supervisorAssignments = ThesisSupervisorAssignment::query()
                     ->where('lecturer_user_id', $lecturer->id)
-                    ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+                    ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
                     ->with('project.student')
                     ->get();
 
                 $examinerDefenses = ThesisDefense::query()
-                    ->whereHas('project', fn($query) => $query->where('program_studi_id', $programStudi->id))
+                    ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
                     ->whereHas('examiners', fn($query) => $query->where('lecturer_user_id', $lecturer->id))
                     ->with('project.student')
                     ->get();
@@ -1254,8 +1258,9 @@ class KaprodiPortalService
     {
         return ThesisDocument::query()
             ->whereHas('project', fn($query) => $query
+                ->current()
                 ->where('program_studi_id', $programStudi->id)
-                ->whereIn('state', ['completed', 'cancelled']))
+                ->where('state', 'completed'))
             ->with('project.student')
             ->latest('uploaded_at')
             ->limit(12)
