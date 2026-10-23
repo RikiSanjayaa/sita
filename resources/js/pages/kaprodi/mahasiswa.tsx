@@ -29,6 +29,10 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
+    StudentProgressPeek,
+    type StudentProgress,
+} from '@/components/profile/student-progress-peek';
+import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
@@ -101,6 +105,7 @@ type StudentRow = {
     phaseKey: string;
     projectState: string;
     projectStateKey: string;
+    mentorshipTicket: { suspended: boolean; validUntil: string | null } | null;
     title: string;
     advisors: string[];
     supervisorAssignments: {
@@ -119,6 +124,7 @@ type StudentRow = {
         daysIdle: number | null;
         signals: string[];
     };
+    progress: StudentProgress | null;
     profileUrl: string;
 };
 
@@ -157,8 +163,10 @@ type DirectoryRow = {
     title: string;
     advisors: string[];
     progressRisk: StudentRow['progressRisk'] | null;
+    progress: StudentProgress | null;
     profileUrl: string;
     completedAt: string | null;
+    mentorshipTicket: StudentRow['mentorshipTicket'];
     activeStudent: StudentRow | null;
 };
 
@@ -318,8 +326,10 @@ function StudentTable({
                 title: row.title,
                 advisors: row.advisors,
                 progressRisk: row.progressRisk,
+                progress: row.progress,
                 profileUrl: row.profileUrl,
                 completedAt: null,
+                mentorshipTicket: row.mentorshipTicket,
                 activeStudent: row,
             }),
         );
@@ -344,8 +354,10 @@ function StudentTable({
                 title: row.title,
                 advisors: [],
                 progressRisk: null,
+                progress: null,
                 profileUrl: row.profileUrl,
                 completedAt: row.completedAt,
+                mentorshipTicket: null,
                 activeStudent: null,
             };
         });
@@ -626,7 +638,11 @@ function StudentTable({
                                         data-label="Tahap"
                                         className={stackedTable.td}
                                     >
-                                        {row.phase ? (
+                                        {row.progress ? (
+                                            <StudentProgressPeek
+                                                progress={row.progress}
+                                            />
+                                        ) : row.phase ? (
                                             <StatusBadge
                                                 domain="phase"
                                                 status={row.phaseKey}
@@ -638,6 +654,15 @@ function StudentTable({
                                                 -
                                             </span>
                                         )}
+                                        {row.mentorshipTicket?.suspended ? (
+                                            <StatusBadge
+                                                domain="ticket"
+                                                status="overdue"
+                                                className="mt-1"
+                                            >
+                                                Tiket habis
+                                            </StatusBadge>
+                                        ) : null}
                                         {row.completedAt ? (
                                             <p className="mt-1 text-xs text-muted-foreground">
                                                 {row.completedAt}
@@ -793,6 +818,15 @@ function StudentTable({
                         <SheetDescription>
                             {notesRow?.name} ({notesRow?.nim})
                         </SheetDescription>
+                        {notesRow?.mentorshipTicket?.suspended ? (
+                            <StatusBadge
+                                domain="ticket"
+                                status="overdue"
+                                className="mt-2"
+                            >
+                                Tiket habis
+                            </StatusBadge>
+                        ) : null}
                     </SheetHeader>
                     <div className="p-6">
                         <ThesisNotesPanel

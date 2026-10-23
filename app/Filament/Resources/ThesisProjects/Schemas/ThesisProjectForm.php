@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ThesisProjects\Schemas;
 
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
 use App\Support\AcademicTerminology;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -107,6 +108,12 @@ class ThesisProjectForm
                             ->required(fn(Get $get): bool => $get('state') === 'cancelled')
                             ->native(false)
                             ->seconds(false),
+                        DatePicker::make('mentorship_valid_from')
+                            ->label('Tiket Bimbingan Berlaku Mulai')
+                            ->native(false),
+                        DatePicker::make('mentorship_valid_until')
+                            ->label('Tiket Bimbingan Berlaku Sampai')
+                            ->native(false),
                         Textarea::make('notes')
                             ->label('Catatan Admin')
                             ->rows(4)

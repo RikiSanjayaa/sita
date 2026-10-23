@@ -11,6 +11,8 @@ use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
 use App\Support\WitaDateTime;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\ToggleButtons;
@@ -23,6 +25,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class ThesisProjectsTable
@@ -108,6 +111,12 @@ class ThesisProjectsTable
                     ->label('Agenda Terdekat')
                     ->state(fn(ThesisProject $record): string => self::formatNextAgenda($record))
                     ->toggleable(),
+                TextColumn::make('mentorship_ticket')
+                    ->label('Tiket bimbingan')
+                    ->badge()
+                    ->state(fn(ThesisProject $record): string => self::mentorshipTicketLabel($record))
+                    ->color(fn(ThesisProject $record): string => $record->isMentorshipSuspended() ? 'danger' : 'success')
+                    ->toggleable(),
                 TextColumn::make('started_at')
                     ->label('Mulai')
                     ->dateTime('d M Y')
@@ -176,6 +185,22 @@ class ThesisProjectsTable
                         ->whereHas('defenses', fn(Builder $defenseQuery): Builder => $defenseQuery
                             ->where('status', 'scheduled')
                             ->whereNotNull('scheduled_for'))),
+                SelectFilter::make('mentorship_ticket')
+                    ->label('Tiket bimbingan')
+                    ->options([
+                        'expired' => 'Tiket habis',
+                        'unset' => 'Belum diatur',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'expired' => $query
+                                ->where('state', 'active')
+                                ->whereNotNull('mentorship_valid_until')
+                                ->whereDate('mentorship_valid_until', '<', now(WitaDateTime::TIMEZONE)->toDateString()),
+                            'unset' => $query->whereNull('mentorship_valid_until'),
+                            default => $query,
+                        };
+                    }),
             ])
             ->filtersFormColumns(2)
             ->filtersFormWidth(Width::FiveExtraLarge)
@@ -186,6 +211,28 @@ class ThesisProjectsTable
             ->filtersResetActionPosition(FiltersResetActionPosition::Footer)
             ->columnManagerColumns(2)
             ->columnManagerResetActionPosition(ColumnManagerResetActionPosition::Footer)
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('renew_mentorship_tickets')
+                        ->label('Perpanjang tiket 1 tahun')
+                        ->icon('heroicon-m-arrow-path')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records): void {
+                            $userId = Auth::id();
+
+                            if ($userId === null) {
+                                return;
+                            }
+
+                            $count = app(ThesisProjectAdminService::class)->renewMentorshipTickets($records, $userId);
+
+                            Notification::make()
+                                ->title($count.' tiket bimbingan diperpanjang 1 tahun')
+                                ->success()
+                                ->send();
+                        }),
+                ]),
+            ])
             ->recordActions([
                 Action::make('approve_title')
                     ->label('Setujui')
@@ -270,6 +317,19 @@ class ThesisProjectsTable
                     ->url(fn(ThesisProject $record): string => \App\Filament\Resources\ThesisProjects\ThesisProjectResource::getUrl('edit', ['record' => $record])),
                 ViewAction::make(),
             ]);
+    }
+
+    public static function mentorshipTicketLabel(ThesisProject $record): string
+    {
+        if ($record->isMentorshipSuspended()) {
+            return 'Tiket habis';
+        }
+
+        if ($record->mentorship_valid_until === null) {
+            return 'Belum diatur';
+        }
+
+        return 'Berlaku s.d. '.WitaDateTime::format($record->mentorship_valid_until, 'd M Y', false);
     }
 
     public static function phaseLabel(string $phase): string

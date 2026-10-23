@@ -70,6 +70,14 @@ class ThesisProjectInfolist
                             ->label('Selesai')
                             ->dateTime('d M Y H:i')
                             ->placeholder('-'),
+                        TextEntry::make('mentorship_valid_from')
+                            ->label('Tiket Bimbingan Mulai')
+                            ->date('d M Y')
+                            ->placeholder('-'),
+                        TextEntry::make('mentorship_valid_until')
+                            ->label('Tiket Bimbingan Berlaku Sampai')
+                            ->date('d M Y')
+                            ->placeholder('-'),
                         TextEntry::make('notes')
                             ->label('Catatan Admin')
                             ->placeholder('-')

@@ -33,24 +33,26 @@ class ThesisProjectNoteService
         $internalIds = [];
         $studentIds = [];
         $result = [];
+        $projectList = collect($projects)->unique('id')->values();
+        $writerIds = $this->policy->noteWriterProjectIds(
+            $viewer,
+            $projectList->map(fn (ThesisProject $project): int => (int) $project->id)->all(),
+        );
 
-        foreach ($projects as $project) {
-            if (isset($result[$project->id])) {
-                continue;
-            }
-
-            $isInternalReader = $this->policy->canReadInternal($viewer, $project);
+        foreach ($projectList as $project) {
+            $isNoteWriter = isset($writerIds[(int) $project->id]);
+            $isInternalReader = $this->policy->canReadInternal($viewer, $project, $isNoteWriter);
 
             if ($isInternalReader) {
                 $internalIds[] = $project->id;
-            } elseif ($this->policy->canReadStudentVisible($viewer, $project)) {
+            } elseif ($this->policy->canReadStudentVisible($viewer, $project, $isNoteWriter)) {
                 $studentIds[] = $project->id;
             } else {
                 continue;
             }
 
             $result[$project->id] = [
-                'canWrite' => $allowWrite && $this->policy->isNoteWriter($viewer, $project),
+                'canWrite' => $allowWrite && $isNoteWriter,
                 'notes' => [],
             ];
         }

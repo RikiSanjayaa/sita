@@ -23,6 +23,10 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
+    type StudentProgress,
+    StudentProgressPeek,
+} from '@/components/profile/student-progress-peek';
+import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
@@ -86,6 +90,7 @@ type MahasiswaRow = {
     lastUpdate: string;
     chatUrl: string | null;
     whatsappUrl: string | null;
+    progress: StudentProgress | null;
 };
 
 type MahasiswaBimbinganProps = {
@@ -322,6 +327,12 @@ function StudentTable({
                                             <p className="text-xs text-pretty text-muted-foreground">
                                                 {row.stageDescription}
                                             </p>
+                                            {row.progress ? (
+                                                <StudentProgressPeek
+                                                    progress={row.progress}
+                                                    className="mt-1"
+                                                />
+                                            ) : null}
                                         </div>
                                     </td>
 

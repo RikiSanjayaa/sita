@@ -25,7 +25,8 @@ export type PlaywrightAccountKey =
     | 'laras'
     | 'raka'
     | 'sinta'
-    | 'wulan';
+    | 'wulan'
+    | 'tiket-habis';
 
 type PlaywrightAccount = {
     email: string;
@@ -152,6 +153,12 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
+    'tiket-habis': {
+        email: 'e2e-tiket-habis@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
     laras: {
         email: 'e2e-jadwalsempro@sita.test',
         password: 'password',
@@ -248,6 +255,12 @@ export const thesisScenarios = {
             'Klasifikasi Citra Daun Padi Menggunakan Jaringan Konvolusi',
         examinerKeys: ['dosen3', 'dosen4'] as const,
         location: 'Ruang Seminar E2E',
+    },
+    expiredTicket: {
+        studentKey: 'tiket-habis' as const,
+        studentName: 'Tiara Tiket Habis',
+        currentTitle: 'Pengaruh Pembelajaran Adaptif Terhadap Motivasi Belajar',
+        supervisorKeys: ['dosen1'] as const,
     },
     sinopsisObe: {
         studentKey: 'wulan' as const,

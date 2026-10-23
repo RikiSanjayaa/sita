@@ -7,6 +7,7 @@ use App\Http\Controllers\File\ThesisDocumentDownloadController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\ProfileShowController;
 use App\Http\Controllers\RoleSwitchController;
+use App\Http\Controllers\StudentProgressController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('portal', PortalController::class)->name('portal');
     Route::post('role/switch', RoleSwitchController::class)->name('role.switch');
     Route::get('profil/{user}', ProfileShowController::class)->name('users.profile.show');
+    Route::get('progres-mahasiswa', StudentProgressController::class)->name('progres-mahasiswa');
     Route::get('files/documents/{document}/download', DocumentDownloadController::class)->name('files.documents.download');
     Route::get('files/chat-attachments/{message}/download', ChatAttachmentDownloadController::class)->name('files.chat-attachments.download');
     Route::get('files/chat-attachments/{message}/preview', [ChatAttachmentDownloadController::class, 'preview'])->name('files.chat-attachments.preview');

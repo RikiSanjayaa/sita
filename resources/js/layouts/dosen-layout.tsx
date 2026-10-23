@@ -17,12 +17,7 @@ export default function DosenLayout({
     subtitle,
 }: DosenLayoutProps) {
     return (
-        <AppLayout
-            role="dosen"
-            breadcrumbs={breadcrumbs}
-            title={title}
-            subtitle={subtitle}
-        >
+        <AppLayout breadcrumbs={breadcrumbs} title={title} subtitle={subtitle}>
             {children}
         </AppLayout>
     );

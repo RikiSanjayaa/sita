@@ -2,6 +2,10 @@ import { Link } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 
 import { StatusBadge } from '@/components/patterns/status-badge';
+import {
+    StudentProgressPeek,
+    type StudentProgress,
+} from '@/components/profile/student-progress-peek';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
@@ -12,6 +16,8 @@ type PersonCardLinkProps = {
     label?: string;
     /** Supervision count with the viewing lecturer. Omit or null when no supervision applies. */
     mentorshipCount?: number | null;
+    /** Student progress peek (tahap, bimbingan, activity). Replaces the phase badge and count line when set. */
+    progress?: StudentProgress | null;
     /**
      * `card` is a bordered box (default). `row` is a borderless full-width row
      * for divided lists inside a section that already has a border.
@@ -24,6 +30,7 @@ export function PersonCardLink({
     person,
     label,
     mentorshipCount,
+    progress,
     variant = 'card',
     className,
 }: PersonCardLinkProps) {
@@ -84,7 +91,8 @@ export function PersonCardLink({
                     </div>
                 </div>
 
-                {(hasPhase || hasCount) && (
+                {progress && <StudentProgressPeek progress={progress} />}
+                {!progress && (hasPhase || hasCount) && (
                     <div className="flex min-w-0 items-center justify-between gap-2">
                         {hasPhase ? (
                             <StatusBadge domain="phase" status={person.phase}>

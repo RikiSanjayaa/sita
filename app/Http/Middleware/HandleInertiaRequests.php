@@ -5,7 +5,9 @@ namespace App\Http\Middleware;
 use App\Enums\AppRole;
 use App\Models\KaprodiAssignment;
 use App\Models\User;
+use App\Services\MentorshipTicketService;
 use App\Support\AcademicTerminology;
+use App\Support\WitaDateTime;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -107,6 +109,33 @@ class HandleInertiaRequests extends Middleware
                 ? AcademicTerminology::forStudent($user)
                 : AcademicTerminology::neutral(),
             'phonePrompt' => $this->phonePrompt($user, $activeRole),
+            'mentorshipTicket' => $this->mentorshipTicket($user, $activeRole),
+        ];
+    }
+
+    /**
+     * Shares the active mahasiswa's bimbingan ticket status with the app shell.
+     *
+     * @return array{suspended: bool, validUntil: string, message: ?string}|null
+     */
+    private function mentorshipTicket(?User $user, ?string $activeRole): ?array
+    {
+        if ($user === null || $activeRole !== AppRole::Mahasiswa->value) {
+            return null;
+        }
+
+        $project = app(MentorshipTicketService::class)->activeProjectForStudent($user->id);
+
+        if ($project === null || $project->mentorship_valid_until === null) {
+            return null;
+        }
+
+        $suspended = $project->isMentorshipSuspended();
+
+        return [
+            'suspended' => $suspended,
+            'validUntil' => WitaDateTime::format($project->mentorship_valid_until, 'd M Y', false),
+            'message' => $suspended ? MentorshipTicketService::suspensionMessage($project) : null,
         ];
     }
 

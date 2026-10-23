@@ -13,9 +13,11 @@ use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\MentorshipProgressService;
 use App\Services\StudentActivityService;
+use App\Services\StudentProgressSnapshot;
 use App\Services\ThesisProjectNoteService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,6 +30,7 @@ class MahasiswaBimbinganController extends Controller
         private readonly ThesisProjectNoteService $noteService,
         private readonly MentorshipProgressService $mentorshipProgressService,
         private readonly StudentActivityService $studentActivityService,
+        private readonly StudentProgressSnapshot $studentProgressSnapshot,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -71,12 +74,33 @@ class MahasiswaBimbinganController extends Controller
         $examThreadIdsByStudentAndType = $this->examThreadIdsByStudentAndType($studentIds->all());
 
         $completedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $assignments);
-        $latestActivity = $this->studentActivityService->latest($assignments, $activeExaminerRecords);
-        $rows = collect($assignments->map(function ($assignment) use ($latestActivity, $threadIdsByStudent, $completedByStudent): array {
-            return $this->buildRow($assignment, $latestActivity, $threadIdsByStudent, $completedByStudent);
+        $archivedAssignments = $this->dosenBimbinganService->archivedAssignmentsWithStudent($lecturer);
+        $projects = $assignments->pluck('project')
+            ->merge($archivedAssignments->pluck('project'))
+            ->merge($examinerRecords->pluck('defense.project'))
+            ->filter()
+            ->values();
+        $uniqueProjects = new EloquentCollection($projects->unique('id')->values()->all());
+        // One last-activity rule everywhere: the snapshot's value is what the active rows show.
+        $lastActivityByProject = $this->studentProgressSnapshot->lastActivity($uniqueProjects, $lecturer);
+        $progressByProject = $this->studentProgressSnapshot->forProjects($uniqueProjects, $lecturer, lastActivity: $lastActivityByProject);
+        $latestActivity = $this->activityByRelation($assignments, $activeExaminerRecords, $lastActivityByProject);
+
+        // Row building calls UserProfilePresenter::summary() per student; preload what it needs once.
+        (new EloquentCollection($projects->pluck('student')->filter()->all()))->loadMissing([
+            'roles',
+            'adminProfile.programStudi',
+            'dosenProfile.programStudi',
+            'expertiseFields',
+            'activeDosenProgramStudiAssignments.programStudi',
+            'kaprodiAssignment.programStudi',
+            'mahasiswaProfile.programStudi',
+        ]);
+        $rows = collect($assignments->map(function ($assignment) use ($latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject): array {
+            return $this->buildRow($assignment, $latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject);
         }))
-            ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestActivity): array {
-                return $this->buildExaminerRow($examiner, $latestActivity, $examThreadIdsByStudentAndType);
+            ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestActivity, $progressByProject): array {
+                return $this->buildExaminerRow($examiner, $latestActivity, $examThreadIdsByStudentAndType, $progressByProject);
             }))
             ->sortBy([
                 ['name', 'asc'],
@@ -87,7 +111,6 @@ class MahasiswaBimbinganController extends Controller
             ->all();
 
         // Archived / history rows
-        $archivedAssignments = $this->dosenBimbinganService->archivedAssignmentsWithStudent($lecturer);
         $archivedStudentIds = $archivedAssignments
             ->pluck('project.student_user_id')
             ->merge($historyExaminerRecords->pluck('defense.project.student_user_id'))
@@ -104,12 +127,13 @@ class MahasiswaBimbinganController extends Controller
 
         $archivedCompletedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $archivedAssignments);
 
+        // History rows stay within the window in which this lecturer was related to the student.
         $archivedLatestActivity = $this->studentActivityService->latest($archivedAssignments, $historyExaminerRecords);
-        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestActivity, $archivedThreadIds, $archivedCompletedByStudent): array {
-            return $this->buildRow($assignment, $archivedLatestActivity, $archivedThreadIds, $archivedCompletedByStudent);
+        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestActivity, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject): array {
+            return $this->buildRow($assignment, $archivedLatestActivity, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject);
         }))
-            ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestActivity): array {
-                return $this->buildExaminerRow($examiner, $archivedLatestActivity, $archivedExamThreadIdsByStudentAndType);
+            ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestActivity, $progressByProject): array {
+                return $this->buildExaminerRow($examiner, $archivedLatestActivity, $archivedExamThreadIdsByStudentAndType, $progressByProject);
             }))
             ->sortBy([
                 ['name', 'asc'],
@@ -139,6 +163,7 @@ class MahasiswaBimbinganController extends Controller
      * @param  array<string, \Illuminate\Support\Carbon>  $latestActivity
      * @param  \Illuminate\Support\Collection<string,mixed>  $threadIdsByStudent
      * @param  array<int,int>  $completedByStudent
+     * @param  array<int, array<string, mixed>>  $progressByProject
      * @return array<string,mixed>
      */
     private function buildRow(
@@ -146,6 +171,7 @@ class MahasiswaBimbinganController extends Controller
         array $latestActivity,
         mixed $threadIdsByStudent,
         array $completedByStudent,
+        array $progressByProject,
     ): array {
         $student = $assignment->project?->student;
         $profile = $student?->mahasiswaProfile;
@@ -187,18 +213,21 @@ class MahasiswaBimbinganController extends Controller
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
+            'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
         ];
     }
 
     /**
      * @param  array<string, \Illuminate\Support\Carbon>  $latestActivity
      * @param  array<string, int>  $threadIdsByStudentAndType
+     * @param  array<int, array<string, mixed>>  $progressByProject
      * @return array<string,mixed>
      */
     private function buildExaminerRow(
         ThesisDefenseExaminer $examiner,
         array $latestActivity,
         array $threadIdsByStudentAndType,
+        array $progressByProject,
     ): array {
         $defense = $examiner->defense;
         $project = $defense?->project;
@@ -248,7 +277,35 @@ class MahasiswaBimbinganController extends Controller
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
+            'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
         ];
+    }
+
+    /**
+     * Keys active rows the way StudentActivityService::latest() keys relations, with
+     * the project-level value that the progress snapshot shows.
+     *
+     * @param  EloquentCollection<int, ThesisSupervisorAssignment>  $assignments
+     * @param  \Illuminate\Support\Collection<int, ThesisDefenseExaminer>  $examiners
+     * @param  array<int, \Carbon\CarbonInterface>  $lastActivityByProject
+     * @return array<string, \Carbon\CarbonInterface>
+     */
+    private function activityByRelation(EloquentCollection $assignments, \Illuminate\Support\Collection $examiners, array $lastActivityByProject): array
+    {
+        $latest = [];
+        foreach ($assignments as $assignment) {
+            if (isset($lastActivityByProject[(int) $assignment->project_id])) {
+                $latest['supervisor:'.$assignment->id] = $lastActivityByProject[(int) $assignment->project_id];
+            }
+        }
+        foreach ($examiners as $examiner) {
+            $projectId = (int) $examiner->defense?->project_id;
+            if (isset($lastActivityByProject[$projectId])) {
+                $latest['examiner:'.$examiner->id] = $lastActivityByProject[$projectId];
+            }
+        }
+
+        return $latest;
     }
 
     private function isActiveExaminerRecord(ThesisDefenseExaminer $examiner): bool

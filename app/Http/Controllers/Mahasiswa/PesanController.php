@@ -14,6 +14,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\MentorshipTicketService;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\UserProfilePresenter;
@@ -157,7 +158,7 @@ class PesanController extends Controller
         ]);
     }
 
-    public function storePrivateThread(Request $request): RedirectResponse
+    public function storePrivateThread(Request $request, MentorshipTicketService $tickets): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -166,13 +167,19 @@ class PesanController extends Controller
             'recipient_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
+        $suspension = $tickets->suspensionMessageForStudent($student->id);
+
+        if ($suspension !== null) {
+            return back()->withErrors(['ticket' => $suspension]);
+        }
+
         $recipient = User::query()->findOrFail($data['recipient_id']);
         $thread = $this->privateChatService->findOrCreateThread($student, $recipient);
 
         return redirect()->route('mahasiswa.pesan', ['thread' => $thread->id]);
     }
 
-    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): RedirectResponse
+    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread, MentorshipTicketService $tickets): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -185,6 +192,12 @@ class PesanController extends Controller
                 ->exists()
             : $thread->student_user_id === $student->id;
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
+
+        $suspension = $tickets->suspensionMessageForStudent($student->id);
+
+        if ($suspension !== null) {
+            return back()->withErrors(['ticket' => $suspension]);
+        }
 
         $data = $request->validated();
 
