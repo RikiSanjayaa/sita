@@ -258,6 +258,12 @@ test('dosen pages only show data from assigned mahasiswa', function () {
                 ->has('mahasiswaRows', 1)
                 ->where('mahasiswaRows.0.name', $assignedStudent->name)
                 ->where('mahasiswaRows.0.otherAdvisors.0', 'Pembimbing 2: '.$coAdvisor->name)
+                ->has('mahasiswaRows.0', fn (Assert $row) => $row
+                    ->has('mentorshipCompleted')
+                    ->has('phase')
+                    ->missing('mentorshipProgress')
+                    ->etc()
+                )
         );
 });
 

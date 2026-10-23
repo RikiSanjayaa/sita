@@ -6,16 +6,14 @@ import {
     MessageCircle,
     MessageSquareText,
     MessagesSquare,
+    MoreHorizontal,
     NotebookPen,
     Search,
     UserRound,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import {
-    MentorshipProgressList,
-    type MentorshipProgressRow,
-} from '@/components/mentorship-progress';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import {
     type ProjectNotes,
     ThesisNotesPanel,
@@ -72,9 +70,10 @@ type MahasiswaRow = {
     contextLabel: string;
     contextDescription: string;
     otherAdvisors: string[];
-    mentorshipProgress: MentorshipProgressRow[];
+    mentorshipCompleted: number | null;
     stageLabel: string;
     stageDescription: string;
+    phase: string | null;
     status: string;
     lastUpdate: string;
     chatUrl: string | null;
@@ -108,7 +107,7 @@ function RelationBadge({ row }: { row: MahasiswaRow }) {
             className={cn(
                 'rounded-full text-xs',
                 row.relationType === 'penguji' &&
-                    'border-amber-200 bg-amber-50 text-amber-700',
+                    'border-transparent bg-warning-muted text-warning-muted-foreground',
             )}
         >
             {row.roleLabel}
@@ -230,23 +229,26 @@ function StudentTable({
                         />
                     }
                 >
-                    <table className="w-full text-sm">
+                    <table className="w-full table-fixed text-sm">
                         <thead>
                             <tr className="border-b bg-muted/30">
-                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:w-[23%]">
                                     Mahasiswa
                                 </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell md:w-[13%]">
                                     Peran
                                 </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell lg:w-[24%]">
                                     Tahap
                                 </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell md:w-[11%]">
+                                    Bimbingan
+                                </th>
+                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell xl:w-[13%]">
                                     Aktivitas Terbaru
                                 </th>
                                 {showActions && (
-                                    <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
+                                    <th className="w-36 px-4 py-2.5 text-right text-xs font-medium text-muted-foreground md:w-[16%]">
                                         Aksi
                                     </th>
                                 )}
@@ -311,18 +313,33 @@ function StudentTable({
                                     </td>
 
                                     <td className="hidden px-4 py-3 lg:table-cell">
-                                        <p className="text-xs font-medium">
-                                            {row.relationType === 'penguji'
-                                                ? row.contextDescription
-                                                : row.stageLabel}
-                                        </p>
-                                        <p className="mt-0.5 max-w-[220px] truncate text-xs text-muted-foreground">
-                                            {row.stageDescription}
-                                        </p>
-                                        <MentorshipProgressList
-                                            progress={row.mentorshipProgress}
-                                            className="mt-2 max-w-[260px] text-xs"
-                                        />
+                                        <div className="flex min-w-0 flex-col items-start gap-1">
+                                            <StatusBadge
+                                                domain="phase"
+                                                status={row.phase}
+                                                className="max-w-full truncate"
+                                            >
+                                                {row.relationType === 'penguji'
+                                                    ? row.contextDescription
+                                                    : row.stageLabel}
+                                            </StatusBadge>
+                                            <p
+                                                className="w-full truncate text-xs text-muted-foreground"
+                                                title={row.stageDescription}
+                                            >
+                                                {row.stageDescription}
+                                            </p>
+                                        </div>
+                                    </td>
+
+                                    <td className="hidden px-4 py-3 text-sm tabular-nums md:table-cell">
+                                        {row.mentorshipCompleted === null ? (
+                                            <span className="text-muted-foreground">
+                                                -
+                                            </span>
+                                        ) : (
+                                            `${row.mentorshipCompleted} bimbingan`
+                                        )}
                                     </td>
 
                                     <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
@@ -330,72 +347,8 @@ function StudentTable({
                                     </td>
 
                                     {showActions && (
-                                        <td className="px-4 py-3">
+                                        <td className="px-3 py-3">
                                             <div className="flex items-center justify-end gap-1.5">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-7 px-2.5 text-xs"
-                                                    disabled={
-                                                        row.projectId === null
-                                                    }
-                                                    onClick={() =>
-                                                        setNotesRow(row)
-                                                    }
-                                                >
-                                                    <NotebookPen className="size-3.5" />
-                                                    Catatan
-                                                    {row.projectId !== null &&
-                                                        (projectNotes[
-                                                            row.projectId
-                                                        ]?.notes.length ?? 0) >
-                                                            0 && (
-                                                            <span className="tabular-nums">
-                                                                (
-                                                                {
-                                                                    projectNotes[
-                                                                        row
-                                                                            .projectId
-                                                                    ].notes
-                                                                        .length
-                                                                }
-                                                                )
-                                                            </span>
-                                                        )}
-                                                </Button>
-                                                <Button
-                                                    asChild
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-7 px-2.5 text-xs"
-                                                >
-                                                    <Link
-                                                        href={searchUrl(
-                                                            '/dosen/dokumen-revisi',
-                                                            row.nim,
-                                                        )}
-                                                    >
-                                                        <FileText className="size-3.5" />
-                                                        Dokumen
-                                                    </Link>
-                                                </Button>
-                                                <Button
-                                                    asChild
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-7 px-2.5 text-xs"
-                                                >
-                                                    <Link
-                                                        href={searchUrl(
-                                                            '/dosen/seminar-proposal',
-                                                            row.nim,
-                                                        )}
-                                                    >
-                                                        <CalendarClock className="size-3.5" />
-                                                        Ujian
-                                                    </Link>
-                                                </Button>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger
                                                         asChild
@@ -461,25 +414,101 @@ function StudentTable({
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                                {row.whatsappUrl && (
-                                                    <Button
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
                                                         asChild
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-7 px-2.5 text-xs"
                                                     >
-                                                        <a
-                                                            href={
-                                                                row.whatsappUrl
-                                                            }
-                                                            target="_blank"
-                                                            rel="noreferrer"
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="size-7"
+                                                            aria-label="Aksi lainnya"
                                                         >
-                                                            <MessageCircle className="size-3.5" />
-                                                            WA
-                                                        </a>
-                                                    </Button>
-                                                )}
+                                                            <MoreHorizontal className="size-3.5" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent
+                                                        align="end"
+                                                        className="w-44"
+                                                    >
+                                                        <DropdownMenuItem
+                                                            disabled={
+                                                                row.projectId ===
+                                                                null
+                                                            }
+                                                            onSelect={() =>
+                                                                setNotesRow(row)
+                                                            }
+                                                        >
+                                                            <NotebookPen className="size-4" />
+                                                            Catatan
+                                                            {row.projectId !==
+                                                                null &&
+                                                                (projectNotes[
+                                                                    row
+                                                                        .projectId
+                                                                ]?.notes
+                                                                    .length ??
+                                                                    0) > 0 && (
+                                                                    <span className="tabular-nums">
+                                                                        (
+                                                                        {
+                                                                            projectNotes[
+                                                                                row
+                                                                                    .projectId
+                                                                            ]
+                                                                                .notes
+                                                                                .length
+                                                                        }
+                                                                        )
+                                                                    </span>
+                                                                )}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={searchUrl(
+                                                                    '/dosen/dokumen-revisi',
+                                                                    row.nim,
+                                                                )}
+                                                            >
+                                                                <FileText className="size-4" />
+                                                                Dokumen
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={searchUrl(
+                                                                    '/dosen/seminar-proposal',
+                                                                    row.nim,
+                                                                )}
+                                                            >
+                                                                <CalendarClock className="size-4" />
+                                                                Ujian
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        {row.whatsappUrl && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <a
+                                                                    href={
+                                                                        row.whatsappUrl
+                                                                    }
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                >
+                                                                    <MessageCircle className="size-4" />
+                                                                    WA
+                                                                </a>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </td>
                                     )}

@@ -323,7 +323,7 @@ it('shares mentorship progress with the student, lecturer and kaprodi pages', fu
         ->get('/dosen/mahasiswa-bimbingan')
         ->assertOk()
         ->assertInertia(fn(Assert $page): Assert => $page
-            ->where('mahasiswaRows.0.mentorshipProgress.0.completed', 3));
+            ->where('mahasiswaRows.0.mentorshipCompleted', 3));
 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/mahasiswa')

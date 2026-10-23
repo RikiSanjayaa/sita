@@ -83,8 +83,9 @@ class MahasiswaBimbinganController extends Controller
             ->get()
             ->keyBy('student_user_id');
 
-        $rows = collect($assignments->map(function ($assignment) use ($latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent): array {
-            return $this->buildRow($assignment, $latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent);
+        $completedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $assignments);
+        $rows = collect($assignments->map(function ($assignment) use ($latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent): array {
+            return $this->buildRow($assignment, $latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent);
         }))
             ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestDocumentByStudent, $latestScheduleByStudent): array {
                 return $this->buildExaminerRow($examiner, $latestDocumentByStudent, $latestScheduleByStudent, $examThreadIdsByStudentAndType);
@@ -126,8 +127,10 @@ class MahasiswaBimbinganController extends Controller
             ->get()
             ->keyBy('student_user_id');
 
-        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds): array {
-            return $this->buildRow($assignment, $archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds);
+        $archivedCompletedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $archivedAssignments);
+
+        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent): array {
+            return $this->buildRow($assignment, $archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent);
         }))
             ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestDoc, $archivedLatestSchedule): array {
                 return $this->buildExaminerRow($examiner, $archivedLatestDoc, $archivedLatestSchedule, $archivedExamThreadIdsByStudentAndType);
@@ -160,6 +163,7 @@ class MahasiswaBimbinganController extends Controller
      * @param  \Illuminate\Support\Collection<string,mixed>  $latestDocByStudent
      * @param  \Illuminate\Support\Collection<string,mixed>  $latestScheduleByStudent
      * @param  \Illuminate\Support\Collection<string,mixed>  $threadIdsByStudent
+     * @param  array<int,int>  $completedByStudent
      * @return array<string,mixed>
      */
     private function buildRow(
@@ -167,6 +171,7 @@ class MahasiswaBimbinganController extends Controller
         mixed $latestDocByStudent,
         mixed $latestScheduleByStudent,
         mixed $threadIdsByStudent,
+        array $completedByStudent,
     ): array {
         $student = $assignment->project?->student;
         $profile = $student?->mahasiswaProfile;
@@ -201,12 +206,13 @@ class MahasiswaBimbinganController extends Controller
                 ))
                 ->values()
                 ->all() ?? [],
-            'mentorshipProgress' => $project === null ? [] : $this->mentorshipProgressService->forProject($project),
+            'mentorshipCompleted' => $studentUserId === null ? null : ($completedByStudent[$studentUserId] ?? 0),
             'stageLabel' => $stage['label'],
             'stageDescription' => $stage['description'],
+            'phase' => $project?->phase,
             'status' => ($profile?->is_active ?? true) ? 'Aktif' : 'Nonaktif',
-            'lastUpdate' => $latestDocument?->updated_at?->diffForHumans()
-                ?? $latestSchedule?->updated_at?->diffForHumans()
+            'lastUpdate' => $latestDocument?->updated_at?->locale('id')->diffForHumans()
+                ?? $latestSchedule?->updated_at?->locale('id')->diffForHumans()
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
@@ -266,14 +272,15 @@ class MahasiswaBimbinganController extends Controller
                 ))
                 ->values()
                 ->all() ?? [],
-            'mentorshipProgress' => [],
+            'mentorshipCompleted' => null,
             'stageLabel' => $stage['label'],
             'stageDescription' => $stage['description'],
+            'phase' => $project?->phase,
             'status' => $this->defenseStatusLabel($defense?->status, $defense?->result),
-            'lastUpdate' => $examiner->decided_at?->diffForHumans()
-                ?? $defense?->updated_at?->diffForHumans()
-                ?? $latestDocument?->updated_at?->diffForHumans()
-                ?? $latestSchedule?->updated_at?->diffForHumans()
+            'lastUpdate' => $examiner->decided_at?->locale('id')->diffForHumans()
+                ?? $defense?->updated_at?->locale('id')->diffForHumans()
+                ?? $latestDocument?->updated_at?->locale('id')->diffForHumans()
+                ?? $latestSchedule?->updated_at?->locale('id')->diffForHumans()
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
