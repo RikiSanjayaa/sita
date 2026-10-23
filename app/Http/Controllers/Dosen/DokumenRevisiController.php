@@ -11,6 +11,7 @@ use App\Models\MentorshipDocument;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
+use App\Services\SecretSidangExaminers;
 use App\Services\UserProfilePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,7 +97,11 @@ class DokumenRevisiController extends Controller
         $subject = $document->category === 'lampiran-chat'
             ? sprintf('lampiran %s', $document->file_name)
             : sprintf('dokumen %s versi v%d', $document->title, $document->version_number);
-        $description = sprintf('%s menandai %s %s.', $lecturer->name, $subject, $verdict);
+        // A sidang examiner the mahasiswa may not know yet is announced by role only.
+        $secretLabel = $document->student_user_id === null
+            ? null
+            : app(SecretSidangExaminers::class)->labelFor((int) $document->student_user_id, (int) $lecturer->getKey());
+        $description = sprintf('%s menandai %s %s.', $secretLabel ?? $lecturer->name, $subject, $verdict);
 
         if ($document->student !== null) {
             $this->realtimeNotificationService->notifyUser($document->student, 'statusTugasAkhir', [
@@ -133,12 +138,12 @@ class DokumenRevisiController extends Controller
             'sent_at' => now(),
         ]);
 
-        $author = $this->userProfilePresenter->summary($lecturer);
+        $author = $secretLabel === null ? $this->userProfilePresenter->summary($lecturer) : null;
 
         $this->broadcastChatMessage($thread->id, [
             'id' => $message->id,
-            'senderUserId' => $lecturer->id,
-            'author' => $lecturer->name,
+            'senderUserId' => $secretLabel === null ? $lecturer->id : null,
+            'author' => $secretLabel ?? $lecturer->name,
             'authorAvatar' => $author['avatar'] ?? null,
             'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,

@@ -102,7 +102,7 @@ class TugasAkhirController extends Controller
                 'penguji2' => $examinerTwo?->lecturer?->name,
                 'ketuaSidang' => null,
                 'sekretarisSidang' => null,
-                'pengujiSidang' => $latestSidang?->examiners->sortBy('order_no')->firstWhere('role', 'examiner')?->lecturer?->name,
+                'pengujiSidang' => $latestSidang?->examinersForStudent()->firstWhere('role', 'examiner')?->lecturer?->name,
             ],
             'advisorProfiles' => array_values(array_filter([
                 $this->userProfilePresenter->summary($primaryAdvisor?->lecturer),
@@ -115,12 +115,12 @@ class TugasAkhirController extends Controller
                     ->all(),
             )),
             'sidangExaminerProfiles' => array_values(array_filter(
-                ($latestSidang?->examiners ?? collect())
+                ($latestSidang?->examinersForStudent() ?? collect())
                     ->where('role', 'examiner')
-                    ->sortBy('order_no')
                     ->map(fn($examiner): ?array => $this->userProfilePresenter->summary($examiner->lecturer))
                     ->all(),
             )),
+            'sidangExaminersHidden' => $latestSidang instanceof ThesisDefense && ! $latestSidang->examinersVisibleToStudent(),
             'semproDate' => $latestSempro?->scheduled_for?->locale('id')->translatedFormat('d F Y, H:i'),
             'sidangDate' => $latestSidang instanceof ThesisDefense
                 ? WitaDateTime::translatedDateRange($latestSidang->scheduled_for, $latestSidang->scheduled_until, withLabel: false)
@@ -378,8 +378,7 @@ class TugasAkhirController extends Controller
             'scheduledFor' => WitaDateTime::translatedDateRange($defense->scheduled_for, $defense->scheduled_until, withLabel: false),
             'scheduledUntil' => $defense->scheduled_until?->locale('id')->translatedFormat('d F Y'),
             'location' => $defense->location,
-            'examiners' => $defense->examiners
-                ->sortBy('order_no')
+            'examiners' => $defense->examinersForStudent()
                 ->map(fn($examiner): array => [
                     'id' => $examiner->id,
                     'name' => $examiner->lecturer?->name ?? '-',
@@ -469,20 +468,19 @@ class TugasAkhirController extends Controller
                         ? route('files.thesis-documents.download', ['document' => $primaryDocument->id])
                         : null,
                     'supportingDocuments' => $supportingDocuments,
-                    'examiners' => $defense->examiners
-                        ->sortBy('order_no')
+                    'examiners' => $defense->examinersForStudent()
                         ->map(fn($examiner): array => [
                             'id' => $examiner->id,
                             'name' => $examiner->lecturer?->name ?? '-',
                             'roleLabel' => $this->defenseRoleLabel($examiner->role, $examiner->order_no),
-                            'decisionLabel' => match ($examiner->decision) {
+                            'decisionLabel' => ! $defense->examinersVisibleToStudent() ? 'Belum Ada Keputusan' : match ($examiner->decision) {
                                 'pass' => 'Lulus',
                                 'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
                                 'fail' => 'Tidak Lulus',
                                 default => 'Belum Ada Keputusan',
                             },
-                            'score' => $examiner->score,
-                            'decisionNotes' => $examiner->notes,
+                            'score' => $defense->examinersVisibleToStudent() ? $examiner->score : null,
+                            'decisionNotes' => $defense->examinersVisibleToStudent() ? $examiner->notes : null,
                         ])
                         ->values()
                         ->all(),
@@ -498,7 +496,9 @@ class TugasAkhirController extends Controller
                                 default => ucwords(str_replace('_', ' ', $revision->status)),
                             },
                             'notes' => $revision->notes,
-                            'requestedBy' => $revision->requestedBy?->name ?? '-',
+                            'requestedBy' => $defense->examinersVisibleToStudent()
+                                ? ($revision->requestedBy?->name ?? '-')
+                                : 'Penguji '.AcademicTerminology::forProject($project)['finalExamShort'],
                             'dueAt' => $revision->due_at?->locale('id')->translatedFormat('d F Y, H:i'),
                             'resolvedAt' => $revision->resolved_at?->locale('id')->translatedFormat('d F Y, H:i'),
                             'resolutionNotes' => $revision->resolution_notes,

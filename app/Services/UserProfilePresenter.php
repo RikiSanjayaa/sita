@@ -151,12 +151,20 @@ class UserProfilePresenter
             ->values()
             ->all() ?? [];
 
-        $sidangExaminers = $latestSidang?->examiners
-            ->sortBy('order_no')
+        // Lecturers and admins see the whole panel. A mahasiswa, whether it is their own profile or
+        // another student's, only sees the panel members ThesisDefense::examinersForStudent() allows.
+        $hidesSecretExaminers = $this->isStudentViewer($viewer);
+        $sidangPanel = $latestSidang instanceof ThesisDefense
+            ? ($hidesSecretExaminers ? $latestSidang->examinersForStudent() : $latestSidang->examiners->sortBy('order_no'))
+            : collect();
+        $sidangExaminers = $sidangPanel
             ->map(fn(ThesisDefenseExaminer $examiner): ?array => $this->summary($examiner->lecturer))
             ->filter()
             ->values()
-            ->all() ?? [];
+            ->all();
+        $sidangExaminersSecret = $hidesSecretExaminers
+            && $latestSidang instanceof ThesisDefense
+            && ! $latestSidang->examinersVisibleToStudent();
 
         $examiners = collect($sidangExaminers)
             ->merge($semproExaminers)
@@ -169,14 +177,20 @@ class UserProfilePresenter
             [
                 'title' => 'Penguji '.$terminology['proposalExamShort'],
                 'emptyMessage' => 'Belum ada penguji '.$terminology['proposalExamShort'].'.',
+                'note' => null,
                 'users' => $semproExaminers,
             ],
             [
                 'title' => 'Penguji '.$terminology['finalExam'],
-                'emptyMessage' => 'Belum ada penguji '.$terminology['finalExam'].'.',
+                'emptyMessage' => $sidangExaminersSecret
+                    ? 'Penguji '.$terminology['finalExam'].' dirahasiakan sampai '.mb_strtolower($terminology['finalExam']).' selesai.'
+                    : 'Belum ada penguji '.$terminology['finalExam'].'.',
+                'note' => $sidangExaminersSecret && $sidangExaminers !== []
+                    ? 'Penguji lainnya dirahasiakan sampai '.mb_strtolower($terminology['finalExam']).' selesai.'
+                    : null,
                 'users' => $sidangExaminers,
             ],
-        ])->filter(fn(array $group): bool => $group['users'] !== [])->values()->all();
+        ])->filter(fn(array $group): bool => $group['users'] !== [] || ($sidangExaminersSecret && $group['title'] === 'Penguji '.$terminology['finalExam']))->values()->all();
 
         $canViewFullTitle = $project !== null && $this->canViewFullTitle($project, $viewer);
         $thesisTitle = $canViewFullTitle ? $project?->latestTitle : $project?->publicTitle();
@@ -246,6 +260,18 @@ class UserProfilePresenter
     }
 
     /**
+     * Whether the viewer is acting as a mahasiswa (or nobody): those viewers never get secret
+     * Sidang examiners, see ThesisDefense::examinersVisibleToStudent(). Staff roles win over the
+     * mahasiswa role for a user who holds both.
+     */
+    private function isStudentViewer(?User $viewer): bool
+    {
+        return ! $viewer instanceof User
+            || ($viewer->hasRole(AppRole::Mahasiswa)
+                && ! $viewer->hasAnyRole([AppRole::Admin, AppRole::SuperAdmin, AppRole::Dosen, AppRole::Kaprodi]));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function dosenDetail(User $user, ?User $viewer): array
@@ -289,8 +315,13 @@ class UserProfilePresenter
                 ->whereHas('project', fn($query) => $query->current()->where('state', 'active')))
             ->count();
 
+        // A mahasiswa viewing this lecturer must not learn which student the lecturer will examine at a
+        // Sidang that is not completed yet, so those rows are left out of the count and the list below.
+        $hidesSecretExaminers = $this->isStudentViewer($viewer);
+
         $scheduledSidangCount = ThesisDefenseExaminer::query()
             ->where('lecturer_user_id', $user->getKey())
+            ->when($hidesSecretExaminers, fn($query) => $query->whereNot(fn($query) => $query->secretFromStudent()))
             ->whereHas('defense', fn($query) => $query
                 ->where('type', 'sidang')
                 ->where('status', 'scheduled')
@@ -318,6 +349,7 @@ class UserProfilePresenter
                 'defense.project.student.mahasiswaProfile.programStudi',
             ])
             ->where('lecturer_user_id', $user->getKey())
+            ->when($hidesSecretExaminers, fn($query) => $query->whereNot(fn($query) => $query->secretFromStudent()))
             ->whereHas('defense', fn($query) => $query
                 ->whereIn('status', ['draft', 'scheduled', 'awaiting_finalization'])
                 ->whereHas('project', fn($query) => $query->current()->where('state', 'active')))

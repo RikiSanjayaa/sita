@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,6 +70,48 @@ class ThesisDefense extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(ThesisRevision::class, 'defense_id');
+    }
+
+    /**
+     * The one rule for who a mahasiswa may see on a defense panel.
+     *
+     * Sempro and Sinopsis always show their examiners. A Sidang keeps its additional
+     * examiners (role `examiner`) secret until the defense is completed; the supervisors
+     * who sit on the panel stay visible. Every payload sent to a mahasiswa must go
+     * through this method or {@see self::examinersForStudent()}, never through
+     * `$defense->examiners` directly. {@see self::scopeWithSecretExaminers()} is the
+     * SQL form of the same rule.
+     */
+    public function examinersVisibleToStudent(): bool
+    {
+        return $this->type !== 'sidang' || $this->status === 'completed';
+    }
+
+    /**
+     * Panel members a mahasiswa may see, in panel order. Needs `examiners` eager loaded.
+     *
+     * @return Collection<int, ThesisDefenseExaminer>
+     */
+    public function examinersForStudent(): Collection
+    {
+        $examiners = $this->examiners->sortBy('order_no');
+
+        if (! $this->examinersVisibleToStudent()) {
+            $examiners = $examiners->filter(fn(ThesisDefenseExaminer $examiner): bool => $examiner->isSupervisorRole());
+        }
+
+        return $examiners->values();
+    }
+
+    /**
+     * Defenses whose additional examiners are still secret from the mahasiswa.
+     *
+     * @param  Builder<ThesisDefense>  $query
+     * @return Builder<ThesisDefense>
+     */
+    public function scopeWithSecretExaminers(Builder $query): Builder
+    {
+        return $query->where('type', 'sidang')->where('status', '!=', 'completed');
     }
 
     /**

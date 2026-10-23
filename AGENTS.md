@@ -17,6 +17,7 @@ Compact operating guide for coding agents in this repository.
 - `Sempro`, `SemproExaminer`, `SemproRevision`, `ThesisSubmission`, and `MentorshipAssignment` are legacy remnants kept for migrated data. Build new features on the `Thesis*` models.
 - Academic labels differ per degree (D3/S1/S2) and per audience (one student vs. cross-degree lists). Take every user-facing label from `App\Support\AcademicTerminology` (PHP) or `resources/js/lib/academic-terminology.ts` (TS); `docs/GLOSSARY.md` lists which label to use and the retired phrases ("Proyek", "Ujian Akhir", ...) a Pest test rejects.
 - Kaprodi users also hold the dosen role.
+- Additional Sidang examiners (`thesis_defense_examiners.role = examiner`) stay secret from every mahasiswa until `thesis_defenses.status = completed`; supervisors on the panel, Sempro and Sinopsis examiners are always visible. Any payload, notification or chat text for a mahasiswa that names a panel member goes through `ThesisDefense::examinersForStudent()`, `SecretSidangExaminers` or the `secretFromStudent` scope, never through `$defense->examiners` directly.
 
 ## Core Rules
 

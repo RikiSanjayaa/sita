@@ -70,7 +70,10 @@ class ThesisDefenseExaminerDecisionService
                     ),
                     'description' => sprintf(
                         '%s sudah mengirim nilai dan keputusan untuk %s Anda.',
-                        $lecturer->name,
+                        // The panel of a Sidang stays secret until it is completed; supervisors are named.
+                        $examiner->isSupervisorRole() || $defense->examinersVisibleToStudent()
+                            ? $lecturer->name
+                            : 'Penguji '.$terms['finalExamShort'],
                         AcademicTerminology::defenseLabel($terms, $defense->type, short: true),
                     ),
                     'url' => '/tugas-akhir',

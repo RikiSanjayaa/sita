@@ -75,9 +75,10 @@ class ThesisProjectNoteService
             ->get();
 
         $authorRoles = $this->authorRoleLabels($notes);
+        $secretAuthorLabels = $this->secretExaminerLabels($notes, $projectList->whereIn('id', $studentIds));
 
         foreach ($notes as $note) {
-            $result[$note->project_id]['notes'][] = $this->present($viewer, $note, $authorRoles, $allowWrite);
+            $result[$note->project_id]['notes'][] = $this->present($viewer, $note, $authorRoles, $allowWrite, $secretAuthorLabels);
         }
 
         return $result;
@@ -138,10 +139,13 @@ class ThesisProjectNoteService
         }
 
         $terms = AcademicTerminology::forProject($project);
+        $authorName = in_array((int) $author->getKey(), ThesisDefenseExaminer::secretLecturerIdsForStudent((int) $student->getKey()), true)
+            ? 'Penguji '.$terms['finalExamShort']
+            : $author->name;
 
         $this->realtimeNotificationService->notifyUser($student, 'statusTugasAkhir', [
             'title' => 'Catatan baru dari dosen',
-            'description' => sprintf('%s menambahkan catatan pada %s Anda.', $author->name, $terms['finalWorkLower']),
+            'description' => sprintf('%s menambahkan catatan pada %s Anda.', $authorName, $terms['finalWorkLower']),
             'url' => '/mahasiswa/tugas-akhir',
             'icon' => 'message-square-text',
             'createdAt' => now()->toIso8601String(),
@@ -149,19 +153,57 @@ class ThesisProjectNoteService
     }
 
     /**
+     * Authors a mahasiswa must not learn the identity of: additional examiners of a Sidang that is
+     * not completed yet. Maps "projectId:authorId" to the label shown instead of the name, only for
+     * authors whose role label on the project is the plain examiner (a supervisor stays visible).
+     *
+     * @param  \Illuminate\Support\Collection<int, ThesisProjectNote>  $notes
+     * @param  \Illuminate\Support\Collection<int, ThesisProject>  $studentProjects  Projects read as the mahasiswa.
+     * @return array<string, string>
+     */
+    private function secretExaminerLabels($notes, $studentProjects): array
+    {
+        if ($notes->isEmpty() || $studentProjects->isEmpty()) {
+            return [];
+        }
+
+        $authorIds = $notes->pluck('author_user_id')->filter()->unique()->all();
+        $labels = [];
+
+        ThesisDefenseExaminer::query()
+            ->secretFromStudent()
+            ->whereIn('lecturer_user_id', $authorIds)
+            ->whereHas('defense', fn ($query) => $query->whereIn('project_id', $studentProjects->pluck('id')->all()))
+            ->with('defense:id,project_id')
+            ->get()
+            ->each(function (ThesisDefenseExaminer $examiner) use (&$labels, $studentProjects): void {
+                $project = $studentProjects->firstWhere('id', $examiner->defense->project_id);
+
+                if ($project instanceof ThesisProject) {
+                    $labels[$project->id.':'.$examiner->lecturer_user_id] = 'Penguji '.AcademicTerminology::forProject($project)['finalExamShort'];
+                }
+            });
+
+        return $labels;
+    }
+
+    /**
      * @param  array<string, string>  $authorRoles
      * @return array<string, mixed>
      */
-    private function present(User $viewer, ThesisProjectNote $note, array $authorRoles, bool $allowWrite): array
+    private function present(User $viewer, ThesisProjectNote $note, array $authorRoles, bool $allowWrite, array $secretAuthorLabels = []): array
     {
+        $key = $note->project_id.':'.$note->author_user_id;
+        $secretLabel = ($authorRoles[$key] ?? null) === 'Penguji' ? ($secretAuthorLabels[$key] ?? null) : null;
+
         return [
             'id' => $note->id,
             'projectId' => $note->project_id,
             'visibility' => $note->visibility->value,
             'visibilityLabel' => $note->visibility->label(),
             'body' => $note->body,
-            'authorName' => $note->author?->name ?? 'Dosen',
-            'authorRole' => $authorRoles[$note->project_id.':'.$note->author_user_id] ?? 'Dosen',
+            'authorName' => $secretLabel ?? $note->author?->name ?? 'Dosen',
+            'authorRole' => $secretLabel ?? $authorRoles[$key] ?? 'Dosen',
             'createdAt' => WitaDateTime::format($note->created_at),
             'isEdited' => $note->updated_at?->gt($note->created_at) ?? false,
             'canManage' => $allowWrite && $note->author_user_id !== null && $note->author_user_id === $viewer->id,

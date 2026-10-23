@@ -200,12 +200,19 @@ export function ProfileDetailsSections({
                                             {group.title}
                                         </p>
                                         {group.users.length > 0 ? (
-                                            <PeopleList
-                                                people={group.users}
-                                                label={(_, index) =>
-                                                    `${group.title} ${index + 1}`
-                                                }
-                                            />
+                                            <>
+                                                <PeopleList
+                                                    people={group.users}
+                                                    label={(_, index) =>
+                                                        `${group.title} ${index + 1}`
+                                                    }
+                                                />
+                                                {group.note ? (
+                                                    <EmptyLine>
+                                                        {group.note}
+                                                    </EmptyLine>
+                                                ) : null}
+                                            </>
                                         ) : (
                                             <EmptyLine>
                                                 {group.emptyMessage}

@@ -3,14 +3,19 @@
 namespace App\Services;
 
 use App\Models\MentorshipChatMessage;
+use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
 class ChatMessagePayloadBuilder
 {
+    /** @var array<int, array{type: string, student: ?int}> thread id => its type and mahasiswa, remembered per instance */
+    private array $threads = [];
+
     public function __construct(
         private readonly UserProfilePresenter $userProfilePresenter,
+        private readonly SecretSidangExaminers $secretExaminers,
     ) {}
 
     /**
@@ -24,17 +29,20 @@ class ChatMessagePayloadBuilder
     {
         $message->loadMissing(['sender', 'relatedDocument']);
 
-        $author = $this->userProfilePresenter->summary($message->sender);
+        $secretLabel = $this->secretSenderLabel($message);
+        $author = $secretLabel === null ? $this->userProfilePresenter->summary($message->sender) : null;
         $hasFile = $message->attachment_path !== null;
         $isImage = $hasFile && str_starts_with((string) $message->attachment_mime, 'image/');
 
         return [
             'id' => $message->id,
-            'senderUserId' => $message->sender_user_id,
-            'author' => $message->sender?->name ?? 'Sistem',
+            'senderUserId' => $secretLabel === null ? $message->sender_user_id : null,
+            'author' => $secretLabel ?? $message->sender?->name ?? 'Sistem',
             'authorAvatar' => $author['avatar'] ?? null,
             'authorProfileUrl' => $author['profileUrl'] ?? null,
-            'message' => $this->displayText($message->message),
+            'message' => $this->displayText($secretLabel === null
+                ? $message->message
+                : str_replace((string) $message->sender?->name, $secretLabel, (string) $message->message)),
             'time' => $message->created_at->format('d M Y H:i'),
             'type' => $message->message_type,
             'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
@@ -134,5 +142,32 @@ class ChatMessagePayloadBuilder
     private static function copyKey(MentorshipDocument $document): string
     {
         return $document->student_user_id.'|'.$document->document_group.'|'.$document->version_number;
+    }
+
+    /**
+     * The label that replaces the sender when the message comes from a sidang examiner the
+     * mahasiswa of the thread may not know yet (also covers messages sent before that rule).
+     * Private chats are left alone: the lecturer started that conversation themselves.
+     */
+    private function secretSenderLabel(MentorshipChatMessage $message): ?string
+    {
+        if ($message->sender_user_id === null) {
+            return null;
+        }
+
+        $threadId = (int) $message->mentorship_chat_thread_id;
+        $this->threads[$threadId] ??= MentorshipChatThread::query()
+            ->whereKey($threadId)
+            ->get(['type', 'student_user_id'])
+            ->map(fn (MentorshipChatThread $thread): array => ['type' => (string) $thread->type, 'student' => $thread->student_user_id])
+            ->first() ?? ['type' => 'private', 'student' => null];
+
+        ['type' => $type, 'student' => $student] = $this->threads[$threadId];
+
+        if ($type === 'private' || $student === null || (int) $student === (int) $message->sender_user_id) {
+            return null;
+        }
+
+        return $this->secretExaminers->labelFor((int) $student, (int) $message->sender_user_id);
     }
 }
