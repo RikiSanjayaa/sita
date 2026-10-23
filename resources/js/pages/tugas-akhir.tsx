@@ -118,6 +118,7 @@ type TugasAkhirPageProps = {
     advisorProfiles: UserProfileSummary[];
     semproExaminerProfiles: UserProfileSummary[];
     sidangExaminerProfiles: UserProfileSummary[];
+    sidangExaminersHidden: boolean;
     semproDate: string | null;
     sidangDate: string | null;
     sidangDateUntil: string | null;
@@ -1517,6 +1518,7 @@ export default function TugasAkhirSaya() {
         advisorProfiles,
         semproExaminerProfiles,
         sidangExaminerProfiles,
+        sidangExaminersHidden,
         semproResult,
         sidangResult,
         defenseHistory,
@@ -1891,7 +1893,11 @@ export default function TugasAkhirSaya() {
                                     <PersonGroup
                                         title={`Penguji ${terms.finalExam}`}
                                         description={`Penguji pada ${terms.finalExam.toLowerCase()} terbaru`}
-                                        emptyText={`Belum ada dosen penguji ${terms.finalExam.toLowerCase()}.`}
+                                        emptyText={
+                                            sidangExaminersHidden
+                                                ? `Penguji ${terms.finalExam.toLowerCase()} dirahasiakan sampai ${terms.finalExam.toLowerCase()} selesai.`
+                                                : `Belum ada dosen penguji ${terms.finalExam.toLowerCase()}.`
+                                        }
                                         isEmpty={
                                             sidangExaminerProfiles.length === 0
                                         }

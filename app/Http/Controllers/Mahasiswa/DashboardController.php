@@ -12,6 +12,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\SecretSidangExaminers;
 use App\Services\ThesisProjectWorkflowResolver;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
@@ -214,11 +215,15 @@ class DashboardController extends Controller
         $now = now();
         $terms = AcademicTerminology::forStudent($student);
 
+        $secretExaminers = app(SecretSidangExaminers::class);
+
         $schedules = MentorshipSchedule::query()
             ->with('lecturer')
             ->where('student_user_id', $student->id)
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
             ->get()
+            ->reject(fn(MentorshipSchedule $schedule): bool => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id
+                && $secretExaminers->isSecret($student->id, (int) $schedule->lecturer_user_id))
             ->filter(function (MentorshipSchedule $schedule) use ($now): bool {
                 $at = $this->activityAt($schedule->scheduled_for ?? $schedule->requested_for);
 
@@ -258,7 +263,7 @@ class DashboardController extends Controller
                 $subtitle = collect([
                     $defense->location,
                     $defense->mode !== null ? strtoupper($defense->mode) : null,
-                    $defense->examiners
+                    $defense->examinersForStudent()
                         ->pluck('lecturer.name')
                         ->filter()
                         ->implode(', '),

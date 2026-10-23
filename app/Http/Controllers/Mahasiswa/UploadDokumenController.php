@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
+use App\Services\SecretSidangExaminers;
 use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -124,10 +125,11 @@ class UploadDokumenController extends Controller
             ->flip();
 
         $reviewerRoles = $this->reviewerRoles($student);
+        $secretExaminers = app(SecretSidangExaminers::class);
 
         $documents = $documents
             ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
-            ->map(function ($versions) use ($linkedWorkspaceDocumentIds, $reviewerRoles, $student): array {
+            ->map(function ($versions) use ($linkedWorkspaceDocumentIds, $reviewerRoles, $secretExaminers, $student): array {
                 /** @var MentorshipDocument $document */
                 $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
                 $isLinkedToDefense = $versions->contains(
@@ -146,7 +148,8 @@ class UploadDokumenController extends Controller
                     'reviews' => $versions
                         ->whereNotNull('lecturer_user_id')
                         ->map(fn(MentorshipDocument $version): array => [
-                            'lecturerName' => $version->lecturer?->name ?? '-',
+                            'lecturerName' => $secretExaminers->labelFor($student->id, (int) $version->lecturer_user_id)
+                                ?? $version->lecturer?->name ?? '-',
                             'role' => $reviewerRoles[(int) $version->lecturer_user_id] ?? 'Dosen',
                             'status' => $version->status,
                             'notes' => $version->revision_notes,
