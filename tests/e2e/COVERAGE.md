@@ -107,6 +107,12 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | `/topik` daftar topik, status, detail baris    | `public-pages` | sebagian | P2       |
 | `/mahasiswa-aktif` daftar dan pembimbing aktif | `public-pages` | sebagian | P2       |
 
+## Lintas peran
+
+| Flow                                                                                                                                                                                                                                                                                                                              | Spec              | Status   | Priority |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------- | -------- |
+| Detektor desain Impeccable (`impeccable detect --cdp`): 5 halaman utama publik, mahasiswa, dosen dan kaprodi di 1280px dan 390px; temuan jadi annotation dan lampiran JSON per halaman. Advisory sampai sebuah area masuk `BLOCKING_AREAS` di spec; gagal hanya jika pemindaian tidak bisa jalan (issue #81). Bukan uji perilaku. | `design-detector` | tercakup | P3       |
+
 ## Known gaps worth closing next
 
 - Dashboards for mahasiswa, dosen and admin (#31, #32, #33 change them; add specs there).

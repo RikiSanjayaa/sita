@@ -115,13 +115,20 @@ use Illuminate\Support\Facades\Auth;
 - Use `cva` for variant components.
 - Use `clsx` and `tailwind-merge` for conditional classes.
 - Extract reusable components to `resources/js/components/`.
-- Before implementing a page or changing an existing page's design, read `docs/DESIGN_SYSTEM.md` and use its shared patterns and semantic status tokens. Keep raw Tailwind palette colors out of status styling.
+- Before implementing a page or changing an existing page's design, follow "UI work" below, and use the shared patterns and semantic status tokens in `DESIGN.md`. Keep raw Tailwind palette colors out of status styling.
 
 ### Imports Order
 
 1. External (react, @inertiajs/react)
 2. Internal (@/components, @/layouts, @/routes, @/types)
 3. Relative imports
+
+## UI work
+
+- Before any UI change read `.claude/skills/impeccable/SKILL.md` and follow its Setup, then `PRODUCT.md` and `DESIGN.md`. `DESIGN.md` holds the design system rules (tokens, patterns, prohibited palettes, Filament pairing).
+- Verify by viewing the rendered page at 1280px and 390px wide, in light and dark.
+- Run the detector spec for the areas you touched: `npx playwright test tests/e2e/specs/design-detector.spec.ts --project=chromium`. It is advisory until an area is listed in `BLOCKING_AREAS` in that spec; an area on that list must have zero findings.
+- The engine binary is not committed. The launcher `.claude/skills/impeccable/scripts/impeccable` downloads the pinned version into `~/.impeccable/bin` on first use.
 
 ## Tailwind Rules
 
