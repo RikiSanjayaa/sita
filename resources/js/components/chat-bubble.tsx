@@ -20,10 +20,19 @@ interface ChatBubbleProps {
     reviewStatus?: string | null;
 }
 
-const DOCUMENT_CAPTIONS: Partial<Record<string, string>> = {
-    document_event: 'Dokumen Baru Diunggah',
-    revision_suggestion: 'File Revisi dari Dosen',
-};
+function documentCaption(message: ChatMessage): string | undefined {
+    if (message.type === 'revision_suggestion') {
+        return 'File Revisi dari Dosen';
+    }
+
+    if (message.type === 'document_event') {
+        return message.documentEventKind === 'review'
+            ? 'Hasil Review Dokumen'
+            : 'Dokumen Baru Diunggah';
+    }
+
+    return undefined;
+}
 
 export function ChatBubble({
     message,
@@ -56,7 +65,7 @@ export function ChatBubble({
                         </div>
                         <div className="min-w-0">
                             <p className="text-xs font-medium text-muted-foreground">
-                                {DOCUMENT_CAPTIONS[message.type]}
+                                {documentCaption(message)}
                             </p>
                             <FilenameLabel
                                 name={message.documentName}
@@ -162,24 +171,37 @@ export function ChatBubble({
                         )}
                         {message.documentName && thumbnailUrl === null && (
                             <AttachmentCard
-                                caption={DOCUMENT_CAPTIONS[message.type]}
+                                caption={documentCaption(message)}
                                 href={message.documentUrl}
                                 inverse={isMe}
                                 name={message.documentName}
                                 reviewStatus={
-                                    reviewStatus ?? message.reviewStatus
+                                    message.ownReview?.status ??
+                                    reviewStatus ??
+                                    message.reviewStatus
                                 }
                                 searchTerm={searchTerm}
                                 sizeKb={message.attachmentSizeKb}
+                                action={
+                                    message.ownReview?.status ===
+                                    'submitted' ? (
+                                        <DocumentReviewAction
+                                            document={message.ownReview}
+                                            documentName={message.documentName}
+                                        />
+                                    ) : undefined
+                                }
                             />
                         )}
-                        {message.type === 'document_event' &&
-                            message.ownReview &&
-                            message.documentName && (
-                                <DocumentReviewAction
-                                    document={message.ownReview}
-                                    documentName={message.documentName}
-                                />
+                        {thumbnailUrl !== null &&
+                            message.documentName &&
+                            message.ownReview?.status === 'submitted' && (
+                                <div className="mb-2 flex justify-end">
+                                    <DocumentReviewAction
+                                        document={message.ownReview}
+                                        documentName={message.documentName}
+                                    />
+                                </div>
                             )}
                         {thumbnailUrl !== null && !isPending && (
                             <ImageLightbox

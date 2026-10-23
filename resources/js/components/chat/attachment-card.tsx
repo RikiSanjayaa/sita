@@ -1,4 +1,5 @@
 import { Download, FileText } from 'lucide-react';
+import { type ReactNode } from 'react';
 
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,8 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
 };
 
 type AttachmentCardProps = {
+    /** Optional action row inside the card, below the file details. */
+    action?: ReactNode;
     /** Small line above the name, e.g. who sent the file. */
     caption?: string;
     /** Download URL; null while the message is still being sent. */
@@ -29,6 +32,7 @@ type AttachmentCardProps = {
 
 /** Document attachment inside a bubble: icon, name, size, review status, download. */
 export function AttachmentCard({
+    action,
     caption,
     href,
     inverse,
@@ -80,28 +84,33 @@ export function AttachmentCard({
         </>
     );
 
-    const className = cn(
-        'mb-2 flex min-w-0 items-center gap-3 rounded-xl border p-2.5',
-        inverse
-            ? 'border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground'
-            : 'border-border bg-muted/30 text-foreground',
-    );
-
-    if (href === null) {
-        return <div className={className}>{body}</div>;
-    }
+    const bodyClassName = 'flex min-w-0 items-center gap-3';
 
     return (
-        <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
+        <div
             className={cn(
-                className,
-                'transition-colors hover:bg-black/5 dark:hover:bg-white/5',
+                'mb-2 min-w-0 rounded-xl border p-2.5',
+                inverse
+                    ? 'border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground'
+                    : 'border-border bg-muted/30 text-foreground',
             )}
         >
-            {body}
-        </a>
+            {href === null ? (
+                <div className={bodyClassName}>{body}</div>
+            ) : (
+                <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                        bodyClassName,
+                        'transition-opacity hover:opacity-80',
+                    )}
+                >
+                    {body}
+                </a>
+            )}
+            {action && <div className="mt-2 flex justify-end">{action}</div>}
+        </div>
     );
 }

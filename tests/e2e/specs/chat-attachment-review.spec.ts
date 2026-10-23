@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
@@ -192,6 +193,18 @@ test.describe('Chat attachment review visibility', () => {
                 .first()
                 .click();
 
+            await fs.promises.mkdir('/tmp/issue106', { recursive: true });
+            await secondLecturerPage
+                .getByRole('button', { name: `Tinjau ${attachmentName}` })
+                .last()
+                .scrollIntoViewIfNeeded();
+            await secondLecturerPage.screenshot({
+                path: '/tmp/issue106/before-review.png',
+            });
+            const tinjauButtons = secondLecturerPage.getByRole('button', {
+                name: `Tinjau ${attachmentName}`,
+            });
+            const tinjauCountBeforeReview = await tinjauButtons.count();
             await secondLecturerPage
                 .getByRole('button', { name: `Tinjau ${attachmentName}` })
                 .last()
@@ -215,6 +228,39 @@ test.describe('Chat attachment review visibility', () => {
                     .getByText(/menandai lampiran .* perlu revisi/i)
                     .first(),
             ).toBeVisible();
+
+            // The lecturer's own review event never offers "Tinjau", and the
+            // reviewed upload stops offering it (older uploads keep theirs).
+            const ownReviewBubble = secondLecturerPage
+                .getByText(/menandai lampiran .* perlu revisi/i)
+                .last()
+                .locator(
+                    'xpath=ancestor::div[contains(@class,"rounded-2xl")][1]',
+                );
+            await expect(ownReviewBubble).toBeVisible();
+            await expect(
+                ownReviewBubble.getByRole('button', { name: /^Tinjau/ }),
+            ).toHaveCount(0);
+            await expect(tinjauButtons).toHaveCount(
+                tinjauCountBeforeReview - 1,
+            );
+            await expect(ownReviewBubble).toContainText('Hasil Review Dokumen');
+            await expect(ownReviewBubble).not.toContainText(
+                'Dokumen Baru Diunggah',
+            );
+
+            // The reviewed upload card now shows this lecturer's own status.
+            const uploadBubble = secondLecturerPage
+                .locator('div.rounded-2xl')
+                .filter({ hasText: 'Dokumen Baru Diunggah' })
+                .filter({ hasText: attachmentName })
+                .last();
+            await expect(uploadBubble).toContainText('Perlu Revisi');
+            await expect(uploadBubble).not.toContainText('Menunggu Review');
+            await fs.promises.mkdir('/tmp/issue106', { recursive: true });
+            await secondLecturerPage.screenshot({
+                path: '/tmp/issue106/after2.png',
+            });
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
             await mahasiswaPage

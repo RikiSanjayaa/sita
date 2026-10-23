@@ -28,6 +28,8 @@ export type ChatMessage = {
      * The viewing lecturer's own copy of the document, set only for dosen payloads built
      * for a recipient. Null in broadcasts and for everyone else.
      */
+    /** For document_event rows: the student's upload announcement or a lecturer's review/status event. */
+    documentEventKind?: 'upload' | 'review' | null;
     ownReview?: ChatOwnReview | null;
 };
 
