@@ -573,6 +573,17 @@ Phased, one area per PR.
 
 Until a page is migrated, existing warnings there are accepted. New or touched pages must not add any.
 
+### Portal: dosen
+
+Overhaul of the dosen portal (#84) applies the #82 list treatment without changing the identity.
+
+- Every dosen page opens with `PageHeader` (h1 plus a one-line description) because the shell renders no heading. Blocks below are `DataSection` (h2) or `SectionCard`. The dashboard hero keeps its gradient panel and quota summary; its h1 is the greeting.
+- Lists (Mahasiswa Dosen, Sempro / Sinopsis & Sidang, Jadwal Bimbingan, Dokumen & Revisi) are `DataSection` > `DataToolbar` > `FilterPills` > one `DataTableContainer` with `stackedTable`. Two filter groups next to each other carry a visible label ("Jenis", "Status") and a divider from `md`.
+- Pagination and filters are client-side over the full prop set; the dosen controllers do not paginate on the server.
+- Row actions: one primary action (Chat, Buka, Kelola, Tanggapi) plus an "Aksi lainnya" menu where more than two remain. Icon-only actions have a tooltip and `aria-label`; on phones they show their label at 44px.
+- Jadwal Bimbingan pending requests are one divided list; the decision form opens on demand ("Tanggapi"), so nothing is hidden at rest and nothing sits in a card inside a card.
+- Pesan keeps the shared chat shell; the page only owns the group filter (`FilterPills`) and thread badge tones.
+
 ### Detector guard (Impeccable)
 
 The `design-detector` Playwright spec runs `impeccable detect` against the key pages of every role at 1280px and 390px and reports findings per page. It is advisory until an area is listed in `BLOCKING_AREAS` in `tests/e2e/specs/design-detector.spec.ts`; once an area has been overhauled it is added there and its findings fail the build.

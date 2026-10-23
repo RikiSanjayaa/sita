@@ -1,21 +1,21 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Download,
-    FileText,
-    XCircle,
-} from 'lucide-react';
+import { CheckCircle2, Download, FileText, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
-    type FilterGroup,
     usePagination,
 } from '@/components/ui/data-table';
 import {
@@ -63,6 +63,19 @@ type DokumenRevisiProps = {
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
 
 const PAGE_SIZE = 15;
+
+const documentStatusKey: Record<DocumentQueueItem['status'], string> = {
+    'Perlu Review': 'submitted',
+    'Perlu Revisi': 'needs_revision',
+    Disetujui: 'approved',
+};
+
+/**
+ * Icon button on md and up (the tooltip names it); on phones the label shows
+ * beside the icon because tooltips do not open on touch.
+ */
+const actionButtonClassName =
+    'text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-auto max-md:gap-2 max-md:border max-md:px-3 md:size-8';
 
 export default function DosenDokumenRevisiPage() {
     const { documentQueue, flashMessage } = usePage<
@@ -155,28 +168,7 @@ export default function DosenDokumenRevisiPage() {
         [documentQueue],
     );
 
-    const filterTabs: FilterGroup[] = [
-        {
-            value: statusFilter,
-            onChange: (v) => setStatusFilter(v as StatusFilter),
-            tabs: [
-                { label: 'Semua', value: 'semua' },
-                {
-                    label: 'Perlu Review',
-                    value: 'Perlu Review',
-                    count: statusCounts.review,
-                },
-                {
-                    label: 'Perlu Revisi',
-                    value: 'Perlu Revisi',
-                    count: statusCounts.revisi,
-                },
-                { label: 'Disetujui', value: 'Disetujui' },
-            ],
-        },
-    ];
-
-    const pendingCount = statusCounts.review;
+    const isFiltering = search !== '' || statusFilter !== 'semua';
 
     return (
         <DosenLayout
@@ -186,44 +178,65 @@ export default function DosenDokumenRevisiPage() {
         >
             <Head title="Dokumen & Revisi Dosen" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                {/* Flash message */}
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title="Dokumen & Revisi"
+                    description="Tinjau dokumen mahasiswa dan kirim catatan revisi"
+                />
+
                 {flashMessage && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-800 dark:text-emerald-400">
+                    <div
+                        role="status"
+                        className="flex items-center gap-2 rounded-xl bg-success-muted px-5 py-3 text-sm font-medium text-success-muted-foreground"
+                    >
                         <CheckCircle2 className="size-4 shrink-0" />
                         {flashMessage}
                     </div>
                 )}
 
-                {/* Section header */}
-                <section>
-                    <div className="mb-4 flex items-center justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Daftar Dokumen
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Klik aksi untuk menyetujui atau meminta revisi
-                            </p>
-                        </div>
-                        {pendingCount > 0 && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-600/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
-                                <AlertTriangle className="size-3" />
-                                {pendingCount} perlu review
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Toolbar: search (left) + filter pills (right) */}
-                    <DataTableToolbar
+                <DataSection
+                    title="Daftar Dokumen"
+                    summary={
+                        statusCounts.review > 0
+                            ? `${statusCounts.review} dokumen perlu review`
+                            : 'Tidak ada dokumen yang menunggu review'
+                    }
+                >
+                    <DataToolbar
                         search={search}
                         onSearchChange={setSearch}
-                        searchPlaceholder="Cari mahasiswa, NIM, atau file..."
-                        filterGroups={filterTabs}
-                        className="mb-3"
+                        placeholder="Cari mahasiswa, NIM, atau file..."
                     />
 
-                    {/* Table */}
+                    <FilterPills
+                        label="Status dokumen"
+                        value={statusFilter}
+                        onValueChange={setStatusFilter}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={[
+                            {
+                                label: 'Semua',
+                                value: 'semua',
+                                count: documentQueue.length,
+                            },
+                            {
+                                label: 'Perlu Review',
+                                value: 'Perlu Review',
+                                count: statusCounts.review,
+                            },
+                            {
+                                label: 'Perlu Revisi',
+                                value: 'Perlu Revisi',
+                                count: statusCounts.revisi,
+                            },
+                            {
+                                label: 'Disetujui',
+                                value: 'Disetujui',
+                                count: statusCounts.disetujui,
+                            },
+                        ]}
+                    />
+
                     {totalItems > 0 ? (
                         <DataTableContainer
                             pagination={
@@ -238,211 +251,236 @@ export default function DosenDokumenRevisiPage() {
                                 />
                             }
                         >
-                            <table className="w-full text-left text-sm">
-                                <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
-                                    <tr>
-                                        <th className="px-5 py-3 font-medium">
-                                            Mahasiswa
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            File / Judul
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Waktu Upload
-                                        </th>
-                                        <th className="w-[22%] px-5 py-3 font-medium">
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[920px]',
+                                )}
+                            >
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Mahasiswa</th>
+                                        <th className={dataTh}>File / Judul</th>
+                                        <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>Waktu Upload</th>
+                                        <th className={dataTh}>
                                             Catatan Revisi
                                         </th>
-                                        <th className="px-5 py-3 text-right font-medium">
-                                            Aksi
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y bg-background">
-                                    {paginated.map((doc) => {
-                                        const isPending =
-                                            doc.status === 'Perlu Review';
-                                        return (
-                                            <tr
-                                                key={`${doc.id}-${doc.file}`}
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
+                                    {paginated.map((doc) => (
+                                        <tr
+                                            key={`${doc.id}-${doc.file}`}
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'align-top',
+                                            )}
+                                        >
+                                            <td
+                                                className={stackedTable.tdPlain}
+                                            >
+                                                <p className="font-medium">
+                                                    {doc.mahasiswa}
+                                                </p>
+                                                <p className="text-muted-foreground tabular-nums">
+                                                    {doc.nim}
+                                                </p>
+                                            </td>
+
+                                            <td
+                                                data-label="File / Judul"
+                                                className={stackedTable.td}
+                                            >
+                                                <div className="flex min-w-0 items-start gap-2.5">
+                                                    <div
+                                                        aria-hidden="true"
+                                                        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground"
+                                                    >
+                                                        <FileText className="size-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium break-words md:max-w-56">
+                                                            {doc.title}
+                                                        </p>
+                                                        <p className="text-xs break-all text-muted-foreground md:max-w-56">
+                                                            {doc.file}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td
+                                                data-label="Status"
+                                                className={stackedTable.td}
+                                            >
+                                                <StatusBadge
+                                                    domain="document"
+                                                    status={
+                                                        documentStatusKey[
+                                                            doc.status
+                                                        ]
+                                                    }
+                                                    className="whitespace-nowrap"
+                                                >
+                                                    {doc.status}
+                                                </StatusBadge>
+                                            </td>
+
+                                            <td
+                                                data-label="Waktu Upload"
                                                 className={cn(
-                                                    'transition-colors hover:bg-muted/20',
-                                                    isPending &&
-                                                        'bg-amber-50/40 dark:bg-amber-950/10',
+                                                    stackedTable.td,
+                                                    'text-muted-foreground md:whitespace-nowrap',
                                                 )}
                                             >
-                                                {/* Mahasiswa */}
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <div>
-                                                        <p className="text-[14px] font-semibold">
-                                                            {doc.mahasiswa}
-                                                        </p>
-                                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                                            {doc.nim}
-                                                        </p>
-                                                    </div>
-                                                </td>
+                                                {doc.uploadedAt}
+                                            </td>
 
-                                                {/* File / Judul */}
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <div className="flex min-w-0 items-center gap-2.5">
-                                                        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                                            <FileText className="size-4" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <div className="max-w-[200px] truncate text-sm font-medium">
-                                                                {doc.title}
-                                                            </div>
-                                                            <div className="max-w-[200px] truncate text-xs text-muted-foreground">
-                                                                {doc.file}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
+                                            <td
+                                                data-label="Catatan Revisi"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'text-muted-foreground',
+                                                )}
+                                            >
+                                                {doc.revisionNotes ? (
+                                                    <p className="line-clamp-2 text-pretty md:max-w-56">
+                                                        {doc.revisionNotes}
+                                                    </p>
+                                                ) : (
+                                                    '-'
+                                                )}
+                                            </td>
 
-                                                {/* Status */}
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <Badge
-                                                        variant="soft"
-                                                        className={cn(
-                                                            'whitespace-nowrap',
-                                                            doc.status ===
-                                                                'Disetujui'
-                                                                ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
-                                                                : doc.status ===
-                                                                    'Perlu Revisi'
-                                                                  ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                                                                  : 'bg-muted text-muted-foreground',
-                                                        )}
-                                                    >
-                                                        {doc.status}
-                                                    </Badge>
-                                                </td>
-
-                                                {/* Waktu */}
-                                                <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
-                                                    {doc.uploadedAt}
-                                                </td>
-
-                                                {/* Catatan */}
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    {doc.revisionNotes ? (
-                                                        <p className="line-clamp-2 max-w-[200px] text-xs leading-relaxed text-muted-foreground">
-                                                            {doc.revisionNotes}
-                                                        </p>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground italic">
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </td>
-
-                                                {/* Aksi */}
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        {/* Download */}
-                                                        <Tooltip>
-                                                            <TooltipTrigger
-                                                                asChild
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <div className="flex items-center justify-end gap-1 max-md:flex-wrap max-md:justify-start max-md:gap-2">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className={
+                                                                    actionButtonClassName
+                                                                }
+                                                                disabled={
+                                                                    !doc.fileUrl
+                                                                }
+                                                                onClick={() => {
+                                                                    if (
+                                                                        doc.fileUrl
+                                                                    )
+                                                                        window.open(
+                                                                            doc.fileUrl,
+                                                                            '_blank',
+                                                                            'noopener,noreferrer',
+                                                                        );
+                                                                }}
                                                             >
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    aria-label="Unduh Dokumen"
-                                                                    className="size-8 text-muted-foreground hover:text-foreground"
-                                                                    disabled={
-                                                                        !doc.fileUrl
-                                                                    }
-                                                                    onClick={() => {
-                                                                        if (
-                                                                            doc.fileUrl
-                                                                        )
-                                                                            window.open(
-                                                                                doc.fileUrl,
-                                                                                '_blank',
-                                                                                'noopener,noreferrer',
-                                                                            );
-                                                                    }}
+                                                                <Download className="size-4" />
+                                                                <span className="md:sr-only">
+                                                                    Unduh
+                                                                    Dokumen
+                                                                </span>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Unduh Dokumen
+                                                        </TooltipContent>
+                                                    </Tooltip>
+
+                                                    {doc.status ===
+                                                        'Perlu Review' && (
+                                                        <>
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
                                                                 >
-                                                                    <Download className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Unduh Dokumen
-                                                            </TooltipContent>
-                                                        </Tooltip>
-
-                                                        {doc.status ===
-                                                            'Perlu Review' && (
-                                                            <>
-                                                                {/* Revisi */}
-                                                                <Tooltip>
-                                                                    <TooltipTrigger
-                                                                        asChild
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className={cn(
+                                                                            actionButtonClassName,
+                                                                            'text-warning-muted-foreground hover:bg-warning-muted hover:text-warning-muted-foreground',
+                                                                        )}
+                                                                        disabled={
+                                                                            form.processing
+                                                                        }
+                                                                        onClick={() => {
+                                                                            form.reset();
+                                                                            form.clearErrors();
+                                                                            setRevisiDocDialog(
+                                                                                doc,
+                                                                            );
+                                                                        }}
                                                                     >
-                                                                        <Button
-                                                                            size="icon"
-                                                                            variant="ghost"
-                                                                            aria-label="Kirim Catatan Revisi"
-                                                                            className="size-8 text-amber-600 hover:bg-amber-600/10 hover:text-amber-700"
-                                                                            disabled={
-                                                                                form.processing
-                                                                            }
-                                                                            onClick={() => {
-                                                                                form.reset();
-                                                                                form.clearErrors();
-                                                                                setRevisiDocDialog(
-                                                                                    doc,
-                                                                                );
-                                                                            }}
-                                                                        >
-                                                                            <XCircle className="size-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        Kirim
-                                                                        Catatan
-                                                                        Revisi
-                                                                    </TooltipContent>
-                                                                </Tooltip>
+                                                                        <XCircle className="size-4" />
+                                                                        <span className="md:sr-only">
+                                                                            Kirim
+                                                                            Catatan
+                                                                            Revisi
+                                                                        </span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Kirim
+                                                                    Catatan
+                                                                    Revisi
+                                                                </TooltipContent>
+                                                            </Tooltip>
 
-                                                                {/* Setujui */}
-                                                                <Tooltip>
-                                                                    <TooltipTrigger
-                                                                        asChild
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className={cn(
+                                                                            actionButtonClassName,
+                                                                            'text-success-muted-foreground hover:bg-success-muted hover:text-success-muted-foreground',
+                                                                        )}
+                                                                        disabled={
+                                                                            form.processing
+                                                                        }
+                                                                        onClick={() =>
+                                                                            submitApprove(
+                                                                                doc.id,
+                                                                            )
+                                                                        }
                                                                     >
-                                                                        <Button
-                                                                            size="icon"
-                                                                            variant="ghost"
-                                                                            aria-label="Setujui Dokumen"
-                                                                            className="size-8 text-emerald-600 hover:bg-emerald-600/10 hover:text-emerald-700"
-                                                                            disabled={
-                                                                                form.processing
-                                                                            }
-                                                                            onClick={() =>
-                                                                                submitApprove(
-                                                                                    doc.id,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            <CheckCircle2 className="size-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        Setujui
-                                                                        Dokumen
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                                                        <CheckCircle2 className="size-4" />
+                                                                        <span className="md:sr-only">
+                                                                            Setujui
+                                                                            Dokumen
+                                                                        </span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Setujui
+                                                                    Dokumen
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </DataTableContainer>
@@ -450,21 +488,20 @@ export default function DosenDokumenRevisiPage() {
                         <DataTableEmptyState
                             icon={FileText}
                             title={
-                                search || statusFilter !== 'semua'
+                                isFiltering
                                     ? 'Tidak ada dokumen yang sesuai'
                                     : 'Belum ada dokumen yang perlu direview'
                             }
                             description={
-                                search || statusFilter !== 'semua'
+                                isFiltering
                                     ? 'Coba ubah kata kunci atau filter yang dipilih.'
                                     : 'Dokumen mahasiswa yang butuh persetujuan akan muncul di sini.'
                             }
                         />
                     )}
-                </section>
+                </DataSection>
             </div>
 
-            {/* Dialog Revisi */}
             <Dialog
                 open={revisiDocDialog !== null}
                 onOpenChange={(open) => !open && setRevisiDocDialog(null)}
@@ -525,7 +562,6 @@ export default function DosenDokumenRevisiPage() {
                                     form.processing ||
                                     !form.data.revision_notes?.trim()
                                 }
-                                className="bg-amber-600 text-white hover:bg-amber-700"
                             >
                                 {form.processing
                                     ? 'Menyimpan...'

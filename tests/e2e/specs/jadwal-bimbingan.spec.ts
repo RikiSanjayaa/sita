@@ -59,15 +59,13 @@ async function requestBimbingan(
     ).not.toBeVisible();
 }
 
-// Pending request cards are plain containers without a role or label. The
-// innermost container holding both the unique topic and the feedback field is
-// the card of that request.
+// Pending requests are list items of one labelled list; the response form
+// only exists after the 'Tanggapi' opener of that request is pressed.
 function pendingCard(page: Page, topic: string): Locator {
     return page
-        .locator('div')
-        .filter({ hasText: topic })
-        .filter({ has: page.getByLabel(/^Feedback ke Mahasiswa/) })
-        .last();
+        .getByRole('list', { name: 'Permintaan menunggu konfirmasi' })
+        .getByRole('listitem')
+        .filter({ hasText: topic });
 }
 
 function historyRow(page: Page, topic: string): Locator {
@@ -114,6 +112,7 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
             await expect(card).toBeVisible();
             await expect(card).toContainText(student.studentName);
 
+            await card.getByRole('button', { name: 'Tanggapi' }).click();
             await card
                 .getByLabel('Tanggal/Jam Konfirmasi atau Jadwal Ulang')
                 .fill(newTime);
@@ -205,6 +204,7 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
             await secondSupervisorPage.goto('/dosen/jadwal-bimbingan');
             const card = pendingCard(secondSupervisorPage, topic);
             await expect(card).toBeVisible();
+            await card.getByRole('button', { name: 'Tanggapi' }).click();
             await card.getByLabel(/^Feedback ke Mahasiswa/).fill(feedback);
             await card
                 .getByRole('button', { name: 'Konfirmasi', exact: true })
@@ -269,12 +269,9 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
             ).toHaveCount(3);
 
             await dosenPage.goto('/dosen/jadwal-bimbingan');
-            const card = dosenPage
-                .locator('div')
-                .filter({ hasText: topic })
-                .filter({ has: dosenPage.getByLabel(/^Feedback ke Mahasiswa/) })
-                .last();
+            const card = pendingCard(dosenPage, topic);
             await expect(card).toContainText('3 Pertemuan');
+            await card.getByRole('button', { name: 'Tanggapi' }).click();
             await card.getByLabel(/^Feedback ke Mahasiswa/).fill(feedback);
             await card.getByRole('button', { name: 'Tolak Semua' }).click();
 

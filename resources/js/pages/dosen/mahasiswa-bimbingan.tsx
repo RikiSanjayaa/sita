@@ -8,11 +8,18 @@ import {
     MessagesSquare,
     MoreHorizontal,
     NotebookPen,
-    Search,
     UserRound,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import {
     type ProjectNotes,
@@ -23,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
+    DataTableEmptyState,
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
@@ -34,7 +42,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import {
     Sheet,
     SheetContent,
@@ -96,6 +103,14 @@ const roleTabs: { label: string; value: RoleFilter }[] = [
     { label: 'Penguji', value: 'penguji' },
 ];
 
+function matchesRole(row: MahasiswaRow, role: RoleFilter) {
+    return (
+        role === 'semua' ||
+        (role === 'penguji' && row.relationType === 'penguji') ||
+        (row.relationType === 'pembimbing' && row.advisorType === role)
+    );
+}
+
 function searchUrl(path: string, value: string) {
     return `${path}?search=${encodeURIComponent(value)}`;
 }
@@ -116,12 +131,16 @@ function RelationBadge({ row }: { row: MahasiswaRow }) {
 }
 
 function StudentTable({
+    title,
+    summary,
     rows,
     emptyText,
     showActions = true,
     queryPrefix,
     projectNotes,
 }: {
+    title: string;
+    summary: ReactNode;
     rows: MahasiswaRow[];
     emptyText: string;
     showActions?: boolean;
@@ -160,13 +179,8 @@ function StudentTable({
                 row.stageLabel.toLowerCase().includes(q) ||
                 row.roleLabel.toLowerCase().includes(q) ||
                 row.contextLabel.toLowerCase().includes(q);
-            const matchRole =
-                roleFilter === 'semua' ||
-                (roleFilter === 'penguji' && row.relationType === 'penguji') ||
-                (row.relationType === 'pembimbing' &&
-                    row.advisorType === roleFilter);
 
-            return matchSearch && matchRole;
+            return matchSearch && matchesRole(row, roleFilter);
         });
     }, [roleFilter, rows, search]);
     const {
@@ -185,35 +199,24 @@ function StudentTable({
     );
 
     return (
-        <div className="space-y-3">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="relative max-w-xs flex-1">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Cari nama atau NIM..."
-                        className="h-8 pl-8 text-sm"
-                    />
-                </div>
-                <div className="flex flex-wrap gap-1">
-                    {roleTabs.map((tab) => (
-                        <button
-                            key={tab.value}
-                            type="button"
-                            onClick={() => setRoleFilter(tab.value)}
-                            className={cn(
-                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                roleFilter === tab.value
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                            )}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+        <DataSection title={title} summary={summary}>
+            <DataToolbar
+                search={search}
+                onSearchChange={setSearch}
+                placeholder="Cari nama atau NIM..."
+            />
+
+            <FilterPills
+                label={`Peran, ${title.toLowerCase()}`}
+                value={roleFilter}
+                onValueChange={setRoleFilter}
+                itemClassName="max-md:h-11 max-md:px-4"
+                options={roleTabs.map((tab) => ({
+                    ...tab,
+                    count: rows.filter((row) => matchesRole(row, tab.value))
+                        .length,
+                }))}
+            />
 
             {filtered.length > 0 ? (
                 <DataTableContainer
@@ -229,110 +232,103 @@ function StudentTable({
                         />
                     }
                 >
-                    <table className="w-full table-fixed text-sm">
-                        <thead>
-                            <tr className="border-b bg-muted/30">
-                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:w-[23%]">
-                                    Mahasiswa
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell md:w-[13%]">
-                                    Peran
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell lg:w-[24%]">
-                                    Tahap
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell md:w-[11%]">
-                                    Bimbingan
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell xl:w-[13%]">
-                                    Aktivitas Terbaru
-                                </th>
+                    <table
+                        className={cn(
+                            stackedTable.table,
+                            showActions
+                                ? 'md:min-w-[940px]'
+                                : 'md:min-w-[820px]',
+                        )}
+                    >
+                        <thead className={stackedTable.thead}>
+                            <tr className="border-b bg-muted/40">
+                                <th className={dataTh}>Mahasiswa</th>
+                                <th className={dataTh}>Peran</th>
+                                <th className={dataTh}>Tahap</th>
+                                <th className={dataTh}>Bimbingan</th>
+                                <th className={dataTh}>Aktivitas Terbaru</th>
                                 {showActions && (
-                                    <th className="w-36 px-4 py-2.5 text-right text-xs font-medium text-muted-foreground md:w-[16%]">
-                                        Aksi
+                                    <th className={dataTh}>
+                                        <span className="sr-only">Aksi</span>
                                     </th>
                                 )}
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
+                        <tbody
+                            className={cn(stackedTable.tbody, 'md:divide-y')}
+                        >
                             {paginated.map((row) => (
                                 <tr
                                     key={`${row.nim}-${row.relationType}-${row.roleLabel}-${row.contextLabel}`}
-                                    className="transition-colors hover:bg-muted/20"
+                                    className={cn(stackedTable.tr, 'align-top')}
                                 >
-                                    <td className="px-4 py-3">
+                                    <td className={stackedTable.tdPlain}>
                                         <Link
                                             href={row.profileUrl ?? '#'}
                                             className={cn(
-                                                'flex items-center gap-2.5',
+                                                'flex items-center gap-3 rounded-md max-md:min-h-11',
                                                 !row.profileUrl &&
                                                     'pointer-events-none',
                                             )}
                                         >
-                                            <Avatar className="size-7 shrink-0 border">
+                                            <Avatar className="size-8 shrink-0 border">
                                                 <AvatarImage
                                                     src={
                                                         row.avatar ?? undefined
                                                     }
                                                     alt={row.name}
                                                 />
-                                                <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                                                <AvatarFallback className="bg-primary-muted text-xs text-primary-muted-foreground">
                                                     {getInitials(row.name)}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
-                                                <p className="truncate leading-snug font-medium">
+                                                <p className="leading-snug font-medium">
                                                     {row.name}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">
+                                                <p className="text-xs text-muted-foreground tabular-nums">
                                                     {row.nim}
                                                 </p>
-                                                <div className="mt-1 flex flex-wrap gap-1 md:hidden">
-                                                    <RelationBadge row={row} />
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className="rounded-full text-xs"
-                                                    >
-                                                        {row.contextLabel}
-                                                    </Badge>
-                                                </div>
                                             </div>
                                         </Link>
                                     </td>
 
-                                    <td className="hidden px-4 py-3 md:table-cell">
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <RelationBadge row={row} />
-                                            <Badge
-                                                variant="secondary"
-                                                className="rounded-full text-xs"
-                                            >
-                                                {row.contextLabel}
-                                            </Badge>
-                                        </div>
+                                    <td
+                                        data-label="Peran"
+                                        className={stackedTable.td}
+                                    >
+                                        <RelationBadge row={row} />
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {row.contextLabel}
+                                        </p>
                                     </td>
 
-                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                    <td
+                                        data-label="Tahap"
+                                        className={stackedTable.td}
+                                    >
                                         <div className="flex min-w-0 flex-col items-start gap-1">
                                             <StatusBadge
                                                 domain="phase"
                                                 status={row.phase}
-                                                className="max-w-full truncate"
                                             >
                                                 {row.relationType === 'penguji'
                                                     ? row.contextDescription
                                                     : row.stageLabel}
                                             </StatusBadge>
-                                            <p
-                                                className="w-full truncate text-xs text-muted-foreground"
-                                                title={row.stageDescription}
-                                            >
+                                            <p className="text-xs text-pretty text-muted-foreground">
                                                 {row.stageDescription}
                                             </p>
                                         </div>
                                     </td>
 
-                                    <td className="hidden px-4 py-3 text-sm tabular-nums md:table-cell">
+                                    <td
+                                        data-label="Bimbingan"
+                                        className={cn(
+                                            stackedTable.td,
+                                            'tabular-nums',
+                                        )}
+                                    >
                                         {row.mentorshipCompleted === null ? (
                                             <span className="text-muted-foreground">
                                                 -
@@ -342,20 +338,26 @@ function StudentTable({
                                         )}
                                     </td>
 
-                                    <td className="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
+                                    <td
+                                        data-label="Aktivitas Terbaru"
+                                        className={cn(
+                                            stackedTable.td,
+                                            'text-muted-foreground',
+                                        )}
+                                    >
                                         {row.lastUpdate}
                                     </td>
 
                                     {showActions && (
-                                        <td className="px-3 py-3">
-                                            <div className="flex items-center justify-end gap-1.5">
+                                        <td className={stackedTable.tdActions}>
+                                            <div className="flex items-center justify-end gap-1 max-md:justify-start max-md:gap-2">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger
                                                         asChild
                                                     >
                                                         <Button
                                                             size="sm"
-                                                            className="h-7 px-2.5 text-xs"
+                                                            className="max-md:h-11 max-md:px-4"
                                                             disabled={
                                                                 row.studentUserId ===
                                                                     null &&
@@ -363,9 +365,9 @@ function StudentTable({
                                                                     null
                                                             }
                                                         >
-                                                            <MessageSquareText className="size-3.5" />
+                                                            <MessageSquareText className="size-4" />
                                                             Chat
-                                                            <ChevronDown className="size-3" />
+                                                            <ChevronDown className="size-3.5" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent
@@ -422,10 +424,10 @@ function StudentTable({
                                                             type="button"
                                                             variant="outline"
                                                             size="icon"
-                                                            className="size-7"
+                                                            className="max-md:size-11 md:size-8"
                                                             aria-label="Aksi lainnya"
                                                         >
-                                                            <MoreHorizontal className="size-3.5" />
+                                                            <MoreHorizontal className="size-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent
@@ -518,16 +520,19 @@ function StudentTable({
                     </table>
                 </DataTableContainer>
             ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
-                    <UserRound className="mb-2 size-8 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">{emptyText}</p>
-                </div>
-            )}
-
-            {filtered.length > 0 && (
-                <p className="text-right text-xs text-muted-foreground">
-                    {filtered.length} dari {rows.length} mahasiswa
-                </p>
+                <DataTableEmptyState
+                    icon={UserRound}
+                    title={
+                        rows.length === 0
+                            ? emptyText
+                            : 'Tidak ada mahasiswa yang sesuai'
+                    }
+                    description={
+                        rows.length === 0
+                            ? undefined
+                            : 'Coba ubah kata kunci atau filter yang dipilih.'
+                    }
+                />
             )}
 
             <Sheet
@@ -542,7 +547,7 @@ function StudentTable({
                     side="right"
                     className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl"
                 >
-                    <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+                    <SheetHeader className="border-b px-6 py-4">
                         <SheetTitle>Catatan</SheetTitle>
                         <SheetDescription>
                             {notesRow?.name} ({notesRow?.nim})
@@ -560,7 +565,7 @@ function StudentTable({
                     </div>
                 </SheetContent>
             </Sheet>
-        </div>
+        </DataSection>
     );
 }
 
@@ -582,56 +587,33 @@ export default function DosenMahasiswaBimbinganPage() {
         >
             <Head title="Mahasiswa Dosen" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-6 md:px-6 lg:py-8">
-                <section>
-                    <div className="mb-4 flex items-center justify-between border-b pb-3">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Mahasiswa Aktif
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Membimbing{' '}
-                                <span className="font-semibold text-foreground">
-                                    {activeCount}
-                                </span>{' '}
-                                dari{' '}
-                                <span className="font-semibold text-foreground">
-                                    {capacityLimit}
-                                </span>{' '}
-                                kuota, dengan{' '}
-                                <span className="font-semibold text-foreground">
-                                    {relatedCount}
-                                </span>{' '}
-                                relasi mahasiswa aktif.
-                            </p>
-                        </div>
-                    </div>
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title="Mahasiswa Dosen"
+                    description="Daftar mahasiswa bimbingan dan mahasiswa yang Anda uji"
+                />
+
+                <div className="flex flex-col gap-10">
                     <StudentTable
+                        title="Mahasiswa Aktif"
+                        summary={`Membimbing ${activeCount} dari ${capacityLimit} kuota, dengan ${relatedCount} relasi mahasiswa aktif.`}
                         rows={mahasiswaRows}
                         emptyText="Belum ada mahasiswa aktif"
                         showActions
                         queryPrefix="active"
                         projectNotes={projectNotes}
                     />
-                </section>
 
-                <section>
-                    <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">
-                            Riwayat Mahasiswa
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Riwayat bimbingan dan ujian yang sudah selesai
-                        </p>
-                    </div>
                     <StudentTable
+                        title="Riwayat Mahasiswa"
+                        summary="Riwayat bimbingan dan ujian yang sudah selesai"
                         rows={historyRows}
                         emptyText="Belum ada riwayat mahasiswa"
                         showActions={false}
                         queryPrefix="history"
                         projectNotes={projectNotes}
                     />
-                </section>
+                </div>
             </div>
         </DosenLayout>
     );
