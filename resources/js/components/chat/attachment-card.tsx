@@ -2,6 +2,11 @@ import { Download, FileText } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import { StatusBadge } from '@/components/patterns/status-badge';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { formatFileSize } from './attachment';
@@ -16,8 +21,18 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
     rejected: 'Ditolak',
 };
 
+/** Icon-only action next to the download icon; matches it on both bubble colours. */
+export function attachmentIconActionClassName(inverse: boolean): string {
+    return cn(
+        'inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        inverse
+            ? 'hover:bg-primary-foreground/15'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+    );
+}
+
 type AttachmentCardProps = {
-    /** Optional action row inside the card, below the file details. */
+    /** Optional icon-only action shown before the download icon. */
     action?: ReactNode;
     /** Small line above the name, e.g. who sent the file. */
     caption?: string;
@@ -80,16 +95,15 @@ export function AttachmentCard({
                     )}
                 </div>
             </div>
-            {href !== null && <Download className="size-4 shrink-0" />}
         </>
     );
 
-    const bodyClassName = 'flex min-w-0 items-center gap-3';
+    const bodyClassName = 'flex min-w-0 flex-1 items-center gap-3';
 
     return (
         <div
             className={cn(
-                'mb-2 min-w-0 rounded-xl border p-2.5',
+                'mb-2 flex min-w-0 items-center gap-1 rounded-xl border p-2.5',
                 inverse
                     ? 'border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground'
                     : 'border-border bg-muted/30 text-foreground',
@@ -110,7 +124,23 @@ export function AttachmentCard({
                     {body}
                 </a>
             )}
-            {action && <div className="mt-2 flex justify-end">{action}</div>}
+            {action}
+            {href !== null && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Unduh ${name}`}
+                            className={attachmentIconActionClassName(inverse)}
+                        >
+                            <Download className="size-4" />
+                        </a>
+                    </TooltipTrigger>
+                    <TooltipContent>Unduh</TooltipContent>
+                </Tooltip>
+            )}
         </div>
     );
 }

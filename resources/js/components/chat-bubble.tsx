@@ -2,7 +2,10 @@ import { Link } from '@inertiajs/react';
 import { FileText } from 'lucide-react';
 import { useState } from 'react';
 
-import { AttachmentCard } from '@/components/chat/attachment-card';
+import {
+    AttachmentCard,
+    attachmentIconActionClassName,
+} from '@/components/chat/attachment-card';
 import { DocumentReviewAction } from '@/components/chat/document-review-action';
 import { FilenameLabel, highlightText } from '@/components/chat/highlight-text';
 import { ImageLightbox } from '@/components/chat/image-lightbox';
@@ -186,6 +189,9 @@ export function ChatBubble({
                                     message.ownReview?.status ===
                                     'submitted' ? (
                                         <DocumentReviewAction
+                                            className={attachmentIconActionClassName(
+                                                isMe,
+                                            )}
                                             document={message.ownReview}
                                             documentName={message.documentName}
                                         />
@@ -198,6 +204,9 @@ export function ChatBubble({
                             message.ownReview?.status === 'submitted' && (
                                 <div className="mb-2 flex justify-end">
                                     <DocumentReviewAction
+                                        className={attachmentIconActionClassName(
+                                            isMe,
+                                        )}
                                         document={message.ownReview}
                                         documentName={message.documentName}
                                     />

@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
@@ -193,14 +192,17 @@ test.describe('Chat attachment review visibility', () => {
                 .first()
                 .click();
 
-            await fs.promises.mkdir('/tmp/issue106', { recursive: true });
-            await secondLecturerPage
+            // Icon-only action beside the download icon; hover names it.
+            const lastTinjau = secondLecturerPage
                 .getByRole('button', { name: `Tinjau ${attachmentName}` })
-                .last()
-                .scrollIntoViewIfNeeded();
-            await secondLecturerPage.screenshot({
-                path: '/tmp/issue106/before-review.png',
-            });
+                .last();
+            await lastTinjau.scrollIntoViewIfNeeded();
+            await lastTinjau.hover();
+            await expect(
+                secondLecturerPage.getByRole('tooltip', {
+                    name: 'Tinjau dokumen',
+                }),
+            ).toBeVisible();
             const tinjauButtons = secondLecturerPage.getByRole('button', {
                 name: `Tinjau ${attachmentName}`,
             });
@@ -257,10 +259,6 @@ test.describe('Chat attachment review visibility', () => {
                 .last();
             await expect(uploadBubble).toContainText('Perlu Revisi');
             await expect(uploadBubble).not.toContainText('Menunggu Review');
-            await fs.promises.mkdir('/tmp/issue106', { recursive: true });
-            await secondLecturerPage.screenshot({
-                path: '/tmp/issue106/after2.png',
-            });
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
             await mahasiswaPage

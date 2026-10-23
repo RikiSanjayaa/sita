@@ -14,9 +14,16 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { review } from '@/routes/dosen/dokumen-revisi';
 
 type DocumentReviewActionProps = {
+    /** Classes for the icon-only trigger, so it matches its neighbours. */
+    className: string;
     document: ChatOwnReview;
     documentName: string;
 };
@@ -31,6 +38,7 @@ type ReviewFormData = {
  * Posts to the same endpoint as Dokumen & Revisi, so both screens stay in sync.
  */
 export function DocumentReviewAction({
+    className,
     document,
     documentName,
 }: DocumentReviewActionProps) {
@@ -74,17 +82,19 @@ export function DocumentReviewAction({
 
     return (
         <>
-            <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-7 gap-1.5 px-2.5 text-xs"
-                onClick={() => setIsOpen(true)}
-                aria-label={`Tinjau ${documentName}`}
-            >
-                <ClipboardCheck className="size-3.5" />
-                Tinjau
-            </Button>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        type="button"
+                        className={className}
+                        onClick={() => setIsOpen(true)}
+                        aria-label={`Tinjau ${documentName}`}
+                    >
+                        <ClipboardCheck className="size-4" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent>Tinjau dokumen</TooltipContent>
+            </Tooltip>
 
             <Dialog
                 open={isOpen}
