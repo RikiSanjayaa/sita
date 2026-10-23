@@ -687,6 +687,9 @@ class ThesisProjectAdminService
                 'notes' => $notes,
             ])->save();
 
+            // The panel stops being secret now: bring the additional examiners into the Sidang thread.
+            $this->createOrRefreshSidangThread($defense, (int) $project->student_user_id);
+
             if ($result !== 'pass_with_revision') {
                 $this->closeDefenseRevisions($defense, $decidedBy, $notes);
             }
@@ -1143,11 +1146,18 @@ class ThesisProjectAdminService
             ],
         );
 
-        $panelIds = $defense->examiners
+        // Only the panel members the mahasiswa may see are in the thread. The additional
+        // examiners join once the Sidang is completed (see ThesisDefense::examinersVisibleToStudent()).
+        $panelIds = $defense->examinersForStudent()
             ->pluck('lecturer_user_id')
             ->filter()
             ->map(static fn($id): int => (int) $id)
             ->values();
+        $additionalExaminerIds = $defense->examiners
+            ->reject(fn(ThesisDefenseExaminer $examiner): bool => $examiner->isSupervisorRole())
+            ->pluck('lecturer_user_id')
+            ->map(static fn($id): int => (int) $id);
+        $newlyAddedExaminer = false;
 
         MentorshipChatThreadParticipant::query()
             ->where('thread_id', $thread->getKey())
@@ -1160,7 +1170,7 @@ class ThesisProjectAdminService
             ->delete();
 
         foreach ($panelIds as $panelId) {
-            MentorshipChatThreadParticipant::query()->updateOrCreate(
+            $participant = MentorshipChatThreadParticipant::query()->updateOrCreate(
                 [
                     'thread_id' => $thread->getKey(),
                     'user_id' => $panelId,
@@ -1169,6 +1179,19 @@ class ThesisProjectAdminService
                     'role' => 'examiner',
                 ],
             );
+
+            if ($participant->wasRecentlyCreated && $additionalExaminerIds->contains($panelId)) {
+                $newlyAddedExaminer = true;
+            }
+        }
+
+        if ($newlyAddedExaminer) {
+            $thread->messages()->create([
+                'sender_user_id' => null,
+                'message_type' => 'text',
+                'message' => 'Penguji '.$terminology['finalExamShort'].' ditambahkan untuk koordinasi revisi.',
+                'sent_at' => now(),
+            ]);
         }
 
         if ($wasRecentlyCreated) {

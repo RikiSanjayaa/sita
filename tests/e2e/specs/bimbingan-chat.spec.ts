@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { seedPlaywrightScenarios } from '../support/db';
 import {
     authStatePath,
     thesisFixtures,
@@ -999,6 +1000,83 @@ test.describe('Bimbingan and chat integration', () => {
             ).toHaveCount(0);
         } finally {
             await dosenContext.close();
+        }
+    });
+});
+
+test.describe('Sidang chat group before the sidang is completed', () => {
+    test.beforeAll(() => {
+        seedPlaywrightScenarios();
+    });
+
+    test('mahasiswa sees only the supervisors in the sidang group while the extra examiner stays out of it', async ({
+        browser,
+    }) => {
+        const sidang = thesisScenarios.sidangWithPanel;
+        const studentContext = await browser.newContext({
+            storageState: authStatePath(sidang.studentKey),
+        });
+        const examinerContext = await browser.newContext({
+            storageState: authStatePath(sidang.panelKeys[2]),
+        });
+
+        async function inertiaProps(
+            page: Page,
+            url: string,
+        ): Promise<{ threads: Array<Record<string, unknown>> }> {
+            const response = await page.request.get(url, {
+                headers: { 'X-Inertia': 'true' },
+            });
+            expect(response.ok()).toBeTruthy();
+
+            return (await response.json()).props;
+        }
+
+        try {
+            const studentPage = await studentContext.newPage();
+            const examinerPage = await examinerContext.newPage();
+
+            const studentProps = await inertiaProps(
+                studentPage,
+                '/mahasiswa/pesan',
+            );
+            const studentSidangThread = studentProps.threads.find(
+                (thread) => thread.threadType === 'sidang',
+            );
+
+            expect(studentSidangThread).toBeTruthy();
+            expect(studentSidangThread?.members).toEqual(
+                expect.arrayContaining([
+                    sidang.studentName,
+                    'Dr. Budi Santoso, M.Kom.',
+                    'Dr. Ratna Kusuma, M.Kom.',
+                ]),
+            );
+            expect(JSON.stringify(studentSidangThread)).not.toContain(
+                'Prof. Ahmad Hidayat, Ph.D.',
+            );
+
+            // The extra examiner (dosen3) still sees the student's sidang in the portal,
+            // but the sidang group is not in their chat list yet.
+            await examinerPage.goto('/dosen/seminar-proposal');
+            await expect(
+                examinerPage.getByText(sidang.studentName).first(),
+            ).toBeVisible();
+
+            const examinerProps = await inertiaProps(
+                examinerPage,
+                '/dosen/pesan',
+            );
+            expect(
+                examinerProps.threads.some(
+                    (thread) =>
+                        thread.threadType === 'sidang' &&
+                        thread.student === sidang.studentName,
+                ),
+            ).toBe(false);
+        } finally {
+            await studentContext.close();
+            await examinerContext.close();
         }
     });
 });

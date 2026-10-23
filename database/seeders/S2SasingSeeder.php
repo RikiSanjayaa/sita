@@ -1596,6 +1596,13 @@ class S2SasingSeeder extends Seeder
      */
     private function createSidangThread(ThesisDefense $defense, User $student, array $panel, CarbonImmutable $createdAt): void
     {
+        // Same rule as ThesisProjectAdminService: additional examiners join the thread once the Sidang is completed.
+        $visibleLecturerIds = $defense->load('examiners')->examinersForStudent()->pluck('lecturer_user_id')->all();
+        $panel = array_values(array_filter(
+            $panel,
+            fn(User $lecturer): bool => in_array($lecturer->id, $visibleLecturerIds, true),
+        ));
+
         $thread = MentorshipChatThread::query()->updateOrCreate(
             [
                 'student_user_id' => $student->id,
