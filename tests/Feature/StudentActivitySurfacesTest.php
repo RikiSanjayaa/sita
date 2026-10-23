@@ -148,7 +148,7 @@ it('lists a student once on the progress page and gates the ticket on the curren
     $this->actingAs($kaprodi)->get('/progres-mahasiswa')->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('pagination.total', 1)
-            ->where('rows.0.id', $current->id));
+            ->where('rows.0.projectId', $current->id));
 
     $tickets = app(MentorshipTicketService::class);
     expect($tickets->activeProjectForStudent($student->id)?->id)->toBe($current->id)
