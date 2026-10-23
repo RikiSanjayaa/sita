@@ -73,6 +73,8 @@ async function submitDefenseDecision(
         score,
         decisionNotes,
         revisionNotes,
+        revisionItems,
+        annotationPdf,
         attemptLabel,
     }: {
         studentName: string;
@@ -80,6 +82,8 @@ async function submitDefenseDecision(
         score?: string;
         decisionNotes: string;
         revisionNotes?: string;
+        revisionItems?: Array<{ location: string; description: string }>;
+        annotationPdf?: boolean;
         attemptLabel?: string;
     },
 ): Promise<void> {
@@ -106,6 +110,25 @@ async function submitDefenseDecision(
 
     if (decision === 'pass_with_revision') {
         await page.getByLabel(/catatan revisi/i).fill(revisionNotes ?? '');
+
+        for (const [index, item] of (revisionItems ?? []).entries()) {
+            await page.getByRole('button', { name: 'Tambah Butir' }).click();
+            await page
+                .getByLabel(`Butir ${index + 1}: lokasi`)
+                .fill(item.location);
+            await page
+                .getByRole('textbox', { name: 'Uraian' })
+                .nth(index)
+                .fill(item.description);
+        }
+
+        if (annotationPdf) {
+            await page.getByLabel(/naskah beranotasi/i).setInputFiles({
+                name: 'naskah-beranotasi.pdf',
+                mimeType: 'application/pdf',
+                buffer: Buffer.from('%PDF-1.4\n%%EOF\n'),
+            });
+        }
     }
 
     const decisionRequest = page.waitForResponse(
@@ -457,6 +480,17 @@ test.describe('Admin sempro workflow', () => {
                 decisionNotes:
                     'Perbaikan attempt baru memadai untuk lolos sempro.',
                 revisionNotes: 'Lengkapi lampiran validasi proposal final.',
+                revisionItems: [
+                    {
+                        location: 'Bab 2, hlm. 14',
+                        description: 'Tambahkan referensi validasi instrumen.',
+                    },
+                    {
+                        location: 'Lampiran B',
+                        description: 'Lengkapi skenario pengujian akhir.',
+                    },
+                ],
+                annotationPdf: true,
                 attemptLabel: 'Sempro #3',
             });
 
@@ -468,6 +502,26 @@ test.describe('Admin sempro workflow', () => {
                     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 ),
             );
+
+            await studentPage.goto('/mahasiswa/tugas-akhir');
+            await studentPage
+                .locator('tr')
+                .filter({ hasText: 'Sempro #3' })
+                .first()
+                .click();
+            await expect(
+                studentPage.getByText(
+                    'Tambahkan referensi validasi instrumen.',
+                ),
+            ).toBeVisible();
+            await expect(
+                studentPage.getByText('Lengkapi skenario pengujian akhir.'),
+            ).toBeVisible();
+            await expect(
+                studentPage.getByText(
+                    'Naskah beranotasi: naskah-beranotasi.pdf',
+                ),
+            ).toBeVisible();
 
             resolveSemproRevisionForStudent(
                 'bagas@sita.test',

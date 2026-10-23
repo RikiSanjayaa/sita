@@ -32,6 +32,13 @@ import {
 import { PageHeader } from '@/components/patterns/page-header';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import {
+    type RevisionAnnotation,
+    RevisionAnnotationLinks,
+    type RevisionItem,
+    RevisionItemList,
+    showRevisionSummary,
+} from '@/components/revision-items';
+import {
     type ThesisNote,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
@@ -191,6 +198,8 @@ type TugasAkhirPageProps = {
                 dueAt: string | null;
                 resolvedAt: string | null;
                 resolutionNotes: string | null;
+                items: RevisionItem[];
+                annotations: RevisionAnnotation[];
             }>;
         }>;
         sidang: Array<{
@@ -232,6 +241,8 @@ type TugasAkhirPageProps = {
                 dueAt: string | null;
                 resolvedAt: string | null;
                 resolutionNotes: string | null;
+                items: RevisionItem[];
+                annotations: RevisionAnnotation[];
             }>;
         }>;
     };
@@ -1351,9 +1362,22 @@ function DefenseHistoryRow({
                                                         )}
                                                     </div>
 
-                                                    <p className="text-sm text-pretty">
-                                                        {rev.notes}
-                                                    </p>
+                                                    {showRevisionSummary(
+                                                        rev.notes,
+                                                        rev.items,
+                                                    ) && (
+                                                        <p className="text-sm text-pretty">
+                                                            {rev.notes}
+                                                        </p>
+                                                    )}
+                                                    <RevisionItemList
+                                                        items={rev.items}
+                                                    />
+                                                    <RevisionAnnotationLinks
+                                                        annotations={
+                                                            rev.annotations
+                                                        }
+                                                    />
 
                                                     {rev.resolutionNotes && (
                                                         <p className="mt-2 border-l-2 pl-3 text-sm text-pretty text-muted-foreground">

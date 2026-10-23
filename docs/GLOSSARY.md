@@ -43,6 +43,8 @@ Exam names never carry the degree's final work ("Sempro Tugas Akhir" and "Semina
 | `thesis_defenses.type`              | `sidang`              | final exam (`finalExam` / `finalExamShort`)            |
 | `ThesisDocument.kind`               | `proposal`            | "Naskah Proposal" (`proposalDocument`)                 |
 | `ThesisDocument.kind`               | `revision_submission` | "Dokumen Revisi"                                       |
+| `ThesisDocument.kind`               | `revision_annotation` | "Naskah beranotasi" (dari penguji, versi = putaran)    |
+| `thesis_revision_items`             | one row per butir     | "Butir revisi" (lokasi, uraian, prioritas Mayor/Minor) |
 | `ThesisDocument.kind`               | `final_manuscript`    | "Naskah Akhir"                                         |
 | `ThesisDocument.kind`               | `supporting_document` | "Lampiran"                                             |
 
