@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { ArchivedMentorshipNotice } from '@/components/archived-mentorship-notice';
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import {
@@ -101,6 +102,7 @@ type JadwalPageProps = {
     }>;
     upcomingMeetings: UpcomingMeeting[];
     historyMeetings: HistoryMeeting[];
+    archivedProject: boolean;
     flashMessage?: string | null;
 };
 
@@ -720,8 +722,9 @@ export default function JadwalBimbinganPage() {
                     }
                 />
 
-                {/* No dosbing state */}
-                {!page.props.auth.activeRole || !page.props.hasDosbing ? (
+                {page.props.archivedProject ? (
+                    <ArchivedMentorshipNotice finalWork={terms.finalWork} />
+                ) : !page.props.auth.activeRole || !page.props.hasDosbing ? (
                     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed px-4 py-16 text-center">
                         <Users
                             aria-hidden="true"

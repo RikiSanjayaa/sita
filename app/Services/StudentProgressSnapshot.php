@@ -133,7 +133,9 @@ class StudentProgressSnapshot
     {
         $reference = $lastActivity ?? $project->started_at;
         $thresholdDays = (int) config('sita.inactive_after_days', 30);
-        $isInactive = $reference instanceof CarbonInterface
+        // An archived student graduated long ago; "Tidak aktif" does not apply to them.
+        $isInactive = ! $project->isArchived()
+            && $reference instanceof CarbonInterface
             && $reference->lt(now()->subDays($thresholdDays));
 
         $supervisors = $project->activeSupervisorAssignments
@@ -174,6 +176,7 @@ class StudentProgressSnapshot
                     'student_user_id' => (int) $project->student_user_id,
                     'lecturer_user_id' => (int) $assignment->lecturer_user_id,
                     'started_at' => $assignment->started_at,
+                    'archived_completed' => $project->archivedCompletedCount((int) $assignment->lecturer_user_id),
                 ];
             }
         }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,8 @@ class ThesisProject extends Model
         'started_at',
         'completed_at',
         'cancelled_at',
+        'archived_at',
+        'archive_summary',
         'created_by',
         'closed_by',
         'notes',
@@ -44,6 +47,8 @@ class ThesisProject extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'archive_summary' => 'array',
             'mentorship_valid_from' => 'date',
             'mentorship_valid_until' => 'date',
         ];
@@ -197,6 +202,82 @@ class ThesisProject extends Model
     public function publicTitle(): ?ThesisProjectTitle
     {
         return $this->hasPublicTitle() ? $this->approvedTitles->first() : null;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    /**
+     * Completed projects whose grace period has passed and that are not archived yet.
+     * Cancelled and active projects never qualify.
+     */
+    public function scopeDueForArchive(Builder $query, ?CarbonInterface $now = null): void
+    {
+        $cutoff = ($now ?? now())->copy()->subDays((int) config('sita.archive_grace_days', 30));
+
+        $query->where($query->getModel()->qualifyColumn('state'), 'completed')
+            ->whereNull($query->getModel()->qualifyColumn('archived_at'))
+            ->whereNotNull($query->getModel()->qualifyColumn('completed_at'))
+            ->where($query->getModel()->qualifyColumn('completed_at'), '<=', $cutoff);
+    }
+
+    /**
+     * Completed project still inside the grace period (chat is read-only, nothing deleted yet).
+     */
+    public function scopeInArchiveGrace(Builder $query, ?CarbonInterface $now = null): void
+    {
+        $cutoff = ($now ?? now())->copy()->subDays((int) config('sita.archive_grace_days', 30));
+
+        $query->where($query->getModel()->qualifyColumn('state'), 'completed')
+            ->whereNull($query->getModel()->qualifyColumn('archived_at'))
+            ->where(function (Builder $query) use ($cutoff): void {
+                $query->whereNull($query->getModel()->qualifyColumn('completed_at'))
+                    ->orWhere($query->getModel()->qualifyColumn('completed_at'), '>', $cutoff);
+            });
+    }
+
+    /**
+     * When the archive command will remove mentorship data, or null for a project that
+     * is not completed or is already archived.
+     */
+    public function archiveDueAt(): ?CarbonImmutable
+    {
+        if ($this->state !== 'completed' || $this->archived_at !== null || $this->completed_at === null) {
+            return null;
+        }
+
+        return CarbonImmutable::instance($this->completed_at)->addDays((int) config('sita.archive_grace_days', 30));
+    }
+
+    /**
+     * Completed bimbingan sessions of one lecturer, read from archive_summary. Null while
+     * the project is not archived, so callers fall back to the live count.
+     */
+    public function archivedCompletedCount(int $lecturerUserId): ?int
+    {
+        if (! $this->isArchived()) {
+            return null;
+        }
+
+        foreach ($this->archive_summary['completed_mentorship'] ?? [] as $row) {
+            if ((int) ($row['lecturer_user_id'] ?? 0) === $lecturerUserId) {
+                return (int) ($row['completed'] ?? 0);
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Last activity captured before the mentorship data was deleted, or null when not archived.
+     */
+    public function archivedLastActivity(): ?CarbonImmutable
+    {
+        $value = $this->isArchived() ? ($this->archive_summary['last_activity_at'] ?? null) : null;
+
+        return $value === null ? null : CarbonImmutable::parse($value);
     }
 
     /**

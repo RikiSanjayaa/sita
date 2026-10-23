@@ -46,6 +46,10 @@ class StudentActivityService
                 $byProject[$projectId] = $time;
             }
         };
+        foreach ($projects as $project) {
+            // Archived: chat, documents and schedules are deleted, so the snapshot is the value.
+            $consider((int) $project->getKey(), $project->archivedLastActivity());
+        }
         foreach ($assignments as $assignment) {
             $consider((int) $assignment->project_id, $latest['supervisor:'.$assignment->id] ?? null);
         }
@@ -150,6 +154,16 @@ class StudentActivityService
             }
         }
 
+        // Archived projects lost their chat, documents and schedules; the snapshot keeps the value.
+        // Read from the already loaded project so this stays at three queries.
+        foreach ($assignments as $assignment) {
+            $this->considerArchived($latest, 'supervisor:'.$assignment->id, $assignment->relationLoaded('project') ? $assignment->project : null);
+        }
+        foreach ($examiners as $examiner) {
+            $project = $examiner->relationLoaded('defense') && $examiner->defense?->relationLoaded('project') ? $examiner->defense->project : null;
+            $this->considerArchived($latest, 'examiner:'.$examiner->id, $project);
+        }
+
         foreach ($examiners as $examiner) {
             $key = 'examiner:'.$examiner->id;
             foreach ([$examiner->decided_at, $examiner->defense?->updated_at] as $time) {
@@ -160,6 +174,18 @@ class StudentActivityService
         }
 
         return $latest;
+    }
+
+    /**
+     * @param  array<string, Carbon>  $latest
+     */
+    private function considerArchived(array &$latest, string $key, ?ThesisProject $project): void
+    {
+        $snapshotAt = $project?->archivedLastActivity();
+
+        if ($snapshotAt !== null && (! isset($latest[$key]) || $snapshotAt->gt($latest[$key]))) {
+            $latest[$key] = Carbon::instance($snapshotAt);
+        }
     }
 
     private function withinLifetime(Builder $query, string $column): void
