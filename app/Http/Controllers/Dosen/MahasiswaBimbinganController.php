@@ -14,9 +14,11 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\MentorshipProgressService;
+use App\Services\StudentProgressSnapshot;
 use App\Services\ThesisProjectNoteService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,6 +30,7 @@ class MahasiswaBimbinganController extends Controller
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ThesisProjectNoteService $noteService,
         private readonly MentorshipProgressService $mentorshipProgressService,
+        private readonly StudentProgressSnapshot $studentProgressSnapshot,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -84,11 +87,29 @@ class MahasiswaBimbinganController extends Controller
             ->keyBy('student_user_id');
 
         $completedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $assignments);
-        $rows = collect($assignments->map(function ($assignment) use ($latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent): array {
-            return $this->buildRow($assignment, $latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent);
+        $archivedAssignments = $this->dosenBimbinganService->archivedAssignmentsWithStudent($lecturer);
+        $projects = $assignments->pluck('project')
+            ->merge($archivedAssignments->pluck('project'))
+            ->merge($examinerRecords->pluck('defense.project'))
+            ->filter()
+            ->values();
+        $progressByProject = $this->studentProgressSnapshot->forProjects(new EloquentCollection($projects->unique('id')->values()->all()), $lecturer);
+
+        // Row building calls UserProfilePresenter::summary() per student; preload what it needs once.
+        (new EloquentCollection($projects->pluck('student')->filter()->all()))->loadMissing([
+            'roles',
+            'adminProfile.programStudi',
+            'dosenProfile.programStudi',
+            'expertiseFields',
+            'activeDosenProgramStudiAssignments.programStudi',
+            'kaprodiAssignment.programStudi',
+            'mahasiswaProfile.programStudi',
+        ]);
+        $rows = collect($assignments->map(function ($assignment) use ($latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent, $progressByProject): array {
+            return $this->buildRow($assignment, $latestDocumentByStudent, $latestScheduleByStudent, $threadIdsByStudent, $completedByStudent, $progressByProject);
         }))
-            ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestDocumentByStudent, $latestScheduleByStudent): array {
-                return $this->buildExaminerRow($examiner, $latestDocumentByStudent, $latestScheduleByStudent, $examThreadIdsByStudentAndType);
+            ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestDocumentByStudent, $latestScheduleByStudent, $progressByProject): array {
+                return $this->buildExaminerRow($examiner, $latestDocumentByStudent, $latestScheduleByStudent, $examThreadIdsByStudentAndType, $progressByProject);
             }))
             ->sortBy([
                 ['name', 'asc'],
@@ -99,7 +120,6 @@ class MahasiswaBimbinganController extends Controller
             ->all();
 
         // Archived / history rows
-        $archivedAssignments = $this->dosenBimbinganService->archivedAssignmentsWithStudent($lecturer);
         $archivedStudentIds = $archivedAssignments
             ->pluck('project.student_user_id')
             ->merge($historyExaminerRecords->pluck('defense.project.student_user_id'))
@@ -129,11 +149,11 @@ class MahasiswaBimbinganController extends Controller
 
         $archivedCompletedByStudent = $this->mentorshipProgressService->completedByStudentForLecturer($lecturer->id, $archivedAssignments);
 
-        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent): array {
-            return $this->buildRow($assignment, $archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent);
+        $historyRows = collect($archivedAssignments->map(function ($assignment) use ($archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject): array {
+            return $this->buildRow($assignment, $archivedLatestDoc, $archivedLatestSchedule, $archivedThreadIds, $archivedCompletedByStudent, $progressByProject);
         }))
-            ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestDoc, $archivedLatestSchedule): array {
-                return $this->buildExaminerRow($examiner, $archivedLatestDoc, $archivedLatestSchedule, $archivedExamThreadIdsByStudentAndType);
+            ->merge($historyExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($archivedExamThreadIdsByStudentAndType, $archivedLatestDoc, $archivedLatestSchedule, $progressByProject): array {
+                return $this->buildExaminerRow($examiner, $archivedLatestDoc, $archivedLatestSchedule, $archivedExamThreadIdsByStudentAndType, $progressByProject);
             }))
             ->sortBy([
                 ['name', 'asc'],
@@ -164,6 +184,7 @@ class MahasiswaBimbinganController extends Controller
      * @param  \Illuminate\Support\Collection<string,mixed>  $latestScheduleByStudent
      * @param  \Illuminate\Support\Collection<string,mixed>  $threadIdsByStudent
      * @param  array<int,int>  $completedByStudent
+     * @param  array<int, array<string, mixed>>  $progressByProject
      * @return array<string,mixed>
      */
     private function buildRow(
@@ -172,6 +193,7 @@ class MahasiswaBimbinganController extends Controller
         mixed $latestScheduleByStudent,
         mixed $threadIdsByStudent,
         array $completedByStudent,
+        array $progressByProject,
     ): array {
         $student = $assignment->project?->student;
         $profile = $student?->mahasiswaProfile;
@@ -216,6 +238,7 @@ class MahasiswaBimbinganController extends Controller
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
+            'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
         ];
     }
 
@@ -223,6 +246,7 @@ class MahasiswaBimbinganController extends Controller
      * @param  \Illuminate\Support\Collection<string,mixed>  $latestDocByStudent
      * @param  \Illuminate\Support\Collection<string,mixed>  $latestScheduleByStudent
      * @param  array<string, int>  $threadIdsByStudentAndType
+     * @param  array<int, array<string, mixed>>  $progressByProject
      * @return array<string,mixed>
      */
     private function buildExaminerRow(
@@ -230,6 +254,7 @@ class MahasiswaBimbinganController extends Controller
         mixed $latestDocByStudent,
         mixed $latestScheduleByStudent,
         array $threadIdsByStudentAndType,
+        array $progressByProject,
     ): array {
         $defense = $examiner->defense;
         $project = $defense?->project;
@@ -284,6 +309,7 @@ class MahasiswaBimbinganController extends Controller
                 ?? 'Belum ada aktivitas',
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
+            'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
         ];
     }
 

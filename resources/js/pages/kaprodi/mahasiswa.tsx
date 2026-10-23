@@ -28,6 +28,10 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import {
+    StudentProgressPeek,
+    type StudentProgress,
+} from '@/components/profile/student-progress-peek';
+import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
@@ -119,6 +123,7 @@ type StudentRow = {
         daysIdle: number | null;
         signals: string[];
     };
+    progress: StudentProgress | null;
     profileUrl: string;
 };
 
@@ -157,6 +162,7 @@ type DirectoryRow = {
     title: string;
     advisors: string[];
     progressRisk: StudentRow['progressRisk'] | null;
+    progress: StudentProgress | null;
     profileUrl: string;
     completedAt: string | null;
     mentorshipTicket: StudentRow['mentorshipTicket'];
@@ -319,6 +325,7 @@ function StudentTable({
                 title: row.title,
                 advisors: row.advisors,
                 progressRisk: row.progressRisk,
+                progress: row.progress,
                 profileUrl: row.profileUrl,
                 completedAt: null,
                 mentorshipTicket: row.mentorshipTicket,
@@ -346,6 +353,7 @@ function StudentTable({
                 title: row.title,
                 advisors: [],
                 progressRisk: null,
+                progress: null,
                 profileUrl: row.profileUrl,
                 completedAt: row.completedAt,
                 mentorshipTicket: null,
@@ -624,7 +632,11 @@ function StudentTable({
                                         data-label="Tahap"
                                         className={stackedTable.td}
                                     >
-                                        {row.phase ? (
+                                        {row.progress ? (
+                                            <StudentProgressPeek
+                                                progress={row.progress}
+                                            />
+                                        ) : row.phase ? (
                                             <StatusBadge
                                                 domain="phase"
                                                 status={row.phaseKey}

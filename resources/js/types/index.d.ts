@@ -1,6 +1,7 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
+import { type StudentProgress } from '@/components/profile/student-progress-peek';
 import { type AcademicTerminology } from '@/lib/academic-terminology';
 
 export type AppRole = 'mahasiswa' | 'dosen' | 'kaprodi' | 'admin' | 'penguji';
@@ -91,6 +92,7 @@ export interface UserProfileSummary {
     mentorshipCount?: number | null;
     phase?: string | null;
     phaseLabel?: string | null;
+    progress?: StudentProgress | null;
 }
 
 export interface ProfileFieldItem {

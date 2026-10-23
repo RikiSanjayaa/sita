@@ -58,6 +58,7 @@ const areas: readonly AreaPages[] = [
             '/mahasiswa/jadwal-bimbingan',
             '/mahasiswa/upload-dokumen',
             '/mahasiswa/pesan',
+            '/progres-mahasiswa',
             '/mahasiswa/panduan',
             '/settings/profile',
             '/settings/password',
@@ -85,6 +86,7 @@ const areas: readonly AreaPages[] = [
         paths: [
             '/kaprodi/dashboard',
             '/kaprodi/mahasiswa',
+            '/progres-mahasiswa',
             '/kaprodi/sempro-sidang',
             '/kaprodi/dokumen',
             '/kaprodi/dosen-prodi',

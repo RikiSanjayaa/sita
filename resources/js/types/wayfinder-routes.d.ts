@@ -13,6 +13,7 @@ declare module '@/routes' {
     export const pesan: (...args: unknown[]) => WayfinderLocation;
     export const panduan: (...args: unknown[]) => WayfinderLocation;
     export const settingNotifikasi: (...args: unknown[]) => WayfinderLocation;
+    export const progresMahasiswa: (...args: unknown[]) => WayfinderLocation;
     export const login: (...args: unknown[]) => WayfinderLocation;
     export const register: (...args: unknown[]) => WayfinderLocation;
     export const logout: (...args: unknown[]) => WayfinderLocation;

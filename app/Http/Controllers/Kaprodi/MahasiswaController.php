@@ -29,7 +29,7 @@ class MahasiswaController extends Controller
             ->get(['id', 'student_user_id', 'program_studi_id']);
 
         return Inertia::render('kaprodi/mahasiswa', [
-            ...$this->kaprodiPortalService->studentIndex($programStudi),
+            ...$this->kaprodiPortalService->studentIndex($programStudi, $request->user()),
             'projectNotes' => $this->noteService->payload($request->user(), $projects, allowWrite: false),
         ]);
     }
