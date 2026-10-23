@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\AppRole;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,13 +26,16 @@ class EnsureRole
             ->all();
 
         $activeRole = $user->resolveActiveRole($request->session()->get('active_role'));
-        $userHasAllowedRole = $user->hasAnyRole($allowedRoles);
 
-        if (! $userHasAllowedRole) {
+        // Kaprodi works inside the dosen area in the same workspace, so the active role stays kaprodi.
+        $kaprodiCoversDosen = $activeRole === AppRole::Kaprodi->value
+            && in_array(AppRole::Dosen->value, $allowedRoles, true);
+
+        if (! $kaprodiCoversDosen && ! $user->hasAnyRole($allowedRoles)) {
             abort(403);
         }
 
-        if (in_array($activeRole, $allowedRoles, true)) {
+        if ($kaprodiCoversDosen || in_array($activeRole, $allowedRoles, true)) {
             return $next($request);
         }
 

@@ -39,16 +39,19 @@ export function AppSidebar({ role }: AppSidebarProps) {
                       : item,
               )
             : navigation.main;
-    const mainNavigation =
+    const canViewDocuments = auth.kaprodiCapabilities?.view_documents ?? true;
+    const visibleItems = (items: NavItem[]): NavItem[] =>
         activeRole === 'kaprodi'
-            ? resolvedMainNavigation.filter((item) => {
-                  if (item.href === '/kaprodi/dokumen') {
-                      return auth.kaprodiCapabilities?.view_documents ?? true;
-                  }
-
-                  return true;
-              })
-            : resolvedMainNavigation;
+            ? items.filter(
+                  (item) =>
+                      item.href !== '/kaprodi/dokumen' || canViewDocuments,
+              )
+            : items;
+    const mainNavigation = visibleItems(resolvedMainNavigation);
+    const sections = (navigation.sections ?? []).map((section) => ({
+        ...section,
+        items: visibleItems(section.items),
+    }));
     const settingsIsActive = currentUrl.startsWith('/settings');
 
     return (
@@ -66,7 +69,14 @@ export function AppSidebar({ role }: AppSidebarProps) {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavigation} />
+                <NavMain items={mainNavigation} label={navigation.mainLabel} />
+                {sections.map((section) => (
+                    <NavMain
+                        key={section.label}
+                        items={section.items}
+                        label={section.label}
+                    />
+                ))}
             </SidebarContent>
 
             <SidebarFooter>

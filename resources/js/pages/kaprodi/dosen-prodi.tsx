@@ -1,5 +1,11 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Gauge, GraduationCap, Pencil, UserRound } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import {
+    Gauge,
+    GraduationCap,
+    MessageSquareText,
+    Pencil,
+    UserRound,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
@@ -94,6 +100,14 @@ export default function KaprodiDosenProdiPage() {
     );
     const pageState = useUrlState('page', 1);
     const [quotaDialog, setQuotaDialog] = useState<LecturerRow | null>(null);
+
+    const openPrivateChat = (lecturer: LecturerRow): void => {
+        router.post(
+            '/dosen/pesan/private',
+            { recipient_id: lecturer.id },
+            { preserveScroll: true },
+        );
+    };
 
     const concentrations = useMemo(
         () =>
@@ -374,6 +388,19 @@ export default function KaprodiDosenProdiPage() {
                                                             }
                                                         >
                                                             <Pencil className="size-4" />
+                                                        </RowIconButton>
+                                                    ) : null}
+                                                    {lecturer.id !==
+                                                    auth.user.id ? (
+                                                        <RowIconButton
+                                                            label="Chat dengan dosen"
+                                                            onClick={() =>
+                                                                openPrivateChat(
+                                                                    lecturer,
+                                                                )
+                                                            }
+                                                        >
+                                                            <MessageSquareText className="size-4" />
                                                         </RowIconButton>
                                                     ) : null}
                                                     <RowIconButton

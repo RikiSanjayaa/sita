@@ -18,7 +18,7 @@ class RoleSwitchController extends Controller
         $user = $request->user();
         $role = $validated['role'];
 
-        abort_unless($user->hasRole($role), 403);
+        abort_unless($user->canActivateRole($role), 403);
 
         $request->session()->put('active_role', $role);
 

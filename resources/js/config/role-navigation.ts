@@ -18,8 +18,17 @@ import {
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { type AppRole, type NavItem } from '@/types';
 
+type NavSection = {
+    label: string;
+    items: NavItem[];
+};
+
 type RoleNavigation = {
     main: NavItem[];
+    /** Label for `main`. Defaults to "Menu utama". */
+    mainLabel?: string;
+    /** Extra labelled groups rendered after `main`. */
+    sections?: NavSection[];
     settings: NavItem;
 };
 
@@ -103,6 +112,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
         },
     },
     kaprodi: {
+        mainLabel: 'Kaprodi',
         main: [
             {
                 title: 'Dashboard',
@@ -128,6 +138,38 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dosen Prodi',
                 href: '/kaprodi/dosen-prodi',
                 icon: UserCog,
+            },
+        ],
+        sections: [
+            {
+                label: 'Bimbingan Saya',
+                items: [
+                    {
+                        title: 'Mahasiswa Bimbingan',
+                        href: '/dosen/mahasiswa-bimbingan',
+                        icon: UsersRound,
+                    },
+                    {
+                        title: 'Jadwal Bimbingan',
+                        href: '/dosen/jadwal-bimbingan',
+                        icon: CalendarClock,
+                    },
+                    {
+                        title: 'Dokumen & Revisi',
+                        href: '/dosen/dokumen-revisi',
+                        icon: FileStack,
+                    },
+                    {
+                        title: 'Penilaian Ujian',
+                        href: '/dosen/seminar-proposal',
+                        icon: ClipboardCheck,
+                    },
+                    {
+                        title: 'Pesan',
+                        href: '/dosen/pesan',
+                        icon: MessageSquareText,
+                    },
+                ],
             },
         ],
         settings: {
