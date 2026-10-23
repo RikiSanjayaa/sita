@@ -175,4 +175,32 @@ test.describe('Public pages', () => {
                 .first(),
         ).toBeVisible();
     });
+
+    test('mahasiswa aktif filters by tahap on the server and keeps it in the URL', async ({
+        page,
+    }) => {
+        await page.goto('/mahasiswa-aktif');
+        const pills = page.getByRole('group', { name: 'Tahap mahasiswa' });
+        const stagePills = pills.getByRole('radio');
+        await expect(stagePills.first()).toBeVisible();
+
+        // The first pill is "Semua"; pick the next one, whatever stage it is.
+        const picked = stagePills.nth(1);
+        const pickedText = (await picked.innerText()).replace(/\s+/g, ' ');
+        const [, stageLabel, stageCount] =
+            pickedText.match(/^(.*?)\s+(\d+)$/) ?? [];
+        expect(stageLabel).toBeTruthy();
+
+        await picked.click();
+        await expect(page).toHaveURL(/[?&]stage=[^&]+/);
+        await expect(picked).toHaveAttribute('aria-checked', 'true');
+
+        const rows = page.locator('tbody tr');
+        await expect(rows).not.toHaveCount(0);
+        const shown = Math.min(Number(stageCount), 10);
+        await expect(rows).toHaveCount(shown);
+        for (const row of await rows.all()) {
+            await expect(row).toContainText(stageLabel);
+        }
+    });
 });

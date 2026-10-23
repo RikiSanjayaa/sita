@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
     DataSection,
@@ -26,6 +26,7 @@ type StudentRow = {
     nim: string;
     programStudi: string;
     programSlug: string;
+    stage: string;
     stageLabel: string;
     stageDescription: string;
     advisors: Array<{
@@ -38,6 +39,7 @@ type PageProps = {
     filters: {
         search: string;
         program: string;
+        stage: string;
     };
     activeStudents: StudentRow[];
     studentPagination: {
@@ -49,6 +51,12 @@ type PageProps = {
         nextPage: number | null;
         previousPage: number | null;
     };
+    studentTotal: number;
+    stageCounts: Array<{
+        value: string;
+        label: string;
+        count: number;
+    }>;
     studentPrograms: Array<{
         slug: string;
         name: string;
@@ -56,8 +64,14 @@ type PageProps = {
 };
 
 export default function PublicStudentsPage() {
-    const { filters, activeStudents, studentPagination, studentPrograms } =
-        usePage<SharedData & PageProps>().props;
+    const {
+        filters,
+        activeStudents,
+        studentPagination,
+        studentTotal,
+        stageCounts,
+        studentPrograms,
+    } = usePage<SharedData & PageProps>().props;
 
     return (
         <PublicStudentsContent
@@ -65,6 +79,8 @@ export default function PublicStudentsPage() {
             filters={filters}
             activeStudents={activeStudents}
             studentPagination={studentPagination}
+            studentTotal={studentTotal}
+            stageCounts={stageCounts}
             studentPrograms={studentPrograms}
         />
     );
@@ -74,13 +90,14 @@ function PublicStudentsContent({
     filters,
     activeStudents,
     studentPagination,
+    studentTotal,
+    stageCounts,
     studentPrograms,
 }: PageProps) {
     const [search, setSearch] = useState(filters.search);
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
-    const [stageFilter, setStageFilter] = useState('semua');
 
     useEffect(() => {
         const normalizedProgram =
@@ -98,6 +115,7 @@ function PublicStudentsContent({
                 {
                     search: search || undefined,
                     program: normalizedProgram || undefined,
+                    stage: filters.stage || undefined,
                     per_page: studentPagination.perPage,
                 },
                 {
@@ -112,41 +130,33 @@ function PublicStudentsContent({
     }, [
         filters.program,
         filters.search,
+        filters.stage,
         programFilter,
         search,
         studentPagination.perPage,
     ]);
 
-    const stageTabs = useMemo(() => {
-        const counts = activeStudents.reduce<Record<string, number>>(
-            (carry, student) => {
-                const key = student.stageLabel.toLowerCase();
-                carry[key] = (carry[key] ?? 0) + 1;
+    const stageTabs = [
+        { label: 'Semua', value: 'semua', count: studentTotal },
+        ...stageCounts,
+    ];
 
-                return carry;
+    function changeStage(value: string) {
+        router.get(
+            '/mahasiswa-aktif',
+            {
+                search: filters.search || undefined,
+                program: filters.program || undefined,
+                stage: value === 'semua' ? undefined : value,
+                per_page: studentPagination.perPage,
             },
-            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
         );
-
-        return [
-            { label: 'Semua', value: 'semua', count: activeStudents.length },
-            ...Object.entries(counts).map(([value, count]) => ({
-                label: value.replace(/\b\w/g, (char) => char.toUpperCase()),
-                value,
-                count,
-            })),
-        ];
-    }, [activeStudents]);
-
-    const filteredStudents = useMemo(() => {
-        if (stageFilter === 'semua') {
-            return activeStudents;
-        }
-
-        return activeStudents.filter(
-            (student) => student.stageLabel.toLowerCase() === stageFilter,
-        );
-    }, [activeStudents, stageFilter]);
+    }
 
     function visitPage(page: number) {
         router.get(
@@ -155,6 +165,7 @@ function PublicStudentsContent({
                 page,
                 search: filters.search || undefined,
                 program: filters.program || undefined,
+                stage: filters.stage || undefined,
                 per_page: studentPagination.perPage,
             },
             {
@@ -172,6 +183,7 @@ function PublicStudentsContent({
                 page: 1,
                 search: filters.search || undefined,
                 program: filters.program || undefined,
+                stage: filters.stage || undefined,
                 per_page: pageSize,
             },
             {
@@ -183,7 +195,9 @@ function PublicStudentsContent({
     }
 
     const hasActiveFilter =
-        filters.search.trim() !== '' || filters.program.trim() !== '';
+        filters.search.trim() !== '' ||
+        filters.program.trim() !== '' ||
+        filters.stage.trim() !== '';
 
     return (
         <PublicLayout
@@ -215,13 +229,13 @@ function PublicStudentsContent({
 
                 <FilterPills
                     label="Tahap mahasiswa"
-                    value={stageFilter}
-                    onValueChange={setStageFilter}
+                    value={filters.stage || 'semua'}
+                    onValueChange={changeStage}
                     itemClassName="max-md:h-11 max-md:px-4"
                     options={stageTabs}
                 />
 
-                {filteredStudents.length > 0 ? (
+                {activeStudents.length > 0 ? (
                     <DataTableContainer
                         pagination={
                             <DataTablePagination
@@ -255,7 +269,7 @@ function PublicStudentsContent({
                                     'md:divide-y',
                                 )}
                             >
-                                {filteredStudents.map((student) => (
+                                {activeStudents.map((student) => (
                                     <tr
                                         key={student.id}
                                         className={cn(
@@ -321,7 +335,7 @@ function PublicStudentsContent({
                     <DataTableEmptyState
                         title="Tidak ada mahasiswa"
                         description={
-                            hasActiveFilter || stageFilter !== 'semua'
+                            hasActiveFilter
                                 ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
                                 : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'
                         }

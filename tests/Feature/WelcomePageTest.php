@@ -17,6 +17,165 @@ function attachRole(User $user, string $role): void
     $user->roles()->syncWithoutDetaching([$roleModel->id]);
 }
 
+function publicFilterStudent(ProgramStudi $programStudi, string $name, string $nim): User
+{
+    $student = User::factory()->create([
+        'name' => $name,
+        'last_active_role' => AppRole::Mahasiswa->value,
+    ]);
+    attachRole($student, AppRole::Mahasiswa->value);
+
+    MahasiswaProfile::factory()->create([
+        'user_id' => $student->id,
+        'program_studi_id' => $programStudi->id,
+        'nim' => $nim,
+        'is_active' => true,
+    ]);
+
+    return $student;
+}
+
+function publicFilterProject(User $student, ProgramStudi $programStudi, string $phase, string $state = 'active'): ThesisProject
+{
+    return ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $programStudi->id,
+        'phase' => $phase,
+        'state' => $state,
+        'started_at' => now()->subWeeks(8),
+        'completed_at' => $state === 'completed' ? now()->subDay() : null,
+        'created_by' => $student->id,
+    ]);
+}
+
+function publicFilterTitle(ThesisProject $project, User $student, string $title): ThesisProjectTitle
+{
+    return ThesisProjectTitle::query()->create([
+        'project_id' => $project->id,
+        'version_no' => 1,
+        'title_id' => $title,
+        'title_en' => $title,
+        'proposal_summary' => "Ringkasan {$title}",
+        'status' => 'approved',
+        'submitted_by_user_id' => $student->id,
+        'submitted_at' => now()->subWeeks(7),
+    ]);
+}
+
+test('public schedule type filter covers every page and counts the full set', function (): void {
+    $programStudi = ProgramStudi::query()->create(['name' => 'Sistem Informasi', 'slug' => 'si', 'concentrations' => ['Data']]);
+
+    // Twelve sidang fill page 1 (10 per page); the only sempro is scheduled last, on page 2.
+    foreach (range(1, 13) as $index) {
+        $student = publicFilterStudent($programStudi, "Mahasiswa Jadwal {$index}", sprintf('202403%04d', $index));
+        $project = publicFilterProject($student, $programStudi, $index === 13 ? 'sempro' : 'sidang');
+        $title = publicFilterTitle($project, $student, "Jadwal {$index}");
+
+        ThesisDefense::query()->create([
+            'project_id' => $project->id,
+            'title_version_id' => $title->id,
+            'type' => $index === 13 ? 'sempro' : 'sidang',
+            'attempt_no' => 1,
+            'status' => 'scheduled',
+            'result' => 'pending',
+            'scheduled_for' => now()->addDays($index),
+            'location' => "Ruang {$index}",
+            'mode' => 'offline',
+        ]);
+    }
+
+    $unfiltered = $this->get('/jadwal')->assertOk()->viewData('page');
+
+    expect(collect(data_get($unfiltered, 'props.upcomingSchedules'))->pluck('type')->unique()->all())->toBe(['sidang'])
+        ->and(data_get($unfiltered, 'props.upcomingTypeCounts'))->toBe(['semua' => 13, 'sempro' => 1, 'sidang' => 12]);
+
+    $filtered = $this->get('/jadwal?upcoming_type=sempro')->assertOk()->viewData('page');
+
+    expect(data_get($filtered, 'props.filters.upcomingType'))->toBe('sempro')
+        ->and(data_get($filtered, 'props.upcomingSchedules'))->toHaveCount(1)
+        ->and(data_get($filtered, 'props.upcomingSchedules.0.studentName'))->toBe('Mahasiswa Jadwal 13')
+        ->and(data_get($filtered, 'props.upcomingPagination.hasMorePages'))->toBeFalse()
+        ->and(data_get($filtered, 'props.upcomingTypeCounts'))->toBe(['semua' => 13, 'sempro' => 1, 'sidang' => 12]);
+
+    $invalid = $this->get('/jadwal?upcoming_type=unknown')->assertOk()->viewData('page');
+
+    expect(data_get($invalid, 'props.filters.upcomingType'))->toBe('')
+        ->and(data_get($invalid, 'props.upcomingSchedules'))->toHaveCount(10);
+});
+
+test('public topic year filter covers every page and counts the full set', function (): void {
+    $programStudi = ProgramStudi::query()->create(['name' => 'Sistem Informasi', 'slug' => 'si', 'concentrations' => ['Data']]);
+    $oldYear = now()->subYears(2)->format('Y');
+    $currentYear = now()->format('Y');
+
+    // Eleven recent topics fill page 1; the only one from two years ago sorts last, on page 2.
+    foreach (range(1, 12) as $index) {
+        $student = publicFilterStudent($programStudi, "Mahasiswa Topik {$index}", sprintf('202404%04d', $index));
+        $project = publicFilterProject($student, $programStudi, 'completed', 'completed');
+        $title = publicFilterTitle($project, $student, "Topik {$index}");
+        $heldAt = $index === 12 ? now()->subYears(2) : now()->subDays($index);
+
+        foreach (['sempro', 'sidang'] as $type) {
+            ThesisDefense::query()->create([
+                'project_id' => $project->id,
+                'title_version_id' => $title->id,
+                'type' => $type,
+                'attempt_no' => 1,
+                'status' => 'completed',
+                'result' => 'pass',
+                'scheduled_for' => $heldAt,
+                'location' => "Ruang {$index}",
+                'mode' => 'offline',
+            ]);
+        }
+    }
+
+    $unfiltered = $this->get('/topik')->assertOk()->viewData('page');
+
+    expect(collect(data_get($unfiltered, 'props.semproTitles'))->pluck('year')->unique()->all())->toBe([$currentYear])
+        ->and(data_get($unfiltered, 'props.topicTotal'))->toBe(12)
+        ->and(data_get($unfiltered, 'props.topicYearCounts'))->toBe([
+            ['year' => $currentYear, 'count' => 11],
+            ['year' => $oldYear, 'count' => 1],
+        ]);
+
+    $filtered = $this->get("/topik?year={$oldYear}")->assertOk()->viewData('page');
+
+    expect(data_get($filtered, 'props.filters.year'))->toBe($oldYear)
+        ->and(data_get($filtered, 'props.semproTitles'))->toHaveCount(1)
+        ->and(data_get($filtered, 'props.semproTitles.0.title'))->toBe('Topik 12')
+        ->and(data_get($filtered, 'props.topicPagination.hasMorePages'))->toBeFalse()
+        ->and(data_get($filtered, 'props.topicTotal'))->toBe(12);
+});
+
+test('public active student stage filter covers every page and counts the full set', function (): void {
+    $programStudi = ProgramStudi::query()->create(['name' => 'Sistem Informasi', 'slug' => 'si', 'concentrations' => ['Data']]);
+
+    // Eleven new students (no project) fill page 1; the only one in research sorts last by name.
+    foreach (range(1, 11) as $index) {
+        publicFilterStudent($programStudi, sprintf('Mahasiswa Baru %02d', $index), sprintf('202405%04d', $index));
+    }
+    $researcher = publicFilterStudent($programStudi, 'Zulfa Penelitian', '2024050099');
+    publicFilterProject($researcher, $programStudi, 'research');
+
+    $unfiltered = $this->get('/mahasiswa-aktif')->assertOk()->viewData('page');
+
+    expect(collect(data_get($unfiltered, 'props.activeStudents'))->pluck('stage')->unique()->all())->toBe(['baru-terdaftar'])
+        ->and(data_get($unfiltered, 'props.studentTotal'))->toBe(12)
+        ->and(data_get($unfiltered, 'props.stageCounts'))->toBe([
+            ['value' => 'baru-terdaftar', 'label' => 'Baru Terdaftar', 'count' => 11],
+            ['value' => 'bimbingan-aktif', 'label' => 'Bimbingan Aktif', 'count' => 1],
+        ]);
+
+    $filtered = $this->get('/mahasiswa-aktif?stage=bimbingan-aktif')->assertOk()->viewData('page');
+
+    expect(data_get($filtered, 'props.filters.stage'))->toBe('bimbingan-aktif')
+        ->and(data_get($filtered, 'props.activeStudents'))->toHaveCount(1)
+        ->and(data_get($filtered, 'props.activeStudents.0.name'))->toBe('Zulfa Penelitian')
+        ->and(data_get($filtered, 'props.studentPagination.total'))->toBe(1)
+        ->and(data_get($filtered, 'props.studentTotal'))->toBe(12);
+});
+
 test('public landing pages show schedules, advisors, and finalized thesis topics', function (): void {
     $programStudi = ProgramStudi::query()->create([
         'name' => 'Ilmu Komputer',

@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
 import {
     DataSection,
@@ -56,9 +56,15 @@ type PageProps = {
     filters: {
         search: string;
         program: string;
+        year: string;
     };
     semproTitles: SemproTitleItem[];
     topicPagination: PaginationData;
+    topicTotal: number;
+    topicYearCounts: Array<{
+        year: string;
+        count: number;
+    }>;
     topicPrograms: Array<{
         slug: string;
         name: string;
@@ -66,9 +72,14 @@ type PageProps = {
 };
 
 export default function PublicTopicsPage() {
-    const { filters, semproTitles, topicPagination, topicPrograms } = usePage<
-        SharedData & PageProps
-    >().props;
+    const {
+        filters,
+        semproTitles,
+        topicPagination,
+        topicTotal,
+        topicYearCounts,
+        topicPrograms,
+    } = usePage<SharedData & PageProps>().props;
 
     return (
         <PublicTopicsContent
@@ -76,6 +87,8 @@ export default function PublicTopicsPage() {
             filters={filters}
             semproTitles={semproTitles}
             topicPagination={topicPagination}
+            topicTotal={topicTotal}
+            topicYearCounts={topicYearCounts}
             topicPrograms={topicPrograms}
         />
     );
@@ -85,13 +98,14 @@ function PublicTopicsContent({
     filters,
     semproTitles,
     topicPagination,
+    topicTotal,
+    topicYearCounts,
     topicPrograms,
 }: PageProps) {
     const [search, setSearch] = useState(filters.search);
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
-    const [yearFilter, setYearFilter] = useState('semua');
     const [openRowId, setOpenRowId] = useState<number | null>(null);
 
     useEffect(() => {
@@ -110,6 +124,7 @@ function PublicTopicsContent({
                 {
                     search: search || undefined,
                     program: normalizedProgram || undefined,
+                    year: filters.year || undefined,
                     per_page: topicPagination.perPage,
                 },
                 {
@@ -124,39 +139,46 @@ function PublicTopicsContent({
     }, [
         filters.program,
         filters.search,
+        filters.year,
         programFilter,
         search,
         topicPagination.perPage,
     ]);
 
-    const yearTabs = useMemo(() => {
-        const years = Array.from(
-            new Set(semproTitles.map((item) => item.year)),
-        );
-
-        return [
-            { label: 'Semua', value: 'semua', count: semproTitles.length },
-            ...years.map((year) => ({
-                label: year,
-                value: year,
-                count: semproTitles.filter((item) => item.year === year).length,
-            })),
-        ];
-    }, [semproTitles]);
-
-    const filteredTitles = useMemo(() => {
-        if (yearFilter === 'semua') {
-            return semproTitles;
-        }
-
-        return semproTitles.filter((item) => item.year === yearFilter);
-    }, [semproTitles, yearFilter]);
+    const yearTabs = [
+        { label: 'Semua', value: 'semua', count: topicTotal },
+        ...topicYearCounts.map((item) => ({
+            label: item.year,
+            value: item.year,
+            count: item.count,
+        })),
+    ];
 
     const hasActiveFilter =
-        filters.search.trim() !== '' || filters.program.trim() !== '';
+        filters.search.trim() !== '' ||
+        filters.program.trim() !== '' ||
+        filters.year.trim() !== '';
 
     function toggleRow(rowId: number) {
         setOpenRowId((current) => (current === rowId ? null : rowId));
+    }
+
+    function changeYear(value: string) {
+        setOpenRowId(null);
+        router.get(
+            '/topik',
+            {
+                search: filters.search || undefined,
+                program: filters.program || undefined,
+                year: value === 'semua' ? undefined : value,
+                per_page: topicPagination.perPage,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
     }
 
     function visitPage(page: number) {
@@ -166,6 +188,7 @@ function PublicTopicsContent({
                 page,
                 search: filters.search || undefined,
                 program: filters.program || undefined,
+                year: filters.year || undefined,
                 per_page: topicPagination.perPage,
             },
             {
@@ -183,6 +206,7 @@ function PublicTopicsContent({
                 page: 1,
                 search: filters.search || undefined,
                 program: filters.program || undefined,
+                year: filters.year || undefined,
                 per_page: pageSize,
             },
             {
@@ -229,16 +253,13 @@ function PublicTopicsContent({
 
                 <FilterPills
                     label="Tahun topik"
-                    value={yearFilter}
-                    onValueChange={(value) => {
-                        setYearFilter(value);
-                        setOpenRowId(null);
-                    }}
+                    value={filters.year || 'semua'}
+                    onValueChange={changeYear}
                     itemClassName="max-md:h-11 max-md:px-4"
                     options={yearTabs}
                 />
 
-                {filteredTitles.length > 0 ? (
+                {semproTitles.length > 0 ? (
                     <DataTableContainer
                         pagination={
                             <DataTablePagination
@@ -248,7 +269,7 @@ function PublicTopicsContent({
                                     topicPagination.currentPage +
                                         (topicPagination.hasMorePages ? 1 : 0),
                                 )}
-                                currentItemCount={filteredTitles.length}
+                                currentItemCount={semproTitles.length}
                                 pageSize={topicPagination.perPage}
                                 onPageChange={visitPage}
                                 onPageSizeChange={changePageSize}
@@ -280,7 +301,7 @@ function PublicTopicsContent({
                                     'md:divide-y',
                                 )}
                             >
-                                {filteredTitles.map((item) => {
+                                {semproTitles.map((item) => {
                                     const isOpen = openRowId === item.id;
 
                                     return (
@@ -474,7 +495,7 @@ function PublicTopicsContent({
                     <DataTableEmptyState
                         title="Tidak ada topik"
                         description={
-                            hasActiveFilter || yearFilter !== 'semua'
+                            hasActiveFilter
                                 ? 'Tidak ada topik yang cocok dengan pencarian ini.'
                                 : 'Belum ada topik yang dapat ditampilkan.'
                         }

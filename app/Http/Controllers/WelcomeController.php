@@ -10,11 +10,13 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,13 +32,17 @@ class WelcomeController extends Controller
     public function schedules(Request $request): Response
     {
         $search = trim((string) $request->string('search'));
+        $upcomingType = $this->scheduleTypeFilter($request, 'upcoming_type');
+        $followUpType = $this->scheduleTypeFilter($request, 'follow_up_type');
         $upcomingSchedules = $this->upcomingScheduleItems(
             search: $search,
+            type: $upcomingType,
             page: (int) $request->integer('upcoming_page', 1),
             perPage: $this->paginationPageSize($request, 'upcoming_per_page', 10),
         );
         $followUpSchedules = $this->followUpScheduleItems(
             search: $search,
+            type: $followUpType,
             page: (int) $request->integer('follow_up_page', 1),
             perPage: $this->paginationPageSize($request, 'follow_up_per_page', 8),
         );
@@ -44,11 +50,15 @@ class WelcomeController extends Controller
         return Inertia::render('public/jadwal', [
             'filters' => [
                 'search' => $search,
+                'upcomingType' => $upcomingType,
+                'followUpType' => $followUpType,
             ],
             'upcomingSchedules' => $upcomingSchedules['items'],
             'upcomingPagination' => $upcomingSchedules['pagination'],
+            'upcomingTypeCounts' => $this->scheduleTypeCounts($this->upcomingScheduleQuery($search)),
             'followUpSchedules' => $followUpSchedules['items'],
             'followUpPagination' => $followUpSchedules['pagination'],
+            'followUpTypeCounts' => $this->scheduleTypeCounts($this->followUpScheduleQuery($search)),
         ]);
     }
 
@@ -75,9 +85,12 @@ class WelcomeController extends Controller
     {
         $search = trim((string) $request->string('search'));
         $program = trim((string) $request->string('program'));
+        $year = trim((string) $request->string('year'));
+        $topicYears = $this->topicYears($search, $program);
         $topicData = $this->semproTitles(
             search: $search,
             program: $program,
+            projectIds: $year === '' ? null : $topicYears->filter(fn(string $topicYear): bool => $topicYear === $year)->keys()->all(),
             page: (int) $request->integer('page', 1),
             perPage: $this->paginationPageSize($request, 'per_page', 10),
         );
@@ -86,9 +99,17 @@ class WelcomeController extends Controller
             'filters' => [
                 'search' => $search,
                 'program' => $program,
+                'year' => $year,
             ],
             'semproTitles' => $topicData['items'],
             'topicPagination' => $topicData['pagination'],
+            'topicTotal' => $topicYears->count(),
+            'topicYearCounts' => $topicYears
+                ->countBy()
+                ->map(fn(int $count, int|string $topicYear): array => ['year' => (string) $topicYear, 'count' => $count])
+                ->sortByDesc('year')
+                ->values()
+                ->all(),
             'topicPrograms' => $this->topicPrograms()
                 ->map(fn(array $item): array => [
                     'slug' => $item['programSlug'],
@@ -105,10 +126,12 @@ class WelcomeController extends Controller
     {
         $search = trim((string) $request->string('search'));
         $program = trim((string) $request->string('program'));
+        $stage = trim((string) $request->string('stage'));
         $studentPrograms = $this->activeStudentPrograms();
         $studentData = $this->activeStudents(
             search: $search,
             program: $program,
+            stage: $stage,
             page: (int) $request->integer('page', 1),
             perPage: $this->paginationPageSize($request, 'per_page', 10),
         );
@@ -117,9 +140,12 @@ class WelcomeController extends Controller
             'filters' => [
                 'search' => $search,
                 'program' => $program,
+                'stage' => $stage,
             ],
             'activeStudents' => $studentData['items'],
             'studentPagination' => $studentData['pagination'],
+            'studentTotal' => $studentData['total'],
+            'stageCounts' => $studentData['stageCounts'],
             'studentPrograms' => $studentPrograms,
         ]);
     }
@@ -188,9 +214,10 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function upcomingScheduleItems(string $search = '', int $page = 1, int $perPage = 10): array
+    private function upcomingScheduleItems(string $search = '', string $type = '', int $page = 1, int $perPage = 10): array
     {
         $paginator = $this->upcomingScheduleQuery($search)
+            ->when($type !== '', fn(Builder $query) => $query->where('type', $type))
             ->simplePaginate(perPage: $perPage, pageName: 'upcoming_page', page: $page)
             ->through(function (ThesisDefense $defense): array {
                 $project = $defense->project;
@@ -224,11 +251,12 @@ class WelcomeController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function followUpScheduleItems(string $search = '', int $page = 1, int $perPage = 8): array
+    private function followUpScheduleItems(string $search = '', string $type = '', int $page = 1, int $perPage = 8): array
     {
         $now = now();
 
         $paginator = $this->followUpScheduleQuery($search, $now)
+            ->when($type !== '', fn(Builder $query) => $query->where('type', $type))
             ->simplePaginate(perPage: $perPage, pageName: 'follow_up_page', page: $page)
             ->through(function (ThesisDefense $defense) use ($now): array {
                 $project = $defense->project;
@@ -380,11 +408,12 @@ class WelcomeController extends Controller
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @param  array<int, int>|null  $projectIds  Restrict to these projects (year filter); null means no restriction.
+     * @return array{items: array<int, array<string, mixed>>, pagination: array<string, mixed>}
      */
-    private function semproTitles(string $search = '', string $program = '', int $page = 1, int $perPage = 10): array
+    private function semproTitles(string $search = '', string $program = '', ?array $projectIds = null, int $page = 1, int $perPage = 10): array
     {
-        $paginator = ThesisProject::query()
+        $paginator = $this->topicQuery($search, $program)
             ->with([
                 'approvedTitles',
                 'passedSemproDefenses',
@@ -408,31 +437,7 @@ class WelcomeController extends Controller
                     $query->where('status', 'completed');
                 },
             ], 'scheduled_for')
-            ->hasPublicTitle()
-            ->when($program !== '', function ($query) use ($program): void {
-                $query->whereHas('programStudi', function ($programQuery) use ($program): void {
-                    $programQuery->where('slug', $program);
-                });
-            })
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($innerQuery) use ($search): void {
-                    $innerQuery
-                        ->whereHas('student', function ($studentQuery) use ($search): void {
-                            $studentQuery->whereLike('name', "%{$search}%")
-                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
-                                    $profileQuery->whereLike('nim', "%{$search}%");
-                                });
-                        })
-                        ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
-                            $programQuery->whereLike('name', "%{$search}%");
-                        })
-                        ->orWhereHas('approvedTitles', function ($titleQuery) use ($search): void {
-                            $titleQuery->whereLike('title_id', "%{$search}%")
-                                ->orWhereLike('title_en', "%{$search}%")
-                                ->orWhereLike('proposal_summary', "%{$search}%");
-                        });
-                });
-            })
+            ->when($projectIds !== null, fn(Builder $query) => $query->whereKey($projectIds))
             ->orderByDesc('latest_sidang_at')
             ->simplePaginate(perPage: $perPage, pageName: 'page', page: $page)
             ->through(function (ThesisProject $project): array {
@@ -479,6 +484,67 @@ class WelcomeController extends Controller
     }
 
     /**
+     * Public topics matching the search and programme, before pagination.
+     */
+    private function topicQuery(string $search, string $program): Builder
+    {
+        return ThesisProject::query()
+            ->hasPublicTitle()
+            ->when($program !== '', function ($query) use ($program): void {
+                $query->whereHas('programStudi', function ($programQuery) use ($program): void {
+                    $programQuery->where('slug', $program);
+                });
+            })
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($innerQuery) use ($search): void {
+                    $innerQuery
+                        ->whereHas('student', function ($studentQuery) use ($search): void {
+                            $studentQuery->whereLike('name', "%{$search}%")
+                                ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
+                                    $profileQuery->whereLike('nim', "%{$search}%");
+                                });
+                        })
+                        ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
+                            $programQuery->whereLike('name', "%{$search}%");
+                        })
+                        ->orWhereHas('approvedTitles', function ($titleQuery) use ($search): void {
+                            $titleQuery->whereLike('title_id', "%{$search}%")
+                                ->orWhereLike('title_en', "%{$search}%")
+                                ->orWhereLike('proposal_summary', "%{$search}%");
+                        });
+                });
+            });
+    }
+
+    /**
+     * Year shown for each matching topic, keyed by project id: the latest completed
+     * sidang, else the latest completed sempro, else "-". Same rule as the rows.
+     *
+     * @return Collection<int, string>
+     */
+    private function topicYears(string $search, string $program): Collection
+    {
+        return $this->topicQuery($search, $program)
+            ->select('thesis_projects.id')
+            ->withMax([
+                'sidangDefenses as latest_sidang_at' => function ($query): void {
+                    $query->where('status', 'completed');
+                },
+            ], 'scheduled_for')
+            ->withMax([
+                'semproDefenses as latest_sempro_at' => function ($query): void {
+                    $query->where('status', 'completed');
+                },
+            ], 'scheduled_for')
+            ->get()
+            ->mapWithKeys(function (ThesisProject $project): array {
+                $latest = $project->latest_sidang_at ?? $project->latest_sempro_at;
+
+                return [$project->id => $latest === null ? '-' : Carbon::parse($latest)->format('Y')];
+            });
+    }
+
+    /**
      * @return Collection<int, array<string, string>>
      */
     private function topicPrograms(): Collection
@@ -496,7 +562,10 @@ class WelcomeController extends Controller
             ->values();
     }
 
-    private function activeStudents(string $search = '', string $program = '', int $page = 1, int $perPage = 10): array
+    /**
+     * @return array{items: array<int, array<string, mixed>>, pagination: array<string, mixed>, total: int, stageCounts: array<int, array{value: string, label: string, count: int}>}
+     */
+    private function activeStudents(string $search = '', string $program = '', string $stage = '', int $page = 1, int $perPage = 10): array
     {
         $students = User::query()
             ->whereHas('roles', function ($query): void {
@@ -551,6 +620,7 @@ class WelcomeController extends Controller
                     'nim' => $profile?->nim ?? '-',
                     'programStudi' => $profile?->programStudi?->name ?? '-',
                     'programSlug' => $profile?->programStudi?->slug ?? 'umum',
+                    'stage' => Str::slug($stage['label']),
                     'stageLabel' => $stage['label'],
                     'stageDescription' => $stage['description'],
                     'advisors' => $project?->activeSupervisorAssignments
@@ -564,6 +634,22 @@ class WelcomeController extends Controller
             })
             ->filter()
             ->values();
+
+        $stageCounts = $students
+            ->groupBy('stage')
+            ->map(fn(Collection $group, string $key): array => [
+                'value' => $key,
+                'label' => $group->first()['stageLabel'],
+                'count' => $group->count(),
+            ])
+            ->sortBy('label')
+            ->values()
+            ->all();
+        $total = $students->count();
+
+        if ($stage !== '') {
+            $students = $students->where('stage', $stage)->values();
+        }
 
         $paginator = new LengthAwarePaginator(
             items: $students->forPage($page, $perPage)->values()->all(),
@@ -579,6 +665,8 @@ class WelcomeController extends Controller
         return [
             'items' => $paginator->items(),
             'pagination' => $this->lengthAwarePaginationData($paginator),
+            'total' => $total,
+            'stageCounts' => $stageCounts,
         ];
     }
 
@@ -797,6 +885,33 @@ class WelcomeController extends Controller
                 ->orWhereLike('location', "%{$search}%")
                 ->orWhereLike('mode', "%{$search}%");
         });
+    }
+
+    private function scheduleTypeFilter(Request $request, string $key): string
+    {
+        $type = (string) $request->string($key);
+
+        return in_array($type, ['sempro', 'sidang'], true) ? $type : '';
+    }
+
+    /**
+     * Counts per exam type over every row matching the query, not just one page.
+     *
+     * @return array{semua: int, sempro: int, sidang: int}
+     */
+    private function scheduleTypeCounts(Builder $query): array
+    {
+        $counts = $query
+            ->reorder()
+            ->toBase()
+            ->selectRaw('type, count(*) as aggregate')
+            ->groupBy('type')
+            ->pluck('aggregate', 'type');
+
+        $sempro = (int) ($counts['sempro'] ?? 0);
+        $sidang = (int) ($counts['sidang'] ?? 0);
+
+        return ['semua' => $sempro + $sidang, 'sempro' => $sempro, 'sidang' => $sidang];
     }
 
     private function paginationPageSize(Request $request, string $key, int $fallback): int

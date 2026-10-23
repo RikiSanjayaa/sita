@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
     DataSection,
@@ -44,14 +44,26 @@ type PaginationData = {
     previousPage: number | null;
 };
 
+type ScheduleType = ScheduleItem['type'];
+
+type TypeCounts = {
+    semua: number;
+    sempro: number;
+    sidang: number;
+};
+
 type PageProps = {
     filters: {
         search: string;
+        upcomingType: ScheduleType | '';
+        followUpType: ScheduleType | '';
     };
     upcomingSchedules: ScheduleItem[];
     upcomingPagination: PaginationData;
+    upcomingTypeCounts: TypeCounts;
     followUpSchedules: ScheduleItem[];
     followUpPagination: PaginationData;
+    followUpTypeCounts: TypeCounts;
 };
 
 const scheduleToneStatus: Record<ScheduleItem['statusTone'], StatusTone> = {
@@ -84,6 +96,9 @@ function ScheduleTable({
     emptyMessage,
     items,
     pagination,
+    typeFilter,
+    typeCounts,
+    onTypeChange,
     onPageChange,
     onPageSizeChange,
     title,
@@ -91,51 +106,44 @@ function ScheduleTable({
     emptyMessage: string;
     items: ScheduleItem[];
     pagination: PaginationData;
+    typeFilter: ScheduleType | '';
+    typeCounts: TypeCounts;
+    onTypeChange: (type: ScheduleType | '') => void;
     onPageChange: (page: number) => void;
     onPageSizeChange: (pageSize: number) => void;
     title: string;
 }) {
-    const [typeFilter, setTypeFilter] = useState<
-        'semua' | ScheduleItem['type']
-    >('semua');
-
-    const filteredItems = useMemo(() => {
-        if (typeFilter === 'semua') {
-            return items;
-        }
-
-        return items.filter((item) => item.type === typeFilter);
-    }, [items, typeFilter]);
-
     return (
         <DataSection title={title}>
-            {items.length > 0 ? (
+            {typeCounts.semua > 0 ? (
                 <FilterPills
                     label={`Jenis ujian, ${title.toLowerCase()}`}
-                    value={typeFilter}
-                    onValueChange={setTypeFilter}
+                    value={typeFilter || 'semua'}
+                    onValueChange={(value) =>
+                        onTypeChange(value === 'semua' ? '' : value)
+                    }
                     itemClassName="max-md:h-11 max-md:px-4"
                     options={[
-                        { label: 'Semua', value: 'semua', count: items.length },
+                        {
+                            label: 'Semua',
+                            value: 'semua',
+                            count: typeCounts.semua,
+                        },
                         {
                             label: n.proposalExamShort,
                             value: 'sempro',
-                            count: items.filter(
-                                (item) => item.type === 'sempro',
-                            ).length,
+                            count: typeCounts.sempro,
                         },
                         {
                             label: n.finalExam,
                             value: 'sidang',
-                            count: items.filter(
-                                (item) => item.type === 'sidang',
-                            ).length,
+                            count: typeCounts.sidang,
                         },
                     ]}
                 />
             ) : null}
 
-            {filteredItems.length > 0 ? (
+            {items.length > 0 ? (
                 <DataTableContainer
                     pagination={
                         <DataTablePagination
@@ -145,7 +153,7 @@ function ScheduleTable({
                                 pagination.currentPage +
                                     (pagination.hasMorePages ? 1 : 0),
                             )}
-                            currentItemCount={filteredItems.length}
+                            currentItemCount={items.length}
                             pageSize={pagination.perPage}
                             onPageChange={onPageChange}
                             onPageSizeChange={onPageSizeChange}
@@ -168,7 +176,7 @@ function ScheduleTable({
                         <tbody
                             className={cn(stackedTable.tbody, 'md:divide-y')}
                         >
-                            {filteredItems.map((item) => (
+                            {items.map((item) => (
                                 <tr
                                     key={`${title}-${item.id}`}
                                     className={cn(stackedTable.tr, 'align-top')}
@@ -234,8 +242,10 @@ export default function PublicSchedulesPage() {
         filters,
         upcomingSchedules,
         upcomingPagination,
+        upcomingTypeCounts,
         followUpSchedules,
         followUpPagination,
+        followUpTypeCounts,
     } = usePage<SharedData & PageProps>().props;
 
     return (
@@ -244,8 +254,10 @@ export default function PublicSchedulesPage() {
             filters={filters}
             upcomingSchedules={upcomingSchedules}
             upcomingPagination={upcomingPagination}
+            upcomingTypeCounts={upcomingTypeCounts}
             followUpSchedules={followUpSchedules}
             followUpPagination={followUpPagination}
+            followUpTypeCounts={followUpTypeCounts}
         />
     );
 }
@@ -254,10 +266,53 @@ function PublicSchedulesContent({
     filters,
     upcomingSchedules,
     upcomingPagination,
+    upcomingTypeCounts,
     followUpSchedules,
     followUpPagination,
+    followUpTypeCounts,
 }: PageProps) {
     const [search, setSearch] = useState(filters.search);
+
+    type ScheduleQuery = {
+        search: string;
+        upcomingType: ScheduleType | '';
+        followUpType: ScheduleType | '';
+        upcomingPage: number;
+        followUpPage: number;
+        upcomingPerPage: number;
+        followUpPerPage: number;
+    };
+
+    function visit(overrides: Partial<ScheduleQuery>) {
+        const query: ScheduleQuery = {
+            search: filters.search,
+            upcomingType: filters.upcomingType,
+            followUpType: filters.followUpType,
+            upcomingPage: upcomingPagination.currentPage,
+            followUpPage: followUpPagination.currentPage,
+            upcomingPerPage: upcomingPagination.perPage,
+            followUpPerPage: followUpPagination.perPage,
+            ...overrides,
+        };
+
+        router.get(
+            '/jadwal',
+            {
+                search: query.search || undefined,
+                upcoming_type: query.upcomingType || undefined,
+                follow_up_type: query.followUpType || undefined,
+                upcoming_page: query.upcomingPage,
+                follow_up_page: query.followUpPage,
+                upcoming_per_page: query.upcomingPerPage,
+                follow_up_per_page: query.followUpPerPage,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -265,76 +320,12 @@ function PublicSchedulesContent({
                 return;
             }
 
-            router.get(
-                '/jadwal',
-                {
-                    search: search || undefined,
-                    upcoming_per_page: upcomingPagination.perPage,
-                    follow_up_per_page: followUpPagination.perPage,
-                },
-                {
-                    preserveScroll: true,
-                    preserveState: true,
-                    replace: true,
-                },
-            );
+            visit({ search, upcomingPage: 1, followUpPage: 1 });
         }, 250);
 
         return () => window.clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.search, search]);
-
-    function visitPage(key: 'upcoming_page' | 'follow_up_page', page: number) {
-        router.get(
-            '/jadwal',
-            {
-                search: filters.search || undefined,
-                upcoming_per_page: upcomingPagination.perPage,
-                follow_up_per_page: followUpPagination.perPage,
-                [key]: page,
-                ...(key === 'upcoming_page'
-                    ? { follow_up_page: followUpPagination.currentPage }
-                    : { upcoming_page: upcomingPagination.currentPage }),
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
-    }
-
-    function changePageSize(
-        key: 'upcoming_per_page' | 'follow_up_per_page',
-        pageSize: number,
-    ) {
-        router.get(
-            '/jadwal',
-            {
-                search: filters.search || undefined,
-                upcoming_page:
-                    key === 'upcoming_per_page'
-                        ? 1
-                        : upcomingPagination.currentPage,
-                follow_up_page:
-                    key === 'follow_up_per_page'
-                        ? 1
-                        : followUpPagination.currentPage,
-                upcoming_per_page:
-                    key === 'upcoming_per_page'
-                        ? pageSize
-                        : upcomingPagination.perPage,
-                follow_up_per_page:
-                    key === 'follow_up_per_page'
-                        ? pageSize
-                        : followUpPagination.perPage,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
-    }
 
     const hasActiveSearch = filters.search.trim() !== '';
 
@@ -356,13 +347,18 @@ function PublicSchedulesContent({
                     items={upcomingSchedules}
                     pagination={upcomingPagination}
                     emptyMessage={
-                        hasActiveSearch
-                            ? 'Tidak ada jadwal mendatang yang cocok dengan pencarian ini.'
+                        hasActiveSearch || filters.upcomingType !== ''
+                            ? 'Tidak ada jadwal mendatang yang cocok dengan filter ini.'
                             : 'Belum ada jadwal mendatang pada bagian ini.'
                     }
-                    onPageChange={(page) => visitPage('upcoming_page', page)}
-                    onPageSizeChange={(pageSize) =>
-                        changePageSize('upcoming_per_page', pageSize)
+                    typeFilter={filters.upcomingType}
+                    typeCounts={upcomingTypeCounts}
+                    onTypeChange={(upcomingType) =>
+                        visit({ upcomingType, upcomingPage: 1 })
+                    }
+                    onPageChange={(upcomingPage) => visit({ upcomingPage })}
+                    onPageSizeChange={(upcomingPerPage) =>
+                        visit({ upcomingPerPage, upcomingPage: 1 })
                     }
                 />
                 <ScheduleTable
@@ -370,13 +366,18 @@ function PublicSchedulesContent({
                     items={followUpSchedules}
                     pagination={followUpPagination}
                     emptyMessage={
-                        hasActiveSearch
-                            ? 'Tidak ada tindak lanjut yang cocok dengan pencarian ini.'
+                        hasActiveSearch || filters.followUpType !== ''
+                            ? 'Tidak ada tindak lanjut yang cocok dengan filter ini.'
                             : 'Belum ada data pada bagian ini.'
                     }
-                    onPageChange={(page) => visitPage('follow_up_page', page)}
-                    onPageSizeChange={(pageSize) =>
-                        changePageSize('follow_up_per_page', pageSize)
+                    typeFilter={filters.followUpType}
+                    typeCounts={followUpTypeCounts}
+                    onTypeChange={(followUpType) =>
+                        visit({ followUpType, followUpPage: 1 })
+                    }
+                    onPageChange={(followUpPage) => visit({ followUpPage })}
+                    onPageSizeChange={(followUpPerPage) =>
+                        visit({ followUpPerPage, followUpPage: 1 })
                     }
                 />
             </div>
