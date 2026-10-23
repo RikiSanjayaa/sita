@@ -68,6 +68,7 @@ type UpcomingMeeting = {
     location: string;
     status: ScheduleStatus;
     lecturerNote: string | null;
+    createdByLecturer: boolean;
 };
 
 type HistoryMeeting = {
@@ -79,6 +80,7 @@ type HistoryMeeting = {
     location: string;
     status: ScheduleStatus;
     lecturerNote: string | null;
+    createdByLecturer: boolean;
 };
 
 type JadwalPageProps = {
@@ -148,6 +150,17 @@ function StatusBadge({ status }: { status: ScheduleStatus }) {
             {icon}
             {label}
         </span>
+    );
+}
+
+function CreatedByLecturerBadge() {
+    return (
+        <Badge
+            variant="outline"
+            className="gap-1 rounded-full border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+        >
+            Dijadwalkan dosen
+        </Badge>
     );
 }
 
@@ -771,6 +784,11 @@ export default function JadwalBimbinganPage() {
                                                             <p className="max-w-[200px] min-w-[140px] text-xs leading-snug font-medium">
                                                                 {meeting.topic}
                                                             </p>
+                                                            {meeting.createdByLecturer && (
+                                                                <div className="mt-1">
+                                                                    <CreatedByLecturerBadge />
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="px-5 py-3.5 align-top">
                                                             <p className="text-xs whitespace-nowrap text-muted-foreground">
@@ -951,6 +969,11 @@ export default function JadwalBimbinganPage() {
                                                             <p className="max-w-[180px] truncate text-sm font-medium">
                                                                 {row.topic}
                                                             </p>
+                                                            {row.createdByLecturer && (
+                                                                <div className="mt-1">
+                                                                    <CreatedByLecturerBadge />
+                                                                </div>
+                                                            )}
                                                             {row.lecturerNote && (
                                                                 <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground italic opacity-70">
                                                                     {

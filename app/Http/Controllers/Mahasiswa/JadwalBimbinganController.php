@@ -8,11 +8,11 @@ use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\MentorshipScheduleService;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -20,6 +20,7 @@ use Throwable;
 class JadwalBimbinganController extends Controller
 {
     public function __construct(
+        private readonly MentorshipScheduleService $mentorshipScheduleService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
@@ -102,6 +103,7 @@ class JadwalBimbinganController extends Controller
                     'location' => $schedule->location ?? '-',
                     'status' => $schedule->status,
                     'lecturerNote' => $schedule->lecturer_note,
+                    'createdByLecturer' => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id,
                 ];
             })
             ->values()
@@ -124,6 +126,7 @@ class JadwalBimbinganController extends Controller
                     'location' => $schedule->location ?? '-',
                     'status' => $schedule->status,
                     'lecturerNote' => $schedule->lecturer_note,
+                    'createdByLecturer' => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id,
                 ];
             })
             ->values()
@@ -188,36 +191,24 @@ class JadwalBimbinganController extends Controller
         $isRecurring = ! empty($data['is_recurring']);
         $recurringCount = $isRecurring ? (int) $data['recurring_count'] : 1;
         $recurringPattern = $isRecurring ? $data['recurring_pattern'] : null;
-        $recurringGroupId = $isRecurring ? Str::uuid()->toString() : null;
 
-        $baseDate = new \DateTime($data['requested_for']);
-
-        for ($i = 0; $i < $recurringCount; $i++) {
-            $scheduleDate = clone $baseDate;
-
-            if ($i > 0 && $recurringPattern !== null) {
-                $scheduleDate = $this->calculateNextDate($baseDate, $recurringPattern, $i);
-            }
-
-            MentorshipSchedule::query()->create([
+        $this->mentorshipScheduleService->createSeries(
+            attributes: [
                 'student_user_id' => $student->id,
                 'lecturer_user_id' => (int) $data['lecturer_user_id'],
                 'mentorship_assignment_id' => null,
                 'topic' => trim($data['topic']),
                 'status' => 'pending',
-                'requested_for' => $scheduleDate->format('Y-m-d H:i:s'),
-                'scheduled_for' => null,
                 'location' => $data['meeting_type'] === 'online' ? 'Online (akan ditentukan dosen)' : 'Offline (akan ditentukan dosen)',
                 'student_note' => $data['student_note'] ?? null,
                 'lecturer_note' => null,
                 'created_by_user_id' => $student->id,
-                'is_recurring' => $isRecurring,
-                'recurring_pattern' => $recurringPattern,
-                'recurring_count' => $recurringCount,
-                'recurring_group_id' => $recurringGroupId,
-                'recurring_index' => $isRecurring ? $i + 1 : null,
-            ]);
-        }
+            ],
+            firstOccurrence: new \DateTime($data['requested_for']),
+            scheduleOccurrences: false,
+            recurringPattern: $recurringPattern,
+            recurringCount: $recurringCount,
+        );
 
         $this->broadcastScheduleUpdated((int) $data['lecturer_user_id']);
         $this->broadcastScheduleUpdated($student->id);
@@ -245,18 +236,6 @@ class JadwalBimbinganController extends Controller
         return redirect()
             ->route('mahasiswa.jadwal-bimbingan')
             ->with('success', $successMessage);
-    }
-
-    private function calculateNextDate(\DateTime $baseDate, string $pattern, int $occurrence): \DateTime
-    {
-        $nextDate = clone $baseDate;
-
-        return match ($pattern) {
-            'weekly' => $nextDate->modify("+{$occurrence} weeks"),
-            'biweekly' => $nextDate->modify('+'.($occurrence * 2).' weeks'),
-            'monthly' => $nextDate->modify("+{$occurrence} months"),
-            default => $nextDate,
-        };
     }
 
     private function broadcastScheduleUpdated(int $userId): void

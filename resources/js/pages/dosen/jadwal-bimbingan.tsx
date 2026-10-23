@@ -1,6 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
+    CalendarPlus,
     CheckCircle2,
     ChevronRight,
     Clock,
@@ -13,6 +14,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
+import {
+    DosenScheduleCreateDialog,
+    type SupervisedStudent,
+} from '@/components/dosen-schedule-create-dialog';
 import { EmptyState } from '@/components/patterns/empty-state';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
@@ -92,6 +97,7 @@ type JadwalBimbinganProps = {
     pendingRequests: PendingRequest[];
     upcomingSchedules: UpcomingSchedule[];
     historySchedules: HistorySchedule[];
+    supervisedStudents: SupervisedStudent[];
     workspaceEvents: BimbinganEvent[];
     flashMessage?: string | null;
 };
@@ -186,11 +192,14 @@ export default function DosenJadwalBimbinganPage() {
         pendingRequests,
         upcomingSchedules,
         historySchedules,
+        supervisedStudents,
         flashMessage,
         workspaceEvents,
         auth,
         academicTerminology: n,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
+
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     const [workspaceFilter, setWorkspaceFilter] = useUrlState<WorkspaceFilter>(
         'calendar',
@@ -589,6 +598,16 @@ export default function DosenJadwalBimbinganPage() {
                         <AlertDescription>{flashMessage}</AlertDescription>
                     </Alert>
                 )}
+                <div className="flex justify-end">
+                    <Button
+                        type="button"
+                        onClick={() => setIsCreateOpen(true)}
+                        disabled={supervisedStudents.length === 0}
+                    >
+                        <CalendarPlus className="size-4" />
+                        Buat Jadwal
+                    </Button>
+                </div>
 
                 {/* ---------------- WORKSPACE CALENDAR ---------------- */}
                 <CollapsibleCalendarSection
@@ -1711,6 +1730,11 @@ export default function DosenJadwalBimbinganPage() {
                     </ScrollArea>
                 </SheetContent>
             </Sheet>
+            <DosenScheduleCreateDialog
+                open={isCreateOpen}
+                onOpenChange={setIsCreateOpen}
+                students={supervisedStudents}
+            />
         </DosenLayout>
     );
 }

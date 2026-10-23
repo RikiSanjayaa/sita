@@ -9,6 +9,7 @@ import { authStatePath, thesisScenarios } from '../support/thesis-fixtures';
 // This spec covers reschedule, complete, cancel, rejecting a whole recurring
 // group, and requesting from the second supervisor. It uses the dedicated
 // two-supervisor student so it does not depend on the shared seeded accounts.
+// Dosen-created single and recurring schedules are covered in the last test.
 const student = thesisScenarios.twoSupervisors;
 
 async function requestBimbingan(
@@ -286,6 +287,104 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
                 .filter({ hasText: topic });
             await expect(rejectedRows).toHaveCount(3);
             await expect(rejectedRows.first()).toContainText(feedback);
+        } finally {
+            await mahasiswaContext.close();
+            await dosenContext.close();
+        }
+    });
+
+    test('dosen creates single and recurring schedules that the student sees as dijadwalkan dosen', async ({
+        browser,
+    }) => {
+        const singleTopic = `Bimbingan jadwal dosen ${Date.now()}`;
+        const recurringTopic = `Bimbingan berulang dosen ${Date.now()}`;
+
+        const mahasiswaContext = await browser.newContext({
+            storageState: authStatePath(student.studentKey),
+        });
+        const dosenContext = await browser.newContext({
+            storageState: authStatePath('dosen1'),
+        });
+
+        try {
+            const mahasiswaPage = await mahasiswaContext.newPage();
+            const dosenPage = await dosenContext.newPage();
+
+            await dosenPage.goto('/dosen/jadwal-bimbingan');
+            await dosenPage
+                .getByRole('button', { name: 'Buat Jadwal', exact: true })
+                .click();
+
+            const singleDialog = dosenPage.getByRole('dialog', {
+                name: 'Buat Jadwal Bimbingan',
+            });
+            await expect(singleDialog).toBeVisible();
+            await singleDialog.getByLabel('Mahasiswa').click();
+            await dosenPage
+                .getByRole('option', {
+                    name: new RegExp(student.studentName, 'i'),
+                })
+                .click();
+            await singleDialog.getByLabel('Topik Bimbingan').fill(singleTopic);
+            await singleDialog
+                .getByLabel('Tanggal & Waktu')
+                .fill(toDateTimeLocalString(daysFromNow(4)));
+            await singleDialog.getByLabel('Lokasi').fill('Ruang Dosen Tunggal');
+            await singleDialog
+                .getByRole('button', { name: 'Buat Jadwal', exact: true })
+                .click();
+            await expect(singleDialog).not.toBeVisible();
+
+            await dosenPage
+                .getByRole('button', { name: 'Buat Jadwal', exact: true })
+                .click();
+
+            const recurringDialog = dosenPage.getByRole('dialog', {
+                name: 'Buat Jadwal Bimbingan',
+            });
+            await expect(recurringDialog).toBeVisible();
+            await recurringDialog.getByLabel('Mahasiswa').click();
+            await dosenPage
+                .getByRole('option', {
+                    name: new RegExp(student.studentName, 'i'),
+                })
+                .click();
+            await recurringDialog
+                .getByLabel('Topik Bimbingan')
+                .fill(recurringTopic);
+            await recurringDialog
+                .getByLabel('Tanggal & Waktu')
+                .fill(toDateTimeLocalString(daysFromNow(5)));
+            await recurringDialog
+                .getByLabel('Lokasi')
+                .fill('Ruang Dosen Berulang');
+            await recurringDialog.getByLabel('Jadwalkan Berulang').check();
+            await recurringDialog.getByLabel('Pola Pengulangan').click();
+            await dosenPage
+                .getByRole('option', { name: 'Mingguan', exact: true })
+                .click();
+            await recurringDialog.getByLabel('Jumlah Pertemuan').click();
+            await dosenPage
+                .getByRole('option', { name: '3 pertemuan', exact: true })
+                .click();
+            await recurringDialog
+                .getByRole('button', { name: 'Buat Jadwal', exact: true })
+                .click();
+            await expect(recurringDialog).not.toBeVisible();
+
+            await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
+            const singleRows = mahasiswaPage
+                .getByRole('row')
+                .filter({ hasText: singleTopic });
+            await expect(singleRows.first()).toContainText('Dijadwalkan dosen');
+
+            const recurringRows = mahasiswaPage
+                .getByRole('row')
+                .filter({ hasText: recurringTopic });
+            await expect(recurringRows.first()).toBeVisible();
+            for (const row of await recurringRows.all()) {
+                await expect(row).toContainText('Dijadwalkan dosen');
+            }
         } finally {
             await mahasiswaContext.close();
             await dosenContext.close();

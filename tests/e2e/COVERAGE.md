@@ -14,29 +14,29 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Mahasiswa
 
-| Flow (menu)                                                                                                | Spec                                                              | Status   | Priority |
-| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/mahasiswa/dashboard`)                                                                         | landing only, via auth setup                                      | belum    | P2       |
-| Tugas Akhir: judul, naskah proposal, revisi judul                                                          | `mahasiswa-thesis`                                                | tercakup | P1       |
-| Tugas Akhir: pilih berkas untuk sempro/sidang aktif                                                        | `mahasiswa-thesis`                                                | tercakup | P1       |
-| Tugas Akhir: hasil sempro, revisi, selesai                                                                 | `admin-sempro`, `dosen-penilaian`                                 | tercakup | P1       |
-| Tugas Akhir: pembimbing tampil setelah ditetapkan kaprodi; jumlah "x bimbingan" per pembimbing (issue #20) | `kaprodi-portal`                                                  | tercakup | P1       |
-| Tugas Akhir: dosen diskusi proposal wajib saat pengajuan judul (issue #18)                                 | `mahasiswa-thesis`, plus Pest (`DiscussionLecturerTest`)          | tercakup | P1       |
-| Tugas Akhir: bagian Catatan Dosen (hanya catatan untuk mahasiswa, issue #13)                               | `dosen-catatan`, plus Pest (`ThesisProjectNoteTest`)              | tercakup | P1       |
-| Jadwal Bimbingan: ajukan, approve, tolak, berulang                                                         | `bimbingan-chat`                                                  | tercakup | P1       |
-| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua, pembimbing 2                                  | `jadwal-bimbingan`                                                | tercakup | P1       |
-| Upload Dokumen: unggah, unduh, hapus                                                                       | `upload-dokumen`, `bimbingan-chat`                                | tercakup | P1       |
-| Upload Dokumen: lampiran chat ditinjau dosen kedua, status gabungan, detail review di drawer               | `chat-attachment-review` (issue #10), `bimbingan-chat`, plus Pest | tercakup | P1       |
-| Pesan (thread bimbingan, sempro, sidang)                                                                   | `bimbingan-chat`, `admin-sempro`, `admin-sidang`                  | tercakup | P1       |
-| Pesan: kirim file (pratinjau, nama dokumen, gambar thumbnail, validasi tipe, kartu status)                 | `bimbingan-chat`, plus Pest (`ChatAttachmentTest`)                | tercakup | P1       |
-| Panduan (`/mahasiswa/panduan`)                                                                             | none                                                              | belum    | P3       |
-| Pengaturan Akun: profil                                                                                    | `profile`                                                         | tercakup | P2       |
-| Profil mahasiswa/dosen: jumlah "x bimbingan" per pembimbing dan per mahasiswa bimbingan (issue #70)        | `profile`, plus Pest (`MentorshipProgressTest`)                   | tercakup | P2       |
-| Pop-up nomor HP: wajib diisi, konfirmasi impor (issue #26)                                                 | `phone-prompt`, plus Pest (`PhonePromptTest`)                     | tercakup | P1       |
-| Pengaturan Akun: 2FA                                                                                       | `two-factor-auth`                                                 | tercakup | P2       |
-| Pengaturan Akun: notifikasi                                                                                | `notifications`                                                   | tercakup | P2       |
-| Notifikasi pesan dan pengumuman                                                                            | `notifications`, `system-announcements`                           | tercakup | P2       |
-| CSAT                                                                                                       | `csat`                                                            | tercakup | P3       |
+| Flow (menu)                                                                                                                           | Spec                                                              | Status   | Priority |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | -------- |
+| Dashboard (`/mahasiswa/dashboard`)                                                                                                    | landing only, via auth setup                                      | belum    | P2       |
+| Tugas Akhir: judul, naskah proposal, revisi judul                                                                                     | `mahasiswa-thesis`                                                | tercakup | P1       |
+| Tugas Akhir: pilih berkas untuk sempro/sidang aktif                                                                                   | `mahasiswa-thesis`                                                | tercakup | P1       |
+| Tugas Akhir: hasil sempro, revisi, selesai                                                                                            | `admin-sempro`, `dosen-penilaian`                                 | tercakup | P1       |
+| Tugas Akhir: pembimbing tampil setelah ditetapkan kaprodi; jumlah "x bimbingan" per pembimbing (issue #20)                            | `kaprodi-portal`                                                  | tercakup | P1       |
+| Tugas Akhir: dosen diskusi proposal wajib saat pengajuan judul (issue #18)                                                            | `mahasiswa-thesis`, plus Pest (`DiscussionLecturerTest`)          | tercakup | P1       |
+| Tugas Akhir: bagian Catatan Dosen (hanya catatan untuk mahasiswa, issue #13)                                                          | `dosen-catatan`, plus Pest (`ThesisProjectNoteTest`)              | tercakup | P1       |
+| Jadwal Bimbingan: ajukan, approve, tolak, berulang                                                                                    | `bimbingan-chat`                                                  | tercakup | P1       |
+| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua, pembimbing 2, jadwal dari dosen ditandai "Dijadwalkan dosen" (issue #19) | `jadwal-bimbingan`                                                | tercakup | P1       |
+| Upload Dokumen: unggah, unduh, hapus                                                                                                  | `upload-dokumen`, `bimbingan-chat`                                | tercakup | P1       |
+| Upload Dokumen: lampiran chat ditinjau dosen kedua, status gabungan, detail review di drawer                                          | `chat-attachment-review` (issue #10), `bimbingan-chat`, plus Pest | tercakup | P1       |
+| Pesan (thread bimbingan, sempro, sidang)                                                                                              | `bimbingan-chat`, `admin-sempro`, `admin-sidang`                  | tercakup | P1       |
+| Pesan: kirim file (pratinjau, nama dokumen, gambar thumbnail, validasi tipe, kartu status)                                            | `bimbingan-chat`, plus Pest (`ChatAttachmentTest`)                | tercakup | P1       |
+| Panduan (`/mahasiswa/panduan`)                                                                                                        | none                                                              | belum    | P3       |
+| Pengaturan Akun: profil                                                                                                               | `profile`                                                         | tercakup | P2       |
+| Profil mahasiswa/dosen: jumlah "x bimbingan" per pembimbing dan per mahasiswa bimbingan (issue #70)                                   | `profile`, plus Pest (`MentorshipProgressTest`)                   | tercakup | P2       |
+| Pop-up nomor HP: wajib diisi, konfirmasi impor (issue #26)                                                                            | `phone-prompt`, plus Pest (`PhonePromptTest`)                     | tercakup | P1       |
+| Pengaturan Akun: 2FA                                                                                                                  | `two-factor-auth`                                                 | tercakup | P2       |
+| Pengaturan Akun: notifikasi                                                                                                           | `notifications`                                                   | tercakup | P2       |
+| Notifikasi pesan dan pengumuman                                                                                                       | `notifications`, `system-announcements`                           | tercakup | P2       |
+| CSAT                                                                                                                                  | `csat`                                                            | tercakup | P3       |
 
 ## Dosen
 
@@ -51,7 +51,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Mahasiswa Dosen: catatan internal dan untuk mahasiswa, edit, hapus (issue #13)                                                  | `dosen-catatan`, plus Pest (`ThesisProjectNoteTest`)              | tercakup | P1       |
 | Sempro / Sinopsis & Sidang Akhir: panel Catatan di detail ujian (issue #13)                                                     | Pest only (`ThesisProjectNoteTest`, props)                        | belum    | P2       |
 | Jadwal Bimbingan: approve, tolak, berulang                                                                                      | `bimbingan-chat`                                                  | tercakup | P1       |
-| Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua                                                                     | `jadwal-bimbingan`                                                | tercakup | P1       |
+| Jadwal Bimbingan: dosen buat jadwal tunggal dan berulang, jadwal ulang, selesai, batal, tolak semua                             | `jadwal-bimbingan`                                                | tercakup | P1       |
 | Dokumen & Revisi: minta revisi, setujui                                                                                         | `bimbingan-chat`                                                  | tercakup | P1       |
 | Dokumen & Revisi: beberapa reviewer (pembimbing 1 + 2, penguji)                                                                 | `chat-attachment-review` (issue #10), plus Pest                   | tercakup | P1       |
 | Pesan (bimbingan, grup sempro/sidang)                                                                                           | `bimbingan-chat`, `admin-sempro`, `admin-sidang`, `notifications` | tercakup | P1       |
