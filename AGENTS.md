@@ -153,6 +153,7 @@ use Illuminate\Support\Facades\Auth;
 - Playwright support utilities live in `tests/e2e/support/`.
 - Playwright uses a dedicated SQLite database at `database/playwright.sqlite` and auth state under `storage/playwright`.
 - Playwright starts Laravel and Reverb with isolated test settings. CI builds assets with matching `VITE_REVERB_*` values before starting the servers; keep one worker because all specs share the SQLite database.
+- Servers listen on 9010 (app) and 9011 (Reverb) and are reused if already running. To run Playwright in several checkouts at once, give each its own ports with `PLAYWRIGHT_APP_PORT` and `PLAYWRIGHT_REVERB_PORT`; otherwise a run can silently test another checkout's server.
 - Restore seeded account identity in `finally` when a scenario changes a profile; later specs reuse the same users and auth states.
 - `tests/e2e/setup/bootstrap.spec.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
 - Prefer keeping E2E focused on user-visible multi-role integration flows; keep business logic coverage in Pest.
