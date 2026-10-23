@@ -1893,20 +1893,15 @@ export default function TugasAkhirSaya() {
                                                             key={person.id}
                                                             person={person}
                                                             label={`Pembimbing ${index + 1}`}
-                                                            detail={(() => {
-                                                                const progress =
-                                                                    mentorshipProgress.find(
-                                                                        (row) =>
-                                                                            row
-                                                                                .lecturer
-                                                                                .id ===
-                                                                            person.id,
-                                                                    );
-
-                                                                return progress
-                                                                    ? `${progress.completed} bimbingan`
-                                                                    : undefined;
-                                                            })()}
+                                                            mentorshipCount={
+                                                                mentorshipProgress.find(
+                                                                    (row) =>
+                                                                        row
+                                                                            .lecturer
+                                                                            .id ===
+                                                                        person.id,
+                                                                )?.completed
+                                                            }
                                                         />
                                                     ),
                                                 )}

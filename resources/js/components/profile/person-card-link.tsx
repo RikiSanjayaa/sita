@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
@@ -9,25 +10,30 @@ import { type UserProfileSummary } from '@/types';
 type PersonCardLinkProps = {
     person: UserProfileSummary;
     label?: string;
-    detail?: string;
+    /** Supervision count with the viewing lecturer. Omit or null when no supervision applies. */
+    mentorshipCount?: number | null;
     className?: string;
 };
 
 export function PersonCardLink({
     person,
     label,
-    detail,
+    mentorshipCount,
     className,
 }: PersonCardLinkProps) {
     const getInitials = useInitials();
 
-    // Build subtitle chips from subtitle string (split on " · " or "·")
-    const chips = person.subtitle
+    // Subtitle parts are separated by " · " or "·"; the card shows them on one truncated line.
+    const meta = person.subtitle
         ? person.subtitle
               .split(/\s*·\s*/)
               .map((s) => s.trim())
               .filter(Boolean)
-        : [];
+              .join(' · ')
+        : (person.roleLabel ?? '');
+
+    const hasPhase = Boolean(person.phase && person.phaseLabel);
+    const hasCount = typeof mentorshipCount === 'number';
 
     return (
         <Link
@@ -37,51 +43,56 @@ export function PersonCardLink({
                 className,
             )}
         >
-            <Avatar className="size-10 shrink-0 border">
-                <AvatarImage
-                    src={person.avatar ?? undefined}
-                    alt={person.name}
-                />
-                <AvatarFallback className="bg-primary-muted text-sm font-semibold text-primary-muted-foreground">
-                    {getInitials(person.name)}
-                </AvatarFallback>
-            </Avatar>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex min-w-0 items-start gap-3">
+                    <Avatar className="size-10 shrink-0 border">
+                        <AvatarImage
+                            src={person.avatar ?? undefined}
+                            alt={person.name}
+                        />
+                        <AvatarFallback className="bg-primary-muted text-sm font-semibold text-primary-muted-foreground">
+                            {getInitials(person.name)}
+                        </AvatarFallback>
+                    </Avatar>
 
-            <div className="min-w-0 flex-1 pl-1">
-                {label && (
-                    <p className="mb-0.5 text-xs font-medium text-muted-foreground">
-                        {label}
-                    </p>
-                )}
-                <p className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
-                    {person.name}
-                </p>
-                {chips.length > 0 && (
-                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        {chips.map((chip, i) => (
-                            <span
-                                key={i}
-                                className="text-xs text-muted-foreground"
+                    <div className="min-w-0 flex-1">
+                        {label && (
+                            <p className="mb-0.5 text-xs font-medium text-muted-foreground">
+                                {label}
+                            </p>
+                        )}
+                        <p className="line-clamp-2 text-sm font-semibold break-words text-foreground transition-colors group-hover:text-primary">
+                            {person.name}
+                        </p>
+                        {meta && (
+                            <p
+                                className="truncate text-xs text-muted-foreground"
+                                title={meta}
                             >
-                                {chip}
-                                {i < chips.length - 1 && (
-                                    <span className="ml-1.5 text-muted-foreground/40">
-                                        ·
-                                    </span>
-                                )}
-                            </span>
-                        ))}
+                                {meta}
+                            </p>
+                        )}
                     </div>
-                )}
-                {chips.length === 0 && person.roleLabel && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                        {person.roleLabel}
-                    </p>
-                )}
-                {detail && (
-                    <p className="mt-1 text-xs font-medium text-foreground">
-                        {detail}
-                    </p>
+                </div>
+
+                {(hasPhase || hasCount) && (
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                        {hasPhase ? (
+                            <StatusBadge domain="phase" status={person.phase}>
+                                {person.phaseLabel}
+                            </StatusBadge>
+                        ) : (
+                            <span />
+                        )}
+                        {hasCount && (
+                            <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                                <span className="font-semibold text-foreground">
+                                    {mentorshipCount}
+                                </span>{' '}
+                                bimbingan
+                            </p>
+                        )}
+                    </div>
                 )}
             </div>
 

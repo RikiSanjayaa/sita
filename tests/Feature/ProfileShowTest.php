@@ -190,5 +190,13 @@ test('dosen profile only counts active supervised students', function () {
 
     expect(data_get($page, 'props.profile.stats.0.value'))->toBe('1')
         ->and(data_get($page, 'props.profile.relatedUsers.0.users.0.name'))->toBe('Mahasiswa Bimbingan')
-        ->and(data_get($page, 'props.profile.relatedUsers.0.users.1'))->toBeNull();
+        ->and(data_get($page, 'props.profile.relatedUsers.0.users.0.mentorshipCount'))->toBe(0)
+        ->and(data_get($page, 'props.profile.relatedUsers.0.users.0.phase'))->toBe('research')
+        ->and(data_get($page, 'props.profile.relatedUsers.0.users.0.phaseLabel'))->toBe('Riset')
+        ->and(data_get($page, 'props.profile.relatedUsers.0.users.1'))->toBeNull()
+        ->and(data_get($page, 'props.profile.relatedUsers.1.title'))->toBe('Mahasiswa yang Anda uji')
+        ->and(data_get($page, 'props.profile.relatedUsers.1.users.0.name'))->toBe('Mahasiswa Diuji')
+        ->and(data_get($page, 'props.profile.relatedUsers.1.users.0.phase'))->toBe('sempro')
+        ->and(data_get($page, 'props.profile.relatedUsers.1.users.0.phaseLabel'))->toBe('Tahap Proposal')
+        ->and(data_get($page, 'props.profile.relatedUsers.1.users.0.mentorshipCount'))->toBeNull();
 });

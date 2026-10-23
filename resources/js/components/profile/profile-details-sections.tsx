@@ -4,13 +4,7 @@ import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
-import { type UserProfileDetail, type UserProfileSummary } from '@/types';
-
-function mentorshipDetail(person: UserProfileSummary): string | undefined {
-    return person.mentorshipCount === undefined
-        ? undefined
-        : `${person.mentorshipCount} bimbingan`;
-}
+import { type UserProfileDetail } from '@/types';
 
 function SectionHeader({
     title,
@@ -134,16 +128,16 @@ export function ProfileDetailsSections({
                                     Dosen Pembimbing
                                 </div>
                                 {profile.thesis.advisors.length > 0 ? (
-                                    <div className="grid gap-3">
+                                    <div className="grid gap-3 sm:grid-cols-2">
                                         {profile.thesis.advisors.map(
                                             (person, index) => (
                                                 <PersonCardLink
                                                     key={person.id}
                                                     person={person}
                                                     label={`Pembimbing ${index + 1}`}
-                                                    detail={mentorshipDetail(
-                                                        person,
-                                                    )}
+                                                    mentorshipCount={
+                                                        person.mentorshipCount
+                                                    }
                                                 />
                                             ),
                                         )}
@@ -165,7 +159,7 @@ export function ProfileDetailsSections({
                                 </div>
                                 {(profile.thesis.examinerGroups?.length ?? 0) >
                                 0 ? (
-                                    <div className="grid gap-4 lg:grid-cols-2">
+                                    <div className="grid gap-6">
                                         {profile.thesis.examinerGroups?.map(
                                             (group) => (
                                                 <div
@@ -176,7 +170,7 @@ export function ProfileDetailsSections({
                                                         {group.title}
                                                     </p>
                                                     {group.users.length > 0 ? (
-                                                        <div className="grid gap-3">
+                                                        <div className="grid gap-3 sm:grid-cols-2">
                                                             {group.users.map(
                                                                 (
                                                                     person,
@@ -202,7 +196,7 @@ export function ProfileDetailsSections({
                                         )}
                                     </div>
                                 ) : profile.thesis.examiners.length > 0 ? (
-                                    <div className="grid gap-3 lg:grid-cols-2">
+                                    <div className="grid gap-3 sm:grid-cols-2">
                                         {profile.thesis.examiners.map(
                                             (person, index) => (
                                                 <PersonCardLink
@@ -243,7 +237,7 @@ export function ProfileDetailsSections({
                                     <PersonCardLink
                                         key={person.id}
                                         person={person}
-                                        detail={mentorshipDetail(person)}
+                                        mentorshipCount={person.mentorshipCount}
                                     />
                                 ))}
                             </div>
