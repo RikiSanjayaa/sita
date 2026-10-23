@@ -57,8 +57,8 @@ class ProgramStudisTable
                     ->color(fn(string $state, ProgramStudi $record): string => self::kaprodiBadgeColor($state, $record))
                     ->searchable(query: function ($query, string $search) {
                         return $query->whereHas('kaprodiAssignments.user', function ($userQuery) use ($search): void {
-                            $userQuery->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%");
+                            $userQuery->whereLike('name', "%{$search}%")
+                                ->orWhereLike('email', "%{$search}%");
                         });
                     })
                     ->placeholder('Belum ditetapkan')

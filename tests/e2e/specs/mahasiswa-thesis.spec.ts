@@ -154,26 +154,17 @@ test.describe('Mahasiswa title and proposal flow', () => {
                 .fill(
                     'Proposal Playwright ini mengajukan rancangan kontrol akses laboratorium berbasis zero-trust dengan evaluasi kebijakan identitas, perangkat, dan sesi penggunaan.',
                 );
-            const primaryPicker = mahasiswaPage
-                .getByText('Usulan Dosen Pembimbing 1 (Opsional)')
+            const discussionPicker = mahasiswaPage
+                .getByText('Dosen Diskusi Proposal', { exact: true })
                 .locator('..');
-            await primaryPicker
+            await discussionPicker
                 .getByPlaceholder('Ketik min. 2 karakter...')
                 .fill('Budi Santoso');
-            await primaryPicker.getByText('Dr. Budi Santoso, M.Kom.').click();
+            await discussionPicker
+                .getByText('Dr. Budi Santoso, M.Kom.')
+                .click();
             await expect(
-                primaryPicker.getByText('Dr. Budi Santoso, M.Kom.'),
-            ).toBeVisible();
-
-            const secondaryPicker = mahasiswaPage
-                .getByText('Usulan Dosen Pembimbing 2 (Opsional)')
-                .locator('..');
-            await secondaryPicker
-                .getByPlaceholder('Ketik min. 2 karakter...')
-                .fill('Ratna Kusuma');
-            await secondaryPicker.getByText('Dr. Ratna Kusuma, M.Kom.').click();
-            await expect(
-                secondaryPicker.getByText('Dr. Ratna Kusuma, M.Kom.'),
+                discussionPicker.getByText('Dr. Budi Santoso, M.Kom.'),
             ).toBeVisible();
             await mahasiswaPage
                 .getByLabel('File Naskah Proposal (PDF)')
@@ -211,7 +202,7 @@ test.describe('Mahasiswa title and proposal flow', () => {
             ]);
             runArtisan([
                 'tinker',
-                '--execute=$student = App\\Models\\User::query()->where("email", "farhan@sita.test")->firstOrFail(); $title = App\\Models\\ThesisProjectTitle::query()->where("submitted_by_user_id", $student->id)->latest("id")->firstOrFail(); if ($title->proposedPrimaryLecturer?->email !== "dosen@sita.test" || $title->proposedSecondaryLecturer?->email !== "dosen2@sita.test") { throw new RuntimeException("Proposed supervisors were not saved."); }',
+                '--execute=$student = App\\Models\\User::query()->where("email", "farhan@sita.test")->firstOrFail(); $title = App\\Models\\ThesisProjectTitle::query()->where("submitted_by_user_id", $student->id)->latest("id")->firstOrFail(); if ($title->discussionLecturer?->email !== "dosen@sita.test") { throw new RuntimeException("Discussion lecturer was not saved."); }',
             ]);
         } finally {
             await mahasiswaContext.close();

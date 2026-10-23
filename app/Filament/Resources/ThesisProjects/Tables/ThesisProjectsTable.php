@@ -56,8 +56,8 @@ class ThesisProjectsTable
                     ->state(fn(ThesisProject $record): string => self::resolveCurrentTitle($record)?->title_id ?? '-')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('titles', fn(Builder $builder): Builder => $builder
-                            ->where('title_id', 'like', "%{$search}%")
-                            ->orWhere('title_en', 'like', "%{$search}%"));
+                            ->whereLike('title_id', "%{$search}%")
+                            ->orWhereLike('title_en', "%{$search}%"));
                     })
                     ->wrap()
                     ->limit(60)

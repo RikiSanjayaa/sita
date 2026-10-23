@@ -107,13 +107,13 @@ class LecturerSearchService
                 $like = '%'.$term.'%';
 
                 $query->where(function (Builder $query) use ($like): void {
-                    $query->where('name', 'like', $like)
-                        ->orWhereHas('dosenProfile', fn(Builder $query) => $query->where('nik', 'like', $like))
+                    $query->whereLike('name', $like)
+                        ->orWhereHas('dosenProfile', fn(Builder $query) => $query->whereLike('nik', $like))
                         ->orWhereHas('activeDosenProgramStudiAssignments', function (Builder $query) use ($like): void {
-                            $query->where('concentration', 'like', $like)
-                                ->orWhereHas('programStudi', fn(Builder $query) => $query->where('name', 'like', $like));
+                            $query->whereLike('concentration', $like)
+                                ->orWhereHas('programStudi', fn(Builder $query) => $query->whereLike('name', $like));
                         })
-                        ->orWhereHas('expertiseFields', fn(Builder $query) => $query->where('name', 'like', $like));
+                        ->orWhereHas('expertiseFields', fn(Builder $query) => $query->whereLike('name', $like));
                 });
             }
 

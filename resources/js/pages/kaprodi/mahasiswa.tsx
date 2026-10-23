@@ -92,10 +92,7 @@ type StudentRow = {
         role: string;
     }[];
     mentorshipProgress: MentorshipProgressRow[];
-    proposedSupervisors: {
-        primary: { lecturerUserId: number; name: string } | null;
-        secondary: { lecturerUserId: number; name: string } | null;
-    };
+    discussionLecturer: { lecturerUserId: number; name: string } | null;
     progressRisk: {
         level: 'high' | 'medium' | 'low';
         label: string;
@@ -751,12 +748,9 @@ function SupervisorDialog({
     );
     const initialPrimaryId =
         primary?.lecturerUserId ??
-        student?.proposedSupervisors.primary?.lecturerUserId ??
+        student?.discussionLecturer?.lecturerUserId ??
         null;
-    const initialSecondaryId =
-        secondary?.lecturerUserId ??
-        student?.proposedSupervisors.secondary?.lecturerUserId ??
-        null;
+    const initialSecondaryId = secondary?.lecturerUserId ?? null;
     const form = useForm({
         primary_lecturer_user_id: initialPrimaryId
             ? String(initialPrimaryId)
@@ -890,17 +884,10 @@ function SupervisorDialog({
                         />
                     </div>
 
-                    {(activeStudent.proposedSupervisors.primary ||
-                        activeStudent.proposedSupervisors.secondary) && (
+                    {activeStudent.discussionLecturer && (
                         <p className="text-xs text-muted-foreground">
-                            Usulan mahasiswa:{' '}
-                            {[
-                                activeStudent.proposedSupervisors.primary?.name,
-                                activeStudent.proposedSupervisors.secondary
-                                    ?.name,
-                            ]
-                                .filter(Boolean)
-                                .join(', ')}
+                            Dosen diskusi proposal:{' '}
+                            {activeStudent.discussionLecturer.name}
                         </p>
                     )}
 

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisProjectStudentService;
+use App\Services\ThesisProjectWorkflowResolver;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
@@ -27,6 +28,7 @@ class TugasAkhirController extends Controller
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ThesisProjectNoteService $noteService,
         private readonly MentorshipProgressService $mentorshipProgressService,
+        private readonly ThesisProjectWorkflowResolver $workflowResolver,
     ) {}
 
     public function index(Request $request): Response
@@ -71,8 +73,7 @@ class TugasAkhirController extends Controller
                 'title_id' => $currentTitle?->title_id ?? '-',
                 'title_en' => $currentTitle?->title_en ?? '-',
                 'proposal_summary' => $currentTitle?->proposal_summary ?? '-',
-                'proposed_primary_lecturer_user_id' => $currentTitle?->proposed_primary_lecturer_user_id,
-                'proposed_secondary_lecturer_user_id' => $currentTitle?->proposed_secondary_lecturer_user_id,
+                'discussion_lecturer_user_id' => $currentTitle?->discussion_lecturer_user_id,
                 'workflow' => $workflow,
                 'proposal_file_name' => $proposalDocument?->file_name,
                 'proposal_file_view_url' => $proposalDocument?->id !== null
@@ -294,79 +295,7 @@ class TugasAkhirController extends Controller
 
     private function resolveProjectWorkflow(ThesisProject $project): array
     {
-        $project->loadMissing('latestTitle');
-
-        if ($project->state === 'cancelled') {
-            $key = $project->latestTitle?->status === 'rejected'
-                ? 'title_rejected'
-                : 'project_cancelled';
-
-            return [
-                'key' => $key,
-                'label' => $this->workflowLabel($key, $project),
-                'description' => $this->workflowDescription($key, $project),
-                'can_edit' => $this->canEditProjectSubmission($project),
-            ];
-        }
-
-        /** @var ThesisDefense|null $latestSidang */
-        $latestSidang = $project->defenses
-            ->where('type', 'sidang')
-            ->sortByDesc('attempt_no')
-            ->first();
-
-        $hasOpenRevisions = $project->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty();
-        $key = 'title_review_pending';
-
-        if ($latestSidang instanceof ThesisDefense) {
-            if ($latestSidang->status === 'scheduled') {
-                $key = 'sidang_scheduled';
-            } elseif ($latestSidang->status === 'awaiting_finalization') {
-                $key = 'sidang_waiting_result';
-            } elseif ($latestSidang->status === 'completed') {
-                $key = match ($latestSidang->result) {
-                    'pass' => 'completed',
-                    'pass_with_revision' => $hasOpenRevisions ? 'sidang_revision' : 'completed',
-                    'fail' => 'sidang_failed',
-                    default => 'sidang_scheduled',
-                };
-            }
-
-            return [
-                'key' => $key,
-                'label' => $this->workflowLabel($key, $project),
-                'description' => $this->workflowDescription($key, $project),
-                'can_edit' => $this->canEditProjectSubmission($project),
-            ];
-        }
-
-        /** @var ThesisDefense|null $latestSempro */
-        $latestSempro = $project->defenses
-            ->where('type', 'sempro')
-            ->sortByDesc('attempt_no')
-            ->first();
-
-        if ($latestSempro instanceof ThesisDefense) {
-            if ($latestSempro->status === 'scheduled') {
-                $key = 'sempro_scheduled';
-            } elseif ($latestSempro->status === 'awaiting_finalization') {
-                $key = 'sempro_waiting_result';
-            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass_with_revision') {
-                $key = $hasOpenRevisions
-                    ? 'sempro_revision'
-                    : ($project->activeSupervisorAssignments->isNotEmpty()
-                        ? 'research_in_progress'
-                        : 'sempro_passed');
-            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'fail') {
-                $key = 'sempro_failed';
-            }
-        } elseif ($project->phase === 'title_review') {
-            $key = 'title_review_pending';
-        } elseif ($project->latestTitle?->status === 'approved') {
-            $key = 'title_approved';
-        } elseif ($project->activeSupervisorAssignments->isNotEmpty()) {
-            $key = 'research_in_progress';
-        }
+        $key = $this->workflowResolver->resolveKey($project);
 
         return [
             'key' => $key,

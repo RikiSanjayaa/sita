@@ -161,6 +161,7 @@ test('mahasiswa thesis submission notifies super admin and scoped admin', functi
             'title_id' => 'Sistem Monitoring Tugas Akhir Adaptif',
             'title_en' => 'Adaptive Thesis Monitoring System',
             'proposal_summary' => 'Ringkasan proposal untuk pengujian notifikasi admin.',
+            'discussion_lecturer_user_id' => workflowDiscussionLecturerId($student),
         ],
         proposalFile: UploadedFile::fake()->create('proposal-monitoring.pdf', 512, 'application/pdf'),
     );
@@ -391,6 +392,7 @@ test('mahasiswa can submit thesis proposal into thesis project aggregate', funct
             'title_id' => 'Pengajuan Sinkron Snapshot',
             'title_en' => 'Snapshot Sync Submission',
             'proposal_summary' => 'Ringkasan proposal sinkron.',
+            'discussion_lecturer_user_id' => workflowDiscussionLecturerId($student),
             'proposal_file' => UploadedFile::fake()->create('proposal-snapshot.pdf', 700, 'application/pdf'),
         ])
         ->assertRedirect();
@@ -528,6 +530,7 @@ test('tugas akhir page shows rejected title review instead of pending approval',
             'title_id' => 'Judul Pengajuan Ulang',
             'title_en' => 'Resubmitted Title',
             'proposal_summary' => 'Ringkasan proposal pengajuan ulang.',
+            'discussion_lecturer_user_id' => workflowDiscussionLecturerId($student),
             'proposal_file' => UploadedFile::fake()->create('proposal-ulang.pdf', 512, 'application/pdf'),
         ])
         ->assertRedirect();
@@ -1240,6 +1243,7 @@ test('mahasiswa can update pending thesis project and replace proposal file', fu
             'title_id' => 'Judul Revisi',
             'title_en' => 'Revised Title',
             'proposal_summary' => 'Ringkasan revisi.',
+            'discussion_lecturer_user_id' => workflowDiscussionLecturerId($student),
             'proposal_file' => UploadedFile::fake()->create('proposal-revisi.pdf', 600, 'application/pdf'),
         ])
         ->assertRedirect('/mahasiswa/tugas-akhir');
@@ -1355,6 +1359,7 @@ test('mahasiswa can update sempro revision proposal without resetting thesis pro
             'title_id' => 'Judul Sesudah Revisi Sempro',
             'title_en' => 'After Sempro Revision',
             'proposal_summary' => 'Ringkasan setelah revisi sempro.',
+            'discussion_lecturer_user_id' => workflowDiscussionLecturerId($student),
             'proposal_file' => UploadedFile::fake()->create('proposal-sempro-final.pdf', 700, 'application/pdf'),
         ])
         ->assertRedirect('/mahasiswa/tugas-akhir');
@@ -2076,3 +2081,28 @@ test('upload page document status aggregates reviews from every assigned lecture
     'semua disetujui' => [['approved', 'approved'], 'Disetujui'],
     'salah satu minta revisi' => [['needs_revision', 'approved'], 'Perlu Revisi'],
 ]);
+function workflowDiscussionLecturerId(User $student): int
+{
+    $programStudiId = $student->mahasiswaProfile->program_studi_id;
+    $lecturer = createUserWithRole(AppRole::Dosen->value);
+
+    $lecturer->dosenProfile()->update([
+        'program_studi_id' => $programStudiId,
+        'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
+        'is_active' => true,
+    ]);
+
+    \App\Models\DosenProgramStudiAssignment::query()->updateOrCreate(
+        [
+            'user_id' => $lecturer->id,
+            'program_studi_id' => $programStudiId,
+            'concentration' => ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
+        ],
+        [
+            'is_primary' => true,
+            'is_active' => true,
+        ],
+    );
+
+    return $lecturer->id;
+}
