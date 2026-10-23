@@ -54,6 +54,12 @@ export interface PhonePrompt {
     phoneNumber: string | null;
 }
 
+export interface MentorshipTicketStatus {
+    suspended: boolean;
+    validUntil: string;
+    message: string | null;
+}
+
 export interface SharedData {
     name: string;
     auth: Auth;
@@ -63,6 +69,7 @@ export interface SharedData {
     unreadNotificationCount?: number;
     academicTerminology: AcademicTerminology;
     phonePrompt?: PhonePrompt | null;
+    mentorshipTicket?: MentorshipTicketStatus | null;
     [key: string]: unknown;
 }
 

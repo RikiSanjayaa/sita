@@ -9,6 +9,7 @@ use App\Models\MentorshipSchedule;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\MentorshipScheduleService;
+use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,7 +142,7 @@ class JadwalBimbinganController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MentorshipTicketService $tickets): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -156,6 +157,12 @@ class JadwalBimbinganController extends Controller
             'recurring_pattern' => ['nullable', 'required_if:is_recurring,true', 'in:weekly,biweekly,monthly'],
             'recurring_count' => ['nullable', 'required_if:is_recurring,true', 'integer', 'min:2', 'max:12'],
         ]);
+
+        $suspension = $tickets->suspensionMessageForStudent($student->id);
+
+        if ($suspension !== null) {
+            return back()->withErrors(['ticket' => $suspension]);
+        }
 
         $assignments = ThesisSupervisorAssignment::query()
             ->whereHas('project', fn($query) => $query

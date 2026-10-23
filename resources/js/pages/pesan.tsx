@@ -92,6 +92,7 @@ function PesanPageContent({
     auth,
 }: PesanPageContentProps) {
     const isMobile = useIsMobile();
+    const { mentorshipTicket } = usePage<SharedData>().props;
 
     const [mobileView, setMobileView] = useState<MobileView>(() =>
         resolveInitialMobileView(initialThreads),
@@ -194,7 +195,10 @@ function PesanPageContent({
                     footer={
                         <Composer
                             composer={chat.composer}
-                            disabled={activeThread === null}
+                            disabled={
+                                activeThread === null ||
+                                mentorshipTicket?.suspended === true
+                            }
                             isMobile={isMobile}
                         />
                     }

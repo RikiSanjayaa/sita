@@ -13,6 +13,7 @@ use App\Models\ThesisDocument;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
@@ -170,7 +171,7 @@ class UploadDokumenController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MentorshipTicketService $tickets): RedirectResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -180,6 +181,12 @@ class UploadDokumenController extends Controller
             'category' => ['required', 'string', 'max:100'],
             'document' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
         ]);
+
+        $suspension = $tickets->suspensionMessageForStudent($student->id);
+
+        if ($suspension !== null) {
+            return back()->withErrors(['ticket' => $suspension]);
+        }
 
         $assignments = ThesisSupervisorAssignment::query()
             ->with('lecturer')

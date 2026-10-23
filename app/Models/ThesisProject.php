@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Support\WitaDateTime;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 class ThesisProject extends Model
 {
@@ -30,6 +33,8 @@ class ThesisProject extends Model
         'created_by',
         'closed_by',
         'notes',
+        'mentorship_valid_from',
+        'mentorship_valid_until',
     ];
 
     protected function casts(): array
@@ -39,6 +44,8 @@ class ThesisProject extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'mentorship_valid_from' => 'date',
+            'mentorship_valid_until' => 'date',
         ];
     }
 
@@ -165,5 +172,24 @@ class ThesisProject extends Model
     public function publicTitle(): ?ThesisProjectTitle
     {
         return $this->hasPublicTitle() ? $this->approvedTitles->first() : null;
+    }
+
+    /**
+     * Mentorship ticket validity is enforced only once a date is set. A null
+     * valid-until never suspends, so projects that predate the ticket keep working.
+     */
+    public function isMentorshipSuspended(): bool
+    {
+        return $this->state === 'active'
+            && $this->mentorship_valid_until !== null
+            && $this->mentorship_valid_until->lt(Carbon::today(WitaDateTime::TIMEZONE));
+    }
+
+    /**
+     * The date the ticket lapsed, or null while mentorship activity is allowed.
+     */
+    public function mentorshipSuspendedSince(): ?CarbonImmutable
+    {
+        return $this->isMentorshipSuspended() ? CarbonImmutable::instance($this->mentorship_valid_until) : null;
     }
 }
