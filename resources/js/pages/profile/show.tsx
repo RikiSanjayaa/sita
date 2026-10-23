@@ -2,6 +2,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { MessageSquareText } from 'lucide-react';
 
 import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
+import { StudentProgressPeek } from '@/components/profile/student-progress-peek';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -105,6 +106,11 @@ export default function ProfileShowPage() {
                                         </Badge>
                                     ))}
                                 </div>
+                                {profile.progress ? (
+                                    <StudentProgressPeek
+                                        progress={profile.progress}
+                                    />
+                                ) : null}
                             </div>
                         </div>
 

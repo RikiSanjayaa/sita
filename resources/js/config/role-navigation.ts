@@ -6,6 +6,7 @@ import {
     FileText,
     Gauge,
     LayoutGrid,
+    ListChecks,
     MessageSquareText,
     Settings,
     ShieldCheck,
@@ -39,6 +40,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dashboard',
                 href: '/mahasiswa/dashboard',
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
             {
                 title: n.finalWork,
@@ -90,6 +96,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UsersRound,
             },
             {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
+            },
+            {
                 title: 'Jadwal Bimbingan',
                 href: '/dosen/jadwal-bimbingan',
                 icon: CalendarClock,
@@ -123,6 +134,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Mahasiswa Prodi',
                 href: '/kaprodi/mahasiswa',
                 icon: UsersRound,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
             {
                 title: `${n.proposalExamShort} & ${n.finalExam}`,
@@ -186,6 +202,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: Gauge,
             },
             {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
+            },
+            {
                 title: 'Users',
                 href: '/admin/users',
                 icon: UserCog,
@@ -213,6 +234,11 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 title: 'Dashboard',
                 href: '/mahasiswa/dashboard',
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Progres Mahasiswa',
+                href: '/progres-mahasiswa',
+                icon: ListChecks,
             },
         ],
         settings: {

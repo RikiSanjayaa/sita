@@ -120,7 +120,7 @@ test('profile presenter exposes degree and expertise badges', function (): void 
 
     $presenter = app(UserProfilePresenter::class);
     $portal = app(KaprodiPortalService::class);
-    $studentIndex = $portal->studentIndex($programStudi);
+    $studentIndex = $portal->studentIndex($programStudi, null);
     $lecturerIndex = $portal->lecturers($programStudi);
 
     expect($presenter->summary($student)['degreeLevel'])->toBe('S1')
