@@ -2,21 +2,30 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
     CalendarClock,
-    ChevronRight,
     CircleHelp,
     FileText,
+    MoreHorizontal,
     NotebookPen,
-    Search,
     UserCog,
     UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
 import {
     MentorshipProgressList,
     type MentorshipProgressRow,
 } from '@/components/mentorship-progress';
+import {
+    DataSection,
+    DataSelect,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import {
     type ProjectNotes,
@@ -27,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
+    DataTableEmptyState,
     DataTablePagination,
 } from '@/components/ui/data-table';
 import {
@@ -37,7 +47,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Sheet,
     SheetContent,
@@ -59,6 +74,7 @@ import {
     neutralAcademicTerminology,
     phaseLabels,
 } from '@/lib/academic-terminology';
+import { toneClassName } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -200,21 +216,15 @@ export default function KaprodiMahasiswaPage() {
         >
             <Head title="Mahasiswa Prodi" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-6 md:px-6 lg:py-8">
-                <section>
-                    <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">
-                            Daftar Mahasiswa
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Memantau{' '}
-                            <span className="font-semibold text-foreground">
-                                {totalRows}
-                            </span>{' '}
-                            mahasiswa dan arsip {terms.finalWorkLower} di{' '}
-                            {programStudi.name}
-                        </p>
-                    </div>
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title="Mahasiswa Prodi"
+                    description={`Daftar mahasiswa dan arsip ${terms.finalWorkLower} di ${programStudi.name}`}
+                />
+                <DataSection
+                    title="Daftar Mahasiswa"
+                    summary={`${totalRows} mahasiswa dan arsip ${terms.finalWorkLower}`}
+                >
                     <StudentTable
                         rows={activeRows}
                         archives={archives}
@@ -222,7 +232,7 @@ export default function KaprodiMahasiswaPage() {
                         canManageSupervisors={canManageSupervisors}
                         emptyText={`Belum ada mahasiswa atau arsip ${terms.finalWorkLower}`}
                     />
-                </section>
+                </DataSection>
             </div>
         </KaprodiLayout>
     );
@@ -398,78 +408,119 @@ function StudentTable({
         setPage(1);
     }
 
-    return (
-        <div className="space-y-3">
-            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-                <div className="relative max-w-xs flex-1">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        value={search}
-                        onChange={(event) => {
-                            setSearch(event.target.value);
-                            resetPage();
-                        }}
-                        placeholder="Cari nama atau NIM..."
-                        className="h-8 pl-8 text-sm"
-                    />
-                </div>
+    const phaseCounts = directoryRows.reduce<Record<string, number>>(
+        (counts, row) => ({
+            ...counts,
+            [row.phaseKey]: (counts[row.phaseKey] ?? 0) + 1,
+        }),
+        {},
+    );
+    const phasePills: {
+        label: string;
+        value: ActivePhaseFilter;
+        count: number;
+    }[] = [
+        { label: 'Semua', value: 'semua', count: directoryRows.length },
+        ...phaseOptions.map((option) => ({
+            ...option,
+            count: phaseCounts[option.value] ?? 0,
+        })),
+    ];
+    const hasActiveFilter =
+        riskFilter !== 'semua' ||
+        angkatanFilter !== 'semua' ||
+        concentrationFilter !== 'semua' ||
+        phaseFilter !== 'semua';
+    const selectOptions = (
+        allLabel: string,
+        options: (string | number)[],
+    ): { value: string; label: string }[] => [
+        { value: 'semua', label: allLabel },
+        ...options.map((option) => ({
+            value: String(option),
+            label: String(option),
+        })),
+    ];
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <FilterSelect
-                        value={phaseFilter}
-                        onChange={(value) => {
-                            setPhaseFilter(value as ActivePhaseFilter);
+    return (
+        <div className="space-y-4">
+            <DataToolbar
+                search={search}
+                onSearchChange={(value) => {
+                    setSearch(value);
+                    resetPage();
+                }}
+                placeholder="Cari nama atau NIM..."
+            >
+                <DataSelect
+                    label="Filter risiko"
+                    value={riskFilter}
+                    onValueChange={(value) => {
+                        setRiskFilter(value as RiskFilter);
+                        resetPage();
+                    }}
+                    placeholder="Semua risiko"
+                    options={[
+                        { value: 'semua', label: 'Semua risiko' },
+                        ...riskOptions,
+                    ]}
+                    className="md:w-40"
+                />
+                <DataSelect
+                    label="Filter angkatan"
+                    value={angkatanFilter}
+                    onValueChange={(value) => {
+                        setAngkatanFilter(value);
+                        resetPage();
+                    }}
+                    placeholder="Semua angkatan"
+                    options={selectOptions('Semua angkatan', filters.angkatan)}
+                    className="md:w-40"
+                />
+                <DataSelect
+                    label="Filter konsentrasi"
+                    value={concentrationFilter}
+                    onValueChange={(value) => {
+                        setConcentrationFilter(value);
+                        resetPage();
+                    }}
+                    placeholder="Semua konsentrasi"
+                    options={selectOptions(
+                        'Semua konsentrasi',
+                        filters.concentrations,
+                    )}
+                    className="md:w-48"
+                />
+            </DataToolbar>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <FilterPills
+                    label="Filter tahap"
+                    value={phaseFilter}
+                    onValueChange={(value) => {
+                        setPhaseFilter(value);
+                        resetPage();
+                    }}
+                    itemClassName="max-md:h-11 max-md:px-4"
+                    options={phasePills}
+                />
+                {hasActiveFilter ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground max-md:h-11"
+                        onClick={() => {
+                            setPhaseFilter('semua');
+                            setRiskFilter('semua');
+                            setAngkatanFilter('semua');
+                            setConcentrationFilter('semua');
                             resetPage();
                         }}
-                        options={phaseOptions}
-                        placeholder="Semua Tahap"
-                    />
-                    <FilterSelect
-                        value={riskFilter}
-                        onChange={(value) => {
-                            setRiskFilter(value as RiskFilter);
-                            resetPage();
-                        }}
-                        options={riskOptions}
-                        placeholder="Semua Risiko"
-                    />
-                    <FilterSelect
-                        value={angkatanFilter}
-                        onChange={(value) => {
-                            setAngkatanFilter(value);
-                            resetPage();
-                        }}
-                        options={filters.angkatan}
-                        placeholder="Semua Angkatan"
-                    />
-                    <FilterSelect
-                        value={concentrationFilter}
-                        onChange={(value) => {
-                            setConcentrationFilter(value);
-                            resetPage();
-                        }}
-                        options={filters.concentrations}
-                        placeholder="Semua Konsentrasi"
-                    />
-                    {riskFilter !== 'semua' ||
-                    angkatanFilter !== 'semua' ||
-                    concentrationFilter !== 'semua' ||
-                    phaseFilter !== 'semua' ? (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setPhaseFilter('semua');
-                                setRiskFilter('semua');
-                                setAngkatanFilter('semua');
-                                setConcentrationFilter('semua');
-                                resetPage();
-                            }}
-                            className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-                        >
-                            Reset filter
-                        </button>
-                    ) : null}
-                </div>
+                    >
+                        Reset filter
+                    </Button>
+                ) : null}
             </div>
 
             {paginated.length > 0 ? (
@@ -492,68 +543,67 @@ function StudentTable({
                         />
                     }
                 >
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b bg-muted/30">
-                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                    Mahasiswa
+                    <table
+                        className={cn(stackedTable.table, 'md:min-w-[880px]')}
+                    >
+                        <thead className={stackedTable.thead}>
+                            <tr className="border-b bg-muted/40">
+                                <th className={dataTh}>Mahasiswa</th>
+                                <th className={dataTh}>Angkatan</th>
+                                <th className={dataTh}>Tahap</th>
+                                <th className={dataTh}>Risiko</th>
+                                <th className={dataTh}>Judul dan pembimbing</th>
+                                <th className={dataTh}>
+                                    <span className="sr-only">Aksi</span>
                                 </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                    Angkatan
-                                </th>
-                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                    Tahap
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                    Risiko
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
-                                    Judul
-                                </th>
-                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground 2xl:table-cell">
-                                    Pembimbing
-                                </th>
-                                <th className="w-8 px-4 py-2.5" />
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
+                        <tbody
+                            className={cn(stackedTable.tbody, 'md:divide-y')}
+                        >
                             {paginated.map((row) => (
                                 <tr
                                     key={`${row.kind}-${row.id}`}
-                                    className="transition-colors hover:bg-muted/20"
+                                    className={cn(
+                                        stackedTable.tr,
+                                        'align-top transition-colors hover:bg-muted/30',
+                                    )}
                                 >
-                                    <td className="px-4 py-3">
+                                    <td className={stackedTable.tdPlain}>
                                         <Link
                                             href={row.profileUrl}
-                                            className="flex items-center gap-2.5"
+                                            className="group flex items-center gap-3"
                                         >
-                                            <Avatar className="size-7 shrink-0 border">
+                                            <Avatar className="size-8 shrink-0 border">
                                                 <AvatarImage
                                                     src={
                                                         row.avatar ?? undefined
                                                     }
-                                                    alt={row.name}
+                                                    alt=""
                                                 />
-                                                <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                                                <AvatarFallback className="bg-primary-muted text-xs text-primary-muted-foreground">
                                                     {getInitials(row.name)}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
-                                                <p className="truncate leading-snug font-medium">
+                                                <p className="font-medium group-hover:text-primary">
                                                     {row.name}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">
+                                                <p className="text-muted-foreground tabular-nums">
                                                     {row.nim}
                                                 </p>
                                             </div>
                                         </Link>
                                     </td>
-                                    <td className="hidden px-4 py-3 md:table-cell">
-                                        <p className="text-xs font-medium">
+                                    <td
+                                        data-label="Angkatan"
+                                        className={stackedTable.td}
+                                    >
+                                        <p className="font-medium">
                                             {row.degreeLevel} ·{' '}
                                             {row.angkatan ?? '-'}
                                         </p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                             {row.concentration ?? '-'}
                                         </p>
                                         {row.isObeCurriculum && (
@@ -566,109 +616,140 @@ function StudentTable({
                                             </StatusBadge>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex flex-col items-start gap-1.5">
-                                            <Badge
-                                                variant={
-                                                    row.kind === 'archive' &&
-                                                    row.phaseKey === 'cancelled'
-                                                        ? 'outline'
-                                                        : 'default'
-                                                }
+                                    <td
+                                        data-label="Tahap"
+                                        className={stackedTable.td}
+                                    >
+                                        {row.phase ? (
+                                            <StatusBadge
+                                                domain="phase"
+                                                status={row.phaseKey}
                                             >
                                                 {row.phase}
-                                            </Badge>
-                                            {row.completedAt ? (
-                                                <span className="text-xs text-muted-foreground">
-                                                    {row.completedAt}
-                                                </span>
-                                            ) : null}
-                                            {row.progressRisk ? (
-                                                <ProgressRiskBadge
-                                                    risk={row.progressRisk}
-                                                    className="lg:hidden"
-                                                />
-                                            ) : null}
-                                        </div>
+                                            </StatusBadge>
+                                        ) : (
+                                            <span className="text-muted-foreground">
+                                                -
+                                            </span>
+                                        )}
+                                        {row.completedAt ? (
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {row.completedAt}
+                                            </p>
+                                        ) : null}
                                     </td>
-                                    <td className="hidden px-4 py-3 lg:table-cell">
+                                    <td
+                                        data-label="Risiko"
+                                        className={stackedTable.td}
+                                    >
                                         {row.progressRisk ? (
                                             <ProgressRiskBadge
                                                 risk={row.progressRisk}
                                             />
                                         ) : (
-                                            <span className="text-xs text-muted-foreground">
+                                            <span className="text-muted-foreground">
                                                 -
                                             </span>
                                         )}
                                     </td>
-                                    <td className="hidden max-w-[260px] px-4 py-3 xl:table-cell">
-                                        <p className="line-clamp-2 text-xs leading-relaxed">
-                                            {row.title}
-                                        </p>
+                                    <td
+                                        data-label="Judul dan pembimbing"
+                                        className={cn(
+                                            stackedTable.td,
+                                            'md:max-w-xs',
+                                        )}
+                                    >
+                                        {row.title ? (
+                                            <p className="line-clamp-2 text-pretty">
+                                                {row.title}
+                                            </p>
+                                        ) : (
+                                            <span className="text-muted-foreground">
+                                                -
+                                            </span>
+                                        )}
+                                        {row.advisors.length > 0 ? (
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {row.advisors.join(', ')}
+                                            </p>
+                                        ) : null}
                                     </td>
-                                    <td className="hidden px-4 py-3 2xl:table-cell">
-                                        <p className="max-w-xs truncate text-xs text-muted-foreground">
-                                            {row.advisors.length > 0
-                                                ? row.advisors.join(', ')
-                                                : '-'}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Link
-                                                href={searchUrl(
-                                                    '/kaprodi/dokumen',
-                                                    row.nim,
-                                                )}
-                                                title="Lihat dokumen mahasiswa"
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <FileText className="size-4" />
-                                            </Link>
-                                            <Link
-                                                href={searchUrl(
-                                                    '/kaprodi/sempro-sidang',
-                                                    row.nim,
-                                                )}
-                                                title={`Lihat jadwal ${terms.proposalExamShort} dan ${terms.finalExamShort}`}
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <CalendarClock className="size-4" />
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                title="Lihat catatan dosen"
-                                                aria-label={`Catatan dosen ${row.name}`}
-                                                onClick={() => setNotesRow(row)}
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <NotebookPen className="size-4" />
-                                            </button>
+                                    <td className={stackedTable.tdActions}>
+                                        <div className="flex items-center justify-end gap-1 max-md:justify-start">
                                             {canManageSupervisors &&
                                             row.canManageSupervisors &&
                                             row.projectId !== null &&
                                             row.activeStudent ? (
-                                                <button
-                                                    type="button"
-                                                    title="Atur pembimbing"
+                                                <RowIconButton
+                                                    label="Atur pembimbing"
                                                     onClick={() =>
                                                         setSupervisorDialog(
                                                             row.activeStudent,
                                                         )
                                                     }
-                                                    className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
                                                 >
                                                     <UserCog className="size-4" />
-                                                </button>
+                                                </RowIconButton>
                                             ) : null}
-                                            <Link
-                                                href={row.profileUrl}
-                                                title="Buka profil mahasiswa"
-                                                className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
-                                            >
-                                                <ChevronRight className="size-4" />
-                                            </Link>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        aria-label="Aksi lainnya"
+                                                        className="text-muted-foreground hover:text-foreground max-md:size-11"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="end"
+                                                    className="w-56"
+                                                >
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={
+                                                                row.profileUrl
+                                                            }
+                                                        >
+                                                            <UserRound className="size-4" />
+                                                            Buka profil
+                                                            mahasiswa
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={searchUrl(
+                                                                '/kaprodi/dokumen',
+                                                                row.nim,
+                                                            )}
+                                                        >
+                                                            <FileText className="size-4" />
+                                                            Dokumen mahasiswa
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={searchUrl(
+                                                                '/kaprodi/sempro-sidang',
+                                                                row.nim,
+                                                            )}
+                                                        >
+                                                            <CalendarClock className="size-4" />
+                                                            {`Jadwal ${terms.proposalExamShort} dan ${terms.finalExamShort}`}
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onSelect={() =>
+                                                            setNotesRow(row)
+                                                        }
+                                                    >
+                                                        <NotebookPen className="size-4" />
+                                                        Catatan dosen
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </div>
                                     </td>
                                 </tr>
@@ -677,7 +758,19 @@ function StudentTable({
                     </table>
                 </DataTableContainer>
             ) : (
-                <EmptyBlock icon={AlertCircle} text={emptyText} />
+                <DataTableEmptyState
+                    icon={AlertCircle}
+                    title={
+                        directoryRows.length > 0
+                            ? 'Tidak ada mahasiswa yang cocok'
+                            : emptyText
+                    }
+                    description={
+                        directoryRows.length > 0
+                            ? 'Coba ubah filter atau kata kunci pencarian.'
+                            : undefined
+                    }
+                />
             )}
             <Sheet
                 open={notesRow !== null}
@@ -800,7 +893,7 @@ function SupervisorDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <div className="flex items-center gap-2">
                         <DialogTitle>Atur Pembimbing</DialogTitle>
@@ -837,8 +930,8 @@ function SupervisorDialog({
 
                 <div className="grid gap-4">
                     <div className="rounded-lg border bg-muted/20 p-3">
-                        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            Judul Saat Ini
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Judul saat ini
                         </p>
                         <p className="mt-1 text-sm font-medium">
                             {activeStudent.title}
@@ -847,8 +940,8 @@ function SupervisorDialog({
 
                     {activeStudent.mentorshipProgress.length > 0 ? (
                         <div className="rounded-lg border bg-muted/20 p-3">
-                            <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                Bimbingan Selesai per Pembimbing
+                            <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                Bimbingan selesai per pembimbing
                             </p>
                             <MentorshipProgressList
                                 progress={activeStudent.mentorshipProgress}
@@ -936,76 +1029,24 @@ function ProgressRiskBadge({
     risk: StudentRow['progressRisk'];
     className?: string;
 }) {
+    const tone = { high: 'danger', medium: 'warning', low: 'success' } as const;
+
     return (
-        <div className={cn('flex min-w-[150px] flex-col gap-1', className)}>
+        <div className={cn('flex max-w-48 flex-col gap-1', className)}>
             <Badge
                 variant="outline"
                 className={cn(
-                    'w-fit',
-                    risk.level === 'high' &&
-                        'border-red-200 bg-red-50 text-red-700',
-                    risk.level === 'medium' &&
-                        'border-amber-200 bg-amber-50 text-amber-700',
-                    risk.level === 'low' &&
-                        'border-emerald-200 bg-emerald-50 text-emerald-700',
+                    'rounded-full border-transparent',
+                    toneClassName(tone[risk.level]),
                 )}
             >
                 {risk.label}
             </Badge>
             <p className="text-xs text-muted-foreground">
-                {risk.lastActivityLabel} - {risk.lastActivityAt}
+                {risk.lastActivityAt === '-'
+                    ? risk.lastActivityLabel
+                    : `${risk.lastActivityLabel} - ${risk.lastActivityAt}`}
             </p>
         </div>
-    );
-}
-
-function EmptyBlock({
-    icon: Icon,
-    text,
-}: {
-    icon: typeof UserRound;
-    text: string;
-}) {
-    return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
-            <Icon className="mb-2 size-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">{text}</p>
-        </div>
-    );
-}
-
-function FilterSelect({
-    value,
-    onChange,
-    options,
-    placeholder,
-}: {
-    value: string;
-    onChange: (value: string) => void;
-    options: (string | number | { label: string; value: string | number })[];
-    placeholder: string;
-}) {
-    const normalizedOptions = options.map((option) =>
-        typeof option === 'string' || typeof option === 'number'
-            ? { label: String(option), value: String(option) }
-            : {
-                  label: option.label,
-                  value: String(option.value),
-              },
-    );
-
-    return (
-        <select
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            className="h-7 rounded-full border border-transparent bg-muted px-3 text-xs font-medium text-muted-foreground transition-colors outline-none hover:bg-muted/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
-            <option value="semua">{placeholder}</option>
-            {normalizedOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                    {option.label}
-                </option>
-            ))}
-        </select>
     );
 }

@@ -68,7 +68,7 @@ export function DataSection({
                         </h2>
                     ) : null}
                     {summary ? (
-                        <p className="text-sm text-muted-foreground tabular-nums">
+                        <p className="text-sm text-pretty text-muted-foreground tabular-nums">
                             {summary}
                         </p>
                     ) : null}

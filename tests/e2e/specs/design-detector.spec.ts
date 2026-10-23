@@ -21,7 +21,7 @@ type Area = 'public' | 'mahasiswa' | 'dosen' | 'kaprodi';
  * and scans clean, add it here; from then on any non-advisory finding on its
  * pages fails.
  */
-const BLOCKING_AREAS: readonly Area[] = ['public'];
+const BLOCKING_AREAS: readonly Area[] = ['public', 'kaprodi'];
 
 /**
  * Pages inside a blocking area that stay advisory, with the reason. Keep this

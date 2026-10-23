@@ -1,20 +1,22 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import {
-    CalendarClock,
-    ChevronRight,
-    Gauge,
-    GraduationCap,
-    Pencil,
-    Search,
-} from 'lucide-react';
+import { Gauge, GraduationCap, Pencil, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { EmptyState } from '@/components/patterns/empty-state';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
+    DataTableEmptyState,
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
@@ -70,12 +72,20 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dosen Prodi', href: '/kaprodi/dosen-prodi' },
 ];
 
+function inConcentration(lecturer: LecturerRow, concentration: string) {
+    return (
+        (lecturer.concentrations ?? []).includes(concentration) ||
+        lecturer.concentration === concentration
+    );
+}
+
 export default function KaprodiDosenProdiPage() {
     const { auth, programStudi, lecturers } = usePage<
         SharedData & DosenProdiProps
     >().props;
     const canManageQuota =
         auth.kaprodiCapabilities?.manage_lecturer_quota ?? true;
+    const terms = neutralAcademicTerminology;
     const getInitials = useInitials();
     const [search, setSearch] = useUrlState('search', '');
     const [concentrationFilter, setConcentrationFilter] = useUrlState(
@@ -123,8 +133,7 @@ export default function KaprodiDosenProdiPage() {
 
             const matchesFilter =
                 concentrationFilter === 'semua' ||
-                (lecturer.concentrations ?? []).includes(concentrationFilter) ||
-                lecturer.concentration === concentrationFilter;
+                inConcentration(lecturer, concentrationFilter);
 
             return matchesSearch && matchesFilter;
         });
@@ -153,275 +162,247 @@ export default function KaprodiDosenProdiPage() {
         >
             <Head title="Dosen Prodi" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-6 md:px-6 lg:py-8">
-                <section>
-                    <div className="mb-4 border-b pb-3">
-                        <h2 className="text-base font-semibold">Dosen Prodi</h2>
-                        <p className="text-sm text-muted-foreground">
-                            {lecturers.length} dosen tercatat pada{' '}
-                            {programStudi.name}
-                        </p>
-                    </div>
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title="Dosen Prodi"
+                    description={`Beban pembimbing dan penguji di ${programStudi.name}`}
+                />
 
-                    <div className="space-y-3">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="relative max-w-xs flex-1">
-                                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
-                                    }
-                                    placeholder="Cari nama, NIK, konsentrasi..."
-                                    className="h-8 pl-8 text-sm"
+                <DataSection
+                    title="Daftar Dosen"
+                    summary={`${lecturers.length} dosen tercatat`}
+                >
+                    <DataToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        placeholder="Cari nama, NIK, konsentrasi..."
+                    />
+
+                    {concentrations.length > 0 ? (
+                        <FilterPills
+                            label="Filter konsentrasi"
+                            value={concentrationFilter}
+                            onValueChange={setConcentrationFilter}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                            options={[
+                                {
+                                    label: 'Semua',
+                                    value: 'semua',
+                                    count: lecturers.length,
+                                },
+                                ...concentrations.map((item) => ({
+                                    label: item,
+                                    value: item,
+                                    count: lecturers.filter((lecturer) =>
+                                        inConcentration(lecturer, item),
+                                    ).length,
+                                })),
+                            ]}
+                        />
+                    ) : null}
+
+                    {filtered.length > 0 ? (
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={totalItems}
+                                    pageSize={pageSize}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={setPageSize}
+                                    itemLabel="dosen"
                                 />
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                                {[
-                                    { label: 'Semua', value: 'semua' },
-                                    ...concentrations.map((item) => ({
-                                        label: item,
-                                        value: item,
-                                    })),
-                                ].map((tab) => (
-                                    <button
-                                        key={tab.value}
-                                        type="button"
-                                        onClick={() =>
-                                            setConcentrationFilter(tab.value)
-                                        }
-                                        className={cn(
-                                            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                            concentrationFilter === tab.value
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                        )}
-                                    >
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {filtered.length > 0 ? (
-                            <DataTableContainer
-                                pagination={
-                                    <DataTablePagination
-                                        currentPage={page}
-                                        totalPages={totalPages}
-                                        totalItems={totalItems}
-                                        pageSize={pageSize}
-                                        onPageChange={setPage}
-                                        onPageSizeChange={setPageSize}
-                                        itemLabel="dosen"
-                                    />
-                                }
+                            }
+                        >
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[860px]',
+                                )}
                             >
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30">
-                                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                                Dosen
-                                            </th>
-                                            <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                                Konsentrasi
-                                            </th>
-                                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                                Bimbingan
-                                            </th>
-                                            <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                                Ujian
-                                            </th>
-                                            <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground xl:table-cell">
-                                                Mahasiswa Aktif
-                                            </th>
-                                            <th className="w-8 px-4 py-2.5" />
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {paginated.map((lecturer) => (
-                                            <tr
-                                                key={lecturer.id}
-                                                className="transition-colors hover:bg-muted/20"
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Dosen</th>
+                                        <th className={dataTh}>Bimbingan</th>
+                                        <th className={dataTh}>Ujian</th>
+                                        <th className={dataTh}>
+                                            Mahasiswa aktif
+                                        </th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
+                                    {paginated.map((lecturer) => (
+                                        <tr
+                                            key={lecturer.id}
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'align-top transition-colors hover:bg-muted/30',
+                                            )}
+                                        >
+                                            <td
+                                                className={stackedTable.tdPlain}
                                             >
-                                                <td className="px-4 py-3">
-                                                    <Link
-                                                        href={
-                                                            lecturer.profileUrl
-                                                        }
-                                                        className="flex items-center gap-2.5"
-                                                    >
-                                                        <Avatar className="size-7 shrink-0 border">
-                                                            <AvatarImage
-                                                                src={
-                                                                    lecturer.avatar ??
-                                                                    undefined
-                                                                }
-                                                                alt={
-                                                                    lecturer.name
-                                                                }
-                                                            />
-                                                            <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
-                                                                {getInitials(
-                                                                    lecturer.name,
-                                                                )}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="min-w-0">
-                                                            <p className="truncate leading-snug font-medium">
-                                                                {lecturer.name}
-                                                            </p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {lecturer.nik} -{' '}
-                                                                {
-                                                                    lecturer.status
-                                                                }
-                                                            </p>
-                                                        </div>
-                                                    </Link>
-                                                </td>
-                                                <td className="hidden px-4 py-3 md:table-cell">
-                                                    <div className="flex flex-wrap gap-1.5">
+                                                <Link
+                                                    href={lecturer.profileUrl}
+                                                    className="group flex items-start gap-3"
+                                                >
+                                                    <Avatar className="size-8 shrink-0 border">
+                                                        <AvatarImage
+                                                            src={
+                                                                lecturer.avatar ??
+                                                                undefined
+                                                            }
+                                                            alt=""
+                                                        />
+                                                        <AvatarFallback className="bg-primary-muted text-xs text-primary-muted-foreground">
+                                                            {getInitials(
+                                                                lecturer.name,
+                                                            )}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium group-hover:text-primary">
+                                                            {lecturer.name}
+                                                        </p>
+                                                        <p className="text-muted-foreground tabular-nums">
+                                                            {lecturer.nik} ·{' '}
+                                                            {lecturer.status}
+                                                        </p>
                                                         {(lecturer
                                                             .concentrations
                                                             ?.length ?? 0) >
                                                         0 ? (
-                                                            lecturer.concentrations.map(
-                                                                (item) => (
-                                                                    <Badge
-                                                                        key={
-                                                                            item
-                                                                        }
-                                                                        variant="outline"
-                                                                        className="rounded-full"
-                                                                    >
-                                                                        {item}
-                                                                    </Badge>
-                                                                ),
-                                                            )
-                                                        ) : (
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="rounded-full"
-                                                            >
-                                                                -
-                                                            </Badge>
-                                                        )}
-                                                        {lecturer.expertiseFields.map(
-                                                            (field) => (
-                                                                <Badge
-                                                                    key={field}
-                                                                    variant="secondary"
-                                                                    className="rounded-full"
-                                                                >
-                                                                    {field}
-                                                                </Badge>
-                                                            ),
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        <Badge variant="outline">
-                                                            P1{' '}
-                                                            {
-                                                                lecturer.primaryCount
-                                                            }
-                                                        </Badge>
-                                                        <Badge variant="outline">
-                                                            P2{' '}
-                                                            {
-                                                                lecturer.secondaryCount
-                                                            }
-                                                        </Badge>
-                                                        <Badge variant="secondary">
-                                                            Kuota{' '}
-                                                            {lecturer.quota}
-                                                        </Badge>
-                                                        {canManageQuota ? (
-                                                            <button
-                                                                type="button"
-                                                                title="Atur kuota bimbingan"
-                                                                onClick={() =>
-                                                                    setQuotaDialog(
-                                                                        lecturer,
-                                                                    )
-                                                                }
-                                                                className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:bg-muted"
-                                                            >
-                                                                <Pencil className="size-3" />
-                                                            </button>
+                                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                                {lecturer.concentrations.join(
+                                                                    ', ',
+                                                                )}
+                                                            </p>
+                                                        ) : null}
+                                                        {lecturer
+                                                            .expertiseFields
+                                                            .length > 0 ? (
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {lecturer.expertiseFields.join(
+                                                                    ', ',
+                                                                )}
+                                                            </p>
                                                         ) : null}
                                                     </div>
-                                                </td>
-                                                <td className="hidden px-4 py-3 lg:table-cell">
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        <Badge variant="outline">
-                                                            {
-                                                                neutralAcademicTerminology.proposalExamShort
-                                                            }{' '}
-                                                            {
-                                                                lecturer.semproCount
-                                                            }
-                                                        </Badge>
-                                                        <Badge variant="outline">
-                                                            {
-                                                                neutralAcademicTerminology.finalExam
-                                                            }{' '}
-                                                            {
-                                                                lecturer.sidangCount
-                                                            }
-                                                        </Badge>
-                                                        {lecturer.upcomingExamCount >
-                                                        0 ? (
-                                                            <Badge>
-                                                                <CalendarClock className="size-3" />
-                                                                {
-                                                                    lecturer.upcomingExamCount
-                                                                }
-                                                            </Badge>
-                                                        ) : null}
-                                                    </div>
-                                                </td>
-                                                <td className="hidden px-4 py-3 xl:table-cell">
-                                                    <p className="max-w-xs truncate text-xs text-muted-foreground">
-                                                        {lecturer.activeStudents
-                                                            .length > 0
-                                                            ? lecturer.activeStudents.join(
-                                                                  ', ',
-                                                              )
-                                                            : 'Belum ada mahasiswa aktif'}
-                                                    </p>
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    <Link
-                                                        href={
-                                                            lecturer.profileUrl
-                                                        }
+                                                </Link>
+                                            </td>
+                                            <td
+                                                data-label="Bimbingan"
+                                                className={stackedTable.td}
+                                            >
+                                                <p className="tabular-nums">
+                                                    P1 {lecturer.primaryCount} ·
+                                                    P2 {lecturer.secondaryCount}
+                                                </p>
+                                                <p className="font-medium tabular-nums">
+                                                    Kuota {lecturer.quota}
+                                                </p>
+                                            </td>
+                                            <td
+                                                data-label="Ujian"
+                                                className={stackedTable.td}
+                                            >
+                                                <p className="tabular-nums">
+                                                    {terms.proposalExamShort}{' '}
+                                                    {lecturer.semproCount} ·{' '}
+                                                    {terms.finalExam}{' '}
+                                                    {lecturer.sidangCount}
+                                                </p>
+                                                {lecturer.upcomingExamCount >
+                                                0 ? (
+                                                    <StatusBadge
+                                                        domain="schedule"
+                                                        status="scheduled"
+                                                        className="mt-1"
                                                     >
-                                                        <ChevronRight className="size-4" />
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </DataTableContainer>
-                        ) : (
-                            <EmptyState
-                                icon={GraduationCap}
-                                title="Tidak ada dosen ditemukan"
-                                description="Coba ubah pencarian atau filter yang sedang dipakai."
-                            />
-                        )}
-
-                        {filtered.length > 0 ? (
-                            <p className="text-right text-xs text-muted-foreground">
-                                {filtered.length} dari {lecturers.length} dosen
-                            </p>
-                        ) : null}
-                    </div>
-                </section>
+                                                        {
+                                                            lecturer.upcomingExamCount
+                                                        }{' '}
+                                                        jadwal mendatang
+                                                    </StatusBadge>
+                                                ) : null}
+                                            </td>
+                                            <td
+                                                data-label="Mahasiswa aktif"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'md:max-w-xs',
+                                                )}
+                                            >
+                                                {lecturer.activeStudents
+                                                    .length > 0 ? (
+                                                    <p className="line-clamp-2 text-xs text-pretty text-muted-foreground">
+                                                        {lecturer.activeStudents.join(
+                                                            ', ',
+                                                        )}
+                                                    </p>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Belum ada mahasiswa
+                                                        aktif
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                    {canManageQuota ? (
+                                                        <RowIconButton
+                                                            label="Atur kuota bimbingan"
+                                                            onClick={() =>
+                                                                setQuotaDialog(
+                                                                    lecturer,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </RowIconButton>
+                                                    ) : null}
+                                                    <RowIconButton
+                                                        asChild
+                                                        label="Buka profil dosen"
+                                                    >
+                                                        <Link
+                                                            href={
+                                                                lecturer.profileUrl
+                                                            }
+                                                        >
+                                                            <UserRound className="size-4" />
+                                                        </Link>
+                                                    </RowIconButton>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </DataTableContainer>
+                    ) : (
+                        <DataTableEmptyState
+                            icon={GraduationCap}
+                            title="Tidak ada dosen ditemukan"
+                            description="Coba ubah pencarian atau filter yang sedang dipakai."
+                        />
+                    )}
+                </DataSection>
             </div>
             <QuotaDialog
                 lecturer={quotaDialog}
@@ -433,7 +414,6 @@ export default function KaprodiDosenProdiPage() {
         </KaprodiLayout>
     );
 }
-
 function QuotaDialog({
     lecturer,
     open,
@@ -486,7 +466,7 @@ function QuotaDialog({
 
                 <div className="grid gap-4">
                     <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
                             <Gauge className="size-5" />
                         </div>
                         <div>
@@ -502,10 +482,15 @@ function QuotaDialog({
                     </div>
 
                     <div className="grid gap-1.5">
-                        <label className="text-sm font-medium">
+                        <label
+                            htmlFor="supervision-quota"
+                            className="text-sm font-medium"
+                        >
                             Kuota Bimbingan
                         </label>
                         <Input
+                            id="supervision-quota"
+                            className="max-md:h-11"
                             type="number"
                             min={Math.max(1, minimum)}
                             max={100}
