@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dosen\StoreJadwalBimbinganRequest;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
+use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\DosenScheduleWorkspaceService;
+use App\Services\MentorshipScheduleService;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +24,7 @@ class JadwalBimbinganController extends Controller
     public function __construct(
         private readonly DosenBimbinganService $dosenBimbinganService,
         private readonly DosenScheduleWorkspaceService $dosenScheduleWorkspaceService,
+        private readonly MentorshipScheduleService $mentorshipScheduleService,
         private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
@@ -136,9 +140,61 @@ class JadwalBimbinganController extends Controller
             'pendingRequests' => $pendingRequests,
             'upcomingSchedules' => $upcomingSchedules,
             'historySchedules' => $historySchedules,
+            'supervisedStudents' => $this->mentorshipScheduleService->supervisedStudents($lecturer),
             'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
             'flashMessage' => $request->session()->get('success'),
         ]);
+    }
+
+    public function store(StoreJadwalBimbinganRequest $request): RedirectResponse
+    {
+        $lecturer = $request->user();
+        abort_if($lecturer === null, 401);
+
+        $data = $request->validated();
+        $student = User::query()->findOrFail((int) $data['student_user_id']);
+
+        $isRecurring = ! empty($data['is_recurring']);
+        $recurringCount = $isRecurring ? (int) $data['recurring_count'] : 1;
+        $recurringPattern = $isRecurring ? $data['recurring_pattern'] : null;
+
+        $this->mentorshipScheduleService->createSeries(
+            attributes: [
+                'student_user_id' => $student->id,
+                'lecturer_user_id' => $lecturer->id,
+                'mentorship_assignment_id' => null,
+                'topic' => trim($data['topic']),
+                'status' => 'approved',
+                'location' => trim($data['location']),
+                'lecturer_note' => filled($data['lecturer_note'] ?? null) ? trim($data['lecturer_note']) : null,
+                'created_by_user_id' => $lecturer->id,
+            ],
+            firstOccurrence: new \DateTime($data['requested_for']),
+            scheduleOccurrences: true,
+            recurringPattern: $recurringPattern,
+            recurringCount: $recurringCount,
+        );
+
+        $this->broadcastScheduleUpdated($lecturer->id);
+        $this->broadcastScheduleUpdated($student->id);
+
+        $message = $isRecurring
+            ? sprintf('%s membuat %d jadwal bimbingan berulang untuk Anda.', $lecturer->name, $recurringCount)
+            : sprintf('%s membuat jadwal bimbingan baru untuk Anda.', $lecturer->name);
+
+        $this->realtimeNotificationService->notifyUser($student, 'konfirmasiBimbingan', [
+            'title' => 'Jadwal bimbingan baru dari dosen',
+            'description' => $message,
+            'url' => '/mahasiswa/jadwal-bimbingan',
+            'icon' => 'calendar-clock',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+
+        $successMessage = $isRecurring
+            ? sprintf('%d jadwal bimbingan berulang berhasil dibuat.', $recurringCount)
+            : 'Jadwal bimbingan berhasil dibuat.';
+
+        return back()->with('success', $successMessage);
     }
 
     public function decide(Request $request, MentorshipSchedule $schedule): RedirectResponse
