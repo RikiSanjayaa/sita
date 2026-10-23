@@ -12,6 +12,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Services\ThesisProjectWorkflowResolver;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
 use Illuminate\Support\Carbon;
@@ -23,6 +24,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly UserProfilePresenter $userProfilePresenter,
+        private readonly ThesisProjectWorkflowResolver $workflowResolver,
     ) {}
 
     public function __invoke(): Response
@@ -404,79 +406,7 @@ class DashboardController extends Controller
      */
     private function resolveProjectWorkflow(ThesisProject $project): array
     {
-        $project->loadMissing('latestTitle');
-
-        if ($project->state === 'cancelled') {
-            $key = $project->latestTitle?->status === 'rejected'
-                ? 'title_rejected'
-                : 'project_cancelled';
-
-            return [
-                'key' => $key,
-                'label' => $this->workflowLabel($key, $project),
-                'description' => $this->workflowDescription($key, $project),
-            ];
-        }
-
-        $latestSidang = $project->defenses
-            ->where('type', 'sidang')
-            ->sortByDesc('attempt_no')
-            ->first();
-
-        $hasOpenRevisions = $project->revisions->whereIn('status', ['open', 'submitted'])->isNotEmpty();
-        $key = 'title_review_pending';
-
-        if ($latestSidang instanceof ThesisDefense) {
-            if ($latestSidang->status === 'scheduled') {
-                $key = 'sidang_scheduled';
-            } elseif ($latestSidang->status === 'awaiting_finalization') {
-                $key = 'sidang_waiting_result';
-            } elseif ($latestSidang->status === 'completed') {
-                $key = match ($latestSidang->result) {
-                    'pass' => 'completed',
-                    'pass_with_revision' => $hasOpenRevisions ? 'sidang_revision' : 'completed',
-                    'fail' => 'sidang_failed',
-                    default => 'sidang_scheduled',
-                };
-            }
-
-            return [
-                'key' => $key,
-                'label' => $this->workflowLabel($key, $project),
-                'description' => $this->workflowDescription($key, $project),
-            ];
-        }
-
-        $latestSempro = $project->defenses
-            ->where('type', 'sempro')
-            ->sortByDesc('attempt_no')
-            ->first();
-
-        if ($latestSempro instanceof ThesisDefense) {
-            if ($latestSempro->status === 'scheduled') {
-                $key = 'sempro_scheduled';
-            } elseif ($latestSempro->status === 'awaiting_finalization') {
-                $key = 'sempro_waiting_result';
-            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass_with_revision') {
-                $key = $hasOpenRevisions
-                    ? 'sempro_revision'
-                    : ($project->activeSupervisorAssignments->isNotEmpty()
-                        ? 'research_in_progress'
-                        : 'sempro_passed');
-            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'pass') {
-                $key = $project->activeSupervisorAssignments->isNotEmpty()
-                    ? 'research_in_progress'
-                    : 'sempro_passed';
-            } elseif ($latestSempro->status === 'completed' && $latestSempro->result === 'fail') {
-                $key = 'sempro_failed';
-            }
-        } elseif ($project->phase === 'title_review') {
-            $key = 'title_review_pending';
-        } elseif ($project->latestTitle?->status === 'approved') {
-            $key = 'title_approved';
-        } elseif ($project->activeSupervisorAssignments->isNotEmpty()) {
-            $key = 'research_in_progress';
-        }
+        $key = $this->workflowResolver->resolveKey($project);
 
         return [
             'key' => $key,

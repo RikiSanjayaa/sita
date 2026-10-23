@@ -25,13 +25,7 @@ class ThesisTitleRequest extends FormRequest
             'title_en' => ['nullable', 'string', 'max:255'],
             'proposal_summary' => ['required', 'string'],
             'proposal_file' => [$isCreating ? 'required' : 'nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'proposed_primary_lecturer_user_id' => ['nullable', 'integer', 'exists:users,id'],
-            'proposed_secondary_lecturer_user_id' => [
-                'nullable',
-                'integer',
-                'exists:users,id',
-                'different:proposed_primary_lecturer_user_id',
-            ],
+            'discussion_lecturer_user_id' => ['required', 'integer', 'exists:users,id'],
         ];
     }
 
@@ -48,25 +42,20 @@ class ThesisTitleRequest extends FormRequest
                     return;
                 }
 
-                $proposed = collect([
-                    'proposed_primary_lecturer_user_id',
-                    'proposed_secondary_lecturer_user_id',
-                ])->filter(fn(string $field): bool => $this->filled($field));
+                $discussionLecturerId = $this->input('discussion_lecturer_user_id');
 
-                if ($proposed->isEmpty()) {
+                if (! is_numeric($discussionLecturerId)) {
                     return;
                 }
 
                 $eligible = app(LecturerSearchService::class)->eligibleIdsInProgramStudi(
                     (int) $programStudiId,
-                    $proposed->map(fn(string $field): int => (int) $this->input($field))->all(),
+                    [(int) $discussionLecturerId],
                 );
 
-                $proposed->each(function (string $field) use ($validator, $eligible): void {
-                    if (! in_array((int) $this->input($field), $eligible, true)) {
-                        $validator->errors()->add($field, 'Dosen yang diusulkan harus dosen aktif di program studi Anda.');
-                    }
-                });
+                if (! in_array((int) $discussionLecturerId, $eligible, true)) {
+                    $validator->errors()->add('discussion_lecturer_user_id', 'Dosen diskusi proposal harus dosen aktif di program studi Anda.');
+                }
             },
         ];
     }

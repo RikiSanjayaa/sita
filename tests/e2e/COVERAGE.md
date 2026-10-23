@@ -21,7 +21,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Tugas Akhir: pilih berkas untuk sempro/sidang aktif                                                         | `mahasiswa-thesis`                                        | tercakup | P1       |
 | Tugas Akhir: hasil sempro, revisi, selesai                                                                  | `admin-sempro`, `dosen-penilaian`                         | tercakup | P1       |
 | Tugas Akhir: pembimbing tampil setelah ditetapkan kaprodi; progres bimbingan 0/6 per pembimbing (issue #20) | `kaprodi-portal`                                          | tercakup | P1       |
-| Tugas Akhir: usulan dosen pembimbing saat pengajuan judul (issue #18)                                       | `mahasiswa-thesis`, plus Pest (`ProposedSupervisorsTest`) | tercakup | P1       |
+| Tugas Akhir: dosen diskusi proposal wajib saat pengajuan judul (issue #18)                                  | `mahasiswa-thesis`, plus Pest (`DiscussionLecturerTest`) | tercakup | P1       |
 | Tugas Akhir: bagian Catatan Dosen (hanya catatan untuk mahasiswa, issue #13)                                | `dosen-catatan`, plus Pest (`ThesisProjectNoteTest`)      | tercakup | P1       |
 | Jadwal Bimbingan: ajukan, approve, tolak, berulang                                                          | `bimbingan-chat`                                          | tercakup | P1       |
 | Jadwal Bimbingan: jadwal ulang, selesai, batal, tolak semua, pembimbing 2                                   | `jadwal-bimbingan`                                        | tercakup | P1       |

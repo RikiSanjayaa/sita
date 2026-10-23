@@ -79,18 +79,18 @@ class UsersTable
                     ->icon(BadgeStyles::programStudiIcon())
                     ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->whereHas('mahasiswaProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
-                            ->orWhereHas('dosenProgramStudiAssignments.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
-                            ->orWhereHas('adminProfile.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"))
-                            ->orWhereHas('kaprodiAssignment.programStudi', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                        return $query->whereHas('mahasiswaProfile.programStudi', fn($q) => $q->whereLike('name', "%{$search}%"))
+                            ->orWhereHas('dosenProgramStudiAssignments.programStudi', fn($q) => $q->whereLike('name', "%{$search}%"))
+                            ->orWhereHas('adminProfile.programStudi', fn($q) => $q->whereLike('name', "%{$search}%"))
+                            ->orWhereHas('kaprodiAssignment.programStudi', fn($q) => $q->whereLike('name', "%{$search}%"));
                     })
                     ->toggleable(),
                 TextColumn::make('concentration')
                     ->label('Konsentrasi')
                     ->state(fn(?User $record): string => self::concentrationState($record))
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->where('concentration', 'like', "%{$search}%"))
-                            ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->where('concentration', 'like', "%{$search}%"));
+                        return $query->whereHas('mahasiswaProfile', fn(Builder $profileQuery): Builder => $profileQuery->whereLike('concentration', "%{$search}%"))
+                            ->orWhereHas('dosenProgramStudiAssignments', fn(Builder $assignmentQuery): Builder => $assignmentQuery->whereLike('concentration', "%{$search}%"));
                     })
                     ->visible(fn(HasTable $livewire): bool => in_array($livewire->activeTab ?? null, ['mahasiswa', 'dosen'], true))
                     ->toggleable(),

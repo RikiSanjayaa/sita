@@ -418,18 +418,18 @@ class WelcomeController extends Controller
                 $query->where(function ($innerQuery) use ($search): void {
                     $innerQuery
                         ->whereHas('student', function ($studentQuery) use ($search): void {
-                            $studentQuery->where('name', 'like', "%{$search}%")
+                            $studentQuery->whereLike('name', "%{$search}%")
                                 ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
-                                    $profileQuery->where('nim', 'like', "%{$search}%");
+                                    $profileQuery->whereLike('nim', "%{$search}%");
                                 });
                         })
                         ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
-                            $programQuery->where('name', 'like', "%{$search}%");
+                            $programQuery->whereLike('name', "%{$search}%");
                         })
                         ->orWhereHas('approvedTitles', function ($titleQuery) use ($search): void {
-                            $titleQuery->where('title_id', 'like', "%{$search}%")
-                                ->orWhere('title_en', 'like', "%{$search}%")
-                                ->orWhere('proposal_summary', 'like', "%{$search}%");
+                            $titleQuery->whereLike('title_id', "%{$search}%")
+                                ->orWhereLike('title_en', "%{$search}%")
+                                ->orWhereLike('proposal_summary', "%{$search}%");
                         });
                 });
             })
@@ -512,11 +512,11 @@ class WelcomeController extends Controller
             })
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($innerQuery) use ($search): void {
-                    $innerQuery->where('name', 'like', "%{$search}%")
+                    $innerQuery->whereLike('name', "%{$search}%")
                         ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
-                            $profileQuery->where('nim', 'like', "%{$search}%")
+                            $profileQuery->whereLike('nim', "%{$search}%")
                                 ->orWhereHas('programStudi', function ($programQuery) use ($search): void {
-                                    $programQuery->where('name', 'like', "%{$search}%");
+                                    $programQuery->whereLike('name', "%{$search}%");
                                 });
                         });
                 });
@@ -786,16 +786,16 @@ class WelcomeController extends Controller
         $query->where(function ($innerQuery) use ($search): void {
             $innerQuery
                 ->whereHas('project.student', function ($studentQuery) use ($search): void {
-                    $studentQuery->where('name', 'like', "%{$search}%")
+                    $studentQuery->whereLike('name', "%{$search}%")
                         ->orWhereHas('mahasiswaProfile', function ($profileQuery) use ($search): void {
-                            $profileQuery->where('nim', 'like', "%{$search}%");
+                            $profileQuery->whereLike('nim', "%{$search}%");
                         });
                 })
                 ->orWhereHas('project.programStudi', function ($programQuery) use ($search): void {
-                    $programQuery->where('name', 'like', "%{$search}%");
+                    $programQuery->whereLike('name', "%{$search}%");
                 })
-                ->orWhere('location', 'like', "%{$search}%")
-                ->orWhere('mode', 'like', "%{$search}%");
+                ->orWhereLike('location', "%{$search}%")
+                ->orWhereLike('mode', "%{$search}%");
         });
     }
 

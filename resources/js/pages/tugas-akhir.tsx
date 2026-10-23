@@ -55,8 +55,7 @@ type Submission = {
     title_id: string;
     title_en: string;
     proposal_summary: string;
-    proposed_primary_lecturer_user_id: number | null;
-    proposed_secondary_lecturer_user_id: number | null;
+    discussion_lecturer_user_id: number | null;
     workflow: {
         key: string;
         label: string;
@@ -241,8 +240,7 @@ type FormData = {
     title_id: string;
     title_en: string;
     proposal_summary: string;
-    proposed_primary_lecturer_user_id: string;
-    proposed_secondary_lecturer_user_id: string;
+    discussion_lecturer_user_id: string;
     proposal_file: File | null;
 };
 
@@ -261,10 +259,8 @@ function submissionDefaults(submission: Submission | null): FormData {
         title_id: submission?.title_id ?? '',
         title_en: normalizeTitleEn(submission?.title_en),
         proposal_summary: submission?.proposal_summary ?? '',
-        proposed_primary_lecturer_user_id:
-            submission?.proposed_primary_lecturer_user_id?.toString() ?? '',
-        proposed_secondary_lecturer_user_id:
-            submission?.proposed_secondary_lecturer_user_id?.toString() ?? '',
+        discussion_lecturer_user_id:
+            submission?.discussion_lecturer_user_id?.toString() ?? '',
         proposal_file: null,
     };
 }
@@ -401,30 +397,20 @@ function SubmissionFields({
             </div>
 
             <LecturerSearchSelect
-                label="Usulan Dosen Pembimbing 1 (Opsional)"
-                value={form.data.proposed_primary_lecturer_user_id}
+                label="Dosen Diskusi Proposal"
+                value={form.data.discussion_lecturer_user_id}
                 onChange={(value) =>
-                    form.setData('proposed_primary_lecturer_user_id', value)
+                    form.setData('discussion_lecturer_user_id', value)
                 }
                 projectId={null}
                 searchUrl="/mahasiswa/tugas-akhir/lecturers/search"
                 purpose="supervisor"
-                error={form.errors.proposed_primary_lecturer_user_id}
-                optional
+                error={form.errors.discussion_lecturer_user_id}
             />
-
-            <LecturerSearchSelect
-                label="Usulan Dosen Pembimbing 2 (Opsional)"
-                value={form.data.proposed_secondary_lecturer_user_id}
-                onChange={(value) =>
-                    form.setData('proposed_secondary_lecturer_user_id', value)
-                }
-                projectId={null}
-                searchUrl="/mahasiswa/tugas-akhir/lecturers/search"
-                purpose="supervisor"
-                error={form.errors.proposed_secondary_lecturer_user_id}
-                optional
-            />
+            <p className="-mt-2 text-xs text-muted-foreground">
+                Wajib dipilih. Dosen diskusi proposal harus dosen aktif di
+                program studi Anda.
+            </p>
 
             <div className="grid gap-1.5">
                 <Label htmlFor={`${idPrefix}proposal_file`}>
