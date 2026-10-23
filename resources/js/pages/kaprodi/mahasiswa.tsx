@@ -100,6 +100,7 @@ type StudentRow = {
     phaseKey: string;
     projectState: string;
     projectStateKey: string;
+    mentorshipTicket: { suspended: boolean; validUntil: string | null } | null;
     title: string;
     advisors: string[];
     supervisorAssignments: {
@@ -158,6 +159,7 @@ type DirectoryRow = {
     progressRisk: StudentRow['progressRisk'] | null;
     profileUrl: string;
     completedAt: string | null;
+    mentorshipTicket: StudentRow['mentorshipTicket'];
     activeStudent: StudentRow | null;
 };
 
@@ -319,6 +321,7 @@ function StudentTable({
                 progressRisk: row.progressRisk,
                 profileUrl: row.profileUrl,
                 completedAt: null,
+                mentorshipTicket: row.mentorshipTicket,
                 activeStudent: row,
             }),
         );
@@ -345,6 +348,7 @@ function StudentTable({
                 progressRisk: null,
                 profileUrl: row.profileUrl,
                 completedAt: row.completedAt,
+                mentorshipTicket: null,
                 activeStudent: null,
             };
         });
@@ -632,6 +636,15 @@ function StudentTable({
                                                 -
                                             </span>
                                         )}
+                                        {row.mentorshipTicket?.suspended ? (
+                                            <StatusBadge
+                                                domain="ticket"
+                                                status="overdue"
+                                                className="mt-1"
+                                            >
+                                                Tiket habis
+                                            </StatusBadge>
+                                        ) : null}
                                         {row.completedAt ? (
                                             <p className="mt-1 text-xs text-muted-foreground">
                                                 {row.completedAt}
@@ -787,6 +800,15 @@ function StudentTable({
                         <SheetDescription>
                             {notesRow?.name} ({notesRow?.nim})
                         </SheetDescription>
+                        {notesRow?.mentorshipTicket?.suspended ? (
+                            <StatusBadge
+                                domain="ticket"
+                                status="overdue"
+                                className="mt-2"
+                            >
+                                Tiket habis
+                            </StatusBadge>
+                        ) : null}
                     </SheetHeader>
                     <div className="p-6">
                         <ThesisNotesPanel

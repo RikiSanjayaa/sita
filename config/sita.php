@@ -15,4 +15,18 @@ return [
 
     'minimum_mentorship_sessions' => (int) env('SITA_MINIMUM_MENTORSHIP_SESSIONS', 6),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Thesis Ticket Duration (months)
+    |--------------------------------------------------------------------------
+    |
+    | How long a thesis project's mentorship ticket stays valid after the first
+    | supervisor is assigned, and how far each renewal extends it. Once the
+    | validity date has passed, mentorship activity is suspended until an admin
+    | renews the ticket.
+    |
+    */
+
+    'thesis_ticket_months' => (int) env('SITA_THESIS_TICKET_MONTHS', 12),
+
 ];

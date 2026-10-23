@@ -18,6 +18,8 @@ use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -410,6 +412,7 @@ class ThesisProjectAdminService
                 'state' => 'active',
                 'completed_at' => null,
                 'closed_by' => null,
+                ...$this->initialMentorshipTicket($project),
             ])->save();
 
             $freshProject = $project->fresh();
@@ -429,6 +432,56 @@ class ThesisProjectAdminService
         $this->notifyStudentAboutSupervisorAssignment($updatedProject);
 
         return $updatedProject;
+    }
+
+    /**
+     * Extends the mentorship ticket by one period from the later of its current
+     * validity date and today, then records the renewal for audit.
+     */
+    public function renewMentorshipTicket(ThesisProject $project, int $renewedBy, ?string $notes = null): ThesisProject
+    {
+        return DB::transaction(function () use ($project, $renewedBy, $notes): ThesisProject {
+            $today = Carbon::today(WitaDateTime::TIMEZONE);
+            $previousValidUntil = $project->mentorship_valid_until?->toDateString();
+            $base = $project->mentorship_valid_until?->gt($today)
+                ? $project->mentorship_valid_until->copy()
+                : $today->copy();
+            $newValidUntil = $base->addMonthsNoOverflow(config('sita.thesis_ticket_months', 12))->toDateString();
+
+            $project->forceFill([
+                'mentorship_valid_from' => $project->mentorship_valid_from ?? $today->toDateString(),
+                'mentorship_valid_until' => $newValidUntil,
+            ])->save();
+
+            $freshProject = $project->fresh();
+
+            $this->recordEvent(
+                $freshProject,
+                actorUserId: $renewedBy,
+                eventType: 'mentorship_ticket_renewed',
+                label: 'Tiket bimbingan diperpanjang',
+                description: $notes,
+                occurredAt: now()->toDateTimeString(),
+                payload: [
+                    'old_valid_until' => $previousValidUntil,
+                    'new_valid_until' => $newValidUntil,
+                ],
+            );
+
+            return $freshProject;
+        });
+    }
+
+    /**
+     * @param  Collection<int, ThesisProject>  $projects
+     */
+    public function renewMentorshipTickets(Collection $projects, int $renewedBy): int
+    {
+        foreach ($projects as $project) {
+            $this->renewMentorshipTicket($project, $renewedBy);
+        }
+
+        return $projects->count();
     }
 
     /**
@@ -1266,6 +1319,26 @@ class ThesisProjectAdminService
             ->filter()
             ->unique()
             ->values();
+    }
+
+    /**
+     * The ticket starts when the first supervisor is assigned. A project that
+     * already has a validity start keeps it, so nothing is backfilled.
+     *
+     * @return array<string, string>
+     */
+    private function initialMentorshipTicket(ThesisProject $project): array
+    {
+        if ($project->mentorship_valid_from !== null) {
+            return [];
+        }
+
+        $today = Carbon::today(WitaDateTime::TIMEZONE);
+
+        return [
+            'mentorship_valid_from' => $today->toDateString(),
+            'mentorship_valid_until' => $today->copy()->addMonthsNoOverflow(config('sita.thesis_ticket_months', 12))->toDateString(),
+        ];
     }
 
     private function recordEvent(

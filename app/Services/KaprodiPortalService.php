@@ -505,6 +505,10 @@ class KaprodiPortalService
                     'phaseKey' => $project?->phase ?? 'none',
                     'projectState' => $this->statusLabel($project?->state),
                     'projectStateKey' => $project?->state ?? 'none',
+                    'mentorshipTicket' => $project instanceof ThesisProject ? [
+                        'suspended' => $project->isMentorshipSuspended(),
+                        'validUntil' => $project->mentorship_valid_until?->format('Y-m-d'),
+                    ] : null,
                     'title' => $project?->latestTitle?->title_id ?? '-',
                     'advisors' => $project?->activeSupervisorAssignments
                         ->map(fn($assignment): string => $assignment->lecturer?->name ?? '-')
