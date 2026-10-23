@@ -15,8 +15,6 @@ export default function NotificationsPage() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pengaturan notifikasi" />
 
-            <h1 className="sr-only">Pengaturan notifikasi</h1>
-
             <SettingsLayout>
                 <NotificationSettingsPanel />
             </SettingsLayout>

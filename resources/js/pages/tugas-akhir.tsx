@@ -3,14 +3,14 @@ import {
     BookOpen,
     CalendarClock,
     CheckCircle2,
-    ChevronDown,
-    ChevronUp,
+    ChevronRight,
     Clock,
     Download,
     Eye,
     FileText,
     GraduationCap,
     Languages,
+    type LucideIcon,
     MapPin,
     Pencil,
     Search,
@@ -24,6 +24,12 @@ import { FormEventHandler, useMemo, useState } from 'react';
 import { DeadlineBadge } from '@/components/deadline-badge';
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
 import { type MentorshipProgressRow } from '@/components/mentorship-progress';
+import {
+    DataSection,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { PageHeader } from '@/components/patterns/page-header';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import {
     type ThesisNote,
@@ -38,10 +44,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import {
-    academicGradeClassName,
+    type AcademicGrade,
     calculateAverageAcademicScore,
     resolveAcademicGrade,
 } from '@/lib/academic-grade';
+import { type StatusTone, toneClassName } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
 import { dashboard, tugasAkhir } from '@/routes';
 import { type SharedData, type UserProfileSummary } from '@/types';
@@ -262,7 +269,55 @@ function submissionDefaults(submission: Submission | null): FormData {
     };
 }
 
-/* ─── Workflow status badge ─────────────────────────────────────── */
+/* ─── Shared building blocks ────────────────────────────────────── */
+
+/** The one bordered surface of a section; rows inside are separated by dividers. */
+function Surface({
+    className,
+    children,
+}: {
+    className?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            className={cn(
+                'divide-y overflow-hidden rounded-xl border bg-card',
+                className,
+            )}
+        >
+            {children}
+        </div>
+    );
+}
+
+/** Short intro under a section title. */
+function SectionIntro({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="-mt-2 max-w-3xl text-sm text-pretty text-muted-foreground">
+            {children}
+        </p>
+    );
+}
+
+function workflowTone(workflowKey: string): StatusTone {
+    if (workflowKey === 'title_review_pending') return 'warning';
+    if (['title_rejected', 'project_cancelled'].includes(workflowKey)) {
+        return 'danger';
+    }
+
+    return 'success';
+}
+
+const workflowIcon: Record<StatusTone, LucideIcon> = {
+    neutral: CheckCircle2,
+    primary: CheckCircle2,
+    success: CheckCircle2,
+    warning: Clock,
+    danger: XCircle,
+    info: CheckCircle2,
+};
+
 function WorkflowBadge({
     workflowKey,
     label,
@@ -270,55 +325,154 @@ function WorkflowBadge({
     workflowKey: string;
     label: string;
 }) {
-    const isReview = workflowKey === 'title_review_pending';
-    const isRejected = ['title_rejected', 'project_cancelled'].includes(
-        workflowKey,
-    );
+    const tone = workflowTone(workflowKey);
+    const Icon = workflowIcon[tone];
 
     return (
         <span
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                isReview
-                    ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                    : isRejected
-                      ? 'bg-destructive/10 text-destructive'
-                      : 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
+                toneClassName(tone),
             )}
         >
-            {isReview ? (
-                <Clock className="size-3" />
-            ) : isRejected ? (
-                <XCircle className="size-3" />
-            ) : (
-                <CheckCircle2 className="size-3" />
-            )}
+            <Icon className="size-3" aria-hidden="true" />
             {label}
         </span>
     );
 }
 
-/* ─── Section header ────────────────────────────────────────────── */
-function SectionHeader({
+function gradeClassName(grade: AcademicGrade | null): string {
+    if (grade === 'A' || grade === 'B+' || grade === 'B') {
+        return toneClassName('success');
+    }
+    if (grade === 'C+' || grade === 'C') return toneClassName('warning');
+    if (grade === 'D' || grade === 'E') return toneClassName('danger');
+
+    return toneClassName('neutral');
+}
+
+function Score({ value }: { value: number | string }) {
+    return (
+        <span className="inline-flex items-center gap-1 text-sm font-semibold tabular-nums">
+            <Star
+                className="size-3.5 text-warning-muted-foreground"
+                aria-hidden="true"
+            />
+            {value}
+        </span>
+    );
+}
+
+function FileActions({
+    viewUrl,
+    downloadUrl,
+}: {
+    viewUrl: string | null;
+    downloadUrl: string | null;
+}) {
+    if (!viewUrl && !downloadUrl) return null;
+
+    return (
+        <div className="flex shrink-0 flex-wrap gap-2">
+            {viewUrl && (
+                <Button
+                    asChild
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="max-md:h-11 max-md:px-4"
+                >
+                    <a href={viewUrl} target="_blank" rel="noreferrer">
+                        <Eye className="size-3.5" />
+                        Lihat
+                    </a>
+                </Button>
+            )}
+            {downloadUrl && (
+                <Button
+                    asChild
+                    type="button"
+                    size="sm"
+                    className="max-md:h-11 max-md:px-4"
+                >
+                    <a href={downloadUrl}>
+                        <Download className="size-3.5" />
+                        Unduh
+                    </a>
+                </Button>
+            )}
+        </div>
+    );
+}
+
+function FileRow({
+    label,
+    fileName,
+    viewUrl,
+    downloadUrl,
+}: {
+    label: string;
+    fileName: string | null;
+    viewUrl: string | null;
+    downloadUrl: string | null;
+}) {
+    if (!fileName) {
+        return (
+            <p className="text-sm text-muted-foreground">
+                Belum ada {label.toLowerCase()} yang dipilih.
+            </p>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
+                    <FileText className="size-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">
+                        {label}
+                    </p>
+                    <p className="text-sm font-medium break-words">
+                        {fileName}
+                    </p>
+                </div>
+            </div>
+            <FileActions viewUrl={viewUrl} downloadUrl={downloadUrl} />
+        </div>
+    );
+}
+
+function PersonGroup({
     title,
     description,
-    action,
+    emptyText,
+    isEmpty,
+    children,
 }: {
     title: string;
-    description?: string;
-    action?: React.ReactNode;
+    description: string;
+    emptyText: string;
+    isEmpty: boolean;
+    children: React.ReactNode;
 }) {
     return (
-        <div className="flex items-start justify-between border-b bg-muted/20 px-5 py-3.5">
+        <div className="space-y-3">
             <div>
-                <p className="text-sm font-semibold">{title}</p>
-                {description && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                        {description}
-                    </p>
-                )}
+                <h3 className="flex items-center gap-1.5 text-base font-semibold tracking-tight">
+                    <Users className="size-4 text-primary" aria-hidden="true" />
+                    {title}
+                </h3>
+                <p className="text-sm text-muted-foreground">{description}</p>
             </div>
-            {action && <div className="shrink-0">{action}</div>}
+            {isEmpty ? (
+                <p className="text-sm text-pretty text-muted-foreground">
+                    {emptyText}
+                </p>
+            ) : (
+                <div className="grid divide-y">{children}</div>
+            )}
         </div>
     );
 }
@@ -437,59 +591,57 @@ function SubmissionFields({
     );
 }
 
-function DocumentSnapshotCard({
-    label,
-    fileName,
-    viewUrl,
-    downloadUrl,
+function DocumentOption({
+    document,
+    selected,
+    onSelect,
 }: {
-    label: string;
-    fileName: string | null;
-    viewUrl: string | null;
-    downloadUrl: string | null;
+    document: WorkspaceDocument;
+    selected: boolean;
+    onSelect: () => void;
 }) {
-    if (!fileName) {
-        return (
-            <div className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                Belum ada {label.toLowerCase()} yang dipilih.
-            </div>
-        );
-    }
-
     return (
-        <div className="flex flex-wrap items-center gap-2.5 border-l-2 border-primary/30 pl-3">
-            <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
-                <FileText className="size-3.5" />
-            </div>
+        <button
+            type="button"
+            aria-pressed={selected}
+            className="flex min-h-11 w-full items-start justify-between gap-3 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            onClick={onSelect}
+        >
             <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase">
-                    {label}
-                </p>
-                <p className="max-w-[240px] truncate text-xs font-medium">
-                    {fileName}
+                <p className="truncate font-medium">{document.title}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                    {document.fileName} · {document.category} ·{' '}
+                    {document.version}
                 </p>
             </div>
-            {viewUrl && (
-                <a
-                    href={viewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                    <Eye className="size-3" />
-                    Lihat
-                </a>
-            )}
-            {downloadUrl && (
-                <a
-                    href={downloadUrl}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                    <Download className="size-3" />
-                    Unduh
-                </a>
-            )}
-        </div>
+            {selected && <Badge className="shrink-0">Dipilih</Badge>}
+        </button>
+    );
+}
+
+function SelectedFile({
+    fileName,
+    onRemove,
+}: {
+    fileName: string;
+    onRemove: () => void;
+}) {
+    return (
+        <li className="flex items-center justify-between gap-2 rounded-md bg-muted/50 py-0.5 pl-3">
+            <span className="min-w-0 text-sm font-medium break-words">
+                {fileName}
+            </span>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 max-md:size-11"
+                aria-label={`Hapus pilihan ${fileName}`}
+                onClick={onRemove}
+            >
+                <X className="size-4" />
+            </Button>
+        </li>
     );
 }
 
@@ -563,12 +715,23 @@ function DefenseDocumentSelectionSection({
         return null;
     }
 
+    const toggleSupporting = (value: string) => {
+        form.setData(
+            'supporting_document_ids',
+            form.data.supporting_document_ids.includes(value)
+                ? form.data.supporting_document_ids.filter(
+                      (item) => item !== value,
+                  )
+                : [...form.data.supporting_document_ids, value],
+        );
+    };
+
     return (
-        <section>
-            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                <SectionHeader title={title} description={description} />
-                <div className="space-y-4 px-5 py-4">
-                    <DocumentSnapshotCard
+        <DataSection title={title}>
+            <SectionIntro>{description}</SectionIntro>
+            <Surface>
+                <div className="p-4">
+                    <FileRow
                         label={
                             allowSupportingFiles
                                 ? 'Naskah akhir aktif'
@@ -578,18 +741,19 @@ function DefenseDocumentSelectionSection({
                         viewUrl={selection.mainFileViewUrl}
                         downloadUrl={selection.mainFileDownloadUrl}
                     />
+                </div>
 
-                    {allowSupportingFiles &&
-                        selection.supportingDocuments.length > 0 && (
-                            <div className="space-y-2 border-t pt-3">
-                                <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">
-                                    Lampiran aktif
-                                </p>
-                                <div className="space-y-2">
-                                    {selection.supportingDocuments.map(
-                                        (document) => (
-                                            <DocumentSnapshotCard
-                                                key={document.id}
+                {allowSupportingFiles &&
+                    selection.supportingDocuments.length > 0 && (
+                        <div className="p-4">
+                            <h3 className="mb-1 text-sm font-semibold">
+                                Lampiran aktif
+                            </h3>
+                            <div className="divide-y">
+                                {selection.supportingDocuments.map(
+                                    (document) => (
+                                        <div key={document.id} className="py-3">
+                                            <FileRow
                                                 label="Lampiran"
                                                 fileName={document.name}
                                                 viewUrl={document.viewUrl}
@@ -597,321 +761,228 @@ function DefenseDocumentSelectionSection({
                                                     document.downloadUrl
                                                 }
                                             />
-                                        ),
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                {selection.isLocked ? (
+                    <p
+                        className={cn(
+                            'px-4 py-3 text-sm text-pretty',
+                            toneClassName('warning'),
+                        )}
+                    >
+                        Dokumen untuk tahap ini sudah dikunci karena hasil resmi
+                        telah ditetapkan.
+                    </p>
+                ) : workspaceDocuments.length === 0 ? (
+                    <p className="p-4 text-sm text-pretty text-muted-foreground">
+                        Belum ada file di workspace. Unggah file lebih dulu dari
+                        halaman{' '}
+                        <a
+                            href="/mahasiswa/upload-dokumen"
+                            className="font-medium text-primary hover:underline"
+                        >
+                            Upload Dokumen
+                        </a>
+                        .
+                    </p>
+                ) : (
+                    <form onSubmit={onSubmit} className="space-y-5 p-4">
+                        <div className="grid gap-2">
+                            <Label>
+                                {allowSupportingFiles
+                                    ? 'Pilih naskah akhir'
+                                    : `Pilih file ${terms.proposalDocument.toLowerCase()}`}
+                            </Label>
+                            <div className="space-y-3">
+                                <div className="flex min-h-11 items-center">
+                                    {selectedMainDocument ? (
+                                        <ul className="w-full">
+                                            <SelectedFile
+                                                fileName={
+                                                    selectedMainDocument.fileName
+                                                }
+                                                onRemove={() => {
+                                                    form.setData(
+                                                        'workspace_document_id',
+                                                        '',
+                                                    );
+                                                }}
+                                            />
+                                        </ul>
+                                    ) : (
+                                        <span className="text-sm text-muted-foreground">
+                                            Belum ada file utama dipilih.
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={mainSearch}
+                                        onChange={(event) =>
+                                            setMainSearch(event.target.value)
+                                        }
+                                        placeholder="Cari file utama..."
+                                        className="pl-9 max-md:h-11"
+                                    />
+                                </div>
+
+                                <div className="max-h-56 divide-y overflow-y-auto border-y">
+                                    {filteredMainOptions.length > 0 ? (
+                                        filteredMainOptions.map((document) => {
+                                            const value =
+                                                document.id.toString();
+
+                                            return (
+                                                <DocumentOption
+                                                    key={document.id}
+                                                    document={document}
+                                                    selected={
+                                                        form.data
+                                                            .workspace_document_id ===
+                                                        value
+                                                    }
+                                                    onSelect={() => {
+                                                        form.setData(
+                                                            'workspace_document_id',
+                                                            value,
+                                                        );
+                                                    }}
+                                                />
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="px-3 py-3 text-sm text-muted-foreground">
+                                            Tidak ada file yang cocok dengan
+                                            pencarian.
+                                        </p>
                                     )}
                                 </div>
                             </div>
-                        )}
-
-                    {selection.isLocked ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400">
-                            Dokumen untuk tahap ini sudah dikunci karena hasil
-                            resmi telah ditetapkan.
+                            {form.errors.workspace_document_id && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.workspace_document_id}
+                                </p>
+                            )}
                         </div>
-                    ) : workspaceDocuments.length === 0 ? (
-                        <div className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
-                            Belum ada file di workspace. Unggah file lebih dulu
-                            dari halaman{' '}
-                            <a
-                                href="/mahasiswa/upload-dokumen"
-                                className="font-medium text-primary hover:underline"
-                            >
-                                Upload Dokumen
-                            </a>
-                            .
-                        </div>
-                    ) : (
-                        <form
-                            onSubmit={onSubmit}
-                            className="space-y-4 border-t pt-4"
-                        >
-                            <div className="grid gap-2">
-                                <Label>
-                                    {allowSupportingFiles
-                                        ? 'Pilih naskah akhir'
-                                        : `Pilih file ${terms.proposalDocument.toLowerCase()}`}
-                                </Label>
-                                <div className="space-y-3">
-                                    <div className="flex min-h-11 items-center rounded-md border px-3 py-2">
-                                        {selectedMainDocument ? (
-                                            <Badge
-                                                variant="secondary"
-                                                className="gap-1 pr-1"
-                                            >
-                                                <span className="max-w-[240px] truncate">
-                                                    {
-                                                        selectedMainDocument.fileName
-                                                    }
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    className="rounded-sm p-0.5 hover:bg-black/10"
-                                                    onClick={() => {
-                                                        form.setData(
-                                                            'workspace_document_id',
-                                                            '',
-                                                        );
-                                                    }}
-                                                >
-                                                    <X className="size-3" />
-                                                </button>
-                                            </Badge>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">
-                                                Belum ada file utama dipilih.
-                                            </span>
-                                        )}
-                                    </div>
 
-                                    <div className="relative">
-                                        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                        <Input
-                                            value={mainSearch}
-                                            onChange={(event) =>
-                                                setMainSearch(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            placeholder="Cari file utama..."
-                                            className="pl-9"
-                                        />
-                                    </div>
-
-                                    <div className="max-h-56 overflow-y-auto rounded-md border">
-                                        {filteredMainOptions.length > 0 ? (
-                                            filteredMainOptions.map(
-                                                (document) => {
-                                                    const value =
-                                                        document.id.toString();
-                                                    const selected =
-                                                        form.data
-                                                            .workspace_document_id ===
-                                                        value;
-
-                                                    return (
-                                                        <button
-                                                            key={document.id}
-                                                            type="button"
-                                                            className="flex w-full items-start justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/20"
-                                                            onClick={() => {
-                                                                form.setData(
-                                                                    'workspace_document_id',
-                                                                    value,
-                                                                );
-                                                            }}
-                                                        >
-                                                            <div className="min-w-0">
-                                                                <p className="truncate font-medium">
-                                                                    {
-                                                                        document.title
-                                                                    }
-                                                                </p>
-                                                                <p className="truncate text-xs text-muted-foreground">
-                                                                    {
-                                                                        document.fileName
-                                                                    }{' '}
-                                                                    ·{' '}
-                                                                    {
-                                                                        document.category
-                                                                    }{' '}
-                                                                    ·{' '}
-                                                                    {
-                                                                        document.version
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                            {selected && (
-                                                                <Badge className="shrink-0">
-                                                                    Dipilih
-                                                                </Badge>
-                                                            )}
-                                                        </button>
-                                                    );
-                                                },
-                                            )
-                                        ) : (
-                                            <div className="px-3 py-3 text-sm text-muted-foreground">
-                                                Tidak ada file yang cocok dengan
-                                                pencarian.
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                {form.errors.workspace_document_id && (
-                                    <p className="text-xs text-destructive">
-                                        {form.errors.workspace_document_id}
-                                    </p>
-                                )}
-                            </div>
-
-                            {allowSupportingFiles &&
-                                supportingOptions.length > 0 && (
-                                    <div className="grid gap-2">
-                                        <Label>
-                                            Lampiran pendukung {finalExamLabel}
-                                        </Label>
-                                        <div className="space-y-3">
-                                            <div className="flex min-h-11 flex-wrap gap-2 rounded-md border px-3 py-2">
-                                                {selectedSupportingDocuments.length >
-                                                0 ? (
-                                                    selectedSupportingDocuments.map(
+                        {allowSupportingFiles &&
+                            supportingOptions.length > 0 && (
+                                <div className="grid gap-2">
+                                    <Label>
+                                        Lampiran pendukung {finalExamLabel}
+                                    </Label>
+                                    <div className="space-y-3">
+                                        <div className="flex min-h-11 items-center">
+                                            {selectedSupportingDocuments.length >
+                                            0 ? (
+                                                <ul className="w-full space-y-1">
+                                                    {selectedSupportingDocuments.map(
                                                         (document) => (
-                                                            <Badge
+                                                            <SelectedFile
                                                                 key={
                                                                     document.id
                                                                 }
-                                                                variant="secondary"
-                                                                className="gap-1 pr-1"
-                                                            >
-                                                                <span className="max-w-[180px] truncate">
-                                                                    {
-                                                                        document.fileName
-                                                                    }
-                                                                </span>
-                                                                <button
-                                                                    type="button"
-                                                                    className="rounded-sm p-0.5 hover:bg-black/10"
-                                                                    onClick={() => {
-                                                                        form.setData(
-                                                                            'supporting_document_ids',
-                                                                            form.data.supporting_document_ids.filter(
-                                                                                (
-                                                                                    item,
-                                                                                ) =>
-                                                                                    item !==
-                                                                                    document.id.toString(),
-                                                                            ),
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    <X className="size-3" />
-                                                                </button>
-                                                            </Badge>
+                                                                fileName={
+                                                                    document.fileName
+                                                                }
+                                                                onRemove={() =>
+                                                                    toggleSupporting(
+                                                                        document.id.toString(),
+                                                                    )
+                                                                }
+                                                            />
                                                         ),
+                                                    )}
+                                                </ul>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">
+                                                    Belum ada lampiran dipilih.
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="relative">
+                                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                            <Input
+                                                value={supportingSearch}
+                                                onChange={(event) =>
+                                                    setSupportingSearch(
+                                                        event.target.value,
                                                     )
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">
-                                                        Belum ada lampiran
-                                                        dipilih.
-                                                    </span>
-                                                )}
-                                            </div>
+                                                }
+                                                placeholder="Cari file lampiran..."
+                                                className="pl-9 max-md:h-11"
+                                            />
+                                        </div>
 
-                                            <div className="relative">
-                                                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                                <Input
-                                                    value={supportingSearch}
-                                                    onChange={(event) =>
-                                                        setSupportingSearch(
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="Cari file lampiran..."
-                                                    className="pl-9"
-                                                />
-                                            </div>
+                                        <div className="max-h-56 divide-y overflow-y-auto border-y">
+                                            {filteredSupportingOptions.length >
+                                            0 ? (
+                                                filteredSupportingOptions.map(
+                                                    (document) => {
+                                                        const value =
+                                                            document.id.toString();
 
-                                            <div className="max-h-56 overflow-y-auto rounded-md border">
-                                                {filteredSupportingOptions.length >
-                                                0 ? (
-                                                    filteredSupportingOptions.map(
-                                                        (document) => {
-                                                            const value =
-                                                                document.id.toString();
-                                                            const selected =
-                                                                form.data.supporting_document_ids.includes(
+                                                        return (
+                                                            <DocumentOption
+                                                                key={
+                                                                    document.id
+                                                                }
+                                                                document={
+                                                                    document
+                                                                }
+                                                                selected={form.data.supporting_document_ids.includes(
                                                                     value,
-                                                                );
-
-                                                            return (
-                                                                <button
-                                                                    key={
-                                                                        document.id
-                                                                    }
-                                                                    type="button"
-                                                                    className="flex w-full items-start justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/20"
-                                                                    onClick={() => {
-                                                                        form.setData(
-                                                                            'supporting_document_ids',
-                                                                            selected
-                                                                                ? form.data.supporting_document_ids.filter(
-                                                                                      (
-                                                                                          item,
-                                                                                      ) =>
-                                                                                          item !==
-                                                                                          value,
-                                                                                  )
-                                                                                : [
-                                                                                      ...form
-                                                                                          .data
-                                                                                          .supporting_document_ids,
-                                                                                      value,
-                                                                                  ],
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    <div className="min-w-0">
-                                                                        <p className="truncate font-medium">
-                                                                            {
-                                                                                document.title
-                                                                            }
-                                                                        </p>
-                                                                        <p className="truncate text-xs text-muted-foreground">
-                                                                            {
-                                                                                document.fileName
-                                                                            }{' '}
-                                                                            ·{' '}
-                                                                            {
-                                                                                document.category
-                                                                            }{' '}
-                                                                            ·{' '}
-                                                                            {
-                                                                                document.version
-                                                                            }
-                                                                        </p>
-                                                                    </div>
-                                                                    {selected && (
-                                                                        <Badge className="shrink-0">
-                                                                            Dipilih
-                                                                        </Badge>
-                                                                    )}
-                                                                </button>
-                                                            );
-                                                        },
-                                                    )
-                                                ) : (
-                                                    <div className="px-3 py-3 text-sm text-muted-foreground">
-                                                        Tidak ada file yang
-                                                        cocok dengan pencarian.
-                                                    </div>
-                                                )}
-                                            </div>
+                                                                )}
+                                                                onSelect={() =>
+                                                                    toggleSupporting(
+                                                                        value,
+                                                                    )
+                                                                }
+                                                            />
+                                                        );
+                                                    },
+                                                )
+                                            ) : (
+                                                <p className="px-3 py-3 text-sm text-muted-foreground">
+                                                    Tidak ada file yang cocok
+                                                    dengan pencarian.
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Button
-                                    type="submit"
-                                    disabled={
-                                        form.processing ||
-                                        form.data.workspace_document_id === ''
-                                    }
-                                >
-                                    Simpan Dokumen
-                                </Button>
-                                <a
-                                    href="/mahasiswa/upload-dokumen"
-                                    className="text-sm font-medium text-primary hover:underline"
-                                >
-                                    Kelola file workspace
-                                </a>
-                            </div>
-                        </form>
-                    )}
-                </div>
-            </div>
-        </section>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <Button
+                                type="submit"
+                                className="max-md:h-11"
+                                disabled={
+                                    form.processing ||
+                                    form.data.workspace_document_id === ''
+                                }
+                            >
+                                Simpan Dokumen
+                            </Button>
+                            <a
+                                href="/mahasiswa/upload-dokumen"
+                                className="inline-flex text-sm font-medium text-primary hover:underline max-md:min-h-11 max-md:items-center"
+                            >
+                                Kelola file workspace
+                            </a>
+                        </div>
+                    </form>
+                )}
+            </Surface>
+        </DataSection>
     );
 }
 
@@ -930,97 +1001,110 @@ function DefenseResultSection({
     const hasScores = result.examiners.some((e) => e.score !== null);
 
     return (
-        <section>
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-base font-semibold">{title}</h2>
-                    <p className="text-sm text-muted-foreground">
-                        {result.label}
-                        {result.scheduledFor ? ` · ${result.scheduledFor}` : ''}
-                        {result.location ? ` · ${result.location}` : ''}
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-500">
-                        {result.resultLabel}
+        <DataSection
+            title={title}
+            summary={[result.label, result.scheduledFor, result.location]
+                .filter(Boolean)
+                .join(' · ')}
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                    variant="outline"
+                    className={cn(
+                        'rounded-full border-transparent',
+                        toneClassName('success'),
+                    )}
+                >
+                    {result.resultLabel}
+                </Badge>
+                {averageScore !== null && (
+                    <Score value={averageScore.toFixed(2)} />
+                )}
+                {finalGrade && (
+                    <Badge
+                        variant="soft"
+                        className={gradeClassName(finalGrade)}
+                    >
+                        Grade {finalGrade}
                     </Badge>
-                    {averageScore !== null && (
-                        <Badge variant="secondary">
-                            <Star className="mr-1 size-3 text-amber-500" />
-                            {averageScore.toFixed(2)}
-                        </Badge>
-                    )}
-                    {finalGrade && (
-                        <Badge
-                            variant="soft"
-                            className={academicGradeClassName(finalGrade)}
-                        >
-                            Grade {finalGrade}
-                        </Badge>
-                    )}
-                </div>
+                )}
             </div>
 
             <DataTableContainer>
-                <table className="w-full min-w-[600px] text-sm">
-                    <thead>
+                <table className={stackedTable.table}>
+                    <thead className={stackedTable.thead}>
                         <tr className="border-b bg-muted/30">
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Penguji
-                            </th>
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Peran
-                            </th>
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Keputusan
-                            </th>
+                            <th className={dataTh}>Penguji</th>
+                            <th className={dataTh}>Peran</th>
+                            <th className={dataTh}>Keputusan</th>
                             {hasScores && (
-                                <th className="px-5 py-2.5 text-right text-xs font-medium text-muted-foreground">
+                                <th className={cn(dataTh, 'md:text-right')}>
                                     Nilai
                                 </th>
                             )}
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Catatan
-                            </th>
+                            <th className={dataTh}>Catatan</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className={cn('divide-y', stackedTable.tbody)}>
                         {result.examiners.map((examiner) => (
                             <tr
                                 key={examiner.id}
-                                className="transition-colors hover:bg-muted/20"
+                                className={cn(
+                                    'transition-colors hover:bg-muted/20',
+                                    stackedTable.tr,
+                                )}
                             >
-                                <td className="px-5 py-3 font-medium">
+                                <td
+                                    className={cn(
+                                        stackedTable.tdPlain,
+                                        'font-medium',
+                                    )}
+                                >
                                     {examiner.name}
                                 </td>
-                                <td className="px-5 py-3 text-xs text-muted-foreground">
+                                <td
+                                    data-label="Peran"
+                                    className={cn(
+                                        stackedTable.td,
+                                        'text-muted-foreground',
+                                    )}
+                                >
                                     {examiner.roleLabel}
                                 </td>
-                                <td className="px-5 py-3">
-                                    <Badge
-                                        variant="outline"
-                                        className="text-xs"
-                                    >
+                                <td
+                                    data-label="Keputusan"
+                                    className={stackedTable.td}
+                                >
+                                    <Badge variant="outline">
                                         {examiner.decisionLabel}
                                     </Badge>
                                 </td>
                                 {hasScores && (
-                                    <td className="px-5 py-3 text-right">
+                                    <td
+                                        data-label="Nilai"
+                                        className={cn(
+                                            stackedTable.td,
+                                            'md:text-right',
+                                        )}
+                                    >
                                         {examiner.score !== null ? (
-                                            <span className="inline-flex items-center gap-1 text-sm font-semibold">
-                                                <Star className="size-3 text-amber-500" />
-                                                {examiner.score}
-                                            </span>
+                                            <Score value={examiner.score} />
                                         ) : (
-                                            <span className="text-xs text-muted-foreground/50 italic">
+                                            <span className="text-muted-foreground">
                                                 —
                                             </span>
                                         )}
                                     </td>
                                 )}
-                                <td className="px-5 py-3 text-xs text-muted-foreground">
+                                <td
+                                    data-label="Catatan"
+                                    className={cn(
+                                        stackedTable.td,
+                                        'text-muted-foreground',
+                                    )}
+                                >
                                     {examiner.decisionNotes ?? (
-                                        <span className="italic opacity-50">
+                                        <span className="italic">
                                             Belum ada catatan
                                         </span>
                                     )}
@@ -1030,11 +1114,15 @@ function DefenseResultSection({
                     </tbody>
                 </table>
             </DataTableContainer>
-        </section>
+        </DataSection>
     );
 }
 
 /* ─── Defense history expandable row ───────────────────────────── */
+function DetailHeading({ children }: { children: React.ReactNode }) {
+    return <h3 className="mb-1 text-sm font-semibold">{children}</h3>;
+}
+
 function DefenseHistoryRow({
     item,
     type,
@@ -1051,6 +1139,9 @@ function DefenseHistoryRow({
     const finalGrade = resolveAcademicGrade(averageScore);
     const hasRevisions = item.revisions.length > 0;
     const pendingRevisions = item.revisions.filter((r) => !r.resolvedAt).length;
+    const hasFiles =
+        item.primaryDocumentName !== null ||
+        item.supportingDocuments.length > 0;
 
     return (
         <>
@@ -1058,83 +1149,73 @@ function DefenseHistoryRow({
             <tr
                 className={cn(
                     'cursor-pointer transition-colors select-none hover:bg-muted/30',
+                    stackedTable.tr,
                     expanded && 'bg-muted/20',
                 )}
                 onClick={() => setExpanded((v) => !v)}
             >
-                {/* Tipe & attempt */}
-                <td className="px-5 py-3">
+                <td className={stackedTable.tdPlain}>
                     <span
                         className={cn(
-                            'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                            type === 'sempro'
-                                ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400'
-                                : 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+                            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                            toneClassName(
+                                type === 'sempro' ? 'info' : 'primary',
+                            ),
                         )}
                     >
                         {typeLabel} #{item.attemptNo}
                     </span>
                 </td>
 
-                {/* Judul */}
-                <td className="px-5 py-3">
-                    <p className="line-clamp-1 max-w-xs text-sm font-medium">
+                <td data-label="Judul" className={stackedTable.td}>
+                    <p className="text-sm font-medium text-pretty md:line-clamp-2 md:max-w-xs">
                         {item.titleId}
                     </p>
                     {item.titleEn && (
-                        <p className="line-clamp-1 max-w-xs text-xs text-muted-foreground italic">
+                        <p className="text-xs text-pretty text-muted-foreground italic md:line-clamp-1 md:max-w-xs">
                             {item.titleEn}
                         </p>
                     )}
                 </td>
 
-                {/* Jadwal */}
-                <td className="px-5 py-3">
+                <td data-label="Jadwal & Lokasi" className={stackedTable.td}>
                     {item.scheduledFor ? (
-                        <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                            <CalendarClock className="size-3 shrink-0" />
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground md:whitespace-nowrap">
+                            <CalendarClock
+                                className="size-3.5 shrink-0"
+                                aria-hidden="true"
+                            />
                             {item.scheduledFor}
                         </span>
                     ) : (
-                        <span className="text-xs text-muted-foreground/50 italic">
-                            —
-                        </span>
+                        <span className="text-xs text-muted-foreground">—</span>
                     )}
                     {item.location && (
-                        <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="size-3 shrink-0" />
+                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <MapPin
+                                className="size-3.5 shrink-0"
+                                aria-hidden="true"
+                            />
                             {item.location}
                             {item.mode ? ` · ${item.mode}` : ''}
                         </span>
                     )}
                 </td>
 
-                {/* Status */}
-                <td className="px-5 py-3">
-                    <Badge variant="outline" className="text-xs">
-                        {item.statusLabel}
-                    </Badge>
+                <td data-label="Status" className={stackedTable.td}>
+                    <Badge variant="outline">{item.statusLabel}</Badge>
                 </td>
 
-                {/* Hasil & nilai */}
-                <td className="px-5 py-3">
+                <td data-label="Hasil & Nilai" className={stackedTable.td}>
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge className="bg-primary text-xs text-primary-foreground hover:bg-primary/90">
-                            {item.resultLabel}
-                        </Badge>
+                        <Badge>{item.resultLabel}</Badge>
                         {averageScore !== null && (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold">
-                                <Star className="size-3 text-amber-500" />
-                                {averageScore.toFixed(2)}
-                            </span>
+                            <Score value={averageScore.toFixed(2)} />
                         )}
                         {finalGrade && (
                             <Badge
                                 variant="soft"
-                                className={cn(
-                                    'text-xs',
-                                    academicGradeClassName(finalGrade),
-                                )}
+                                className={gradeClassName(finalGrade)}
                             >
                                 {finalGrade}
                             </Badge>
@@ -1142,10 +1223,12 @@ function DefenseHistoryRow({
                         {hasRevisions && (
                             <span
                                 className={cn(
-                                    'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                                    pendingRevisions > 0
-                                        ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                                        : 'bg-muted text-muted-foreground',
+                                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                                    toneClassName(
+                                        pendingRevisions > 0
+                                            ? 'warning'
+                                            : 'neutral',
+                                    ),
                                 )}
                             >
                                 {item.revisions.length} revisi
@@ -1154,120 +1237,98 @@ function DefenseHistoryRow({
                     </div>
                 </td>
 
-                {/* Expand toggle */}
-                <td className="w-8 px-4 py-3 text-center">
-                    {expanded ? (
-                        <ChevronUp className="size-4 text-muted-foreground" />
-                    ) : (
-                        <ChevronDown className="size-4 text-muted-foreground" />
-                    )}
+                <td className={stackedTable.tdActions}>
+                    <button
+                        type="button"
+                        aria-expanded={expanded}
+                        className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
+                    >
+                        <ChevronRight
+                            className={cn(
+                                'size-4 transition-transform',
+                                expanded && 'rotate-90',
+                            )}
+                            aria-hidden="true"
+                        />
+                        <span className="md:sr-only">
+                            {expanded ? 'Tutup detail' : 'Lihat detail'}
+                        </span>
+                    </button>
                 </td>
             </tr>
 
             {/* ── Expanded detail panel ── */}
             {expanded && (
-                <tr>
-                    <td colSpan={6} className="p-0">
-                        <div className="space-y-5 border-t border-dashed bg-muted/5 px-5 py-5">
-                            {/* Penilaian Penguji */}
+                <tr className="max-md:block">
+                    <td colSpan={6} className="p-0 max-md:block">
+                        <div className="space-y-5 border-t bg-muted/20 px-4 py-4 md:px-5">
                             {item.examiners.length > 0 && (
                                 <div>
-                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                        <Star className="size-3" />
+                                    <DetailHeading>
                                         Penilaian Penguji
-                                    </p>
-                                    <div className="grid gap-2 sm:grid-cols-2">
+                                    </DetailHeading>
+                                    <ul className="divide-y">
                                         {item.examiners.map((ex) => (
-                                            <div
-                                                key={ex.id}
-                                                className="flex flex-col gap-1.5 rounded-lg border bg-card px-4 py-3"
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div>
-                                                        <p className="text-sm leading-snug font-semibold">
+                                            <li key={ex.id} className="py-3">
+                                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium">
                                                             {ex.name}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
                                                             {ex.roleLabel}
                                                         </p>
                                                     </div>
-                                                    <div className="flex shrink-0 items-center gap-1.5">
+                                                    <div className="flex shrink-0 items-center gap-2">
                                                         {ex.score !== null && (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">
-                                                                <Star className="size-3" />
-                                                                {ex.score}
-                                                            </span>
+                                                            <Score
+                                                                value={ex.score}
+                                                            />
                                                         )}
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="text-xs"
-                                                        >
+                                                        <Badge variant="outline">
                                                             {ex.decisionLabel}
                                                         </Badge>
                                                     </div>
                                                 </div>
                                                 {ex.decisionNotes && (
-                                                    <p className="rounded-md bg-muted/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                                                    <p className="mt-1.5 text-sm text-pretty text-muted-foreground">
                                                         {ex.decisionNotes}
                                                     </p>
                                                 )}
-                                            </div>
+                                            </li>
                                         ))}
-                                    </div>
+                                    </ul>
                                 </div>
                             )}
 
-                            {/* Catatan Revisi */}
                             {hasRevisions && (
                                 <div>
-                                    <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-amber-700 uppercase dark:text-amber-400">
-                                        <svg
-                                            aria-hidden="true"
-                                            className="size-3"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        >
-                                            <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                                        </svg>
+                                    <DetailHeading>
                                         Catatan Revisi ({item.revisions.length})
-                                    </p>
-                                    <div className="space-y-2">
+                                    </DetailHeading>
+                                    <ul className="divide-y">
                                         {item.revisions.map((rev) => {
                                             const isDone = !!rev.resolvedAt;
+
                                             return (
-                                                <div
+                                                <li
                                                     key={rev.id}
-                                                    className={cn(
-                                                        'rounded-lg border px-4 py-3',
-                                                        isDone
-                                                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/10'
-                                                            : 'border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20',
-                                                    )}
+                                                    className="py-3"
                                                 >
-                                                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                                                        <Badge
-                                                            variant="outline"
+                                                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                                        <span
                                                             className={cn(
-                                                                'text-xs',
-                                                                isDone
-                                                                    ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400'
-                                                                    : '',
+                                                                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                                                                toneClassName(
+                                                                    isDone
+                                                                        ? 'success'
+                                                                        : 'warning',
+                                                                ),
                                                             )}
                                                         >
                                                             {rev.statusLabel}
-                                                        </Badge>
-                                                        <span
-                                                            className={cn(
-                                                                'text-xs font-medium',
-                                                                isDone
-                                                                    ? 'text-emerald-700 dark:text-emerald-300'
-                                                                    : 'text-amber-700 dark:text-amber-300',
-                                                            )}
-                                                        >
+                                                        </span>
+                                                        <span className="text-xs font-medium text-muted-foreground">
                                                             {rev.requestedBy}
                                                         </span>
                                                         {rev.dueAt &&
@@ -1276,142 +1337,94 @@ function DefenseHistoryRow({
                                                                     dueAt={
                                                                         rev.dueAt
                                                                     }
-                                                                    status={
-                                                                        isDone
-                                                                            ? 'resolved'
-                                                                            : undefined
-                                                                    }
                                                                 />
                                                             )}
                                                         {rev.resolvedAt && (
-                                                            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                                                                <CheckCircle2 className="size-3" />
+                                                            <span className="flex items-center gap-1 text-xs text-success-muted-foreground">
+                                                                <CheckCircle2
+                                                                    className="size-3.5"
+                                                                    aria-hidden="true"
+                                                                />
                                                                 Selesai:{' '}
                                                                 {rev.resolvedAt}
                                                             </span>
                                                         )}
                                                     </div>
 
-                                                    <p
-                                                        className={cn(
-                                                            'text-xs leading-relaxed',
-                                                            isDone
-                                                                ? 'text-emerald-900 dark:text-emerald-100'
-                                                                : 'text-amber-900 dark:text-amber-100',
-                                                        )}
-                                                    >
+                                                    <p className="text-sm text-pretty">
                                                         {rev.notes}
                                                     </p>
 
                                                     {rev.resolutionNotes && (
-                                                        <div className="mt-2 rounded border border-emerald-200 bg-white/60 px-3 py-1.5 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-transparent dark:text-emerald-300">
-                                                            <span className="font-medium">
+                                                        <p className="mt-2 border-l-2 pl-3 text-sm text-pretty text-muted-foreground">
+                                                            <span className="font-medium text-foreground">
                                                                 Penyelesaian:
                                                             </span>{' '}
                                                             {
                                                                 rev.resolutionNotes
                                                             }
-                                                        </div>
+                                                        </p>
                                                     )}
-                                                </div>
+                                                </li>
                                             );
                                         })}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {hasFiles && (
+                                <div>
+                                    <DetailHeading>Berkas</DetailHeading>
+                                    <div className="divide-y">
+                                        {item.primaryDocumentName && (
+                                            <div className="py-3">
+                                                <FileRow
+                                                    label={
+                                                        item.primaryDocumentLabel
+                                                    }
+                                                    fileName={
+                                                        item.primaryDocumentName
+                                                    }
+                                                    viewUrl={
+                                                        item.primaryDocumentViewUrl
+                                                    }
+                                                    downloadUrl={
+                                                        item.primaryDocumentDownloadUrl
+                                                    }
+                                                />
+                                            </div>
+                                        )}
+                                        {item.supportingDocuments.map(
+                                            (document) => (
+                                                <div
+                                                    key={document.id}
+                                                    className="py-3"
+                                                >
+                                                    <FileRow
+                                                        label="Lampiran"
+                                                        fileName={document.name}
+                                                        viewUrl={
+                                                            document.viewUrl
+                                                        }
+                                                        downloadUrl={
+                                                            document.downloadUrl
+                                                        }
+                                                    />
+                                                </div>
+                                            ),
+                                        )}
                                     </div>
                                 </div>
                             )}
 
-                            {/* File & catatan admin */}
-                            <div className="flex flex-wrap items-center gap-3">
-                                {item.primaryDocumentName && (
-                                    <div className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2">
-                                        <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
-                                            <FileText className="size-3.5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase">
-                                                {item.primaryDocumentLabel}
-                                            </p>
-                                            <p className="max-w-[200px] truncate text-xs font-medium">
-                                                {item.primaryDocumentName}
-                                            </p>
-                                        </div>
-                                        {item.primaryDocumentViewUrl && (
-                                            <a
-                                                href={
-                                                    item.primaryDocumentViewUrl
-                                                }
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                                onClick={(e) =>
-                                                    e.stopPropagation()
-                                                }
-                                            >
-                                                <Eye className="size-3" />
-                                                Lihat
-                                            </a>
-                                        )}
-                                        {item.primaryDocumentDownloadUrl && (
-                                            <a
-                                                href={
-                                                    item.primaryDocumentDownloadUrl
-                                                }
-                                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                                onClick={(e) =>
-                                                    e.stopPropagation()
-                                                }
-                                            >
-                                                <Download className="size-3" />
-                                                Unduh
-                                            </a>
-                                        )}
-                                    </div>
-                                )}
-                                {item.supportingDocuments.map((document) => (
-                                    <div
-                                        key={document.id}
-                                        className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2"
-                                    >
-                                        <div className="flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
-                                            <FileText className="size-3.5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase">
-                                                Lampiran
-                                            </p>
-                                            <p className="max-w-[200px] truncate text-xs font-medium">
-                                                {document.name}
-                                            </p>
-                                        </div>
-                                        <a
-                                            href={document.viewUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Eye className="size-3" />
-                                            Lihat
-                                        </a>
-                                        <a
-                                            href={document.downloadUrl}
-                                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Download className="size-3" />
-                                            Unduh
-                                        </a>
-                                    </div>
-                                ))}
-                                {item.officialNotes && (
-                                    <p className="text-xs text-muted-foreground">
-                                        <span className="font-medium text-foreground">
-                                            Catatan admin:
-                                        </span>{' '}
-                                        {item.officialNotes}
-                                    </p>
-                                )}
-                            </div>
+                            {item.officialNotes && (
+                                <p className="text-sm text-pretty text-muted-foreground">
+                                    <span className="font-medium text-foreground">
+                                        Catatan admin:
+                                    </span>{' '}
+                                    {item.officialNotes}
+                                </p>
+                            )}
                         </div>
                     </td>
                 </tr>
@@ -1435,37 +1448,26 @@ function DefenseHistorySection({
     if (items.length === 0) return null;
 
     return (
-        <section>
-            <div className="mb-3">
-                <h2 className="text-base font-semibold">{title}</h2>
-                <p className="text-sm text-muted-foreground">
-                    Klik baris untuk melihat detail, nilai, dan catatan revisi.
-                </p>
-            </div>
+        <DataSection title={title}>
+            <SectionIntro>
+                Klik baris untuk melihat detail, nilai, dan catatan revisi.
+            </SectionIntro>
 
             <DataTableContainer>
-                <table className="w-full min-w-[700px] text-sm">
-                    <thead>
+                <table className={stackedTable.table}>
+                    <thead className={stackedTable.thead}>
                         <tr className="border-b bg-muted/30">
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Tipe
+                            <th className={dataTh}>Tipe</th>
+                            <th className={dataTh}>Judul</th>
+                            <th className={dataTh}>Jadwal & Lokasi</th>
+                            <th className={dataTh}>Status</th>
+                            <th className={dataTh}>Hasil & Nilai</th>
+                            <th className={dataTh}>
+                                <span className="sr-only">Detail</span>
                             </th>
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Judul
-                            </th>
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Jadwal & Lokasi
-                            </th>
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Status
-                            </th>
-                            <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                Hasil & Nilai
-                            </th>
-                            <th className="w-8 px-4 py-2.5" />
                         </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className={cn('divide-y', stackedTable.tbody)}>
                         {items.map((item) => (
                             <DefenseHistoryRow
                                 key={item.id}
@@ -1477,7 +1479,28 @@ function DefenseHistorySection({
                     </tbody>
                 </table>
             </DataTableContainer>
-        </section>
+        </DataSection>
+    );
+}
+
+/** Label with icon above a value, one row of a Surface. */
+function InfoRow({
+    icon: Icon,
+    label,
+    children,
+}: {
+    icon: LucideIcon;
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="space-y-1.5 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Icon className="size-3.5" aria-hidden="true" />
+                {label}
+            </p>
+            {children}
+        </div>
     );
 }
 
@@ -1575,6 +1598,11 @@ export default function TugasAkhirSaya() {
             <Head title={terms.finalWork} />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 md:px-6">
+                <PageHeader
+                    title={terms.finalWork}
+                    description={`Judul, ${terms.proposalDocument.toLowerCase()}, ${terms.proposalExamShort}, dan ${terms.finalExam} Anda`}
+                />
+
                 {/* Flash / Error */}
                 {(flashMessage || errorMessage) && (
                     <Alert variant={errorMessage ? 'destructive' : 'default'}>
@@ -1586,91 +1614,158 @@ export default function TugasAkhirSaya() {
 
                 {/* ── Create submission ── */}
                 {canCreateSubmission && (
-                    <section>
-                        <div className="mb-3">
-                            <h2 className="text-base font-semibold">
-                                Ajukan Judul & {terms.proposalDocument}
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                {submission === null
-                                    ? `Isi formulir di bawah ini untuk memulai pengajuan ${terms.finalWorkLower} Anda.`
-                                    : `Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan ${terms.proposalDocument.toLowerCase()} baru dari formulir ini.`}
-                            </p>
-                        </div>
-                        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                            <div className="px-5 py-5">
-                                <form
-                                    onSubmit={createSubmission}
-                                    className="space-y-5"
+                    <DataSection
+                        title={`Ajukan Judul & ${terms.proposalDocument}`}
+                    >
+                        <SectionIntro>
+                            {submission === null
+                                ? `Isi formulir di bawah ini untuk memulai pengajuan ${terms.finalWorkLower} Anda.`
+                                : `Pengajuan sebelumnya sudah ditutup. Anda dapat mengirim judul dan ${terms.proposalDocument.toLowerCase()} baru dari formulir ini.`}
+                        </SectionIntro>
+                        <Surface>
+                            <form
+                                onSubmit={createSubmission}
+                                className="space-y-5 p-4 md:p-5"
+                            >
+                                <SubmissionFields
+                                    form={form}
+                                    fileRequired
+                                    idPrefix="create_"
+                                    finalWork={terms.finalWork}
+                                />
+                                <Button
+                                    type="submit"
+                                    className="max-md:h-11"
+                                    disabled={form.processing}
                                 >
-                                    <SubmissionFields
-                                        form={form}
-                                        fileRequired
-                                        idPrefix="create_"
-                                        finalWork={terms.finalWork}
-                                    />
-                                    <Button
-                                        type="submit"
-                                        disabled={form.processing}
-                                    >
-                                        <BookOpen className="size-4" />
-                                        Ajukan Sekarang
-                                    </Button>
-                                </form>
-                            </div>
-                        </div>
-                    </section>
+                                    <BookOpen className="size-4" />
+                                    Ajukan Sekarang
+                                </Button>
+                            </form>
+                        </Surface>
+                    </DataSection>
                 )}
 
                 {/* ── Has submission ── */}
                 {submission !== null && (
                     <>
                         {/* ── Status pengajuan ── */}
-                        <section>
-                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                <SectionHeader
-                                    title="Status Pengajuan"
-                                    description="Perkembangan pengajuan Anda saat ini"
-                                    action={
-                                        <WorkflowBadge
-                                            workflowKey={
-                                                submission.workflow.key
-                                            }
-                                            label={label}
-                                        />
-                                    }
-                                />
-                                <div className="flex items-start gap-3 px-5 py-3.5 text-sm">
-                                    {submission.workflow.key ===
-                                    'title_review_pending' ? (
-                                        <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                                    ) : [
-                                          'title_rejected',
-                                          'project_cancelled',
-                                      ].includes(submission.workflow.key) ? (
-                                        <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                                    ) : (
-                                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                                    )}
-                                    <p className="text-muted-foreground">
+                        <DataSection title="Status Pengajuan">
+                            <SectionIntro>
+                                Perkembangan pengajuan Anda saat ini
+                            </SectionIntro>
+                            <Surface>
+                                <div className="flex flex-col items-start gap-2 p-4">
+                                    <WorkflowBadge
+                                        workflowKey={submission.workflow.key}
+                                        label={label}
+                                    />
+                                    <p className="text-sm text-pretty text-muted-foreground">
                                         {description}
                                     </p>
                                 </div>
-                            </div>
-                        </section>
+                            </Surface>
+                        </DataSection>
 
                         {/* ── Informasi Judul ── */}
-                        <section>
-                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                <SectionHeader
-                                    title="Informasi Judul"
-                                    description={`Judul dan ringkasan ${terms.proposalDocument.toLowerCase()} terbaru`}
-                                    action={
-                                        !isEditing ? (
+                        <DataSection title="Informasi Judul">
+                            <SectionIntro>
+                                {`Judul dan ringkasan ${terms.proposalDocument.toLowerCase()} terbaru`}
+                            </SectionIntro>
+                            <Surface>
+                                {!canEditSubmission && !isEditing && (
+                                    <p
+                                        className={cn(
+                                            'px-4 py-3 text-sm text-pretty',
+                                            toneClassName('warning'),
+                                        )}
+                                    >
+                                        Pengajuan yang sudah diproses tidak bisa
+                                        diedit. Hubungi admin jika perlu
+                                        perubahan.
+                                    </p>
+                                )}
+
+                                {isEditing ? (
+                                    <form
+                                        onSubmit={updateSubmission}
+                                        className="space-y-5 p-4 md:p-5"
+                                    >
+                                        <SubmissionFields
+                                            form={form}
+                                            fileRequired={false}
+                                            idPrefix="edit_"
+                                            finalWork={terms.finalWork}
+                                        />
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                type="submit"
+                                                className="max-md:h-11"
+                                                disabled={form.processing}
+                                            >
+                                                Simpan Perubahan
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="max-md:h-11"
+                                                onClick={() => {
+                                                    form.setData(
+                                                        submissionDefaults(
+                                                            submission,
+                                                        ),
+                                                    );
+                                                    setIsEditing(false);
+                                                }}
+                                            >
+                                                <X className="size-3.5" />
+                                                Batal
+                                            </Button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <>
+                                        <InfoRow
+                                            icon={GraduationCap}
+                                            label="Judul (Bahasa Indonesia)"
+                                        >
+                                            <p className="text-sm font-semibold text-pretty">
+                                                {submission.title_id}
+                                            </p>
+                                        </InfoRow>
+
+                                        {submission.title_en && (
+                                            <InfoRow
+                                                icon={Languages}
+                                                label="Judul (Bahasa Inggris)"
+                                            >
+                                                <p className="text-sm text-pretty text-muted-foreground italic">
+                                                    {submission.title_en}
+                                                </p>
+                                            </InfoRow>
+                                        )}
+
+                                        <InfoRow
+                                            icon={FileText}
+                                            label={`Ringkasan ${terms.proposalDocument}`}
+                                        >
+                                            <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                                                {submission.proposal_summary}
+                                            </p>
+                                        </InfoRow>
+
+                                        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <span>Program Studi:</span>
+                                                <Badge variant="secondary">
+                                                    {submission.program_studi}
+                                                </Badge>
+                                            </div>
                                             <Button
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
+                                                className="max-md:h-11 max-md:px-4"
                                                 disabled={!canEditSubmission}
                                                 onClick={() =>
                                                     setIsEditing(true)
@@ -1679,168 +1774,39 @@ export default function TugasAkhirSaya() {
                                                 <Pencil className="size-3.5" />
                                                 Edit
                                             </Button>
-                                        ) : undefined
-                                    }
-                                />
-
-                                {!canEditSubmission && !isEditing && (
-                                    <div className="border-b bg-amber-50/60 px-5 py-2 text-xs text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
-                                        Pengajuan yang sudah diproses tidak bisa
-                                        diedit. Hubungi admin jika perlu
-                                        perubahan.
-                                    </div>
+                                        </div>
+                                    </>
                                 )}
-
-                                {isEditing ? (
-                                    <div className="px-5 py-5">
-                                        <form
-                                            onSubmit={updateSubmission}
-                                            className="space-y-5"
-                                        >
-                                            <SubmissionFields
-                                                form={form}
-                                                fileRequired={false}
-                                                idPrefix="edit_"
-                                                finalWork={terms.finalWork}
-                                            />
-                                            <div className="flex flex-wrap gap-2">
-                                                <Button
-                                                    type="submit"
-                                                    disabled={form.processing}
-                                                >
-                                                    Simpan Perubahan
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        form.setData(
-                                                            submissionDefaults(
-                                                                submission,
-                                                            ),
-                                                        );
-                                                        setIsEditing(false);
-                                                    }}
-                                                >
-                                                    <X className="size-3.5" />
-                                                    Batal
-                                                </Button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4 px-5 py-4">
-                                        {/* Judul Indonesia */}
-                                        <div className="rounded-lg border bg-muted/10 p-4">
-                                            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                                                <GraduationCap className="size-3" />
-                                                Judul (Bahasa Indonesia)
-                                            </div>
-                                            <p className="text-sm leading-relaxed font-semibold text-foreground">
-                                                {submission.title_id}
-                                            </p>
-                                        </div>
-
-                                        {/* Judul Inggris */}
-                                        {submission.title_en && (
-                                            <div className="rounded-lg border bg-muted/10 p-4">
-                                                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                                                    <Languages className="size-3" />
-                                                    Judul (Bahasa Inggris)
-                                                </div>
-                                                <p className="text-sm leading-relaxed text-muted-foreground italic">
-                                                    {submission.title_en}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* Ringkasan */}
-                                        <div className="rounded-lg border bg-muted/10 p-4">
-                                            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                                                <FileText className="size-3" />
-                                                {`Ringkasan ${terms.proposalDocument}`}
-                                            </div>
-                                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                                                {submission.proposal_summary}
-                                            </p>
-                                        </div>
-
-                                        {/* Program studi chip */}
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>Program Studi:</span>
-                                            <Badge variant="secondary">
-                                                {submission.program_studi}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
+                            </Surface>
+                        </DataSection>
 
                         {/* ── File proposal ── */}
                         {(submission.proposal_file_download_url ||
                             submission.proposal_file_view_url) && (
-                            <section>
-                                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                    <SectionHeader
-                                        title={`File ${terms.proposalDocument} Terkirim`}
-                                        description={`Anda dapat melihat dan mengunduh ulang file ${terms.proposalDocument.toLowerCase()}`}
-                                    />
-                                    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                <FileText className="size-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium">
-                                                    {submission.proposal_file_name ??
-                                                        'Proposal.pdf'}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {`${terms.proposalDocument} yang tersimpan`}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {submission.proposal_file_view_url && (
-                                                <Button
-                                                    asChild
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                >
-                                                    <a
-                                                        href={
-                                                            submission.proposal_file_view_url
-                                                        }
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        <Eye className="size-3.5" />
-                                                        Lihat
-                                                    </a>
-                                                </Button>
-                                            )}
-                                            {submission.proposal_file_download_url && (
-                                                <Button
-                                                    asChild
-                                                    type="button"
-                                                    size="sm"
-                                                >
-                                                    <a
-                                                        href={
-                                                            submission.proposal_file_download_url
-                                                        }
-                                                    >
-                                                        <Download className="size-3.5" />
-                                                        Unduh
-                                                    </a>
-                                                </Button>
-                                            )}
-                                        </div>
+                            <DataSection
+                                title={`File ${terms.proposalDocument} Terkirim`}
+                            >
+                                <SectionIntro>
+                                    {`Anda dapat melihat dan mengunduh ulang file ${terms.proposalDocument.toLowerCase()}`}
+                                </SectionIntro>
+                                <Surface>
+                                    <div className="p-4">
+                                        <FileRow
+                                            label={`${terms.proposalDocument} yang tersimpan`}
+                                            fileName={
+                                                submission.proposal_file_name ??
+                                                'Proposal.pdf'
+                                            }
+                                            viewUrl={
+                                                submission.proposal_file_view_url
+                                            }
+                                            downloadUrl={
+                                                submission.proposal_file_download_url
+                                            }
+                                        />
                                     </div>
-                                </div>
-                            </section>
+                                </Surface>
+                            </DataSection>
                         )}
 
                         <DefenseDocumentSelectionSection
@@ -1866,144 +1832,100 @@ export default function TugasAkhirSaya() {
                         />
 
                         {/* ── Dosen Pembimbing & Penguji ── */}
-                        <section>
-                            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                <SectionHeader
-                                    title="Dosen Pembimbing & Penguji"
-                                    description={`Dosen yang terlibat pada ${terms.proposalExamShort} dan ${terms.finalExam.toLowerCase()} Anda`}
-                                />
-                                <div className="grid gap-6 p-5 xl:grid-cols-3">
-                                    {/* Pembimbing */}
-                                    <div className="space-y-3">
-                                        <div>
-                                            <p className="flex items-center gap-1.5 text-sm font-semibold">
-                                                <GraduationCap className="size-4 text-primary" />
-                                                Dosen Pembimbing
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Pembimbing aktif{' '}
-                                                {terms.finalWorkLower}
-                                            </p>
-                                        </div>
-                                        {advisorProfiles.length > 0 ? (
-                                            <div className="grid gap-3">
-                                                {advisorProfiles.map(
-                                                    (person, index) => (
-                                                        <PersonCardLink
-                                                            key={person.id}
-                                                            person={person}
-                                                            label={`Pembimbing ${index + 1}`}
-                                                            mentorshipCount={
-                                                                mentorshipProgress.find(
-                                                                    (row) =>
-                                                                        row
-                                                                            .lecturer
-                                                                            .id ===
-                                                                        person.id,
-                                                                )?.completed
-                                                            }
-                                                        />
-                                                    ),
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                                Belum ada dosen pembimbing
-                                                aktif.
-                                            </div>
+                        <DataSection title="Dosen Pembimbing & Penguji">
+                            <SectionIntro>
+                                {`Dosen yang terlibat pada ${terms.proposalExamShort} dan ${terms.finalExam.toLowerCase()} Anda`}
+                            </SectionIntro>
+                            <Surface className="xl:grid xl:grid-cols-3 xl:divide-x xl:divide-y-0">
+                                <div className="p-4 md:p-5">
+                                    <PersonGroup
+                                        title="Dosen Pembimbing"
+                                        description={`Pembimbing aktif ${terms.finalWorkLower}`}
+                                        emptyText="Belum ada dosen pembimbing aktif."
+                                        isEmpty={advisorProfiles.length === 0}
+                                    >
+                                        {advisorProfiles.map(
+                                            (person, index) => (
+                                                <PersonCardLink
+                                                    key={person.id}
+                                                    variant="row"
+                                                    person={person}
+                                                    label={`Pembimbing ${index + 1}`}
+                                                    mentorshipCount={
+                                                        mentorshipProgress.find(
+                                                            (row) =>
+                                                                row.lecturer
+                                                                    .id ===
+                                                                person.id,
+                                                        )?.completed
+                                                    }
+                                                />
+                                            ),
                                         )}
-                                    </div>
-
-                                    {/* Penguji Sempro */}
-                                    <div className="space-y-3">
-                                        <div>
-                                            <p className="flex items-center gap-1.5 text-sm font-semibold">
-                                                <Users className="size-4 text-cyan-600" />
-                                                Penguji{' '}
-                                                {terms.proposalExamShort}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Penguji pada{' '}
-                                                {terms.proposalExam.toLowerCase()}{' '}
-                                                terbaru
-                                            </p>
-                                        </div>
-                                        {semproExaminerProfiles.length > 0 ? (
-                                            <div className="grid gap-3">
-                                                {semproExaminerProfiles.map(
-                                                    (person, index) => (
-                                                        <PersonCardLink
-                                                            key={`${person.id}-${index}`}
-                                                            person={person}
-                                                            label={`Penguji ${index + 1}`}
-                                                        />
-                                                    ),
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                                Belum ada dosen penguji{' '}
-                                                {terms.proposalExamShort}.
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Penguji Sidang */}
-                                    <div className="space-y-3">
-                                        <div>
-                                            <p className="flex items-center gap-1.5 text-sm font-semibold">
-                                                <Users className="size-4 text-purple-600" />
-                                                Penguji {terms.finalExam}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Penguji pada{' '}
-                                                {terms.finalExam.toLowerCase()}{' '}
-                                                terbaru
-                                            </p>
-                                        </div>
-                                        {sidangExaminerProfiles.length > 0 ? (
-                                            <div className="grid gap-3">
-                                                {sidangExaminerProfiles.map(
-                                                    (person, index) => (
-                                                        <PersonCardLink
-                                                            key={`${person.id}-sidang-${index}`}
-                                                            person={person}
-                                                            label={`Penguji ${terms.finalExam} ${index + 1}`}
-                                                        />
-                                                    ),
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                                Belum ada dosen penguji{' '}
-                                                {terms.finalExam.toLowerCase()}.
-                                            </div>
-                                        )}
-                                    </div>
+                                    </PersonGroup>
                                 </div>
-                            </div>
-                        </section>
+
+                                <div className="p-4 md:p-5">
+                                    <PersonGroup
+                                        title={`Penguji ${terms.proposalExamShort}`}
+                                        description={`Penguji pada ${terms.proposalExam.toLowerCase()} terbaru`}
+                                        emptyText={`Belum ada dosen penguji ${terms.proposalExamShort}.`}
+                                        isEmpty={
+                                            semproExaminerProfiles.length === 0
+                                        }
+                                    >
+                                        {semproExaminerProfiles.map(
+                                            (person, index) => (
+                                                <PersonCardLink
+                                                    key={`${person.id}-${index}`}
+                                                    variant="row"
+                                                    person={person}
+                                                    label={`Penguji ${index + 1}`}
+                                                />
+                                            ),
+                                        )}
+                                    </PersonGroup>
+                                </div>
+
+                                <div className="p-4 md:p-5">
+                                    <PersonGroup
+                                        title={`Penguji ${terms.finalExam}`}
+                                        description={`Penguji pada ${terms.finalExam.toLowerCase()} terbaru`}
+                                        emptyText={`Belum ada dosen penguji ${terms.finalExam.toLowerCase()}.`}
+                                        isEmpty={
+                                            sidangExaminerProfiles.length === 0
+                                        }
+                                    >
+                                        {sidangExaminerProfiles.map(
+                                            (person, index) => (
+                                                <PersonCardLink
+                                                    key={`${person.id}-sidang-${index}`}
+                                                    variant="row"
+                                                    person={person}
+                                                    label={`Penguji ${terms.finalExam} ${index + 1}`}
+                                                />
+                                            ),
+                                        )}
+                                    </PersonGroup>
+                                </div>
+                            </Surface>
+                        </DataSection>
 
                         {/* ── Catatan Dosen (hanya yang untuk mahasiswa) ── */}
                         {thesisNotes.length > 0 && (
-                            <section aria-label="Catatan Dosen">
-                                <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                                    <SectionHeader
-                                        title="Catatan Dosen"
-                                        description={`Catatan dari pembimbing dan penguji untuk ${terms.finalWorkLower} Anda`}
-                                    />
-                                    <div className="p-5">
-                                        <ThesisNotesPanel
-                                            projectId={submission.id}
-                                            data={{
-                                                canWrite: false,
-                                                notes: thesisNotes,
-                                            }}
-                                            showVisibility={false}
-                                        />
-                                    </div>
-                                </div>
-                            </section>
+                            <DataSection title="Catatan Dosen">
+                                <SectionIntro>
+                                    {`Catatan dari pembimbing dan penguji untuk ${terms.finalWorkLower} Anda`}
+                                </SectionIntro>
+                                <ThesisNotesPanel
+                                    projectId={submission.id}
+                                    data={{
+                                        canWrite: false,
+                                        notes: thesisNotes,
+                                    }}
+                                    showVisibility={false}
+                                />
+                            </DataSection>
                         )}
 
                         {/* ── Hasil sidang ── */}

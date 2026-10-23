@@ -54,7 +54,7 @@ function ProfileAvatar({ profile }: { profile: UserProfileSummary }) {
     return (
         <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
             <AvatarImage src={profile.avatar ?? undefined} alt={profile.name} />
-            <AvatarFallback className="bg-primary/10 text-xs text-primary">
+            <AvatarFallback className="bg-primary-muted text-xs text-primary-muted-foreground">
                 {getInitials(profile.name)}
             </AvatarFallback>
         </Avatar>
@@ -94,7 +94,8 @@ export function ChatPanel({
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className="-ml-2 shrink-0 lg:hidden"
+                                    aria-label="Kembali ke daftar percakapan"
+                                    className="-ml-2 shrink-0 max-md:size-11 lg:hidden"
                                     onClick={onBack}
                                 >
                                     <ArrowLeft className="size-5" />
@@ -181,8 +182,8 @@ export function ChatPanel({
                                                 'shrink-0 font-medium',
                                                 thread.threadType ===
                                                     'pembimbing'
-                                                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                    : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20',
+                                                    ? 'bg-primary-muted text-primary-muted-foreground'
+                                                    : 'bg-warning-muted text-warning-muted-foreground',
                                             )}
                                         >
                                             {thread.threadLabel}
@@ -201,7 +202,8 @@ export function ChatPanel({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="size-8 text-muted-foreground hover:text-foreground"
+                                    aria-label="Cari di percakapan ini"
+                                    className="size-9 text-muted-foreground hover:text-foreground max-md:size-11"
                                     onClick={search.toggle}
                                 >
                                     <Search className="size-4" />
@@ -219,13 +221,14 @@ export function ChatPanel({
                                             )
                                         }
                                         placeholder="Cari di percakapan ini..."
-                                        className="h-9 flex-1"
+                                        className="h-9 flex-1 max-md:h-11"
                                     />
                                     <Button
                                         type="button"
                                         variant="outline"
                                         size="icon"
-                                        className="size-9"
+                                        aria-label="Hasil sebelumnya"
+                                        className="size-9 max-md:size-11"
                                         disabled={search.matchCount === 0}
                                         onClick={() => search.step(-1)}
                                     >
@@ -235,7 +238,8 @@ export function ChatPanel({
                                         type="button"
                                         variant="outline"
                                         size="icon"
-                                        className="size-9"
+                                        aria-label="Hasil berikutnya"
+                                        className="size-9 max-md:size-11"
                                         disabled={search.matchCount === 0}
                                         onClick={() => search.step(1)}
                                     >
@@ -258,7 +262,8 @@ export function ChatPanel({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="-ml-2 lg:hidden"
+                            aria-label="Kembali ke daftar percakapan"
+                            className="-ml-2 max-md:size-11 lg:hidden"
                             onClick={onBack}
                         >
                             <ArrowLeft className="size-5" />

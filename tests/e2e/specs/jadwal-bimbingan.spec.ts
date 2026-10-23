@@ -153,7 +153,7 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
             await mahasiswaPage
-                .getByRole('button', { name: 'Selesai', exact: true })
+                .getByRole('radio', { name: 'Selesai', exact: true })
                 .click();
             await expect(historyRow(mahasiswaPage, topic)).toContainText(
                 'Selesai',
@@ -228,7 +228,7 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
             await mahasiswaPage
-                .getByRole('button', { name: 'Dibatalkan', exact: true })
+                .getByRole('radio', { name: 'Dibatalkan', exact: true })
                 .click();
             await expect(historyRow(mahasiswaPage, topic)).toContainText(
                 'Dibatalkan',
@@ -277,7 +277,7 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
             await mahasiswaPage
-                .getByRole('button', { name: 'Ditolak', exact: true })
+                .getByRole('radio', { name: 'Ditolak', exact: true })
                 .click();
             const rejectedRows = mahasiswaPage
                 .getByRole('row')

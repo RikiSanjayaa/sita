@@ -25,6 +25,14 @@ type JenisNotifikasiItem = {
     icon: typeof Bell;
 };
 
+const permissionLabels: Record<NotificationPermission | 'unsupported', string> =
+    {
+        default: 'Belum diminta',
+        granted: 'Diizinkan',
+        denied: 'Ditolak',
+        unsupported: 'Tidak didukung',
+    };
+
 export default function NotificationSettingsPanel() {
     const { notificationSettings, academicTerminology: terms } =
         usePage<SharedData>().props;
@@ -216,19 +224,20 @@ export default function NotificationSettingsPanel() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2 self-start">
                         <Badge variant="secondary">Disarankan</Badge>
-                        <Badge variant="outline" className="capitalize">
-                            {browserPermission === 'unsupported'
-                                ? 'tidak didukung'
-                                : browserPermission}
+                        <Badge variant="outline">
+                            {permissionLabels[browserPermission]}
                         </Badge>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-4 rounded-xl border bg-muted/10 p-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                        <div className="text-sm font-medium">
+                        <label
+                            htmlFor="browser-notifications"
+                            className="text-sm font-medium"
+                        >
                             Aktifkan notifikasi browser
-                        </div>
+                        </label>
                         <div className="mt-1 text-sm text-muted-foreground">
                             Terima notifikasi meskipun browser tidak aktif.
                         </div>
@@ -256,6 +265,7 @@ export default function NotificationSettingsPanel() {
                     </div>
 
                     <Switch
+                        id="browser-notifications"
                         checked={settings.browserNotifications}
                         onCheckedChange={handleBrowserNotificationToggle}
                         aria-label="Aktifkan notifikasi browser"
@@ -279,7 +289,9 @@ export default function NotificationSettingsPanel() {
                             Jenis notifikasi
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Pilih jenis notifikasi yang ingin Anda terima.
+                            {settings.browserNotifications
+                                ? 'Pilih jenis notifikasi yang ingin Anda terima.'
+                                : 'Aktifkan notifikasi browser untuk memilih jenis notifikasi yang ingin Anda terima.'}
                         </p>
                     </div>
                     <Badge variant="outline" className="w-fit self-start">
@@ -295,36 +307,28 @@ export default function NotificationSettingsPanel() {
                         return (
                             <div
                                 key={item.key}
-                                className="flex flex-col gap-4 py-4 sm:flex-row sm:items-start sm:justify-between"
+                                className="flex items-start justify-between gap-4 py-4"
                             >
                                 <div className="flex min-w-0 items-start gap-3">
-                                    <span
-                                        className={`mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg ${
-                                            settings.browserNotifications
-                                                ? 'bg-muted text-muted-foreground'
-                                                : 'bg-muted/50 text-muted-foreground/50'
-                                        }`}
-                                    >
+                                    <span className="mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
                                         <Icon className="size-4" />
                                     </span>
 
-                                    <div
-                                        className={`min-w-0 ${
-                                            settings.browserNotifications
-                                                ? ''
-                                                : 'opacity-50'
-                                        }`}
+                                    <label
+                                        htmlFor={`notification-${item.key}`}
+                                        className="min-w-0"
                                     >
-                                        <div className="text-sm font-medium">
+                                        <span className="block text-sm font-medium">
                                             {item.title}
-                                        </div>
-                                        <div className="mt-1 text-sm text-muted-foreground">
+                                        </span>
+                                        <span className="mt-1 block text-sm text-pretty text-muted-foreground">
                                             {item.description}
-                                        </div>
-                                    </div>
+                                        </span>
+                                    </label>
                                 </div>
 
                                 <Switch
+                                    id={`notification-${item.key}`}
                                     checked={checked}
                                     onCheckedChange={(next) =>
                                         setAndPersistSettings({
@@ -333,7 +337,7 @@ export default function NotificationSettingsPanel() {
                                         })
                                     }
                                     aria-label={`Aktifkan ${item.title}`}
-                                    className="self-start sm:mt-1"
+                                    className="mt-1 shrink-0"
                                     disabled={
                                         !settings.browserNotifications ||
                                         isSaving

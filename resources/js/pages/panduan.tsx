@@ -10,16 +10,12 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { DataSection, DataToolbar } from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { DataTableToolbar } from '@/components/ui/data-table';
+import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard, panduan, pesan, uploadDokumen } from '@/routes';
 import { create as jadwalBimbinganCreate } from '@/routes/jadwal-bimbingan';
@@ -96,9 +92,6 @@ const iconMap = {
     'upload-cloud': UploadCloud,
 } as const;
 
-const sectionCardClass = 'overflow-hidden border-border/70 py-0 shadow-sm';
-const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
-
 function normalize(text: string) {
     return text.toLowerCase();
 }
@@ -111,14 +104,13 @@ function FaqAccordionItem({
     defaultOpen?: boolean;
 }) {
     return (
-        <details
-            className="group rounded-xl border bg-background open:bg-muted/30"
-            open={defaultOpen}
-        >
-            <summary className="flex cursor-pointer list-none items-start justify-between gap-4 px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
+        <details className="group open:bg-muted/30" open={defaultOpen}>
+            <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-4 px-6 py-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
                 <div className="min-w-0">
-                    <div className="text-sm font-semibold">{item.question}</div>
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <h3 className="text-sm font-semibold text-balance">
+                        {item.question}
+                    </h3>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
                         {item.tags.map((tag) => (
                             <Badge
                                 key={tag}
@@ -130,11 +122,14 @@ function FaqAccordionItem({
                         ))}
                     </div>
                 </div>
-                <ChevronDown className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                <ChevronDown
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                />
             </summary>
-            <div className="px-4 pb-4 text-sm text-muted-foreground">
+            <p className="max-w-prose px-6 pb-5 text-sm leading-6 text-pretty text-muted-foreground">
                 {item.answer}
-            </div>
+            </p>
         </details>
     );
 }
@@ -301,120 +296,106 @@ export default function Panduan() {
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
                 <div className="space-y-4">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                            {pageTitle}
-                        </h1>
-                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                            {pageSubtitle}
-                        </p>
-                    </div>
+                    <PageHeader
+                        title={pageTitle}
+                        description={
+                            <span className="block max-w-prose text-pretty">
+                                {pageSubtitle}
+                            </span>
+                        }
+                    />
 
-                    <Card className={sectionCardClass}>
-                        <CardContent className="px-6 py-5">
-                            <DataTableToolbar
-                                search={query}
-                                onSearchChange={setQuery}
-                                searchPlaceholder={searchHint}
-                                filterGroups={[
-                                    {
-                                        tabs: quickLinks,
-                                        value: activeSection,
-                                        onChange: jumpToSection,
-                                    },
-                                ]}
-                                alertBadge={
-                                    q ? (
-                                        <div className="flex items-center gap-2">
-                                            <Badge
-                                                variant="outline"
-                                                className="rounded-full"
-                                            >
-                                                {totalSearchResults} hasil
-                                            </Badge>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 px-2 text-xs"
-                                                onClick={() => setQuery('')}
-                                            >
-                                                Reset
-                                            </Button>
-                                        </div>
-                                    ) : null
-                                }
-                            />
-                        </CardContent>
-                    </Card>
+                    <DataToolbar
+                        search={query}
+                        onSearchChange={setQuery}
+                        placeholder={searchHint}
+                    >
+                        <FilterPills
+                            label="Lompat ke bagian"
+                            value={activeSection}
+                            onValueChange={jumpToSection}
+                            options={quickLinks}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                        />
+                        {q ? (
+                            <div className="flex items-center gap-2">
+                                <Badge
+                                    variant="outline"
+                                    className="rounded-full"
+                                >
+                                    {totalSearchResults} hasil
+                                </Badge>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-xs max-md:h-11 max-md:px-3"
+                                    onClick={() => setQuery('')}
+                                >
+                                    Reset
+                                </Button>
+                            </div>
+                        ) : null}
+                    </DataToolbar>
                 </div>
 
-                <section id="alur" className="scroll-mt-24 space-y-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <div className="text-base font-semibold text-foreground">
-                                Panduan utama
-                            </div>
-                            <div className="text-sm leading-6 text-muted-foreground">
-                                Empat hal yang paling sering bikin macet.
-                            </div>
-                        </div>
-                        <Badge variant="outline" className="rounded-full">
-                            {filteredGuidance.length}/{guidanceCards.length}
-                        </Badge>
-                    </div>
+                <div id="alur" className="scroll-mt-24">
+                    <DataSection
+                        title="Panduan utama"
+                        summary={`Empat hal yang paling sering bikin macet. ${filteredGuidance.length}/${guidanceCards.length}`}
+                    >
+                        <div className="grid gap-4 xl:grid-cols-2">
+                            {filteredGuidance.map((card) => {
+                                const Icon = iconMap[card.icon] ?? FileText;
 
-                    <div className="grid gap-4 xl:grid-cols-2">
-                        {filteredGuidance.map((card) => {
-                            const Icon = iconMap[card.icon] ?? FileText;
-
-                            return (
-                                <Card
-                                    key={card.id}
-                                    className={`${sectionCardClass} h-full`}
-                                >
-                                    <CardHeader
-                                        className={`${sectionCardHeaderClass} gap-3`}
+                                return (
+                                    <Card
+                                        key={card.id}
+                                        className="h-full gap-0 overflow-hidden border-border/70 py-0 shadow-sm"
                                     >
-                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                                                        <Icon className="size-4" />
+                                        <div className="flex flex-1 flex-col gap-4 p-6">
+                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
+                                                        <Icon
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
                                                     </span>
-                                                    <CardTitle className="text-base">
+                                                    <h3 className="text-base leading-snug font-semibold text-balance">
                                                         {card.title}
-                                                    </CardTitle>
+                                                    </h3>
                                                 </div>
-                                                <CardDescription className="mt-2 text-sm leading-6">
-                                                    {card.description}
-                                                </CardDescription>
-                                            </div>
-                                            <Badge
-                                                variant="secondary"
-                                                className="w-fit shrink-0 rounded-full"
-                                            >
-                                                {card.badge}
-                                            </Badge>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="flex h-full flex-col gap-5 py-6">
-                                        <ul className="grid flex-1 gap-2.5 text-sm text-muted-foreground">
-                                            {card.bullets.map((bullet) => (
-                                                <li
-                                                    key={bullet}
-                                                    className="flex gap-2"
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="w-fit shrink-0 rounded-full"
                                                 >
-                                                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-                                                    <span className="min-w-0">
-                                                        {bullet}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                                    {card.badge}
+                                                </Badge>
+                                            </div>
+                                            <p className="max-w-prose text-sm leading-6 text-pretty text-muted-foreground">
+                                                {card.description}
+                                            </p>
+                                            <ul className="grid gap-2.5 text-sm leading-6 text-muted-foreground">
+                                                {card.bullets.map((bullet) => (
+                                                    <li
+                                                        key={bullet}
+                                                        className="flex max-w-prose gap-2"
+                                                    >
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className="mt-2.5 size-1.5 shrink-0 rounded-full bg-muted-foreground"
+                                                        />
+                                                        <span className="min-w-0 text-pretty">
+                                                            {bullet}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
 
-                                        <div className="border-t pt-4">
-                                            <div className="mb-3 flex flex-wrap gap-2">
+                                        <div className="space-y-3 border-t px-6 py-4">
+                                            <div className="flex flex-wrap gap-2">
                                                 {card.keywords.map(
                                                     (keyword) => (
                                                         <Badge
@@ -432,7 +413,7 @@ export default function Panduan() {
                                                 {card.action === 'schedule' ? (
                                                     <Button
                                                         type="button"
-                                                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11"
                                                         asChild
                                                     >
                                                         <Link
@@ -452,7 +433,7 @@ export default function Panduan() {
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        className="h-9"
+                                                        className="h-9 max-md:h-11"
                                                         asChild
                                                     >
                                                         <Link
@@ -472,7 +453,7 @@ export default function Panduan() {
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        className="h-9"
+                                                        className="h-9 max-md:h-11"
                                                         asChild
                                                     >
                                                         <Link
@@ -489,7 +470,7 @@ export default function Panduan() {
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        className="h-9"
+                                                        className="h-9 max-md:h-11"
                                                         asChild
                                                     >
                                                         <a
@@ -503,45 +484,31 @@ export default function Panduan() {
                                                 ) : null}
                                             </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                </section>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    </DataSection>
+                </div>
 
-                <section id="faq" className="scroll-mt-24 space-y-4">
-                    <Card className={sectionCardClass}>
-                        <CardHeader
-                            className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
-                        >
-                            <div>
-                                <CardTitle className="text-base">FAQ</CardTitle>
-                                <CardDescription className="mt-1">
-                                    Jawaban cepat untuk pertanyaan yang sering
-                                    muncul.
-                                </CardDescription>
-                            </div>
-                            <Badge
-                                variant="outline"
-                                className="w-fit rounded-full"
-                            >
-                                {filteredFaq.length}/{faqItems.length}
-                            </Badge>
-                        </CardHeader>
-                        <CardContent className="space-y-3 py-6">
+                <div id="faq" className="scroll-mt-24">
+                    <DataSection
+                        title="FAQ"
+                        summary={`Jawaban cepat untuk pertanyaan yang sering muncul. ${filteredFaq.length}/${faqItems.length}`}
+                    >
+                        <Card className="gap-0 overflow-hidden border-border/70 py-0 shadow-sm">
                             {filteredFaq.length === 0 ? (
-                                <div className="rounded-xl border bg-muted/30 p-4">
-                                    <div className="text-sm font-medium">
+                                <div className="px-6 py-5">
+                                    <p className="text-sm font-medium">
                                         Tidak ada FAQ yang cocok.
-                                    </div>
-                                    <div className="mt-1 text-sm text-muted-foreground">
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
                                         Coba kata kunci lain, atau buka kartu
                                         Bantuan untuk menghubungi admin.
-                                    </div>
+                                    </p>
                                 </div>
                             ) : (
-                                <div className="grid gap-3">
+                                <div className="divide-y">
                                     {filteredFaq.map((item, idx) => (
                                         <FaqAccordionItem
                                             key={item.id}
@@ -553,207 +520,186 @@ export default function Panduan() {
                                     ))}
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-                </section>
+                        </Card>
+                    </DataSection>
+                </div>
 
                 <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-                    <section id="template" className="scroll-mt-24 space-y-4">
-                        <Card className={sectionCardClass}>
-                            <CardHeader
-                                className={`${sectionCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}
-                            >
-                                <div>
-                                    <CardTitle className="text-base">
-                                        Dokumen Template
-                                    </CardTitle>
-                                    <CardDescription className="mt-1">
-                                        Gunakan template agar format konsisten.
-                                    </CardDescription>
-                                </div>
-                                <Badge
-                                    variant="outline"
-                                    className="w-fit rounded-full"
-                                >
-                                    {filteredTemplateDocs.length}/
-                                    {templateDocs.length}
-                                </Badge>
-                            </CardHeader>
-                            <CardContent className="space-y-4 py-6">
+                    <div id="template" className="scroll-mt-24">
+                        <DataSection
+                            title="Dokumen Template"
+                            summary={`Gunakan template agar format konsisten. ${filteredTemplateDocs.length}/${templateDocs.length}`}
+                        >
+                            <Card className="gap-0 overflow-hidden border-border/70 py-0 shadow-sm">
                                 {filteredTemplateDocs.length === 0 ? (
-                                    <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                                    <p className="px-6 py-5 text-sm text-muted-foreground">
                                         Tidak ada dokumen template yang cocok
                                         dengan pencarianmu.
-                                    </div>
+                                    </p>
                                 ) : (
-                                    <div className="grid gap-3">
+                                    <ul className="divide-y">
                                         {filteredTemplateDocs.map((doc) => (
-                                            <div
+                                            <li
                                                 key={doc.id}
-                                                className="rounded-xl border bg-background p-4"
+                                                className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-start sm:justify-between"
                                             >
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-start gap-3">
-                                                            <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                                                                <FileText className="size-4" />
-                                                            </span>
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-medium break-words">
-                                                                    {doc.title}
-                                                                </div>
-                                                                <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                                                <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                    <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
+                                                        <FileText
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <h3 className="text-sm font-medium text-balance break-words">
+                                                            {doc.title}
+                                                        </h3>
+                                                        <p className="mt-1 max-w-prose text-sm leading-6 text-pretty text-muted-foreground">
+                                                            {doc.description}
+                                                        </p>
+                                                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="rounded-full"
+                                                            >
+                                                                {doc.format}
+                                                            </Badge>
+                                                            {doc.badge ? (
+                                                                <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                                                                    {doc.badge}
+                                                                </Badge>
+                                                            ) : null}
+                                                            {doc.fileName ? (
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className="max-w-full rounded-full text-left break-all whitespace-normal"
+                                                                >
                                                                     {
-                                                                        doc.description
+                                                                        doc.fileName
                                                                     }
-                                                                </div>
-                                                                <div className="mt-3 flex flex-wrap items-center gap-2">
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className="rounded-full"
-                                                                    >
-                                                                        {
-                                                                            doc.format
-                                                                        }
-                                                                    </Badge>
-                                                                    {doc.badge ? (
-                                                                        <Badge className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                                                                            {
-                                                                                doc.badge
-                                                                            }
-                                                                        </Badge>
-                                                                    ) : null}
-                                                                    {doc.fileName ? (
-                                                                        <Badge
-                                                                            variant="secondary"
-                                                                            className="max-w-full rounded-full text-left break-all whitespace-normal"
-                                                                        >
-                                                                            {
-                                                                                doc.fileName
-                                                                            }
-                                                                        </Badge>
-                                                                    ) : null}
-                                                                </div>
-                                                            </div>
+                                                                </Badge>
+                                                            ) : null}
                                                         </div>
                                                     </div>
+                                                </div>
 
-                                                    {doc.downloadUrl ? (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-9 w-full sm:w-auto"
-                                                            asChild
-                                                        >
-                                                            <a
-                                                                href={
-                                                                    doc.downloadUrl
-                                                                }
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                            >
-                                                                <FileDown className="size-4" />
-                                                                Unduh
-                                                            </a>
-                                                        </Button>
-                                                    ) : (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-9 w-full sm:w-auto"
-                                                            disabled
+                                                {doc.downloadUrl ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-9 w-full max-md:h-11 sm:w-auto"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={
+                                                                doc.downloadUrl
+                                                            }
+                                                            target="_blank"
+                                                            rel="noreferrer"
                                                         >
                                                             <FileDown className="size-4" />
-                                                            Belum tersedia
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
+                                                            Unduh
+                                                        </a>
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-9 w-full max-md:h-11 sm:w-auto"
+                                                        disabled
+                                                    >
+                                                        <FileDown className="size-4" />
+                                                        Belum tersedia
+                                                    </Button>
+                                                )}
+                                            </li>
                                         ))}
-                                    </div>
+                                    </ul>
                                 )}
 
-                                <div className="rounded-xl border bg-muted/30 p-4 text-sm">
-                                    <div className="font-medium">
+                                <div className="border-t bg-muted/30 px-6 py-4 text-sm">
+                                    <p className="font-medium">
                                         Tips: versi itu penting
-                                    </div>
-                                    <div className="mt-1 text-muted-foreground">
+                                    </p>
+                                    <p className="mt-1 max-w-prose text-pretty text-muted-foreground">
                                         Saat revisi, simpan versi lama dan
                                         naikkan nomor versi agar mudah
                                         dibandingkan.
-                                    </div>
+                                    </p>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </section>
+                            </Card>
+                        </DataSection>
+                    </div>
 
-                    <section id="bantuan" className="scroll-mt-24 space-y-4">
-                        <Card className={sectionCardClass}>
-                            <CardHeader className={sectionCardHeaderClass}>
-                                <CardTitle className="text-base">
-                                    {helpContent.title}
-                                </CardTitle>
-                                <CardDescription>
-                                    {helpContent.description}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4 py-6">
-                                <div className="rounded-xl border bg-background p-4">
-                                    <div className="text-sm font-medium">
-                                        {helpContent.boxTitle}
+                    <div id="bantuan" className="scroll-mt-24">
+                        <DataSection title={helpContent.title}>
+                            <Card className="gap-0 overflow-hidden border-border/70 py-0 shadow-sm">
+                                <div className="divide-y">
+                                    <div className="space-y-1 px-6 py-5">
+                                        <p className="text-sm leading-6 text-pretty text-muted-foreground">
+                                            {helpContent.description}
+                                        </p>
                                     </div>
-                                    <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                                        {helpContent.boxDescription}
-                                    </div>
-                                </div>
 
-                                <div className="grid gap-2">
-                                    <Button
-                                        type="button"
-                                        className="h-10 bg-primary text-primary-foreground hover:bg-primary/90"
-                                        asChild
-                                    >
-                                        <Link
-                                            href={pesan().url}
-                                            className="w-full"
-                                        >
-                                            <MessageSquareText className="size-4" />
-                                            Hubungi Pembimbing/Admin
-                                        </Link>
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="h-10"
-                                        asChild
-                                    >
-                                        <Link
-                                            href={uploadDokumen().url}
-                                            className="w-full"
-                                        >
-                                            <UploadCloud className="size-4" />
-                                            Lihat Status Dokumen
-                                        </Link>
-                                    </Button>
-                                </div>
+                                    <div className="space-y-4 px-6 py-5">
+                                        <div>
+                                            <p className="text-sm font-medium">
+                                                {helpContent.boxTitle}
+                                            </p>
+                                            <p className="mt-1 text-sm leading-6 text-pretty text-muted-foreground">
+                                                {helpContent.boxDescription}
+                                            </p>
+                                        </div>
 
-                                <div className="rounded-xl border bg-muted/30 p-4">
-                                    <div className="text-sm font-medium">
-                                        {helpContent.messageTemplateTitle}
+                                        <div className="grid gap-2">
+                                            <Button
+                                                type="button"
+                                                className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11"
+                                                asChild
+                                            >
+                                                <Link
+                                                    href={pesan().url}
+                                                    className="w-full"
+                                                >
+                                                    <MessageSquareText className="size-4" />
+                                                    Hubungi Pembimbing/Admin
+                                                </Link>
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="h-10 max-md:h-11"
+                                                asChild
+                                            >
+                                                <Link
+                                                    href={uploadDokumen().url}
+                                                    className="w-full"
+                                                >
+                                                    <UploadCloud className="size-4" />
+                                                    Lihat Status Dokumen
+                                                </Link>
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                        {helpContent.messageTemplateSteps.map(
-                                            (step) => (
-                                                <div key={step}>{step}</div>
-                                            ),
-                                        )}
+
+                                    <div className="bg-muted/30 px-6 py-5">
+                                        <p className="text-sm font-medium">
+                                            {helpContent.messageTemplateTitle}
+                                        </p>
+                                        <div className="mt-3 grid gap-2 text-sm leading-6 text-muted-foreground">
+                                            {helpContent.messageTemplateSteps.map(
+                                                (step) => (
+                                                    <p key={step}>{step}</p>
+                                                ),
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </section>
+                            </Card>
+                        </DataSection>
+                    </div>
                 </div>
             </div>
         </AppLayout>

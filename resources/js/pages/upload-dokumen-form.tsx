@@ -96,7 +96,7 @@ export default function UploadDokumenForm() {
             <Head title="Upload Dokumen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 md:px-6">
-                <div className="flex flex-1 items-start justify-center py-10">
+                <div className="flex flex-1 items-start justify-center py-4 md:py-10">
                     <Card className="w-full max-w-xl">
                         <CardHeader className="gap-1">
                             <CardTitle className="text-xl">
@@ -122,7 +122,10 @@ export default function UploadDokumenForm() {
                                         value={kategori}
                                         onValueChange={setKategori}
                                     >
-                                        <SelectTrigger id="kategori-dokumen">
+                                        <SelectTrigger
+                                            id="kategori-dokumen"
+                                            className="w-full max-md:h-11"
+                                        >
                                             <SelectValue placeholder="Pilih kategori dokumen" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -157,6 +160,8 @@ export default function UploadDokumenForm() {
                                         id="file-dokumen"
                                         type="file"
                                         accept={ACCEPT_ATTR}
+                                        className="cursor-pointer max-md:h-11 max-md:py-2"
+                                        aria-describedby="file-dokumen-hint"
                                         onChange={(e) => {
                                             const nextFile =
                                                 e.currentTarget.files?.[0] ??
@@ -174,12 +179,15 @@ export default function UploadDokumenForm() {
                                             setFile(error ? null : nextFile);
                                         }}
                                     />
-                                    <p className="text-xs text-muted-foreground">
+                                    <p
+                                        id="file-dokumen-hint"
+                                        className="text-xs text-muted-foreground"
+                                    >
                                         Format: PDF, DOCX, PPTX. Ukuran
                                         maksimal: 10 MB.
                                     </p>
                                     {file ? (
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm break-all text-muted-foreground">
                                             File terpilih:{' '}
                                             <span className="font-medium text-foreground">
                                                 {file.name}
@@ -196,8 +204,8 @@ export default function UploadDokumenForm() {
                                     ) : null}
                                 </div>
 
-                                <Alert className="border-sky-100 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
-                                    <AlertDescription className="text-sky-900 dark:text-sky-200">
+                                <Alert className="border-info-muted bg-info-muted text-info-muted-foreground">
+                                    <AlertDescription className="text-info-muted-foreground">
                                         <span className="font-medium">
                                             Catatan:
                                         </span>{' '}
@@ -207,15 +215,19 @@ export default function UploadDokumenForm() {
                                     </AlertDescription>
                                 </Alert>
 
-                                <div className="flex items-center justify-end gap-2">
-                                    <Button asChild variant="outline">
+                                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        className="max-md:h-11"
+                                    >
                                         <Link href={routes.uploadDokumen().url}>
                                             Batal
                                         </Link>
                                     </Button>
                                     <Button
                                         type="submit"
-                                        className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                        className="bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11"
                                         disabled={!kategori || !file}
                                     >
                                         Upload

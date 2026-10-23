@@ -40,8 +40,6 @@ export default function TwoFactor({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Two-Factor Authentication" />
 
-            <h1 className="sr-only">Two-Factor Authentication Settings</h1>
-
             <SettingsLayout>
                 <div>
                     <h2 className="text-lg font-semibold">
@@ -57,8 +55,10 @@ export default function TwoFactor({
 
                 {twoFactorEnabled ? (
                     <div className="flex flex-col items-start justify-start space-y-4">
-                        <Badge variant="default">Enabled</Badge>
-                        <p className="text-muted-foreground">
+                        <Badge className="bg-success-muted text-success-muted-foreground">
+                            Enabled
+                        </Badge>
+                        <p className="text-sm text-muted-foreground">
                             With two-factor authentication enabled, you will be
                             prompted for a secure, random pin during login,
                             which you can retrieve from the TOTP-supported
@@ -87,8 +87,10 @@ export default function TwoFactor({
                     </div>
                 ) : (
                     <div className="flex flex-col items-start justify-start space-y-4">
-                        <Badge variant="destructive">Disabled</Badge>
-                        <p className="text-muted-foreground">
+                        <Badge className="bg-danger-muted text-danger-muted-foreground">
+                            Disabled
+                        </Badge>
+                        <p className="text-sm text-muted-foreground">
                             When you enable two-factor authentication, you will
                             be prompted for a secure pin during login. This pin
                             can be retrieved from a TOTP-supported application
@@ -97,7 +99,10 @@ export default function TwoFactor({
 
                         <div>
                             {hasSetupData ? (
-                                <Button onClick={() => setShowSetupModal(true)}>
+                                <Button
+                                    className="max-md:h-11"
+                                    onClick={() => setShowSetupModal(true)}
+                                >
                                     <ShieldCheck />
                                     Continue Setup
                                 </Button>
@@ -108,6 +113,7 @@ export default function TwoFactor({
                                 >
                                     {({ processing }) => (
                                         <Button
+                                            className="max-md:h-11"
                                             type="submit"
                                             disabled={processing}
                                         >

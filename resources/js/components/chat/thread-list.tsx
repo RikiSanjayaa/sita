@@ -112,6 +112,7 @@ export function ThreadList<T extends ChatThread>({
                             key={value}
                             type="button"
                             size="sm"
+                            className="max-md:h-11"
                             variant={mode === value ? 'default' : 'outline'}
                             onClick={() => onModeChange(value)}
                         >
@@ -128,7 +129,7 @@ export function ThreadList<T extends ChatThread>({
                             onChange={(event) =>
                                 onSearchChange(event.target.value)
                             }
-                            className="pl-9"
+                            className="pl-9 max-md:h-11"
                             placeholder={
                                 mode === 'private'
                                     ? 'Cari chat pribadi...'
@@ -141,7 +142,7 @@ export function ThreadList<T extends ChatThread>({
                             type="button"
                             variant="outline"
                             size="icon"
-                            className="size-9 shrink-0"
+                            className="size-9 shrink-0 max-md:size-11"
                             onClick={privateThread.toggle}
                         >
                             <UserPlus className="size-4" />
@@ -151,7 +152,7 @@ export function ThreadList<T extends ChatThread>({
                             type="button"
                             variant="outline"
                             size="icon"
-                            className="size-9 shrink-0"
+                            className="size-9 shrink-0 max-md:size-11"
                             onClick={groupFilterToggle}
                         >
                             <SlidersHorizontal className="size-4" />
@@ -191,8 +192,10 @@ export function ThreadList<T extends ChatThread>({
                                         key={thread.id}
                                         type="button"
                                         className={cn(
-                                            'flex w-full shrink-0 flex-col border-b border-l-[3px] border-l-transparent p-4 text-left transition-all last:border-b-0 hover:bg-muted/50',
-                                            isActive && 'border-l-primary',
+                                            'flex w-full shrink-0 flex-col border-b p-4 text-left transition-colors last:border-b-0',
+                                            isActive
+                                                ? 'bg-primary-muted'
+                                                : 'hover:bg-muted/50',
                                         )}
                                         onClick={() => onSelect(thread.id)}
                                     >
@@ -200,20 +203,14 @@ export function ThreadList<T extends ChatThread>({
                                             <div className="flex min-w-0 flex-col gap-1.5">
                                                 <p
                                                     className={cn(
-                                                        'truncate font-semibold',
-                                                        isActive
-                                                            ? 'text-[15px] text-primary'
-                                                            : 'text-sm text-foreground',
+                                                        'truncate text-sm font-semibold text-foreground',
                                                     )}
                                                 >
                                                     {threadTitle(thread)}
                                                 </p>
                                                 <p
                                                     className={cn(
-                                                        'line-clamp-2 text-[13px]',
-                                                        isActive
-                                                            ? 'font-medium text-primary/90'
-                                                            : 'text-muted-foreground',
+                                                        'line-clamp-2 text-sm text-pretty text-muted-foreground',
                                                     )}
                                                 >
                                                     {latestMessage?.message ||
@@ -225,14 +222,14 @@ export function ThreadList<T extends ChatThread>({
                                                 <Badge
                                                     variant="soft"
                                                     className={cn(
-                                                        'px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase',
+                                                        'px-2 py-0.5 text-xs font-medium',
                                                         badgeClassName(thread),
                                                     )}
                                                 >
                                                     {thread.threadLabel}
                                                 </Badge>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] font-medium text-muted-foreground">
+                                                    <span className="text-xs font-medium text-muted-foreground">
                                                         {thread.lastTime}
                                                     </span>
                                                     {hasUnread?.(thread) && (

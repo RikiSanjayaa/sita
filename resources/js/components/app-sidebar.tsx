@@ -81,6 +81,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
+                                    className="max-md:h-11"
                                     isActive={settingsIsActive}
                                     tooltip={{
                                         children: navigation.settings.title,

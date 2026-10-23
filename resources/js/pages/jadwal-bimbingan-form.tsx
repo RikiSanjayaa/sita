@@ -1,16 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import { Calendar, Clock, Send } from 'lucide-react';
 
+import { PageHeader } from '@/components/patterns/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -51,27 +45,24 @@ export default function JadwalBimbinganForm() {
             <Head title="Ajukan Jadwal Bimbingan" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 md:px-6">
-                <div className="mx-auto w-full max-w-[560px]">
+                <div className="mx-auto w-full max-w-[560px] space-y-6">
+                    <PageHeader
+                        title="Ajukan Jadwal Bimbingan"
+                        description="Isi formulir untuk mengajukan jadwal bimbingan dengan dosen pembimbing"
+                    />
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();
                         }}
                     >
                         <Card className="shadow-sm">
-                            <CardHeader className="gap-1">
-                                <CardTitle>Ajukan Jadwal Bimbingan</CardTitle>
-                                <CardDescription>
-                                    Isi formulir untuk mengajukan jadwal
-                                    bimbingan dengan dosen pembimbing
-                                </CardDescription>
-                            </CardHeader>
-
                             <CardContent className="grid gap-6">
                                 <div className="grid gap-2">
                                     <Label htmlFor="topik">
                                         Topik Bimbingan
                                     </Label>
                                     <Input
+                                        className="max-md:h-11"
                                         id="topik"
                                         name="topik"
                                         required
@@ -96,6 +87,7 @@ export default function JadwalBimbinganForm() {
                                             <Calendar className="size-4 text-muted-foreground" />
                                         </div>
                                         <Input
+                                            className="max-md:h-11"
                                             id="tanggal"
                                             name="tanggal"
                                             type="date"
@@ -118,6 +110,7 @@ export default function JadwalBimbinganForm() {
                                             <Clock className="size-4 text-muted-foreground" />
                                         </div>
                                         <Input
+                                            className="max-md:h-11"
                                             id="waktu"
                                             name="waktu"
                                             type="time"
@@ -137,6 +130,7 @@ export default function JadwalBimbinganForm() {
                                     <Label htmlFor="tipe">Tipe Bimbingan</Label>
                                     <Select defaultValue="offline">
                                         <SelectTrigger
+                                            className="max-md:h-11"
                                             id="tipe"
                                             aria-describedby="tipe-help"
                                         >
@@ -183,8 +177,8 @@ export default function JadwalBimbinganForm() {
                                     </p>
                                 </div>
 
-                                <Alert className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
-                                    <AlertDescription className="text-sky-900 dark:text-sky-200">
+                                <Alert className="border-info/30 bg-info-muted text-info-muted-foreground">
+                                    <AlertDescription className="text-info-muted-foreground">
                                         <span className="font-medium">
                                             Catatan:
                                         </span>{' '}
@@ -194,15 +188,19 @@ export default function JadwalBimbinganForm() {
                                 </Alert>
                             </CardContent>
 
-                            <CardFooter className="flex items-center justify-end gap-2">
-                                <Button variant="outline" asChild>
+                            <CardFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                                <Button
+                                    variant="outline"
+                                    className="max-md:h-11"
+                                    asChild
+                                >
                                     <Link href={jadwalBimbingan().url}>
                                         Batal
                                     </Link>
                                 </Button>
                                 <Button
                                     type="submit"
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11"
                                 >
                                     <Send className="size-4" />
                                     Kirim Permintaan

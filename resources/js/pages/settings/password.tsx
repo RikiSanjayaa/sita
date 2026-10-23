@@ -23,12 +23,10 @@ export default function Password() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Password settings" />
 
-            <h1 className="sr-only">Password Settings</h1>
-
             <SettingsLayout width="compact">
                 <div>
                     <h2 className="text-lg font-semibold">Ubah password</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-sm text-pretty text-muted-foreground">
                         Perbarui password akun Anda dengan kombinasi yang kuat.
                         Konfirmasi password membantu memastikan input sama
                         persis.
@@ -37,7 +35,7 @@ export default function Password() {
 
                 <Separator />
 
-                <p className="text-sm text-neutral-600">
+                <p className="text-sm text-pretty text-muted-foreground">
                     Lupa password akun?{' '}
                     <Link
                         href={request().url}
@@ -82,7 +80,7 @@ export default function Password() {
                                     ref={currentPasswordInput}
                                     name="current_password"
                                     type="password"
-                                    className="mt-1 block w-full"
+                                    className="mt-1 block w-full max-md:h-11"
                                     autoComplete="current-password"
                                     placeholder="Masukkan password saat ini"
                                 />
@@ -98,7 +96,7 @@ export default function Password() {
                                     ref={passwordInput}
                                     name="password"
                                     type="password"
-                                    className="mt-1 block w-full"
+                                    className="mt-1 block w-full max-md:h-11"
                                     autoComplete="new-password"
                                     placeholder="Masukkan password baru"
                                 />
@@ -115,7 +113,7 @@ export default function Password() {
                                     id="password_confirmation"
                                     name="password_confirmation"
                                     type="password"
-                                    className="mt-1 block w-full"
+                                    className="mt-1 block w-full max-md:h-11"
                                     autoComplete="new-password"
                                     placeholder="Ulangi password baru yang sama"
                                 />
@@ -127,6 +125,7 @@ export default function Password() {
 
                             <div className="flex items-center gap-4">
                                 <Button
+                                    className="max-md:h-11"
                                     disabled={processing}
                                     data-test="update-password-button"
                                 >
@@ -140,7 +139,7 @@ export default function Password() {
                                     leave="transition ease-in-out"
                                     leaveTo="opacity-0"
                                 >
-                                    <p className="text-sm text-neutral-600">
+                                    <p className="text-sm text-pretty text-muted-foreground">
                                         Password berhasil diperbarui
                                     </p>
                                 </Transition>

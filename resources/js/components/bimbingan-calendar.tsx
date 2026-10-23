@@ -183,7 +183,7 @@ function CalendarWrapper({
                         ))}
                     </div>
                 )}
-                <div className="rounded-lg border bg-card p-4">
+                <div className="overflow-x-auto">
                     <FullCalendar
                         plugins={[
                             dayGridPlugin,
@@ -242,7 +242,7 @@ function CalendarWrapper({
                                     <div className="truncate text-xs">
                                         {event.topic}
                                     </div>
-                                    <div className="truncate text-xs opacity-80">
+                                    <div className="truncate text-xs">
                                         {event.person}
                                     </div>
                                 </div>
@@ -352,7 +352,8 @@ export function BimbinganCalendar({
                     variant={view === 'calendar' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setView('calendar')}
-                    className="gap-2"
+                    className="gap-2 max-md:h-11 max-md:px-4"
+                    aria-pressed={view === 'calendar'}
                 >
                     <CalendarIcon className="size-4" />
                     Kalender
@@ -362,7 +363,8 @@ export function BimbinganCalendar({
                     variant={view === 'list' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setView('list')}
-                    className="gap-2"
+                    className="gap-2 max-md:h-11 max-md:px-4"
+                    aria-pressed={view === 'list'}
                 >
                     <List className="size-4" />
                     Daftar
@@ -382,9 +384,10 @@ export function BimbinganCalendar({
                         value={periodFilter}
                         onValueChange={setPeriodFilter}
                         options={periodTabs}
+                        itemClassName="max-md:h-11 max-md:px-4"
                     />
 
-                    <div className="rounded-lg border bg-card">
+                    <div className="border-y">
                         {filteredListEvents.length === 0 ? (
                             <p className="py-10 text-center text-sm text-muted-foreground">
                                 {emptyListMessage}
@@ -392,9 +395,10 @@ export function BimbinganCalendar({
                         ) : (
                             <div className="divide-y">
                                 {filteredListEvents.map((event) => (
-                                    <div
+                                    <button
                                         key={event.id}
-                                        className="flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+                                        type="button"
+                                        className="flex min-h-11 w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
                                         onClick={() => onEventClick?.(event)}
                                     >
                                         <div
@@ -406,7 +410,7 @@ export function BimbinganCalendar({
                                             }}
                                         />
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium">
+                                            <p className="text-sm font-medium text-balance">
                                                 {event.topic}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
@@ -431,7 +435,7 @@ export function BimbinganCalendar({
                                         >
                                             {statusLabels[event.status]}
                                         </StatusBadge>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         )}

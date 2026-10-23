@@ -21,15 +21,18 @@ type Area = 'public' | 'mahasiswa' | 'dosen' | 'kaprodi';
  * and scans clean, add it here; from then on any non-advisory finding on its
  * pages fails.
  */
-const BLOCKING_AREAS: readonly Area[] = ['public', 'dosen', 'kaprodi'];
+const BLOCKING_AREAS: readonly Area[] = [
+    'public',
+    'mahasiswa',
+    'dosen',
+    'kaprodi',
+];
 
 /**
  * Pages inside a blocking area that stay advisory, with the reason. Keep this
  * list short; each entry is a decision by the product owner.
  */
 const ADVISORY_PAGES: Readonly<Record<string, string>> = {
-    '/dosen/pesan':
-        'The chat shell is shared with mahasiswa; its findings are fixed in the chat components of the mahasiswa overhaul (#83).',
     '/': 'Home keeps its existing design; the product owner rejected the flattened version in #82.',
 };
 
@@ -55,6 +58,13 @@ const areas: readonly AreaPages[] = [
             '/mahasiswa/jadwal-bimbingan',
             '/mahasiswa/upload-dokumen',
             '/mahasiswa/pesan',
+            '/mahasiswa/panduan',
+            '/settings/profile',
+            '/settings/password',
+            '/settings/appearance',
+            '/settings/notifications',
+            '/settings/two-factor',
+            '/settings/csat',
         ],
     },
     {

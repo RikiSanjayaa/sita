@@ -15,7 +15,15 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
-import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +32,6 @@ import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
     usePagination,
 } from '@/components/ui/data-table';
 import {
@@ -101,55 +108,32 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Jadwal Bimbingan', href: jadwalBimbingan().url },
 ];
 
-function StatusBadge({ status }: { status: ScheduleStatus }) {
-    const map: Record<
-        ScheduleStatus,
-        { label: string; className: string; icon: React.ReactNode }
-    > = {
-        completed: {
-            label: 'Selesai',
-            className: 'bg-blue-600/10 text-blue-600',
-            icon: <CheckCircle2 className="size-3" />,
-        },
-        cancelled: {
-            label: 'Dibatalkan',
-            className: 'bg-muted text-muted-foreground',
-            icon: <XCircle className="size-3" />,
-        },
-        approved: {
-            label: 'Terjadwal',
-            className: 'bg-emerald-600/10 text-emerald-700',
-            icon: <CheckCircle2 className="size-3" />,
-        },
-        rescheduled: {
-            label: 'Terjadwal',
-            className: 'bg-emerald-600/10 text-emerald-700',
-            icon: <CheckCircle2 className="size-3" />,
-        },
-        pending: {
-            label: 'Menunggu Konfirmasi',
-            className: 'bg-amber-600/10 text-amber-700',
-            icon: <Clock className="size-3" />,
-        },
-        rejected: {
-            label: 'Ditolak',
-            className: 'bg-destructive/10 text-destructive',
-            icon: <XCircle className="size-3" />,
-        },
-    };
+const statusDisplay: Record<
+    ScheduleStatus,
+    { label: string; icon: typeof CheckCircle2 }
+> = {
+    completed: { label: 'Selesai', icon: CheckCircle2 },
+    cancelled: { label: 'Dibatalkan', icon: XCircle },
+    approved: { label: 'Terjadwal', icon: CheckCircle2 },
+    rescheduled: { label: 'Terjadwal', icon: CheckCircle2 },
+    pending: { label: 'Menunggu Konfirmasi', icon: Clock },
+    rejected: { label: 'Ditolak', icon: XCircle },
+};
 
-    const { label, className, icon } = map[status] ?? map.cancelled;
+function ScheduleStatusBadge({ status }: { status: ScheduleStatus }) {
+    const { label, icon: Icon } =
+        statusDisplay[status] ?? statusDisplay.cancelled;
 
     return (
-        <span
-            className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
-                className,
-            )}
+        <StatusBadge
+            domain="schedule"
+            // Rescheduled sessions are shown as plain "Terjadwal", like approved ones.
+            status={status === 'rescheduled' ? 'approved' : status}
+            className="gap-1 whitespace-nowrap"
         >
-            {icon}
+            <Icon className="size-3" />
             {label}
-        </span>
+        </StatusBadge>
     );
 }
 
@@ -157,7 +141,7 @@ function CreatedByLecturerBadge() {
     return (
         <Badge
             variant="outline"
-            className="gap-1 rounded-full border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+            className="gap-1 rounded-full border-transparent bg-primary-muted text-primary-muted-foreground"
         >
             Dijadwalkan dosen
         </Badge>
@@ -169,23 +153,35 @@ function RelationTypeBadge({
 }: {
     relationType: 'pembimbing' | 'penguji';
 }) {
-    if (relationType === 'penguji') {
-        return (
-            <Badge
-                variant="outline"
-                className="gap-1 rounded-full border-purple-500/50 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-400"
-            >
-                Penguji
-            </Badge>
-        );
-    }
     return (
         <Badge
             variant="outline"
-            className="gap-1 rounded-full border-cyan-500/50 bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 dark:text-cyan-400"
+            className={cn(
+                'gap-1 rounded-full border-transparent',
+                relationType === 'penguji'
+                    ? 'bg-warning-muted text-warning-muted-foreground'
+                    : 'bg-info-muted text-info-muted-foreground',
+            )}
         >
-            Pembimbing
+            {relationType === 'penguji' ? 'Penguji' : 'Pembimbing'}
         </Badge>
+    );
+}
+
+const historyFilterOptions = [
+    { value: 'semua', label: 'Semua' },
+    { value: 'completed', label: 'Selesai' },
+    { value: 'rejected', label: 'Ditolak' },
+    { value: 'cancelled', label: 'Dibatalkan' },
+] as const;
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+    if (!message) return null;
+
+    return (
+        <p id={id} role="alert" className="text-sm text-destructive">
+            {message}
+        </p>
     );
 }
 
@@ -382,6 +378,10 @@ export default function JadwalBimbinganPage() {
         setIsDetailModalOpen(true);
     }
 
+    const selectTrigger = 'max-md:h-11';
+    const hasHistoryFilter =
+        historySearch !== '' || historyStatusFilter !== 'semua';
+
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
@@ -390,9 +390,9 @@ export default function JadwalBimbinganPage() {
         >
             <Head title="Jadwal Bimbingan" />
 
-            {/* Request Dialog */}
+            {/* Request dialog */}
             <Dialog open={isAjukanOpen} onOpenChange={setIsAjukanOpen}>
-                <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Ajukan Jadwal Bimbingan</DialogTitle>
                         <DialogDescription>
@@ -411,18 +411,24 @@ export default function JadwalBimbinganPage() {
                             <Label htmlFor="topic">Topik Bimbingan</Label>
                             <Input
                                 id="topic"
+                                className="max-md:h-11"
                                 value={form.data.topic}
                                 onChange={(e) =>
                                     form.setData('topic', e.target.value)
                                 }
                                 required
+                                aria-invalid={!!form.errors.topic}
+                                aria-describedby={
+                                    form.errors.topic
+                                        ? 'topic-error'
+                                        : undefined
+                                }
                                 placeholder="Contoh: Review Bab 3 - Metodologi Penelitian"
                             />
-                            {form.errors.topic && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.topic}
-                                </p>
-                            )}
+                            <FieldError
+                                id="topic-error"
+                                message={form.errors.topic}
+                            />
                         </div>
 
                         <div className="grid gap-2">
@@ -435,7 +441,18 @@ export default function JadwalBimbinganPage() {
                                     form.setData('lecturer_user_id', v)
                                 }
                             >
-                                <SelectTrigger id="lecturer_user_id">
+                                <SelectTrigger
+                                    id="lecturer_user_id"
+                                    className={selectTrigger}
+                                    aria-invalid={
+                                        !!form.errors.lecturer_user_id
+                                    }
+                                    aria-describedby={
+                                        form.errors.lecturer_user_id
+                                            ? 'lecturer-error'
+                                            : undefined
+                                    }
+                                >
                                     <SelectValue placeholder="Pilih dosen pembimbing" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -456,60 +473,76 @@ export default function JadwalBimbinganPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {form.errors.lecturer_user_id && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.lecturer_user_id}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="requested_for">
-                                Tanggal &amp; Waktu Preferensi
-                            </Label>
-                            <Input
-                                id="requested_for"
-                                type="datetime-local"
-                                value={form.data.requested_for}
-                                onChange={(e) =>
-                                    form.setData(
-                                        'requested_for',
-                                        e.target.value,
-                                    )
-                                }
-                                required
+                            <FieldError
+                                id="lecturer-error"
+                                message={form.errors.lecturer_user_id}
                             />
-                            {form.errors.requested_for && (
-                                <p className="text-xs text-destructive">
-                                    {form.errors.requested_for}
-                                </p>
-                            )}
                         </div>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="meeting_type">Tipe Bimbingan</Label>
-                            <Select
-                                value={form.data.meeting_type}
-                                onValueChange={(v) =>
-                                    form.setData('meeting_type', v)
-                                }
-                            >
-                                <SelectTrigger id="meeting_type">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="offline">
-                                        Offline (Tatap Muka)
-                                    </SelectItem>
-                                    <SelectItem value="online">
-                                        Online
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid gap-5 sm:grid-cols-2">
+                            <div className="grid content-start gap-2">
+                                <Label htmlFor="requested_for">
+                                    Tanggal &amp; Waktu Preferensi
+                                </Label>
+                                <Input
+                                    id="requested_for"
+                                    className="max-md:h-11"
+                                    type="datetime-local"
+                                    value={form.data.requested_for}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'requested_for',
+                                            e.target.value,
+                                        )
+                                    }
+                                    required
+                                    aria-invalid={!!form.errors.requested_for}
+                                    aria-describedby={
+                                        form.errors.requested_for
+                                            ? 'requested-for-error'
+                                            : undefined
+                                    }
+                                />
+                                <FieldError
+                                    id="requested-for-error"
+                                    message={form.errors.requested_for}
+                                />
+                            </div>
+
+                            <div className="grid content-start gap-2">
+                                <Label htmlFor="meeting_type">
+                                    Tipe Bimbingan
+                                </Label>
+                                <Select
+                                    value={form.data.meeting_type}
+                                    onValueChange={(v) =>
+                                        form.setData('meeting_type', v)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="meeting_type"
+                                        className={selectTrigger}
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="offline">
+                                            Offline (Tatap Muka)
+                                        </SelectItem>
+                                        <SelectItem value="online">
+                                            Online
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FieldError
+                                    id="meeting-type-error"
+                                    message={form.errors.meeting_type}
+                                />
+                            </div>
                         </div>
 
-                        <div className="grid gap-3 rounded-lg border p-4">
-                            <div className="flex items-center gap-2">
+                        <div className="grid gap-3 border-t pt-5">
+                            <div className="flex min-h-11 items-center gap-3 md:min-h-0">
                                 <input
                                     type="checkbox"
                                     id="is_recurring"
@@ -520,11 +553,11 @@ export default function JadwalBimbinganPage() {
                                             e.target.checked,
                                         )
                                     }
-                                    className="size-4 rounded border-input"
+                                    className="size-5 rounded border-input md:size-4"
                                 />
                                 <Label
                                     htmlFor="is_recurring"
-                                    className="flex items-center gap-2 font-medium"
+                                    className="flex flex-1 items-center gap-2 py-2 font-medium md:py-0"
                                 >
                                     <Repeat className="size-4" />
                                     Jadwalkan Berulang
@@ -532,7 +565,7 @@ export default function JadwalBimbinganPage() {
                             </div>
 
                             {form.data.is_recurring && (
-                                <div className="grid gap-3 pl-6">
+                                <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="grid gap-2">
                                         <Label htmlFor="recurring_pattern">
                                             Pola Pengulangan
@@ -546,7 +579,10 @@ export default function JadwalBimbinganPage() {
                                                 )
                                             }
                                         >
-                                            <SelectTrigger id="recurring_pattern">
+                                            <SelectTrigger
+                                                id="recurring_pattern"
+                                                className={selectTrigger}
+                                            >
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -577,7 +613,10 @@ export default function JadwalBimbinganPage() {
                                                 )
                                             }
                                         >
-                                            <SelectTrigger id="recurring_count">
+                                            <SelectTrigger
+                                                id="recurring_count"
+                                                className={selectTrigger}
+                                            >
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -594,7 +633,7 @@ export default function JadwalBimbinganPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className="text-sm text-muted-foreground sm:col-span-2">
                                         Akan dibuat {form.data.recurring_count}{' '}
                                         jadwal dengan pola{' '}
                                         {form.data.recurring_pattern ===
@@ -609,7 +648,7 @@ export default function JadwalBimbinganPage() {
                             )}
                         </div>
 
-                        <div className="grid gap-2">
+                        <div className="grid gap-2 border-t pt-5">
                             <Label htmlFor="student_note">
                                 Catatan Tambahan (Opsional)
                             </Label>
@@ -619,7 +658,16 @@ export default function JadwalBimbinganPage() {
                                 onChange={(e) =>
                                     form.setData('student_note', e.target.value)
                                 }
+                                aria-describedby={
+                                    form.errors.student_note
+                                        ? 'student-note-error'
+                                        : undefined
+                                }
                                 placeholder="Jelaskan hal-hal yang ingin didiskusikan..."
+                            />
+                            <FieldError
+                                id="student-note-error"
+                                message={form.errors.student_note}
                             />
                         </div>
 
@@ -627,14 +675,14 @@ export default function JadwalBimbinganPage() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="w-full sm:w-auto"
+                                className="w-full max-md:h-11 sm:w-auto"
                                 onClick={() => setIsAjukanOpen(false)}
                             >
                                 Batal
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                className="w-full max-md:h-11 sm:w-auto"
                                 disabled={form.processing}
                             >
                                 <Send className="size-4" />
@@ -646,37 +694,34 @@ export default function JadwalBimbinganPage() {
             </Dialog>
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 md:px-6">
-                {/* Page header */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Jadwal Bimbingan
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Kelola jadwal bimbingan {terms.finalWorkLower}{' '}
-                            dengan dosen pembimbing
-                        </p>
-                    </div>
-                    {page.props.hasDosbing && (
-                        <Button
-                            type="button"
-                            className="h-10 w-full gap-2 sm:w-auto"
-                            onClick={() => setIsAjukanOpen(true)}
-                        >
-                            <Plus className="size-4" />
-                            Ajukan Bimbingan
-                        </Button>
-                    )}
-                </div>
+                <PageHeader
+                    title="Jadwal Bimbingan"
+                    description={`Kelola jadwal bimbingan ${terms.finalWorkLower} dengan dosen pembimbing`}
+                    actions={
+                        page.props.hasDosbing ? (
+                            <Button
+                                type="button"
+                                className="w-full gap-2 max-md:h-11 sm:w-auto"
+                                onClick={() => setIsAjukanOpen(true)}
+                            >
+                                <Plus className="size-4" />
+                                Ajukan Bimbingan
+                            </Button>
+                        ) : undefined
+                    }
+                />
 
                 {/* No dosbing state */}
                 {!page.props.auth.activeRole || !page.props.hasDosbing ? (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center text-muted-foreground">
-                        <Users className="mb-4 size-12 opacity-20" />
-                        <h2 className="mb-2 text-lg font-semibold text-foreground">
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed px-4 py-16 text-center">
+                        <Users
+                            aria-hidden="true"
+                            className="mb-4 size-12 text-muted-foreground/50"
+                        />
+                        <h2 className="mb-2 text-lg font-semibold text-balance">
                             Fitur Bimbingan Belum Aktif
                         </h2>
-                        <p className="max-w-md text-sm">
+                        <p className="max-w-md text-sm text-pretty text-muted-foreground">
                             Anda belum memiliki Dosen Pembimbing yang
                             ditugaskan. Fitur jadwal bimbingan akan otomatis
                             aktif setelah admin menetapkan dosen pembimbing
@@ -704,23 +749,11 @@ export default function JadwalBimbinganPage() {
                             defaultView="list"
                         />
 
-                        {/* Upcoming — full data table with horizontal scroll + pagination */}
-                        <section>
-                            <div className="mb-1 flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-base font-semibold">
-                                        Bimbingan Akan Datang
-                                    </h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        Jadwal yang diajukan atau telah
-                                        dikonfirmasi
-                                    </p>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                    {page.props.upcomingMeetings.length} jadwal
-                                </span>
-                            </div>
-
+                        {/* Upcoming */}
+                        <DataSection
+                            title="Bimbingan Akan Datang"
+                            summary={`${page.props.upcomingMeetings.length} jadwal diajukan atau terkonfirmasi`}
+                        >
                             {page.props.upcomingMeetings.length > 0 ? (
                                 <DataTableContainer
                                     pagination={
@@ -747,41 +780,58 @@ export default function JadwalBimbinganPage() {
                                         />
                                     }
                                 >
-                                    <table className="w-full min-w-[700px] text-sm">
-                                        <thead>
-                                            <tr className="border-b bg-muted/30">
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                    <table
+                                        className={cn(
+                                            stackedTable.table,
+                                            'md:min-w-[960px]',
+                                        )}
+                                    >
+                                        <thead className={stackedTable.thead}>
+                                            <tr className="border-b bg-muted/40">
+                                                <th className={dataTh}>
                                                     Topik
                                                 </th>
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Dosen
                                                 </th>
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Waktu Preferensi
                                                 </th>
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Waktu Terkonfirmasi
                                                 </th>
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Lokasi
                                                 </th>
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Status
                                                 </th>
-                                                <th className="px-5 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Catatan Dosen
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y">
+                                        <tbody
+                                            className={cn(
+                                                stackedTable.tbody,
+                                                'md:divide-y',
+                                            )}
+                                        >
                                             {upcomingPagination.paginated.map(
                                                 (meeting) => (
                                                     <tr
                                                         key={meeting.id}
-                                                        className="transition-colors hover:bg-muted/20"
+                                                        className={cn(
+                                                            stackedTable.tr,
+                                                            'align-top',
+                                                        )}
                                                     >
-                                                        <td className="px-5 py-3.5 align-top">
-                                                            <p className="max-w-[200px] min-w-[140px] text-xs leading-snug font-medium">
+                                                        <td
+                                                            className={
+                                                                stackedTable.tdPlain
+                                                            }
+                                                        >
+                                                            <p className="min-w-40 text-sm leading-snug font-medium text-pretty">
                                                                 {meeting.topic}
                                                             </p>
                                                             {meeting.createdByLecturer && (
@@ -790,62 +840,104 @@ export default function JadwalBimbinganPage() {
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-top">
-                                                            <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                        <td
+                                                            className={
+                                                                stackedTable.td
+                                                            }
+                                                            data-label="Dosen"
+                                                        >
+                                                            <p className="text-sm">
                                                                 {
                                                                     meeting.lecturer
                                                                 }
                                                             </p>
-                                                            <RelationTypeBadge
-                                                                relationType={
-                                                                    meeting.relationType
-                                                                }
-                                                            />
+                                                            <div className="mt-1">
+                                                                <RelationTypeBadge
+                                                                    relationType={
+                                                                        meeting.relationType
+                                                                    }
+                                                                />
+                                                            </div>
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-top text-xs whitespace-nowrap text-muted-foreground">
+                                                        <td
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-sm md:whitespace-nowrap',
+                                                            )}
+                                                            data-label="Waktu preferensi"
+                                                        >
                                                             {formatDate(
                                                                 meeting.requestedAt,
                                                             )}
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-top">
+                                                        <td
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-sm',
+                                                            )}
+                                                            data-label="Waktu terkonfirmasi"
+                                                        >
                                                             {meeting.scheduledAt ? (
-                                                                <span className="text-xs whitespace-nowrap text-muted-foreground">
+                                                                <span className="md:whitespace-nowrap">
                                                                     {formatDate(
                                                                         meeting.scheduledAt,
                                                                     )}
                                                                 </span>
                                                             ) : (
-                                                                <span className="inline-flex items-center gap-1 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
-                                                                    <Clock className="size-3 shrink-0" />
+                                                                <span className="inline-flex items-center gap-1 text-warning-muted-foreground">
+                                                                    <Clock
+                                                                        aria-hidden="true"
+                                                                        className="size-3.5 shrink-0"
+                                                                    />
                                                                     Menunggu
                                                                     konfirmasi
                                                                 </span>
                                                             )}
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-top">
-                                                            <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                                                                <MapPin className="size-3 shrink-0" />
+                                                        <td
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-sm',
+                                                            )}
+                                                            data-label="Lokasi"
+                                                        >
+                                                            <span className="inline-flex items-start gap-1.5">
+                                                                <MapPin
+                                                                    aria-hidden="true"
+                                                                    className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                                                                />
                                                                 {
                                                                     meeting.location
                                                                 }
                                                             </span>
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-top">
-                                                            <StatusBadge
+                                                        <td
+                                                            className={
+                                                                stackedTable.td
+                                                            }
+                                                            data-label="Status"
+                                                        >
+                                                            <ScheduleStatusBadge
                                                                 status={
                                                                     meeting.status
                                                                 }
                                                             />
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-top">
+                                                        <td
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-sm',
+                                                            )}
+                                                            data-label="Catatan dosen"
+                                                        >
                                                             {meeting.lecturerNote ? (
-                                                                <p className="max-w-[240px] min-w-[160px] text-xs leading-relaxed text-muted-foreground">
+                                                                <p className="min-w-40 text-pretty">
                                                                     {
                                                                         meeting.lecturerNote
                                                                     }
                                                                 </p>
                                                             ) : (
-                                                                <span className="text-xs text-muted-foreground/40 italic">
+                                                                <span className="text-muted-foreground">
                                                                     —
                                                                 </span>
                                                             )}
@@ -863,56 +955,25 @@ export default function JadwalBimbinganPage() {
                                     description="Ajukan jadwal baru untuk mulai sesi bimbingan berikutnya."
                                 />
                             )}
-                        </section>
+                        </DataSection>
 
-                        {/* History — search + table + pagination */}
-                        <section>
-                            <div className="mb-3">
-                                <h2 className="text-base font-semibold">
-                                    Riwayat Bimbingan
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Sesi bimbingan yang sudah selesai atau
-                                    ditutup
-                                </p>
-                            </div>
-
-                            <StickyFilterBar className="mb-3">
-                                <DataTableToolbar
-                                    search={historySearch}
-                                    onSearchChange={setHistorySearch}
-                                    searchPlaceholder="Cari topik, dosen, atau lokasi..."
-                                    filterGroups={[
-                                        {
-                                            value: historyStatusFilter,
-                                            onChange: (v) =>
-                                                setHistoryStatusFilter(
-                                                    v as
-                                                        | 'semua'
-                                                        | ScheduleStatus,
-                                                ),
-                                            tabs: [
-                                                {
-                                                    label: 'Semua',
-                                                    value: 'semua',
-                                                },
-                                                {
-                                                    label: 'Selesai',
-                                                    value: 'completed',
-                                                },
-                                                {
-                                                    label: 'Ditolak',
-                                                    value: 'rejected',
-                                                },
-                                                {
-                                                    label: 'Dibatalkan',
-                                                    value: 'cancelled',
-                                                },
-                                            ],
-                                        },
-                                    ]}
-                                />
-                            </StickyFilterBar>
+                        {/* History */}
+                        <DataSection
+                            title="Riwayat Bimbingan"
+                            summary={`${filteredHistory.length} riwayat selesai atau ditutup`}
+                        >
+                            <DataToolbar
+                                search={historySearch}
+                                onSearchChange={setHistorySearch}
+                                placeholder="Cari topik, dosen, atau lokasi..."
+                            />
+                            <FilterPills
+                                label="Filter status riwayat"
+                                value={historyStatusFilter}
+                                onValueChange={setHistoryStatusFilter}
+                                options={historyFilterOptions}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                            />
 
                             {historyPagination.totalItems > 0 ? (
                                 <DataTableContainer
@@ -938,35 +999,52 @@ export default function JadwalBimbinganPage() {
                                         />
                                     }
                                 >
-                                    <table className="w-full min-w-[600px] text-left text-sm">
-                                        <thead className="border-b bg-muted/30">
-                                            <tr>
-                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                    <table
+                                        className={cn(
+                                            stackedTable.table,
+                                            'md:min-w-[760px]',
+                                        )}
+                                    >
+                                        <thead className={stackedTable.thead}>
+                                            <tr className="border-b bg-muted/40">
+                                                <th className={dataTh}>
                                                     Topik
                                                 </th>
-                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Dosen
                                                 </th>
-                                                <th className="px-5 py-3 text-xs font-medium whitespace-nowrap text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Waktu
                                                 </th>
-                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Lokasi
                                                 </th>
-                                                <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Status
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y bg-card">
+                                        <tbody
+                                            className={cn(
+                                                stackedTable.tbody,
+                                                'md:divide-y',
+                                            )}
+                                        >
                                             {historyPagination.paginated.map(
                                                 (row) => (
                                                     <tr
                                                         key={row.id}
-                                                        className="transition-colors hover:bg-muted/20"
+                                                        className={cn(
+                                                            stackedTable.tr,
+                                                            'align-top',
+                                                        )}
                                                     >
-                                                        <td className="px-5 py-3.5 align-middle">
-                                                            <p className="max-w-[180px] truncate text-sm font-medium">
+                                                        <td
+                                                            className={
+                                                                stackedTable.tdPlain
+                                                            }
+                                                        >
+                                                            <p className="min-w-40 text-sm leading-snug font-medium text-pretty">
                                                                 {row.topic}
                                                             </p>
                                                             {row.createdByLecturer && (
@@ -975,36 +1053,63 @@ export default function JadwalBimbinganPage() {
                                                                 </div>
                                                             )}
                                                             {row.lecturerNote && (
-                                                                <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground italic opacity-70">
+                                                                <p className="mt-1 line-clamp-2 text-xs text-pretty text-muted-foreground">
                                                                     {
                                                                         row.lecturerNote
                                                                     }
                                                                 </p>
                                                             )}
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-middle">
-                                                            <p className="text-xs whitespace-nowrap text-muted-foreground">
+                                                        <td
+                                                            className={
+                                                                stackedTable.td
+                                                            }
+                                                            data-label="Dosen"
+                                                        >
+                                                            <p className="text-sm">
                                                                 {row.lecturer}
                                                             </p>
-                                                            <RelationTypeBadge
-                                                                relationType={
-                                                                    row.relationType
-                                                                }
-                                                            />
+                                                            <div className="mt-1">
+                                                                <RelationTypeBadge
+                                                                    relationType={
+                                                                        row.relationType
+                                                                    }
+                                                                />
+                                                            </div>
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
+                                                        <td
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-sm md:whitespace-nowrap',
+                                                            )}
+                                                            data-label="Waktu"
+                                                        >
                                                             {formatDate(
                                                                 row.scheduledAt,
                                                             )}
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-middle">
-                                                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                                <MapPin className="size-3 shrink-0" />
+                                                        <td
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-sm',
+                                                            )}
+                                                            data-label="Lokasi"
+                                                        >
+                                                            <span className="inline-flex items-start gap-1.5">
+                                                                <MapPin
+                                                                    aria-hidden="true"
+                                                                    className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                                                                />
                                                                 {row.location}
                                                             </span>
                                                         </td>
-                                                        <td className="px-5 py-3.5 align-middle">
-                                                            <StatusBadge
+                                                        <td
+                                                            className={
+                                                                stackedTable.td
+                                                            }
+                                                            data-label="Status"
+                                                        >
+                                                            <ScheduleStatusBadge
                                                                 status={
                                                                     row.status
                                                                 }
@@ -1020,20 +1125,18 @@ export default function JadwalBimbinganPage() {
                                 <DataTableEmptyState
                                     icon={Calendar}
                                     title={
-                                        historySearch ||
-                                        historyStatusFilter !== 'semua'
+                                        hasHistoryFilter
                                             ? 'Tidak ada riwayat yang cocok'
                                             : 'Belum ada riwayat bimbingan'
                                     }
                                     description={
-                                        historySearch ||
-                                        historyStatusFilter !== 'semua'
+                                        hasHistoryFilter
                                             ? 'Coba ubah kata kunci atau filter yang dipilih.'
                                             : 'Riwayat akan muncul setelah sesi pertama selesai.'
                                     }
                                 />
                             )}
-                        </section>
+                        </DataSection>
                     </>
                 )}
             </div>
