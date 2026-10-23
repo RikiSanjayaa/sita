@@ -412,11 +412,12 @@ test.describe('Bimbingan and chat integration', () => {
             await dosenPage.goto('/dosen/jadwal-bimbingan');
 
             const requestCard = dosenPage
-                .locator('div.rounded-xl.border.bg-card.p-5.shadow-sm')
-                .filter({ hasText: topic })
-                .first();
+                .getByRole('list', { name: 'Permintaan menunggu konfirmasi' })
+                .getByRole('listitem')
+                .filter({ hasText: topic });
 
             await expect(requestCard).toBeVisible();
+            await requestCard.getByRole('button', { name: 'Tanggapi' }).click();
             await requestCard
                 .locator('textarea[id^="note-"]')
                 .fill(lecturerFeedback);
@@ -827,10 +828,11 @@ test.describe('Bimbingan and chat integration', () => {
             await dosenPage.goto('/dosen/jadwal-bimbingan');
 
             const requestCard = dosenPage
-                .locator('div.rounded-xl.border.bg-card.p-5.shadow-sm')
-                .filter({ hasText: topic })
-                .first();
+                .getByRole('list', { name: 'Permintaan menunggu konfirmasi' })
+                .getByRole('listitem')
+                .filter({ hasText: topic });
             await expect(requestCard).toBeVisible();
+            await requestCard.getByRole('button', { name: 'Tanggapi' }).click();
             await requestCard
                 .locator('textarea[id^="note-"]')
                 .fill(rejectionNote);
@@ -895,13 +897,14 @@ test.describe('Bimbingan and chat integration', () => {
             await dosenPage.goto('/dosen/jadwal-bimbingan');
 
             const recurringCard = dosenPage
-                .getByText(topic, { exact: true })
-                .locator('..')
-                .filter({
-                    has: dosenPage.locator('input[id^="recurring-location-"]'),
-                });
+                .getByRole('list', { name: 'Permintaan menunggu konfirmasi' })
+                .getByRole('listitem')
+                .filter({ hasText: topic });
             await expect(recurringCard).toBeVisible();
             await expect(recurringCard).toContainText('3 Pertemuan');
+            await recurringCard
+                .getByRole('button', { name: 'Tanggapi' })
+                .click();
             await recurringCard
                 .locator('input[id^="recurring-location-"]')
                 .fill(location);
@@ -961,7 +964,7 @@ test.describe('Bimbingan and chat integration', () => {
                 .getByPlaceholder('Cari nama atau NIM...')
                 .fill(thesisScenarios.activeResearch.studentName);
             await activeSection
-                .getByRole('button', { name: 'Pembimbing 1' })
+                .getByRole('radio', { name: /^Pembimbing 1/ })
                 .click();
 
             const activeStudentRow = activeSection

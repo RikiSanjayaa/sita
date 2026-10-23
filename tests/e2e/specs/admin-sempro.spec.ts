@@ -24,7 +24,7 @@ function defenseRow(page: Page, studentName: string, attemptLabel?: string) {
 async function openDefenseList(page: Page, studentName: string): Promise<void> {
     await page.goto('/dosen/seminar-proposal');
     await page
-        .getByRole('button', { name: 'Sempro / Sinopsis', exact: true })
+        .getByRole('radio', { name: 'Sempro / Sinopsis', exact: true })
         .click();
 
     const searchInput = page.getByPlaceholder(/cari nama/i);

@@ -20,13 +20,13 @@ import {
     sortThreads,
     syncThreadSearchParam,
 } from '@/components/chat/utils';
+import { FilterPills } from '@/components/patterns/filter-pills';
 import { MentorshipChatFrame } from '@/components/mentorship-chat-layout';
 import { type PrivateRecipientOption } from '@/components/private-recipient-combobox';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
-import { cn } from '@/lib/utils';
 
 import {
     type BreadcrumbItem,
@@ -103,11 +103,11 @@ function getVisibleThreads(
 
 function threadBadgeClassName(thread: ThreadItem): string {
     if (thread.threadType === 'pembimbing') {
-        return 'bg-primary/10 text-primary hover:bg-primary/20';
+        return 'bg-primary-muted text-primary-muted-foreground hover:bg-primary-muted/70';
     }
 
     return thread.threadType === 'private'
-        ? 'bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20 dark:text-emerald-400'
+        ? 'bg-success-muted text-success-muted-foreground hover:bg-success-muted/70'
         : 'bg-muted text-muted-foreground hover:bg-muted/80';
 }
 
@@ -262,6 +262,7 @@ function DosenPesanBimbinganContent({
         >
             <Head title="Pesan Dosen" />
 
+            <h1 className="sr-only">Pesan</h1>
             <MentorshipChatFrame isMobile={isMobile}>
                 <ThreadList
                     activeThreadId={activeThread?.id ?? null}
@@ -281,27 +282,13 @@ function DosenPesanBimbinganContent({
                     }
                     groupExtra={
                         isGroupFilterOpen ? (
-                            <div className="flex flex-wrap gap-1">
-                                {groupThreadFilterTabs.map((filter) => (
-                                    <button
-                                        key={filter.value}
-                                        type="button"
-                                        onClick={() =>
-                                            handleGroupThreadFilterChange(
-                                                filter.value,
-                                            )
-                                        }
-                                        className={cn(
-                                            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                            groupThreadFilter === filter.value
-                                                ? 'bg-primary/10 text-primary'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                        )}
-                                    >
-                                        {filter.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <FilterPills
+                                label="Filter jenis grup"
+                                value={groupThreadFilter}
+                                onValueChange={handleGroupThreadFilterChange}
+                                options={groupThreadFilterTabs}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                            />
                         ) : null
                     }
                     groupFilterToggle={() =>

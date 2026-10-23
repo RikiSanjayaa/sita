@@ -101,7 +101,7 @@ async function sidangAssignmentRow(
 ): Promise<ReturnType<typeof defenseRow>> {
     await page.goto('/dosen/seminar-proposal');
     await page
-        .getByRole('button', { name: 'Sidang Akhir', exact: true })
+        .getByRole('radio', { name: 'Sidang Akhir', exact: true })
         .click();
     await page.getByPlaceholder(/cari nama/i).fill(studentName);
 
@@ -122,7 +122,7 @@ async function openThreadList(
     const searchInput = page.getByPlaceholder('Cari grup...');
     await searchInput.fill(studentName);
     await searchInput.locator('..').locator('..').getByRole('button').click();
-    await page.getByRole('button', { name: filterLabel, exact: true }).click();
+    await page.getByRole('radio', { name: filterLabel, exact: true }).click();
 
     return page
         .locator('button')

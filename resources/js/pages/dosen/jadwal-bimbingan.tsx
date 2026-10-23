@@ -3,8 +3,6 @@ import {
     CalendarClock,
     CalendarPlus,
     CheckCircle2,
-    ChevronRight,
-    Clock,
     Inbox,
     MapPin,
     Repeat,
@@ -18,18 +16,23 @@ import {
     DosenScheduleCreateDialog,
     type SupervisedStudent,
 } from '@/components/dosen-schedule-create-dialog';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
 import { EmptyState } from '@/components/patterns/empty-state';
-import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
-    type FilterGroup,
     usePagination,
 } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
@@ -122,70 +125,60 @@ type ScheduleModalStatus =
     | 'completed'
     | 'cancelled';
 
-function StatusBadge({ status }: { status: string }) {
-    const s = status.toLowerCase();
-    if (s === 'approved' || s === 'rescheduled') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="size-3" /> Terjadwal
-            </span>
-        );
-    }
-    if (s === 'completed') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-                <CheckCircle2 className="size-3" /> Selesai
-            </span>
-        );
-    }
-    if (s === 'pending') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                <Clock className="size-3" /> Menunggu
-            </span>
-        );
-    }
-    if (s === 'rejected') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
-                <XCircle className="size-3" /> Ditolak
-            </span>
-        );
-    }
+const scheduleStatusLabels: Record<string, string> = {
+    approved: 'Terjadwal',
+    rescheduled: 'Terjadwal',
+    completed: 'Selesai',
+    pending: 'Menunggu',
+    rejected: 'Ditolak',
+};
+
+function ScheduleStatusBadge({ status }: { status: string }) {
+    const key = status.toLowerCase();
+
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            <XCircle className="size-3" /> Dibatalkan
-        </span>
+        <StatusBadge
+            domain="schedule"
+            status={key === 'rescheduled' ? 'approved' : key}
+        >
+            {scheduleStatusLabels[key] ?? 'Dibatalkan'}
+        </StatusBadge>
     );
 }
 
-function RelationTypeBadge({
-    relationType,
-}: {
-    relationType: 'pembimbing' | 'penguji';
-}) {
-    if (relationType === 'penguji') {
-        return (
-            <Badge
-                variant="outline"
-                className="gap-1 rounded-full border-purple-500/50 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-400"
-            >
-                Sebagai Penguji
-            </Badge>
-        );
-    }
-    return (
-        <Badge
-            variant="outline"
-            className="gap-1 rounded-full border-cyan-500/50 bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 dark:text-cyan-400"
-        >
-            Sebagai Pembimbing
-        </Badge>
-    );
+function relationLabel(relationType: 'pembimbing' | 'penguji'): string {
+    return relationType === 'penguji'
+        ? 'Sebagai Penguji'
+        : 'Sebagai Pembimbing';
+}
+
+function defaultDecision(item: PendingRequest): DecisionFormState {
+    return {
+        scheduled_for: item.requestedForInput ?? '',
+        location: item.location ?? 'Google Meet',
+        lecturer_note: '',
+    };
+}
+
+function defaultRecurring(items: PendingRequest[]): {
+    location: string;
+    lecturer_note: string;
+} {
+    return {
+        location: items[0]?.location ?? 'Google Meet',
+        lecturer_note: '',
+    };
 }
 
 type WorkspaceFilter = 'bimbingan' | 'ujian' | 'semua';
 type HistoryFilter = 'semua' | 'completed' | 'rejected' | 'cancelled';
+
+const historyFilterOptions: { label: string; value: HistoryFilter }[] = [
+    { label: 'Semua', value: 'semua' },
+    { label: 'Selesai', value: 'completed' },
+    { label: 'Ditolak', value: 'rejected' },
+    { label: 'Dibatalkan', value: 'cancelled' },
+];
 
 export default function DosenJadwalBimbinganPage() {
     const {
@@ -214,6 +207,8 @@ export default function DosenJadwalBimbinganPage() {
     const HISTORY_PAGE_SIZE = 15;
     const upcomingPageState = useUrlState('upcomingPage', 1);
     const UPCOMING_PAGE_SIZE = 15;
+    const [upcomingSearch, setUpcomingSearch] = useState('');
+    const [openRequestKey, setOpenRequestKey] = useState<string | null>(null);
 
     // Sheet state for upcoming schedule actions
     const [selectedUpcoming, setSelectedUpcoming] =
@@ -281,16 +276,37 @@ export default function DosenJadwalBimbinganPage() {
         };
     }, [auth.user?.id]);
 
+    function updateDecision(
+        item: PendingRequest,
+        patch: Partial<DecisionFormState>,
+    ) {
+        setDecisionFormById((c) => ({
+            ...c,
+            [item.id]: { ...defaultDecision(item), ...c[item.id], ...patch },
+        }));
+    }
+
+    function updateRecurring(
+        groupId: string,
+        items: PendingRequest[],
+        patch: Partial<{ location: string; lecturer_note: string }>,
+    ) {
+        setRecurringFormById((c) => ({
+            ...c,
+            [groupId]: {
+                ...defaultRecurring(items),
+                ...c[groupId],
+                ...patch,
+            },
+        }));
+    }
+
     function decide(
         scheduleId: number,
         decision: 'approve' | 'reject' | 'reschedule' | 'complete' | 'cancel',
         item: PendingRequest,
     ) {
-        const input = decisionFormById[scheduleId] ?? {
-            scheduled_for: item.requestedForInput ?? '',
-            location: item.location ?? 'Google Meet',
-            lecturer_note: '',
-        };
+        const input = decisionFormById[scheduleId] ?? defaultDecision(item);
 
         const nextErrors: DecisionFormErrors = {};
         if (
@@ -381,10 +397,7 @@ export default function DosenJadwalBimbinganPage() {
         decision: 'approve' | 'reject',
         items: PendingRequest[],
     ) {
-        const input = recurringFormById[groupId] ?? {
-            location: items[0]?.location ?? 'Google Meet',
-            lecturer_note: '',
-        };
+        const input = recurringFormById[groupId] ?? defaultRecurring(items);
         if (input.lecturer_note.trim() === '') {
             setRecurringErrorsById((c) => ({
                 ...c,
@@ -504,6 +517,17 @@ export default function DosenJadwalBimbinganPage() {
         });
     }, [historySchedules, historyFilter, historySearch]);
 
+    const filteredUpcomingSchedules = useMemo(() => {
+        const q = upcomingSearch.trim().toLowerCase();
+        if (!q) return upcomingSchedules;
+        return upcomingSchedules.filter(
+            (i) =>
+                i.mahasiswa.toLowerCase().includes(q) ||
+                i.topic.toLowerCase().includes(q) ||
+                i.location.toLowerCase().includes(q),
+        );
+    }, [upcomingSchedules, upcomingSearch]);
+
     const historyPagination = usePagination(
         filteredHistorySchedules,
         HISTORY_PAGE_SIZE,
@@ -511,9 +535,9 @@ export default function DosenJadwalBimbinganPage() {
         historyPageState,
     );
     const upcomingPagination = usePagination(
-        upcomingSchedules,
+        filteredUpcomingSchedules,
         UPCOMING_PAGE_SIZE,
-        [upcomingSchedules.length],
+        [upcomingSchedules.length, upcomingSearch],
         upcomingPageState,
     );
 
@@ -563,24 +587,15 @@ export default function DosenJadwalBimbinganPage() {
         setIsDetailModalOpen(true);
     }
 
-    const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
-        { label: 'Bimbingan', value: 'bimbingan' },
-        { label: `${n.proposalExamShort} / ${n.finalExam}`, value: 'ujian' },
-        { label: 'Semua', value: 'semua' },
-    ];
-
-    const historyFilterGroups: FilterGroup[] = [
-        {
-            value: historyFilter,
-            onChange: (v) => setHistoryFilter(v as HistoryFilter),
-            tabs: [
-                { label: 'Semua', value: 'semua' },
-                { label: 'Selesai', value: 'completed' },
-                { label: 'Ditolak', value: 'rejected' },
-                { label: 'Dibatalkan', value: 'cancelled' },
-            ],
-        },
-    ];
+    const workspaceFilterOptions: { label: string; value: WorkspaceFilter }[] =
+        [
+            { label: 'Bimbingan', value: 'bimbingan' },
+            {
+                label: `${n.proposalExamShort} / ${n.finalExam}`,
+                value: 'ujian',
+            },
+            { label: 'Semua', value: 'semua' },
+        ];
 
     return (
         <DosenLayout
@@ -590,26 +605,30 @@ export default function DosenJadwalBimbinganPage() {
         >
             <Head title="Jadwal Bimbingan Dosen" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
-                {/* Flash */}
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title="Jadwal Bimbingan"
+                    description="Kelola permintaan jadwal dan agenda bimbingan"
+                    actions={
+                        <Button
+                            type="button"
+                            className="max-md:h-11 max-md:w-full"
+                            onClick={() => setIsCreateOpen(true)}
+                            disabled={supervisedStudents.length === 0}
+                        >
+                            <CalendarPlus className="size-4" />
+                            Buat Jadwal
+                        </Button>
+                    }
+                />
+
                 {flashMessage && (
                     <Alert>
                         <AlertTitle>Berhasil</AlertTitle>
                         <AlertDescription>{flashMessage}</AlertDescription>
                     </Alert>
                 )}
-                <div className="flex justify-end">
-                    <Button
-                        type="button"
-                        onClick={() => setIsCreateOpen(true)}
-                        disabled={supervisedStudents.length === 0}
-                    >
-                        <CalendarPlus className="size-4" />
-                        Buat Jadwal
-                    </Button>
-                </div>
 
-                {/* ---------------- WORKSPACE CALENDAR ---------------- */}
                 <CollapsibleCalendarSection
                     storageKey="dosen-jadwal-bimbingan"
                     title="Workspace Jadwal"
@@ -620,25 +639,13 @@ export default function DosenJadwalBimbinganPage() {
                         </>
                     }
                     toolbar={
-                        <div className="flex flex-wrap gap-1.5">
-                            {workspaceFilterTabs.map((tab) => (
-                                <button
-                                    key={tab.value}
-                                    type="button"
-                                    onClick={() =>
-                                        setWorkspaceFilter(tab.value)
-                                    }
-                                    className={cn(
-                                        'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                        workspaceFilter === tab.value
-                                            ? 'bg-primary text-primary-foreground shadow-sm'
-                                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                    )}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
+                        <FilterPills
+                            label="Jenis agenda kalender"
+                            value={workspaceFilter}
+                            onValueChange={setWorkspaceFilter}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                            options={workspaceFilterOptions}
+                        />
                     }
                     events={filteredWorkspaceEvents}
                     onEventClick={handleEventClick}
@@ -646,89 +653,97 @@ export default function DosenJadwalBimbinganPage() {
                     showLegend={false}
                 />
 
-                {/* ---------------- TWO-COLUMN: PENDING + UPCOMING ---------------- */}
-                <div className="grid gap-8 lg:grid-cols-2">
-                    {/* --- Permintaan Pending --- */}
-                    <section>
-                        <div className="mb-3 flex items-center justify-between">
-                            <div>
-                                <h2 className="text-base font-semibold">
-                                    Permintaan Menunggu Konfirmasi
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Konfirmasi, jadwalkan ulang, atau tolak
-                                    permintaan
-                                </p>
-                            </div>
-                            {pendingRequests.length > 0 && (
-                                <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-600/10 text-xs font-bold text-amber-700">
-                                    {pendingRequests.length}
-                                </span>
-                            )}
-                        </div>
+                <DataSection
+                    title="Permintaan Menunggu Konfirmasi"
+                    summary={
+                        pendingRequests.length > 0
+                            ? `${pendingRequests.length} permintaan`
+                            : undefined
+                    }
+                >
+                    {pendingRequests.length > 0 ? (
+                        <ul
+                            aria-label="Permintaan menunggu konfirmasi"
+                            className="divide-y overflow-hidden rounded-xl border bg-card"
+                        >
+                            {Object.entries(groupedPendingRequests).map(
+                                ([groupKey, group]) => {
+                                    const firstItem = group.items[0];
+                                    const isOpen = openRequestKey === groupKey;
+                                    const formId = `request-form-${groupKey}`;
+                                    const recurringInput =
+                                        recurringFormById[groupKey] ??
+                                        defaultRecurring(group.items);
+                                    const decisionInput =
+                                        decisionFormById[firstItem.id] ??
+                                        defaultDecision(firstItem);
+                                    const decisionErrors =
+                                        decisionErrorsById[firstItem.id];
 
-                        {pendingRequests.length > 0 ? (
-                            <div className="flex flex-col gap-4">
-                                {Object.entries(groupedPendingRequests).map(
-                                    ([groupKey, group]) => {
-                                        const firstItem = group.items[0];
-
-                                        if (group.isRecurringGroup) {
-                                            return (
-                                                <div
-                                                    key={groupKey}
-                                                    className="rounded-xl border bg-card p-5 shadow-sm"
-                                                >
-                                                    {/* Header */}
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <p className="text-sm font-semibold">
+                                    return (
+                                        <li
+                                            key={groupKey}
+                                            className="p-4 md:px-5"
+                                        >
+                                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
+                                                <div className="min-w-0 space-y-1">
+                                                    <p className="flex flex-wrap items-baseline gap-x-2">
+                                                        <span className="text-base font-semibold">
                                                             {
                                                                 firstItem.mahasiswa
                                                             }
-                                                        </p>
-                                                        <Badge
-                                                            variant="soft"
-                                                            className="gap-1 rounded-full bg-blue-600/10 text-blue-600"
-                                                        >
-                                                            <Repeat className="size-3" />
-                                                            {group.items.length}{' '}
-                                                            Pertemuan
-                                                        </Badge>
-                                                        <RelationTypeBadge
-                                                            relationType={
-                                                                firstItem.relationType
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        </span>
+                                                        <span className="text-sm text-muted-foreground">
+                                                            {relationLabel(
+                                                                firstItem.relationType,
+                                                            )}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-sm text-pretty">
                                                         {firstItem.topic}
                                                     </p>
-
-                                                    {/* Schedule list */}
-                                                    <div className="mt-3 rounded-lg border bg-muted/30 p-3">
-                                                        <p className="mb-1.5 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-                                                            Jadwal diajukan
-                                                        </p>
-                                                        <div className="space-y-1">
-                                                            {group.items.map(
-                                                                (item) => (
-                                                                    <p
-                                                                        key={
-                                                                            item.id
-                                                                        }
-                                                                        className="text-xs"
-                                                                    >
-                                                                        {formatDateInIndonesian(
-                                                                            item.requestedAt,
-                                                                        )}
-                                                                    </p>
-                                                                ),
+                                                    {group.isRecurringGroup ? (
+                                                        <>
+                                                            <p className="flex items-center gap-1.5 pt-1 text-sm font-medium">
+                                                                <Repeat
+                                                                    aria-hidden="true"
+                                                                    className="size-3.5 shrink-0"
+                                                                />
+                                                                {
+                                                                    group.items
+                                                                        .length
+                                                                }{' '}
+                                                                Pertemuan
+                                                            </p>
+                                                            <ul className="space-y-0.5 text-sm text-muted-foreground tabular-nums">
+                                                                {group.items.map(
+                                                                    (item) => (
+                                                                        <li
+                                                                            key={
+                                                                                item.id
+                                                                            }
+                                                                        >
+                                                                            {formatDateInIndonesian(
+                                                                                item.requestedAt,
+                                                                            )}
+                                                                        </li>
+                                                                    ),
+                                                                )}
+                                                            </ul>
+                                                        </>
+                                                    ) : (
+                                                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums">
+                                                            <CalendarClock
+                                                                aria-hidden="true"
+                                                                className="size-3.5 shrink-0"
+                                                            />
+                                                            {formatDateInIndonesian(
+                                                                firstItem.requestedAt,
                                                             )}
-                                                        </div>
-                                                    </div>
-
+                                                        </p>
+                                                    )}
                                                     {firstItem.studentNote && (
-                                                        <div className="mt-3 rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                                                        <p className="pt-1 text-sm text-pretty text-muted-foreground">
                                                             <span className="font-medium text-foreground">
                                                                 Catatan
                                                                 mahasiswa:{' '}
@@ -736,12 +751,35 @@ export default function DosenJadwalBimbinganPage() {
                                                             {
                                                                 firstItem.studentNote
                                                             }
-                                                        </div>
+                                                        </p>
                                                     )}
+                                                </div>
+                                                {!isOpen && (
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="shrink-0 max-md:h-11 max-md:w-full"
+                                                        aria-expanded={false}
+                                                        aria-controls={formId}
+                                                        onClick={() =>
+                                                            setOpenRequestKey(
+                                                                groupKey,
+                                                            )
+                                                        }
+                                                    >
+                                                        Tanggapi
+                                                    </Button>
+                                                )}
+                                            </div>
 
-                                                    {/* Decision form */}
-                                                    <div className="mt-4 grid gap-2.5">
-                                                        <div className="grid gap-1">
+                                            {isOpen &&
+                                                group.isRecurringGroup && (
+                                                    <div
+                                                        id={formId}
+                                                        className="mt-4 grid max-w-2xl gap-3"
+                                                    >
+                                                        <div className="grid gap-1.5">
                                                             <Label
                                                                 htmlFor={`recurring-location-${groupKey}`}
                                                             >
@@ -750,39 +788,25 @@ export default function DosenJadwalBimbinganPage() {
                                                             </Label>
                                                             <Input
                                                                 id={`recurring-location-${groupKey}`}
+                                                                className="max-md:h-11"
                                                                 value={
-                                                                    recurringFormById[
-                                                                        groupKey
-                                                                    ]
-                                                                        ?.location ??
-                                                                    firstItem.location ??
-                                                                    'Google Meet'
+                                                                    recurringInput.location
                                                                 }
                                                                 onChange={(e) =>
-                                                                    setRecurringFormById(
-                                                                        (
-                                                                            c,
-                                                                        ) => ({
-                                                                            ...c,
-                                                                            [groupKey]:
-                                                                                {
-                                                                                    location:
-                                                                                        e
-                                                                                            .target
-                                                                                            .value,
-                                                                                    lecturer_note:
-                                                                                        c[
-                                                                                            groupKey
-                                                                                        ]
-                                                                                            ?.lecturer_note ??
-                                                                                        '',
-                                                                                },
-                                                                        }),
+                                                                    updateRecurring(
+                                                                        groupKey,
+                                                                        group.items,
+                                                                        {
+                                                                            location:
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
                                                                     )
                                                                 }
                                                             />
                                                         </div>
-                                                        <div className="grid gap-1">
+                                                        <div className="grid gap-1.5">
                                                             <Label
                                                                 htmlFor={`recurring-note-${groupKey}`}
                                                             >
@@ -792,35 +816,20 @@ export default function DosenJadwalBimbinganPage() {
                                                             <Textarea
                                                                 id={`recurring-note-${groupKey}`}
                                                                 value={
-                                                                    recurringFormById[
-                                                                        groupKey
-                                                                    ]
-                                                                        ?.lecturer_note ??
-                                                                    ''
+                                                                    recurringInput.lecturer_note
                                                                 }
                                                                 onChange={(
                                                                     e,
                                                                 ) => {
-                                                                    setRecurringFormById(
-                                                                        (
-                                                                            c,
-                                                                        ) => ({
-                                                                            ...c,
-                                                                            [groupKey]:
-                                                                                {
-                                                                                    location:
-                                                                                        c[
-                                                                                            groupKey
-                                                                                        ]
-                                                                                            ?.location ??
-                                                                                        firstItem.location ??
-                                                                                        'Google Meet',
-                                                                                    lecturer_note:
-                                                                                        e
-                                                                                            .target
-                                                                                            .value,
-                                                                                },
-                                                                        }),
+                                                                    updateRecurring(
+                                                                        groupKey,
+                                                                        group.items,
+                                                                        {
+                                                                            lecturer_note:
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
                                                                     );
                                                                     setRecurringErrorsById(
                                                                         (
@@ -842,7 +851,7 @@ export default function DosenJadwalBimbinganPage() {
                                                                 groupKey
                                                             ]
                                                                 ?.lecturer_note && (
-                                                                <p className="text-xs text-destructive">
+                                                                <p className="text-sm text-destructive">
                                                                     {
                                                                         recurringErrorsById[
                                                                             groupKey
@@ -852,11 +861,25 @@ export default function DosenJadwalBimbinganPage() {
                                                                 </p>
                                                             )}
                                                         </div>
-                                                        <div className="flex flex-wrap gap-2 pt-1">
+                                                        <div className="flex flex-wrap gap-2">
                                                             <Button
+                                                                type="button"
                                                                 size="sm"
-                                                                variant="soft"
-                                                                className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 sm:flex-none"
+                                                                variant="ghost"
+                                                                className="max-md:h-11 max-md:flex-1"
+                                                                onClick={() =>
+                                                                    setOpenRequestKey(
+                                                                        null,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Batal
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-destructive hover:text-destructive max-md:h-11 max-md:flex-1"
                                                                 disabled={
                                                                     form.processing
                                                                 }
@@ -871,8 +894,9 @@ export default function DosenJadwalBimbinganPage() {
                                                                 Tolak Semua
                                                             </Button>
                                                             <Button
+                                                                type="button"
                                                                 size="sm"
-                                                                className="flex-1 sm:flex-none"
+                                                                className="max-md:h-11 max-md:flex-1"
                                                                 disabled={
                                                                     form.processing
                                                                 }
@@ -888,429 +912,250 @@ export default function DosenJadwalBimbinganPage() {
                                                             </Button>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        }
-
-                                        const item = firstItem;
-                                        return (
-                                            <div
-                                                key={`${item.id}-${item.mahasiswa}`}
-                                                className="rounded-xl border bg-card p-5 shadow-sm"
-                                            >
-                                                {/* Header */}
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <p className="text-sm font-semibold">
-                                                        {item.mahasiswa}
-                                                    </p>
-                                                    <RelationTypeBadge
-                                                        relationType={
-                                                            item.relationType
-                                                        }
-                                                    />
-                                                </div>
-                                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                                    {item.topic}
-                                                </p>
-                                                <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                    <CalendarClock className="size-3.5 shrink-0" />
-                                                    {formatDateInIndonesian(
-                                                        item.requestedAt,
-                                                    )}
-                                                </p>
-
-                                                {item.studentNote && (
-                                                    <div className="mt-3 rounded-md bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
-                                                        <span className="font-medium text-foreground">
-                                                            Catatan
-                                                            mahasiswa:{' '}
-                                                        </span>
-                                                        {item.studentNote}
-                                                    </div>
                                                 )}
 
-                                                {/* Decision form */}
-                                                <div className="mt-4 grid gap-2.5">
-                                                    <div className="grid gap-1">
-                                                        <Label
-                                                            htmlFor={`scheduled-${item.id}`}
-                                                        >
-                                                            Tanggal/Jam
-                                                            Konfirmasi atau
-                                                            Jadwal Ulang
-                                                        </Label>
-                                                        <Input
-                                                            id={`scheduled-${item.id}`}
-                                                            type="datetime-local"
-                                                            value={
-                                                                decisionFormById[
-                                                                    item.id
-                                                                ]
-                                                                    ?.scheduled_for ??
-                                                                item.requestedForInput ??
-                                                                ''
-                                                            }
-                                                            onChange={(e) => {
-                                                                setDecisionFormById(
-                                                                    (c) => ({
-                                                                        ...c,
-                                                                        [item.id]:
+                                            {isOpen &&
+                                                !group.isRecurringGroup && (
+                                                    <div
+                                                        id={formId}
+                                                        className="mt-4 grid max-w-2xl gap-3"
+                                                    >
+                                                        <div className="grid gap-3 md:grid-cols-2">
+                                                            <div className="grid gap-1.5">
+                                                                <Label
+                                                                    htmlFor={`scheduled-${firstItem.id}`}
+                                                                >
+                                                                    Tanggal/Jam
+                                                                    Konfirmasi
+                                                                    atau Jadwal
+                                                                    Ulang
+                                                                </Label>
+                                                                <Input
+                                                                    id={`scheduled-${firstItem.id}`}
+                                                                    type="datetime-local"
+                                                                    className="max-md:h-11"
+                                                                    value={
+                                                                        decisionInput.scheduled_for
+                                                                    }
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) => {
+                                                                        updateDecision(
+                                                                            firstItem,
                                                                             {
                                                                                 scheduled_for:
                                                                                     e
                                                                                         .target
                                                                                         .value,
-                                                                                location:
-                                                                                    c[
-                                                                                        item
-                                                                                            .id
-                                                                                    ]
-                                                                                        ?.location ??
-                                                                                    item.location ??
-                                                                                    'Google Meet',
-                                                                                lecturer_note:
-                                                                                    c[
-                                                                                        item
-                                                                                            .id
-                                                                                    ]
-                                                                                        ?.lecturer_note ??
-                                                                                    '',
                                                                             },
-                                                                    }),
-                                                                );
-                                                                setDecisionErrorsById(
-                                                                    (c) => ({
-                                                                        ...c,
-                                                                        [item.id]:
+                                                                        );
+                                                                        setDecisionErrorsById(
+                                                                            (
+                                                                                c,
+                                                                            ) => ({
+                                                                                ...c,
+                                                                                [firstItem.id]:
+                                                                                    {
+                                                                                        ...c[
+                                                                                            firstItem
+                                                                                                .id
+                                                                                        ],
+                                                                                        scheduled_for:
+                                                                                            undefined,
+                                                                                    },
+                                                                            }),
+                                                                        );
+                                                                    }}
+                                                                />
+                                                                {decisionErrors?.scheduled_for && (
+                                                                    <p className="text-sm text-destructive">
+                                                                        {
+                                                                            decisionErrors.scheduled_for
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <div className="grid gap-1.5">
+                                                                <Label
+                                                                    htmlFor={`location-${firstItem.id}`}
+                                                                >
+                                                                    Lokasi
+                                                                </Label>
+                                                                <Input
+                                                                    id={`location-${firstItem.id}`}
+                                                                    className="max-md:h-11"
+                                                                    value={
+                                                                        decisionInput.location
+                                                                    }
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        updateDecision(
+                                                                            firstItem,
                                                                             {
-                                                                                ...c[
-                                                                                    item
-                                                                                        .id
-                                                                                ],
-                                                                                scheduled_for:
-                                                                                    undefined,
+                                                                                location:
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
                                                                             },
-                                                                    }),
-                                                                );
-                                                            }}
-                                                        />
-                                                        {decisionErrorsById[
-                                                            item.id
-                                                        ]?.scheduled_for && (
-                                                            <p className="text-xs text-destructive">
-                                                                {
-                                                                    decisionErrorsById[
-                                                                        item.id
-                                                                    ]
-                                                                        ?.scheduled_for
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid gap-1.5">
+                                                            <Label
+                                                                htmlFor={`note-${firstItem.id}`}
+                                                            >
+                                                                Feedback ke
+                                                                Mahasiswa
+                                                            </Label>
+                                                            <Textarea
+                                                                id={`note-${firstItem.id}`}
+                                                                value={
+                                                                    decisionInput.lecturer_note
                                                                 }
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <div className="grid gap-1">
-                                                        <Label
-                                                            htmlFor={`location-${item.id}`}
-                                                        >
-                                                            Lokasi
-                                                        </Label>
-                                                        <Input
-                                                            id={`location-${item.id}`}
-                                                            value={
-                                                                decisionFormById[
-                                                                    item.id
-                                                                ]?.location ??
-                                                                item.location ??
-                                                                'Google Meet'
-                                                            }
-                                                            onChange={(e) =>
-                                                                setDecisionFormById(
-                                                                    (c) => ({
-                                                                        ...c,
-                                                                        [item.id]:
-                                                                            {
-                                                                                scheduled_for:
-                                                                                    c[
-                                                                                        item
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    updateDecision(
+                                                                        firstItem,
+                                                                        {
+                                                                            lecturer_note:
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
+                                                                    );
+                                                                    setDecisionErrorsById(
+                                                                        (
+                                                                            c,
+                                                                        ) => ({
+                                                                            ...c,
+                                                                            [firstItem.id]:
+                                                                                {
+                                                                                    ...c[
+                                                                                        firstItem
                                                                                             .id
-                                                                                    ]
-                                                                                        ?.scheduled_for ??
-                                                                                    item.requestedForInput ??
-                                                                                    '',
-                                                                                location:
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                lecturer_note:
-                                                                                    c[
-                                                                                        item
-                                                                                            .id
-                                                                                    ]
-                                                                                        ?.lecturer_note ??
-                                                                                    '',
-                                                                            },
-                                                                    }),
-                                                                )
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <div className="grid gap-1">
-                                                        <Label
-                                                            htmlFor={`note-${item.id}`}
-                                                        >
-                                                            Feedback ke
-                                                            Mahasiswa
-                                                        </Label>
-                                                        <Textarea
-                                                            id={`note-${item.id}`}
-                                                            value={
-                                                                decisionFormById[
-                                                                    item.id
-                                                                ]
-                                                                    ?.lecturer_note ??
-                                                                ''
-                                                            }
-                                                            onChange={(e) => {
-                                                                setDecisionFormById(
-                                                                    (c) => ({
-                                                                        ...c,
-                                                                        [item.id]:
-                                                                            {
-                                                                                scheduled_for:
-                                                                                    c[
-                                                                                        item
-                                                                                            .id
-                                                                                    ]
-                                                                                        ?.scheduled_for ??
-                                                                                    item.requestedForInput ??
-                                                                                    '',
-                                                                                location:
-                                                                                    c[
-                                                                                        item
-                                                                                            .id
-                                                                                    ]
-                                                                                        ?.location ??
-                                                                                    item.location ??
-                                                                                    'Google Meet',
-                                                                                lecturer_note:
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                            },
-                                                                    }),
-                                                                );
-                                                                setDecisionErrorsById(
-                                                                    (c) => ({
-                                                                        ...c,
-                                                                        [item.id]:
-                                                                            {
-                                                                                ...c[
-                                                                                    item
-                                                                                        .id
-                                                                                ],
-                                                                                lecturer_note:
-                                                                                    undefined,
-                                                                            },
-                                                                    }),
-                                                                );
-                                                            }}
-                                                            placeholder="Contoh: Tolong lengkapi data Bab 3 sebelum bimbingan berikutnya."
-                                                            className="min-h-[80px] resize-none"
-                                                        />
-                                                        {decisionErrorsById[
-                                                            item.id
-                                                        ]?.lecturer_note && (
-                                                            <p className="text-xs text-destructive">
-                                                                {
-                                                                    decisionErrorsById[
-                                                                        item.id
-                                                                    ]
-                                                                        ?.lecturer_note
-                                                                }
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2 pt-1">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="soft"
-                                                            className="flex-1 sm:flex-none"
-                                                            disabled={
-                                                                form.processing
-                                                            }
-                                                            onClick={() =>
-                                                                decide(
-                                                                    item.id,
-                                                                    'reschedule',
-                                                                    item,
-                                                                )
-                                                            }
-                                                        >
-                                                            Jadwalkan Ulang
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="soft"
-                                                            className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 sm:flex-none"
-                                                            disabled={
-                                                                form.processing
-                                                            }
-                                                            onClick={() =>
-                                                                decide(
-                                                                    item.id,
-                                                                    'reject',
-                                                                    item,
-                                                                )
-                                                            }
-                                                        >
-                                                            Tolak
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            className="flex-1 sm:flex-none"
-                                                            disabled={
-                                                                form.processing
-                                                            }
-                                                            onClick={() =>
-                                                                decide(
-                                                                    item.id,
-                                                                    'approve',
-                                                                    item,
-                                                                )
-                                                            }
-                                                        >
-                                                            Konfirmasi
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    },
-                                )}
-                            </div>
-                        ) : (
-                            <EmptyState
-                                icon={Inbox}
-                                title="Belum ada permintaan baru"
-                                description="Permintaan bimbingan dari mahasiswa akan tampil di sini."
-                            />
-                        )}
-                    </section>
-
-                    {/* --- Jadwal Mendatang (compact table + sheet) --- */}
-                    <section>
-                        <div className="mb-3 flex items-center justify-between">
-                            <div>
-                                <h2 className="text-base font-semibold">
-                                    Jadwal Mendatang
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Agenda bimbingan terkonfirmasi
-                                </p>
-                            </div>
-                            {upcomingSchedules.length > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                    {upcomingSchedules.length} jadwal
-                                </span>
-                            )}
-                        </div>
-
-                        {upcomingSchedules.length > 0 ? (
-                            <>
-                                <div className="md:hidden">
-                                    <DataTablePagination
-                                        currentPage={upcomingPagination.page}
-                                        totalPages={
-                                            upcomingPagination.totalPages
-                                        }
-                                        totalItems={
-                                            upcomingPagination.totalItems
-                                        }
-                                        pageSize={upcomingPagination.pageSize}
-                                        onPageChange={
-                                            upcomingPagination.setPage
-                                        }
-                                        onPageSizeChange={
-                                            upcomingPagination.setPageSize
-                                        }
-                                        itemLabel="jadwal"
-                                    />
-                                </div>
-                                <div className="grid gap-3 md:hidden">
-                                    {upcomingPagination.paginated.map(
-                                        (item) => (
-                                            <button
-                                                key={`${item.id}-${item.mahasiswa}-mobile`}
-                                                type="button"
-                                                className="rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/20"
-                                                onClick={() => {
-                                                    setSelectedUpcoming(item);
-                                                    setUpcomingSheetOpen(true);
-                                                }}
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0 space-y-2">
-                                                        <div>
-                                                            <p className="text-sm font-semibold">
-                                                                {item.mahasiswa}
-                                                            </p>
-                                                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                                                {item.topic}
-                                                            </p>
+                                                                                    ],
+                                                                                    lecturer_note:
+                                                                                        undefined,
+                                                                                },
+                                                                        }),
+                                                                    );
+                                                                }}
+                                                                placeholder="Contoh: Tolong lengkapi data Bab 3 sebelum bimbingan berikutnya."
+                                                                className="min-h-[80px] resize-none"
+                                                            />
+                                                            {decisionErrors?.lecturer_note && (
+                                                                <p className="text-sm text-destructive">
+                                                                    {
+                                                                        decisionErrors.lecturer_note
+                                                                    }
+                                                                </p>
+                                                            )}
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            <RelationTypeBadge
-                                                                relationType={
-                                                                    item.relationType
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="max-md:h-11 max-md:flex-1"
+                                                                onClick={() =>
+                                                                    setOpenRequestKey(
+                                                                        null,
+                                                                    )
                                                                 }
-                                                            />
-                                                            <StatusBadge
-                                                                status={
-                                                                    item.status
+                                                            >
+                                                                Batal
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="max-md:h-11 max-md:flex-1"
+                                                                disabled={
+                                                                    form.processing
                                                                 }
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1.5 text-xs text-muted-foreground">
-                                                            <span className="flex items-center gap-1.5">
-                                                                <CalendarClock className="size-3 shrink-0" />
-                                                                {formatDateTime(
-                                                                    item.date,
-                                                                    item.time,
-                                                                )}
-                                                            </span>
-                                                            <span className="flex items-center gap-1.5">
-                                                                <MapPin className="size-3 shrink-0" />
-                                                                {item.location}
-                                                            </span>
+                                                                onClick={() =>
+                                                                    decide(
+                                                                        firstItem.id,
+                                                                        'reschedule',
+                                                                        firstItem,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Jadwalkan Ulang
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-destructive hover:text-destructive max-md:h-11 max-md:flex-1"
+                                                                disabled={
+                                                                    form.processing
+                                                                }
+                                                                onClick={() =>
+                                                                    decide(
+                                                                        firstItem.id,
+                                                                        'reject',
+                                                                        firstItem,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Tolak
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                className="max-md:h-11 max-md:flex-1"
+                                                                disabled={
+                                                                    form.processing
+                                                                }
+                                                                onClick={() =>
+                                                                    decide(
+                                                                        firstItem.id,
+                                                                        'approve',
+                                                                        firstItem,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Konfirmasi
+                                                            </Button>
                                                         </div>
                                                     </div>
-                                                    <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                                </div>
-                                            </button>
-                                        ),
-                                    )}
-                                </div>
-                                <div className="md:hidden">
-                                    <DataTablePagination
-                                        currentPage={upcomingPagination.page}
-                                        totalPages={
-                                            upcomingPagination.totalPages
-                                        }
-                                        totalItems={
-                                            upcomingPagination.totalItems
-                                        }
-                                        pageSize={upcomingPagination.pageSize}
-                                        onPageChange={
-                                            upcomingPagination.setPage
-                                        }
-                                        onPageSizeChange={
-                                            upcomingPagination.setPageSize
-                                        }
-                                        itemLabel="jadwal"
-                                    />
-                                </div>
+                                                )}
+                                        </li>
+                                    );
+                                },
+                            )}
+                        </ul>
+                    ) : (
+                        <EmptyState
+                            icon={Inbox}
+                            title="Belum ada permintaan baru"
+                            description="Permintaan bimbingan dari mahasiswa akan tampil di sini."
+                        />
+                    )}
+                </DataSection>
 
+                <DataSection
+                    title="Jadwal Mendatang"
+                    summary={
+                        upcomingSchedules.length > 0
+                            ? `${upcomingSchedules.length} jadwal`
+                            : undefined
+                    }
+                >
+                    {upcomingSchedules.length > 0 ? (
+                        <>
+                            <DataToolbar
+                                search={upcomingSearch}
+                                onSearchChange={setUpcomingSearch}
+                                placeholder="Cari mahasiswa, topik, atau lokasi..."
+                            />
+                            {upcomingPagination.totalItems > 0 ? (
                                 <DataTableContainer
-                                    className="hidden md:block"
                                     pagination={
                                         <DataTablePagination
                                             currentPage={
@@ -1335,30 +1180,50 @@ export default function DosenJadwalBimbinganPage() {
                                         />
                                     }
                                 >
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b bg-muted/30">
-                                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                    <table
+                                        className={cn(
+                                            stackedTable.table,
+                                            'md:min-w-[900px]',
+                                        )}
+                                    >
+                                        <thead className={stackedTable.thead}>
+                                            <tr className="border-b bg-muted/40">
+                                                <th className={dataTh}>
                                                     Mahasiswa
                                                 </th>
-                                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
+                                                <th className={dataTh}>
                                                     Topik
                                                 </th>
-                                                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                                                <th className={dataTh}>
                                                     Waktu
                                                 </th>
-                                                <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
+                                                <th className={dataTh}>
                                                     Lokasi
                                                 </th>
-                                                <th className="w-8 px-4 py-2.5" />
+                                                <th className={dataTh}>
+                                                    Status
+                                                </th>
+                                                <th className={dataTh}>
+                                                    <span className="sr-only">
+                                                        Aksi
+                                                    </span>
+                                                </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y">
+                                        <tbody
+                                            className={cn(
+                                                stackedTable.tbody,
+                                                'md:divide-y',
+                                            )}
+                                        >
                                             {upcomingPagination.paginated.map(
                                                 (item) => (
                                                     <tr
                                                         key={`${item.id}-${item.mahasiswa}`}
-                                                        className="cursor-pointer transition-colors hover:bg-muted/30"
+                                                        className={cn(
+                                                            stackedTable.tr,
+                                                            'cursor-pointer align-top transition-colors hover:bg-muted/40',
+                                                        )}
                                                         onClick={() => {
                                                             setSelectedUpcoming(
                                                                 item,
@@ -1368,38 +1233,92 @@ export default function DosenJadwalBimbinganPage() {
                                                             );
                                                         }}
                                                     >
-                                                        <td className="px-4 py-3">
-                                                            <p className="font-medium">
+                                                        <td
+                                                            className={
+                                                                stackedTable.tdPlain
+                                                            }
+                                                        >
+                                                            <div className="font-medium text-foreground">
                                                                 {item.mahasiswa}
-                                                            </p>
-                                                            <RelationTypeBadge
-                                                                relationType={
-                                                                    item.relationType
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {relationLabel(
+                                                                    item.relationType,
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td
+                                                            data-label="Topik"
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'max-w-xs text-pretty',
+                                                            )}
+                                                        >
+                                                            {item.topic}
+                                                        </td>
+                                                        <td
+                                                            data-label="Waktu"
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-muted-foreground md:whitespace-nowrap',
+                                                            )}
+                                                        >
+                                                            {formatDateTime(
+                                                                item.date,
+                                                                item.time,
+                                                            )}
+                                                        </td>
+                                                        <td
+                                                            data-label="Lokasi"
+                                                            className={cn(
+                                                                stackedTable.td,
+                                                                'text-muted-foreground',
+                                                            )}
+                                                        >
+                                                            {item.location}
+                                                        </td>
+                                                        <td
+                                                            data-label="Status"
+                                                            className={
+                                                                stackedTable.td
+                                                            }
+                                                        >
+                                                            <ScheduleStatusBadge
+                                                                status={
+                                                                    item.status
                                                                 }
                                                             />
                                                         </td>
-                                                        <td className="hidden max-w-[200px] px-4 py-3 md:table-cell">
-                                                            <p className="line-clamp-2 text-xs text-muted-foreground">
-                                                                {item.topic}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-                                                                <CalendarClock className="size-3 shrink-0" />
-                                                                {formatDateTime(
-                                                                    item.date,
-                                                                    item.time,
-                                                                )}
-                                                            </span>
-                                                        </td>
-                                                        <td className="hidden px-4 py-3 sm:table-cell">
-                                                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                                <MapPin className="size-3 shrink-0" />
-                                                                {item.location}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-muted-foreground">
-                                                            <ChevronRight className="size-4" />
+                                                        <td
+                                                            className={
+                                                                stackedTable.tdActions
+                                                            }
+                                                        >
+                                                            <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="max-md:h-11 max-md:w-full"
+                                                                    onClick={() => {
+                                                                        setSelectedUpcoming(
+                                                                            item,
+                                                                        );
+                                                                        setUpcomingSheetOpen(
+                                                                            true,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    Kelola
+                                                                    <span className="sr-only">
+                                                                        {' '}
+                                                                        jadwal{' '}
+                                                                        {
+                                                                            item.mahasiswa
+                                                                        }
+                                                                    </span>
+                                                                </Button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ),
@@ -1407,202 +1326,145 @@ export default function DosenJadwalBimbinganPage() {
                                         </tbody>
                                     </table>
                                 </DataTableContainer>
-                            </>
-                        ) : (
-                            <EmptyState
-                                icon={CalendarClock}
-                                title="Belum ada jadwal mendatang"
-                                description="Agenda yang sudah dikonfirmasi akan muncul di bagian ini."
-                            />
-                        )}
-                    </section>
-                </div>
-
-                {/* ---------------- HISTORY TABLE ---------------- */}
-                <section>
-                    <div className="mb-3">
-                        <h2 className="text-base font-semibold">
-                            Riwayat Jadwal
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Sesi bimbingan yang sudah selesai, ditolak, atau
-                            dibatalkan
-                        </p>
-                    </div>
-
-                    {/* Toolbar: search (left) + filter pills (right) */}
-                    <StickyFilterBar className="mb-3">
-                        <DataTableToolbar
-                            search={historySearch}
-                            onSearchChange={setHistorySearch}
-                            searchPlaceholder="Cari mahasiswa, topik, atau lokasi..."
-                            filterGroups={historyFilterGroups}
+                            ) : (
+                                <DataTableEmptyState
+                                    icon={CalendarClock}
+                                    title="Tidak ada jadwal yang cocok"
+                                    description="Coba ubah kata kunci pencarian."
+                                />
+                            )}
+                        </>
+                    ) : (
+                        <EmptyState
+                            icon={CalendarClock}
+                            title="Belum ada jadwal mendatang"
+                            description="Agenda yang sudah dikonfirmasi akan muncul di bagian ini."
                         />
-                    </StickyFilterBar>
+                    )}
+                </DataSection>
+
+                <DataSection
+                    title="Riwayat Jadwal"
+                    summary="Sesi bimbingan yang sudah selesai, ditolak, atau dibatalkan"
+                >
+                    <DataToolbar
+                        search={historySearch}
+                        onSearchChange={setHistorySearch}
+                        placeholder="Cari mahasiswa, topik, atau lokasi..."
+                    />
+                    <FilterPills
+                        label="Status riwayat"
+                        value={historyFilter}
+                        onValueChange={setHistoryFilter}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={historyFilterOptions}
+                    />
 
                     {historyPagination.totalItems > 0 ? (
-                        <>
-                            <DataTableContainer
-                                className="md:hidden"
-                                pagination={
-                                    <DataTablePagination
-                                        currentPage={historyPagination.page}
-                                        totalPages={
-                                            historyPagination.totalPages
-                                        }
-                                        totalItems={
-                                            historyPagination.totalItems
-                                        }
-                                        pageSize={historyPagination.pageSize}
-                                        onPageChange={historyPagination.setPage}
-                                        onPageSizeChange={
-                                            historyPagination.setPageSize
-                                        }
-                                        itemLabel="riwayat"
-                                    />
-                                }
+                        <DataTableContainer
+                            pagination={
+                                <DataTablePagination
+                                    currentPage={historyPagination.page}
+                                    totalPages={historyPagination.totalPages}
+                                    totalItems={historyPagination.totalItems}
+                                    pageSize={historyPagination.pageSize}
+                                    onPageChange={historyPagination.setPage}
+                                    onPageSizeChange={
+                                        historyPagination.setPageSize
+                                    }
+                                    itemLabel="riwayat"
+                                />
+                            }
+                        >
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[900px]',
+                                )}
                             >
-                                <div className="divide-y">
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Mahasiswa</th>
+                                        <th className={dataTh}>Topik</th>
+                                        <th className={dataTh}>Waktu</th>
+                                        <th className={dataTh}>Lokasi</th>
+                                        <th className={dataTh}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
                                     {historyPagination.paginated.map((item) => (
-                                        <div
-                                            key={`${item.id}-${item.status}-mobile`}
-                                            className="space-y-3 p-4"
+                                        <tr
+                                            key={`${item.id}-${item.status}`}
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'align-top',
+                                            )}
                                         >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-semibold">
-                                                        {item.mahasiswa}
-                                                    </p>
-                                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                                        {item.topic}
-                                                    </p>
+                                            <td
+                                                className={stackedTable.tdPlain}
+                                            >
+                                                <div className="font-medium text-foreground">
+                                                    {item.mahasiswa}
                                                 </div>
-                                                <StatusBadge
-                                                    status={item.status}
-                                                />
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                <RelationTypeBadge
-                                                    relationType={
-                                                        item.relationType
-                                                    }
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5 text-xs text-muted-foreground">
-                                                <div>
-                                                    {formatDateTime(
-                                                        item.date,
-                                                        item.time,
+                                                <div className="text-xs text-muted-foreground">
+                                                    {relationLabel(
+                                                        item.relationType,
                                                     )}
                                                 </div>
-                                                <span className="flex items-center gap-1.5">
-                                                    <MapPin className="size-3 shrink-0" />
-                                                    {item.location}
-                                                </span>
+                                            </td>
+                                            <td
+                                                data-label="Topik"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'max-w-xs text-pretty',
+                                                )}
+                                            >
+                                                {item.topic}
                                                 {item.lecturerNote && (
-                                                    <p className="rounded-md bg-muted/40 px-3 py-2 italic">
+                                                    <p className="mt-1 text-sm text-muted-foreground">
                                                         {item.lecturerNote}
                                                     </p>
                                                 )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </DataTableContainer>
-
-                            <DataTableContainer
-                                className="hidden md:block"
-                                pagination={
-                                    <DataTablePagination
-                                        currentPage={historyPagination.page}
-                                        totalPages={
-                                            historyPagination.totalPages
-                                        }
-                                        totalItems={
-                                            historyPagination.totalItems
-                                        }
-                                        pageSize={historyPagination.pageSize}
-                                        onPageChange={historyPagination.setPage}
-                                        onPageSizeChange={
-                                            historyPagination.setPageSize
-                                        }
-                                        itemLabel="riwayat"
-                                    />
-                                }
-                            >
-                                <table className="w-full text-left text-sm">
-                                    <thead className="border-b bg-muted/30">
-                                        <tr>
-                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                Mahasiswa
-                                            </th>
-                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                Topik
-                                            </th>
-                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                Waktu
-                                            </th>
-                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                Lokasi
-                                            </th>
-                                            <th className="px-5 py-3 text-xs font-medium text-muted-foreground">
-                                                Status
-                                            </th>
+                                            </td>
+                                            <td
+                                                data-label="Waktu"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'text-muted-foreground md:whitespace-nowrap',
+                                                )}
+                                            >
+                                                {formatDateTime(
+                                                    item.date,
+                                                    item.time,
+                                                )}
+                                            </td>
+                                            <td
+                                                data-label="Lokasi"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'text-muted-foreground',
+                                                )}
+                                            >
+                                                {item.location}
+                                            </td>
+                                            <td
+                                                data-label="Status"
+                                                className={stackedTable.td}
+                                            >
+                                                <ScheduleStatusBadge
+                                                    status={item.status}
+                                                />
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody className="divide-y bg-card">
-                                        {historyPagination.paginated.map(
-                                            (item) => (
-                                                <tr
-                                                    key={`${item.id}-${item.status}`}
-                                                    className="transition-colors hover:bg-muted/20"
-                                                >
-                                                    <td className="px-5 py-3.5 align-middle">
-                                                        <p className="text-sm font-medium">
-                                                            {item.mahasiswa}
-                                                        </p>
-                                                        <RelationTypeBadge
-                                                            relationType={
-                                                                item.relationType
-                                                            }
-                                                        />
-                                                    </td>
-                                                    <td className="max-w-[180px] px-5 py-3.5 align-middle text-xs text-muted-foreground">
-                                                        <p className="truncate">
-                                                            {item.topic}
-                                                        </p>
-                                                        {item.lecturerNote && (
-                                                            <p className="mt-0.5 line-clamp-1 italic opacity-70">
-                                                                {
-                                                                    item.lecturerNote
-                                                                }
-                                                            </p>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
-                                                        {formatDateTime(
-                                                            item.date,
-                                                            item.time,
-                                                        )}
-                                                    </td>
-                                                    <td className="px-5 py-3.5 align-middle text-xs text-muted-foreground">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <MapPin className="size-3 shrink-0" />
-                                                            {item.location}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-3.5 align-middle">
-                                                        <StatusBadge
-                                                            status={item.status}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            ),
-                                        )}
-                                    </tbody>
-                                </table>
-                            </DataTableContainer>
-                        </>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </DataTableContainer>
                     ) : (
                         <DataTableEmptyState
                             icon={CalendarClock}
@@ -1618,7 +1480,7 @@ export default function DosenJadwalBimbinganPage() {
                             }
                         />
                     )}
-                </section>
+                </DataSection>
             </div>
 
             <ScheduleDetailModal
@@ -1628,19 +1490,18 @@ export default function DosenJadwalBimbinganPage() {
                 currentUserRole="dosen"
             />
 
-            {/* ── Upcoming Schedule Action Sheet ── */}
             <Sheet open={upcomingSheetOpen} onOpenChange={setUpcomingSheetOpen}>
                 <SheetContent
                     side="right"
                     className="w-full gap-0 p-0 sm:max-w-md"
                 >
-                    <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+                    <SheetHeader className="border-b px-6 py-4">
                         <div className="flex items-center gap-2 pr-6">
-                            <StatusBadge
+                            <ScheduleStatusBadge
                                 status={selectedUpcoming?.status ?? 'approved'}
                             />
                         </div>
-                        <SheetTitle className="text-base leading-snug">
+                        <SheetTitle className="text-lg leading-snug">
                             {selectedUpcoming?.mahasiswa}
                         </SheetTitle>
                         <SheetDescription className="line-clamp-2">
@@ -1652,10 +1513,12 @@ export default function DosenJadwalBimbinganPage() {
                         <div className="space-y-5 px-6 py-5">
                             {selectedUpcoming && (
                                 <>
-                                    {/* Info */}
-                                    <div className="grid gap-2 rounded-xl border bg-muted/20 p-4 text-sm">
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <CalendarClock className="size-3.5 shrink-0" />
+                                    <div className="grid gap-2 text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <CalendarClock
+                                                aria-hidden="true"
+                                                className="size-4 shrink-0 text-muted-foreground"
+                                            />
                                             <span>
                                                 {formatDateTime(
                                                     selectedUpcoming.date,
@@ -1663,36 +1526,38 @@ export default function DosenJadwalBimbinganPage() {
                                                 )}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <MapPin className="size-3.5 shrink-0" />
+                                        <div className="flex items-center gap-2">
+                                            <MapPin
+                                                aria-hidden="true"
+                                                className="size-4 shrink-0 text-muted-foreground"
+                                            />
                                             <span>
                                                 {selectedUpcoming.location}
                                             </span>
                                         </div>
-                                        <RelationTypeBadge
-                                            relationType={
-                                                selectedUpcoming.relationType
-                                            }
-                                        />
+                                        <p className="text-muted-foreground">
+                                            {relationLabel(
+                                                selectedUpcoming.relationType,
+                                            )}
+                                        </p>
                                     </div>
 
                                     {selectedUpcoming.lecturerNote && (
-                                        <div className="rounded-xl border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                                        <p className="text-sm text-pretty text-muted-foreground">
                                             <span className="font-medium text-foreground">
                                                 Catatan:{' '}
                                             </span>
                                             {selectedUpcoming.lecturerNote}
-                                        </div>
+                                        </p>
                                     )}
 
-                                    {/* Actions */}
-                                    <div>
-                                        <p className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                    <div className="border-t pt-5">
+                                        <h3 className="mb-3 text-sm font-semibold">
                                             Tindakan
-                                        </p>
+                                        </h3>
                                         <div className="flex flex-col gap-2">
                                             <Button
-                                                className="w-full"
+                                                className="w-full max-md:h-11"
                                                 disabled={form.processing}
                                                 onClick={() => {
                                                     closeSchedule(
@@ -1707,8 +1572,8 @@ export default function DosenJadwalBimbinganPage() {
                                                 Tandai Selesai
                                             </Button>
                                             <Button
-                                                variant="soft"
-                                                className="w-full bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                                variant="outline"
+                                                className="w-full text-destructive hover:text-destructive max-md:h-11"
                                                 disabled={form.processing}
                                                 onClick={() => {
                                                     closeSchedule(

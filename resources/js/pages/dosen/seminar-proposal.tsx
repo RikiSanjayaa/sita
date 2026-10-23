@@ -1,17 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import {
-    AlertTriangle,
-    CalendarClock,
     CheckCircle2,
     ChevronRight,
     Clock,
     FileWarning,
-    Inbox,
-    MapPin,
-    Search,
     Send,
-    Star,
-    User,
     XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -19,22 +12,31 @@ import { useMemo, useState } from 'react';
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { DeadlineBadge } from '@/components/deadline-badge';
-import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { KeyValueList } from '@/components/patterns/key-value-list';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
+    DataTableEmptyState,
     DataTablePagination,
+    usePagination,
 } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Sheet,
     SheetContent,
@@ -46,7 +48,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import {
-    academicGradeClassName,
     calculateAverageAcademicScore,
     resolveAcademicGrade,
 } from '@/lib/academic-grade';
@@ -123,13 +124,6 @@ const statusLabel: Record<string, string> = {
     cancelled: 'Dibatalkan',
 };
 
-const statusColor: Record<string, string> = {
-    scheduled: 'bg-primary/10 text-primary',
-    awaiting_finalization: 'bg-amber-600/10 text-amber-700',
-    completed: 'bg-emerald-600/10 text-emerald-600',
-    cancelled: 'bg-destructive/10 text-destructive',
-};
-
 const decisionLabel: Record<string, string> = {
     pending: 'Pending',
     pass: 'Lulus',
@@ -165,34 +159,38 @@ function getResultLabel(result: string, defenseType: string) {
     return resultLabel[result] ?? result;
 }
 
-function MyDecisionBadge({
+function DefenseStatusBadge({ status }: { status: string }) {
+    return (
+        <StatusBadge domain="defense" status={status}>
+            {statusLabel[status] ?? status}
+        </StatusBadge>
+    );
+}
+
+function DecisionBadge({
     decision,
     defenseType,
+    own = false,
 }: {
     decision: string | null;
     defenseType: string;
+    own?: boolean;
 }) {
-    if (!decision || decision === 'pending') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                <Clock className="size-3" />
-                Belum Diputus
-            </span>
-        );
-    }
-    if (decision === 'pass' || decision === 'pass_with_revision') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="size-3" />
-                {getDecisionLabel(decision, defenseType)}
-            </span>
-        );
-    }
+    const status = decision ?? 'pending';
+    const Icon =
+        status === 'pending'
+            ? Clock
+            : status === 'fail'
+              ? XCircle
+              : CheckCircle2;
+
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-            <XCircle className="size-3" />
-            Tidak Lulus
-        </span>
+        <StatusBadge domain="result" status={status}>
+            <Icon aria-hidden="true" className="size-3.5" />
+            {own && status === 'pending'
+                ? 'Belum Diputus'
+                : getDecisionLabel(decision, defenseType)}
+        </StatusBadge>
     );
 }
 
@@ -243,121 +241,122 @@ function DecisionForm({
     }
 
     return (
-        <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        <section className="border-t pt-5">
+            <h3 className="mb-4 text-base font-semibold">
                 Input Keputusan Saya
-            </p>
+            </h3>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                    <Label htmlFor="sheet-decision">Keputusan *</Label>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={
-                                decision === 'pass' ? 'default' : 'outline'
-                            }
-                            onClick={() => setDecision('pass')}
-                            className={
-                                decision === 'pass'
-                                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                                    : ''
-                            }
+            <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-1.5">
+                        <Label id="sheet-decision-label">Keputusan *</Label>
+                        <div
+                            role="group"
+                            aria-labelledby="sheet-decision-label"
+                            className="flex flex-wrap gap-2"
                         >
-                            <CheckCircle2 className="size-3.5" /> Lulus
-                        </Button>
-                        {defenseType !== 'sempro' && (
                             <Button
                                 type="button"
                                 size="sm"
                                 variant={
-                                    decision === 'pass_with_revision'
-                                        ? 'default'
+                                    decision === 'pass' ? 'default' : 'outline'
+                                }
+                                aria-pressed={decision === 'pass'}
+                                onClick={() => setDecision('pass')}
+                                className="max-md:h-11"
+                            >
+                                <CheckCircle2 className="size-4" /> Lulus
+                            </Button>
+                            {defenseType !== 'sempro' && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        decision === 'pass_with_revision'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    aria-pressed={
+                                        decision === 'pass_with_revision'
+                                    }
+                                    onClick={() =>
+                                        setDecision('pass_with_revision')
+                                    }
+                                    className="max-md:h-11"
+                                >
+                                    <FileWarning className="size-4" /> Lulus
+                                    dengan Syarat
+                                </Button>
+                            )}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    decision === 'fail'
+                                        ? 'destructive'
                                         : 'outline'
                                 }
-                                onClick={() =>
-                                    setDecision('pass_with_revision')
-                                }
-                                className={
-                                    decision === 'pass_with_revision'
-                                        ? 'bg-amber-600 hover:bg-amber-700'
-                                        : ''
-                                }
+                                aria-pressed={decision === 'fail'}
+                                onClick={() => setDecision('fail')}
+                                className="max-md:h-11"
                             >
-                                <FileWarning className="size-3.5" /> Lulus
-                                dengan Syarat
+                                <XCircle className="size-4" /> Tidak Lulus
                             </Button>
-                        )}
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={
-                                decision === 'fail' ? 'default' : 'outline'
-                            }
-                            onClick={() => setDecision('fail')}
-                            className={
-                                decision === 'fail'
-                                    ? 'bg-destructive hover:bg-destructive/90'
-                                    : ''
-                            }
-                        >
-                            <XCircle className="size-3.5" /> Tidak Lulus
-                        </Button>
+                        </div>
                     </div>
+
+                    {scoreRequired && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="sheet-score">Nilai (0–100) *</Label>
+                            <Input
+                                id="sheet-score"
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.01}
+                                value={score}
+                                onChange={(e) => setScore(e.target.value)}
+                                placeholder="0 – 100"
+                                className="max-md:h-11"
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {scoreRequired && (
+                <div className="grid gap-1.5">
+                    <Label htmlFor="sheet-decision-notes">
+                        Catatan Keputusan{notesRequired ? ' *' : ''}
+                    </Label>
+                    <Textarea
+                        id="sheet-decision-notes"
+                        rows={3}
+                        value={decisionNotes}
+                        onChange={(e) => setDecisionNotes(e.target.value)}
+                        placeholder="Catatan umum untuk mahasiswa..."
+                        className="resize-none"
+                    />
+                </div>
+
+                {showRevisionNotes && (
                     <div className="grid gap-1.5">
-                        <Label htmlFor="sheet-score">Nilai (0–100) *</Label>
-                        <Input
-                            id="sheet-score"
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.01}
-                            value={score}
-                            onChange={(e) => setScore(e.target.value)}
-                            placeholder="0 – 100"
+                        <Label htmlFor="sheet-revision-notes">
+                            Catatan Revisi
+                            {revisionNotesRequired ? ' *' : ' (opsional)'}
+                        </Label>
+                        <Textarea
+                            id="sheet-revision-notes"
+                            rows={3}
+                            value={revisionNotes}
+                            onChange={(e) => setRevisionNotes(e.target.value)}
+                            placeholder="Jelaskan apa yang perlu direvisi..."
+                            className="resize-none"
                         />
                     </div>
                 )}
             </div>
 
-            <div className="grid gap-1.5">
-                <Label htmlFor="sheet-decision-notes">
-                    Catatan Keputusan{notesRequired ? ' *' : ''}
-                </Label>
-                <Textarea
-                    id="sheet-decision-notes"
-                    rows={2}
-                    value={decisionNotes}
-                    onChange={(e) => setDecisionNotes(e.target.value)}
-                    placeholder="Catatan umum untuk mahasiswa..."
-                    className="resize-none"
-                />
-            </div>
-
-            {showRevisionNotes && (
-                <div className="grid gap-1.5">
-                    <Label htmlFor="sheet-revision-notes">
-                        Catatan Revisi
-                        {revisionNotesRequired ? ' *' : ' (opsional)'}
-                    </Label>
-                    <Textarea
-                        id="sheet-revision-notes"
-                        rows={3}
-                        value={revisionNotes}
-                        onChange={(e) => setRevisionNotes(e.target.value)}
-                        placeholder="Jelaskan apa yang perlu direvisi..."
-                        className="resize-none"
-                    />
-                </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
+            <div className="sticky bottom-0 -mx-6 mt-5 -mb-5 flex gap-2 border-t bg-background px-6 py-3">
                 <Button
-                    size="sm"
                     onClick={submit}
                     disabled={
                         submitting ||
@@ -366,16 +365,20 @@ function DecisionForm({
                         (notesRequired && decisionNotes.trim() === '') ||
                         (revisionNotesRequired && revisionNotes.trim() === '')
                     }
-                    className="flex-1 sm:flex-none"
+                    className="flex-1 max-md:h-11 sm:flex-none"
                 >
-                    <Send className="size-3.5" />
+                    <Send className="size-4" />
                     {submitting ? 'Menyimpan...' : 'Submit Keputusan'}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={onClose}>
+                <Button
+                    variant="ghost"
+                    onClick={onClose}
+                    className="max-md:h-11"
+                >
                     Batal
                 </Button>
             </div>
-        </div>
+        </section>
     );
 }
 
@@ -433,192 +436,142 @@ function DefenseDetailSheet({
             }}
         >
             <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-xl">
-                {/* ── Header ── */}
-                <SheetHeader className="border-b bg-muted/20 px-6 py-4">
-                    <div className="flex items-center gap-2 pr-6">
-                        <Badge
-                            variant="outline"
-                            className={cn(
-                                'shrink-0 rounded-full text-xs',
-                                item.type === 'sempro'
-                                    ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400'
-                                    : 'border-purple-500/50 bg-purple-500/10 text-purple-700 dark:text-purple-400',
-                            )}
-                        >
+                <SheetHeader className="gap-2 border-b px-6 py-4 pr-12">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="text-sm font-medium">
                             {item.typeLabel} #{item.attemptNo}
-                        </Badge>
-                        <span
-                            className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                                statusColor[item.defenseStatus] ??
-                                    'bg-muted text-muted-foreground',
-                            )}
-                        >
-                            {statusLabel[item.defenseStatus] ??
-                                item.defenseStatus}
                         </span>
+                        <DefenseStatusBadge status={item.defenseStatus} />
                     </div>
-                    <SheetTitle className="mt-1 text-base leading-snug">
+                    <SheetTitle className="text-lg leading-snug text-pretty">
                         {item.titleId}
                     </SheetTitle>
                     {item.titleEn && (
-                        <SheetDescription className="truncate italic">
+                        <SheetDescription className="text-pretty italic">
                             {item.titleEn}
                         </SheetDescription>
                     )}
                 </SheetHeader>
 
-                <ScrollArea className="h-[calc(100vh-8rem)]">
-                    <div className="space-y-5 px-6 py-5">
-                        {/* ── Info Mahasiswa & Jadwal ── */}
-                        <div className="grid gap-2 rounded-xl border bg-muted/20 p-4 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <User className="size-3.5 shrink-0" />
-                                <span className="font-medium text-foreground">
-                                    {item.studentName}
-                                </span>
-                                <span className="text-xs">
-                                    {item.studentNim}
-                                </span>
-                            </div>
-                            {item.scheduledFor && (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <CalendarClock className="size-3.5 shrink-0" />
-                                    <span>{item.scheduledFor}</span>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <MapPin className="size-3.5 shrink-0" />
-                                <span>
-                                    {item.location} · {item.mode}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* ── Keputusan Penguji ── */}
-                        <div>
-                            <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                Keputusan Penguji
-                            </p>
-                            <div className="divide-y rounded-xl border bg-card">
-                                {/* My decision */}
-                                <div className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
-                                    <span className="text-xs text-muted-foreground">
-                                        Saya (
-                                        {resolveDefenseRoleLabel(item.myRole)}):
-                                    </span>
-                                    <MyDecisionBadge
-                                        decision={item.myDecision}
-                                        defenseType={item.type}
-                                    />
-                                    {item.myScore !== null && (
-                                        <span className="flex items-center gap-1 text-xs font-semibold">
-                                            <Star className="size-3 text-amber-500" />
-                                            {item.myScore}
-                                        </span>
-                                    )}
-                                    {item.myDecisionNotes && (
-                                        <span className="text-xs text-muted-foreground italic">
-                                            — {item.myDecisionNotes}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Other examiners */}
-                                {item.otherExaminers.map((ex, i) => (
-                                    <div
-                                        key={i}
-                                        className="flex flex-wrap items-center gap-2 px-4 py-3 text-xs"
-                                    >
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="space-y-6 px-6 py-5">
+                        <KeyValueList
+                            layout="inline"
+                            items={[
+                                {
+                                    key: 'mahasiswa',
+                                    label: 'Mahasiswa',
+                                    value: `${item.studentName} (${item.studentNim})`,
+                                },
+                                {
+                                    key: 'jadwal',
+                                    label: 'Jadwal',
+                                    value: item.scheduledFor ?? (
                                         <span className="text-muted-foreground">
-                                            {ex.name} (
-                                            {resolveDefenseRoleLabel(ex.role)}):
+                                            -
                                         </span>
-                                        <Badge
-                                            variant="soft"
-                                            className={cn(
-                                                'text-xs font-medium',
-                                                ex.decision === 'pass'
-                                                    ? 'bg-emerald-600/10 text-emerald-600'
-                                                    : ex.decision ===
-                                                        'pass_with_revision'
-                                                      ? 'bg-amber-600/10 text-amber-600'
-                                                      : ex.decision === 'fail'
-                                                        ? 'bg-destructive/10 text-destructive'
-                                                        : 'bg-muted text-muted-foreground',
+                                    ),
+                                },
+                                {
+                                    key: 'lokasi',
+                                    label: 'Lokasi',
+                                    value: `${item.location} · ${item.mode}`,
+                                },
+                            ]}
+                        />
+
+                        <section>
+                            <h3 className="mb-2 text-base font-semibold">
+                                Keputusan Penguji
+                            </h3>
+                            <ul className="divide-y border-y text-sm">
+                                <li className="space-y-1 py-3">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                        <span className="font-medium">
+                                            Saya (
+                                            {resolveDefenseRoleLabel(
+                                                item.myRole,
                                             )}
-                                        >
-                                            {getDecisionLabel(
-                                                ex.decision,
-                                                item.type,
-                                            )}
-                                        </Badge>
-                                        {ex.score !== null && (
-                                            <span className="flex items-center gap-1 font-semibold">
-                                                <Star className="size-3 text-amber-500" />
-                                                {ex.score}
+                                            )
+                                        </span>
+                                        <DecisionBadge
+                                            own
+                                            decision={item.myDecision}
+                                            defenseType={item.type}
+                                        />
+                                        {item.myScore !== null && (
+                                            <span className="font-medium tabular-nums">
+                                                Nilai {item.myScore}
                                             </span>
                                         )}
                                     </div>
+                                    {item.myDecisionNotes && (
+                                        <p className="text-pretty text-muted-foreground">
+                                            {item.myDecisionNotes}
+                                        </p>
+                                    )}
+                                </li>
+
+                                {item.otherExaminers.map((ex) => (
+                                    <li
+                                        key={`${ex.order}-${ex.name}`}
+                                        className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3"
+                                    >
+                                        <span className="font-medium">
+                                            {ex.name} (
+                                            {resolveDefenseRoleLabel(ex.role)})
+                                        </span>
+                                        <DecisionBadge
+                                            decision={ex.decision}
+                                            defenseType={item.type}
+                                        />
+                                        {ex.score !== null && (
+                                            <span className="font-medium tabular-nums">
+                                                Nilai {ex.score}
+                                            </span>
+                                        )}
+                                    </li>
                                 ))}
 
-                                {/* Average */}
                                 {averageScore !== null && (
-                                    <div className="flex flex-wrap items-center gap-2 px-4 py-3 text-xs">
-                                        <span className="text-muted-foreground">
-                                            Rata-rata:
+                                    <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3">
+                                        <span className="font-medium tabular-nums">
+                                            Rata-rata {averageScore.toFixed(2)}
+                                            {finalGrade
+                                                ? ` (Grade ${finalGrade})`
+                                                : ''}
                                         </span>
-                                        <Badge
-                                            variant="secondary"
-                                            className="text-xs font-bold"
+                                        <StatusBadge
+                                            domain="result"
+                                            status={item.defenseResult}
                                         >
-                                            {averageScore.toFixed(2)}
-                                        </Badge>
-                                        {finalGrade && (
-                                            <Badge
-                                                variant="soft"
-                                                className={cn(
-                                                    'text-xs',
-                                                    academicGradeClassName(
-                                                        finalGrade,
-                                                    ),
-                                                )}
-                                            >
-                                                Grade {finalGrade}
-                                            </Badge>
-                                        )}
-                                        <span className="text-muted-foreground">
-                                            · Hasil:{' '}
+                                            Hasil:{' '}
                                             {getResultLabel(
                                                 item.defenseResult,
                                                 item.type,
                                             )}
-                                        </span>
-                                    </div>
+                                        </StatusBadge>
+                                    </li>
                                 )}
-                            </div>
-                        </div>
+                            </ul>
+                        </section>
 
-                        {/* ── Revisi ── */}
                         {item.revisions.length > 0 && (
-                            <div>
-                                <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            <section>
+                                <h3 className="mb-2 text-base font-semibold">
                                     Revisi ({item.revisions.length})
-                                </p>
-                                <div className="space-y-3">
+                                </h3>
+                                <ul className="divide-y border-y text-sm">
                                     {item.revisions.map((rev) => (
-                                        <div
-                                            key={rev.id}
-                                            className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20"
-                                        >
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge
-                                                    variant="outline"
-                                                    className="text-xs"
+                                        <li key={rev.id} className="py-3">
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                                <StatusBadge
+                                                    domain="revision"
+                                                    status={rev.status}
                                                 >
                                                     {rev.statusLabel}
-                                                </Badge>
-                                                <span className="text-xs text-amber-700 dark:text-amber-300">
+                                                </StatusBadge>
+                                                <span className="text-muted-foreground">
                                                     {rev.requestedBy}
                                                 </span>
                                                 {rev.dueAt &&
@@ -630,15 +583,15 @@ function DefenseDetailSheet({
                                                         />
                                                     )}
                                             </div>
-                                            <p className="mt-2 text-xs leading-relaxed text-amber-900 dark:text-amber-100">
+                                            <p className="mt-2 leading-relaxed text-pretty">
                                                 {rev.notes}
                                             </p>
                                             {rev.canResolve && (
                                                 <Button
                                                     type="button"
                                                     size="sm"
-                                                    variant="secondary"
-                                                    className="mt-3"
+                                                    variant="outline"
+                                                    className="mt-3 max-md:h-11"
                                                     disabled={
                                                         resolvingRevisionId ===
                                                         rev.id
@@ -653,17 +606,16 @@ function DefenseDetailSheet({
                                                         : 'Tandai Revisi Selesai'}
                                                 </Button>
                                             )}
-                                        </div>
+                                        </li>
                                     ))}
-                                </div>
-                            </div>
+                                </ul>
+                            </section>
                         )}
 
-                        {/* ── Catatan ── */}
-                        <div>
-                            <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        <section>
+                            <h3 className="mb-2 text-base font-semibold">
                                 Catatan
-                            </p>
+                            </h3>
                             <ThesisNotesPanel
                                 projectId={item.projectId}
                                 data={
@@ -672,34 +624,27 @@ function DefenseDetailSheet({
                                         : projectNotes[item.projectId]
                                 }
                             />
-                        </div>
+                        </section>
 
-                        {/* ── Form Keputusan ── */}
-                        {canDecide && (
-                            <div>
-                                {!showDecisionForm ? (
-                                    <Button
-                                        size="sm"
-                                        onClick={() =>
-                                            setShowDecisionForm(true)
-                                        }
-                                        className="w-full sm:w-auto"
-                                    >
-                                        <Send className="size-3.5" />
-                                        Input Keputusan Saya
-                                    </Button>
-                                ) : (
-                                    <DecisionForm
-                                        defenseId={item.defenseId}
-                                        defenseType={item.type}
-                                        scoreRequired={item.scoreRequired}
-                                        onClose={handleClose}
-                                    />
-                                )}
-                            </div>
-                        )}
+                        {canDecide &&
+                            (!showDecisionForm ? (
+                                <Button
+                                    onClick={() => setShowDecisionForm(true)}
+                                    className="w-full max-md:h-11 sm:w-auto"
+                                >
+                                    <Send className="size-4" />
+                                    Input Keputusan Saya
+                                </Button>
+                            ) : (
+                                <DecisionForm
+                                    defenseId={item.defenseId}
+                                    defenseType={item.type}
+                                    scoreRequired={item.scoreRequired}
+                                    onClose={handleClose}
+                                />
+                            ))}
                     </div>
-                </ScrollArea>
+                </div>
             </SheetContent>
         </Sheet>
     );
@@ -734,9 +679,7 @@ export default function DosenSeminarProposalPage() {
     );
     const [selectedItem, setSelectedItem] = useState<DefenseItem | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [page, setPage] = useUrlState('page', 1);
-    const PAGE_SIZE = 15;
-    const [pageSize, setPageSize] = useUrlState('pageSize', PAGE_SIZE);
+    const pageState = useUrlState('page', 1);
 
     const [selectedEvent, setSelectedEvent] = useState<{
         id: number;
@@ -758,21 +701,13 @@ export default function DosenSeminarProposalPage() {
     } | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-    const sortByScheduledForDesc = (items: DefenseItem[]) =>
-        [...items].sort((a, b) => {
-            const aTime = a.scheduledFor
-                ? new Date(a.scheduledFor).getTime()
-                : 0;
-            const bTime = b.scheduledFor
-                ? new Date(b.scheduledFor).getTime()
-                : 0;
-            return bTime - aTime;
-        });
-
     const filteredDefenses = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return sortByScheduledForDesc(
-            defenses.filter((item) => {
+        const time = (item: DefenseItem) =>
+            item.scheduledFor ? new Date(item.scheduledFor).getTime() : 0;
+
+        return defenses
+            .filter((item) => {
                 const matchType =
                     typeFilter === 'semua' || item.type === typeFilter;
                 const isPending =
@@ -793,23 +728,24 @@ export default function DosenSeminarProposalPage() {
                         .filter(Boolean)
                         .some((v) => v.toLowerCase().includes(q));
                 return matchType && matchStatus && matchSearch;
-            }),
-        );
+            })
+            .sort((a, b) => time(b) - time(a));
     }, [defenses, search, typeFilter, statusFilter]);
 
-    const totalPages = Math.max(
-        1,
-        Math.ceil(filteredDefenses.length / pageSize),
+    const {
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        totalPages,
+        paginated,
+        totalItems,
+    } = usePagination(
+        filteredDefenses,
+        15,
+        [search, typeFilter, statusFilter, defenses.length],
+        pageState,
     );
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const paginatedDefenses = filteredDefenses.slice(
-        (safePage - 1) * pageSize,
-        safePage * pageSize,
-    );
-    const handlePageSizeChange = (nextPageSize: number) => {
-        setPageSize(nextPageSize);
-        setPage(1);
-    };
 
     const pendingCount = defenses.filter(
         (i) => i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
@@ -822,10 +758,6 @@ export default function DosenSeminarProposalPage() {
     function openItem(item: DefenseItem) {
         setSelectedItem(item);
         setSheetOpen(true);
-    }
-
-    function resetPage() {
-        setPage(1);
     }
 
     function handleEventClick(event: BimbinganEvent) {
@@ -867,7 +799,11 @@ export default function DosenSeminarProposalPage() {
         count?: number;
     }[] = [
         { label: 'Semua', value: 'semua' },
-        { label: 'Menunggu Penilaian', value: 'pending', count: pendingCount },
+        {
+            label: 'Menunggu Penilaian',
+            value: 'pending',
+            count: pendingCount > 0 ? pendingCount : undefined,
+        },
         { label: 'Selesai / Riwayat', value: 'done' },
     ];
 
@@ -879,8 +815,12 @@ export default function DosenSeminarProposalPage() {
         >
             <Head title={`${n.proposalExamShort} & ${n.finalExam} — Dosen`} />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
-                {/* Flash / Error */}
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title={`${n.proposalExamShort} & ${n.finalExam}`}
+                    description={`Jadwal dan penilaian ${n.proposalExamShort} serta ${n.finalExam}`}
+                />
+
                 {(flashMessage || errorMessage) && (
                     <Alert variant={errorMessage ? 'destructive' : 'default'}>
                         <AlertTitle>
@@ -892,7 +832,6 @@ export default function DosenSeminarProposalPage() {
                     </Alert>
                 )}
 
-                {/* ── WORKSPACE CALENDAR ── */}
                 <CollapsibleCalendarSection
                     storageKey="dosen-seminar-proposal"
                     title="Workspace Jadwal"
@@ -903,25 +842,13 @@ export default function DosenSeminarProposalPage() {
                         </>
                     }
                     toolbar={
-                        <div className="flex flex-wrap gap-1.5">
-                            {workspaceFilterTabs.map((tab) => (
-                                <button
-                                    key={tab.value}
-                                    type="button"
-                                    onClick={() =>
-                                        setWorkspaceFilter(tab.value)
-                                    }
-                                    className={cn(
-                                        'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                        workspaceFilter === tab.value
-                                            ? 'bg-primary text-primary-foreground shadow-sm'
-                                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                    )}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
+                        <FilterPills
+                            label="Jenis jadwal di kalender"
+                            value={workspaceFilter}
+                            onValueChange={setWorkspaceFilter}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                            options={workspaceFilterTabs}
+                        />
                     }
                     events={filteredWorkspaceEvents}
                     onEventClick={handleEventClick}
@@ -929,299 +856,225 @@ export default function DosenSeminarProposalPage() {
                     showLegend={false}
                 />
 
-                {/* ── TABEL UNIFIED ── */}
-                <section>
-                    <div className="mb-4 flex items-center justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Daftar {n.proposalExamShort} & {n.finalExam}
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Klik baris untuk melihat detail dan menginput
-                                keputusan
-                            </p>
-                        </div>
-                        {pendingCount > 0 && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-600/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
-                                <AlertTriangle className="size-3" />
-                                {pendingCount} menunggu penilaian
+                <DataSection
+                    title="Daftar ujian"
+                    summary={
+                        pendingCount > 0
+                            ? `${pendingCount} menunggu penilaian`
+                            : undefined
+                    }
+                >
+                    <DataToolbar
+                        search={search}
+                        onSearchChange={setSearch}
+                        placeholder="Cari nama, NIM, atau judul..."
+                    />
+                    <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-4 md:gap-y-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-xs font-medium text-muted-foreground max-md:w-full">
+                                Jenis
                             </span>
-                        )}
+                            <FilterPills
+                                label="Jenis ujian"
+                                value={typeFilter}
+                                onValueChange={setTypeFilter}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                                options={typeFilterTabs}
+                            />
+                        </div>
+                        <span
+                            aria-hidden="true"
+                            className="h-5 w-px bg-border max-md:hidden"
+                        />
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-xs font-medium text-muted-foreground max-md:w-full">
+                                Status
+                            </span>
+                            <FilterPills
+                                label="Status keputusan"
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                                options={statusFilterTabs}
+                            />
+                        </div>
                     </div>
 
-                    {/* Toolbar: search + filters */}
-                    <StickyFilterBar className="mb-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            {/* Search */}
-                            <div className="relative w-full max-w-xs">
-                                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={search}
-                                    onChange={(e) => {
-                                        setSearch(e.target.value);
-                                        resetPage();
-                                    }}
-                                    placeholder="Cari nama, NIM, atau judul..."
-                                    className="h-8 pl-8 text-sm"
-                                />
-                            </div>
-
-                            {/* Filter pills */}
-                            <div className="flex flex-wrap gap-2">
-                                <div className="flex gap-1">
-                                    {typeFilterTabs.map((tab) => (
-                                        <button
-                                            key={tab.value}
-                                            type="button"
-                                            onClick={() => {
-                                                setTypeFilter(tab.value);
-                                                resetPage();
-                                            }}
-                                            className={cn(
-                                                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                                typeFilter === tab.value
-                                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                            )}
-                                        >
-                                            {tab.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="flex gap-1">
-                                    {statusFilterTabs.map((tab) => (
-                                        <button
-                                            key={tab.value}
-                                            type="button"
-                                            onClick={() => {
-                                                setStatusFilter(tab.value);
-                                                resetPage();
-                                            }}
-                                            className={cn(
-                                                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                                                statusFilter === tab.value
-                                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                                            )}
-                                        >
-                                            {tab.label}
-                                            {tab.count !== undefined &&
-                                                tab.count > 0 && (
-                                                    <span
-                                                        className={cn(
-                                                            'rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold',
-                                                            statusFilter ===
-                                                                tab.value
-                                                                ? 'bg-primary-foreground text-primary'
-                                                                : 'bg-warning-muted text-warning-muted-foreground',
-                                                        )}
-                                                    >
-                                                        {tab.count}
-                                                    </span>
-                                                )}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </StickyFilterBar>
-
-                    {/* Table */}
                     {filteredDefenses.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
-                            <Inbox className="mb-3 size-10 text-muted-foreground/40" />
-                            <p className="text-sm font-semibold">
-                                {defenses.length === 0
+                        <DataTableEmptyState
+                            title={
+                                defenses.length === 0
                                     ? 'Belum ada tugas penguji ujian'
-                                    : 'Tidak ada item yang cocok'}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {defenses.length === 0
+                                    : 'Tidak ada item yang cocok'
+                            }
+                            description={
+                                defenses.length === 0
                                     ? `Anda belum ditugaskan sebagai penguji ${n.proposalExamShort} atau ${n.finalExam} manapun.`
-                                    : 'Coba ubah filter atau kata kunci pencarian.'}
-                            </p>
-                        </div>
+                                    : 'Coba ubah filter atau kata kunci pencarian.'
+                            }
+                        />
                     ) : (
                         <DataTableContainer
                             pagination={
                                 <DataTablePagination
-                                    currentPage={safePage}
+                                    currentPage={page}
                                     totalPages={totalPages}
-                                    totalItems={filteredDefenses.length}
+                                    totalItems={totalItems}
                                     pageSize={pageSize}
                                     onPageChange={setPage}
-                                    onPageSizeChange={handlePageSizeChange}
-                                    itemLabel="item"
+                                    onPageSizeChange={setPageSize}
+                                    itemLabel="ujian"
                                 />
                             }
                         >
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/30">
-                                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Mahasiswa
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[880px]',
+                                )}
+                            >
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Mahasiswa</th>
+                                        <th className={dataTh}>Judul</th>
+                                        <th className={dataTh}>Ujian</th>
+                                        <th className={dataTh}>Jadwal</th>
+                                        <th className={dataTh}>
+                                            Keputusan saya
                                         </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                            Judul
+                                        <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
                                         </th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Tipe
-                                        </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                            Jadwal
-                                        </th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Keputusan Saya
-                                        </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
-                                            Status
-                                        </th>
-                                        <th className="w-8 px-4 py-2.5" />
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y">
-                                    {paginatedDefenses.map((item) => {
-                                        const isPending =
-                                            item.defenseStatus ===
-                                                'scheduled' &&
-                                            item.myDecision === 'pending';
-                                        return (
-                                            <tr
-                                                key={item.defenseId}
-                                                className={cn(
-                                                    'cursor-pointer transition-colors hover:bg-muted/30',
-                                                    isPending &&
-                                                        'bg-amber-50/40 dark:bg-amber-950/10',
-                                                )}
-                                                onClick={() => openItem(item)}
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
+                                    {paginated.map((item) => (
+                                        <tr
+                                            key={item.defenseId}
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'cursor-pointer align-top transition-colors hover:bg-muted/40',
+                                            )}
+                                            onClick={() => openItem(item)}
+                                        >
+                                            <td
+                                                className={stackedTable.tdPlain}
                                             >
-                                                {/* Mahasiswa */}
-                                                <td className="px-4 py-3">
-                                                    <p className="leading-snug font-medium">
-                                                        {item.studentName}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.studentNim}
-                                                    </p>
-                                                    {/* Mobile: judul */}
-                                                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground md:hidden">
-                                                        {item.titleId}
-                                                    </p>
-                                                </td>
-
-                                                {/* Judul */}
-                                                <td className="hidden max-w-[260px] px-4 py-3 md:table-cell">
-                                                    <p className="line-clamp-2 text-xs leading-relaxed">
-                                                        {item.titleId}
-                                                    </p>
-                                                </td>
-
-                                                {/* Tipe */}
-                                                <td className="px-4 py-3">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={cn(
-                                                            'shrink-0 rounded-full text-xs whitespace-nowrap',
-                                                            item.type ===
-                                                                'sempro'
-                                                                ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400'
-                                                                : 'border-purple-500/50 bg-purple-500/10 text-purple-700 dark:text-purple-400',
-                                                        )}
-                                                    >
-                                                        {item.typeLabel} #
-                                                        {item.attemptNo}
-                                                    </Badge>
-                                                    {/* Mobile: status */}
-                                                    <div className="mt-1 sm:hidden">
-                                                        <span
-                                                            className={cn(
-                                                                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                                                                statusColor[
-                                                                    item
-                                                                        .defenseStatus
-                                                                ] ??
-                                                                    'bg-muted text-muted-foreground',
-                                                            )}
-                                                        >
-                                                            {statusLabel[
-                                                                item
-                                                                    .defenseStatus
-                                                            ] ??
-                                                                item.defenseStatus}
-                                                        </span>
-                                                    </div>
-                                                </td>
-
-                                                {/* Jadwal */}
-                                                <td className="hidden px-4 py-3 lg:table-cell">
-                                                    {item.scheduledFor ? (
-                                                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                            <Clock className="size-3 shrink-0" />
-                                                            {item.scheduledFor}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground/60 italic">
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </td>
-
-                                                {/* Keputusan Saya */}
-                                                <td className="px-4 py-3">
-                                                    <MyDecisionBadge
+                                                <div className="font-medium text-foreground">
+                                                    {item.studentName}
+                                                </div>
+                                                <div className="text-muted-foreground tabular-nums">
+                                                    {item.studentNim}
+                                                </div>
+                                            </td>
+                                            <td
+                                                data-label="Judul"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'md:max-w-[280px]',
+                                                )}
+                                            >
+                                                <span className="line-clamp-2 text-pretty">
+                                                    {item.titleId}
+                                                </span>
+                                            </td>
+                                            <td
+                                                data-label="Ujian"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'whitespace-nowrap',
+                                                )}
+                                            >
+                                                {item.typeLabel} #
+                                                {item.attemptNo}
+                                            </td>
+                                            <td
+                                                data-label="Jadwal"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'text-muted-foreground',
+                                                )}
+                                            >
+                                                {item.scheduledFor ?? '-'}
+                                            </td>
+                                            <td
+                                                data-label="Keputusan saya"
+                                                className={stackedTable.td}
+                                            >
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <DecisionBadge
+                                                        own
                                                         decision={
                                                             item.myDecision
                                                         }
                                                         defenseType={item.type}
                                                     />
                                                     {item.myScore !== null && (
-                                                        <span className="ml-1 inline-flex items-center gap-0.5 text-xs font-semibold">
-                                                            <Star className="size-3 text-amber-500" />
+                                                        <span className="font-medium tabular-nums">
+                                                            <span className="sr-only">
+                                                                Nilai{' '}
+                                                            </span>
                                                             {item.myScore}
                                                         </span>
                                                     )}
-                                                </td>
-
-                                                {/* Status */}
-                                                <td className="hidden px-4 py-3 sm:table-cell">
-                                                    <span
-                                                        className={cn(
-                                                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap',
-                                                            statusColor[
-                                                                item
-                                                                    .defenseStatus
-                                                            ] ??
-                                                                'bg-muted text-muted-foreground',
-                                                        )}
+                                                </div>
+                                            </td>
+                                            <td
+                                                data-label="Status"
+                                                className={stackedTable.td}
+                                            >
+                                                <DefenseStatusBadge
+                                                    status={item.defenseStatus}
+                                                />
+                                            </td>
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        aria-label={`Buka detail ${item.studentName}`}
+                                                        className="max-md:h-11"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            openItem(item);
+                                                        }}
                                                     >
-                                                        {statusLabel[
-                                                            item.defenseStatus
-                                                        ] ?? item.defenseStatus}
-                                                    </span>
-                                                </td>
-
-                                                {/* Chevron */}
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    <ChevronRight className="size-4" />
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                                        Buka
+                                                        <ChevronRight
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </DataTableContainer>
                     )}
-                </section>
+                </DataSection>
             </div>
 
-            {/* ── Defense Detail Sheet ── */}
             <DefenseDetailSheet
                 item={selectedItem}
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
             />
 
-            {/* ── Schedule Detail Modal (from calendar click) ── */}
             <ScheduleDetailModal
                 open={isDetailModalOpen}
                 onOpenChange={setIsDetailModalOpen}

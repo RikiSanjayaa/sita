@@ -23,7 +23,7 @@ async function openDefenseSheet(
 ): Promise<void> {
     await page.goto('/dosen/seminar-proposal');
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: listLabel, exact: true }).click();
+    await page.getByRole('radio', { name: listLabel, exact: true }).click();
     await page.waitForLoadState('networkidle');
     await page.getByPlaceholder(/cari nama/i).fill(studentName);
 
@@ -151,7 +151,7 @@ test.describe('Dosen penilaian ujian', () => {
 
             await examinerTwoPage.goto('/dosen/seminar-proposal');
             await examinerTwoPage
-                .getByRole('button', { name: 'Sempro / Sinopsis', exact: true })
+                .getByRole('radio', { name: 'Sempro / Sinopsis', exact: true })
                 .click();
             await examinerTwoPage
                 .getByPlaceholder(/cari nama/i)
@@ -303,7 +303,7 @@ test.describe('Dosen penilaian ujian', () => {
 
             await outsiderPage.goto('/dosen/seminar-proposal');
             await outsiderPage
-                .getByRole('button', { name: 'Sidang Akhir', exact: true })
+                .getByRole('radio', { name: 'Sidang Akhir', exact: true })
                 .click();
             await outsiderPage
                 .getByPlaceholder(/cari nama/i)

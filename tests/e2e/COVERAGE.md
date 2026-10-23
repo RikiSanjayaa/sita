@@ -42,7 +42,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow (menu)                                                                                                                     | Spec                                                              | Status   | Priority |
 | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/dosen/dashboard`)                                                                                                  | landing only, via auth setup                                      | belum    | P2       |
+| Dashboard (`/dosen/dashboard`)                                                                                                  | landing only, via auth setup; tampilan oleh `design-detector`     | belum    | P2       |
 | Sempro / Sinopsis & Sidang Akhir: penilaian penguji (UI; sempro non-OBE tanpa nilai, Ujian Sinopsis OBE wajib nilai + komentar) | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
 | Sempro / Sinopsis & Sidang Akhir: sidang panel, lulus dengan syarat                                                             | `dosen-penilaian`, `admin-sidang`                                 | tercakup | P1       |
 | Sempro / Sinopsis & Sidang Akhir: selesaikan revisi                                                                             | `dosen-penilaian`, `admin-sempro`                                 | tercakup | P1       |
