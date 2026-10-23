@@ -378,7 +378,7 @@ test.describe('Admin sidang workflow', () => {
             ),
         });
         const secretExaminerContext = await browser.newContext({
-            storageState: authStatePath('dosen2'),
+            storageState: authStatePath('dosen6'),
         });
         const studentPage = await studentContext.newPage();
 
@@ -388,7 +388,7 @@ test.describe('Admin sidang workflow', () => {
                 new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             ),
             'Ruang Sidang Retry Awal',
-            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen2@sita.test'],
+            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen6@sita.test'],
             'Reset sidang awal sebelum skenario gagal dan ulang.',
         );
 
@@ -408,19 +408,19 @@ test.describe('Admin sidang workflow', () => {
         );
         submitSidangDecisionForStudent(
             'putra@sita.test',
-            'dosen2@sita.test',
+            'dosen6@sita.test',
             'fail',
             57,
             'Presentasi sidang pertama belum layak diluluskan.',
         );
 
-        // Before the sidang is completed the extra examiner (dosen2) is secret from the student.
+        // Before the sidang is completed the extra examiner (dosen6) is secret from the student.
         await studentPage.goto('/mahasiswa/tugas-akhir');
         await expect(
             studentPage.getByText('Ruang Sidang Retry Awal').first(),
         ).toBeVisible();
         await expect(
-            studentPage.getByText('Dr. Ratna Kusuma, M.Kom.'),
+            studentPage.getByText('Dr. Siska Maharani, M.Kom.'),
         ).toHaveCount(0);
         completeSidangForStudent(
             'putra@sita.test',
@@ -431,7 +431,7 @@ test.describe('Admin sidang workflow', () => {
         // Completing the sidang shows the panel and brings the extra examiner into the thread.
         await studentPage.goto('/mahasiswa/tugas-akhir');
         await expect(
-            studentPage.getByText('Dr. Ratna Kusuma, M.Kom.').first(),
+            studentPage.getByText('Dr. Siska Maharani, M.Kom.').first(),
         ).toBeVisible();
         const secretExaminerPage = await secretExaminerContext.newPage();
         await expect(

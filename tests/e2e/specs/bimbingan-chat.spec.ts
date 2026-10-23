@@ -1020,16 +1020,21 @@ test.describe('Sidang chat group before the sidang is completed', () => {
             storageState: authStatePath(sidang.panelKeys[2]),
         });
 
+        // The props of the initial Inertia payload, as the page rendered them.
         async function inertiaProps(
             page: Page,
             url: string,
         ): Promise<{ threads: Array<Record<string, unknown>> }> {
-            const response = await page.request.get(url, {
-                headers: { 'X-Inertia': 'true' },
-            });
-            expect(response.ok()).toBeTruthy();
+            await page.goto(url);
 
-            return (await response.json()).props;
+            return page.locator('#app').evaluate((element) => {
+                const payload = element.getAttribute('data-page');
+                if (payload === null) {
+                    throw new Error('Page is missing its Inertia payload');
+                }
+
+                return JSON.parse(payload).props;
+            });
         }
 
         try {
