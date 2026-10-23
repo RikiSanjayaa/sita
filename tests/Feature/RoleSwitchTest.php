@@ -39,7 +39,7 @@ test('user cannot switch to unassigned role', function () {
         ->assertForbidden();
 });
 
-test('kaprodi can switch to dosen portal', function () {
+test('kaprodi cannot switch to dosen role because the kaprodi workspace covers it', function () {
     $programStudi = ProgramStudi::factory()->create();
     $kaprodi = User::factory()->asKaprodi()->create([
         'last_active_role' => AppRole::Kaprodi->value,
@@ -53,12 +53,9 @@ test('kaprodi can switch to dosen portal', function () {
 
     $this->actingAs($kaprodi)
         ->post('/role/switch', ['role' => AppRole::Dosen->value])
-        ->assertRedirect('/dosen/dashboard');
+        ->assertForbidden();
 
     $kaprodi->refresh();
 
-    expect(session('active_role'))->toBe(AppRole::Dosen->value);
-    expect($kaprodi->last_active_role)->toBe(AppRole::Dosen->value);
-    expect($kaprodi->hasRole(AppRole::Kaprodi))->toBeTrue();
-    expect($kaprodi->hasRole(AppRole::Dosen))->toBeTrue();
+    expect($kaprodi->last_active_role)->toBe(AppRole::Kaprodi->value);
 });

@@ -330,6 +330,24 @@ test.describe('Kaprodi portal', () => {
         }
     });
 
+    test('kaprodi opens a private chat from Dosen Prodi and stays in the kaprodi workspace', async ({
+        page,
+    }) => {
+        await page.goto('/kaprodi/dosen-prodi');
+        await expect(page).toHaveTitle(/Dosen Prodi/);
+
+        await page
+            .getByPlaceholder('Cari nama, NIK, konsentrasi...')
+            .fill('Fajar');
+        const row = studentRow(page, 'Dr. Fajar Nugraha');
+        await row.getByRole('button', { name: 'Chat dengan dosen' }).click();
+
+        await expect(page).toHaveURL(/\/dosen\/pesan\?.*mode=private/);
+        await expect(
+            page.getByText('Bimbingan Saya', { exact: true }),
+        ).toBeVisible();
+    });
+
     test('dokumen page lists student documents and opens the detail sheet', async ({
         page,
     }) => {
