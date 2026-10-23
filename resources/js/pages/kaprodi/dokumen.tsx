@@ -1,22 +1,22 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    ChevronRight,
-    Download,
-    FileText,
-    UserRound,
-    UsersRound,
-} from 'lucide-react';
+import { Download, FileText, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
-    type FilterGroup,
     usePagination,
 } from '@/components/ui/data-table';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,11 +27,6 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { cn } from '@/lib/utils';
@@ -81,6 +76,48 @@ type DokumenProps = {
 };
 
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
+
+/** The backend sends localized status labels; the badge tone needs the key. */
+const documentStatusKeys: Record<string, string> = {
+    'Perlu Review': 'submitted',
+    'Perlu Revisi': 'needs_revision',
+    Disetujui: 'approved',
+    Aktif: 'active',
+};
+
+function DocumentStatusBadge({
+    status,
+    className,
+}: {
+    status: string;
+    className?: string;
+}) {
+    return (
+        <StatusBadge
+            domain="document"
+            status={documentStatusKeys[status]}
+            className={cn('whitespace-nowrap', className)}
+        >
+            {status}
+        </StatusBadge>
+    );
+}
+
+function openDocument(fileUrl: string | null) {
+    if (fileUrl) {
+        window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    }
+}
+
+function reviewSummary(doc: DocumentQueueItem): string {
+    return [
+        doc.pendingCount > 0 ? `${doc.pendingCount} menunggu` : null,
+        doc.revisionCount > 0 ? `${doc.revisionCount} revisi` : null,
+        doc.approvedCount > 0 ? `${doc.approvedCount} disetujui` : null,
+    ]
+        .filter((part): part is string => part !== null)
+        .join(', ');
+}
 
 export default function KaprodiDokumenPage() {
     const { auth, programStudi, documentQueue } = usePage<
@@ -149,31 +186,6 @@ export default function KaprodiDokumenPage() {
         [documentQueue],
     );
 
-    const filterTabs: FilterGroup[] = [
-        {
-            value: statusFilter,
-            onChange: (value) => setStatusFilter(value as StatusFilter),
-            tabs: [
-                { label: 'Semua', value: 'semua' },
-                {
-                    label: 'Perlu Review',
-                    value: 'Perlu Review',
-                    count: statusCounts.review,
-                },
-                {
-                    label: 'Perlu Revisi',
-                    value: 'Perlu Revisi',
-                    count: statusCounts.revisi,
-                },
-                {
-                    label: 'Disetujui',
-                    value: 'Disetujui',
-                    count: statusCounts.disetujui,
-                },
-            ],
-        },
-    ];
-
     return (
         <KaprodiLayout
             breadcrumbs={breadcrumbs}
@@ -182,32 +194,49 @@ export default function KaprodiDokumenPage() {
         >
             <Head title="Dokumen Kaprodi" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
-                <section>
-                    <div className="mb-4 flex items-center justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Daftar Dokumen
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Semua upload mahasiswa prodi, termasuk status
-                                review dosen.
-                            </p>
-                        </div>
-                        {statusCounts.review > 0 ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-600/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
-                                <AlertTriangle className="size-3" />
-                                {statusCounts.review} perlu review
-                            </span>
-                        ) : null}
-                    </div>
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title="Dokumen"
+                    description={`Monitoring dokumen mahasiswa ${programStudi.name}`}
+                />
 
-                    <DataTableToolbar
+                <DataSection
+                    title="Daftar Dokumen"
+                    summary="Semua upload mahasiswa prodi, termasuk status review dosen."
+                >
+                    <DataToolbar
                         search={search}
                         onSearchChange={setSearch}
-                        searchPlaceholder="Cari mahasiswa, NIM, file, atau dosen..."
-                        filterGroups={filterTabs}
-                        className="mb-3"
+                        placeholder="Cari mahasiswa, NIM, file, atau dosen..."
+                    />
+
+                    <FilterPills
+                        label="Filter status dokumen"
+                        value={statusFilter}
+                        onValueChange={setStatusFilter}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={[
+                            {
+                                label: 'Semua',
+                                value: 'semua',
+                                count: documentQueue.length,
+                            },
+                            {
+                                label: 'Perlu Review',
+                                value: 'Perlu Review',
+                                count: statusCounts.review,
+                            },
+                            {
+                                label: 'Perlu Revisi',
+                                value: 'Perlu Revisi',
+                                count: statusCounts.revisi,
+                            },
+                            {
+                                label: 'Disetujui',
+                                value: 'Disetujui',
+                                count: statusCounts.disetujui,
+                            },
+                        ]}
                     />
 
                     {totalItems > 0 ? (
@@ -224,243 +253,161 @@ export default function KaprodiDokumenPage() {
                                 />
                             }
                         >
-                            <table className="w-full text-left text-sm">
-                                <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
-                                    <tr>
-                                        <th className="px-5 py-3 font-medium">
-                                            Mahasiswa
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            File / Judul
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Sumber
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Waktu Upload
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Review Dosen
-                                        </th>
-                                        <th className="px-5 py-3 text-right font-medium">
-                                            Aksi
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[860px]',
+                                )}
+                            >
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Mahasiswa</th>
+                                        <th className={dataTh}>Dokumen</th>
+                                        <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>Waktu upload</th>
+                                        <th className={dataTh}>Review dosen</th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y bg-background">
-                                    {paginated.map((doc) => {
-                                        const isPending =
-                                            doc.status === 'Perlu Review';
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
+                                    {paginated.map((doc) => (
+                                        <tr
+                                            key={doc.id}
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'cursor-pointer align-top transition-colors hover:bg-muted/30',
+                                            )}
+                                            onClick={() =>
+                                                setSelectedDocument(doc)
+                                            }
+                                        >
+                                            <td
+                                                className={stackedTable.tdPlain}
+                                            >
+                                                <Link
+                                                    href={doc.profileUrl}
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                    className="font-medium hover:text-primary"
+                                                >
+                                                    {doc.mahasiswa}
+                                                </Link>
+                                                <p className="text-muted-foreground tabular-nums">
+                                                    {doc.nim ?? '-'}
+                                                </p>
+                                            </td>
 
-                                        return (
-                                            <tr
-                                                key={doc.id}
-                                                role="button"
-                                                tabIndex={0}
+                                            <td
                                                 className={cn(
-                                                    'cursor-pointer transition-colors hover:bg-muted/20',
-                                                    isPending &&
-                                                        'bg-amber-50/40 dark:bg-amber-950/10',
+                                                    stackedTable.tdPlain,
+                                                    'md:max-w-xs',
                                                 )}
-                                                onClick={() =>
-                                                    setSelectedDocument(doc)
-                                                }
-                                                onKeyDown={(event) => {
-                                                    if (
-                                                        event.key === 'Enter' ||
-                                                        event.key === ' '
-                                                    ) {
-                                                        event.preventDefault();
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
                                                         setSelectedDocument(
                                                             doc,
                                                         );
-                                                    }
-                                                }}
+                                                    }}
+                                                    className="line-clamp-2 rounded-sm text-left font-medium hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                                                >
+                                                    {doc.title}
+                                                </button>
+                                                <p className="truncate text-xs text-muted-foreground">
+                                                    {doc.source}
+                                                    {doc.file
+                                                        ? ` · ${doc.file}`
+                                                        : ''}
+                                                </p>
+                                            </td>
+
+                                            <td
+                                                data-label="Status"
+                                                className={stackedTable.td}
                                             >
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <Link
-                                                        href={doc.profileUrl}
-                                                        onClick={(event) =>
-                                                            event.stopPropagation()
-                                                        }
-                                                        className="text-[14px] font-semibold hover:text-primary"
-                                                    >
-                                                        {doc.mahasiswa}
-                                                    </Link>
-                                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                                        {doc.nim ?? '-'}
+                                                <DocumentStatusBadge
+                                                    status={doc.status}
+                                                />
+                                            </td>
+
+                                            <td
+                                                data-label="Waktu upload"
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'text-muted-foreground md:whitespace-nowrap',
+                                                )}
+                                            >
+                                                {doc.uploadedAt}
+                                            </td>
+
+                                            <td
+                                                data-label="Review dosen"
+                                                className={stackedTable.td}
+                                            >
+                                                <p className="tabular-nums">
+                                                    {doc.reviewCount} review
+                                                </p>
+                                                {reviewSummary(doc) ? (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {reviewSummary(doc)}
                                                     </p>
-                                                </td>
+                                                ) : null}
+                                            </td>
 
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <div className="flex min-w-0 items-center gap-2.5">
-                                                        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                                            <FileText className="size-4" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <div className="max-w-[220px] truncate text-sm font-medium">
-                                                                {doc.title}
-                                                            </div>
-                                                            <div className="max-w-[220px] truncate text-xs text-muted-foreground">
-                                                                {doc.file ??
-                                                                    '-'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <Badge variant="outline">
-                                                        {doc.source}
-                                                    </Badge>
-                                                </td>
-
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <Badge
-                                                        variant="soft"
-                                                        className={cn(
-                                                            'whitespace-nowrap',
-                                                            doc.status ===
-                                                                'Disetujui'
-                                                                ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
-                                                                : doc.status ===
-                                                                    'Perlu Revisi'
-                                                                  ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                                                                  : 'bg-muted text-muted-foreground',
-                                                        )}
-                                                    >
-                                                        {doc.status}
-                                                    </Badge>
-                                                </td>
-
-                                                <td className="px-5 py-3.5 align-middle text-xs whitespace-nowrap text-muted-foreground">
-                                                    {doc.uploadedAt}
-                                                </td>
-
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <div className="flex flex-wrap items-center gap-1.5">
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="gap-1"
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <div
+                                                    className="flex items-center justify-end gap-1 max-md:justify-start"
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
+                                                    {canDownloadDocuments ? (
+                                                        <RowIconButton
+                                                            label="Unduh dokumen"
+                                                            disabled={
+                                                                !doc.fileUrl
+                                                            }
+                                                            onClick={() =>
+                                                                openDocument(
+                                                                    doc.fileUrl,
+                                                                )
+                                                            }
                                                         >
-                                                            <UsersRound className="size-3" />
-                                                            {doc.reviewCount}{' '}
-                                                            review
-                                                        </Badge>
-                                                        {doc.pendingCount >
-                                                        0 ? (
-                                                            <Badge
-                                                                variant="soft"
-                                                                className="bg-muted text-muted-foreground"
-                                                            >
-                                                                {
-                                                                    doc.pendingCount
-                                                                }{' '}
-                                                                menunggu
-                                                            </Badge>
-                                                        ) : null}
-                                                        {doc.revisionCount >
-                                                        0 ? (
-                                                            <Badge
-                                                                variant="soft"
-                                                                className="bg-amber-600/10 text-amber-700 dark:text-amber-400"
-                                                            >
-                                                                {
-                                                                    doc.revisionCount
-                                                                }{' '}
-                                                                revisi
-                                                            </Badge>
-                                                        ) : null}
-                                                        {doc.approvedCount >
-                                                        0 ? (
-                                                            <Badge
-                                                                variant="soft"
-                                                                className="bg-emerald-600/10 text-emerald-700 dark:text-emerald-400"
-                                                            >
-                                                                {
-                                                                    doc.approvedCount
-                                                                }{' '}
-                                                                disetujui
-                                                            </Badge>
-                                                        ) : null}
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-5 py-3.5 align-middle">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        {canDownloadDocuments ? (
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <Button
-                                                                        size="icon"
-                                                                        variant="ghost"
-                                                                        className="size-8 text-muted-foreground hover:text-foreground"
-                                                                        disabled={
-                                                                            !doc.fileUrl
-                                                                        }
-                                                                        onClick={(
-                                                                            event,
-                                                                        ) => {
-                                                                            event.stopPropagation();
-                                                                            if (
-                                                                                doc.fileUrl
-                                                                            ) {
-                                                                                window.open(
-                                                                                    doc.fileUrl,
-                                                                                    '_blank',
-                                                                                    'noopener,noreferrer',
-                                                                                );
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <Download className="size-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    Unduh
-                                                                    Dokumen
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        ) : null}
-                                                        <Tooltip>
-                                                            <TooltipTrigger
-                                                                asChild
-                                                            >
-                                                                <Button
-                                                                    asChild
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    className="size-8 text-muted-foreground hover:text-foreground"
-                                                                >
-                                                                    <Link
-                                                                        href={
-                                                                            doc.profileUrl
-                                                                        }
-                                                                        onClick={(
-                                                                            event,
-                                                                        ) =>
-                                                                            event.stopPropagation()
-                                                                        }
-                                                                    >
-                                                                        <UserRound className="size-4" />
-                                                                    </Link>
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Buka Profil
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <ChevronRight className="size-4 text-muted-foreground" />
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                                            <Download className="size-4" />
+                                                        </RowIconButton>
+                                                    ) : null}
+                                                    <RowIconButton
+                                                        asChild
+                                                        label="Buka profil mahasiswa"
+                                                    >
+                                                        <Link
+                                                            href={
+                                                                doc.profileUrl
+                                                            }
+                                                        >
+                                                            <UserRound className="size-4" />
+                                                        </Link>
+                                                    </RowIconButton>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </DataTableContainer>
@@ -479,7 +426,7 @@ export default function KaprodiDokumenPage() {
                             }
                         />
                     )}
-                </section>
+                </DataSection>
             </div>
 
             <Sheet
@@ -498,7 +445,7 @@ export default function KaprodiDokumenPage() {
                         <>
                             <SheetHeader className="border-b bg-muted/20 px-6 py-4">
                                 <div className="flex items-start gap-3 pr-8">
-                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
                                         <FileText className="size-5" />
                                     </div>
                                     <div className="min-w-0">
@@ -513,80 +460,64 @@ export default function KaprodiDokumenPage() {
                                 </div>
                             </SheetHeader>
 
-                            <ScrollArea className="h-[calc(100vh-5.5rem)]">
+                            <ScrollArea className="h-[calc(100dvh-5.5rem)]">
                                 <div className="space-y-5 px-6 py-5">
                                     <div className="rounded-lg border bg-background">
-                                        <div className="grid gap-4 p-4 sm:grid-cols-2">
+                                        <dl className="grid gap-4 p-4 sm:grid-cols-2">
                                             <div>
-                                                <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                                <dt className="text-xs font-medium text-muted-foreground">
                                                     Sumber
-                                                </p>
-                                                <p className="mt-1 text-sm font-medium">
+                                                </dt>
+                                                <dd className="mt-1 text-sm font-medium">
                                                     {selectedDocument.source}
-                                                </p>
+                                                </dd>
                                             </div>
                                             <div>
-                                                <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                                <dt className="text-xs font-medium text-muted-foreground">
                                                     Upload
-                                                </p>
-                                                <p className="mt-1 text-sm font-medium">
+                                                </dt>
+                                                <dd className="mt-1 text-sm font-medium">
                                                     {
                                                         selectedDocument.uploadedAt
                                                     }
-                                                </p>
+                                                </dd>
                                             </div>
                                             <div>
-                                                <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                                <dt className="text-xs font-medium text-muted-foreground">
                                                     Status
-                                                </p>
-                                                <Badge
-                                                    variant="soft"
-                                                    className={cn(
-                                                        'mt-1',
-                                                        selectedDocument.status ===
-                                                            'Disetujui'
-                                                            ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
-                                                            : selectedDocument.status ===
-                                                                'Perlu Revisi'
-                                                              ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                                                              : 'bg-muted text-muted-foreground',
-                                                    )}
-                                                >
-                                                    {selectedDocument.status}
-                                                </Badge>
+                                                </dt>
+                                                <dd className="mt-1">
+                                                    <DocumentStatusBadge
+                                                        status={
+                                                            selectedDocument.status
+                                                        }
+                                                    />
+                                                </dd>
                                             </div>
                                             <div>
-                                                <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                                <dt className="text-xs font-medium text-muted-foreground">
                                                     Review
-                                                </p>
-                                                <p className="mt-1 text-sm font-medium">
+                                                </dt>
+                                                <dd className="mt-1 text-sm font-medium tabular-nums">
                                                     {
                                                         selectedDocument.reviewCount
                                                     }{' '}
                                                     dosen
-                                                </p>
+                                                </dd>
                                             </div>
-                                        </div>
+                                        </dl>
 
                                         <div className="flex flex-wrap gap-2 border-t px-4 py-3">
                                             {canDownloadDocuments &&
                                             selectedDocument.fileUrl ? (
                                                 <Button
                                                     size="sm"
-                                                    onClick={() => {
-                                                        const fileUrl =
-                                                            selectedDocument.fileUrl;
-
-                                                        if (!fileUrl) {
-                                                            return;
-                                                        }
-
-                                                        window.open(
-                                                            fileUrl,
-                                                            '_blank',
-                                                            'noopener,noreferrer',
-                                                        );
-                                                    }}
+                                                    className="max-md:h-11"
+                                                    onClick={() =>
+                                                        openDocument(
+                                                            selectedDocument.fileUrl,
+                                                        )
+                                                    }
                                                 >
                                                     <Download className="size-4" />
                                                     Unduh Dokumen
@@ -596,6 +527,7 @@ export default function KaprodiDokumenPage() {
                                                 asChild
                                                 size="sm"
                                                 variant="outline"
+                                                className="max-md:h-11"
                                             >
                                                 <Link
                                                     href={
@@ -640,21 +572,12 @@ export default function KaprodiDokumenPage() {
                                                                 }
                                                             </p>
                                                         </div>
-                                                        <Badge
-                                                            variant="soft"
-                                                            className={cn(
-                                                                'shrink-0',
-                                                                review.status ===
-                                                                    'Disetujui'
-                                                                    ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
-                                                                    : review.status ===
-                                                                        'Perlu Revisi'
-                                                                      ? 'bg-amber-600/10 text-amber-700 dark:text-amber-400'
-                                                                      : 'bg-muted text-muted-foreground',
-                                                            )}
-                                                        >
-                                                            {review.status}
-                                                        </Badge>
+                                                        <DocumentStatusBadge
+                                                            status={
+                                                                review.status
+                                                            }
+                                                            className="shrink-0"
+                                                        />
                                                     </div>
 
                                                     {review.reviewedAt ? (
@@ -664,7 +587,7 @@ export default function KaprodiDokumenPage() {
                                                         </p>
                                                     ) : null}
 
-                                                    <div className="mt-3 rounded-md bg-muted/30 p-3">
+                                                    <div className="mt-3 rounded-md bg-muted/40 p-3">
                                                         <p className="text-xs leading-relaxed text-muted-foreground">
                                                             {review.revisionNotes ??
                                                                 'Belum ada catatan review.'}

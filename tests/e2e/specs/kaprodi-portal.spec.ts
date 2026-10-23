@@ -103,9 +103,38 @@ test.describe('Kaprodi portal', () => {
         await expect(row).toBeVisible();
         await expect(row).toContainText('2210511001');
 
-        await row.getByRole('link', { name: 'Buka profil mahasiswa' }).click();
+        await row.getByRole('link', { name: supervised.studentName }).click();
         await expect(page).toHaveURL(/\/profil\/\d+$/);
         await expect(page.getByText('2210511001').first()).toBeVisible();
+    });
+
+    test('mahasiswa row keeps one primary action and an overflow menu, with 44px targets on a phone', async ({
+        page,
+    }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto('/kaprodi/mahasiswa');
+        await page
+            .getByPlaceholder('Cari nama atau NIM...')
+            .fill(withoutSupervisors.studentName);
+        const row = studentRow(page, withoutSupervisors.studentName);
+
+        // Below md the table is a stacked list, so actions need no sideways scrolling.
+        const primary = row.getByRole('button', { name: 'Atur pembimbing' });
+        await expect(primary).toBeVisible();
+        const box = await primary.boundingBox();
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+        await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+        await expect(
+            page.getByRole('menuitem', { name: 'Buka profil mahasiswa' }),
+        ).toBeVisible();
+        await expect(
+            page.getByRole('menuitem', { name: 'Dokumen mahasiswa' }),
+        ).toBeVisible();
+        await page.getByRole('menuitem', { name: 'Catatan dosen' }).click();
+        await expect(
+            page.getByRole('dialog', { name: 'Catatan Dosen' }),
+        ).toBeVisible();
     });
 
     test('kaprodi assigns two supervisors; the student and both dosen see the assignment', async ({

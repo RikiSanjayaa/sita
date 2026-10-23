@@ -2,23 +2,24 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     CalendarClock,
     CheckCircle2,
-    ChevronRight,
     Clock,
+    Eye,
     FileWarning,
     Inbox,
     MapPin,
+    MoreHorizontal,
     Pencil,
     Plus,
-    Search,
     Star,
     User,
     XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { DateRangePicker } from '@/components/date-range-picker';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     LecturerMultiSearch,
     LecturerSearchSelect,
@@ -27,10 +28,14 @@ import {
     MentorshipMinimumAlert,
     type MentorshipProgressRow,
 } from '@/components/mentorship-progress';
-import { EmptyState } from '@/components/patterns/empty-state';
-import { FilterBar } from '@/components/patterns/filter-bar';
+import {
+    DataSection,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
-import { SectionCard } from '@/components/patterns/section-card';
+import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
@@ -38,6 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
+    DataTableEmptyState,
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
@@ -49,6 +55,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -61,10 +73,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
-import {
-    type AcademicGrade,
-    academicGradeClassName,
-} from '@/lib/academic-grade';
 import {
     neutralAcademicTerminology,
     type AcademicTerminology,
@@ -371,7 +379,12 @@ export default function KaprodiSemproSidangPage() {
         >
             <Head title={`${terms.proposalExamShort} & ${terms.finalExam}`} />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 lg:py-8">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+                <PageHeader
+                    title={`${terms.proposalExamShort} & ${terms.finalExam}`}
+                    description={`Monitoring ujian dan jadwal untuk ${programStudi.name}. Kaprodi dapat mengatur jadwal dan dosen terlibat tanpa melakukan penilaian.`}
+                />
+
                 <CollapsibleCalendarSection
                     storageKey="kaprodi-sempro-sidang"
                     title="Kalender Ujian Prodi"
@@ -380,84 +393,70 @@ export default function KaprodiSemproSidangPage() {
                     onEventClick={setSelectedEvent}
                 />
 
-                <SectionCard
+                <DataSection
                     title="Monitoring Ujian"
-                    description="Kaprodi dapat mengatur jadwal dan dosen terlibat tanpa melakukan penilaian."
-                    actions={
-                        canScheduleSempro || canScheduleSidang ? (
-                            <>
-                                {canScheduleSempro ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                            setScheduleDialog({
-                                                type: 'sempro',
-                                            })
-                                        }
-                                    >
-                                        <Plus className="size-4" />
-                                        {`Jadwalkan ${terms.proposalExamShort}`}
-                                    </Button>
-                                ) : null}
-                                {canScheduleSidang ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                            setScheduleDialog({
-                                                type: 'sidang',
-                                            })
-                                        }
-                                    >
-                                        <Plus className="size-4" />
-                                        Jadwalkan {terms.finalExam}
-                                    </Button>
-                                ) : null}
-                            </>
-                        ) : null
-                    }
-                    contentClassName="space-y-3"
+                    summary={`${filtered.length} ujian`}
                 >
-                    <StickyFilterBar>
-                        <FilterBar>
-                            <div className="relative w-full max-w-xs">
-                                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={search}
-                                    onChange={(event) =>
-                                        setSearch(event.target.value)
+                    <StickyFilterBar className="space-y-3 rounded-none border-0 p-0 py-3 shadow-none max-md:static">
+                        <DataToolbar
+                            search={search}
+                            onSearchChange={setSearch}
+                            placeholder="Cari nama, NIM, judul, atau dosen..."
+                        >
+                            {canScheduleSempro ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="max-md:h-11 max-md:flex-1"
+                                    onClick={() =>
+                                        setScheduleDialog({ type: 'sempro' })
                                     }
-                                    placeholder="Cari nama, NIM, judul, atau dosen..."
-                                    className="h-8 pl-8 text-sm"
-                                />
-                            </div>
+                                >
+                                    <Plus className="size-4" />
+                                    {`Jadwalkan ${terms.proposalExamShort}`}
+                                </Button>
+                            ) : null}
+                            {canScheduleSidang ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="max-md:h-11 max-md:flex-1"
+                                    onClick={() =>
+                                        setScheduleDialog({ type: 'sidang' })
+                                    }
+                                >
+                                    <Plus className="size-4" />
+                                    Jadwalkan {terms.finalExam}
+                                </Button>
+                            ) : null}
+                        </DataToolbar>
 
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                                <FilterPills
-                                    label="Filter tipe ujian"
-                                    value={typeFilter}
-                                    onValueChange={setTypeFilter}
-                                    options={typeTabs}
-                                />
-                                <span
-                                    aria-hidden="true"
-                                    className="hidden h-5 w-px bg-border sm:block"
-                                />
-                                <FilterPills
-                                    label="Filter status ujian"
-                                    value={statusFilter}
-                                    onValueChange={setStatusFilter}
-                                    options={statusTabs}
-                                />
-                            </div>
-                        </FilterBar>
+                        <div className="flex flex-col gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
+                            <FilterPills
+                                label="Filter tipe ujian"
+                                value={typeFilter}
+                                onValueChange={setTypeFilter}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                                options={typeTabs}
+                            />
+                            <span
+                                aria-hidden="true"
+                                className="hidden h-5 w-px bg-border sm:block"
+                            />
+                            <FilterPills
+                                label="Filter status ujian"
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                                itemClassName="max-md:h-11 max-md:px-4"
+                                options={statusTabs}
+                            />
+                        </div>
                     </StickyFilterBar>
 
                     {filtered.length === 0 ? (
-                        <EmptyState
+                        <DataTableEmptyState
                             icon={Inbox}
                             title="Tidak ada ujian yang cocok"
                             description="Coba ubah filter atau kata kunci pencarian."
@@ -476,64 +475,82 @@ export default function KaprodiSemproSidangPage() {
                                 />
                             }
                         >
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/30">
-                                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Mahasiswa
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[900px]',
+                                )}
+                            >
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Mahasiswa</th>
+                                        <th className={dataTh}>Jadwal</th>
+                                        <th className={dataTh}>
+                                            Dosen terlibat
                                         </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground md:table-cell">
-                                            Judul
+                                        <th className={dataTh}>Nilai</th>
+                                        <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
                                         </th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Tipe & Jadwal
-                                        </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground lg:table-cell">
-                                            Dosen Terlibat
-                                        </th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                                            Nilai
-                                        </th>
-                                        <th className="hidden px-4 py-2.5 text-left text-xs font-medium text-muted-foreground sm:table-cell">
-                                            Status
-                                        </th>
-                                        <th className="w-16 px-4 py-2.5" />
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y">
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
                                     {paginated.map((item) => (
                                         <tr
                                             key={item.id}
-                                            className="cursor-pointer transition-colors hover:bg-muted/30"
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'cursor-pointer align-top transition-colors hover:bg-muted/30',
+                                            )}
                                             onClick={() => setSelected(item)}
                                         >
-                                            <td className="min-w-36 px-4 py-3">
-                                                <p className="leading-snug font-medium">
+                                            <td
+                                                className={cn(
+                                                    stackedTable.tdPlain,
+                                                    'md:max-w-72',
+                                                )}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setSelected(item);
+                                                    }}
+                                                    className="rounded-sm text-left font-medium hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                                                >
                                                     {item.student}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
+                                                </button>
+                                                <p className="text-muted-foreground tabular-nums">
                                                     {item.nim ?? '-'}
                                                 </p>
-                                            </td>
-                                            <td className="hidden min-w-48 px-4 py-3 md:table-cell">
-                                                <p className="line-clamp-2 text-xs leading-relaxed">
+                                                <p className="mt-1 line-clamp-2 text-xs text-pretty text-muted-foreground">
                                                     {item.title}
                                                 </p>
                                             </td>
-                                            <td className="px-4 py-3 sm:whitespace-nowrap">
-                                                <Badge
-                                                    variant="outline"
-                                                    className="rounded-full text-xs"
-                                                >
+                                            <td
+                                                data-label="Jadwal"
+                                                className={stackedTable.td}
+                                            >
+                                                <p className="font-medium">
                                                     {item.type} #{item.attempt}
-                                                </Badge>
-                                                <span className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                    <Clock className="size-3 shrink-0" />
+                                                </p>
+                                                <p className="text-muted-foreground">
                                                     {item.scheduledFor}
-                                                </span>
+                                                </p>
                                             </td>
-                                            <td className="hidden px-4 py-3 lg:table-cell">
-                                                <ul className="flex flex-col gap-1 text-xs whitespace-nowrap">
+                                            <td
+                                                data-label="Dosen terlibat"
+                                                className={stackedTable.td}
+                                            >
+                                                <ul className="flex flex-col gap-1 text-xs text-pretty">
                                                     {item.examiners.map(
                                                         (examiner) => (
                                                             <li
@@ -565,36 +582,33 @@ export default function KaprodiSemproSidangPage() {
                                                     )}
                                                 </ul>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td
+                                                data-label="Nilai"
+                                                className={stackedTable.td}
+                                            >
                                                 {item.averageScore === null &&
                                                 item.grade === null ? (
-                                                    <span className="text-xs text-muted-foreground">
+                                                    <span className="text-muted-foreground">
                                                         {item.scoreRequired
                                                             ? '-'
                                                             : 'Tanpa nilai'}
                                                     </span>
                                                 ) : (
-                                                    <div className="flex items-center gap-1.5 whitespace-nowrap">
-                                                        <span className="text-xs font-semibold tabular-nums">
-                                                            {item.averageScore ??
-                                                                '-'}
-                                                        </span>
+                                                    <span className="font-medium tabular-nums">
+                                                        {item.averageScore ??
+                                                            '-'}
                                                         {item.grade ? (
-                                                            <Badge
-                                                                className={cn(
-                                                                    'rounded-full text-xs',
-                                                                    academicGradeClassName(
-                                                                        item.grade as AcademicGrade,
-                                                                    ),
-                                                                )}
-                                                            >
+                                                            <span className="ml-1.5 text-muted-foreground">
                                                                 {item.grade}
-                                                            </Badge>
+                                                            </span>
                                                         ) : null}
-                                                    </div>
+                                                    </span>
                                                 )}
                                             </td>
-                                            <td className="hidden px-4 py-3 sm:table-cell">
+                                            <td
+                                                data-label="Status"
+                                                className={stackedTable.td}
+                                            >
                                                 <StatusBadge
                                                     domain="defense"
                                                     status={item.statusKey}
@@ -602,8 +616,17 @@ export default function KaprodiSemproSidangPage() {
                                                     {item.status}
                                                 </StatusBadge>
                                             </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                <div className="flex items-center justify-end gap-2">
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <div
+                                                    className="flex items-center justify-end gap-1 max-md:justify-start"
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
                                                     {item.canManageSchedule &&
                                                     ((item.typeKey ===
                                                         'sempro' &&
@@ -611,13 +634,9 @@ export default function KaprodiSemproSidangPage() {
                                                         (item.typeKey ===
                                                             'sidang' &&
                                                             canScheduleSidang)) ? (
-                                                        <button
-                                                            type="button"
-                                                            title="Ubah jadwal"
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
-                                                                event.stopPropagation();
+                                                        <RowIconButton
+                                                            label="Ubah jadwal"
+                                                            onClick={() =>
                                                                 setScheduleDialog(
                                                                     {
                                                                         type: item.typeKey as
@@ -625,14 +644,56 @@ export default function KaprodiSemproSidangPage() {
                                                                             | 'sidang',
                                                                         exam: item,
                                                                     },
-                                                                );
-                                                            }}
-                                                            className="rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
+                                                                )
+                                                            }
                                                         >
                                                             <Pencil className="size-4" />
-                                                        </button>
+                                                        </RowIconButton>
                                                     ) : null}
-                                                    <ChevronRight className="size-4" />
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                aria-label="Aksi lainnya"
+                                                                className="text-muted-foreground hover:text-foreground max-md:size-11"
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent
+                                                            align="end"
+                                                            className="w-52"
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onSelect={() =>
+                                                                    setSelected(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Eye className="size-4" />
+                                                                Lihat detail
+                                                                ujian
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={
+                                                                        item.studentProfileUrl
+                                                                    }
+                                                                >
+                                                                    <User className="size-4" />
+                                                                    Buka profil
+                                                                    mahasiswa
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             </td>
                                         </tr>
@@ -641,7 +702,7 @@ export default function KaprodiSemproSidangPage() {
                             </table>
                         </DataTableContainer>
                     )}
-                </SectionCard>
+                </DataSection>
             </div>
 
             <ExamDetailSheet
@@ -848,6 +909,7 @@ function ScheduleDialog({
         ].join(':');
     }, [open, state]);
     const form = useForm(initialFormData);
+    const fieldId = useId();
 
     useEffect(() => {
         form.setData(initialFormData);
@@ -916,14 +978,20 @@ function ScheduleDialog({
 
                 <div className="grid gap-4">
                     <div className="grid min-w-0 gap-1.5">
-                        <label className="text-sm font-medium">Mahasiswa</label>
+                        <label
+                            htmlFor={`${fieldId}-project`}
+                            className="text-sm font-medium"
+                        >
+                            Mahasiswa
+                        </label>
                         <select
+                            id={`${fieldId}-project`}
                             value={form.data.project_id}
                             disabled={activeState.exam !== undefined}
                             onChange={(event) =>
                                 form.setData('project_id', event.target.value)
                             }
-                            className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
+                            className="h-11 w-full min-w-0 rounded-md border bg-background px-3 text-base shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 md:h-9 md:text-sm"
                         >
                             <option value="">Pilih mahasiswa</option>
                             {projects.map((project) => {
@@ -1029,8 +1097,15 @@ function ScheduleDialog({
                             />
                         </div>
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
-                            <label className="text-sm font-medium">Jam</label>
+                            <label
+                                htmlFor={`${fieldId}-time`}
+                                className="text-sm font-medium"
+                            >
+                                Jam
+                            </label>
                             <Input
+                                id={`${fieldId}-time`}
+                                className="max-md:h-11"
                                 type="time"
                                 value={form.data.scheduled_time}
                                 onChange={(event) =>
@@ -1051,10 +1126,15 @@ function ScheduleDialog({
                             ) : null}
                         </div>
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
-                            <label className="text-sm font-medium">
+                            <label
+                                htmlFor={`${fieldId}-location`}
+                                className="text-sm font-medium"
+                            >
                                 Lokasi
                             </label>
                             <Input
+                                id={`${fieldId}-location`}
+                                className="max-md:h-11"
                                 value={form.data.location}
                                 onChange={(event) =>
                                     form.setData('location', event.target.value)
@@ -1068,13 +1148,19 @@ function ScheduleDialog({
                             ) : null}
                         </div>
                         <div className="grid min-w-0 gap-1.5 sm:col-span-1">
-                            <label className="text-sm font-medium">Mode</label>
+                            <label
+                                htmlFor={`${fieldId}-mode`}
+                                className="text-sm font-medium"
+                            >
+                                Mode
+                            </label>
                             <select
+                                id={`${fieldId}-mode`}
                                 value={form.data.mode}
                                 onChange={(event) =>
                                     form.setData('mode', event.target.value)
                                 }
-                                className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                className="h-11 w-full min-w-0 rounded-md border bg-background px-3 text-base shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-9 md:text-sm"
                             >
                                 <option value="offline">Offline</option>
                                 <option value="online">Online</option>
@@ -1151,10 +1237,14 @@ function ScheduleDialog({
 
                     {activeState.type === 'sidang' ? (
                         <div className="grid min-w-0 gap-1.5">
-                            <label className="text-sm font-medium">
+                            <label
+                                htmlFor={`${fieldId}-notes`}
+                                className="text-sm font-medium"
+                            >
                                 Catatan
                             </label>
                             <Textarea
+                                id={`${fieldId}-notes`}
                                 value={form.data.notes}
                                 onChange={(event) =>
                                     form.setData('notes', event.target.value)

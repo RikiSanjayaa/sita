@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-const pageHeaderTitle = cva('font-semibold tracking-tight', {
+const pageHeaderTitle = cva('font-semibold tracking-tight text-balance', {
     variants: {
         level: {
             1: 'text-2xl',
@@ -44,7 +44,7 @@ export function PageHeader({
                     {title}
                 </Heading>
                 {description && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-pretty text-muted-foreground">
                         {description}
                     </p>
                 )}

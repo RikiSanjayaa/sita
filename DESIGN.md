@@ -359,6 +359,16 @@ Approved in #82 for the public list pages; tables and lists in the mahasiswa, do
 - **Actions cell:** the last cell uses `stackedTable.tdActions`: a compact icon or menu cluster at the right of the row (`flex items-center justify-end gap-1 max-md:justify-start`), and the last line of the entry on phones. Its header cell holds `<span className="sr-only">Aksi</span>`. Keep the cluster to two icon buttons or one menu; icon buttons carry an `aria-label`.
 - **Detail on demand:** expanded detail is rendered only when open, never hidden at rest.
 
+### Portal: kaprodi
+
+Decided in #85, desktop-first and clean at 390px. The five kaprodi pages (dashboard, Mahasiswa Prodi, Sempro / Sinopsis & Sidang Akhir, Dokumen, Dosen Prodi) all start with `PageHeader` and compose lists from the data-list patterns above.
+
+- **Row actions:** one primary action stays visible; the rest sit in an "Aksi lainnya" `DropdownMenu`. Mahasiswa Prodi keeps "Atur pembimbing" visible and moves profile, documents, exam schedule and lecturer notes into the menu; Sempro / Sidang keeps "Ubah jadwal"; Dokumen and Dosen Prodi keep two icon buttons. Icon-only buttons are `RowIconButton` (`components/kaprodi/row-icon-button.tsx`): ghost icon button, tooltip, `aria-label`, 44px below `md`.
+- **Filters:** one quick filter per list as `FilterPills` with counts over the whole list (phase on Mahasiswa Prodi, status on Dokumen, concentration on Dosen Prodi, type and status on Sempro / Sidang). Secondary filters (risk, angkatan, konsentrasi) are `DataSelect`s in the toolbar. These lists are paginated in the browser over the complete list, so filters and counts cover every row. A separate "Reset filter" ghost button appears only while a filter is set.
+- **Cells:** the exam table folds title and NIM under the student name, and the lecturer table folds concentration and expertise under the name. A missing value is a single muted `-`. Status and phase use `StatusBadge` through the `phase`, `defense`, `document` and `state` domains; risk uses `toneClassName`. Counts and constant values (P1/P2, quota, exam counts) are plain tabular text, not pills.
+- **Dashboard:** the welcome panel keeps its gradient and the "Ringkasan prodi" aside. The four navigation shortcuts, phase and exam counts, attention items, agenda and archives are `SectionCard`s holding divided rows (no nested cards, no filled primary tile); count values are tabular text.
+- **Sticky filter on Sempro / Sidang:** `StickyFilterBar` stays sticky from `md`; on phones it scrolls with the page so the two stacked pill groups do not cover the list.
+
 ### Calendar
 
 FullCalendar variables (borders, buttons, today highlight) are mapped to the tokens in `app.css` for both themes; calendar event fills use the `schedule` domain tones. Days outside the month use muted text instead of FullCalendar's 0.3 opacity, which fails AA.
