@@ -1,9 +1,9 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowRight } from 'lucide-react';
 import { type PropsWithChildren } from 'react';
 
 import AppLogoIcon from '@/components/app-logo-icon';
-import { ThemeSettingsFab } from '@/components/public/theme-settings-fab';
+import { PageHeader } from '@/components/patterns/page-header';
+import { ThemeSettingsButton } from '@/components/public/theme-settings-button';
 import { Button } from '@/components/ui/button';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { type SharedData } from '@/types';
 
 type PublicLayoutProps = PropsWithChildren<{
     headTitle: string;
+    /** Page title (h1). Omit when the page renders its own h1. */
     pageTitle?: string;
     description?: string;
     active: 'home' | 'jadwal' | 'pembimbing' | 'topik' | 'mahasiswa';
@@ -41,125 +42,106 @@ export function PublicLayout({
 }: PublicLayoutProps) {
     const { auth } = usePage<SharedData>().props;
     const isAuthenticated = Boolean(auth.user);
+    const accountLink = isAuthenticated
+        ? { href: dashboard().url, label: 'Dashboard' }
+        : { href: login().url, label: 'Masuk' };
 
     return (
         <>
             <Head title={headTitle} />
 
             <div className="min-h-screen bg-background text-foreground">
-                <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-                    <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-4 lg:px-6">
+                <header className="border-b bg-background md:sticky md:top-0 md:z-40 md:bg-background/95 md:backdrop-blur">
+                    <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
                         <Link
                             href={home().url}
-                            className="flex min-w-0 shrink-0 items-center gap-3"
+                            className="flex min-w-0 items-center gap-3 rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                         >
-                            <span className="flex h-12 w-14 shrink-0 items-center justify-center text-primary">
-                                <AppLogoIcon className="h-12 w-14" />
-                            </span>
-                            <div className="grid min-w-0 leading-tight">
-                                <span className="truncate text-[15px] font-semibold sm:text-sm">
+                            <AppLogoIcon className="h-10 w-12 shrink-0 text-primary md:h-12 md:w-14" />
+                            <span className="grid min-w-0 leading-tight">
+                                <span className="text-sm font-semibold">
                                     SiTA Universitas Bumigora
                                 </span>
-                                <span className="hidden truncate text-[11px] text-muted-foreground sm:block sm:text-xs">
+                                <span className="hidden text-xs text-muted-foreground sm:block">
                                     Sistem Informasi Tugas Akhir
                                 </span>
-                            </div>
+                            </span>
                         </Link>
 
-                        <div className="hidden min-w-0 flex-1 justify-center md:flex">
-                            <nav className="flex items-center justify-center rounded-full border bg-muted/20 p-1">
-                                {navItems.map((item) => (
-                                    <Link
-                                        key={item.id}
-                                        href={item.href}
-                                        className={cn(
-                                            'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                                            active === item.id
-                                                ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
-                                                : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                                        )}
-                                    >
-                                        {item.label}
-                                    </Link>
-                                ))}
-                            </nav>
-                        </div>
+                        <nav
+                            aria-label="Navigasi utama"
+                            className="hidden items-center rounded-full border bg-muted/40 p-1 md:flex"
+                        >
+                            {navItems.map((item) => (
+                                <Link
+                                    key={item.id}
+                                    href={item.href}
+                                    aria-current={
+                                        active === item.id ? 'page' : undefined
+                                    }
+                                    className={cn(
+                                        'rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                                        active === item.id
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-muted-foreground hover:bg-background hover:text-foreground',
+                                    )}
+                                >
+                                    {item.label}
+                                </Link>
+                            ))}
+                        </nav>
 
                         <div className="flex shrink-0 items-center gap-2">
-                            {isAuthenticated ? (
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    className="h-9 rounded-lg px-3 sm:h-10 sm:px-4"
-                                >
-                                    <Link
-                                        href={dashboard().url}
-                                        className="inline-flex items-center gap-1.5"
-                                    >
-                                        Dashboard
-                                        <ArrowRight className="hidden size-4 sm:block" />
-                                    </Link>
-                                </Button>
-                            ) : (
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    className="h-9 rounded-lg px-3 sm:h-10 sm:px-4"
-                                >
-                                    <Link href={login().url}>Masuk</Link>
-                                </Button>
-                            )}
+                            <ThemeSettingsButton />
+                            <Button asChild className="h-11 px-4 md:h-10">
+                                <Link href={accountLink.href}>
+                                    {accountLink.label}
+                                </Link>
+                            </Button>
                         </div>
                     </div>
 
-                    <div className="mx-auto flex w-full max-w-6xl flex-wrap gap-2 px-5 pb-4 md:hidden lg:px-6">
+                    <nav
+                        aria-label="Navigasi utama"
+                        className="mx-auto flex w-full max-w-6xl flex-wrap gap-2 px-4 pb-3 md:hidden"
+                    >
                         {navItems.map((item) => (
                             <Link
                                 key={item.id}
                                 href={item.href}
+                                aria-current={
+                                    active === item.id ? 'page' : undefined
+                                }
                                 className={cn(
-                                    'rounded-full border px-3 py-2 text-[13px] transition-colors sm:text-sm',
+                                    'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                                     active === item.id
                                         ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                        : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
                                 )}
                             >
                                 {item.label}
                             </Link>
                         ))}
-                    </div>
+                    </nav>
                 </header>
 
-                <main className="mx-auto w-full max-w-6xl px-5 py-8 lg:px-6 lg:py-10">
-                    {pageTitle || description ? (
-                        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                            <div className="space-y-2">
-                                <div className="space-y-1.5">
-                                    {pageTitle ? (
-                                        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                                            {pageTitle}
-                                        </h1>
-                                    ) : null}
-                                    {description ? (
-                                        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                                            {description}
-                                        </p>
-                                    ) : null}
-                                </div>
-                            </div>
-                        </div>
+                <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-6 md:py-10">
+                    {pageTitle ? (
+                        <PageHeader
+                            title={pageTitle}
+                            description={description}
+                            className="[&_p]:max-w-2xl"
+                        />
                     ) : null}
 
                     {children}
                 </main>
 
-                <footer className="border-t bg-muted/10">
-                    <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-8 lg:grid-cols-[1.3fr_0.7fr] lg:px-6">
+                <footer className="border-t">
+                    <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 md:px-6 lg:grid-cols-[1.3fr_0.7fr]">
                         <div className="space-y-3">
                             <div className="flex items-center gap-3">
-                                <span className="flex h-12 w-14 shrink-0 items-center justify-center text-primary">
-                                    <AppLogoIcon className="h-12 w-14" />
-                                </span>
+                                <AppLogoIcon className="h-10 w-12 shrink-0 text-primary" />
                                 <div className="grid leading-tight">
                                     <span className="text-sm font-semibold">
                                         SiTA Universitas Bumigora
@@ -178,26 +160,25 @@ export function PublicLayout({
                             </p>
                         </div>
 
-                        <div className="space-y-3">
+                        <nav aria-label="Navigasi publik" className="space-y-1">
                             <p className="text-sm font-semibold">
                                 Navigasi Publik
                             </p>
-                            <nav className="grid gap-2 text-sm text-muted-foreground">
+                            <ul className="text-sm text-muted-foreground">
                                 {footerLinks.map((item) => (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        className="transition-colors hover:text-foreground"
-                                    >
-                                        {item.label}
-                                    </Link>
+                                    <li key={item.href}>
+                                        <Link
+                                            href={item.href}
+                                            className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none md:min-h-9"
+                                        >
+                                            {item.label}
+                                        </Link>
+                                    </li>
                                 ))}
-                            </nav>
-                        </div>
+                            </ul>
+                        </nav>
                     </div>
                 </footer>
-
-                <ThemeSettingsFab />
             </div>
         </>
     );

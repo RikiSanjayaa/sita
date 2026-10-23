@@ -16,11 +16,20 @@ import {
 type Area = 'public' | 'mahasiswa' | 'dosen' | 'kaprodi';
 
 /**
- * Areas whose findings fail the build. Advisory for now: the spec only fails
- * when the scan itself cannot run. When an area has been overhauled and scans
- * clean, add it here; from then on any non-advisory finding on its pages fails.
+ * Areas whose findings fail the build; every other area is advisory and the
+ * spec only fails when its scan cannot run. When an area has been overhauled
+ * and scans clean, add it here; from then on any non-advisory finding on its
+ * pages fails.
  */
-const BLOCKING_AREAS: readonly Area[] = [];
+const BLOCKING_AREAS: readonly Area[] = ['public'];
+
+/**
+ * Pages inside a blocking area that stay advisory, with the reason. Keep this
+ * list short; each entry is a decision by the product owner.
+ */
+const ADVISORY_PAGES: Readonly<Record<string, string>> = {
+    '/': 'Home keeps its existing design; the product owner rejected the flattened version in #82.',
+};
 
 type AreaPages = {
     area: Area;
@@ -166,7 +175,10 @@ test.describe('Design detector (impeccable detect --cdp)', () => {
                             total: scan.all.length,
                         });
 
-                        if (BLOCKING_AREAS.includes(area)) {
+                        if (
+                            BLOCKING_AREAS.includes(area) &&
+                            !(path in ADVISORY_PAGES)
+                        ) {
                             expect(
                                 scan.blocking.map(
                                     (finding) =>

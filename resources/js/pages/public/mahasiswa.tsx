@@ -1,23 +1,23 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
+import {
+    DataSection,
+    DataSelect,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
 import { PublicLayout } from '@/components/public/public-layout';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
 } from '@/components/ui/data-table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
+import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 
 type StudentRow = {
@@ -54,9 +54,6 @@ type PageProps = {
         name: string;
     }>;
 };
-
-const sectionCardClass = 'overflow-hidden py-0 shadow-sm';
-const sectionCardHeaderClass = 'border-b bg-muted/20 px-6 py-4';
 
 export default function PublicStudentsPage() {
     const { filters, activeStudents, studentPagination, studentPrograms } =
@@ -185,15 +182,6 @@ function PublicStudentsContent({
         );
     }
 
-    const rangeStart =
-        filteredStudents.length === 0
-            ? 0
-            : (studentPagination.currentPage - 1) * studentPagination.perPage +
-              1;
-    const rangeEnd =
-        filteredStudents.length === 0
-            ? 0
-            : rangeStart + filteredStudents.length - 1;
     const hasActiveFilter =
         filters.search.trim() !== '' || filters.program.trim() !== '';
 
@@ -204,173 +192,142 @@ function PublicStudentsContent({
             pageTitle="Mahasiswa Karya Akhir Aktif"
             description={`Daftar mahasiswa yang masih aktif menjalani proses karya akhir, termasuk mahasiswa baru terdaftar, ${n.proposalExam.toLowerCase()}, bimbingan aktif, hingga ${n.finalExam.toLowerCase()} yang masih berjalan.`}
         >
-            <div className="space-y-6">
-                <Card className={sectionCardClass}>
-                    <CardHeader className={sectionCardHeaderClass}>
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-1.5">
-                                <CardTitle>Daftar Mahasiswa</CardTitle>
-                                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                    <span>
-                                        Menampilkan {rangeStart}-{rangeEnd} dari{' '}
-                                        {studentPagination.total} mahasiswa
-                                    </span>
-                                    <Badge variant="outline">
-                                        Halaman {studentPagination.currentPage}{' '}
-                                        / {studentPagination.lastPage}
-                                    </Badge>
-                                </div>
-                            </div>
+            <DataSection title="Daftar Mahasiswa">
+                <DataToolbar
+                    search={search}
+                    onSearchChange={setSearch}
+                    placeholder="Cari nama, NIM, atau prodi..."
+                >
+                    <DataSelect
+                        label="Program studi"
+                        value={programFilter}
+                        onValueChange={setProgramFilter}
+                        placeholder="Filter prodi"
+                        options={[
+                            { value: 'semua', label: 'Semua Prodi' },
+                            ...studentPrograms.map((program) => ({
+                                value: program.slug,
+                                label: program.name,
+                            })),
+                        ]}
+                    />
+                </DataToolbar>
 
-                            <div className="w-full lg:max-w-xs">
-                                <Select
-                                    value={programFilter}
-                                    onValueChange={setProgramFilter}
-                                >
-                                    <SelectTrigger className="bg-background">
-                                        <SelectValue placeholder="Filter prodi" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="semua">
-                                            Semua Prodi
-                                        </SelectItem>
-                                        {studentPrograms.map((program) => (
-                                            <SelectItem
-                                                key={program.slug}
-                                                value={program.slug}
-                                            >
-                                                {program.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4 py-6">
-                        <DataTableToolbar
-                            search={search}
-                            onSearchChange={setSearch}
-                            searchPlaceholder="Cari nama, NIM, atau prodi..."
-                            filterGroups={[
-                                {
-                                    tabs: stageTabs,
-                                    value: stageFilter,
-                                    onChange: setStageFilter,
-                                },
-                            ]}
-                        />
+                <FilterPills
+                    label="Tahap mahasiswa"
+                    value={stageFilter}
+                    onValueChange={setStageFilter}
+                    itemClassName="max-md:h-11 max-md:px-4"
+                    options={stageTabs}
+                />
 
-                        {filteredStudents.length > 0 ? (
-                            <DataTableContainer
-                                pagination={
-                                    <DataTablePagination
-                                        currentPage={
-                                            studentPagination.currentPage
-                                        }
-                                        totalPages={studentPagination.lastPage}
-                                        totalItems={studentPagination.total}
-                                        pageSize={studentPagination.perPage}
-                                        onPageChange={visitPage}
-                                        onPageSizeChange={changePageSize}
-                                        itemLabel="mahasiswa"
-                                    />
-                                }
-                            >
-                                <table className="w-full min-w-[980px] text-sm">
-                                    <thead className="bg-muted/30 text-left">
-                                        <tr>
-                                            <th className="px-4 py-3 font-semibold">
-                                                Mahasiswa
-                                            </th>
-                                            <th className="px-4 py-3 font-semibold">
-                                                Prodi
-                                            </th>
-                                            <th className="px-4 py-3 font-semibold">
-                                                Tahap
-                                            </th>
-                                            <th className="px-4 py-3 font-semibold">
-                                                Pembimbing Aktif
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredStudents.map((student) => (
-                                            <tr
-                                                key={student.id}
-                                                className="border-t align-top"
-                                            >
-                                                <td className="px-4 py-3">
-                                                    <div className="space-y-1">
-                                                        <div className="font-medium text-foreground">
-                                                            {student.name}
-                                                        </div>
-                                                        <div className="text-muted-foreground">
-                                                            {student.nim}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    {student.programStudi}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="space-y-2">
-                                                        <Badge variant="outline">
-                                                            {student.stageLabel}
-                                                        </Badge>
-                                                        <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-                                                            {
-                                                                student.stageDescription
-                                                            }
-                                                        </p>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {student.advisors.length >
-                                                    0 ? (
-                                                        <div className="flex max-w-xs flex-wrap gap-2">
-                                                            {student.advisors.map(
-                                                                (advisor) => (
-                                                                    <Badge
-                                                                        key={`${student.id}-${advisor.label}-${advisor.name}`}
-                                                                        variant="secondary"
-                                                                    >
-                                                                        {
-                                                                            advisor.label
-                                                                        }
-                                                                        :{' '}
-                                                                        {
-                                                                            advisor.name
-                                                                        }
-                                                                    </Badge>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-muted-foreground">
-                                                            Belum ada pembimbing
-                                                            aktif
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </DataTableContainer>
-                        ) : (
-                            <DataTableEmptyState
-                                title="Tidak ada mahasiswa"
-                                description={
-                                    hasActiveFilter || stageFilter !== 'semua'
-                                        ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
-                                        : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'
-                                }
+                {filteredStudents.length > 0 ? (
+                    <DataTableContainer
+                        pagination={
+                            <DataTablePagination
+                                currentPage={studentPagination.currentPage}
+                                totalPages={studentPagination.lastPage}
+                                totalItems={studentPagination.total}
+                                pageSize={studentPagination.perPage}
+                                onPageChange={visitPage}
+                                onPageSizeChange={changePageSize}
+                                itemLabel="mahasiswa"
                             />
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                        }
+                    >
+                        <table
+                            className={cn(
+                                stackedTable.table,
+                                'md:min-w-[860px]',
+                            )}
+                        >
+                            <thead className={stackedTable.thead}>
+                                <tr className="border-b bg-muted/40">
+                                    <th className={dataTh}>Mahasiswa</th>
+                                    <th className={dataTh}>Prodi</th>
+                                    <th className={dataTh}>Tahap</th>
+                                    <th className={dataTh}>Pembimbing Aktif</th>
+                                </tr>
+                            </thead>
+                            <tbody
+                                className={cn(
+                                    stackedTable.tbody,
+                                    'md:divide-y',
+                                )}
+                            >
+                                {filteredStudents.map((student) => (
+                                    <tr
+                                        key={student.id}
+                                        className={cn(
+                                            stackedTable.tr,
+                                            'align-top',
+                                        )}
+                                    >
+                                        <td className={stackedTable.tdPlain}>
+                                            <div className="font-medium text-foreground">
+                                                {student.name}
+                                            </div>
+                                            <div className="text-muted-foreground">
+                                                {student.nim}
+                                            </div>
+                                        </td>
+                                        <td
+                                            className={cn(
+                                                stackedTable.tdPlain,
+                                                'text-muted-foreground',
+                                            )}
+                                        >
+                                            {student.programStudi}
+                                        </td>
+                                        <td className={stackedTable.tdPlain}>
+                                            <Badge variant="outline">
+                                                {student.stageLabel}
+                                            </Badge>
+                                            <p className="mt-1.5 max-w-xs text-xs leading-5 text-muted-foreground">
+                                                {student.stageDescription}
+                                            </p>
+                                        </td>
+                                        <td className={stackedTable.tdPlain}>
+                                            {student.advisors.length > 0 ? (
+                                                <ul className="space-y-1">
+                                                    {student.advisors.map(
+                                                        (advisor) => (
+                                                            <li
+                                                                key={`${student.id}-${advisor.label}-${advisor.name}`}
+                                                            >
+                                                                <span className="text-muted-foreground">
+                                                                    {
+                                                                        advisor.label
+                                                                    }
+                                                                    :
+                                                                </span>{' '}
+                                                                {advisor.name}
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    Belum ada pembimbing aktif
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </DataTableContainer>
+                ) : (
+                    <DataTableEmptyState
+                        title="Tidak ada mahasiswa"
+                        description={
+                            hasActiveFilter || stageFilter !== 'semua'
+                                ? 'Tidak ada mahasiswa aktif yang cocok dengan filter ini.'
+                                : 'Belum ada mahasiswa aktif yang dapat ditampilkan.'
+                        }
+                    />
+                )}
+            </DataSection>
         </PublicLayout>
     );
 }

@@ -125,6 +125,10 @@ export function statusTone(
     return Object.hasOwn(tones, status) ? tones[status] : 'neutral';
 }
 
+export function toneClassName(tone: StatusTone): string {
+    return toneClassNames[tone];
+}
+
 export function statusClassName(
     domain: StatusDomain,
     status: string | null | undefined,

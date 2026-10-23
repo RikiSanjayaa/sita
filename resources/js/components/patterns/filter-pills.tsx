@@ -15,6 +15,8 @@ interface FilterPillsProps<T extends string> {
     onValueChange: (value: T) => void;
     options: readonly FilterPillOption<T>[];
     className?: string;
+    /** Extra classes for each pill, e.g. a taller touch target on phones. */
+    itemClassName?: string;
 }
 
 export function FilterPills<T extends string>({
@@ -23,6 +25,7 @@ export function FilterPills<T extends string>({
     onValueChange,
     options,
     className,
+    itemClassName,
 }: FilterPillsProps<T>) {
     return (
         <ToggleGroup
@@ -43,11 +46,14 @@ export function FilterPills<T extends string>({
                     key={option.value}
                     value={option.value}
                     disabled={option.disabled}
-                    className="group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    className={cn(
+                        'group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                        itemClassName,
+                    )}
                 >
                     {option.label}
                     {option.count !== undefined ? (
-                        <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] leading-none font-bold text-foreground tabular-nums group-data-[state=on]:bg-primary-foreground group-data-[state=on]:text-primary">
+                        <span className="rounded-full bg-background px-1.5 py-0.5 text-xs leading-none font-bold text-foreground tabular-nums group-data-[state=on]:bg-primary-foreground group-data-[state=on]:text-primary">
                             {option.count}
                         </span>
                     ) : null}

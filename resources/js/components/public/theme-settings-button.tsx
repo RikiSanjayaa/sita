@@ -14,7 +14,7 @@ import {
 import { THEME_PRESETS, usePrimaryColor } from '@/hooks/use-primary-color';
 import { cn } from '@/lib/utils';
 
-export function ThemeSettingsFab() {
+export function ThemeSettingsButton() {
     const { presetId, resetPreset, updatePreset } = usePrimaryColor();
 
     return (
@@ -23,7 +23,8 @@ export function ThemeSettingsFab() {
                 <Button
                     type="button"
                     size="icon"
-                    className="fixed right-5 bottom-5 z-50 size-12 rounded-full shadow-lg"
+                    variant="outline"
+                    className="size-11 md:size-10"
                     aria-label="Buka pengaturan tampilan"
                 >
                     <Settings2 className="size-5" />
@@ -49,7 +50,7 @@ export function ThemeSettingsFab() {
                                     Mode Tampilan
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    Pilih light, dark, atau ikuti sistem
+                                    Pilih terang, gelap, atau ikuti sistem
                                     perangkat.
                                 </p>
                             </div>
@@ -79,9 +80,9 @@ export function ThemeSettingsFab() {
                                                 updatePreset(preset.id)
                                             }
                                             className={cn(
-                                                'rounded-2xl border p-4 text-left transition-colors',
+                                                'rounded-xl border p-4 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                                                 isActive
-                                                    ? 'border-primary bg-primary/10'
+                                                    ? 'border-primary bg-primary-muted'
                                                     : 'hover:bg-muted/60',
                                             )}
                                         >
