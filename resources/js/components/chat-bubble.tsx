@@ -54,12 +54,11 @@ export function ChatBubble({
         message.documentUrl === null
     ) {
         return (
-            <div className="animate-pop my-4 flex flex-col items-center gap-1.5">
+            <div className="my-4 flex animate-in flex-col items-center gap-1.5 fade-in">
                 <div
                     className={cn(
-                        'flex w-full max-w-[min(100%,34rem)] flex-col gap-3 rounded-xl border bg-background px-3 py-3 shadow-sm min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between sm:px-4',
-                        isActiveMatch &&
-                            'border-primary ring-2 ring-primary/20',
+                        'flex w-full max-w-[min(100%,34rem)] flex-col gap-3 rounded-xl bg-muted px-3 py-3 min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between sm:px-4',
+                        isActiveMatch && 'ring-2 ring-primary/40',
                     )}
                 >
                     <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -88,7 +87,7 @@ export function ChatBubble({
     return (
         <div
             className={cn(
-                'animate-pop my-2 flex w-full',
+                'my-2 flex w-full animate-in fade-in',
                 isMe ? 'justify-end' : 'justify-start',
             )}
         >
@@ -132,7 +131,7 @@ export function ChatBubble({
                             {message.authorProfileUrl ? (
                                 <Link
                                     href={message.authorProfileUrl}
-                                    className="font-medium hover:text-primary"
+                                    className="font-medium hover:underline"
                                 >
                                     {message.author}
                                 </Link>
@@ -149,11 +148,11 @@ export function ChatBubble({
                             'rounded-2xl px-4 py-3 text-[15px] leading-relaxed',
                             isMe
                                 ? 'rounded-br-sm bg-primary text-primary-foreground'
-                                : 'rounded-tl-sm border bg-background text-foreground shadow-sm',
+                                : 'rounded-tl-sm bg-muted text-foreground',
                             isActiveMatch &&
                                 (isMe
                                     ? 'ring-2 ring-primary-foreground/35'
-                                    : 'border-primary ring-2 ring-primary/20'),
+                                    : 'ring-2 ring-primary/40'),
                         )}
                     >
                         {thumbnailUrl !== null && (

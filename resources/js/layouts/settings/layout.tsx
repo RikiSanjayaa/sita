@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { Bell, Lock, Palette, ShieldCheck, Star, User } from 'lucide-react';
 import { type PropsWithChildren } from 'react';
 
+import { PageHeader } from '@/components/patterns/page-header';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 
@@ -64,11 +65,18 @@ export default function SettingsLayout({
     );
 
     return (
-        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 md:px-6">
-            <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
-                {/* Settings sidebar navigation */}
-                <aside className="mt-4 w-full shrink-0 lg:sticky lg:top-16 lg:mt-0 lg:max-h-[calc(100svh-4rem)] lg:w-48 lg:self-start lg:overflow-y-auto lg:pt-6">
-                    <nav className="flex flex-row flex-wrap gap-1 lg:flex-col">
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
+            <PageHeader
+                title="Pengaturan akun"
+                description="Kelola profil, keamanan, notifikasi, dan tampilan akun Anda."
+            />
+
+            <div className="flex flex-col gap-6 lg:flex-row lg:gap-12">
+                <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-48 lg:self-start">
+                    <nav
+                        aria-label="Pengaturan akun"
+                        className="flex flex-row flex-wrap gap-1 lg:flex-col"
+                    >
                         {visibleItems.map((item) => {
                             const Icon = item.icon;
                             const isActive =
@@ -80,11 +88,12 @@ export default function SettingsLayout({
                                     key={item.href}
                                     href={item.href}
                                     prefetch
+                                    aria-current={isActive ? 'page' : undefined}
                                     className={cn(
-                                        'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                        'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors max-md:min-h-11',
                                         isActive
-                                            ? 'bg-accent text-accent-foreground'
-                                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                            ? 'bg-primary-muted text-primary-muted-foreground'
+                                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                                     )}
                                 >
                                     <Icon className="size-4 shrink-0" />
@@ -95,10 +104,9 @@ export default function SettingsLayout({
                     </nav>
                 </aside>
 
-                {/* Settings content */}
                 <section
                     className={cn(
-                        'min-w-0 flex-1 space-y-8 py-6',
+                        'min-w-0 flex-1 space-y-8',
                         width === 'compact' && 'max-w-xl',
                     )}
                 >

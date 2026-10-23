@@ -15,7 +15,7 @@ export default function AppearanceSettingsPanel() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 className="text-lg font-semibold">Tema</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-sm text-pretty text-muted-foreground">
                             Pilih tampilan terang, gelap, atau ikuti sistem
                             perangkat Anda.
                         </p>
@@ -30,7 +30,7 @@ export default function AppearanceSettingsPanel() {
             <div className="space-y-4">
                 <div>
                     <h2 className="text-lg font-semibold">Preset warna</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-sm text-pretty text-muted-foreground">
                         Pilih preset agar warna primary dan nuansa antarmuka
                         berubah seragam di seluruh aplikasi.
                     </p>
@@ -48,7 +48,7 @@ export default function AppearanceSettingsPanel() {
                                 className={cn(
                                     'rounded-xl border p-4 text-left transition-colors',
                                     isActive
-                                        ? 'border-primary bg-primary/10'
+                                        ? 'border-primary bg-primary-muted'
                                         : 'hover:bg-muted/60',
                                 )}
                             >
@@ -74,7 +74,7 @@ export default function AppearanceSettingsPanel() {
 
                                 <div className="mt-3 flex items-center gap-1.5">
                                     <span className="text-xs text-muted-foreground">
-                                        Preview
+                                        Pratinjau
                                     </span>
                                     <span
                                         className="size-4 rounded-full border"
@@ -109,13 +109,14 @@ export default function AppearanceSettingsPanel() {
                     <Button
                         type="button"
                         variant="outline"
+                        className="max-md:h-11"
                         onClick={resetPreset}
                     >
-                        Reset ke Default UBG
+                        Kembalikan ke bawaan UBG
                     </Button>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-pretty text-muted-foreground">
                     Preset tersimpan di browser dan akan tetap dipakai saat Anda
                     membuka ulang aplikasi.
                 </p>

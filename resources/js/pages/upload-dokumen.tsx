@@ -11,17 +11,24 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
+import {
+    DataSection,
+    DataSelect,
+    DataToolbar,
+    dataTh,
+    stackedTable,
+} from '@/components/patterns/data-section';
+import { FilterPills } from '@/components/patterns/filter-pills';
+import { PageHeader } from '@/components/patterns/page-header';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
-    DataTableToolbar,
-    type FilterGroup,
     usePagination,
 } from '@/components/ui/data-table';
 import {
@@ -55,7 +62,6 @@ import {
 } from '@/components/ui/tooltip';
 import { useUrlState } from '@/hooks/use-url-state';
 import AppLayout from '@/layouts/app-layout';
-import { statusClassName } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
 import * as routes from '@/routes';
 import * as mahasiswaUploadDokumenRoutes from '@/routes/mahasiswa/upload-dokumen';
@@ -109,56 +115,29 @@ const panduanItems = [
     'Dosen pembimbing mendapat notifikasi realtime di group chat',
 ];
 
-function StatusBadge({ status }: { status: DokumenStatus }) {
-    if (status === 'Tersimpan') {
-        return (
-            <Badge
-                variant="outline"
-                className="gap-1 border-slate-300 bg-slate-50 whitespace-nowrap text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300"
-            >
-                <Inbox className="size-3" />
-                Tersimpan
-            </Badge>
-        );
-    }
+const DOKUMEN_STATUS_STYLE: Record<
+    DokumenStatus,
+    { statusKey: string; icon: typeof Clock }
+> = {
+    Tersimpan: { statusKey: 'draft', icon: Inbox },
+    'Menunggu Review': { statusKey: 'draft', icon: Clock },
+    'Sebagian direview': { statusKey: 'submitted', icon: Clock },
+    'Perlu Revisi': { statusKey: 'needs_revision', icon: CircleAlert },
+    Disetujui: { statusKey: 'approved', icon: CheckCircle2 },
+};
 
-    if (status === 'Disetujui') {
-        return (
-            <Badge className="gap-1 bg-emerald-600 whitespace-nowrap text-white hover:bg-emerald-600/90 dark:bg-emerald-500 dark:hover:bg-emerald-500/90">
-                <CheckCircle2 className="size-3" />
-                Disetujui
-            </Badge>
-        );
-    }
-    if (status === 'Perlu Revisi') {
-        return (
-            <Badge variant="destructive" className="gap-1 whitespace-nowrap">
-                <CircleAlert className="size-3" />
-                Perlu Revisi
-            </Badge>
-        );
-    }
-    if (status === 'Sebagian direview') {
-        return (
-            <Badge
-                className={cn(
-                    'gap-1 whitespace-nowrap',
-                    statusClassName('document', 'submitted'),
-                )}
-            >
-                <Clock className="size-3 text-muted-foreground" />
-                Sebagian direview
-            </Badge>
-        );
-    }
+function DokumenStatusBadge({ status }: { status: DokumenStatus }) {
+    const { statusKey, icon: Icon } = DOKUMEN_STATUS_STYLE[status];
+
     return (
-        <Badge
-            variant="secondary"
-            className="gap-1 bg-muted whitespace-nowrap text-foreground"
+        <StatusBadge
+            domain="document"
+            status={statusKey}
+            className="gap-1 whitespace-nowrap"
         >
-            <Clock className="size-3 text-muted-foreground" />
-            Menunggu Review
-        </Badge>
+            <Icon aria-hidden="true" className="size-3" />
+            {status}
+        </StatusBadge>
     );
 }
 
@@ -169,6 +148,25 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
 
 type StatusFilter = 'semua' | DokumenStatus;
 const PAGE_SIZE = 15;
+
+const fieldError = 'text-sm text-destructive';
+
+function DetailItem({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <div>
+            <dt className="text-xs font-medium text-muted-foreground">
+                {label}
+            </dt>
+            <dd className="mt-1 text-sm font-medium">{children}</dd>
+        </div>
+    );
+}
 
 export default function UploadDokumenPage() {
     const page = usePage<SharedData & UploadDokumenProps>();
@@ -181,6 +179,10 @@ export default function UploadDokumenPage() {
     const [search, setSearch] = useUrlState('search', '');
     const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
         'status',
+        'semua',
+    );
+    const [categoryFilter, setCategoryFilter] = useUrlState(
+        'kategori',
         'semua',
     );
     const pageState = useUrlState('page', 1);
@@ -226,19 +228,33 @@ export default function UploadDokumenPage() {
         );
     }
 
+    const categoryOptions = useMemo(
+        () => [
+            { value: 'semua', label: 'Semua kategori' },
+            ...Array.from(
+                new Set(page.props.uploadedDocuments.map((d) => d.category)),
+            )
+                .sort((a, b) => a.localeCompare(b))
+                .map((category) => ({ value: category, label: category })),
+        ],
+        [page.props.uploadedDocuments],
+    );
+
     const filteredDocuments = useMemo(() => {
         const lower = search.toLowerCase();
         return page.props.uploadedDocuments.filter((doc) => {
             const matchesStatus =
                 statusFilter === 'semua' || doc.status === statusFilter;
+            const matchesCategory =
+                categoryFilter === 'semua' || doc.category === categoryFilter;
             const matchesSearch =
                 lower === '' ||
                 doc.title.toLowerCase().includes(lower) ||
                 doc.fileName.toLowerCase().includes(lower) ||
                 doc.category.toLowerCase().includes(lower);
-            return matchesStatus && matchesSearch;
+            return matchesStatus && matchesCategory && matchesSearch;
         });
-    }, [page.props.uploadedDocuments, statusFilter, search]);
+    }, [page.props.uploadedDocuments, statusFilter, categoryFilter, search]);
 
     const statusCounts = useMemo(
         () => ({
@@ -250,9 +266,6 @@ export default function UploadDokumenPage() {
             ).length,
             revisi: page.props.uploadedDocuments.filter(
                 (d) => d.status === 'Perlu Revisi',
-            ).length,
-            disetujui: page.props.uploadedDocuments.filter(
-                (d) => d.status === 'Disetujui',
             ).length,
         }),
         [page.props.uploadedDocuments],
@@ -269,37 +282,37 @@ export default function UploadDokumenPage() {
     } = usePagination(
         filteredDocuments,
         PAGE_SIZE,
-        [search, statusFilter],
+        [search, statusFilter, categoryFilter],
         pageState,
     );
 
-    const filterGroups: FilterGroup[] = [
+    const statusOptions: {
+        value: StatusFilter;
+        label: string;
+        count?: number;
+    }[] = [
+        { value: 'semua', label: 'Semua' },
         {
-            value: statusFilter,
-            onChange: (v) => setStatusFilter(v as StatusFilter),
-            tabs: [
-                { label: 'Semua', value: 'semua' },
-                {
-                    label: 'Menunggu Review',
-                    value: 'Menunggu Review',
-                    count: statusCounts.review,
-                },
-                {
-                    label: 'Sebagian direview',
-                    value: 'Sebagian direview',
-                    count: statusCounts.partial,
-                },
-                {
-                    label: 'Perlu Revisi',
-                    value: 'Perlu Revisi',
-                    count: statusCounts.revisi,
-                },
-                { label: 'Disetujui', value: 'Disetujui' },
-            ],
+            value: 'Menunggu Review',
+            label: 'Menunggu Review',
+            count: statusCounts.review,
         },
+        {
+            value: 'Sebagian direview',
+            label: 'Sebagian direview',
+            count: statusCounts.partial,
+        },
+        {
+            value: 'Perlu Revisi',
+            label: 'Perlu Revisi',
+            count: statusCounts.revisi,
+        },
+        { value: 'Disetujui', label: 'Disetujui' },
     ];
 
     const pendingRevisiCount = statusCounts.revisi;
+    const isFiltered =
+        search !== '' || statusFilter !== 'semua' || categoryFilter !== 'semua';
 
     return (
         <AppLayout
@@ -329,13 +342,13 @@ export default function UploadDokumenPage() {
                     </DialogHeader>
 
                     <form
-                        className="grid gap-4"
+                        className="grid gap-5"
                         onSubmit={(event) => {
                             event.preventDefault();
                             submitUpload();
                         }}
                     >
-                        <div className="grid gap-2 border-b pb-4">
+                        <div className="grid gap-2">
                             <Label htmlFor="title">Judul Dokumen</Label>
                             <Input
                                 id="title"
@@ -344,15 +357,17 @@ export default function UploadDokumenPage() {
                                     form.setData('title', event.target.value)
                                 }
                                 placeholder="Contoh: Draft Bab 3 Metodologi"
+                                aria-invalid={Boolean(form.errors.title)}
+                                className="max-md:h-11"
                             />
                             {form.errors.title && (
-                                <p className="text-xs text-destructive">
+                                <p role="alert" className={fieldError}>
                                     {form.errors.title}
                                 </p>
                             )}
                         </div>
 
-                        <div className="grid gap-2 border-b pb-4">
+                        <div className="grid gap-2">
                             <Label htmlFor="category">Kategori Dokumen</Label>
                             <Select
                                 value={form.data.category}
@@ -360,7 +375,10 @@ export default function UploadDokumenPage() {
                                     form.setData('category', value)
                                 }
                             >
-                                <SelectTrigger id="category">
+                                <SelectTrigger
+                                    id="category"
+                                    className="w-full max-md:h-11"
+                                >
                                     <SelectValue placeholder="Pilih kategori dokumen" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -385,7 +403,7 @@ export default function UploadDokumenPage() {
                                 </SelectContent>
                             </Select>
                             {form.errors.category && (
-                                <p className="text-xs text-destructive">
+                                <p role="alert" className={fieldError}>
                                     {form.errors.category}
                                 </p>
                             )}
@@ -403,32 +421,41 @@ export default function UploadDokumenPage() {
                                         event.currentTarget.files?.[0] ?? null,
                                     )
                                 }
+                                aria-describedby="document-hint"
+                                aria-invalid={Boolean(form.errors.document)}
+                                className="cursor-pointer max-md:h-11 max-md:py-2"
                             />
-                            <p className="text-xs text-muted-foreground">
+                            <p
+                                id="document-hint"
+                                className="text-xs text-muted-foreground"
+                            >
                                 Format: PDF, DOC, DOCX. Ukuran maksimal: 10 MB.
                             </p>
                             {form.errors.document && (
-                                <p className="text-xs text-destructive">
+                                <p role="alert" className={fieldError}>
                                     {form.errors.document}
                                 </p>
                             )}
                         </div>
 
                         {form.processing && (
-                            <div className="rounded-lg border bg-muted/40 p-3">
+                            <div
+                                role="status"
+                                className="space-y-3 border-t pt-4"
+                            >
                                 <div className="flex items-center justify-between gap-3 text-sm">
                                     <div className="flex items-center gap-2 font-medium">
                                         <Spinner className="size-4" />
                                         Mengunggah dokumen...
                                     </div>
                                     {form.progress && (
-                                        <span className="text-xs text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground tabular-nums">
                                             {form.progress.percentage}%
                                         </span>
                                     )}
                                 </div>
                                 {form.progress && (
-                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                                    <div className="h-2 overflow-hidden rounded-full bg-muted">
                                         <div
                                             className="h-full rounded-full bg-primary transition-[width] duration-200"
                                             style={{
@@ -444,7 +471,7 @@ export default function UploadDokumenPage() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="w-full sm:w-auto"
+                                className="w-full max-md:h-11 sm:w-auto"
                                 onClick={() => setIsUploadOpen(false)}
                                 disabled={form.processing}
                             >
@@ -452,7 +479,7 @@ export default function UploadDokumenPage() {
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11 sm:w-auto"
                                 disabled={
                                     form.processing ||
                                     form.data.title.trim() === '' ||
@@ -490,11 +517,11 @@ export default function UploadDokumenPage() {
                     </DialogHeader>
 
                     {documentPendingDelete && (
-                        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                            <p className="font-medium">
+                        <div className="border-y py-3 text-sm">
+                            <p className="font-medium break-words">
                                 {documentPendingDelete.title}
                             </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-1 text-xs break-all text-muted-foreground">
                                 {documentPendingDelete.fileName}
                                 {documentPendingDelete.version
                                     ? ` - ${documentPendingDelete.version}`
@@ -507,6 +534,7 @@ export default function UploadDokumenPage() {
                         <Button
                             type="button"
                             variant="outline"
+                            className="max-md:h-11"
                             onClick={() => setDocumentPendingDelete(null)}
                             disabled={deleteForm.processing}
                         >
@@ -515,6 +543,7 @@ export default function UploadDokumenPage() {
                         <Button
                             type="button"
                             variant="destructive"
+                            className="max-md:h-11"
                             onClick={submitDelete}
                             disabled={deleteForm.processing}
                         >
@@ -546,10 +575,13 @@ export default function UploadDokumenPage() {
                 >
                     {detailDocument ? (
                         <>
-                            <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+                            <SheetHeader className="border-b px-6 py-4">
                                 <div className="flex items-start gap-3 pr-8">
-                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                        <FileText className="size-5" />
+                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground">
+                                        <FileText
+                                            aria-hidden="true"
+                                            className="size-5"
+                                        />
                                     </div>
                                     <div className="min-w-0">
                                         <SheetTitle className="line-clamp-2 text-base break-words">
@@ -565,108 +597,97 @@ export default function UploadDokumenPage() {
                                 </div>
                             </SheetHeader>
 
-                            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-                                <div className="grid gap-4 rounded-lg border bg-background p-4 sm:grid-cols-2">
-                                    <div>
-                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                                            Kategori
-                                        </p>
-                                        <p className="mt-1 text-sm font-medium">
-                                            {detailDocument.category}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                                            Status
-                                        </p>
-                                        <div className="mt-1">
-                                            <StatusBadge
-                                                status={detailDocument.status}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                                            Tanggal Upload
-                                        </p>
-                                        <p className="mt-1 text-sm font-medium">
-                                            {detailDocument.uploadedAt}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                                            Ukuran
-                                        </p>
-                                        <p className="mt-1 text-sm font-medium">
-                                            {detailDocument.size}
-                                        </p>
-                                    </div>
-                                </div>
+                            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+                                <dl className="grid gap-4 sm:grid-cols-2">
+                                    <DetailItem label="Kategori">
+                                        {detailDocument.category}
+                                    </DetailItem>
+                                    <DetailItem label="Status">
+                                        <DokumenStatusBadge
+                                            status={detailDocument.status}
+                                        />
+                                    </DetailItem>
+                                    <DetailItem label="Tanggal Upload">
+                                        {detailDocument.uploadedAt}
+                                    </DetailItem>
+                                    <DetailItem label="Ukuran">
+                                        {detailDocument.size}
+                                    </DetailItem>
+                                </dl>
 
-                                <div className="space-y-3">
+                                <section className="space-y-3 border-t pt-5">
                                     <h3 className="text-sm font-semibold">
                                         Review Dosen
                                     </h3>
                                     {detailDocument.reviews.length > 0 ? (
-                                        detailDocument.reviews.map(
-                                            (review, index) => (
-                                                <div
-                                                    key={`${review.lecturerName}-${index}`}
-                                                    className="space-y-2 rounded-lg border bg-background p-4"
-                                                >
-                                                    <div className="flex flex-wrap items-start justify-between gap-2">
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-medium break-words">
+                                        <ul className="divide-y">
+                                            {detailDocument.reviews.map(
+                                                (review, index) => (
+                                                    <li
+                                                        key={`${review.lecturerName}-${index}`}
+                                                        className="space-y-2 py-3 first:pt-0 last:pb-0"
+                                                    >
+                                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-medium break-words">
+                                                                    {
+                                                                        review.lecturerName
+                                                                    }
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {
+                                                                        review.role
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                            <StatusBadge
+                                                                domain="document"
+                                                                status={
+                                                                    review.status
+                                                                }
+                                                                className="whitespace-nowrap"
+                                                            >
+                                                                {REVIEW_STATUS_LABELS[
+                                                                    review
+                                                                        .status
+                                                                ] ??
+                                                                    'Menunggu Review'}
+                                                            </StatusBadge>
+                                                        </div>
+                                                        {review.notes ? (
+                                                            <p className="text-sm break-words whitespace-pre-wrap">
+                                                                {review.notes}
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-xs text-muted-foreground italic">
+                                                                Tidak ada
+                                                                catatan.
+                                                            </p>
+                                                        )}
+                                                        {review.reviewedAt ? (
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Direview{' '}
                                                                 {
-                                                                    review.lecturerName
+                                                                    review.reviewedAt
                                                                 }
                                                             </p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {review.role}
-                                                            </p>
-                                                        </div>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={cn(
-                                                                'whitespace-nowrap',
-                                                                statusClassName(
-                                                                    'document',
-                                                                    review.status,
-                                                                ),
-                                                            )}
-                                                        >
-                                                            {REVIEW_STATUS_LABELS[
-                                                                review.status
-                                                            ] ??
-                                                                'Menunggu Review'}
-                                                        </Badge>
-                                                    </div>
-                                                    {review.notes ? (
-                                                        <p className="text-sm break-words whitespace-pre-wrap">
-                                                            {review.notes}
-                                                        </p>
-                                                    ) : (
-                                                        <p className="text-xs text-muted-foreground italic">
-                                                            Tidak ada catatan.
-                                                        </p>
-                                                    )}
-                                                    {review.reviewedAt ? (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Direview{' '}
-                                                            {review.reviewedAt}
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-                                            ),
-                                        )
+                                                        ) : null}
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
                                     ) : (
                                         <p className="text-sm text-muted-foreground">
                                             Belum ada review dari dosen.
                                         </p>
                                     )}
-                                </div>
+                                </section>
 
-                                <Button asChild variant="outline">
+                                <Button
+                                    asChild
+                                    variant="outline"
+                                    className="max-md:h-11"
+                                >
                                     <a href={detailDocument.downloadUrl}>
                                         <Download className="size-4" />
                                         Unduh Dokumen
@@ -679,28 +700,21 @@ export default function UploadDokumenPage() {
             </Sheet>
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-                {/* Page header */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold">
+                <PageHeader
+                    title="Upload Dokumen"
+                    description={`Kelola dan upload dokumen ${terms.finalWorkLower} Anda`}
+                    actions={
+                        <Button
+                            type="button"
+                            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 max-md:h-11 sm:w-auto"
+                            onClick={() => setIsUploadOpen(true)}
+                        >
+                            <Upload className="size-4" />
                             Upload Dokumen
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Kelola dan upload dokumen {terms.finalWorkLower}{' '}
-                            Anda
-                        </p>
-                    </div>
-                    <Button
-                        type="button"
-                        className="h-10 w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
-                        onClick={() => setIsUploadOpen(true)}
-                    >
-                        <Upload className="size-4" />
-                        Upload Dokumen
-                    </Button>
-                </div>
+                        </Button>
+                    }
+                />
 
-                {/* Flash Message */}
                 {(page.props.flashMessage || page.props.errorMessage) && (
                     <Alert
                         variant={
@@ -716,63 +730,62 @@ export default function UploadDokumenPage() {
                     </Alert>
                 )}
 
-                {/* Panduan Upload */}
-                <div className="overflow-hidden rounded-xl border bg-card py-0 shadow-sm">
-                    <div className="border-b px-6 py-4">
-                        <h3 className="text-sm font-semibold">
-                            Panduan Upload
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                            Hal yang perlu diperhatikan sebelum mengunggah
-                            dokumen.
-                        </p>
-                    </div>
-                    <div className="grid gap-3 px-6 py-4">
+                <DataSection title="Panduan Upload">
+                    <ul className="grid gap-3 sm:grid-cols-2">
                         {panduanItems.map((item) => (
-                            <div
+                            <li
                                 key={item}
                                 className="flex items-start gap-3 text-sm"
                             >
-                                <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700 ring-1 ring-green-200 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40">
-                                    <CheckCircle2 className="size-4" />
+                                <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-success-muted text-success-muted-foreground">
+                                    <CheckCircle2
+                                        aria-hidden="true"
+                                        className="size-4"
+                                    />
                                 </span>
-                                <span className="text-muted-foreground">
-                                    {item}
-                                </span>
-                            </div>
+                                <span className="text-pretty">{item}</span>
+                            </li>
                         ))}
-                    </div>
-                </div>
+                    </ul>
+                </DataSection>
 
-                {/* Dokumen Table */}
-                <section>
-                    <div className="mb-4 flex items-center justify-between">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Dokumen yang Diupload
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Daftar dokumen beserta riwayat versi
-                            </p>
-                        </div>
-                        {pendingRevisiCount > 0 && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-1 text-xs font-bold text-destructive">
-                                <AlertTriangle className="size-3" />
+                <DataSection
+                    title="Dokumen yang Diupload"
+                    summary={
+                        pendingRevisiCount > 0 ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-muted px-3 py-1 text-xs font-medium text-danger-muted-foreground">
+                                <AlertTriangle
+                                    aria-hidden="true"
+                                    className="size-3"
+                                />
                                 {pendingRevisiCount} perlu revisi
                             </span>
-                        )}
-                    </div>
-
-                    {/* Toolbar */}
-                    <DataTableToolbar
+                        ) : undefined
+                    }
+                >
+                    <DataToolbar
                         search={search}
                         onSearchChange={setSearch}
-                        searchPlaceholder="Cari judul atau file..."
-                        filterGroups={filterGroups}
-                        className="mb-3"
+                        placeholder="Cari judul atau file..."
+                    >
+                        <DataSelect
+                            label="Kategori"
+                            value={categoryFilter}
+                            onValueChange={setCategoryFilter}
+                            placeholder="Semua kategori"
+                            options={categoryOptions}
+                            className="md:w-52"
+                        />
+                    </DataToolbar>
+
+                    <FilterPills
+                        label="Status dokumen"
+                        value={statusFilter}
+                        onValueChange={setStatusFilter}
+                        options={statusOptions}
+                        itemClassName="max-md:h-11 max-md:px-4"
                     />
 
-                    {/* Table */}
                     {totalItems > 0 ? (
                         <DataTableContainer
                             pagination={
@@ -787,185 +800,181 @@ export default function UploadDokumenPage() {
                                 />
                             }
                         >
-                            <table className="w-full min-w-[800px] text-left text-sm">
-                                <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
-                                    <tr>
-                                        <th className="px-5 py-3 font-medium">
-                                            Nama Dokumen
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Kategori
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Tanggal Upload
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Ukuran
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="px-5 py-3 font-medium">
-                                            Review
-                                        </th>
-                                        <th className="px-5 py-3 text-right font-medium">
-                                            Aksi
+                            <table
+                                className={cn(
+                                    stackedTable.table,
+                                    'md:min-w-[760px]',
+                                )}
+                            >
+                                <thead className={stackedTable.thead}>
+                                    <tr className="border-b bg-muted/40">
+                                        <th className={dataTh}>Nama Dokumen</th>
+                                        <th className={dataTh}>Kategori</th>
+                                        <th className={dataTh}>Diunggah</th>
+                                        <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y bg-background">
-                                    {paginated.map((row) => {
-                                        const hasRevision =
-                                            row.status === 'Perlu Revisi';
-                                        return (
-                                            <tr
-                                                key={`${row.id}-${row.version ?? 'lampiran'}`}
-                                                onClick={() =>
-                                                    setDetailDocument(row)
-                                                }
-                                                className={cn(
-                                                    'cursor-pointer transition-colors hover:bg-muted/20',
-                                                    hasRevision &&
-                                                        'bg-destructive/5 dark:bg-destructive/5',
-                                                )}
+                                <tbody
+                                    className={cn(
+                                        stackedTable.tbody,
+                                        'md:divide-y',
+                                    )}
+                                >
+                                    {paginated.map((row) => (
+                                        <tr
+                                            key={`${row.id}-${row.version ?? 'lampiran'}`}
+                                            onClick={() =>
+                                                setDetailDocument(row)
+                                            }
+                                            className={cn(
+                                                stackedTable.tr,
+                                                'cursor-pointer align-top transition-colors hover:bg-muted/30',
+                                            )}
+                                        >
+                                            <td
+                                                className={stackedTable.tdPlain}
                                             >
-                                                {/* Nama Dokumen */}
-                                                <td className="px-5 py-3.5">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                            <FileText className="size-4" />
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
+                                                        <FileText
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-sm font-medium break-words md:max-w-56 md:truncate">
+                                                            {row.title}
                                                         </div>
-                                                        <div className="min-w-0">
-                                                            <div className="max-w-[180px] truncate text-sm font-medium">
-                                                                {row.title}
-                                                            </div>
-                                                            <div className="max-w-[180px] truncate text-xs text-muted-foreground">
-                                                                {row.fileName}
-                                                                {row.version
-                                                                    ? ` — ${row.version}`
-                                                                    : ''}
-                                                            </div>
+                                                        <div className="text-xs break-all text-muted-foreground md:max-w-56 md:truncate">
+                                                            {row.fileName}
+                                                            {row.version
+                                                                ? ` — ${row.version}`
+                                                                : ''}
                                                         </div>
                                                     </div>
-                                                </td>
+                                                </div>
+                                            </td>
 
-                                                {/* Kategori */}
-                                                <td className="px-5 py-3.5">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="rounded-full bg-background whitespace-nowrap text-foreground"
-                                                    >
-                                                        {row.category}
-                                                    </Badge>
-                                                </td>
+                                            <td
+                                                className={stackedTable.td}
+                                                data-label="Kategori"
+                                            >
+                                                {row.category}
+                                            </td>
 
-                                                {/* Tanggal */}
-                                                <td className="px-5 py-3.5 text-xs whitespace-nowrap text-muted-foreground">
+                                            <td
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'text-muted-foreground',
+                                                )}
+                                                data-label="Diunggah"
+                                            >
+                                                <span className="whitespace-nowrap">
                                                     {row.uploadedAt}
-                                                </td>
-
-                                                {/* Ukuran */}
-                                                <td className="px-5 py-3.5 text-xs whitespace-nowrap text-muted-foreground">
+                                                </span>
+                                                <span className="block text-xs">
                                                     {row.size}
-                                                </td>
+                                                </span>
+                                            </td>
 
-                                                {/* Status */}
-                                                <td className="px-5 py-3.5">
-                                                    <StatusBadge
-                                                        status={row.status}
-                                                    />
-                                                </td>
-
-                                                {/* Review */}
-                                                <td className="px-5 py-3.5 text-xs whitespace-nowrap text-muted-foreground">
+                                            <td
+                                                className={stackedTable.td}
+                                                data-label="Status"
+                                            >
+                                                <DokumenStatusBadge
+                                                    status={row.status}
+                                                />
+                                                <span className="mt-1 block text-xs text-muted-foreground">
                                                     {row.reviews.length > 0
                                                         ? `${row.reviews.length} review`
-                                                        : '—'}
-                                                </td>
+                                                        : 'Belum direview'}
+                                                </span>
+                                            </td>
 
-                                                {/* Aksi */}
-                                                <td
-                                                    className="px-5 py-3.5"
-                                                    onClick={(event) =>
-                                                        event.stopPropagation()
-                                                    }
-                                                >
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-8"
-                                                            onClick={() =>
-                                                                setDetailDocument(
-                                                                    row,
-                                                                )
-                                                            }
-                                                            aria-label={`Detail dokumen ${row.title}`}
-                                                        >
-                                                            <Eye className="size-4" />
-                                                            Detail
-                                                        </Button>
-                                                        <Tooltip>
-                                                            <TooltipTrigger
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                                onClick={(event) =>
+                                                    event.stopPropagation()
+                                                }
+                                            >
+                                                <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 max-md:h-11 max-md:px-4"
+                                                        onClick={() =>
+                                                            setDetailDocument(
+                                                                row,
+                                                            )
+                                                        }
+                                                        aria-label={`Detail dokumen ${row.title}`}
+                                                    >
+                                                        <Eye className="size-4" />
+                                                        Detail
+                                                    </Button>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
                                                                 asChild
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="size-8 text-muted-foreground hover:text-foreground max-md:size-11"
                                                             >
+                                                                <a
+                                                                    href={
+                                                                        row.downloadUrl
+                                                                    }
+                                                                    aria-label={`Unduh dokumen ${row.title}`}
+                                                                >
+                                                                    <Download className="size-4" />
+                                                                </a>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Unduh Dokumen
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span>
                                                                 <Button
-                                                                    asChild
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="size-8 text-muted-foreground hover:text-foreground"
+                                                                    className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive max-md:size-11"
+                                                                    disabled={
+                                                                        deleteForm.processing ||
+                                                                        !row.canDelete
+                                                                    }
+                                                                    aria-label={`Hapus dokumen ${row.title}`}
+                                                                    onClick={() => {
+                                                                        setDocumentPendingDelete(
+                                                                            row,
+                                                                        );
+                                                                    }}
                                                                 >
-                                                                    <a
-                                                                        href={
-                                                                            row.downloadUrl
-                                                                        }
-                                                                        aria-label={`Unduh dokumen ${row.title}`}
-                                                                    >
-                                                                        <Download className="size-4" />
-                                                                    </a>
+                                                                    <Trash2 className="size-4" />
                                                                 </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Unduh Dokumen
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger
-                                                                asChild
-                                                            >
-                                                                <span>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                        disabled={
-                                                                            deleteForm.processing ||
-                                                                            !row.canDelete
-                                                                        }
-                                                                        aria-label={`Hapus dokumen ${row.title}`}
-                                                                        onClick={() => {
-                                                                            setDocumentPendingDelete(
-                                                                                row,
-                                                                            );
-                                                                        }}
-                                                                    >
-                                                                        <Trash2 className="size-4" />
-                                                                    </Button>
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                {row.deleteBlockedReason ??
-                                                                    'Hapus Dokumen'}
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            {row.deleteBlockedReason ??
+                                                                'Hapus Dokumen'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </DataTableContainer>
@@ -973,18 +982,18 @@ export default function UploadDokumenPage() {
                         <DataTableEmptyState
                             icon={Inbox}
                             title={
-                                search || statusFilter !== 'semua'
+                                isFiltered
                                     ? 'Tidak ada dokumen yang sesuai'
                                     : 'Belum ada dokumen yang diupload'
                             }
                             description={
-                                search || statusFilter !== 'semua'
+                                isFiltered
                                     ? 'Coba ubah kata kunci atau filter yang dipilih.'
                                     : 'Mulai unggah dokumen pertama Anda untuk memulai proses review.'
                             }
                         />
                     )}
-                </section>
+                </DataSection>
             </div>
         </AppLayout>
     );

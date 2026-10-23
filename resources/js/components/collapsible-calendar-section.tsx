@@ -67,7 +67,7 @@ export function CollapsibleCalendarSection({
                     {!open && (
                         <p
                             data-testid="calendar-summary"
-                            className="text-sm text-muted-foreground"
+                            className="text-sm text-balance text-muted-foreground"
                         >
                             {summary.week} jadwal minggu ini, {summary.today}{' '}
                             hari ini
@@ -80,7 +80,7 @@ export function CollapsibleCalendarSection({
                         aria-expanded={open}
                         aria-controls={contentId}
                         onClick={toggle}
-                        className="gap-1.5"
+                        className="gap-1.5 max-md:h-11"
                     >
                         {open ? 'Ciutkan kalender' : 'Buka kalender'}
                         <ChevronDown

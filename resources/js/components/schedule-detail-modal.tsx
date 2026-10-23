@@ -7,7 +7,7 @@ import {
     XCircle,
 } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -17,7 +17,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 
 type ScheduleDetail = {
     id: number | string;
@@ -50,47 +49,19 @@ type ScheduleDetailModalProps = {
 
 const statusConfig: Record<
     ScheduleDetail['status'],
-    { label: string; color: string; icon: typeof CheckCircle2 }
+    { label: string; icon: typeof CheckCircle2 }
 > = {
-    scheduled: {
-        label: 'Terjadwal',
-        color: 'bg-blue-500 text-white',
-        icon: Calendar,
-    },
-    pending: {
-        label: 'Menunggu Konfirmasi',
-        color: 'bg-orange-500 text-white',
-        icon: Clock,
-    },
-    approved: {
-        label: 'Disetujui',
-        color: 'bg-green-500 text-white',
-        icon: CheckCircle2,
-    },
-    rescheduled: {
-        label: 'Dijadwalkan Ulang',
-        color: 'bg-sky-500 text-white',
-        icon: Calendar,
-    },
-    rejected: {
-        label: 'Ditolak',
-        color: 'bg-red-500 text-white',
-        icon: XCircle,
-    },
-    completed: {
-        label: 'Selesai',
-        color: 'bg-gray-500 text-white',
-        icon: CheckCircle2,
-    },
-    cancelled: {
-        label: 'Dibatalkan',
-        color: 'bg-gray-400 text-white',
-        icon: XCircle,
-    },
+    scheduled: { label: 'Terjadwal', icon: Calendar },
+    pending: { label: 'Menunggu Konfirmasi', icon: Clock },
+    approved: { label: 'Disetujui', icon: CheckCircle2 },
+    rescheduled: { label: 'Dijadwalkan Ulang', icon: Calendar },
+    rejected: { label: 'Ditolak', icon: XCircle },
+    completed: { label: 'Selesai', icon: CheckCircle2 },
+    cancelled: { label: 'Dibatalkan', icon: XCircle },
 };
 
 function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString('en-GB', {
+    return new Date(dateStr).toLocaleString('id-ID', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -133,10 +104,14 @@ export function ScheduleDetailModal({
 
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                        <Badge className={cn('gap-1', config.color)}>
+                        <StatusBadge
+                            domain="schedule"
+                            status={schedule.status}
+                            className="gap-1"
+                        >
                             <StatusIcon className="size-3" />
                             {config.label}
-                        </Badge>
+                        </StatusBadge>
                     </div>
 
                     <div className="space-y-3">
@@ -172,7 +147,7 @@ export function ScheduleDetailModal({
                         </div>
 
                         {schedule.notes && (
-                            <div className="rounded-lg bg-muted/30 p-3">
+                            <div className="border-t pt-3">
                                 <p className="text-xs font-medium text-muted-foreground">
                                     Catatan
                                 </p>
@@ -187,6 +162,7 @@ export function ScheduleDetailModal({
                         <Button
                             type="button"
                             variant="outline"
+                            className="max-md:h-11"
                             onClick={() => onOpenChange(false)}
                         >
                             Tutup
@@ -195,6 +171,7 @@ export function ScheduleDetailModal({
                             <Button
                                 type="button"
                                 variant="secondary"
+                                className="max-md:h-11"
                                 onClick={() => {
                                     onOpenChange(false);
                                     onReschedule();
@@ -207,6 +184,7 @@ export function ScheduleDetailModal({
                             <Button
                                 type="button"
                                 variant="destructive"
+                                className="max-md:h-11"
                                 onClick={() => {
                                     onOpenChange(false);
                                     onCancel();

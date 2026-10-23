@@ -65,7 +65,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                         onClick={cleanup}
                     >
                         <UserIcon className="mr-2" />
-                        Edit Profile
+                        Ubah profil
                     </Link>
                 </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -120,7 +120,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     data-test="logout-button"
                 >
                     <LogOut className="mr-2" />
-                    Log out
+                    Keluar
                 </Link>
             </DropdownMenuItem>
         </>

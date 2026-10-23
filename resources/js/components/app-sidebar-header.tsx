@@ -39,6 +39,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
+import { cn } from '@/lib/utils';
 import {
     type BreadcrumbItem as BreadcrumbItemType,
     type HeaderNotification,
@@ -528,13 +529,13 @@ function HeaderNotifications() {
                     <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="relative h-9 w-9 p-0 transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                        size="icon"
+                        className="relative size-9 max-md:size-11"
                         aria-label="Open notifications"
                     >
                         <Bell className="size-4" />
                         {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-medium text-destructive-foreground">
+                            <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-none font-medium text-destructive-foreground">
                                 {unreadCount}
                             </span>
                         )}
@@ -555,7 +556,7 @@ function HeaderNotifications() {
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    className="h-auto p-0 text-sm text-primary hover:bg-transparent hover:text-primary/80"
+                                    className="h-auto p-0 text-sm text-primary hover:bg-transparent hover:text-primary/80 max-md:min-h-11"
                                     onClick={handleMarkAllAsRead}
                                     disabled={unreadCount === 0}
                                 >
@@ -564,7 +565,7 @@ function HeaderNotifications() {
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    className="h-auto p-0 text-sm text-destructive hover:bg-transparent hover:text-destructive/80"
+                                    className="h-auto p-0 text-sm text-destructive hover:bg-transparent hover:text-destructive/80 max-md:min-h-11"
                                     onClick={handleDeleteReadNotifications}
                                     disabled={readCount === 0}
                                 >
@@ -575,9 +576,9 @@ function HeaderNotifications() {
 
                         <Separator />
 
-                        <div className="grid flex-1 auto-rows-min gap-3 overflow-auto p-4">
+                        <div className="flex flex-1 flex-col divide-y overflow-auto">
                             {notificationItems.length === 0 ? (
-                                <div className="flex h-full min-h-72 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
+                                <div className="m-4 flex min-h-72 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
                                     <BellOff className="size-5 text-muted-foreground" />
                                     <p className="text-sm font-medium">
                                         Belum ada notifikasi baru
@@ -597,7 +598,11 @@ function HeaderNotifications() {
                                             <div
                                                 key={n.id}
                                                 data-testid="notification-card"
-                                                className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-4 transition-colors hover:bg-primary/10"
+                                                className={cn(
+                                                    'flex cursor-pointer items-start gap-3 px-4 py-4 transition-colors hover:bg-accent',
+                                                    n.unread &&
+                                                        'bg-primary-muted/40',
+                                                )}
                                                 onClick={(event) =>
                                                     handleNotificationCardClick(
                                                         event,
@@ -605,11 +610,7 @@ function HeaderNotifications() {
                                                     )
                                                 }
                                             >
-                                                <span
-                                                    className={
-                                                        'mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-muted text-primary'
-                                                    }
-                                                >
+                                                <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
                                                     <Icon className="size-4" />
                                                 </span>
                                                 <div className="min-w-0 flex-1">
@@ -627,7 +628,7 @@ function HeaderNotifications() {
                                                                 {n.title}
                                                             </p>
                                                             {n.unread && (
-                                                                <span className="mt-1 size-2 rounded-[3px] bg-primary" />
+                                                                <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
                                                             )}
                                                         </div>
                                                     </button>
@@ -650,7 +651,7 @@ function HeaderNotifications() {
                                                         type="button"
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="mt-0.5 size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                                                        className="mt-0.5 size-8 shrink-0 text-muted-foreground hover:text-foreground max-md:size-11"
                                                         onClick={() =>
                                                             handleDeleteNotification(
                                                                 n.id,
@@ -738,7 +739,7 @@ function HeaderUserMenu() {
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-9 gap-2 px-2"
+                    className="h-9 gap-2 px-2 max-md:h-11"
                     data-test="header-user-menu-trigger"
                 >
                     <Avatar className="h-8 w-8 overflow-hidden rounded-full">
@@ -771,15 +772,15 @@ export function AppSidebarHeader({
     const mobileTitle = title ?? breadcrumbs[breadcrumbs.length - 1]?.title;
 
     return (
-        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
+                <SidebarTrigger className="-ml-1 size-9 max-md:size-11" />
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div className="min-w-0 md:hidden">
                         {mobileTitle ? (
-                            <h1 className="truncate text-sm font-semibold">
+                            <p className="truncate text-sm font-semibold">
                                 {mobileTitle}
-                            </h1>
+                            </p>
                         ) : null}
                     </div>
 

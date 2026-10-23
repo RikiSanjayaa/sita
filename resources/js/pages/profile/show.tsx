@@ -59,23 +59,23 @@ export default function ProfileShowPage() {
         >
             <Head title={`Profil ${profile.name}`} />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 md:px-6">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <div>
                     <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                        <div className="flex items-center gap-5">
-                            <Avatar className="size-24 border">
+                        <div className="flex items-center gap-4 md:gap-5">
+                            <Avatar className="size-16 border md:size-24">
                                 <AvatarImage
                                     src={profile.avatar ?? undefined}
                                     alt={profile.name}
                                 />
-                                <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+                                <AvatarFallback className="bg-primary-muted text-xl font-semibold text-primary-muted-foreground">
                                     {getInitials(profile.name)}
                                 </AvatarFallback>
                             </Avatar>
 
                             <div className="space-y-2">
                                 <div>
-                                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                                    <h1 className="text-2xl font-semibold tracking-tight text-balance text-foreground">
                                         {profile.name}
                                     </h1>
                                     <p className="text-sm text-muted-foreground">
@@ -113,6 +113,7 @@ export default function ProfileShowPage() {
                                 <Button
                                     type="button"
                                     size="sm"
+                                    className="max-md:h-11"
                                     disabled={privateChatForm.processing}
                                     onClick={() =>
                                         privateChatForm.post(
@@ -129,7 +130,7 @@ export default function ProfileShowPage() {
                                 <Button
                                     asChild
                                     size="sm"
-                                    className="bg-[#25D366] text-white hover:bg-[#20bd5a]"
+                                    className="bg-success text-success-foreground hover:bg-success/90 max-md:h-11"
                                 >
                                     <a
                                         href={profile.whatsappUrl}
@@ -142,9 +143,14 @@ export default function ProfileShowPage() {
                                 </Button>
                             ) : null}
                             {canEditProfile ? (
-                                <Button asChild variant="outline" size="sm">
+                                <Button
+                                    asChild
+                                    variant="outline"
+                                    size="sm"
+                                    className="max-md:h-11"
+                                >
                                     <Link href="/settings/profile">
-                                        Edit Profil
+                                        Ubah profil
                                     </Link>
                                 </Button>
                             ) : null}

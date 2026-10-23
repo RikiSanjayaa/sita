@@ -74,6 +74,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                     variant="outline"
                     size="icon"
                     aria-label="Lampirkan file"
+                    className="max-md:size-11"
                     onClick={() => fileRef.current?.click()}
                     disabled={!canAttach}
                 >
@@ -85,6 +86,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                         composer.setMessage(event.target.value)
                     }
                     placeholder="Tulis pesan..."
+                    className="max-md:h-11"
                     disabled={disabled}
                     onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -106,7 +108,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                     aria-label="Kirim pesan"
                     onClick={composer.send}
                     disabled={!composer.canSend}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
                 >
                     <Send className="size-4" />
                 </Button>

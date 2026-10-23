@@ -62,25 +62,21 @@ export function AttachmentCard({
                 className={cn(
                     'flex size-9 shrink-0 items-center justify-center rounded-md',
                     inverse
-                        ? 'bg-primary-foreground/15'
+                        ? 'bg-primary-foreground text-primary'
                         : 'bg-primary-muted text-primary-muted-foreground',
                 )}
             >
                 <FileText className="size-4" />
             </div>
             <div className="min-w-0 flex-1">
-                {caption && (
-                    <p className="text-[11px] font-medium opacity-75">
-                        {caption}
-                    </p>
-                )}
+                {caption && <p className="text-xs font-medium">{caption}</p>}
                 <FilenameLabel
                     name={name}
                     className="block truncate text-sm font-semibold"
                     searchTerm={searchTerm}
                     inverse={inverse}
                 />
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs opacity-80">
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                     {sizeKb !== null && (
                         <span>{formatFileSize(sizeKb * 1024)}</span>
                     )}
@@ -88,7 +84,7 @@ export function AttachmentCard({
                         <StatusBadge
                             domain="document"
                             status={reviewStatus}
-                            className="px-2 py-0 text-[11px]"
+                            className="px-2 py-0"
                         >
                             {REVIEW_STATUS_LABELS[reviewStatus] ?? reviewStatus}
                         </StatusBadge>
@@ -103,10 +99,8 @@ export function AttachmentCard({
     return (
         <div
             className={cn(
-                'mb-2 flex min-w-0 items-center gap-1 rounded-xl border p-2.5',
-                inverse
-                    ? 'border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground'
-                    : 'border-border bg-muted/30 text-foreground',
+                'mb-2 flex min-w-0 items-center gap-1 py-1',
+                inverse ? 'text-primary-foreground' : 'text-foreground',
             )}
         >
             {href === null ? (

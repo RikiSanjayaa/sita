@@ -1,32 +1,125 @@
 import { FileText, GraduationCap, type LucideIcon, Users } from 'lucide-react';
+import { type ReactNode } from 'react';
 
 import { PersonCardLink } from '@/components/profile/person-card-link';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
-import { type UserProfileDetail } from '@/types';
+import { type UserProfileDetail, type UserProfileSummary } from '@/types';
 
-function SectionHeader({
+/** One bordered surface; its parts are separated by dividers, never by inner boxes. */
+function ProfileSection({
     title,
     description,
     icon: Icon,
+    children,
 }: {
     title: string;
     description?: string;
     icon?: LucideIcon;
+    children: ReactNode;
 }) {
     return (
-        <div className="space-y-1">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-balance">
+        <section className="divide-y overflow-hidden rounded-xl border bg-card">
+            <div className="space-y-1 px-4 py-5 md:px-6">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-balance">
+                    {Icon ? (
+                        <Icon aria-hidden="true" className="size-5 shrink-0" />
+                    ) : null}
+                    {title}
+                </h2>
+                {description ? (
+                    <p className="text-sm text-pretty text-muted-foreground">
+                        {description}
+                    </p>
+                ) : null}
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function FactGrid({
+    items,
+    tabular = false,
+    className,
+}: {
+    items: ReadonlyArray<{ label: string; value: string | number }>;
+    tabular?: boolean;
+    className: string;
+}) {
+    return (
+        <dl className={`grid gap-x-8 gap-y-5 px-4 py-5 md:px-6 ${className}`}>
+            {items.map((item) => (
+                <div key={item.label}>
+                    <dt className="text-xs font-medium text-muted-foreground">
+                        {item.label}
+                    </dt>
+                    <dd
+                        className={`mt-1 text-sm font-semibold text-foreground ${tabular ? 'tabular-nums' : ''}`}
+                    >
+                        {item.value}
+                    </dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+/** Full-bleed divided list of people inside a section. */
+function PeopleList({
+    people,
+    label,
+    showCount = false,
+}: {
+    people: UserProfileSummary[];
+    label?: (person: UserProfileSummary, index: number) => string;
+    showCount?: boolean;
+}) {
+    return (
+        <ul className="divide-y border-y">
+            {people.map((person, index) => (
+                <li key={`${person.id}-${index}`}>
+                    <PersonCardLink
+                        variant="row"
+                        person={person}
+                        label={label?.(person, index)}
+                        mentorshipCount={
+                            showCount ? person.mentorshipCount : undefined
+                        }
+                        className="px-4 md:px-6"
+                    />
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function PeopleBlock({
+    title,
+    icon: Icon,
+    children,
+}: {
+    title: string;
+    icon?: LucideIcon;
+    children: ReactNode;
+}) {
+    return (
+        <div className="space-y-3 pt-5">
+            <h3 className="flex items-center gap-2 px-4 text-sm font-semibold text-foreground md:px-6">
                 {Icon ? (
-                    <Icon aria-hidden="true" className="size-5 shrink-0" />
+                    <Icon aria-hidden="true" className="size-4 shrink-0" />
                 ) : null}
                 {title}
-            </h2>
-            {description ? (
-                <p className="text-sm text-muted-foreground">{description}</p>
-            ) : null}
+            </h3>
+            {children}
         </div>
+    );
+}
+
+function EmptyLine({ children }: { children: ReactNode }) {
+    return (
+        <p className="px-4 pb-5 text-sm text-muted-foreground md:px-6">
+            {children}
+        </p>
     );
 }
 
@@ -38,74 +131,37 @@ export function ProfileDetailsSections({
     const finalWork =
         profile.academicTerminology?.finalWork ??
         neutralAcademicTerminology.finalWork;
+    const examinerGroups = profile.thesis?.examinerGroups ?? [];
 
     return (
-        <div className="space-y-8">
-            {/* ── Detail Akademik & Peran ─────────────────────────────── */}
-            <div className="overflow-hidden rounded-xl border">
-                {/* Header */}
-                <div className="px-6 py-5">
-                    <SectionHeader
-                        title="Detail Akademik & Peran"
-                        description="Ringkasan identitas dan status bimbingan."
-                    />
-                </div>
-
-                <Separator />
-
-                {/* Meta grid */}
-                <div className="grid gap-x-8 gap-y-5 px-6 py-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {profile.meta.map((item) => (
-                        <div key={item.label}>
-                            <p className="text-xs font-medium text-muted-foreground">
-                                {item.label}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-foreground">
-                                {item.value}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Stats row — only if present */}
+        <div className="space-y-6">
+            <ProfileSection
+                title="Detail akademik dan peran"
+                description="Ringkasan identitas dan status bimbingan."
+            >
+                <FactGrid
+                    items={profile.meta}
+                    className="sm:grid-cols-2 xl:grid-cols-3"
+                />
                 {profile.stats.length > 0 ? (
-                    <>
-                        <Separator />
-                        <div className="grid gap-5 px-6 py-5 sm:grid-cols-2 lg:grid-cols-3">
-                            {profile.stats.map((item) => (
-                                <div key={item.label}>
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        {item.label}
-                                    </p>
-                                    <p className="mt-1 text-sm font-semibold tabular-nums">
-                                        {item.value}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </>
+                    <FactGrid
+                        items={profile.stats}
+                        tabular
+                        className="sm:grid-cols-2 lg:grid-cols-3"
+                    />
                 ) : null}
-            </div>
+            </ProfileSection>
 
-            {/* ── Tugas Akhir ─────────────────────────────────────────── */}
             {profile.thesis ? (
-                <div className="overflow-hidden rounded-xl border">
-                    {/* Header */}
-                    <div className="px-6 py-5">
-                        <SectionHeader
-                            title={finalWork}
-                            description="Status terkini dan dosen yang sedang terlibat."
-                            icon={FileText}
-                        />
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-6 px-6 py-5">
-                        {/* Thesis title block */}
+                <ProfileSection
+                    title={finalWork}
+                    description="Status terkini dan dosen yang sedang terlibat."
+                    icon={FileText}
+                >
+                    <div className="space-y-2 px-4 py-5 md:px-6">
                         <div>
                             <p className="text-xs font-medium text-muted-foreground">
-                                Judul Saat Ini
+                                Judul saat ini
                             </p>
                             <p className="mt-1 text-sm font-semibold text-foreground">
                                 {profile.thesis.title ??
@@ -113,141 +169,70 @@ export function ProfileDetailsSections({
                                         ? 'Belum ada judul aktif'
                                         : 'Judul belum tampil untuk publik')}
                             </p>
-                            <Badge variant="secondary" className="mt-2">
-                                Status: {profile.thesis.statusLabel}
-                            </Badge>
                         </div>
-
-                        <div className="space-y-6">
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                    <GraduationCap
-                                        aria-hidden="true"
-                                        className="size-4 shrink-0"
-                                    />
-                                    Dosen Pembimbing
-                                </div>
-                                {profile.thesis.advisors.length > 0 ? (
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        {profile.thesis.advisors.map(
-                                            (person, index) => (
-                                                <PersonCardLink
-                                                    key={person.id}
-                                                    person={person}
-                                                    label={`Pembimbing ${index + 1}`}
-                                                    mentorshipCount={
-                                                        person.mentorshipCount
-                                                    }
-                                                />
-                                            ),
-                                        )}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        Belum ada pembimbing aktif.
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                    <Users
-                                        aria-hidden="true"
-                                        className="size-4 shrink-0"
-                                    />
-                                    Dosen Penguji
-                                </div>
-                                {(profile.thesis.examinerGroups?.length ?? 0) >
-                                0 ? (
-                                    <div className="grid gap-6">
-                                        {profile.thesis.examinerGroups?.map(
-                                            (group) => (
-                                                <div
-                                                    key={group.title}
-                                                    className="space-y-2"
-                                                >
-                                                    <p className="text-xs font-medium text-muted-foreground">
-                                                        {group.title}
-                                                    </p>
-                                                    {group.users.length > 0 ? (
-                                                        <div className="grid gap-3 sm:grid-cols-2">
-                                                            {group.users.map(
-                                                                (
-                                                                    person,
-                                                                    index,
-                                                                ) => (
-                                                                    <PersonCardLink
-                                                                        key={`${group.title}-${person.id}-${index}`}
-                                                                        person={
-                                                                            person
-                                                                        }
-                                                                        label={`${group.title} ${index + 1}`}
-                                                                    />
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {group.emptyMessage}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ),
-                                        )}
-                                    </div>
-                                ) : profile.thesis.examiners.length > 0 ? (
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        {profile.thesis.examiners.map(
-                                            (person, index) => (
-                                                <PersonCardLink
-                                                    key={`${person.id}-${index}`}
-                                                    person={person}
-                                                    label={`Penguji ${index + 1}`}
-                                                />
-                                            ),
-                                        )}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        Belum ada penguji aktif.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
-
-            {/* ── Related user groups ─────────────────────────────────── */}
-            {profile.relatedUsers.map((group) => (
-                <div
-                    key={group.title}
-                    className="overflow-hidden rounded-xl border"
-                >
-                    <div className="px-6 py-5">
-                        <SectionHeader title={group.title} />
+                        <p className="text-sm text-muted-foreground">
+                            Status:{' '}
+                            <span className="font-medium text-foreground">
+                                {profile.thesis.statusLabel}
+                            </span>
+                        </p>
                     </div>
 
-                    <Separator />
+                    <PeopleBlock title="Dosen pembimbing" icon={GraduationCap}>
+                        {profile.thesis.advisors.length > 0 ? (
+                            <PeopleList
+                                people={profile.thesis.advisors}
+                                label={(_, index) => `Pembimbing ${index + 1}`}
+                                showCount
+                            />
+                        ) : (
+                            <EmptyLine>Belum ada pembimbing aktif.</EmptyLine>
+                        )}
+                    </PeopleBlock>
 
-                    <div className="px-6 py-5">
-                        {group.users.length > 0 ? (
-                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                {group.users.map((person) => (
-                                    <PersonCardLink
-                                        key={person.id}
-                                        person={person}
-                                        mentorshipCount={person.mentorshipCount}
-                                    />
+                    <PeopleBlock title="Dosen penguji" icon={Users}>
+                        {examinerGroups.length > 0 ? (
+                            <div className="space-y-4">
+                                {examinerGroups.map((group) => (
+                                    <div key={group.title}>
+                                        <p className="px-4 pb-2 text-xs font-medium text-muted-foreground md:px-6">
+                                            {group.title}
+                                        </p>
+                                        {group.users.length > 0 ? (
+                                            <PeopleList
+                                                people={group.users}
+                                                label={(_, index) =>
+                                                    `${group.title} ${index + 1}`
+                                                }
+                                            />
+                                        ) : (
+                                            <EmptyLine>
+                                                {group.emptyMessage}
+                                            </EmptyLine>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
+                        ) : profile.thesis.examiners.length > 0 ? (
+                            <PeopleList
+                                people={profile.thesis.examiners}
+                                label={(_, index) => `Penguji ${index + 1}`}
+                            />
                         ) : (
-                            <p className="text-sm text-muted-foreground">
-                                {group.emptyMessage}
-                            </p>
+                            <EmptyLine>Belum ada penguji aktif.</EmptyLine>
                         )}
-                    </div>
-                </div>
+                    </PeopleBlock>
+                </ProfileSection>
+            ) : null}
+
+            {profile.relatedUsers.map((group) => (
+                <ProfileSection key={group.title} title={group.title}>
+                    {group.users.length > 0 ? (
+                        <PeopleList people={group.users} showCount />
+                    ) : (
+                        <EmptyLine>{group.emptyMessage}</EmptyLine>
+                    )}
+                </ProfileSection>
             ))}
         </div>
     );

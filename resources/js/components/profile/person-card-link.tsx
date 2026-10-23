@@ -12,6 +12,11 @@ type PersonCardLinkProps = {
     label?: string;
     /** Supervision count with the viewing lecturer. Omit or null when no supervision applies. */
     mentorshipCount?: number | null;
+    /**
+     * `card` is a bordered box (default). `row` is a borderless full-width row
+     * for divided lists inside a section that already has a border.
+     */
+    variant?: 'card' | 'row';
     className?: string;
 };
 
@@ -19,6 +24,7 @@ export function PersonCardLink({
     person,
     label,
     mentorshipCount,
+    variant = 'card',
     className,
 }: PersonCardLinkProps) {
     const getInitials = useInitials();
@@ -39,7 +45,10 @@ export function PersonCardLink({
         <Link
             href={person.profileUrl}
             className={cn(
-                'group flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors hover:border-primary/40',
+                'group flex items-center gap-3 px-4 py-3 transition-colors',
+                variant === 'card'
+                    ? 'rounded-lg border hover:border-primary/40'
+                    : 'hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none max-md:min-h-11',
                 className,
             )}
         >
@@ -61,7 +70,7 @@ export function PersonCardLink({
                                 {label}
                             </p>
                         )}
-                        <p className="line-clamp-2 text-sm font-semibold break-words text-foreground transition-colors group-hover:text-primary">
+                        <p className="line-clamp-2 text-sm font-semibold break-words text-foreground transition-colors group-hover:underline">
                             {person.name}
                         </p>
                         {meta && (

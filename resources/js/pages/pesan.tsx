@@ -50,8 +50,8 @@ type PesanPageContentProps = Pick<SharedData, 'auth'> & {
 
 function threadBadgeClassName(thread: ThreadItem): string {
     return thread.threadType === 'pembimbing'
-        ? 'bg-primary/10 text-primary hover:bg-primary/20'
-        : 'bg-amber-600/10 text-amber-600 hover:bg-amber-600/20';
+        ? 'bg-primary-muted text-primary-muted-foreground'
+        : 'bg-warning-muted text-warning-muted-foreground';
 }
 
 function initialThreadMode(threads: ThreadItem[]): ThreadMode {
@@ -160,6 +160,8 @@ function PesanPageContent({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pesan" />
 
+            <h1 className="sr-only">Pesan</h1>
+
             <MentorshipChatFrame isMobile={isMobile}>
                 <ThreadList
                     activeThreadId={activeThread?.id ?? null}
@@ -212,11 +214,11 @@ function PesanPageContent({
                         notice={
                             !hasDosbing &&
                             activeThread?.threadType === 'pembimbing' ? (
-                                <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
-                                    <AlertTitle className="text-red-900 dark:text-red-200">
+                                <Alert className="mb-3 border-danger/30 bg-danger-muted text-danger-muted-foreground">
+                                    <AlertTitle className="text-danger-muted-foreground">
                                         Belum ada Dosen Pembimbing
                                     </AlertTitle>
-                                    <AlertDescription className="text-red-800 dark:text-red-300">
+                                    <AlertDescription className="text-danger-muted-foreground">
                                         Anda belum memiliki dosen pembimbing
                                         aktif. Pesan akan tersedia setelah dosen
                                         pembimbing ditetapkan.

@@ -113,9 +113,9 @@ export default function ProfilePage() {
             <SettingsLayout>
                 {/* Profile form card */}
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="px-6 py-5">
+                    <div className="px-4 py-5 md:px-6">
                         <h2 className="text-lg font-semibold text-balance">
-                            Perbarui Profil
+                            Perbarui profil
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
                             Ubah nama, email, dan foto profil agar tampil
@@ -127,7 +127,7 @@ export default function ProfilePage() {
 
                     <form
                         onSubmit={submit}
-                        className="grid gap-6 px-6 py-5 lg:grid-cols-[200px_1fr]"
+                        className="grid gap-6 px-4 py-5 md:px-6 lg:grid-cols-[200px_1fr]"
                     >
                         <div className="flex flex-col items-center gap-4 text-center">
                             <Avatar className="size-24 border">
@@ -139,7 +139,7 @@ export default function ProfilePage() {
                                     }
                                     alt={auth.user.name}
                                 />
-                                <AvatarFallback className="bg-primary/10 text-lg text-primary">
+                                <AvatarFallback className="bg-primary-muted text-lg text-primary-muted-foreground">
                                     {getInitials(auth.user.name)}
                                 </AvatarFallback>
                             </Avatar>
@@ -155,6 +155,7 @@ export default function ProfilePage() {
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="max-md:h-11"
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <Camera className="mr-2 size-4" />
@@ -167,7 +168,11 @@ export default function ProfilePage() {
                             </div>
 
                             {profile.whatsappUrl ? (
-                                <Button asChild variant="secondary">
+                                <Button
+                                    asChild
+                                    variant="secondary"
+                                    className="max-md:h-11"
+                                >
                                     <a
                                         href={profile.whatsappUrl}
                                         target="_blank"
@@ -190,6 +195,7 @@ export default function ProfilePage() {
                                 <Label htmlFor="name">Nama lengkap</Label>
                                 <Input
                                     id="name"
+                                    className="max-md:h-11"
                                     value={form.data.name}
                                     onChange={(event) =>
                                         form.setData('name', event.target.value)
@@ -207,6 +213,7 @@ export default function ProfilePage() {
                                 <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
+                                    className="max-md:h-11"
                                     type="email"
                                     value={form.data.email}
                                     onChange={(event) =>
@@ -228,6 +235,7 @@ export default function ProfilePage() {
                                 <Label htmlFor="phone_number">Nomor HP</Label>
                                 <Input
                                     id="phone_number"
+                                    className="max-md:h-11"
                                     value={form.data.phone_number}
                                     onChange={(event) =>
                                         form.setData(
@@ -248,6 +256,7 @@ export default function ProfilePage() {
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    className="max-md:h-11"
                                     disabled={form.processing}
                                     onClick={() => {
                                         form.reset();
@@ -271,6 +280,7 @@ export default function ProfilePage() {
                                 </Button>
                                 <Button
                                     type="submit"
+                                    className="max-md:h-11"
                                     disabled={form.processing}
                                 >
                                     <Save className="mr-2 size-4" />

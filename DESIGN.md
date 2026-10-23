@@ -584,6 +584,14 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - Jadwal Bimbingan pending requests are one divided list; the decision form opens on demand ("Tanggapi"), so nothing is hidden at rest and nothing sits in a card inside a card.
 - Pesan keeps the shared chat shell; the page only owns the group filter (`FilterPills`) and thread badge tones.
 
+### Portal: mahasiswa and shared shell (#83)
+
+- **Page start:** every portal page opens with `PageHeader` (the one `h1`); the shell header shows the page title as a plain `p` on phones, never a second `h1`. Sections are `h2` (`DataSection` or `SectionCard`), their parts `h3`.
+- **One surface per block:** inside a bordered block, rows are separated by dividers (`divide-y`), not boxes. `PersonCardLink` has `variant="row"` for borderless rows inside such a block; profile sections (`ProfileDetailsSections`) use it.
+- **Settings:** `SettingsLayout` renders the page `h1` ("Pengaturan akun") and a section nav with the `primary-muted` active pair; settings pages start at `h2`. Notification and appearance switches carry a `label`/`id` pair.
+- **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
+- **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
+
 ### Detector guard (Impeccable)
 
 The `design-detector` Playwright spec runs `impeccable detect` against the key pages of every role at 1280px and 390px and reports findings per page. It is advisory until an area is listed in `BLOCKING_AREAS` in `tests/e2e/specs/design-detector.spec.ts`; once an area has been overhauled it is added there and its findings fail the build.

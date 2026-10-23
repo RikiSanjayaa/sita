@@ -13,8 +13,6 @@ export default function Appearance() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pengaturan tampilan" />
 
-            <h1 className="sr-only">Pengaturan tampilan</h1>
-
             <SettingsLayout>
                 <AppearanceSettingsPanel />
             </SettingsLayout>

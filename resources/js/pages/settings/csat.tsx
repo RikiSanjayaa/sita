@@ -3,7 +3,6 @@ import { CalendarClock, CheckCircle2, Star } from 'lucide-react';
 import { FormEvent } from 'react';
 
 import InputError from '@/components/input-error';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,65 +71,80 @@ export default function CsatPage() {
             <SettingsLayout>
                 {/* Header section */}
                 <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold">
-                            Kepuasan pengguna (CSAT)
-                        </h2>
-                        <Badge variant="outline">{roleLabel}</Badge>
-                        <Badge variant="outline">{csat.programStudi}</Badge>
-                    </div>
+                    <h2 className="text-xl font-semibold tracking-tight">
+                        Kepuasan pengguna (CSAT)
+                    </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
+                        {roleLabel}, {csat.programStudi}
+                    </p>
+                    <p className="mt-3 text-sm text-pretty text-muted-foreground">
                         Bagaimana pengalaman Anda menggunakan SiTA? Pilih nilai
                         yang paling sesuai dan berikan masukan jika perlu.
                     </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                        <span className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1">
-                            <CalendarClock className="size-4" />
+                    <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
+                        <li className="flex items-center gap-2">
+                            <CalendarClock
+                                aria-hidden="true"
+                                className="size-4 shrink-0"
+                            />
                             Limit 1 submit/{csat.cooldownDays} hari
-                        </span>
+                        </li>
                         {lastSubmittedAt ? (
-                            <span className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1">
-                                <Star className="size-4" />
+                            <li className="flex items-center gap-2">
+                                <Star
+                                    aria-hidden="true"
+                                    className="size-4 shrink-0"
+                                />
                                 Submit terakhir {lastSubmittedAt}
-                            </span>
+                            </li>
                         ) : null}
-                    </div>
+                    </ul>
                 </div>
 
                 <Separator />
 
                 {/* Status messages */}
                 {status ? (
-                    <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-emerald-950 shadow-sm dark:text-emerald-100">
+                    <div
+                        role="status"
+                        className="rounded-xl border border-success/30 bg-success-muted p-4 text-success-muted-foreground"
+                    >
                         <div className="flex items-start gap-3">
-                            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
+                            <CheckCircle2
+                                aria-hidden="true"
+                                className="mt-0.5 size-5 shrink-0"
+                            />
                             <div className="space-y-1">
                                 <p className="text-sm font-semibold">
                                     Feedback berhasil dikirim
                                 </p>
-                                <p className="text-sm text-emerald-900/80 dark:text-emerald-100/80">
-                                    {status}
-                                </p>
+                                <p className="text-sm">{status}</p>
                             </div>
                         </div>
                     </div>
                 ) : null}
 
                 {!csat.canSubmit ? (
-                    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-amber-950 shadow-sm dark:text-amber-100">
+                    <div
+                        role="status"
+                        className="rounded-xl border border-warning/40 bg-warning-muted p-4 text-warning-muted-foreground"
+                    >
                         <div className="flex items-start gap-3">
-                            <CalendarClock className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-300" />
+                            <CalendarClock
+                                aria-hidden="true"
+                                className="mt-0.5 size-5 shrink-0"
+                            />
                             <div className="space-y-1">
                                 <p className="text-sm font-semibold">
                                     Anda belum bisa submit lagi
                                 </p>
-                                <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
+                                <p className="text-sm">
                                     Feedback berikutnya bisa dikirim setelah{' '}
                                     {nextAvailableAt ?? 'periode limit selesai'}
                                     .
                                 </p>
                                 {csat.lastScore ? (
-                                    <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
+                                    <p className="text-sm">
                                         Skor terakhir Anda: {csat.lastScore}/5.
                                     </p>
                                 ) : null}
@@ -144,7 +158,7 @@ export default function CsatPage() {
                     {/* Score section */}
                     <div className="space-y-4">
                         <div>
-                            <h3 className="text-base font-medium">
+                            <h3 className="text-base font-semibold">
                                 Nilai kepuasan
                             </h3>
                             <p className="text-sm text-muted-foreground">
@@ -162,6 +176,7 @@ export default function CsatPage() {
                                     <button
                                         key={option.value}
                                         type="button"
+                                        aria-pressed={isSelected}
                                         onClick={() =>
                                             form.setData('score', option.value)
                                         }
@@ -169,9 +184,9 @@ export default function CsatPage() {
                                             !csat.canSubmit || form.processing
                                         }
                                         className={cn(
-                                            'flex items-center gap-4 rounded-xl border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                                            'flex items-center gap-4 rounded-xl border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 max-md:min-h-14',
                                             isSelected
-                                                ? 'border-primary bg-primary/10'
+                                                ? 'border-primary bg-primary-muted'
                                                 : 'border-border bg-background hover:bg-muted/40',
                                         )}
                                     >
@@ -220,7 +235,7 @@ export default function CsatPage() {
                     {/* Kritik & Saran section */}
                     <div className="space-y-4">
                         <div>
-                            <h3 className="text-base font-medium">
+                            <h3 className="text-base font-semibold">
                                 Kritik dan saran
                             </h3>
                             <p className="text-sm text-muted-foreground">
@@ -276,6 +291,7 @@ export default function CsatPage() {
                             </p>
                             <Button
                                 type="submit"
+                                className="max-md:h-11 max-md:w-full"
                                 disabled={!csat.canSubmit || form.processing}
                             >
                                 {form.processing
