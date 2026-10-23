@@ -4,7 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:9010';
+// Ports default to 9010/9011. Override them (PLAYWRIGHT_APP_PORT,
+// PLAYWRIGHT_REVERB_PORT) to run several checkouts side by side without one
+// run reusing another checkout's server.
+const appPort = process.env.PLAYWRIGHT_APP_PORT ?? '9010';
+const reverbPort = process.env.PLAYWRIGHT_REVERB_PORT ?? '9011';
+const baseURL =
+    process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${appPort}`;
+// Support helpers read PLAYWRIGHT_BASE_URL; workers inherit it from here.
+process.env.PLAYWRIGHT_BASE_URL = baseURL;
 const databasePath = path.join(
     currentDirectory,
     'database',
@@ -26,15 +34,15 @@ const webServerEnvironment = {
     REVERB_APP_KEY: 'local-key',
     REVERB_APP_SECRET: 'local-secret',
     REVERB_HOST: '127.0.0.1',
-    REVERB_PORT: '9011',
+    REVERB_PORT: reverbPort,
     REVERB_SCHEME: 'http',
     REVERB_ALLOWED_ORIGINS: '127.0.0.1,localhost',
     REVERB_SERVER_HOST: '127.0.0.1',
-    REVERB_SERVER_PORT: '9011',
+    REVERB_SERVER_PORT: reverbPort,
     FRONTEND_REVERB_HOST: '127.0.0.1',
     VITE_REVERB_APP_KEY: 'local-key',
     VITE_REVERB_HOST: '127.0.0.1',
-    VITE_REVERB_PORT: '9011',
+    VITE_REVERB_PORT: reverbPort,
     VITE_REVERB_SCHEME: 'http',
     PULSE_ENABLED: 'false',
     TELESCOPE_ENABLED: 'false',
@@ -42,7 +50,7 @@ const webServerEnvironment = {
 };
 
 // Keep SQLite and other test overrides when Artisan starts its PHP subprocess.
-const webServerCommand = `${process.env.CI ? '' : 'npm run build && '}php artisan serve --no-reload --host=127.0.0.1 --port=9010`;
+const webServerCommand = `${process.env.CI ? '' : 'npm run build && '}php artisan serve --no-reload --host=127.0.0.1 --port=${appPort}`;
 
 export default defineConfig({
     reporter: process.env.CI
@@ -91,8 +99,8 @@ export default defineConfig({
             env: webServerEnvironment,
         },
         {
-            command: 'php artisan reverb:start --host=127.0.0.1 --port=9011',
-            port: 9011,
+            command: `php artisan reverb:start --host=127.0.0.1 --port=${reverbPort}`,
+            port: Number(reverbPort),
             reuseExistingServer: !process.env.CI,
             timeout: 60_000,
             env: webServerEnvironment,
