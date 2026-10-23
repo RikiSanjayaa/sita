@@ -551,7 +551,8 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->and($scheduledSidang->examiners()->where('role', 'examiner')->exists())->toBeTrue()
         ->and($sidangThread->label)->toBe('Sidang')
         ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'student')->count())->toBe(1)
-        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(3)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(2)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('user_id', $examiner->id)->exists())->toBeFalse()
         ->and($sidangThread->messages()->count())->toBe(1);
 
     $scheduledSidang->examiners()
@@ -597,7 +598,10 @@ test('admin service schedules and completes sidang with revision', function (): 
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_scheduled')->count())->toBe(1)
         ->and(ThesisProjectEvent::query()->where('event_type', 'sidang_completed')->count())->toBe(1)
         ->and($project->fresh()->phase)->toBe('sidang')
-        ->and($project->fresh()->state)->toBe('active');
+        ->and($project->fresh()->state)->toBe('active')
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('role', 'examiner')->count())->toBe(3)
+        ->and(MentorshipChatThreadParticipant::query()->where('thread_id', $sidangThread->id)->where('user_id', $examiner->id)->exists())->toBeTrue()
+        ->and($sidangThread->messages()->count())->toBe(2);
 
     Notification::assertSentTo($student, RealtimeNotification::class, function (RealtimeNotification $notification, array $channels) use ($student): bool {
         $data = $notification->toArray($student);

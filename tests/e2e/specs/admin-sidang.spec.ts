@@ -216,7 +216,7 @@ test.describe('Admin sidang workflow', () => {
         }
     });
 
-    test('admin schedules sidang with both supervisors plus one extra examiner', async ({
+    test('admin schedules sidang with both supervisors plus one extra examiner who stays secret from the student', async ({
         browser,
     }) => {
         const studentContext = await browser.newContext({
@@ -258,11 +258,18 @@ test.describe('Admin sidang workflow', () => {
             await expect(
                 studentPage.getByText('Dr. Fajar Nugraha, M.Kom.').first(),
             ).toBeVisible();
+            // The extra examiner (dosen6) stays secret until the sidang is completed.
             await expect(
-                studentPage.getByText('Dr. Siska Maharani, M.Kom.').first(),
+                studentPage.getByText('Dr. Siska Maharani, M.Kom.'),
+            ).toHaveCount(0);
+            await expect(
+                studentPage.getByText(/dirahasiakan sampai/i).first(),
             ).toBeVisible();
 
             await studentPage.goto('/pesan');
+            await expect(
+                studentPage.getByText('Dr. Siska Maharani, M.Kom.'),
+            ).toHaveCount(0);
 
             const examinerRow = await sidangAssignmentRow(
                 examinerPage,
@@ -270,11 +277,13 @@ test.describe('Admin sidang workflow', () => {
             );
             await expect(examinerRow).toBeVisible();
 
+            // The examiner still sees the student in the portal and was notified,
+            // but joins the sidang thread only after the sidang is completed.
             const examinerThread = await sidangThreadRow(
                 examinerPage,
                 thesisScenarios.activeResearch.studentName,
             );
-            await expect(examinerThread).toBeVisible();
+            await expect(examinerThread).toHaveCount(0);
         } finally {
             await studentContext.close();
             await examinerContext.close();
@@ -327,8 +336,8 @@ test.describe('Admin sidang workflow', () => {
                 studentPage.getByText('Dr. Dewi Lestari, M.T.').first(),
             ).toBeVisible();
             await expect(
-                studentPage.getByText('Dr. Fajar Nugraha, M.Kom.').first(),
-            ).toBeVisible();
+                studentPage.getByText('Dr. Fajar Nugraha, M.Kom.'),
+            ).toHaveCount(0);
 
             const removedExaminerRow = await sidangAssignmentRow(
                 removedExaminerPage,
@@ -352,7 +361,7 @@ test.describe('Admin sidang workflow', () => {
                 newExaminerPage,
                 thesisScenarios.sidangScheduled.studentName,
             );
-            await expect(newExaminerThread).toBeVisible();
+            await expect(newExaminerThread).toHaveCount(0);
         } finally {
             await studentContext.close();
             await removedExaminerContext.close();
@@ -368,6 +377,10 @@ test.describe('Admin sidang workflow', () => {
                 thesisScenarios.sidangScheduled.studentKey,
             ),
         });
+        const secretExaminerContext = await browser.newContext({
+            storageState: authStatePath('dosen6'),
+        });
+        const studentPage = await studentContext.newPage();
 
         scheduleSidangForStudent(
             'putra@sita.test',
@@ -375,7 +388,7 @@ test.describe('Admin sidang workflow', () => {
                 new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             ),
             'Ruang Sidang Retry Awal',
-            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen2@sita.test'],
+            ['dosen4@sita.test', 'dosen3@sita.test', 'dosen6@sita.test'],
             'Reset sidang awal sebelum skenario gagal dan ulang.',
         );
 
@@ -395,16 +408,38 @@ test.describe('Admin sidang workflow', () => {
         );
         submitSidangDecisionForStudent(
             'putra@sita.test',
-            'dosen2@sita.test',
+            'dosen6@sita.test',
             'fail',
             57,
             'Presentasi sidang pertama belum layak diluluskan.',
         );
+
+        // Before the sidang is completed the extra examiner (dosen6) is secret from the student.
+        await studentPage.goto('/mahasiswa/tugas-akhir');
+        await expect(
+            studentPage.getByText('Ruang Sidang Retry Awal').first(),
+        ).toBeVisible();
+        await expect(
+            studentPage.getByText('Dr. Siska Maharani, M.Kom.'),
+        ).toHaveCount(0);
         completeSidangForStudent(
             'putra@sita.test',
             'fail',
             'Sidang pertama tidak lulus dan perlu dijadwalkan ulang.',
         );
+
+        // Completing the sidang shows the panel and brings the extra examiner into the thread.
+        await studentPage.goto('/mahasiswa/tugas-akhir');
+        await expect(
+            studentPage.getByText('Dr. Siska Maharani, M.Kom.').first(),
+        ).toBeVisible();
+        const secretExaminerPage = await secretExaminerContext.newPage();
+        await expect(
+            await sidangThreadRow(
+                secretExaminerPage,
+                thesisScenarios.sidangScheduled.studentName,
+            ),
+        ).toBeVisible();
 
         scheduleSidangForStudent(
             'putra@sita.test',
@@ -486,8 +521,6 @@ test.describe('Admin sidang workflow', () => {
             );
         }
         try {
-            const studentPage = await studentContext.newPage();
-
             await studentPage.goto('/mahasiswa/tugas-akhir');
             await expect(
                 studentPage.getByText('Selesai').first(),
@@ -512,6 +545,7 @@ test.describe('Admin sidang workflow', () => {
             );
         } finally {
             await studentContext.close();
+            await secretExaminerContext.close();
         }
     });
 });

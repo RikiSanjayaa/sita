@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ThesisImportTemplateDownloadController;
 use App\Http\Controllers\Admin\UserImportTemplateDownloadController;
 use App\Http\Controllers\File\ChatAttachmentDownloadController;
 use App\Http\Controllers\File\DocumentDownloadController;
@@ -52,6 +53,8 @@ Route::middleware(['auth', 'verified', 'role:admin|super_admin'])->group(functio
     Route::get('admin/import-template.{format}', UserImportTemplateDownloadController::class)
         ->whereIn('format', ['csv', 'xlsx'])
         ->name('admin.users.import-template');
+    Route::get('admin/thesis-import-template.xlsx', ThesisImportTemplateDownloadController::class)
+        ->name('admin.thesis-projects.import-template');
 });
 
 require __DIR__.'/mahasiswa.php';
