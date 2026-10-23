@@ -222,7 +222,8 @@ class DashboardController extends Controller
             ->where('student_user_id', $student->id)
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
             ->get()
-            ->reject(fn(MentorshipSchedule $schedule): bool => $secretExaminers->isSecret($student->id, (int) $schedule->lecturer_user_id))
+            ->reject(fn(MentorshipSchedule $schedule): bool => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id
+                && $secretExaminers->isSecret($student->id, (int) $schedule->lecturer_user_id))
             ->filter(function (MentorshipSchedule $schedule) use ($now): bool {
                 $at = $this->activityAt($schedule->scheduled_for ?? $schedule->requested_for);
 

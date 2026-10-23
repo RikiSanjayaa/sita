@@ -74,8 +74,14 @@ class ThesisDefenseExaminer extends Model
      */
     public static function secretLecturerIdsForStudent(int $studentUserId): array
     {
+        $supervisorIds = ThesisSupervisorAssignment::query()
+            ->where('status', 'active')
+            ->whereHas('project', fn(Builder $project): Builder => $project->where('student_user_id', $studentUserId))
+            ->pluck('lecturer_user_id');
+
         return static::query()
             ->secretFromStudent()
+            ->whereNotIn('lecturer_user_id', $supervisorIds->all())
             ->whereHas('defense.project', fn(Builder $project): Builder => $project->where('student_user_id', $studentUserId))
             ->pluck('lecturer_user_id')
             ->map(static fn($id): int => (int) $id)

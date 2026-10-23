@@ -38,7 +38,8 @@ class JadwalBimbinganController extends Controller
             ->where('student_user_id', $student->id)
             ->latest('created_at')
             ->get()
-            ->reject(fn(MentorshipSchedule $schedule): bool => $secretExaminers->isSecret($student->id, (int) $schedule->lecturer_user_id));
+            ->reject(fn(MentorshipSchedule $schedule): bool => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id
+                && $secretExaminers->isSecret($student->id, (int) $schedule->lecturer_user_id));
 
         $advisorAssignments = ThesisSupervisorAssignment::query()
             ->with('lecturer')
