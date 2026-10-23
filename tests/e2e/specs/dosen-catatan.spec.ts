@@ -21,7 +21,8 @@ async function openNotesSheet(page: Page): Promise<void> {
     await expect(row).toBeVisible();
 
     await expect(async () => {
-        await row.getByRole('button', { name: /^Catatan/ }).click();
+        await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+        await page.getByRole('menuitem', { name: /^Catatan/ }).click();
         await expect(page.getByRole('dialog')).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
 }

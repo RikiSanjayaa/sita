@@ -160,7 +160,8 @@ test.describe('Kaprodi portal', () => {
             ).toBeVisible();
             await expect(
                 dosenPage
-                    .getByTestId('mentorship-progress')
+                    .getByRole('row')
+                    .filter({ hasText: withoutSupervisors.studentName })
                     .getByText('0 bimbingan')
                     .first(),
             ).toBeVisible();
