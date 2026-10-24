@@ -42,7 +42,6 @@ import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -145,8 +144,6 @@ type PageProps = {
     defenses: DefenseItem[];
     projectNotes: Record<string, ProjectNotes>;
     workspaceEvents: BimbinganEvent[];
-    flashMessage?: string | null;
-    errorMessage?: string | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -783,8 +780,6 @@ export default function DosenSeminarProposalPage() {
     const {
         defenses,
         workspaceEvents,
-        flashMessage,
-        errorMessage,
         academicTerminology: n,
     } = usePage<SharedData & PageProps>().props;
 
@@ -959,17 +954,6 @@ export default function DosenSeminarProposalPage() {
                     title={`${n.proposalExamShort} & ${n.finalExam}`}
                     description={`Jadwal dan penilaian ${n.proposalExamShort} serta ${n.finalExam}`}
                 />
-
-                {(flashMessage || errorMessage) && (
-                    <Alert variant={errorMessage ? 'destructive' : 'default'}>
-                        <AlertTitle>
-                            {errorMessage ? 'Error' : 'Berhasil'}
-                        </AlertTitle>
-                        <AlertDescription>
-                            {errorMessage || flashMessage}
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 <CollapsibleCalendarSection
                     storageKey="dosen-seminar-proposal"

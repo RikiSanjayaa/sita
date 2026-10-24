@@ -134,8 +134,6 @@ class TugasAkhirController extends Controller
                 'sidang' => $this->mapDefenseHistory($project, 'sidang'),
             ],
             'profileProgramStudi' => $this->resolveProgramStudiForStudent($student),
-            'flashMessage' => $request->session()->get('success'),
-            'errorMessage' => $request->session()->get('error'),
         ]);
     }
 

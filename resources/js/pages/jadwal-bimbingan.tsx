@@ -27,7 +27,6 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,8 +55,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUrlState } from '@/hooks/use-url-state';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import { dashboard, jadwalBimbingan } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+
+import { dashboard, jadwalBimbingan } from '@/routes';
 
 type ScheduleStatus =
     | 'pending'
@@ -103,7 +103,6 @@ type JadwalPageProps = {
     upcomingMeetings: UpcomingMeeting[];
     historyMeetings: HistoryMeeting[];
     archivedProject: boolean;
-    flashMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -742,15 +741,6 @@ export default function JadwalBimbinganPage() {
                     </div>
                 ) : (
                     <>
-                        {page.props.flashMessage && (
-                            <Alert>
-                                <AlertTitle>Berhasil</AlertTitle>
-                                <AlertDescription>
-                                    {page.props.flashMessage}
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
                         {/* Calendar */}
                         <CollapsibleCalendarSection
                             storageKey="jadwal-bimbingan-mahasiswa"

@@ -1,4 +1,3 @@
-import { Transition } from '@headlessui/react';
 import { Form, Head, Link } from '@inertiajs/react';
 import { useRef } from 'react';
 
@@ -10,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { makeSettingsBreadcrumbs } from '@/pages/settings/breadcrumbs';
+
 import { request } from '@/routes/password';
 import { edit, update } from '@/routes/user-password';
 
@@ -68,7 +68,7 @@ export default function Password() {
                     }}
                     className="space-y-6"
                 >
-                    {({ errors, processing, recentlySuccessful }) => (
+                    {({ errors, processing }) => (
                         <>
                             <div className="grid gap-2">
                                 <Label htmlFor="current_password">
@@ -131,18 +131,6 @@ export default function Password() {
                                 >
                                     Simpan password
                                 </Button>
-
-                                <Transition
-                                    show={recentlySuccessful}
-                                    enter="transition ease-in-out"
-                                    enterFrom="opacity-0"
-                                    leave="transition ease-in-out"
-                                    leaveTo="opacity-0"
-                                >
-                                    <p className="text-sm text-pretty text-muted-foreground">
-                                        Password berhasil diperbarui
-                                    </p>
-                                </Transition>
                             </div>
                         </>
                     )}

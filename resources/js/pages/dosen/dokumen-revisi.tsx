@@ -57,7 +57,6 @@ type DocumentQueueItem = {
 
 type DokumenRevisiProps = {
     documentQueue: DocumentQueueItem[];
-    flashMessage?: string | null;
 };
 
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
@@ -78,9 +77,7 @@ const actionButtonClassName =
     'text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-auto max-md:gap-2 max-md:border max-md:px-3 md:size-8';
 
 export default function DosenDokumenRevisiPage() {
-    const { documentQueue, flashMessage } = usePage<
-        SharedData & DokumenRevisiProps
-    >().props;
+    const { documentQueue } = usePage<SharedData & DokumenRevisiProps>().props;
 
     const [search, setSearch] = useUrlState('search', '');
     const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
@@ -179,16 +176,6 @@ export default function DosenDokumenRevisiPage() {
             <Head title="Dokumen & Revisi Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
-                {flashMessage && (
-                    <div
-                        role="status"
-                        className="flex items-center gap-2 rounded-xl bg-success-muted px-5 py-3 text-sm font-medium text-success-muted-foreground"
-                    >
-                        <CheckCircle2 className="size-4 shrink-0" />
-                        {flashMessage}
-                    </div>
-                )}
-
                 <DataSection
                     level={1}
                     title="Daftar Dokumen"

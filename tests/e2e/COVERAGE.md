@@ -40,6 +40,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Notifikasi pesan dan pengumuman                                                                                                                                                              | `notifications`, `system-announcements`                                 | tercakup | P2       |
 | Realtime Reverb: konfigurasi key/host/port dibaca saat runtime dari meta `reverb-config` (issue #42)                                                                                         | `bimbingan-chat`, `notifications`, plus Pest (`ReverbClientConfigTest`) | tercakup | P1       |
 | CSAT                                                                                                                                                                                         | `csat`                                                                  | tercakup | P3       |
+| Umpan balik Sonner: flash mahasiswa/kaprodi, error, pengaturan dan popup realtime dengan Buka/tutup (#133) | `sonner-toasts`, `upload-dokumen`, `csat`, plus Pest (`SharedFlashMessagesTest`) | tercakup | P1 |
 
 ## Dosen
 
