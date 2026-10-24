@@ -1285,16 +1285,15 @@ export default function DosenJadwalBimbinganPage() {
                                                             </div>
                                                         </td>
                                                         <td
-                                                            data-label="Topik"
+                                                            title={item.topic}
                                                             className={cn(
-                                                                stackedTable.td,
-                                                                'max-w-xs text-pretty',
+                                                                stackedTable.tdDetail,
+                                                                'max-w-xs text-pretty max-md:line-clamp-2 max-md:max-w-none',
                                                             )}
                                                         >
                                                             {item.topic}
                                                         </td>
                                                         <td
-                                                            data-label="Waktu"
                                                             className={cn(
                                                                 stackedTable.td,
                                                                 'text-muted-foreground md:whitespace-nowrap',
@@ -1306,7 +1305,6 @@ export default function DosenJadwalBimbinganPage() {
                                                             )}
                                                         </td>
                                                         <td
-                                                            data-label="Lokasi"
                                                             className={cn(
                                                                 stackedTable.td,
                                                                 'text-muted-foreground',
@@ -1315,9 +1313,8 @@ export default function DosenJadwalBimbinganPage() {
                                                             {item.location}
                                                         </td>
                                                         <td
-                                                            data-label="Status"
                                                             className={
-                                                                stackedTable.td
+                                                                stackedTable.tdAside
                                                             }
                                                         >
                                                             <ScheduleStatusBadge
@@ -1327,16 +1324,17 @@ export default function DosenJadwalBimbinganPage() {
                                                             />
                                                         </td>
                                                         <td
-                                                            className={
-                                                                stackedTable.tdActions
-                                                            }
+                                                            className={cn(
+                                                                stackedTable.tdActions,
+                                                                'max-md:order-4 max-md:mt-2 max-md:basis-full',
+                                                            )}
                                                         >
                                                             <div className="flex items-center justify-end gap-1 max-md:justify-start">
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"
                                                                     variant="outline"
-                                                                    className="max-md:h-11 max-md:w-full"
+                                                                    className="max-md:h-11"
                                                                     onClick={() => {
                                                                         setSelectedUpcoming(
                                                                             item,
@@ -1465,10 +1463,14 @@ export default function DosenJadwalBimbinganPage() {
                                                 </div>
                                             </td>
                                             <td
-                                                data-label="Topik"
+                                                title={
+                                                    item.lecturerNote
+                                                        ? `${item.topic} — ${item.lecturerNote}`
+                                                        : item.topic
+                                                }
                                                 className={cn(
-                                                    stackedTable.td,
-                                                    'max-w-xs text-pretty',
+                                                    stackedTable.tdDetail,
+                                                    'max-w-xs text-pretty max-md:line-clamp-2 max-md:max-w-none',
                                                 )}
                                             >
                                                 {item.topic}
@@ -1479,7 +1481,6 @@ export default function DosenJadwalBimbinganPage() {
                                                 )}
                                             </td>
                                             <td
-                                                data-label="Waktu"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground md:whitespace-nowrap',
@@ -1491,7 +1492,6 @@ export default function DosenJadwalBimbinganPage() {
                                                 )}
                                             </td>
                                             <td
-                                                data-label="Lokasi"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground',
@@ -1500,8 +1500,7 @@ export default function DosenJadwalBimbinganPage() {
                                                 {item.location}
                                             </td>
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <ScheduleStatusBadge
                                                     status={item.status}

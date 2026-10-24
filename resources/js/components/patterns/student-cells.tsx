@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/react';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
+import { cn } from '@/lib/utils';
 
 /**
  * Cell contents shared by the student tables (kaprodi Mahasiswa Prodi and
@@ -55,23 +56,45 @@ export function StudentCohort({
     isObeCurriculum: boolean;
     prodi?: string | null;
 }) {
+    // From md the parts stack in the cell; on phones they run as one meta line
+    // ("S1 · 2022 · Jaringan"), with the empty parts dropped.
     return (
-        <>
-            <p className="font-medium">
+        <div className="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-1.5">
+            <p className="font-medium max-md:font-normal">
                 {degreeLevel} · {angkatan ?? '-'}
             </p>
             {prodi !== undefined ? (
-                <p className="text-xs text-muted-foreground">{prodi ?? '-'}</p>
+                <p
+                    className={cn(
+                        'text-xs text-muted-foreground',
+                        prodi === null && 'max-md:hidden',
+                    )}
+                >
+                    <span className="hidden max-md:mr-1.5 max-md:inline">
+                        ·
+                    </span>
+                    {prodi ?? '-'}
+                </p>
             ) : null}
-            <p className="text-xs text-muted-foreground">
+            <p
+                className={cn(
+                    'text-xs text-muted-foreground',
+                    concentration === null && 'max-md:hidden',
+                )}
+            >
+                <span className="hidden max-md:mr-1.5 max-md:inline">·</span>
                 {concentration ?? '-'}
             </p>
             {isObeCurriculum && (
-                <StatusBadge domain="curriculum" status="obe" className="mt-1">
+                <StatusBadge
+                    domain="curriculum"
+                    status="obe"
+                    className="mt-1 max-md:mt-0"
+                >
                     OBE
                 </StatusBadge>
             )}
-        </>
+        </div>
     );
 }
 
@@ -86,12 +109,23 @@ export function StudentTitleAdvisors({
     return (
         <>
             {title ? (
-                <p className="line-clamp-2 text-pretty">{title}</p>
+                <p
+                    className={cn(
+                        'line-clamp-2 text-pretty',
+                        title === '-' && 'max-md:hidden',
+                    )}
+                    title={title}
+                >
+                    {title}
+                </p>
             ) : (
-                <span className="text-muted-foreground">-</span>
+                <span className="text-muted-foreground max-md:hidden">-</span>
             )}
             {advisors.length > 0 ? (
-                <p className="mt-1 text-xs text-pretty text-muted-foreground">
+                <p
+                    className="mt-1 text-xs text-pretty text-muted-foreground max-md:mt-0.5 max-md:line-clamp-1"
+                    title={advisors.join(', ')}
+                >
                     {advisors.join(', ')}
                 </p>
             ) : null}

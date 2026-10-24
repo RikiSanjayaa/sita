@@ -290,23 +290,26 @@ function PublicStudentsContent({
                                         </td>
                                         <td
                                             className={cn(
-                                                stackedTable.tdPlain,
-                                                'text-muted-foreground',
+                                                stackedTable.td,
+                                                'md:text-muted-foreground',
                                             )}
                                         >
                                             {student.programStudi}
                                         </td>
-                                        <td className={stackedTable.tdPlain}>
+                                        <td className={stackedTable.tdDetail}>
                                             <Badge variant="outline">
                                                 {student.stageLabel}
                                             </Badge>
-                                            <p className="mt-1.5 max-w-xs text-xs leading-5 text-muted-foreground">
+                                            <p
+                                                className="mt-1.5 max-w-xs text-xs leading-5 text-muted-foreground max-md:mt-1 max-md:line-clamp-2"
+                                                title={student.stageDescription}
+                                            >
                                                 {student.stageDescription}
                                             </p>
                                         </td>
-                                        <td className={stackedTable.tdPlain}>
+                                        <td className={stackedTable.tdDetail}>
                                             {student.advisors.length > 0 ? (
-                                                <ul className="space-y-1">
+                                                <ul className="space-y-1 max-md:space-y-0 max-md:text-xs">
                                                     {student.advisors.map(
                                                         (advisor) => (
                                                             <li
