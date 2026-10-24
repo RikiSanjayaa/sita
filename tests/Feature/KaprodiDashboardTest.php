@@ -8,6 +8,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function dashboardKaprodi(ProgramStudi $prodi, array $capabilities = []): User
@@ -279,4 +280,31 @@ it('asks for supervisors once the Sempro is passed even before the phase moves o
     expect($items['without-supervisor']['names'])->toBe(['Mahasiswa Lulus Sempro'])
         ->and($items['schedule-sempro']['names'])->toBe(['Mahasiswa Belum Sempro'])
         ->and($notYet->phase)->toBe('sempro');
+});
+
+it('runs the same number of queries however many students the program studi has', function (): void {
+    $prodi = ProgramStudi::factory()->create();
+    $kaprodi = dashboardKaprodi($prodi);
+    $lecturer = dashboardLecturer($prodi);
+    $countQueries = function () use ($kaprodi): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->actingAs($kaprodi)->get('/kaprodi/dashboard')->assertOk();
+
+        return count(DB::getQueryLog());
+    };
+    $seed = function (int $count) use ($prodi, $lecturer): void {
+        foreach (range(1, $count) as $number) {
+            $project = dashboardStudent($prodi, "Mahasiswa {$number}", $number % 2 === 0 ? 'sidang' : 'research', ['mentorship_valid_until' => now()->subDay()->toDateString()]);
+            dashboardSupervise($project, $lecturer);
+        }
+    };
+
+    $seed(2);
+    $countQueries();
+    $few = $countQueries();
+    $seed(8);
+    $many = $countQueries();
+
+    expect($many)->toBe($few);
 });
