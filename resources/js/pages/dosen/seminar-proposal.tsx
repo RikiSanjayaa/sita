@@ -92,6 +92,8 @@ type Revision = {
     status: string;
     statusLabel: string;
     dueAt: string | null;
+    /** ISO 8601, for the deadline badge; dueAt is the Indonesian display text. */
+    dueAtIso: string | null;
     resolvedAt: string | null;
     resolutionNotes: string | null;
     requestedBy: string;
@@ -122,6 +124,8 @@ type DefenseItem = {
     defenseStatus: string;
     defenseResult: string;
     scheduledFor: string | null;
+    /** ISO 8601, for sorting; scheduledFor is the Indonesian display text. */
+    scheduledAt: string | null;
     location: string;
     mode: string;
     myExaminerId: number;
@@ -690,7 +694,7 @@ function DefenseDetailSheet({
                                                     rev.status !==
                                                         'resolved' && (
                                                         <DeadlineBadge
-                                                            dueAt={rev.dueAt}
+                                                            dueAt={rev.dueAtIso}
                                                             status={rev.status}
                                                         />
                                                     )}
@@ -772,7 +776,7 @@ function DefenseDetailSheet({
 
 // ── Main Page ────────────────────────────────────────────────────────
 type TypeFilter = 'semua' | 'sempro' | 'sidang';
-type StatusFilter = 'semua' | 'pending' | 'done';
+type StatusFilter = 'semua' | 'pending' | 'revisi' | 'done';
 type WorkspaceFilter = 'ujian' | 'bimbingan' | 'semua';
 
 export default function DosenSeminarProposalPage() {
@@ -824,7 +828,7 @@ export default function DosenSeminarProposalPage() {
     const filteredDefenses = useMemo(() => {
         const q = search.trim().toLowerCase();
         const time = (item: DefenseItem) =>
-            item.scheduledFor ? new Date(item.scheduledFor).getTime() : 0;
+            item.scheduledAt ? new Date(item.scheduledAt).getTime() : 0;
 
         return defenses
             .filter((item) => {
@@ -833,9 +837,14 @@ export default function DosenSeminarProposalPage() {
                 const isPending =
                     item.defenseStatus === 'scheduled' &&
                     item.myDecision === 'pending';
+                const awaitsVerification = item.revisions.some(
+                    (revision) =>
+                        revision.canVerify && revision.status === 'submitted',
+                );
                 const matchStatus =
                     statusFilter === 'semua' ||
                     (statusFilter === 'pending' && isPending) ||
+                    (statusFilter === 'revisi' && awaitsVerification) ||
                     (statusFilter === 'done' && !isPending);
                 const matchSearch =
                     !q ||
@@ -869,6 +878,11 @@ export default function DosenSeminarProposalPage() {
 
     const pendingCount = defenses.filter(
         (i) => i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
+    ).length;
+    const verificationCount = defenses.filter((i) =>
+        i.revisions.some(
+            (revision) => revision.canVerify && revision.status === 'submitted',
+        ),
     ).length;
 
     const filteredWorkspaceEvents = workspaceEvents.filter((e) =>
@@ -923,6 +937,11 @@ export default function DosenSeminarProposalPage() {
             label: 'Menunggu Penilaian',
             value: 'pending',
             count: pendingCount > 0 ? pendingCount : undefined,
+        },
+        {
+            label: 'Revisi Menunggu Verifikasi',
+            value: 'revisi',
+            count: verificationCount > 0 ? verificationCount : undefined,
         },
         { label: 'Selesai / Riwayat', value: 'done' },
     ];

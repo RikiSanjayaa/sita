@@ -28,6 +28,7 @@ export function playwrightEnvironment(
         DB_CONNECTION: 'sqlite',
         DB_DATABASE: playwrightDatabasePath,
         CACHE_STORE: 'array',
+        FILAMENT_CACHE_STORE: 'database',
         MAIL_MAILER: 'array',
         QUEUE_CONNECTION: 'sync',
         SESSION_DRIVER: 'file',

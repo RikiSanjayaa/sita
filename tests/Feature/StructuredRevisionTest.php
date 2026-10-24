@@ -386,7 +386,8 @@ test('dosen and mahasiswa pages expose items and annotated manuscripts', functio
 
     expect($revisionProps)->not->toBeNull()
         ->and($revisionProps['items'])->toHaveCount(2)
-        ->and($revisionProps['annotations'])->toHaveCount(1);
+        ->and($revisionProps['annotations'])->toHaveCount(1)
+        ->and(array_key_exists('dueAtIso', $revisionProps))->toBeTrue();
 });
 
 /**

@@ -102,11 +102,12 @@ class JadwalBimbinganController extends Controller
                     'mahasiswa' => $item->student?->name ?? '-',
                     'topic' => $item->topic,
                     'relationType' => $relationType,
-                    'date' => $item->scheduled_for?->format('d F Y') ?? '-',
+                    'date' => $item->scheduled_for?->format('Y-m-d') ?? '-',
                     'time' => $item->scheduled_for?->format('H:i') ?? '-',
                     'location' => $item->location ?? '-',
                     'status' => $item->status,
                     'lecturerNote' => $item->lecturer_note,
+                    'isOverdue' => $item->scheduled_for?->isPast() ?? false,
                 ];
             })
             ->values()

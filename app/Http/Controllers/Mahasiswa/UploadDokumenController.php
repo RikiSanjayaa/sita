@@ -18,6 +18,7 @@ use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
 use App\Services\ThesisArchiveService;
 use App\Support\AcademicTerminology;
+use App\Support\WitaDateTime;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -142,7 +143,7 @@ class UploadDokumenController extends Controller
                     'title' => $document->title,
                     'category' => $document->category ?? '-',
                     'version' => $document->category === 'lampiran-chat' ? null : sprintf('v%d', $document->version_number),
-                    'uploadedAt' => $document->created_at->format('d M Y H:i'),
+                    'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
                     'fileName' => $document->file_name,
                     'size' => sprintf('%d KB', (int) $document->file_size_kb),
                     'status' => $this->reviewStatus($versions),
@@ -154,7 +155,7 @@ class UploadDokumenController extends Controller
                             'role' => $reviewerRoles[(int) $version->lecturer_user_id] ?? 'Dosen',
                             'status' => $version->status,
                             'notes' => $version->revision_notes,
-                            'reviewedAt' => $version->reviewed_at?->format('d M Y H:i'),
+                            'reviewedAt' => WitaDateTime::formatOrNull($version->reviewed_at),
                         ])
                         ->values()
                         ->all(),

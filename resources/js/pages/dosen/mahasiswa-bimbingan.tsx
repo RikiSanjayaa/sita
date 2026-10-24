@@ -68,6 +68,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const STUDENT_PAGE_SIZE = 15;
 
 type RoleFilter = 'semua' | 'Pembimbing 1' | 'Pembimbing 2' | 'penguji';
+type AttentionFilter = 'semua' | 'any' | 'inactive';
 
 type MahasiswaRow = {
     studentUserId: number | null;
@@ -91,6 +92,7 @@ type MahasiswaRow = {
     chatUrl: string | null;
     whatsappUrl: string | null;
     progress: StudentProgress | null;
+    attention: { key: string; label: string }[];
 };
 
 type MahasiswaBimbinganProps = {
@@ -108,6 +110,20 @@ const roleTabs: { label: string; value: RoleFilter }[] = [
     { label: 'Pembimbing 2', value: 'Pembimbing 2' },
     { label: 'Penguji', value: 'penguji' },
 ];
+
+const attentionTabs: { label: string; value: AttentionFilter }[] = [
+    { label: 'Semua', value: 'semua' },
+    { label: 'Perlu perhatian', value: 'any' },
+    { label: 'Tanpa aktivitas 30 hari', value: 'inactive' },
+];
+
+function matchesAttention(row: MahasiswaRow, filter: AttentionFilter) {
+    return (
+        filter === 'semua' ||
+        (filter === 'any' && row.attention.length > 0) ||
+        row.attention.some((reason) => reason.key === filter)
+    );
+}
 
 function matchesRole(row: MahasiswaRow, role: RoleFilter) {
     return (
@@ -160,7 +176,12 @@ function StudentTable({
         `${queryPrefix}Role`,
         'semua',
     );
+    const [attentionFilter, setAttentionFilter] = useUrlState<AttentionFilter>(
+        `${queryPrefix}Attention`,
+        'semua',
+    );
     const pageState = useUrlState(`${queryPrefix}Page`, 1);
+    const hasAttention = rows.some((row) => row.attention.length > 0);
 
     function openPrivateChat(row: MahasiswaRow) {
         if (row.studentUserId === null) {
@@ -186,9 +207,13 @@ function StudentTable({
                 row.roleLabel.toLowerCase().includes(q) ||
                 row.contextLabel.toLowerCase().includes(q);
 
-            return matchSearch && matchesRole(row, roleFilter);
+            return (
+                matchSearch &&
+                matchesRole(row, roleFilter) &&
+                matchesAttention(row, attentionFilter)
+            );
         });
-    }, [roleFilter, rows, search]);
+    }, [attentionFilter, roleFilter, rows, search]);
     const {
         page,
         setPage,
@@ -200,7 +225,7 @@ function StudentTable({
     } = usePagination(
         filtered,
         STUDENT_PAGE_SIZE,
-        [search, roleFilter, rows.length],
+        [search, roleFilter, attentionFilter, rows.length],
         pageState,
     );
 
@@ -224,6 +249,21 @@ function StudentTable({
                             .length,
                     }))}
                 />
+
+                {hasAttention ? (
+                    <FilterPills
+                        label={`Perhatian, ${title.toLowerCase()}`}
+                        value={attentionFilter}
+                        onValueChange={setAttentionFilter}
+                        itemClassName="max-md:h-11 max-md:px-4"
+                        options={attentionTabs.map((tab) => ({
+                            ...tab,
+                            count: rows.filter((row) =>
+                                matchesAttention(row, tab.value),
+                            ).length,
+                        }))}
+                    />
+                ) : null}
             </StickyFilterBar>
 
             {filtered.length > 0 ? (
@@ -299,6 +339,23 @@ function StudentTable({
                                                 </p>
                                             </div>
                                         </Link>
+                                        {row.attention.length > 0 ? (
+                                            <ul
+                                                aria-label="Perlu perhatian"
+                                                className="mt-2 flex flex-wrap gap-1"
+                                            >
+                                                {row.attention.map((reason) => (
+                                                    <li key={reason.key}>
+                                                        <StatusBadge
+                                                            domain="ticket"
+                                                            status="open"
+                                                        >
+                                                            {reason.label}
+                                                        </StatusBadge>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
                                     </td>
 
                                     <td

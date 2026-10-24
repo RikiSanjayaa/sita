@@ -26,6 +26,9 @@ const webServerEnvironment = {
     DB_CONNECTION: 'sqlite',
     DB_DATABASE: databasePath,
     CACHE_STORE: 'array',
+    // Filament 5.10 hands notifications to the next request through this cache
+    // store, so it must outlive a single request (the array store does not).
+    FILAMENT_CACHE_STORE: 'database',
     MAIL_MAILER: 'array',
     QUEUE_CONNECTION: 'sync',
     SESSION_DRIVER: 'file',

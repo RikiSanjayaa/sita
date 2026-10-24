@@ -45,7 +45,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow (menu)                                                                                                                                                                                                                                                   | Spec                                                                                                                                                       | Status   | Priority |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/dosen/dashboard`)                                                                                                                                                                                                                                | landing only, via auth setup; tampilan oleh `design-detector`                                                                                              | belum    | P2       |
+| Dashboard (`/dosen/dashboard`): "Perlu tindakan" di atas (jadwal pending, bimbingan lewat, dokumen, ujian dinilai, revisi, mahasiswa tanpa aktivitas 30 hari) dengan tautan terfilter, agenda 7 hari, progres mahasiswa; kartu aksi cepat dihapus (issue #31)             | `dosen-dashboard`, plus Pest (`DosenDashboardTest`); tampilan oleh `design-detector`                                                                       | tercakup | P1       |
 | Sempro / Sinopsis & Sidang Akhir: penilaian penguji (UI; sempro non-OBE tanpa nilai, Ujian Sinopsis OBE wajib nilai + komentar)                                                                                                                               | `dosen-penilaian`, `admin-sempro`                                                                                                                          | tercakup | P1       |
 | Sempro / Sinopsis & Sidang Akhir: sidang panel, lulus dengan syarat                                                                                                                                                                                           | `dosen-penilaian`, `admin-sidang`                                                                                                                          | tercakup | P1       |
 | Sempro / Sinopsis & Sidang Akhir: penguji tambahan sidang dirahasiakan dari mahasiswa sampai sidang selesai, grup sidang hanya mahasiswa + pembimbing, penguji masuk grup setelah selesai (issue #9)                                                          | `admin-sidang`, `bimbingan-chat`, plus Pest (`SecretSidangExaminersTest`)                                                                                  | tercakup | P1       |
@@ -72,10 +72,13 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Kaprodi
 
-| Flow (menu)                                                                  | Spec             | Status   | Priority |
-| ---------------------------------------------------------------------------- | ---------------- | -------- | -------- |
-| Dashboard: bagian monitoring dan tautan menu                                 | `kaprodi-portal` | tercakup | P2       |
-| Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel | `kaprodi-portal` | sebagian | P1       |
+| Flow (menu)                                                                                                                                                             | Spec                                          | Status   | Priority |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- | -------- |
+| Dashboard: "Perlu Tindakan" di atas (masa aktif habis, pembimbing belum ditetapkan, siap dijadwalkan), tautan terfilter dan tombol Jadwalkan membuka dialog (issue #32) | `kaprodi-portal`, Pest `KaprodiDashboardTest` | tercakup | P1       |
+| Dashboard: bagian "Hari Ini & 7 Hari ke Depan", "Progres Mahasiswa", statistik dan arsip, tautan menu sidebar                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Mahasiswa Prodi: filter tindakan (`?activeFocus=`) dari dashboard (issue #32)                                                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Tanggal berbahasa Indonesia ("24 Okt 2026") di semua halaman kaprodi (PR #32)                                                                                           | Pest `IndonesianDatesTest`                    | tercakup | P2       |
+| Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel                                                                                            | `kaprodi-portal`                              | sebagian | P1       |
 
 | Mahasiswa Prodi: filter tahap/risiko/angkatan/konsentrasi | none | belum | P3 |
 | Mahasiswa Prodi: atur pembimbing (2 pembimbing) | `kaprodi-portal` | tercakup | P1 |
@@ -99,7 +102,9 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow (menu / resource)                                                                                           | Spec                                                                                   | Status   | Priority |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/admin`)                                                                                             | login only, via auth setup                                                             | belum    | P3       |
+| Dashboard (`/admin`): Perlu tindakan, agenda 7 hari, statistik; baris antrean membuka daftar terfilter (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
+| Thesis Projects: tab Dokumen/Ujian, tabel dokumen scroll horizontal + unduh sticky, empty state (issue #59) | `admin-dashboard`, Pest `ThesisProjectResourceTest` | sebagian | P3 |
+| Thesis Projects: perpanjang masa aktif dari baris daftar / dashboard (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
 | Users: impor Excel mahasiswa/dosen (termasuk kolom template OBE, issue #6)                                       | `admin-user-import`                                                                    | sebagian | P2       |
 | Thesis Projects: impor Excel tugas akhir berjalan, template, error per baris (issue #24)                         | `admin-thesis-import`, Pest `ThesisProjectImportServiceTest`                           | sebagian | P2       |
 | Users: buat, ubah, nonaktifkan                                                                                   | none (konsentrasi lookup in `program-studi`)                                           | belum    | P2       |
@@ -141,4 +146,4 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Known gaps worth closing next
 
-- Dashboards for mahasiswa, dosen and admin (#31, #32, #33 change them; add specs there).
+- Dashboards for mahasiswa and dosen (#31, #32 change them; add specs there). The admin dashboard has `admin-dashboard` (#33).

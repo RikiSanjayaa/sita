@@ -83,6 +83,7 @@ type UpcomingSchedule = {
     location: string;
     status: string;
     lecturerNote: string | null;
+    isOverdue: boolean;
 };
 
 type HistorySchedule = {
@@ -173,6 +174,7 @@ function defaultRecurring(items: PendingRequest[]): {
 
 type WorkspaceFilter = 'bimbingan' | 'ujian' | 'semua';
 type HistoryFilter = 'semua' | 'completed' | 'rejected' | 'cancelled';
+type UpcomingFilter = 'semua' | 'lewat';
 
 const historyFilterOptions: { label: string; value: HistoryFilter }[] = [
     { label: 'Semua', value: 'semua' },
@@ -209,6 +211,10 @@ export default function DosenJadwalBimbinganPage() {
     const upcomingPageState = useUrlState('upcomingPage', 1);
     const UPCOMING_PAGE_SIZE = 15;
     const [upcomingSearch, setUpcomingSearch] = useState('');
+    const [upcomingFilter, setUpcomingFilter] = useUrlState<UpcomingFilter>(
+        'upcomingFilter',
+        'semua',
+    );
     const [openRequestKey, setOpenRequestKey] = useState<string | null>(null);
 
     // Sheet state for upcoming schedule actions
@@ -489,7 +495,7 @@ export default function DosenJadwalBimbinganPage() {
                 });
             }
         }
-        const p = new Date(`${date} ${time}`);
+        const p = new Date(`${date}T${time}`);
         if (isNaN(p.getTime())) return `${date} pukul ${time}`;
         return (
             p.toLocaleDateString('id-ID', {
@@ -520,14 +526,17 @@ export default function DosenJadwalBimbinganPage() {
 
     const filteredUpcomingSchedules = useMemo(() => {
         const q = upcomingSearch.trim().toLowerCase();
-        if (!q) return upcomingSchedules;
         return upcomingSchedules.filter(
             (i) =>
-                i.mahasiswa.toLowerCase().includes(q) ||
-                i.topic.toLowerCase().includes(q) ||
-                i.location.toLowerCase().includes(q),
+                (upcomingFilter === 'semua' || i.isOverdue) &&
+                (!q ||
+                    i.mahasiswa.toLowerCase().includes(q) ||
+                    i.topic.toLowerCase().includes(q) ||
+                    i.location.toLowerCase().includes(q)),
         );
-    }, [upcomingSchedules, upcomingSearch]);
+    }, [upcomingSchedules, upcomingSearch, upcomingFilter]);
+
+    const overdueCount = upcomingSchedules.filter((i) => i.isOverdue).length;
 
     const historyPagination = usePagination(
         filteredHistorySchedules,
@@ -538,7 +547,7 @@ export default function DosenJadwalBimbinganPage() {
     const upcomingPagination = usePagination(
         filteredUpcomingSchedules,
         UPCOMING_PAGE_SIZE,
-        [upcomingSchedules.length, upcomingSearch],
+        [upcomingSchedules.length, upcomingSearch, upcomingFilter],
         upcomingPageState,
     );
 
@@ -1161,6 +1170,22 @@ export default function DosenJadwalBimbinganPage() {
                                         placeholder="Cari mahasiswa, topik, atau lokasi..."
                                     />
                                 </div>
+                            ) : null}
+                            {overdueCount > 0 || upcomingFilter === 'lewat' ? (
+                                <FilterPills
+                                    label="Jadwal mendatang"
+                                    value={upcomingFilter}
+                                    onValueChange={setUpcomingFilter}
+                                    itemClassName="max-md:h-11 max-md:px-4"
+                                    options={[
+                                        { label: 'Semua', value: 'semua' },
+                                        {
+                                            label: 'Belum ditandai selesai',
+                                            value: 'lewat',
+                                            count: overdueCount,
+                                        },
+                                    ]}
+                                />
                             ) : null}
                         </div>
                     </StickyFilterBar>

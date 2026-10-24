@@ -66,7 +66,8 @@ test('admin dashboard shows the new overview widgets', function (): void {
         ->assertDontSee('Distribusi Nilai CSAT')
         ->assertSee('Aktivitas Operasional 6 Bulan')
         ->assertSee('Sebaran Fase Tugas Akhir')
-        ->assertSee('Antrian Tugas Akhir Prioritas')
+        ->assertSee('Perlu tindakan')
+        ->assertSee('Agenda ujian 7 hari ke depan')
         ->assertSee('Aktivitas Admin Terkini');
 });
 
@@ -280,8 +281,8 @@ test('admin dashboard service prepares ratio-friendly metrics and activity trend
         $trend = $service->activityTrend($admin);
 
         expect($trend['labels'])->toHaveCount(6)
-            ->and($trend['labels'][0])->toBe(now()->copy()->subMonths(5)->startOfMonth()->format('M Y'))
-            ->and($trend['labels'][5])->toBe(now()->copy()->startOfMonth()->format('M Y'))
+            ->and($trend['labels'][0])->toBe(\App\Support\WitaDateTime::format(now()->subMonths(5)->startOfMonth(), 'M Y', false))
+            ->and($trend['labels'][5])->toBe(\App\Support\WitaDateTime::format(now()->startOfMonth(), 'M Y', false))
             ->and($trend['current'])->toBe([1, 0, 0, 0, 0, 2])
             ->and($trend['previous'])->toBe([1, 0, 0, 0, 0, 2])
             ->and($trend['currentTotal'])->toBe(3)

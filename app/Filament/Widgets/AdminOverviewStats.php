@@ -29,22 +29,18 @@ class AdminOverviewStats extends StatsOverviewWidget
             Stat::make('Gap '.$terms['proposalExamShort'].' Fase Awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
                 ->description("{$metrics['needsSempro']} dari {$metrics['earlyStageProjects']} {$terms['finalWorkLower']} fase awal belum punya agenda {$terms['proposalExamShort']}")
                 ->descriptionIcon('heroicon-m-clock', IconPosition::Before)
-                ->chart($service->weeklyMetricHistory($user, 'needs_sempro'))
                 ->color('warning'),
             Stat::make('Gap '.$terms['finalExam'].' Fase Lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
                 ->description("{$metrics['needsSidang']} dari {$metrics['lateStageProjects']} {$terms['finalWorkLower']} fase lanjut belum punya agenda {$terms['finalExam']}")
                 ->descriptionIcon('heroicon-m-academic-cap', IconPosition::Before)
-                ->chart($service->weeklyMetricHistory($user, 'needs_sidang'))
                 ->color('primary'),
             Stat::make('Revisi Lewat Batas', $metrics['overdueRevisionProjects'].' '.$terms['finalWorkLower'])
                 ->description("{$metrics['overdueRevisionProjects']} {$terms['finalWorkLower']} aktif revisinya lewat batas")
                 ->descriptionIcon('heroicon-m-exclamation-triangle', IconPosition::Before)
-                ->chart($service->weeklyMetricHistory($user, 'overdue_revision_projects'))
                 ->color('danger'),
             Stat::make('Belum Ada Pembimbing', $metrics['unassignedLateStageProjects'].' '.$terms['finalWorkLower'])
                 ->description("{$metrics['unassignedLateStageProjects']} {$terms['finalWorkLower']} fase lanjut belum diberi pembimbing")
                 ->descriptionIcon('heroicon-m-user-group', IconPosition::Before)
-                ->chart($service->weeklyMetricHistory($user, 'unassigned_late_stage'))
                 ->color('info'),
         ];
     }

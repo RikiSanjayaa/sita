@@ -65,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+        // Dates are shown to Indonesian users whatever APP_LOCALE says (diffForHumans, Filament date columns).
+        Date::setLocale('id');
         FilamentTimezone::set(WitaDateTime::TIMEZONE);
 
         Table::configureUsing(function (Table $table): void {

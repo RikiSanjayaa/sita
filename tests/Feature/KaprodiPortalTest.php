@@ -92,7 +92,7 @@ test('kaprodi can only access own prodi read only portal data', function (): voi
             ->where('programStudi.name', 'Ilmu Komputer')
             ->missing('students')
             ->missing('summaryCards')
-            ->where('workSummary.metrics.0.value', '1'));
+            ->where('stats.students', 1));
 
     $this->actingAs($kaprodi)
         ->get('/kaprodi/mahasiswa')
@@ -315,7 +315,7 @@ test('dashboard counts active and archived data and detail returns full project 
         ->assertInertia(fn(Assert $page): Assert => $page
             ->component('kaprodi/dashboard')
             ->missing('summaryCards')
-            ->where('workSummary.metrics.1.value', '1')
+            ->where('stats.archives', 1)
             ->has('recentArchives', 1)
             ->where('recentArchives.0.id', $archivedProject->id)
             ->where('defenseProgress.0.count', 1)
@@ -532,11 +532,11 @@ test('kaprodi mahasiswa page exposes progress risk from project and chat activit
             ->where('students.1.progressRisk.level', 'low')
             ->where('students.1.progressRisk.label', 'Terkendali')
             ->where('students.1.progressRisk.lastActivityLabel', 'Aktivitas mahasiswa')
-            ->where('students.1.progress.detail.lastActivityAt', now()->format('d M Y'))
+            ->where('students.1.progress.detail.lastActivityAt', \App\Support\WitaDateTime::format(now(), 'd M Y', false))
             ->where('students.2.name', 'Citra Dokumen')
             ->where('students.2.progressRisk.level', 'low')
             ->where('students.2.progressRisk.lastActivityLabel', 'Aktivitas mahasiswa')
-            ->where('students.2.progress.detail.lastActivityAt', now()->format('d M Y')));
+            ->where('students.2.progress.detail.lastActivityAt', \App\Support\WitaDateTime::format(now(), 'd M Y', false)));
 });
 
 test('kaprodi mahasiswa page raises risk when the masa aktif bimbingan has lapsed', function (): void {

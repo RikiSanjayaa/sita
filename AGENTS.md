@@ -128,6 +128,7 @@ use Illuminate\Support\Facades\Auth;
 
 - Before any UI change read `.claude/skills/impeccable/SKILL.md` and follow its Setup, then `PRODUCT.md` and `DESIGN.md`. `DESIGN.md` holds the design system rules (tokens, patterns, prohibited palettes, Filament pairing).
 - Verify by viewing the rendered page at 1280px and 390px wide, in light and dark.
+- Every pull request that adds, changes or removes UI includes screenshots so it can be reviewed without checking out the branch: each touched page at 1280px and 390px, light and dark, plus any changed state (dialog, sheet, empty, error). For a redesign add the matching "before" shots. Capture seeded demo data only (the repository is public). Upload with `scripts/pr-screenshots.sh <key> <images...>` (key such as `pr-123-dashboard`); it pushes the images to the `pr-assets` branch and prints Markdown to paste under a "Screenshots" heading in the PR body, or in a comment on the PR or the related issue.
 - Run the detector spec for the areas you touched: `npx playwright test tests/e2e/specs/design-detector.spec.ts --project=chromium`. It is advisory until an area is listed in `BLOCKING_AREAS` in that spec; an area on that list must have zero findings.
 - The engine binary is not committed. The launcher `.claude/skills/impeccable/scripts/impeccable` downloads the pinned version into `~/.impeccable/bin` on first use.
 
@@ -158,8 +159,9 @@ use Illuminate\Support\Facades\Auth;
 - Restore seeded account identity in `finally` when a scenario changes a profile; later specs reuse the same users and auth states.
 - `tests/e2e/setup/bootstrap.spec.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
 - Prefer keeping E2E focused on user-visible multi-role integration flows; keep business logic coverage in Pest.
-- A change to a user-visible flow adds or updates a Playwright scenario in the same change, and the affected specs plus relevant Pest tests are run before handing off. The `e2e` job in `.github/workflows/tests.yml` also runs the full suite on pull requests and pushes to `main` and `develop`.
-- When CI E2E fails, open the workflow run's Artifacts section and download `playwright-e2e-<run-id>-<attempt>`. Extract it, then run `npx playwright show-report playwright-report` for the HTML report or `npx playwright show-trace test-results/<failed-test>/trace.zip` for a trace. Screenshots and videos are under `test-results/`; the job summary records suite duration.
+- A change to a user-visible flow adds or updates a Playwright scenario in the same change. Locally, run only the specs you added or changed (plus the design detector filtered with `-g` to the pages you touched) and the Pest files for the code you changed. The full Pest suite and the full Playwright suite run in CI on every pull request and push to `main` and `develop`; CI is the gate for them.
+- CI splits Playwright into three shards (`e2e (shard N/3)`) plus one `e2e` result that passes only when every shard passes. When a shard fails, open the workflow run's Artifacts section and download `playwright-e2e-<run-id>-<attempt>-shard-<N>`. Extract it, then run `npx playwright show-report playwright-report` for the HTML report or `npx playwright show-trace test-results/<failed-test>/trace.zip` for a trace. Screenshots and videos are under `test-results/`; each shard's job summary records its duration.
+- `tests/e2e/COVERAGE.md` is excluded from Prettier: add or edit single rows without re-aligning the whole table, so parallel branches do not conflict on it.
 - Use stable selectors in E2E assertions. Prefer page titles, labels, roles, unique section copy, or scoped locators over generic repeated text.
 - `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification. Each fixme must have a comment linking its tracking issue.
 
