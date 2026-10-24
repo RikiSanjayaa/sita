@@ -127,6 +127,7 @@ dataset('dosen dashboard action items', [
             dosenDashboardSchedule($lecturer, $project, 'rescheduled', now()->subHour());
             dosenDashboardSchedule($lecturer, $project, 'completed', now()->subDays(3));
             dosenDashboardSchedule($lecturer, $project, 'approved', now()->addDay());
+            dosenDashboardSchedule(User::factory()->asDosen()->create(), $project, 'approved', now()->subDay());
         },
     ],
     'dokumen menunggu review' => [
@@ -141,6 +142,11 @@ dataset('dosen dashboard action items', [
                     'status' => $status,
                 ]);
             }
+            MentorshipDocument::factory()->create([
+                'student_user_id' => $project->student_user_id,
+                'lecturer_user_id' => User::factory()->asDosen()->create()->id,
+                'status' => 'submitted',
+            ]);
         },
     ],
     'ujian harus dinilai' => [
@@ -181,17 +187,48 @@ it('lists each kind of work waiting on the lecturer with its count and a filtere
     $arrange($lecturer, $project);
 
     expect(dosenDashboardItem($lecturer, $key))
-        ->toMatchArray(['key' => $key, 'count' => $count, 'href' => $href]);
+        ->toMatchArray(['key' => $key, 'count' => $count, 'href' => $href, 'students' => [$project->student->name]]);
+})->with('dosen dashboard action items');
+
+it('bounds the leading work preview to one eligible name without changing its count', function (string $key, int $count, string $href, Closure $arrange): void {
+    $lecturer = User::factory()->asDosen()->create();
+    foreach (['Delta', 'Alpha', 'Charlie', 'Alpha', 'Beta'] as $name) {
+        $arrange($lecturer, dosenDashboardProject($lecturer, name: $name));
+    }
+
+    $otherLecturer = User::factory()->asDosen()->create();
+    $outside = dosenDashboardProject($otherLecturer, name: 'Aardvark Outside');
+    $arrange($otherLecturer, $outside);
+    // Schedules/documents belonging to this lecturer still need an eligible student.
+    dosenDashboardSchedule($lecturer, $outside, 'pending', now()->addDay());
+    dosenDashboardSchedule($lecturer, $outside, 'approved', now()->subDay());
+    MentorshipDocument::factory()->create([
+        'student_user_id' => $outside->student_user_id,
+        'lecturer_user_id' => $lecturer->id,
+        'status' => 'submitted',
+    ]);
+
+    expect(dosenDashboardItem($lecturer, $key))->toMatchArray([
+        'count' => $count * 5,
+        'href' => $href,
+        'students' => ['Alpha'],
+    ]);
 })->with('dosen dashboard action items');
 
 it('flags supervised students without activity for more than 30 days', function (): void {
     $lecturer = User::factory()->asDosen()->create();
-    dosenDashboardProject($lecturer, startedDaysAgo: 90);
-    dosenDashboardProject($lecturer, startedDaysAgo: 90);
-    dosenDashboardProject($lecturer, startedDaysAgo: 10);
+    foreach (['Delta', 'Alpha', 'Charlie', 'Alpha', 'Beta'] as $name) {
+        dosenDashboardProject($lecturer, startedDaysAgo: 90, name: $name);
+    }
+    dosenDashboardProject($lecturer, startedDaysAgo: 10, name: 'Aardvark Recent');
+    dosenDashboardProject(User::factory()->asDosen()->create(), startedDaysAgo: 90, name: 'Aardvark Outside');
 
     expect(dosenDashboardItem($lecturer, 'inactive_students'))
-        ->toMatchArray(['count' => 2, 'href' => '/dosen/mahasiswa-bimbingan?activeAttention=inactive']);
+        ->toMatchArray([
+            'count' => 5,
+            'href' => '/dosen/mahasiswa-bimbingan?activeAttention=inactive',
+            'students' => ['Alpha'],
+        ]);
 });
 
 it('counts a recent document as activity', function (): void {
@@ -220,10 +257,16 @@ it('orders items by urgency', function (): void {
     $lecturer = User::factory()->asDosen()->create();
     dosenDashboardProject($lecturer, startedDaysAgo: 90);
     dosenDashboardSchedule($lecturer, dosenDashboardProject($lecturer), 'pending', now()->addDay());
-    dosenDashboardDefense(dosenDashboardProject($lecturer), $lecturer, now()->subDay()->toDateTimeString());
+    $toGrade = dosenDashboardProject($lecturer);
+    dosenDashboardDefense($toGrade, $lecturer, now()->subDay()->toDateTimeString());
 
-    expect(array_column(dosenDashboardProps($lecturer)['actionItems'], 'key'))
-        ->toBe(['defenses_to_grade', 'pending_schedules', 'inactive_students']);
+    $items = dosenDashboardProps($lecturer)['actionItems'];
+
+    expect(array_column($items, 'key'))
+        ->toBe(['defenses_to_grade', 'pending_schedules', 'inactive_students'])
+        ->and($items[0]['students'])->toBe([$toGrade->student->name])
+        ->and($items[1]['students'])->toBe([])
+        ->and($items[2]['students'])->toBe([]);
 });
 
 it('keeps archived and completed students out of the action queue', function (): void {
@@ -296,7 +339,9 @@ it('groups the agenda for today and the next seven days', function (): void {
         ->and($agenda[0]['isToday'])->toBeTrue()
         ->and($agenda[0]['label'])->toStartWith('Hari ini')
         ->and($agenda[0]['events'][0]['id'])->toBe('schedule-'.$today->id)
-        ->and($agenda[1]['events'][0]['href'])->toBe('/dosen/seminar-proposal');
+        ->and($agenda[0]['events'][0]['category'])->toBe('bimbingan')
+        ->and($agenda[1]['events'][0]['href'])->toBe('/dosen/seminar-proposal')
+        ->and($agenda[1]['events'][0]['category'])->toBe('ujian');
 });
 
 it('does not run more queries for more students', function (): void {
@@ -313,6 +358,7 @@ it('does not run more queries for more students', function (): void {
     $few = User::factory()->asDosen()->create();
     $many = User::factory()->asDosen()->create();
     foreach ([[$few, 1], [$many, 8]] as [$lecturer, $total]) {
+        dosenDashboardProject($lecturer, startedDaysAgo: 90, name: 'Inactive Student');
         foreach (range(1, $total) as $i) {
             $project = dosenDashboardProject($lecturer, startedDaysAgo: 90);
             dosenDashboardSchedule($lecturer, $project, 'pending', now()->addDays(2));
@@ -323,6 +369,11 @@ it('does not run more queries for more students', function (): void {
                 'status' => 'submitted',
             ]);
             dosenDashboardDefense($project, $lecturer, now()->subDay()->toDateTimeString());
+            ThesisRevision::factory()->create([
+                'project_id' => $project->id,
+                'requested_by_user_id' => $lecturer->id,
+                'status' => 'submitted',
+            ]);
         }
     }
 
