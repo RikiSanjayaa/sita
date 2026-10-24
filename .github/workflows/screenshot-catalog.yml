@@ -227,6 +227,10 @@ jobs:
           set -euo pipefail
           cd assets
           rm -rf "pr-$PR/catalog"
+          if [ ! -d ../changed ] && [ ! -d "pr-$PR" ] && ! git ls-files --error-unmatch "pr-$PR" >/dev/null 2>&1; then
+            echo "No changed images to upload."
+            exit 0
+          fi
           if [ -d ../changed ]; then
             mkdir -p "pr-$PR"
             cp -r ../changed "pr-$PR/catalog"
