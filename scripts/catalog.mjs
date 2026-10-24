@@ -248,6 +248,20 @@ function sync(newDir, catalogDir) {
 function diff(baselineDir, newDir, changedDir, options) {
     const before = new Set(walk(baselineDir));
     const after = walk(newDir);
+
+    if (before.size === 0) {
+        process.stdout.write(
+            [
+                COMMENT_MARKER,
+                '## Screenshot catalog',
+                '',
+                'There is no catalog on `pr-assets` to compare with yet. It is created by the first push to `main` after this workflow lands.',
+                '',
+            ].join('\n'),
+        );
+
+        return 0;
+    }
     const changes = [];
 
     for (const file of after) {
