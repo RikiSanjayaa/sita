@@ -177,21 +177,18 @@ it('uses the most recent of the student-side activities', function (): void {
     expect(snapshotFor($project, $student)['detail']['lastActivityAt'])->toBe(now()->subDays(2)->format('d M Y'));
 });
 
-it('flags students inactive past the configured threshold', function (?int $activityDaysAgo, int $projectAgeDays, bool $expected): void {
-    config(['sita.inactive_after_days' => 30]);
-
-    ['project' => $project, 'student' => $student, 'primary' => $primary] = snapshotProject(startedDaysAgo: $projectAgeDays);
+it('words the last activity as relative time, or says there is none', function (?int $activityDaysAgo, string $expected): void {
+    ['project' => $project, 'student' => $student, 'primary' => $primary] = snapshotProject(startedDaysAgo: 180);
 
     if ($activityDaysAgo !== null) {
         snapshotSession($student, $primary, $activityDaysAgo);
     }
 
-    expect(snapshotFor($project, $student)['detail']['isInactive'])->toBe($expected);
+    expect(snapshotFor($project, $student)['detail']['lastActivityLabel'])->toBe($expected);
 })->with([
-    'recent session' => [2, 180, false],
-    'session older than threshold' => [45, 180, true],
-    'no activity, project older than threshold' => [null, 45, true],
-    'no activity, new project' => [null, 2, false],
+    'recent session' => [3, 'Terakhir aktif 3 hari yang lalu'],
+    'old session' => [45, 'Terakhir aktif 1 bulan yang lalu'],
+    'no activity' => [null, 'Belum ada aktivitas'],
 ]);
 
 it('shows supervision detail only to viewers allowed to see the project', function (string $viewer, bool $visible): void {

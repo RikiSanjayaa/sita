@@ -41,13 +41,13 @@ class StudentProgressSnapshot
     /**
      * Snapshot for each project, keyed by project id.
      *
-     * Detail (supervision counts, last activity, inactivity, status) is included only
+     * Detail (supervision counts, last activity, status) is included only
      * when $detailForAll is true or the viewer may see it for that project. Everyone
      * else gets the phase only.
      *
      * @param  Collection<int, ThesisProject>  $projects
      * @param  array<int, CarbonInterface>|null  $lastActivity  Precomputed lastActivity() result; computed here when null.
-     * @return array<int, array{phase: ?string, phaseLabel: string, detail: ?array{statusLabel: ?string, supervisors: list<array{name: string, roleLabel: string, count: int}>, lastActivityAt: ?string, isInactive: bool, ticket: array{suspended: bool, validUntil: ?string}}}>
+     * @return array<int, array{phase: ?string, phaseLabel: string, detail: ?array{statusLabel: ?string, supervisors: list<array{name: string, roleLabel: string, count: int}>, lastActivityAt: ?string, lastActivityLabel: string, ticket: array{suspended: bool, validUntil: ?string}}}>
      */
     public function forProjects(Collection $projects, ?User $viewer, bool $detailForAll = false, ?array $lastActivity = null): array
     {
@@ -79,7 +79,7 @@ class StudentProgressSnapshot
     }
 
     /**
-     * Whether the viewer may see supervision counts, activity and inactivity for a project.
+     * Whether the viewer may see supervision counts and activity for a project.
      * Same access rule as the full-title check in UserProfilePresenter.
      */
     public function canViewDetail(ThesisProject $project, ?User $viewer): bool
@@ -127,17 +127,10 @@ class StudentProgressSnapshot
 
     /**
      * @param  array<string, int>  $supervisionCounts
-     * @return array{statusLabel: ?string, supervisors: list<array{name: string, roleLabel: string, count: int}>, lastActivityAt: ?string, isInactive: bool, ticket: array{suspended: bool, validUntil: ?string}}
+     * @return array{statusLabel: ?string, supervisors: list<array{name: string, roleLabel: string, count: int}>, lastActivityAt: ?string, lastActivityLabel: string, ticket: array{suspended: bool, validUntil: ?string}}
      */
     private function detail(ThesisProject $project, ?CarbonInterface $lastActivity, array $supervisionCounts): array
     {
-        $reference = $lastActivity ?? $project->started_at;
-        $thresholdDays = (int) config('sita.inactive_after_days', 30);
-        // An archived student graduated long ago; "Tidak aktif" does not apply to them.
-        $isInactive = ! $project->isArchived()
-            && $reference instanceof CarbonInterface
-            && $reference->lt(now()->subDays($thresholdDays));
-
         $supervisors = $project->activeSupervisorAssignments
             ->sortBy('role')
             ->map(fn (ThesisSupervisorAssignment $assignment): array => [
@@ -152,7 +145,9 @@ class StudentProgressSnapshot
             'statusLabel' => $this->statusLabel($project),
             'supervisors' => $supervisors,
             'lastActivityAt' => $lastActivity?->format('d M Y'),
-            'isInactive' => $isInactive,
+            'lastActivityLabel' => $lastActivity instanceof CarbonInterface
+                ? 'Terakhir aktif '.$lastActivity->copy()->locale('id')->diffForHumans()
+                : 'Belum ada aktivitas',
             'ticket' => [
                 'suspended' => $project->isMentorshipSuspended(),
                 'validUntil' => $project->mentorship_valid_until?->format('Y-m-d'),

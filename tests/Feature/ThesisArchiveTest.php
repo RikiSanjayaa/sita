@@ -473,27 +473,13 @@ it('stores the snapshot before deleting and keeps counts and last activity ident
         ->and($completedFor($archived))->toBe($countsBefore)
         ->and(app(MentorshipProgressService::class)->completedByStudentForLecturer($secondary->id, ThesisSupervisorAssignment::query()->with('project')->where('project_id', $project->id)->where('lecturer_user_id', $secondary->id)->get()))->toBe($secondaryBefore)
         ->and($activity($archived))->toBe($activityBefore)
-        // Everything the card shows is unchanged except the "Tidak aktif" flag, which archived students never get.
-        ->and(Illuminate\Support\Arr::except(app(StudentProgressSnapshot::class)->forProjects(new EloquentCollection([$archived]), $viewer)[$project->id]['detail'], 'isInactive'))
-        ->toBe(Illuminate\Support\Arr::except($snapshotBefore['detail'], 'isInactive'));
+        ->and(app(StudentProgressSnapshot::class)->forProjects(new EloquentCollection([$archived]), $viewer)[$project->id]['detail'])
+        ->toBe($snapshotBefore['detail']);
 
     $first = collect($archived->archive_summary['completed_mentorship'])->firstWhere('lecturer_user_id', $primary->id);
     expect($first['completed'])->toBe(3)
         ->and($first['first_at'])->not->toBeNull()
         ->and($first['last_at'])->not->toBeNull();
-});
-
-it('does not flag an archived student as inactive', function (): void {
-    ['project' => $project, 'student' => $student] = archiveScenario(completedDaysAgo: 400);
-    $project->forceFill(['started_at' => now()->subDays(900)])->save();
-
-    $before = app(StudentProgressSnapshot::class)->forProjects(new EloquentCollection([$project->fresh()]), $student)[$project->id];
-    $this->artisan('sita:archive-completed-theses')->assertSuccessful();
-    $after = app(StudentProgressSnapshot::class)->forProjects(new EloquentCollection([$project->fresh()]), $student)[$project->id];
-
-    expect($before['detail']['isInactive'])->toBeTrue()
-        ->and($after['detail']['isInactive'])->toBeFalse()
-        ->and($after['detail']['lastActivityAt'])->toBe($before['detail']['lastActivityAt']);
 });
 
 it('rolls a project back when deletion fails and still archives the others', function (): void {

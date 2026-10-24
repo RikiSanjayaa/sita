@@ -81,7 +81,7 @@ it('gives every kaprodi student row a progress payload with detail for the same-
             ->where('students.0.progress.phase', 'research')
             ->has('students.0.progress.phaseLabel')
             ->has('students.0.progress.detail.supervisors', 1)
-            ->has('students.0.progress.detail.isInactive')
+            ->has('students.0.progress.detail.lastActivityLabel')
             ->where('students.1.name', 'Beta Mahasiswa')
             ->where('students.1.progress', null));
 });

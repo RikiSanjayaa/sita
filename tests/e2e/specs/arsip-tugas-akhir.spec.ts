@@ -120,7 +120,6 @@ test.describe('arsip tugas akhir', () => {
                             .locator('td[data-label="Aktivitas terakhir"] p')
                             .innerText()
                     ).trim(),
-                    inactive: await row.getByText('Tidak aktif').count(),
                 };
             };
             const bimbinganCount = async () => {
@@ -142,7 +141,6 @@ test.describe('arsip tugas akhir', () => {
                 count: await bimbinganCount(),
             };
             expect(before.count).toBe('2 bimbingan');
-            expect(before.progress.inactive).toBe(1);
 
             const finalId = tinker(
                 "echo App\\Models\\ThesisDocument::query()->where('kind', 'final_manuscript')->whereHas('project.student', fn ($q) => $q->where('email', 'e2e-lulus-lama@sita.test'))->value('id');",
@@ -161,7 +159,6 @@ test.describe('arsip tugas akhir', () => {
             expect(after.progress.lastActivity).toBe(
                 before.progress.lastActivity,
             );
-            expect(after.progress.inactive).toBe(0);
 
             const student = await browser.newContext({
                 storageState: authStatePath(pastGrace.studentKey),

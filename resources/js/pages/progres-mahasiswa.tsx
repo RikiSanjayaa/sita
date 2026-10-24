@@ -385,21 +385,15 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
             </td>
             <td data-label="Aktivitas terakhir" className={stackedTable.td}>
                 {row.progress ? (
-                    <p className="tabular-nums">
-                        {detail?.lastActivityAt ?? 'Belum ada'}
+                    <p
+                        className="tabular-nums"
+                        title={detail?.lastActivityAt ?? undefined}
+                    >
+                        {detail?.lastActivityLabel ?? 'Belum ada aktivitas'}
                     </p>
                 ) : (
                     <span className="text-muted-foreground">-</span>
                 )}
-                {detail?.isInactive ? (
-                    <StatusBadge
-                        domain="active"
-                        status="inactive"
-                        className="mt-1"
-                    >
-                        Tidak aktif
-                    </StatusBadge>
-                ) : null}
             </td>
             <td
                 data-label="Judul dan pembimbing"

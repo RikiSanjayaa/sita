@@ -8,6 +8,29 @@ use App\Models\ThesisSupervisorAssignment;
 use Database\Seeders\ThesisWorkflowSeeder;
 use Database\Seeders\UserSeeder;
 
+test('laila restarted after cancelling an attempt that passed sempro, so her current thesis is the new one', function (): void {
+    /** @var \Tests\TestCase $this */
+    $this->seed(UserSeeder::class);
+    $this->seed(ThesisWorkflowSeeder::class);
+
+    $projects = ThesisProject::query()
+        ->whereHas('student', fn ($query) => $query->where('email', 'laila@sita.test'))
+        ->orderBy('started_at')
+        ->get();
+    [$old, $new] = [$projects[0], $projects[1]];
+
+    expect($projects)->toHaveCount(2)
+        ->and($old->state)->toBe('cancelled')
+        ->and($old->cancelled_at)->not->toBeNull()
+        ->and($old->completed_at)->toBeNull()
+        ->and($old->defenses()->where('type', 'sidang')->exists())->toBeFalse()
+        ->and($old->defenses()->where('type', 'sempro')->where('result', 'pass')->exists())->toBeTrue()
+        ->and($old->documents()->where('kind', 'final_manuscript')->exists())->toBeFalse()
+        ->and($new->phase)->toBe('title_review')
+        ->and(ThesisProject::query()->current()->whereKey($old->id)->exists())->toBeFalse()
+        ->and(ThesisProject::query()->current()->whereKey($new->id)->exists())->toBeTrue();
+});
+
 test('thesis workflow seeder backfills broad project scenarios', function (): void {
     /** @var \Tests\TestCase $this */
     $this->seed(UserSeeder::class);
@@ -56,8 +79,7 @@ test('thesis workflow seeder backfills broad project scenarios', function (): vo
         ->and(ThesisProject::query()->whereHas('student', fn ($query) => $query->where('email', 'farhan@sita.test'))->exists())->toBeFalse()
         ->and(ThesisProject::query()->whereHas('student', fn ($query) => $query->where('email', 'laila@sita.test'))->count())->toBe(2)
         ->and(ThesisProject::query()->where('phase', 'sidang')->exists())->toBeTrue()
-        ->and(ThesisProject::query()->where('phase', 'completed')->exists())->toBeTrue()
-        ->and(ThesisDefense::query()->where('type', 'sidang')->count())->toBe(2)
+        ->and(ThesisDefense::query()->where('type', 'sidang')->count())->toBe(1)
         ->and(ThesisDefense::query()->where('project_id', $bagasProject->id)->where('type', 'sempro')->count())->toBe(2)
         ->and($mahasiswaPrimarySupervisor)->toBeTrue()
         ->and($putraSemproThreadExists)->toBeTrue()

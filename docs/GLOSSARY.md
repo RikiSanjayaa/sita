@@ -50,6 +50,10 @@ Exam names never carry the degree's final work ("Sempro Tugas Akhir" and "Semina
 
 `defenseLabel($terms, $type, $short)` turns a `thesis_defenses.type` into the right label for either audience. Database values and enum names (`sempro`, `sidang`, `ThesisProject`) stay as they are; only labels changed.
 
+## Last activity
+
+A student's last activity is the single rule `StudentActivityService::latestByProject()`. It shows as "Terakhir aktif 3 hari yang lalu", or "Belum ada aktivitas" when nothing is recorded. There is no "Tidak aktif" flag and no inactivity threshold; the reader judges from the age.
+
 ## Retired phrases
 
 Do not write these anywhere in the UI:
