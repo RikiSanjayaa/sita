@@ -49,14 +49,11 @@ test.describe('CSAT flow', () => {
                 .click();
 
             await expect(
-                mahasiswaPage.getByText('Feedback berhasil dikirim').first(),
-            ).toBeVisible();
-            await expect(
                 mahasiswaPage
+                    .locator('[data-sonner-toast][data-type="success"]')
                     .getByText(
                         'Terima kasih. Umpan balik Anda sudah tersimpan.',
-                    )
-                    .first(),
+                    ),
             ).toBeVisible();
             await expect(
                 mahasiswaPage.getByText('Anda belum bisa submit lagi').first(),

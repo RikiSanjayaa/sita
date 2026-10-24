@@ -43,9 +43,11 @@ test.describe('Upload dokumen page', () => {
             await page.getByRole('button', { name: 'Upload' }).click();
 
             await expect(
-                page.getByText(
-                    'Dokumen berhasil diunggah dan notifikasi terkirim ke thread terkait.',
-                ),
+                page
+                    .locator('[data-sonner-toast][data-type="success"]')
+                    .getByText(
+                        'Dokumen berhasil diunggah dan notifikasi terkirim ke thread terkait.',
+                    ),
             ).toBeVisible();
 
             await page.getByPlaceholder('Cari judul atau file...').fill(title);
@@ -83,7 +85,9 @@ test.describe('Upload dokumen page', () => {
             await page.getByRole('button', { name: 'Ya, Hapus' }).click();
 
             await expect(
-                page.getByText('Dokumen berhasil dihapus.'),
+                page
+                    .locator('[data-sonner-toast][data-type="success"]')
+                    .getByText('Dokumen berhasil dihapus.'),
             ).toBeVisible();
             await expect(documentRow).not.toBeVisible();
         } finally {

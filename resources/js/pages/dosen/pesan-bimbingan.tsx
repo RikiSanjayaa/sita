@@ -62,7 +62,6 @@ const groupThreadFilterTabs: { label: string; value: GroupThreadFilter }[] = [
 type PesanBimbinganProps = {
     threads: ThreadItem[];
     privateRecipients: PrivateRecipientOption[];
-    flashMessage?: string | null;
 };
 
 type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {

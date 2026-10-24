@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { CalendarClock, CheckCircle2, Star } from 'lucide-react';
+import { CalendarClock, Star } from 'lucide-react';
 import { FormEvent } from 'react';
 
 import InputError from '@/components/input-error';
@@ -22,7 +22,6 @@ type CsatPageProps = {
         lastSubmittedAt: string | null;
         lastScore: number | null;
     };
-    status?: string | null;
 };
 
 type CsatFormData = {
@@ -42,7 +41,7 @@ const scoreOptions = [
 ] as const;
 
 export default function CsatPage() {
-    const { auth, csat, status } = usePage<SharedData & CsatPageProps>().props;
+    const { auth, csat } = usePage<SharedData & CsatPageProps>().props;
     const form = useForm<CsatFormData>({
         score: null,
         kritik: '',
@@ -102,27 +101,6 @@ export default function CsatPage() {
                 </div>
 
                 <Separator />
-
-                {/* Status messages */}
-                {status ? (
-                    <div
-                        role="status"
-                        className="rounded-xl border border-success/30 bg-success-muted p-4 text-success-muted-foreground"
-                    >
-                        <div className="flex items-start gap-3">
-                            <CheckCircle2
-                                aria-hidden="true"
-                                className="mt-0.5 size-5 shrink-0"
-                            />
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold">
-                                    Feedback berhasil dikirim
-                                </p>
-                                <p className="text-sm">{status}</p>
-                            </div>
-                        </div>
-                    </div>
-                ) : null}
 
                 {!csat.canSubmit ? (
                     <div

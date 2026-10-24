@@ -28,6 +28,18 @@ test('profile page is displayed', function () {
         ->where('profile.meta.0.label', 'NIM'));
 });
 
+it('preserves email verification feedback on profile settings', function (): void {
+    $user = User::factory()->unverified()->create();
+
+    $this->actingAs($user)
+        ->withSession(['status' => 'verification-link-sent'])
+        ->get(route('profile.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('status', 'verification-link-sent')
+            ->where('flash', ['id' => null, 'success' => null, 'error' => null]));
+});
+
 test('profile information can be updated', function () {
     $user = User::factory()->create();
 
@@ -41,6 +53,7 @@ test('profile information can be updated', function () {
 
     $response
         ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Profil berhasil diperbarui.')
         ->assertRedirect(route('profile.edit'));
 
     $user->refresh();
