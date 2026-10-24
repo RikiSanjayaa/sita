@@ -59,7 +59,7 @@ export function ActionQueueItem({
                         {meta}
                     </div>
                     {description && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-pretty text-muted-foreground">
                             {description}
                         </p>
                     )}

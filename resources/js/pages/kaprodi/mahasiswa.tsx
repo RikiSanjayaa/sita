@@ -126,6 +126,7 @@ type StudentRow = {
         daysIdle: number | null;
         signals: string[];
     };
+    needsAction: FocusFilter[];
     progress: StudentProgress | null;
     profileUrl: string;
 };
@@ -194,6 +195,12 @@ type ActivePhaseFilter =
     | 'none';
 
 type RiskFilter = 'semua' | 'high' | 'medium' | 'low';
+type FocusFilter =
+    | 'semua'
+    | 'masa_habis'
+    | 'tanpa_pembimbing'
+    | 'bimbingan_kurang'
+    | 'tidak_aktif';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
@@ -272,6 +279,10 @@ function StudentTable({
         'activeRisk',
         'semua',
     );
+    const [focusFilter, setFocusFilter] = useUrlState<FocusFilter>(
+        'activeFocus',
+        'semua',
+    );
     const [angkatanFilter, setAngkatanFilter] = useUrlState(
         'activeAngkatan',
         'semua',
@@ -303,6 +314,16 @@ function StudentTable({
         { label: 'Risiko Telat', value: 'high' },
         { label: 'Perlu Dipantau', value: 'medium' },
         { label: 'Terkendali', value: 'low' },
+    ];
+
+    const focusOptions: { label: string; value: FocusFilter }[] = [
+        { label: 'Masa aktif bimbingan habis', value: 'masa_habis' },
+        { label: 'Belum ada pembimbing', value: 'tanpa_pembimbing' },
+        {
+            label: 'Minimal bimbingan belum terpenuhi',
+            value: 'bimbingan_kurang',
+        },
+        { label: 'Tidak aktif', value: 'tidak_aktif' },
     ];
 
     const directoryRows = useMemo<DirectoryRow[]>(() => {
@@ -391,6 +412,10 @@ function StudentTable({
                 (phaseFilter === 'semua' || row.phaseKey === phaseFilter) &&
                 (riskFilter === 'semua' ||
                     row.progressRisk?.level === riskFilter) &&
+                (focusFilter === 'semua' ||
+                    (row.activeStudent?.needsAction ?? []).includes(
+                        focusFilter,
+                    )) &&
                 (angkatanFilter === 'semua' ||
                     String(row.angkatan ?? '') === angkatanFilter) &&
                 (concentrationFilter === 'semua' ||
@@ -403,6 +428,7 @@ function StudentTable({
         directoryRows,
         phaseFilter,
         riskFilter,
+        focusFilter,
         search,
     ]);
 
@@ -439,6 +465,7 @@ function StudentTable({
     ];
     const hasActiveFilter =
         riskFilter !== 'semua' ||
+        focusFilter !== 'semua' ||
         angkatanFilter !== 'semua' ||
         concentrationFilter !== 'semua' ||
         phaseFilter !== 'semua';
@@ -477,6 +504,20 @@ function StudentTable({
                             ...riskOptions,
                         ]}
                         className="md:w-40"
+                    />
+                    <DataSelect
+                        label="Filter tindakan"
+                        value={focusFilter}
+                        onValueChange={(value) => {
+                            setFocusFilter(value as FocusFilter);
+                            resetPage();
+                        }}
+                        placeholder="Semua mahasiswa"
+                        options={[
+                            { value: 'semua', label: 'Semua mahasiswa' },
+                            ...focusOptions,
+                        ]}
+                        className="md:w-52"
                     />
                     <DataSelect
                         label="Filter angkatan"
@@ -528,6 +569,7 @@ function StudentTable({
                             onClick={() => {
                                 setPhaseFilter('semua');
                                 setRiskFilter('semua');
+                                setFocusFilter('semua');
                                 setAngkatanFilter('semua');
                                 setConcentrationFilter('semua');
                                 resetPage();
