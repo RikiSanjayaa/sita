@@ -85,6 +85,8 @@ export default defineConfig({
         {
             name: 'chromium',
             testMatch: /specs[\\/].*\.spec\.ts/,
+            // The screenshot catalog has its own config (npm run catalog).
+            testIgnore: /screenshot-catalog\.spec\.ts/,
             dependencies: ['setup'],
         },
     ],
