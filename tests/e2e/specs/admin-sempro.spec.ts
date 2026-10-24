@@ -238,8 +238,16 @@ test.describe('Admin sempro workflow', () => {
                     .first(),
             ).toBeVisible();
 
-            await adminPage.goto('/admin/thesis-projects?tableSearch=Akbar');
+            await adminPage.goto('/admin/thesis-projects');
             await expect(adminPage).toHaveURL(/\/admin\/thesis-projects/);
+            // The URL search param is not applied by this table, so search through the box
+            // (the list paginates and seed data can push Akbar off the first page).
+            const searchInput = adminPage.getByRole('searchbox', {
+                name: 'Search',
+                exact: true,
+            });
+            await searchInput.fill(thesisScenarios.semproScheduled.studentName);
+            await searchInput.press('Enter');
             await adminPage
                 .locator('tr')
                 .filter({
