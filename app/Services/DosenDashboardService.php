@@ -113,7 +113,7 @@ class DosenDashboardService
             ['key' => 'pending_schedules', 'count' => $pendingSchedules, 'title' => 'Permintaan jadwal bimbingan menunggu keputusan', 'description' => 'Setujui, jadwalkan ulang, atau tolak permintaan mahasiswa.', 'href' => '/dosen/jadwal-bimbingan', 'actionLabel' => 'Putuskan jadwal'],
             ['key' => 'overdue_sessions', 'count' => $overdueSchedules, 'title' => 'Bimbingan sudah lewat, belum ditandai selesai', 'description' => 'Tandai selesai agar terhitung di minimal bimbingan.', 'href' => '/dosen/jadwal-bimbingan?upcomingFilter=lewat', 'actionLabel' => 'Tandai selesai'],
             ['key' => 'documents_to_review', 'count' => $submittedDocuments, 'title' => 'Dokumen menunggu review', 'description' => 'Dokumen mahasiswa yang belum Anda setujui atau minta direvisi.', 'href' => '/dosen/dokumen-revisi?status='.rawurlencode('Perlu Review'), 'actionLabel' => 'Review dokumen'],
-            ['key' => 'inactive_students', 'count' => $inactive, 'title' => 'Mahasiswa bimbingan tidak aktif lebih dari '.StudentAttention::INACTIVE_DAYS.' hari', 'description' => 'Belum ada dokumen, pesan, atau bimbingan selesai dalam waktu itu.', 'href' => '/dosen/mahasiswa-bimbingan?activeAttention=inactive', 'actionLabel' => 'Lihat mahasiswa'],
+            ['key' => 'inactive_students', 'count' => $inactive, 'title' => 'Belum ada aktivitas '.StudentAttention::INACTIVE_DAYS.' hari terakhir', 'description' => 'Mahasiswa bimbingan tanpa dokumen, pesan, atau bimbingan selesai dalam waktu itu.', 'href' => '/dosen/mahasiswa-bimbingan?activeAttention=inactive', 'actionLabel' => 'Lihat mahasiswa'],
         ];
 
         return collect($items)

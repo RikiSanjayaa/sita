@@ -54,7 +54,9 @@ class StudentAttention
             if ($reference instanceof CarbonInterface && $reference->lt($cutoff)) {
                 $reasons[] = [
                     'key' => self::REASON_INACTIVE,
-                    'label' => 'Tidak aktif lebih dari '.self::INACTIVE_DAYS.' hari',
+                    'label' => isset($lastActivity[$projectId])
+                        ? 'Terakhir aktif '.$lastActivity[$projectId]->copy()->locale('id')->diffForHumans()
+                        : 'Belum ada aktivitas',
                 ];
             }
 

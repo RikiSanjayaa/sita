@@ -114,7 +114,7 @@ const roleTabs: { label: string; value: RoleFilter }[] = [
 const attentionTabs: { label: string; value: AttentionFilter }[] = [
     { label: 'Semua', value: 'semua' },
     { label: 'Perlu perhatian', value: 'any' },
-    { label: 'Tidak aktif', value: 'inactive' },
+    { label: 'Tanpa aktivitas 30 hari', value: 'inactive' },
 ];
 
 function matchesAttention(row: MahasiswaRow, filter: AttentionFilter) {
