@@ -104,7 +104,7 @@ test.describe('Sonner feedback', () => {
                     await expect(toast).toBeVisible();
                     await expect(
                         page.locator('[data-sonner-toaster]'),
-                    ).toHaveAttribute('data-theme', mode);
+                    ).toHaveAttribute('data-sonner-theme', mode);
                     await expect(
                         page.getByText('Tersimpan', { exact: true }),
                     ).toHaveCount(0);
