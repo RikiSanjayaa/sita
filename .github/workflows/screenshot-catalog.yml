@@ -1,0 +1,262 @@
+name: screenshot catalog
+
+# Captures every page (see tests/e2e/support/catalog-pages.ts) and keeps the
+# result on the pr-assets branch under catalog/:
+#   - push to main: refresh pr-assets/catalog/ (only changed images produce a commit)
+#   - pull request touching UI paths: compare against pr-assets/catalog/ and
+#     post one comment listing the changed pages with before/after images
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'resources/js/**'
+      - 'resources/css/**'
+      - 'resources/views/**'
+      - 'app/Filament/**'
+      - 'tests/e2e/specs/screenshot-catalog.spec.ts'
+      - 'tests/e2e/support/catalog-*.ts'
+      - 'playwright.catalog.config.ts'
+      - 'scripts/catalog.mjs'
+      - '.github/workflows/screenshot-catalog.yml'
+
+# Main pushes queue (one runs, the newest waits) so two refreshes never race
+# on pr-assets; a new push to a pull request replaces its older run.
+concurrency:
+  group: screenshot-catalog-${{ github.event_name == 'push' && 'main' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: capture (shard ${{ matrix.shard }}/4)
+    # Pull requests from forks get a read-only token and cannot publish.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      REVERB_APP_ID: local-app
+      REVERB_APP_KEY: local-key
+      REVERB_APP_SECRET: local-secret
+      REVERB_HOST: 127.0.0.1
+      REVERB_PORT: '9011'
+      REVERB_SCHEME: http
+      REVERB_ALLOWED_ORIGINS: 127.0.0.1,localhost
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, sqlite3, pdo_sqlite, curl, dom, fileinfo, xml
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Locate Composer cache
+        id: composer-cache-dir
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture catalog
+        run: npm run catalog -- --shard=${{ matrix.shard }}/4
+
+      - name: Upload shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-shard-${{ matrix.shard }}
+          path: catalog-output/
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-report-shard-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    name: publish to pr-assets
+    if: github.event_name == 'push'
+    needs: capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: catalog-shard-*
+          path: catalog-output
+          merge-multiple: true
+
+      - name: Checkout pr-assets
+        uses: actions/checkout@v4
+        with:
+          ref: pr-assets
+          path: assets
+
+      - name: Update catalog
+        env:
+          SUBJECT: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets/catalog
+          node scripts/catalog.mjs sync catalog-output assets/catalog
+          node scripts/catalog.mjs index assets/catalog
+          cd assets
+          git add -A catalog
+          if git diff --cached --quiet; then
+            echo "Catalog unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          subject=$(printf '%s' "$SUBJECT" | head -n 1)
+          git commit -m "catalog: ${GITHUB_SHA::7} ${subject}"
+          for attempt in 1 2 3; do
+            git push origin HEAD:pr-assets && exit 0
+            git pull --rebase origin pr-assets
+          done
+          exit 1
+
+  compare:
+    name: compare with main
+    if: github.event_name == 'pull_request'
+    needs: capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      # Same-repository pull request only (see the capture job), so the
+      # token may write to pr-assets and comment.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: catalog-shard-*
+          path: catalog-output
+          merge-multiple: true
+
+      - name: Checkout pr-assets
+        uses: actions/checkout@v4
+        with:
+          ref: pr-assets
+          path: assets
+
+      - name: Compare with the main catalog
+        run: |
+          set -euo pipefail
+          mkdir -p assets/catalog
+          node scripts/catalog.mjs diff assets/catalog catalog-output changed \
+            --repo "$GITHUB_REPOSITORY" --branch pr-assets --pr "$PR" > comment.md
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload changed images
+        run: |
+          set -euo pipefail
+          cd assets
+          rm -rf "pr-$PR/catalog"
+          if [ ! -d ../changed ] && [ ! -d "pr-$PR" ] && ! git ls-files --error-unmatch "pr-$PR" >/dev/null 2>&1; then
+            echo "No changed images to upload."
+            exit 0
+          fi
+          if [ -d ../changed ]; then
+            mkdir -p "pr-$PR"
+            cp -r ../changed "pr-$PR/catalog"
+          fi
+          git add -A "pr-$PR"
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "assets: pr-$PR catalog"
+          for attempt in 1 2 3; do
+            git push origin HEAD:pr-assets && exit 0
+            git pull --rebase origin pr-assets
+          done
+          exit 1
+
+      - name: Comment on the pull request
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | contains("<!-- screenshot-catalog -->"))][0].id // empty')
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@comment.md > /dev/null
+          elif [ -d changed ]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@comment.md > /dev/null
+          else
+            echo "No changed pages and no earlier comment; nothing to post."
+          fi
