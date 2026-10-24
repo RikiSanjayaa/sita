@@ -48,15 +48,9 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
-          VITE_REVERB_APP_KEY: ${{ vars.VITE_REVERB_APP_KEY }}
         run: |
           echo "short_sha=${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-          if [[ -z "${VITE_REVERB_APP_KEY}" ]]; then
-            echo "::warning::Repository variable VITE_REVERB_APP_KEY is not set; using 'sita-production-key'. Servers must use the same REVERB_APP_KEY."
-            VITE_REVERB_APP_KEY='sita-production-key'
-          fi
-          echo "reverb_app_key=${VITE_REVERB_APP_KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -95,10 +89,6 @@ jobs:
           sbom: false
           build-args: |
             INSTALL_DEV_DEPENDENCIES=false
-            VITE_REVERB_APP_KEY=${{ steps.inputs.outputs.reverb_app_key }}
-            VITE_REVERB_HOST=${{ vars.VITE_REVERB_HOST }}
-            VITE_REVERB_PORT=${{ vars.VITE_REVERB_PORT || '443' }}
-            VITE_REVERB_SCHEME=${{ vars.VITE_REVERB_SCHEME || 'https' }}
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
 

@@ -246,7 +246,8 @@ function HeaderNotifications() {
         }
 
         const channelName = `App.Models.User.${auth.user.id}`;
-        const channel = window.Echo.private(channelName);
+        const echo = window.Echo;
+        const channel = echo.private(channelName);
 
         channel.notification((payload: IncomingNotification) => {
             const nextNotification = mapIncomingNotification(payload);
@@ -332,7 +333,7 @@ function HeaderNotifications() {
         });
 
         return () => {
-            window.Echo.leave(channelName);
+            echo.leave(channelName);
         };
     }, [auth.user?.id, notificationSettings?.browserNotifications]);
 
