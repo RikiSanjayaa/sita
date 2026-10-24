@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dosen\SubmitDefenseDecisionRequest;
+use App\Http\Requests\Dosen\VerifyRevisionRequest;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
 use App\Models\ThesisRevision;
+use App\Models\ThesisRevisionRound;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
 use App\Services\ThesisDefenseExaminerDecisionService;
@@ -80,8 +82,10 @@ class SeminarProposalController extends Controller
                     'requestedBy' => $revision->requestedBy?->name ?? '-',
                     'items' => ThesisRevisionPayload::items($revision),
                     'annotations' => ThesisRevisionPayload::annotations($revision),
-                    'canResolve' => $revision->requested_by_user_id === $lecturer->id
-                        && in_array($revision->status, ['open', 'submitted'], true),
+                    'rounds' => ThesisRevisionPayload::rounds($revision),
+                    'canVerify' => $revision->requested_by_user_id === $lecturer->id
+                        && in_array($revision->status, ['open', 'submitted'], true)
+                        && ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_REVIEW,
                 ])
                 ->values()
                 ->all() ?? [];
@@ -167,20 +171,18 @@ class SeminarProposalController extends Controller
             ->with('success', 'Keputusan berhasil disimpan.');
     }
 
-    public function resolveRevision(Request $request, ThesisRevision $revision): RedirectResponse
+    public function verifyRevision(VerifyRevisionRequest $request, ThesisRevision $revision): RedirectResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
 
-        $validated = $request->validate([
-            'resolution_notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
         try {
-            $this->revisionService->approveByLecturer(
+            $this->revisionService->verify(
                 $lecturer,
                 $revision,
-                $validated['resolution_notes'] ?? null,
+                $request->verdicts(),
+                $request->newItems(),
+                $request->file('annotation'),
             );
         } catch (RuntimeException $exception) {
             return redirect()->route('dosen.seminar-proposal')
@@ -188,6 +190,6 @@ class SeminarProposalController extends Controller
         }
 
         return redirect()->route('dosen.seminar-proposal')
-            ->with('success', 'Revisi berhasil ditandai selesai.');
+            ->with('success', 'Verifikasi revisi berhasil disimpan.');
     }
 }

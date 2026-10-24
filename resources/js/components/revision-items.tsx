@@ -12,6 +12,19 @@ export type RevisionItem = {
     status: string;
     statusLabel: string;
     roundOpened: number;
+    studentResponse: string | null;
+    studentResponseLocation: string | null;
+    verificationComment: string | null;
+};
+
+export type RevisionRound = {
+    roundNo: number;
+    status: string;
+    statusLabel: string;
+    openedAt: string | null;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+    manuscript: RevisionAnnotation | null;
 };
 
 export type RevisionAnnotation = {
@@ -80,6 +93,24 @@ export function RevisionItemList({ items }: { items: RevisionItem[] }) {
                     <p className="leading-relaxed text-pretty">
                         {item.description}
                     </p>
+                    {item.studentResponse && (
+                        <p className="leading-relaxed text-pretty text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                                Tanggapan mahasiswa:
+                            </span>{' '}
+                            {item.studentResponse}
+                            {item.studentResponseLocation &&
+                                ` (${item.studentResponseLocation})`}
+                        </p>
+                    )}
+                    {item.verificationComment && (
+                        <p className="leading-relaxed text-pretty text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                                Komentar penguji:
+                            </span>{' '}
+                            {item.verificationComment}
+                        </p>
+                    )}
                 </li>
             ))}
         </ol>
@@ -125,5 +156,38 @@ export function RevisionAnnotationLinks({
                 </li>
             ))}
         </ul>
+    );
+}
+
+export function RevisionRoundHistory({ rounds }: { rounds: RevisionRound[] }) {
+    if (rounds.length === 0) return null;
+
+    return (
+        <ol className="mt-2 flex flex-col gap-1.5 text-sm text-muted-foreground">
+            {rounds.map((round) => (
+                <li
+                    key={round.roundNo}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1"
+                >
+                    <span className="font-medium text-foreground">
+                        Putaran {round.roundNo}
+                    </span>
+                    <span>{round.statusLabel}</span>
+                    {round.submittedAt && (
+                        <span>Dikirim {round.submittedAt}</span>
+                    )}
+                    {round.manuscript && (
+                        <a
+                            href={round.manuscript.viewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-foreground underline-offset-4 hover:underline"
+                        >
+                            Naskah perbaikan: {round.manuscript.fileName}
+                        </a>
+                    )}
+                </li>
+            ))}
+        </ol>
     );
 }

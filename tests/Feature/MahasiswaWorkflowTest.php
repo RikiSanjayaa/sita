@@ -1410,10 +1410,11 @@ test('mahasiswa can update sempro revision proposal without resetting thesis pro
         ->and($updatedTitle?->status)->toBe('approved')
         ->and($updatedDocument->file_name)->toBe('proposal-sempro-final.pdf');
 
+    // Replacing the proposal does not send the revision: that needs a response per item (ThesisRevisionResponseController).
     $this->assertDatabaseHas('thesis_revisions', [
         'project_id' => $project->id,
         'defense_id' => $sempro->id,
-        'status' => 'submitted',
+        'status' => 'open',
     ]);
 
     Storage::disk('public')->assertMissing($oldPath);

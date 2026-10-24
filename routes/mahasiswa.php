@@ -5,6 +5,7 @@ use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
 use App\Http\Controllers\Mahasiswa\LecturerSearchController;
 use App\Http\Controllers\Mahasiswa\PanduanController;
 use App\Http\Controllers\Mahasiswa\PesanController;
+use App\Http\Controllers\Mahasiswa\ThesisRevisionResponseController;
 use App\Http\Controllers\Mahasiswa\TugasAkhirController;
 use App\Http\Controllers\Mahasiswa\UploadDokumenController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,8 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
     Route::patch('tugas-akhir/{project}', [TugasAkhirController::class, 'update'])->name('tugas-akhir.update');
     Route::patch('tugas-akhir/{project}/sempro-documents', [TugasAkhirController::class, 'updateSemproDocuments'])->name('tugas-akhir.sempro-documents.update');
     Route::patch('tugas-akhir/{project}/sidang-documents', [TugasAkhirController::class, 'updateSidangDocuments'])->name('tugas-akhir.sidang-documents.update');
+
+    Route::post('tugas-akhir/revisi/{revision}/perbaikan', [ThesisRevisionResponseController::class, 'store'])->name('tugas-akhir.revisions.respond');
 
     Route::get('jadwal-bimbingan', [JadwalBimbinganController::class, 'index'])->name('jadwal-bimbingan');
     Route::post('jadwal-bimbingan', [JadwalBimbinganController::class, 'store'])->name('jadwal-bimbingan.store');
