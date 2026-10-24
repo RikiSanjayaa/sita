@@ -16,9 +16,7 @@ class RecentProjectEventsWidget extends TableWidget
 {
     protected static bool $isLazy = false;
 
-    protected int|string|array $columnSpan = [
-        'xl' => 5,
-    ];
+    protected int|string|array $columnSpan = 'full';
 
     public function table(Table $table): Table
     {
@@ -38,7 +36,7 @@ class RecentProjectEventsWidget extends TableWidget
                     ->wrap(),
                 TextColumn::make('occurred_at')
                     ->label('Waktu')
-                    ->since(),
+                    ->formatStateUsing(fn ($state): string => $state?->copy()->locale('id')->diffForHumans() ?? '-'),
                 TextColumn::make('description')
                     ->label('Catatan')
                     ->placeholder('-')

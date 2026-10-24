@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
@@ -197,35 +196,6 @@ class AdminDashboardService
         ];
     }
 
-    public function projectsNeedingAttention(?User $user, int $limit = 6): Collection
-    {
-        return $this->attentionProjectsQuery($user)
-            ->limit($limit)
-            ->get()
-            ->map(function (ThesisProject $project): array {
-                $agenda = $project->defenses
-                    ->where('status', 'scheduled')
-                    ->whereNotNull('scheduled_for')
-                    ->sortBy('scheduled_for')
-                    ->first();
-
-                return [
-                    'student' => $project->student?->name ?? '-',
-                    'nim' => $project->student?->mahasiswaProfile?->nim ?? '-',
-                    'phase' => ThesisProjectsTable::phaseLabel($project->phase),
-                    'phaseColor' => $this->phaseColor($project->phase),
-                    'reason' => $this->attentionReasonPublic($project),
-                    'agenda' => $this->projectAgendaSummary($project),
-                    'url' => ThesisProjectResource::getUrl('view', ['record' => $project]),
-                ];
-            });
-    }
-
-    public function attentionProjectsQuery(?User $user): Builder
-    {
-        return $this->buildAttentionProjectsQuery($user);
-    }
-
     public function recentEvents(?User $user, int $limit = 7): Collection
     {
         $query = ThesisProjectEvent::query()
@@ -287,136 +257,9 @@ class AdminDashboardService
             ]);
     }
 
-    /**
-     * @return array<int, int>
-     */
-    public function weeklyMetricHistory(?User $user, string $metric): array
-    {
-        return collect(range(5, 0))
-            ->prepend(0)
-            ->map(function (int $offset) use ($user, $metric): int {
-                $start = now()->copy()->startOfWeek()->subWeeks($offset);
-                $end = $start->copy()->endOfWeek();
-
-                return match ($metric) {
-                    'needs_sempro' => $this->projectsQuery($user)
-                        ->where('state', 'active')
-                        ->whereIn('phase', ['title_review', 'sempro'])
-                        ->whereBetween('started_at', [$start, $end])
-                        ->count(),
-                    'needs_sidang' => $this->projectsQuery($user)
-                        ->where('state', 'active')
-                        ->whereIn('phase', ['research', 'sidang'])
-                        ->whereBetween('started_at', [$start, $end])
-                        ->count(),
-                    'revisions' => ThesisRevision::query()
-                        ->whereIn('status', ['open', 'submitted'])
-                        ->whereBetween('created_at', [$start, $end])
-                        ->whereHas('project', function (Builder $query) use ($user): void {
-                            $this->scopeProjectsByUser($query, $user);
-                        })
-                        ->count(),
-                    'overdue_revision_projects' => ThesisRevision::query()
-                        ->whereIn('status', ['open', 'submitted'])
-                        ->whereNotNull('due_at')
-                        ->whereBetween('due_at', [$start, $end])
-                        ->whereHas('project', function (Builder $query) use ($user): void {
-                            $this->scopeProjectsByUser($query, $user);
-                            $query->where('state', 'active');
-                        })
-                        ->distinct()
-                        ->count('project_id'),
-                    'agenda' => ThesisDefense::query()
-                        ->where('status', 'scheduled')
-                        ->whereBetween('scheduled_for', [$start, $end])
-                        ->whereHas('project', function (Builder $query) use ($user): void {
-                            $this->scopeProjectsByUser($query, $user);
-                        })
-                        ->count(),
-                    'unassigned_late_stage' => $this->projectsQuery($user)
-                        ->where('state', 'active')
-                        ->whereIn('phase', ['research', 'sidang'])
-                        ->doesntHave('activeSupervisorAssignments')
-                        ->whereBetween('started_at', [$start, $end])
-                        ->count(),
-                    'incomplete_supervisors' => $this->projectsQuery($user)
-                        ->where('state', 'active')
-                        ->whereIn('phase', ['research', 'sidang'])
-                        ->has('activeSupervisorAssignments', '<', 2)
-                        ->whereBetween('started_at', [$start, $end])
-                        ->count(),
-                    default => 0,
-                };
-            })
-            ->all();
-    }
-
     private function projectsQuery(?User $user): Builder
     {
         $query = ThesisProject::query();
-        $this->scopeProjectsByUser($query, $user);
-
-        return $query;
-    }
-
-    public function attentionReasonPublic(ThesisProject $record): string
-    {
-        return $this->attentionReason($record);
-    }
-
-    public function projectAgendaSummary(ThesisProject $record): string
-    {
-        $agenda = $record->defenses
-            ->where('status', 'scheduled')
-            ->whereNotNull('scheduled_for')
-            ->sortBy('scheduled_for')
-            ->first();
-
-        if (! $agenda instanceof ThesisDefense) {
-            return 'Belum ada agenda terdekat';
-        }
-
-        return sprintf(
-            '%s #%d - %s',
-            strtoupper($agenda->type),
-            $agenda->attempt_no,
-            WitaDateTime::format($agenda->scheduled_for),
-        );
-    }
-
-    private function buildAttentionProjectsQuery(?User $user): Builder
-    {
-        $query = ThesisProject::query()
-            ->with([
-                'student.mahasiswaProfile',
-                'defenses',
-                'activeSupervisorAssignments',
-            ])
-            ->withCount([
-                'revisions as open_revisions_count' => fn(Builder $builder): Builder => $builder
-                    ->whereIn('status', ['open', 'submitted']),
-            ])
-            ->where('state', 'active')
-            ->where(function (Builder $query): void {
-                $query->where(function (Builder $subQuery): void {
-                    $subQuery->whereIn('phase', ['research', 'sidang'])
-                        ->has('activeSupervisorAssignments', '<', 2);
-                })->orWhereHas('revisions', function (Builder $revisionQuery): void {
-                    $revisionQuery->whereIn('status', ['open', 'submitted']);
-                })->orWhere(function (Builder $subQuery): void {
-                    $subQuery->whereIn('phase', ['title_review', 'sempro'])
-                        ->whereDoesntHave('semproDefenses', function (Builder $defenseQuery): void {
-                            $defenseQuery->whereIn('status', ['scheduled', 'completed']);
-                        });
-                })->orWhere(function (Builder $subQuery): void {
-                    $subQuery->whereIn('phase', ['research', 'sidang'])
-                        ->whereDoesntHave('sidangDefenses', function (Builder $defenseQuery): void {
-                            $defenseQuery->whereIn('status', ['scheduled', 'completed']);
-                        });
-                });
-            })
-            ->orderByDesc('started_at');
-
         $this->scopeProjectsByUser($query, $user);
 
         return $query;
@@ -441,31 +284,5 @@ class AdminDashboardService
         }
 
         return $query->count();
-    }
-
-    private function attentionReason(ThesisProject $record): string
-    {
-        if (($record->open_revisions_count ?? 0) > 0) {
-            return 'Masih ada revisi terbuka yang perlu dipantau.';
-        }
-
-        if (in_array($record->phase, ['research', 'sidang'], true) && $record->activeSupervisorAssignments->count() < 2) {
-            return 'Pembimbing aktif belum lengkap untuk fase ini.';
-        }
-
-        if (in_array($record->phase, ['title_review', 'sempro'], true) && $record->defenses->where('type', 'sempro')->whereIn('status', ['scheduled', 'completed'])->isEmpty()) {
-            return 'Belum ada '.AcademicTerminology::neutral()['proposalExam'].' yang dijadwalkan atau diselesaikan.';
-        }
-
-        if (in_array($record->phase, ['research', 'sidang'], true) && $record->defenses->where('type', 'sidang')->whereIn('status', ['scheduled', 'completed'])->isEmpty()) {
-            return 'Belum ada '.AcademicTerminology::neutral()['finalExam'].' yang dijadwalkan atau diselesaikan.';
-        }
-
-        return 'Perlu pengecekan manual dari admin.';
-    }
-
-    private function phaseColor(string $phase): string
-    {
-        return \App\Support\Filament\BadgeStyles::phaseColor($phase);
     }
 }

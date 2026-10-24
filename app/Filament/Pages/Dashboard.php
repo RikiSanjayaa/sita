@@ -3,10 +3,11 @@
 namespace App\Filament\Pages;
 
 use App\Enums\AppRole;
+use App\Filament\Widgets\AdminActionQueueWidget;
+use App\Filament\Widgets\AdminAgendaWidget;
 use App\Filament\Widgets\AdminOverviewStats;
 use App\Filament\Widgets\AdminWorkloadChart;
 use App\Filament\Widgets\ProjectPhaseChart;
-use App\Filament\Widgets\ProjectsNeedingAttentionWidget;
 use App\Filament\Widgets\RecentProjectEventsWidget;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -57,10 +58,11 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            AdminActionQueueWidget::class,
+            AdminAgendaWidget::class,
             AdminOverviewStats::class,
             AdminWorkloadChart::class,
             ProjectPhaseChart::class,
-            ProjectsNeedingAttentionWidget::class,
             RecentProjectEventsWidget::class,
         ];
     }

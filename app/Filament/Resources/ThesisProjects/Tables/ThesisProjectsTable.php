@@ -6,6 +6,7 @@ use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
+use App\Services\AdminActionQueueService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
@@ -45,6 +46,15 @@ class ThesisProjectsTable
                     ->label('Email Mahasiswa')
                     ->searchable()
                     ->copyable()
+                    ->toggleable(),
+                TextColumn::make('student.phone_number')
+                    ->label('Nomor HP')
+                    ->description(fn(?ThesisProject $record): ?string => match (true) {
+                        blank($record?->student?->phone_number) => null,
+                        $record->student->phone_number_confirmed_at === null => 'Belum dikonfirmasi',
+                        default => null,
+                    })
+                    ->placeholder('Belum diisi')
                     ->toggleable(),
                 TextColumn::make('programStudi.name')
                     ->label('Program Studi')
@@ -126,11 +136,16 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('started_at')
                     ->label('Mulai')
-                    ->dateTime('d M Y')
+                    ->formatStateUsing(fn($state): string => WitaDateTime::translated($state, 'd M Y', withLabel: false))
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make(AdminActionQueueService::FILTER_NAME)
+                    ->label('Perlu tindakan')
+                    ->options(fn(): array => app(AdminActionQueueService::class)->options())
+                    ->query(fn(Builder $query, array $data): Builder => app(AdminActionQueueService::class)
+                        ->applyQueue($query, $data['value'] ?? null)),
                 Filter::make('phase')
                     ->label('Fase')
                     ->schema([
@@ -226,7 +241,7 @@ class ThesisProjectsTable
             ->filtersFormWidth(Width::FiveExtraLarge)
             ->filtersTriggerAction(fn(Action $action): Action => $action
                 ->button()
-                ->label('Filter Workflow'))
+                ->label('Filter'))
             ->filtersApplyAction(fn(Action $action): Action => $action->label('Terapkan Filter'))
             ->filtersResetActionPosition(FiltersResetActionPosition::Footer)
             ->columnManagerColumns(2)
@@ -331,6 +346,28 @@ class ThesisProjectsTable
                                 ->send();
                         }
                     }),
+                Action::make('renew_mentorship_ticket')
+                    ->label('Perpanjang masa aktif')
+                    ->icon('heroicon-m-arrow-path')
+                    ->color('warning')
+                    ->visible(fn(ThesisProject $record): bool => $record->isMentorshipSuspended())
+                    ->requiresConfirmation()
+                    ->modalHeading('Perpanjang masa aktif bimbingan?')
+                    ->modalDescription('Masa aktif diperpanjang 1 tahun dari hari ini, dan bimbingan mahasiswa berjalan lagi.')
+                    ->action(function (ThesisProject $record): void {
+                        $userId = Auth::id();
+
+                        if ($userId === null) {
+                            return;
+                        }
+
+                        app(ThesisProjectAdminService::class)->renewMentorshipTicket($record, $userId);
+
+                        Notification::make()
+                            ->title('Masa aktif bimbingan diperpanjang 1 tahun')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('edit')
                     ->label('Edit')
                     ->icon('heroicon-m-pencil-square')
@@ -349,13 +386,13 @@ class ThesisProjectsTable
             return 'Belum diatur';
         }
 
-        return 'Berlaku s.d. '.WitaDateTime::format($record->mentorship_valid_until, 'd M Y', false);
+        return 'Berlaku s.d. '.WitaDateTime::translated($record->mentorship_valid_until, 'd M Y', withLabel: false);
     }
 
     public static function archiveLabel(ThesisProject $record): ?string
     {
         if ($record->isArchived()) {
-            return 'Diarsipkan '.WitaDateTime::format($record->archived_at, 'd M Y', false);
+            return 'Diarsipkan '.WitaDateTime::translated($record->archived_at, 'd M Y', withLabel: false);
         }
 
         $dueAt = $record->archiveDueAt();

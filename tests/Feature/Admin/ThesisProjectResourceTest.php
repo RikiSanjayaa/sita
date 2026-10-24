@@ -854,13 +854,17 @@ test('admin can view thesis and mentorship documents in thesis project page', fu
     $this->actingAs($admin)
         ->get(ThesisProjectResource::getUrl('view', ['record' => $project]))
         ->assertOk()
-        ->assertSee('Status Workflow')
+        ->assertSee('Status dan Langkah Berikutnya')
         ->assertSee('Aksi Berikutnya')
-        ->assertSee('Workflow')
+        ->assertSee('Ujian')
         ->assertSee('Dokumen Skripsi')
         ->assertSee('admin-view-proposal.pdf')
         ->assertSee('Dokumen Bimbingan')
         ->assertSee('Draft Bab 2')
+        ->assertSee('sita-detail-table-sticky-end', false)
+        ->assertSee('Unduh')
+        ->assertDontSee('Thesis documents')
+        ->assertDontSee('Mentorship documents')
         ->assertSee('admin-view-draft.pdf');
 });
 
@@ -966,4 +970,43 @@ test('admin thesis project page only shows mentorship documents within the proje
         ->assertSee('draft-aktif.pdf')
         ->assertDontSee('Draft Lama')
         ->assertDontSee('draft-lama.pdf');
+});
+
+test('empty tabs of the thesis project page explain themselves in Indonesian', function (): void {
+    $prodi = ProgramStudi::factory()->create();
+
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create([
+        'user_id' => $admin->id,
+        'program_studi_id' => $prodi->id,
+    ]);
+
+    $student = User::factory()->asMahasiswa()->create();
+    MahasiswaProfile::query()->create([
+        'user_id' => $student->id,
+        'nim' => '2210510198',
+        'program_studi_id' => $prodi->id,
+        'angkatan' => 2022,
+        'is_active' => true,
+    ]);
+
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => 'title_review',
+        'state' => 'active',
+        'started_at' => now()->subDays(2),
+        'created_by' => $student->id,
+    ]);
+
+    /** @var \Tests\TestCase $this */
+    $this->actingAs($admin)
+        ->get(ThesisProjectResource::getUrl('view', ['record' => $project]))
+        ->assertOk()
+        ->assertSee('Belum ada pembimbing yang ditetapkan.')
+        ->assertSee('Belum ada dokumen.')
+        ->assertSee('Belum ada dokumen bimbingan.')
+        ->assertSee('Belum ada aktivitas.')
+        ->assertSee('Belum ada catatan dosen.')
+        ->assertSee('Riwayat Aktivitas');
 });

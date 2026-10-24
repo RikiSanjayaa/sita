@@ -151,9 +151,14 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => self::statusPalette('danger'),
                 'info' => self::statusPalette('info'),
             ])
+            ->font('Instrument Sans')
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
                 fn(): string => view('filament.semantic-colors', ['roles' => self::SEMANTIC_COLORS])->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::STYLES_AFTER,
+                fn(): string => view('filament.admin-layout')->render(),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
