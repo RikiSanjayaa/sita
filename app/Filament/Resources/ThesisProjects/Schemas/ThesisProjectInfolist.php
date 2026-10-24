@@ -64,26 +64,26 @@ class ThesisProjectInfolist
                             ->formatStateUsing(fn(string $state): string => ThesisProjectsTable::stateLabel($state)),
                         TextEntry::make('started_at')
                             ->label('Mulai')
-                            ->dateTime('d M Y H:i')
+                            ->formatStateUsing(fn($state): string => WitaDateTime::translated($state, 'd M Y H:i'))
                             ->placeholder('-'),
                         TextEntry::make('completed_at')
                             ->label('Selesai')
-                            ->dateTime('d M Y H:i')
+                            ->formatStateUsing(fn($state): string => WitaDateTime::translated($state, 'd M Y H:i'))
                             ->placeholder('-'),
                         TextEntry::make('mentorship_valid_from')
                             ->label('Masa aktif bimbingan mulai')
-                            ->date('d M Y')
+                            ->formatStateUsing(fn($state): string => WitaDateTime::translated($state, 'd M Y', withLabel: false))
                             ->placeholder('-'),
                         TextEntry::make('mentorship_valid_until')
                             ->label('Masa aktif bimbingan berakhir')
-                            ->date('d M Y')
+                            ->formatStateUsing(fn($state): string => WitaDateTime::translated($state, 'd M Y', withLabel: false))
                             ->placeholder('-'),
                         TextEntry::make('notes')
                             ->label('Catatan Admin')
                             ->placeholder('-')
                             ->columnSpanFull(),
                     ]),
-                Section::make('Status Workflow')
+                Section::make('Status dan Langkah Berikutnya')
                     ->description(fn(ThesisProject $record): string => 'Ringkasan singkat untuk membantu admin memahami kondisi '.strtolower(AcademicTerminology::forProject($record)['finalWork']).' dan tindakan berikutnya.')
                     ->columns(2)
                     ->schema([
@@ -121,22 +121,19 @@ class ThesisProjectInfolist
                                 Section::make('Riwayat Pembimbing')
                                     ->schema([
                                         self::supervisorHistoryEntry(),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => $record->supervisorAssignments->isNotEmpty()),
+                                    ]),
                             ]),
-                        Tab::make('Workflow')
-                            ->icon('heroicon-m-arrows-right-left')
+                        Tab::make('Ujian')
+                            ->icon('heroicon-m-academic-cap')
                             ->schema([
-                                Section::make(fn(ThesisProject $record): string => AcademicTerminology::forProject($record)['proposalExamShort'])
+                                Section::make(fn(ThesisProject $record): string => 'Riwayat '.AcademicTerminology::forProject($record)['proposalExamShort'])
                                     ->schema([
                                         self::defenseEntry('sempro'),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => $record->defenses->contains(fn(ThesisDefense $defense): bool => $defense->type === 'sempro')),
-                                Section::make(fn(ThesisProject $record): string => AcademicTerminology::forProject($record)['finalExam'])
+                                    ]),
+                                Section::make(fn(ThesisProject $record): string => 'Riwayat '.AcademicTerminology::forProject($record)['finalExam'])
                                     ->schema([
                                         self::defenseEntry('sidang'),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => $record->defenses->contains(fn(ThesisDefense $defense): bool => $defense->type === 'sidang')),
+                                    ]),
                             ]),
                         Tab::make('Dokumen')
                             ->icon('heroicon-m-folder-open')
@@ -144,14 +141,12 @@ class ThesisProjectInfolist
                                 Section::make(fn(ThesisProject $record): string => 'Dokumen '.AcademicTerminology::forProject($record)['finalWork'])
                                     ->schema([
                                         self::thesisDocumentsEntry(),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => $record->documents->isNotEmpty()),
+                                    ]),
                                 Section::make('Dokumen Bimbingan')
                                     ->schema([
                                         self::mentorshipDocumentsEntry(),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => self::projectMentorshipDocuments($record)->isNotEmpty()),
-                                Section::make('Dokumen Bimbingan')
+                                    ]),
+                                Section::make('Ringkasan Arsip Bimbingan')
                                     ->description('Data bimbingan sudah diarsipkan. Chat, jadwal, dan dokumen draft dihapus; ringkasan di bawah dicatat sebelum penghapusan.')
                                     ->schema([
                                         TextEntry::make('archive_summary_lines')
@@ -161,14 +156,13 @@ class ThesisProjectInfolist
                                     ])
                                     ->visible(fn(ThesisProject $record): bool => $record->isArchived()),
                             ]),
-                        Tab::make('Timeline')
+                        Tab::make('Aktivitas')
                             ->icon('heroicon-m-clock')
                             ->schema([
-                                Section::make('Timeline')
+                                Section::make('Riwayat Aktivitas')
                                     ->schema([
                                         self::timelineEntry(),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => $record->events->isNotEmpty()),
+                                    ]),
                             ]),
                         Tab::make('Catatan')
                             ->icon('heroicon-m-chat-bubble-left-ellipsis')
@@ -177,8 +171,7 @@ class ThesisProjectInfolist
                                     ->description('Catatan pembimbing dan penguji. Hanya dapat dibaca di sini.')
                                     ->schema([
                                         self::projectNotesEntry(),
-                                    ])
-                                    ->visible(fn(ThesisProject $record): bool => $record->lecturerNotes->isNotEmpty()),
+                                    ]),
                             ]),
                     ]),
             ]);
@@ -187,7 +180,10 @@ class ThesisProjectInfolist
     private static function titleHistoryEntry(): RepeatableEntry
     {
         return RepeatableEntry::make('title_history')
-            ->label('')
+            ->label('Riwayat judul')
+            ->hiddenLabel()
+            ->placeholder('Belum ada judul yang diajukan.')
+            ->extraAttributes(['class' => 'sita-detail-table'])
             ->state(fn(ThesisProject $record): array => $record->titles
                 ->sortByDesc('version_no')
                 ->map(fn(ThesisProjectTitle $title): array => [
@@ -195,8 +191,8 @@ class ThesisProjectInfolist
                     'title_id' => $title->title_id,
                     'title_en' => $title->title_en,
                     'status' => self::titleStatusLabel($title->status),
-                    'submitted_at' => WitaDateTime::format($title->submitted_at),
-                    'decided_at' => WitaDateTime::format($title->decided_at),
+                    'submitted_at' => WitaDateTime::translated($title->submitted_at, 'd M Y H:i'),
+                    'decided_at' => WitaDateTime::translated($title->decided_at, 'd M Y H:i'),
                     'decided_by' => $title->decidedBy?->name ?? '-',
                 ])
                 ->values()
@@ -228,7 +224,10 @@ class ThesisProjectInfolist
     private static function supervisorHistoryEntry(): RepeatableEntry
     {
         return RepeatableEntry::make('supervisor_history')
-            ->label('')
+            ->label('Riwayat pembimbing')
+            ->hiddenLabel()
+            ->placeholder('Belum ada pembimbing yang ditetapkan.')
+            ->extraAttributes(['class' => 'sita-detail-table'])
             ->state(fn(ThesisProject $record): array => $record->supervisorAssignments
                 ->sortByDesc(fn(ThesisSupervisorAssignment $assignment): int => $assignment->started_at?->getTimestamp() ?? 0)
                 ->map(fn(ThesisSupervisorAssignment $assignment): array => [
@@ -236,8 +235,8 @@ class ThesisProjectInfolist
                     'nik' => $assignment->lecturer?->dosenProfile?->nik ?? '-',
                     'role' => $assignment->role === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
                     'status' => $assignment->status,
-                    'started_at' => WitaDateTime::format($assignment->started_at, 'd M Y', false),
-                    'ended_at' => WitaDateTime::format($assignment->ended_at, 'd M Y', false),
+                    'started_at' => WitaDateTime::translated($assignment->started_at, 'd M Y', withLabel: false),
+                    'ended_at' => WitaDateTime::translated($assignment->ended_at, 'd M Y', withLabel: false),
                     'notes' => $assignment->notes ?? '-',
                 ])
                 ->values()
@@ -269,7 +268,10 @@ class ThesisProjectInfolist
     private static function defenseEntry(string $type): RepeatableEntry
     {
         return RepeatableEntry::make($type.'_attempts')
-            ->label('')
+            ->label('Riwayat ujian')
+            ->hiddenLabel()
+            ->placeholder(fn(ThesisProject $record): string => 'Belum ada riwayat '.AcademicTerminology::forProject($record)[$type === 'sidang' ? 'finalExam' : 'proposalExamShort'].'.')
+            ->extraAttributes(['class' => 'sita-detail-table'])
             ->state(fn(ThesisProject $record): array => self::mapDefenseEntries($record, $type))
             ->table([
                 TableColumn::make('Attempt'),
@@ -303,7 +305,10 @@ class ThesisProjectInfolist
     private static function thesisDocumentsEntry(): RepeatableEntry
     {
         return RepeatableEntry::make('thesis_documents')
-            ->label('')
+            ->label('Dokumen')
+            ->hiddenLabel()
+            ->placeholder('Belum ada dokumen.')
+            ->extraAttributes(['class' => 'sita-detail-table sita-detail-table-sticky-end'])
             ->state(fn(ThesisProject $record): array => $record->documents
                 ->sortByDesc(fn(ThesisDocument $document): int => $document->uploaded_at?->getTimestamp() ?? 0)
                 ->map(fn(ThesisDocument $document): array => [
@@ -313,7 +318,7 @@ class ThesisProjectInfolist
                     'title_version' => $document->titleVersion?->title_id ?? '-',
                     'context' => self::documentContextLabel($document),
                     'uploaded_by' => $document->uploadedBy?->name ?? '-',
-                    'uploaded_at' => WitaDateTime::format($document->uploaded_at),
+                    'uploaded_at' => WitaDateTime::translated($document->uploaded_at, 'd M Y H:i'),
                     'file_name' => $document->file_name,
                     'stored_file_name' => $document->stored_file_name ?? '-',
                     'download_url' => route('files.thesis-documents.download', ['document' => $document]),
@@ -344,6 +349,9 @@ class ThesisProjectInfolist
                 TextEntry::make('stored_file_name')->placeholder('-'),
                 TextEntry::make('download_url')
                     ->label('Unduh')
+                    ->badge()
+                    ->color('primary')
+                    ->icon('heroicon-m-arrow-down-tray')
                     ->formatStateUsing(fn(): string => 'Unduh')
                     ->url(fn(?string $state): ?string => $state)
                     ->openUrlInNewTab(),
@@ -367,7 +375,7 @@ class ThesisProjectInfolist
         $lines[] = sprintf('Pesan: %d', (int) ($summary['messages'] ?? 0));
 
         $lastActivity = $record->archivedLastActivity();
-        $lines[] = 'Aktivitas terakhir: '.($lastActivity === null ? '-' : WitaDateTime::format($lastActivity, 'd M Y', false));
+        $lines[] = 'Aktivitas terakhir: '.($lastActivity === null ? '-' : WitaDateTime::translated($lastActivity, 'd M Y', withLabel: false));
 
         return $lines;
     }
@@ -375,7 +383,10 @@ class ThesisProjectInfolist
     private static function mentorshipDocumentsEntry(): RepeatableEntry
     {
         return RepeatableEntry::make('mentorship_documents')
-            ->label('')
+            ->label('Dokumen bimbingan')
+            ->hiddenLabel()
+            ->placeholder(fn(ThesisProject $record): string => $record->isArchived() ? 'Dokumen bimbingan dihapus saat diarsipkan.' : 'Belum ada dokumen bimbingan.')
+            ->extraAttributes(['class' => 'sita-detail-table sita-detail-table-sticky-end'])
             ->state(fn(ThesisProject $record): array => self::projectMentorshipDocuments($record)
                 ->sortByDesc(fn(MentorshipDocument $document): int => $document->created_at?->getTimestamp() ?? 0)
                 ->map(fn(MentorshipDocument $document): array => [
@@ -385,7 +396,7 @@ class ThesisProjectInfolist
                     'lecturer' => $document->lecturer?->name ?? '-',
                     'status' => self::mentorshipDocumentStatusLabel($document->status),
                     'review_notes' => $document->revision_notes ?? '-',
-                    'uploaded_at' => WitaDateTime::format($document->created_at),
+                    'uploaded_at' => WitaDateTime::translated($document->created_at, 'd M Y H:i'),
                     'file_name' => $document->file_name,
                     'stored_file_name' => $document->stored_file_name ?? '-',
                     'download_url' => route('files.documents.download', ['document' => $document, 'escalated' => 1]),
@@ -419,6 +430,9 @@ class ThesisProjectInfolist
                 TextEntry::make('stored_file_name')->placeholder('-'),
                 TextEntry::make('download_url')
                     ->label('Unduh')
+                    ->badge()
+                    ->color('primary')
+                    ->icon('heroicon-m-arrow-down-tray')
                     ->formatStateUsing(fn(): string => 'Unduh')
                     ->url(fn(?string $state): ?string => $state)
                     ->openUrlInNewTab(),
@@ -429,14 +443,17 @@ class ThesisProjectInfolist
     private static function timelineEntry(): RepeatableEntry
     {
         return RepeatableEntry::make('timeline')
-            ->label('')
+            ->label('Riwayat aktivitas')
+            ->hiddenLabel()
+            ->placeholder('Belum ada aktivitas.')
+            ->extraAttributes(['class' => 'sita-detail-table'])
             ->state(fn(ThesisProject $record): array => $record->events
                 ->sortByDesc('occurred_at')
                 ->map(fn(ThesisProjectEvent $event): array => [
                     'label' => $event->label,
                     'description' => $event->description ?? '-',
                     'actor' => $event->actor?->name ?? 'Sistem',
-                    'occurred_at' => WitaDateTime::format($event->occurred_at),
+                    'occurred_at' => WitaDateTime::translated($event->occurred_at, 'd M Y H:i'),
                 ])
                 ->values()
                 ->all())
@@ -458,14 +475,17 @@ class ThesisProjectInfolist
     private static function projectNotesEntry(): RepeatableEntry
     {
         return RepeatableEntry::make('project_notes')
-            ->label('')
+            ->label('Catatan dosen')
+            ->hiddenLabel()
+            ->placeholder('Belum ada catatan dosen.')
+            ->extraAttributes(['class' => 'sita-detail-table'])
             ->state(fn(ThesisProject $record): array => $record->lecturerNotes
                 ->sortByDesc('created_at')
                 ->map(fn(ThesisProjectNote $note): array => [
                     'author' => $note->author?->name ?? '-',
                     'visibility' => $note->visibility->label(),
                     'body' => $note->body,
-                    'created_at' => WitaDateTime::format($note->created_at),
+                    'created_at' => WitaDateTime::translated($note->created_at, 'd M Y H:i'),
                 ])
                 ->values()
                 ->all())

@@ -68,7 +68,7 @@ test.describe('Program Studi management', () => {
             await adminPage.goto('/admin/users/create');
             await expect(adminPage).toHaveURL(/\/admin\/users\/create/);
             await adminPage.getByLabel('Role*').selectOption('mahasiswa');
-            const prodiSelect = adminPage.getByRole('combobox', {
+            const prodiSelect = adminPage.getByRole('button', {
                 name: 'Prodi*',
             });
             await prodiSelect.click();
@@ -78,7 +78,7 @@ test.describe('Program Studi management', () => {
                     exact: true,
                 })
                 .click();
-            const concentrationSelect = adminPage.getByRole('combobox', {
+            const concentrationSelect = adminPage.getByRole('button', {
                 name: 'Konsentrasi',
             });
             await expect(concentrationSelect).toBeEnabled();

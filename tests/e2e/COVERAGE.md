@@ -102,7 +102,9 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow (menu / resource)                                                                                           | Spec                                                                                   | Status   | Priority |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/admin`)                                                                                             | login only, via auth setup                                                             | belum    | P3       |
+| Dashboard (`/admin`): Perlu tindakan, agenda 7 hari, statistik; baris antrean membuka daftar terfilter (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
+| Thesis Projects: tab Dokumen/Ujian, tabel dokumen scroll horizontal + unduh sticky, empty state (issue #59) | `admin-dashboard`, Pest `ThesisProjectResourceTest` | sebagian | P3 |
+| Thesis Projects: perpanjang masa aktif dari baris daftar / dashboard (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
 | Users: impor Excel mahasiswa/dosen (termasuk kolom template OBE, issue #6)                                       | `admin-user-import`                                                                    | sebagian | P2       |
 | Thesis Projects: impor Excel tugas akhir berjalan, template, error per baris (issue #24)                         | `admin-thesis-import`, Pest `ThesisProjectImportServiceTest`                           | sebagian | P2       |
 | Users: buat, ubah, nonaktifkan                                                                                   | none (konsentrasi lookup in `program-studi`)                                           | belum    | P2       |
@@ -143,4 +145,4 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Known gaps worth closing next
 
-- Dashboards for mahasiswa, dosen and admin (#31, #32, #33 change them; add specs there).
+- Dashboards for mahasiswa and dosen (#31, #32 change them; add specs there). The admin dashboard has `admin-dashboard` (#33).

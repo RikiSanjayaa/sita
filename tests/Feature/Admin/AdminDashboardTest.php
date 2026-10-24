@@ -66,7 +66,8 @@ test('admin dashboard shows the new overview widgets', function (): void {
         ->assertDontSee('Distribusi Nilai CSAT')
         ->assertSee('Aktivitas Operasional 6 Bulan')
         ->assertSee('Sebaran Fase Tugas Akhir')
-        ->assertSee('Antrian Tugas Akhir Prioritas')
+        ->assertSee('Perlu tindakan')
+        ->assertSee('Agenda ujian 7 hari ke depan')
         ->assertSee('Aktivitas Admin Terkini');
 });
 

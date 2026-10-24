@@ -48,7 +48,9 @@ test.describe('System announcements', () => {
             await expect(adminPage.getByLabel('Judul')).toBeVisible();
 
             await adminPage.getByLabel('Judul').fill(title);
-            await adminPage.getByLabel('Isi Pengumuman').fill(body);
+            await adminPage
+                .getByRole('textbox', { name: 'Isi Pengumuman*' })
+                .fill(body);
             await adminPage
                 .getByLabel('URL Tujuan')
                 .fill('/mahasiswa/dashboard');
@@ -124,7 +126,9 @@ test.describe('System announcements', () => {
 
             await adminPage.goto('/admin/system-announcements/create');
             await adminPage.getByLabel('Judul').fill(title);
-            await adminPage.getByLabel('Isi Pengumuman').fill(body);
+            await adminPage
+                .getByRole('textbox', { name: 'Isi Pengumuman*' })
+                .fill(body);
             await adminPage
                 .getByRole('checkbox', { name: 'Mahasiswa' })
                 .check();
