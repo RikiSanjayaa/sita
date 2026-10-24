@@ -27,7 +27,7 @@ const triggers = (page: Page): Locator =>
 const exposedDetails = (page: Page): Locator =>
     page.getByRole('cell', { name: /Judul Internasional/ });
 
-/** Running opacity/transform transitions anywhere on the page. */
+/** Running opacity/transform/height transitions anywhere on the page. */
 async function runningMotion(page: Page): Promise<number> {
     return page.evaluate(
         () =>
@@ -36,7 +36,7 @@ async function runningMotion(page: Page): Promise<number> {
                 .filter(
                     (animation) =>
                         animation instanceof CSSTransition &&
-                        ['opacity', 'transform'].includes(
+                        ['opacity', 'transform', 'grid-template-rows'].includes(
                             animation.transitionProperty,
                         ) &&
                         animation.playState === 'running',
@@ -159,6 +159,75 @@ for (const viewport of [
         });
     }
 }
+
+/** Starts sampling the detail height every frame; read with `readHeights`. */
+async function sampleHeights(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const w = window as Window & { __heights?: number[] };
+        w.__heights = [];
+        const start = performance.now();
+        const tick = () => {
+            const el = document.querySelector(
+                '[id^="public-topic-details-"] td > div',
+            );
+            w.__heights?.push(el ? el.getBoundingClientRect().height : 0);
+            if (performance.now() - start < 900) {
+                requestAnimationFrame(tick);
+            }
+        };
+        tick();
+    });
+}
+
+async function readHeights(page: Page): Promise<number[]> {
+    await page.waitForTimeout(950);
+
+    return page.evaluate(
+        () => (window as Window & { __heights?: number[] }).__heights ?? [],
+    );
+}
+
+test('the detail row height grows and shrinks smoothly', async ({ page }) => {
+    await openTopics(page);
+    const trigger = triggers(page).first();
+
+    await sampleHeights(page);
+    await trigger.click();
+    const opening = await readHeights(page);
+    const full = Math.max(...opening);
+    expect(full).toBeGreaterThan(40);
+    // Some frames land strictly between closed and fully open.
+    expect(opening.some((h) => h > 2 && h < full - 2)).toBe(true);
+    expect(opening[opening.length - 1]).toBeCloseTo(full, 0);
+
+    await sampleHeights(page);
+    await trigger.click();
+    const closing = await readHeights(page);
+    expect(closing.some((h) => h > 2 && h < full - 2)).toBe(true);
+    expect(closing[closing.length - 1]).toBe(0);
+    // Monotonic shrink: no jump back up.
+    for (let i = 1; i < closing.length; i++) {
+        expect(closing[i]).toBeLessThanOrEqual(closing[i - 1] + 0.5);
+    }
+});
+
+test('reduced motion opens at full height in a single frame', async ({
+    browser,
+}) => {
+    const context = await browser.newContext({
+        reducedMotion: 'reduce',
+        storageState: { cookies: [], origins: [] },
+    });
+    const page = await context.newPage();
+    await openTopics(page);
+    await sampleHeights(page);
+    await triggers(page).first().click();
+    const heights = await readHeights(page);
+    const full = Math.max(...heights);
+    expect(full).toBeGreaterThan(40);
+    expect(heights.filter((h) => h > 2 && h < full - 2)).toHaveLength(0);
+    await context.close();
+});
 
 test('switching topics keeps the outgoing detail hidden from assistive technology during its exit', async ({
     page,

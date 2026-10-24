@@ -117,21 +117,22 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Publik (tanpa login)
 
-| Flow                                                                                                                | Spec                  | Status   | Priority |
-| ------------------------------------------------------------------------------------------------------------------- | --------------------- | -------- | -------- |
-| `/` beranda dan tautan ke halaman publik                                                                            | `public-pages`        | tercakup | P2       |
-| `/jadwal` jadwal akan datang, pencarian                                                                             | `public-pages`        | sebagian | P2       |
-| `/pembimbing` direktori, pencarian                                                                                  | `public-pages`        | sebagian | P2       |
-| `/topik` daftar topik, status, detail baris                                                                         | `public-pages`        | sebagian | P2       |
-| `/topik` gerak detail: pembalikan cepat, tanpa baris hantu, keyboard, reduced motion, filter dan halaman            | `public-topic-motion` | tercakup | P2       |
-| Pengantar halaman publik: satu animasi per dokumen awal, tanpa ulang saat filter, navigasi, history, reduced motion | `public-intro-motion` | tercakup | P2       |
-| `/mahasiswa-aktif` daftar dan pembimbing aktif                                                                      | `public-pages`        | sebagian | P2       |
+| Flow                                                                                                                                                | Spec                  | Status   | Priority |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | -------- | -------- |
+| `/` beranda dan tautan ke halaman publik                                                                                                            | `public-pages`        | tercakup | P2       |
+| `/jadwal` jadwal akan datang, pencarian                                                                                                             | `public-pages`        | sebagian | P2       |
+| `/pembimbing` direktori, pencarian                                                                                                                  | `public-pages`        | sebagian | P2       |
+| `/topik` daftar topik, status, detail baris                                                                                                         | `public-pages`        | sebagian | P2       |
+| `/topik` gerak detail: tinggi baris tumbuh dan menyusut bertahap, pembalikan cepat, tanpa baris hantu, keyboard, reduced motion, filter dan halaman | `public-topic-motion` | tercakup | P2       |
+| Pengantar halaman publik: satu animasi per dokumen awal, tanpa ulang saat filter, navigasi, history, reduced motion                                 | `public-intro-motion` | tercakup | P2       |
+| `/mahasiswa-aktif` daftar dan pembimbing aktif                                                                                                      | `public-pages`        | sebagian | P2       |
 
 ## Lintas peran
 
 | Flow                                                                                                                                                                                                                                                                                                                                      | Spec                                                                                                     | Status   | Priority |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------- | -------- |
 | Detektor desain Impeccable (`impeccable detect --cdp`): halaman publik, mahasiswa, dosen dan kaprodi di 1280px dan 390px; temuan jadi annotation dan lampiran JSON per halaman. Area di `BLOCKING_AREAS` (`public`, `mahasiswa`, `dosen`, `kaprodi`, termasuk halaman pengaturan) gagal bila ada temuan non-advisory. Bukan uji perilaku. | `design-detector`                                                                                        | tercakup | P3       |
+| Judul bagian jadi satu-satunya h1 di kaprodi mahasiswa, dokumen, dosen prodi dan dosen dokumen-revisi (tanpa PageHeader terpisah)                                                                                                                                                                                                         | `table-sticky-filters`                                                                                   | tercakup | P2       |
 | Search dan filter tabel sticky setelah scroll nyata: kaprodi, dosen, mahasiswa dan publik; desktop expanded/collapsed, mobile static, light/dark (#94)                                                                                                                                                                                    | `table-sticky-filters`, `dosen-prodi-roles`                                                              | tercakup | P2       |
 | Tugas akhir cancelled/tergantikan tidak bocor di direktori, profil dan payload non-admin; publikasi completed terkini tetap tampil (#95)                                                                                                                                                                                                  | `project-visibility`, `profile-active-examiners`, plus Pest (`ProjectVisibilityTest`, `ProfileShowTest`) | tercakup | P1       |
 
