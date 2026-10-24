@@ -986,7 +986,7 @@ function DefenseDetailSheet({
 
 // ── Main Page ────────────────────────────────────────────────────────
 type TypeFilter = 'semua' | 'sempro' | 'sidang';
-type StatusFilter = 'semua' | 'pending' | 'done';
+type StatusFilter = 'semua' | 'pending' | 'revisi' | 'done';
 type WorkspaceFilter = 'ujian' | 'bimbingan' | 'semua';
 
 export default function DosenSeminarProposalPage() {
@@ -1047,9 +1047,14 @@ export default function DosenSeminarProposalPage() {
                 const isPending =
                     item.defenseStatus === 'scheduled' &&
                     item.myDecision === 'pending';
+                const awaitsVerification = item.revisions.some(
+                    (revision) =>
+                        revision.canResolve && revision.status === 'submitted',
+                );
                 const matchStatus =
                     statusFilter === 'semua' ||
                     (statusFilter === 'pending' && isPending) ||
+                    (statusFilter === 'revisi' && awaitsVerification) ||
                     (statusFilter === 'done' && !isPending);
                 const matchSearch =
                     !q ||
@@ -1083,6 +1088,12 @@ export default function DosenSeminarProposalPage() {
 
     const pendingCount = defenses.filter(
         (i) => i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
+    ).length;
+    const verificationCount = defenses.filter((i) =>
+        i.revisions.some(
+            (revision) =>
+                revision.canResolve && revision.status === 'submitted',
+        ),
     ).length;
 
     const filteredWorkspaceEvents = workspaceEvents.filter((e) =>
@@ -1137,6 +1148,11 @@ export default function DosenSeminarProposalPage() {
             label: 'Menunggu Penilaian',
             value: 'pending',
             count: pendingCount > 0 ? pendingCount : undefined,
+        },
+        {
+            label: 'Revisi Menunggu Verifikasi',
+            value: 'revisi',
+            count: verificationCount > 0 ? verificationCount : undefined,
         },
         { label: 'Selesai / Riwayat', value: 'done' },
     ];
