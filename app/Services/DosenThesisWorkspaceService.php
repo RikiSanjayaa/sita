@@ -44,6 +44,7 @@ class DosenThesisWorkspaceService
                 'defense.revisions.resolvedBy',
                 'defense.revisions.items',
                 'defense.revisions.documents',
+                'defense.revisions.rounds.studentDocument',
                 'defense.documents',
             ])
             ->where('lecturer_user_id', $lecturer->id)

@@ -9,7 +9,6 @@ use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
-use App\Models\ThesisRevision;
 use App\Models\User;
 use App\Support\AcademicTerminology;
 use Filament\Notifications\Notification;
@@ -244,26 +243,6 @@ class ThesisProjectStudentService
                     'stored_file_name' => $proposalDocument->stored_file_name,
                     'file_name' => $proposalDocument->file_name,
                 ])->save();
-            }
-
-            if ($mode === 'sempro_revision') {
-                $submittedRevisions = ThesisRevision::query()
-                    ->where('project_id', $project->id)
-                    ->whereHas('defense', fn($query) => $query
-                        ->where('type', 'sempro')
-                        ->where('status', 'completed')
-                        ->where('result', 'pass_with_revision'))
-                    ->whereIn('status', ['open', 'submitted'])
-                    ->get();
-
-                foreach ($submittedRevisions as $submittedRevision) {
-                    $submittedRevision->forceFill([
-                        'status' => 'submitted',
-                        'submitted_at' => $submittedAt,
-                    ])->save();
-
-                    app(ThesisRevisionRoundService::class)->markSubmitted($submittedRevision, $submittedAt);
-                }
             }
 
             $eventDescription = match ($mode) {

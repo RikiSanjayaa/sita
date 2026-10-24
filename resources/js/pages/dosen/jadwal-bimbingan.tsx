@@ -279,7 +279,7 @@ export default function DosenJadwalBimbinganPage() {
         );
         return () => {
             channel.stopListening('.schedule.updated');
-            window.Echo.leaveChannel(`private-${channelName}`);
+            window.Echo?.leaveChannel(`private-${channelName}`);
         };
     }, [auth.user?.id]);
 

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Response } from '@playwright/test';
 
 import { daysFromNow, toDateTimeLocalString } from '../support/dates';
 import { runArtisan, seedPlaywrightScenarios } from '../support/db';
@@ -84,6 +84,57 @@ async function submitDecision(
     ]);
 }
 
+function verifyResponse(response: Response): boolean {
+    return (
+        response.request().method() === 'POST' &&
+        /\/dosen\/seminar-proposal\/revisions\/\d+\/verify$/.test(
+            response.url(),
+        )
+    );
+}
+
+// The mahasiswa answers every open item of the current revision round and sends it.
+async function answerRevisionItems(
+    page: Page,
+    responses: string[],
+): Promise<void> {
+    await page.goto('/mahasiswa/tugas-akhir');
+    await page
+        .getByRole('row')
+        .filter({ hasText: 'Perlu ditanggapi' })
+        .first()
+        .click();
+    const form = page.getByTestId('revision-response-form');
+    await expect(form).toBeVisible();
+
+    for (const [index, response] of responses.entries()) {
+        await form
+            .getByRole('checkbox', {
+                name: `Butir ${index + 1} sudah diperbaiki`,
+            })
+            .click();
+        await form.getByLabel(`Tanggapan butir ${index + 1}`).fill(response);
+    }
+
+    await form.getByLabel(/^Naskah perbaikan/).setInputFiles({
+        name: 'naskah-perbaikan.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('%PDF-1.4\n%%EOF\n'),
+    });
+
+    await Promise.all([
+        page.waitForResponse(
+            (res) =>
+                res.request().method() === 'POST' &&
+                /\/mahasiswa\/tugas-akhir\/revisi\/\d+\/perbaikan$/.test(
+                    res.url(),
+                ),
+        ),
+        form.getByRole('button', { name: 'Kirim perbaikan' }).click(),
+    ]);
+    await expect(page.getByTestId('revision-response-form')).toHaveCount(0);
+}
+
 function finalizeSempro(studentEmail: string, revisionDueAt: string): void {
     runArtisan([
         'tinker',
@@ -98,7 +149,7 @@ test.describe('Dosen penilaian ujian', () => {
         seedPlaywrightScenarios();
     });
 
-    test('two examiners grade a sempro in the UI, admin finalizes, and the examiner resolves the revision', async ({
+    test('two examiners grade a sempro in the UI, admin finalizes, and the examiner verifies the revision over two rounds', async ({
         browser,
     }) => {
         const examinerOneContext = await browser.newContext({
@@ -174,22 +225,66 @@ test.describe('Dosen penilaian ujian', () => {
                 studentPage.getByText('Revisi Sempro').first(),
             ).toBeVisible();
 
-            // Only the examiner who asked for the revision can close it.
+            // Round 1: the mahasiswa answers the item and uploads the corrected manuscript.
+            await answerRevisionItems(studentPage, [
+                'Metrik sudah dijelaskan.',
+            ]);
+
+            // Only the examiner who asked for the revision verifies it: reject the
+            // item and add a new one, which opens round 2.
             await openDefenseSheet(
                 examinerOnePage,
                 sempro.studentName,
                 'Sempro / Sinopsis',
             );
+            await examinerOnePage
+                .getByRole('button', { name: 'Belum butir 1' })
+                .click();
+            await examinerOnePage
+                .getByLabel('Komentar butir 1')
+                .fill('Metrik evaluasi masih belum lengkap.');
+            await examinerOnePage
+                .getByRole('button', { name: 'Tambah Butir' })
+                .click();
+            await examinerOnePage
+                .getByRole('textbox', { name: 'Uraian' })
+                .fill('Tambahkan uji signifikansi.');
             await Promise.all([
-                examinerOnePage.waitForResponse(
-                    (response) =>
-                        response.request().method() === 'POST' &&
-                        /\/dosen\/seminar-proposal\/revisions\/\d+\/resolve$/.test(
-                            response.url(),
-                        ),
-                ),
+                examinerOnePage.waitForResponse(verifyResponse),
                 examinerOnePage
-                    .getByRole('button', { name: 'Tandai Revisi Selesai' })
+                    .getByRole('button', {
+                        name: 'Simpan dan buka putaran berikutnya',
+                    })
+                    .click(),
+            ]);
+
+            // Round 2: both the reopened and the new item need an answer.
+            await studentPage.goto('/mahasiswa/tugas-akhir');
+            await expect(
+                studentPage.getByText('Perlu ditanggapi').first(),
+            ).toBeVisible();
+            await answerRevisionItems(studentPage, [
+                'Metrik dilengkapi dengan F1 dan recall.',
+                'Uji signifikansi ditambahkan.',
+            ]);
+
+            await openDefenseSheet(
+                examinerOnePage,
+                sempro.studentName,
+                'Sempro / Sinopsis',
+            );
+            await examinerOnePage
+                .getByRole('button', { name: 'Diterima butir 1' })
+                .click();
+            await examinerOnePage
+                .getByRole('button', { name: 'Diterima butir 2' })
+                .click();
+            await Promise.all([
+                examinerOnePage.waitForResponse(verifyResponse),
+                examinerOnePage
+                    .getByRole('button', {
+                        name: 'Simpan dan selesaikan revisi',
+                    })
                     .click(),
             ]);
 

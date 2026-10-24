@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Notifications\RealtimeNotification;
 use App\Services\MentorshipAccessService;
 use App\Services\ThesisDefenseExaminerDecisionService;
+use App\Services\ThesisRevisionRoundService;
 use Filament\Notifications\DatabaseNotification as FilamentDatabaseNotification;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -147,6 +148,30 @@ function assignDefenseExaminer(ThesisDefense $defense, User $lecturer, string $r
         'decision' => 'pending',
         'assigned_by' => $lecturer->id,
     ]);
+}
+
+/**
+ * Put a legacy-shaped revision (notes only) through the structured cycle up to
+ * "awaiting review", then have the requesting lecturer accept every item.
+ */
+function submitRevisionForReview(ThesisRevision $revision): void
+{
+    app(ThesisRevisionRoundService::class)->openInitialRound($revision, []);
+
+    $revision->items()->update([
+        'status' => 'addressed',
+        'student_response' => 'Sudah diperbaiki.',
+    ]);
+
+    app(ThesisRevisionRoundService::class)->markSubmitted($revision, now());
+}
+
+function acceptAllRevisionItems($test, User $lecturer, ThesisRevision $revision)
+{
+    return $test->actingAs($lecturer)->post(
+        route('dosen.seminar-proposal.revisions.verify', $revision),
+        ['verdicts' => $revision->items()->pluck('id')->mapWithKeys(fn (int $id): array => [$id => ['decision' => 'accepted']])->all()],
+    );
 }
 
 test('dosen pages only show data from assigned mahasiswa', function () {
@@ -888,8 +913,9 @@ test('dosen who requested sempro revision can resolve their own revision and adv
         'due_at' => now()->addDays(3),
     ]);
 
-    $this->actingAs($dosen)
-        ->post(route('dosen.seminar-proposal.revisions.resolve', $revision))
+    submitRevisionForReview($revision);
+
+    acceptAllRevisionItems($this, $dosen, $revision)
         ->assertRedirect(route('dosen.seminar-proposal'));
 
     $this->assertDatabaseHas('thesis_revisions', [
@@ -999,8 +1025,10 @@ test('sidang project completes only after all requesting lecturers resolve their
         'submitted_at' => now()->subDay(),
     ]);
 
-    $this->actingAs($firstLecturer)
-        ->post(route('dosen.seminar-proposal.revisions.resolve', $firstRevision))
+    submitRevisionForReview($firstRevision);
+    submitRevisionForReview($secondRevision);
+
+    acceptAllRevisionItems($this, $firstLecturer, $firstRevision)
         ->assertRedirect(route('dosen.seminar-proposal'));
 
     $this->assertDatabaseHas('thesis_projects', [
@@ -1016,17 +1044,15 @@ test('sidang project completes only after all requesting lecturers resolve their
 
     expect(Notification::sent($admin, FilamentDatabaseNotification::class))->toHaveCount(0);
 
-    $this->actingAs($firstLecturer)
-        ->post(route('dosen.seminar-proposal.revisions.resolve', $secondRevision))
-        ->assertRedirect(route('dosen.seminar-proposal'));
+    // A lecturer cannot verify another examiner's revision.
+    acceptAllRevisionItems($this, $firstLecturer, $secondRevision)->assertForbidden();
 
     $this->assertDatabaseHas('thesis_revisions', [
         'id' => $secondRevision->id,
         'status' => 'submitted',
     ]);
 
-    $this->actingAs($secondLecturer)
-        ->post(route('dosen.seminar-proposal.revisions.resolve', $secondRevision))
+    acceptAllRevisionItems($this, $secondLecturer, $secondRevision)
         ->assertRedirect(route('dosen.seminar-proposal'));
 
     $this->assertDatabaseHas('thesis_projects', [
