@@ -190,7 +190,7 @@ it('lists each kind of work waiting on the lecturer with its count and a filtere
         ->toMatchArray(['key' => $key, 'count' => $count, 'href' => $href, 'students' => [$project->student->name]]);
 })->with('dosen dashboard action items');
 
-it('bounds each work preview to three distinct affected names without changing its count', function (string $key, int $count, string $href, Closure $arrange): void {
+it('bounds the leading work preview to one eligible name without changing its count', function (string $key, int $count, string $href, Closure $arrange): void {
     $lecturer = User::factory()->asDosen()->create();
     foreach (['Delta', 'Alpha', 'Charlie', 'Alpha', 'Beta'] as $name) {
         $arrange($lecturer, dosenDashboardProject($lecturer, name: $name));
@@ -211,7 +211,7 @@ it('bounds each work preview to three distinct affected names without changing i
     expect(dosenDashboardItem($lecturer, $key))->toMatchArray([
         'count' => $count * 5,
         'href' => $href,
-        'students' => ['Alpha', 'Beta', 'Charlie'],
+        'students' => ['Alpha'],
     ]);
 })->with('dosen dashboard action items');
 
@@ -227,7 +227,7 @@ it('flags supervised students without activity for more than 30 days', function 
         ->toMatchArray([
             'count' => 5,
             'href' => '/dosen/mahasiswa-bimbingan?activeAttention=inactive',
-            'students' => ['Alpha', 'Beta', 'Charlie'],
+            'students' => ['Alpha'],
         ]);
 });
 
@@ -257,10 +257,16 @@ it('orders items by urgency', function (): void {
     $lecturer = User::factory()->asDosen()->create();
     dosenDashboardProject($lecturer, startedDaysAgo: 90);
     dosenDashboardSchedule($lecturer, dosenDashboardProject($lecturer), 'pending', now()->addDay());
-    dosenDashboardDefense(dosenDashboardProject($lecturer), $lecturer, now()->subDay()->toDateTimeString());
+    $toGrade = dosenDashboardProject($lecturer);
+    dosenDashboardDefense($toGrade, $lecturer, now()->subDay()->toDateTimeString());
 
-    expect(array_column(dosenDashboardProps($lecturer)['actionItems'], 'key'))
-        ->toBe(['defenses_to_grade', 'pending_schedules', 'inactive_students']);
+    $items = dosenDashboardProps($lecturer)['actionItems'];
+
+    expect(array_column($items, 'key'))
+        ->toBe(['defenses_to_grade', 'pending_schedules', 'inactive_students'])
+        ->and($items[0]['students'])->toBe([$toGrade->student->name])
+        ->and($items[1]['students'])->toBe([])
+        ->and($items[2]['students'])->toBe([]);
 });
 
 it('keeps archived and completed students out of the action queue', function (): void {

@@ -110,19 +110,6 @@ class DosenDashboardService
             ->keys();
         $inactive = $inactiveProjectIds->count();
 
-        // Keep the aggregate counts above: previews count distinct names, not work items.
-        // Each subquery reuses the count filters and the outer query returns at most three rows.
-        $studentQueries = [
-            'defenses_to_grade' => ThesisProject::query()->whereHas('defenses', fn (Builder $query) => $query
-                ->whereIn('id', (clone $defensesToGradeQuery)->select('defense_id')))->select('student_user_id'),
-            'revisions_to_verify' => ThesisProject::query()
-                ->whereIn('id', (clone $revisionsToVerifyQuery)->select('project_id'))->select('student_user_id'),
-            'pending_schedules' => (clone $pendingSchedulesQuery)->select('student_user_id'),
-            'overdue_sessions' => (clone $overdueSchedulesQuery)->select('student_user_id'),
-            'documents_to_review' => (clone $submittedDocumentsQuery)->select('student_user_id'),
-            'inactive_students' => ThesisProject::query()->whereKey($inactiveProjectIds->all())->select('student_user_id'),
-        ];
-
         $items = [
             ['key' => 'defenses_to_grade', 'count' => $defensesToGrade, 'title' => $examLabel.' menunggu penilaian Anda', 'description' => 'Ujian sudah berlangsung dan Anda belum memberi keputusan.', 'href' => '/dosen/seminar-proposal?status=pending', 'actionLabel' => 'Beri penilaian'],
             ['key' => 'revisions_to_verify', 'count' => $revisionsToVerify, 'title' => 'Revisi menunggu verifikasi Anda', 'description' => 'Mahasiswa sudah mengirim perbaikan dari revisi yang Anda minta.', 'href' => '/dosen/seminar-proposal?status=revisi', 'actionLabel' => 'Verifikasi revisi'],
@@ -132,13 +119,32 @@ class DosenDashboardService
             ['key' => 'inactive_students', 'count' => $inactive, 'title' => 'Belum ada aktivitas '.StudentAttention::INACTIVE_DAYS.' hari terakhir', 'description' => 'Mahasiswa bimbingan tanpa dokumen, pesan, atau bimbingan selesai dalam waktu itu.', 'href' => '/dosen/mahasiswa-bimbingan?activeAttention=inactive', 'actionLabel' => 'Lihat mahasiswa'],
         ];
 
-        return collect($items)
+        $activeItems = collect($items)
             ->filter(fn (array $item): bool => $item['count'] > 0)
-            ->map(fn (array $item): array => [
+            ->values();
+
+        if ($activeItems->isEmpty()) {
+            return [];
+        }
+
+        // Only the leading action needs one student for context. Counts still cover every work item.
+        $studentIds = match ($activeItems->first()['key']) {
+            'defenses_to_grade' => ThesisProject::query()->whereHas('defenses', fn (Builder $query) => $query
+                ->whereIn('id', (clone $defensesToGradeQuery)->select('defense_id')))->select('student_user_id'),
+            'revisions_to_verify' => ThesisProject::query()
+                ->whereIn('id', (clone $revisionsToVerifyQuery)->select('project_id'))->select('student_user_id'),
+            'pending_schedules' => (clone $pendingSchedulesQuery)->select('student_user_id'),
+            'overdue_sessions' => (clone $overdueSchedulesQuery)->select('student_user_id'),
+            'documents_to_review' => (clone $submittedDocumentsQuery)->select('student_user_id'),
+            'inactive_students' => ThesisProject::query()->whereKey($inactiveProjectIds->all())->select('student_user_id'),
+        };
+        $studentNames = $this->affectedStudentNames($studentIds);
+
+        return $activeItems
+            ->map(fn (array $item, int $index): array => [
                 ...$item,
-                'students' => $this->affectedStudentNames($studentQueries[$item['key']]),
+                'students' => $index === 0 ? $studentNames : [],
             ])
-            ->values()
             ->all();
     }
 
@@ -254,9 +260,8 @@ class DosenDashboardService
         return User::query()
             ->whereIn('id', $studentIds)
             ->select('name')
-            ->distinct()
             ->orderBy('name')
-            ->limit(3)
+            ->limit(1)
             ->pluck('name')
             ->all();
     }

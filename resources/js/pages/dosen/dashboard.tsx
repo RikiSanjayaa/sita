@@ -22,7 +22,6 @@ import {
 } from '@/components/patterns/action-queue';
 import { EmptyState } from '@/components/patterns/empty-state';
 import { PageHeader } from '@/components/patterns/page-header';
-import { SectionCard } from '@/components/patterns/section-card';
 import { StatCard } from '@/components/patterns/stat-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { PersonCardLink } from '@/components/profile/person-card-link';
@@ -113,6 +112,7 @@ export default function DosenDashboardPage() {
             description: 'Mahasiswa aktif / kuota bimbingan',
             href: studentsIndex.url(),
             icon: Users,
+            tone: 'success' as const,
         },
         {
             title: 'Ujian 7 hari ke depan',
@@ -120,6 +120,7 @@ export default function DosenDashboardPage() {
             description: 'Terjadwal mulai hari ini',
             href: exams.url(),
             icon: Presentation,
+            tone: 'primary' as const,
         },
         {
             title: 'Revisi menunggu verifikasi',
@@ -130,6 +131,7 @@ export default function DosenDashboardPage() {
             description: 'Perbaikan sudah dikirim mahasiswa',
             href: exams.url({ query: { status: 'revisi' } }),
             icon: FileCheck2,
+            tone: 'warning' as const,
         },
         {
             title: 'Dokumen menunggu review',
@@ -140,24 +142,35 @@ export default function DosenDashboardPage() {
             description: 'Menunggu tanggapan Anda',
             href: documents.url({ query: { status: 'Perlu Review' } }),
             icon: FileStack,
+            tone: 'info' as const,
         },
     ];
 
     const summarySection = (
         <nav
             aria-label="Ringkasan bimbingan"
-            className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
+            className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card lg:grid-cols-4"
         >
-            {summaryTiles.map((tile) => (
+            <PageHeader
+                level={2}
+                title="Ringkasan bimbingan"
+                className="sr-only"
+            />
+            {summaryTiles.map((tile, index) => (
                 <Link
                     key={tile.title}
                     href={tile.href}
-                    className="group relative min-w-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className={cn(
+                        'group relative min-w-0 border-b transition-colors hover:bg-muted focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset lg:border-b-0',
+                        index % 2 === 0 && 'border-r',
+                        index === 1 && 'lg:border-r',
+                        index > 1 && 'max-lg:border-b-0',
+                    )}
                 >
                     <StatCard
                         {...tile}
-                        compact
-                        className="transition-colors group-hover:border-primary/50 group-hover:bg-accent/30"
+                        variant="snapshot"
+                        className="rounded-none border-0 bg-transparent shadow-none"
                     />
                 </Link>
             ))}
@@ -183,41 +196,37 @@ export default function DosenDashboardPage() {
                     {actionItems.map((item, index) => (
                         <ActionQueueItem
                             key={item.key}
-                            variant="card"
+                            variant={index === 0 ? 'featured' : 'card'}
                             icon={actionIcons[item.key]}
                             tone={actionTones[item.key]}
                             count={item.count}
                             title={item.title}
-                            description={item.description}
-                            className={cn(
-                                index === 0 && 'md:col-span-2',
-                                index === 0 &&
-                                    actionTones[item.key] === 'danger' &&
-                                    'border-danger/40',
-                                index === 0 &&
-                                    actionTones[item.key] === 'warning' &&
-                                    'border-warning/60',
-                                index === 0 &&
-                                    actionTones[item.key] === 'info' &&
-                                    'border-info/40',
-                            )}
+                            description={
+                                index === 0 ? item.description : undefined
+                            }
+                            className={
+                                index === 0 ? 'md:col-span-2' : undefined
+                            }
                             meta={
-                                item.students.length > 0 ? (
-                                    <p className="border-t pt-3 text-xs leading-relaxed text-pretty text-muted-foreground">
+                                index === 0 && item.students.length > 0 ? (
+                                    <p className="text-xs leading-relaxed text-pretty text-muted-foreground">
                                         <span className="font-medium text-foreground">
                                             Mahasiswa:{' '}
                                         </span>
-                                        {item.students.join(', ')}
+                                        {item.students[0]}
                                     </p>
                                 ) : undefined
                             }
                             action={
                                 <Button
                                     asChild
-                                    variant={
-                                        index === 0 ? 'default' : 'outline'
-                                    }
-                                    className="min-h-11 w-full justify-between gap-2"
+                                    variant={index === 0 ? 'default' : 'ghost'}
+                                    size="sm"
+                                    className={cn(
+                                        'min-h-11 gap-2',
+                                        index > 0 &&
+                                            'px-0 text-xs text-primary hover:bg-primary-muted hover:text-primary-muted-foreground',
+                                    )}
                                 >
                                     <Link href={item.href}>
                                         {item.actionLabel}
@@ -236,18 +245,22 @@ export default function DosenDashboardPage() {
                     icon={CircleCheckBig}
                     title="Semua beres"
                     description="Tidak ada penilaian, jadwal, dokumen, atau mahasiswa yang menunggu Anda."
-                    className="min-h-64 bg-card"
+                    className="flex min-h-64 flex-col justify-center border-solid border-primary/20 bg-primary-muted [&>p]:text-primary-muted-foreground"
                 />
             )}
         </section>
     );
 
     const agendaSection = (
-        <SectionCard
-            title="Hari ini & 7 hari ke depan"
-            description="Bimbingan dan ujian yang sudah terjadwal."
-            className="min-w-0 self-start"
+        <section
+            aria-label="Hari ini & 7 hari ke depan"
+            className="grid min-w-0 content-start gap-5 self-start"
         >
+            <PageHeader
+                level={2}
+                title="Hari ini & 7 hari ke depan"
+                description="Bimbingan dan ujian yang sudah terjadwal."
+            />
             {agenda.length > 0 ? (
                 <div className="grid gap-6">
                     {agenda.map((day) => (
@@ -264,7 +277,7 @@ export default function DosenDashboardPage() {
                             >
                                 {day.label}
                             </h3>
-                            <ul className="grid gap-1 border-l pl-4">
+                            <ul className="grid gap-2 border-l border-primary/25 pl-4">
                                 {day.events.map((event) => (
                                     <li key={event.id} className="relative">
                                         <span
@@ -275,11 +288,11 @@ export default function DosenDashboardPage() {
                                             href={event.href}
                                             className="group flex min-h-11 gap-3 rounded-md px-2 py-3 transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                         >
-                                            <span className="w-10 shrink-0 text-sm font-medium tabular-nums">
+                                            <span className="w-12 shrink-0 text-lg leading-tight font-semibold text-primary tabular-nums">
                                                 {event.time}
                                             </span>
                                             <span className="min-w-0 flex-1">
-                                                <span className="block text-xs font-medium text-muted-foreground">
+                                                <span className="block text-xs font-medium text-foreground">
                                                     {event.kind}
                                                 </span>
                                                 {event.title !== event.kind && (
@@ -308,7 +321,7 @@ export default function DosenDashboardPage() {
                     className="rounded-none border-0 bg-transparent px-0"
                 />
             )}
-        </SectionCard>
+        </section>
     );
 
     return (
@@ -322,6 +335,7 @@ export default function DosenDashboardPage() {
                 <PageHeader
                     title="Dashboard dosen"
                     description={`Selamat datang, ${summary.lecturerName}${summary.programStudi ? ` · ${summary.programStudi}` : ''}${summary.concentration ? ` · ${summary.concentration}` : ''}`}
+                    className="[&_h1]:text-3xl [&_h1]:leading-tight"
                 />
                 {isMobile ? (
                     <>
@@ -339,20 +353,37 @@ export default function DosenDashboardPage() {
                     </>
                 )}
 
-                <SectionCard
-                    title="Progres mahasiswa"
-                    description="Yang perlu perhatian tampil paling atas."
-                    actions={
-                        <Button asChild variant="outline" className="min-h-11">
-                            <Link href={studentsIndex.url()}>Lihat semua</Link>
-                        </Button>
-                    }
-                    contentClassName="px-0"
-                >
+                <section aria-label="Progres mahasiswa" className="grid gap-4">
+                    <PageHeader
+                        level={2}
+                        title="Progres mahasiswa"
+                        description="Yang perlu perhatian tampil paling atas."
+                        actions={
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="min-h-11"
+                            >
+                                <Link href={studentsIndex.url()}>
+                                    Lihat semua
+                                </Link>
+                            </Button>
+                        }
+                    />
                     {students.length > 0 ? (
-                        <ul className="divide-y border-t">
-                            {students.map((student) => (
-                                <li key={student.id}>
+                        <ul className="grid overflow-hidden rounded-xl border bg-card md:grid-cols-2">
+                            {students.map((student, index) => (
+                                <li
+                                    key={student.id}
+                                    className={cn(
+                                        'min-w-0 border-b last:border-b-0',
+                                        index % 2 === 0 && 'md:border-r',
+                                        index >=
+                                            students.length -
+                                                (students.length % 2 || 2) &&
+                                            'md:border-b-0',
+                                    )}
+                                >
                                     <PersonCardLink
                                         person={student}
                                         progress={student.progress}
@@ -379,12 +410,12 @@ export default function DosenDashboardPage() {
                             ))}
                         </ul>
                     ) : (
-                        <p className="border-t px-6 pt-4 text-sm text-muted-foreground">
+                        <p className="py-4 text-sm text-muted-foreground">
                             Belum ada mahasiswa aktif. Mahasiswa tampil di sini
                             setelah penugasan pembimbing berjalan.
                         </p>
                     )}
-                </SectionCard>
+                </section>
             </div>
         </DosenLayout>
     );

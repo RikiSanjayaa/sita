@@ -25,38 +25,31 @@ const actions = [
         label: 'Beri penilaian',
         count: 1,
         href: '/dosen/seminar-proposal?status=pending',
-        names: [studentNames[0]],
     },
     {
         label: 'Verifikasi revisi',
         count: 1,
         href: '/dosen/seminar-proposal?status=revisi',
-        names: [studentNames[0]],
     },
     {
         label: 'Putuskan jadwal',
         count: 5,
         href: '/dosen/jadwal-bimbingan',
-        names: studentNames,
     },
     {
         label: 'Tandai selesai',
         count: 1,
         href: '/dosen/jadwal-bimbingan?upcomingFilter=lewat',
-        names: [studentNames[0]],
     },
     {
         label: 'Review dokumen',
         count: 4,
         href: '/dosen/dokumen-revisi?status=Perlu%20Review',
-        names: studentNames,
     },
     {
         label: 'Lihat mahasiswa',
         count: 3,
         href: '/dosen/mahasiswa-bimbingan?activeAttention=inactive',
-        // Alya's recently scheduled exams count as student activity.
-        names: studentNames.slice(1),
     },
 ];
 
@@ -182,7 +175,7 @@ async function expectTargetSize(links: Locator): Promise<void> {
     }
 }
 
-test('populated dashboard shows real action counts, distinct capped previews and agenda at mobile and desktop widths', async ({
+test('populated dashboard shows real counts, one primary preview and compact secondary actions at mobile and desktop widths', async ({
     page,
 }) => {
     await withDashboard(page, true, async () => {
@@ -209,15 +202,23 @@ test('populated dashboard shows real action counts, distinct capped previews and
             const previews = row
                 .locator('p')
                 .filter({ hasText: /^Mahasiswa:/ });
-            await expect(previews).toHaveCount(1);
-            const names = (await previews.innerText())
-                .replace(/^Mahasiswa:\s*/, '')
-                .split(',')
-                .map((name) => name.trim());
-            expect(names).toHaveLength(Math.min(item.names.length, 3));
-            expect(new Set(names).size).toBe(names.length);
-            for (const name of names) {
-                expect(item.names).toContain(name);
+            if (index === 0) {
+                await expect(previews).toHaveCount(1);
+                expect(
+                    (await previews.innerText())
+                        .replace(/^Mahasiswa:\s*/, '')
+                        .trim(),
+                ).toBe(studentNames[0]);
+            } else {
+                await expect(previews).toHaveCount(0);
+            }
+            for (const [studentIndex, name] of studentNames.entries()) {
+                if (index === 0 && studentIndex === 0) {
+                    continue;
+                }
+                await expect(row.getByText(name, { exact: false })).toHaveCount(
+                    0,
+                );
             }
         }
         await expect(agenda.getByRole('link')).toHaveCount(2);
