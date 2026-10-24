@@ -84,10 +84,11 @@
 }
 
 /*
- * UBG Blue (light + dark), the default theme. The `ubg-blue` preset in
- * resources/js/hooks/use-primary-color.ts and Filament's
- * App\Providers\Filament\AdminPanelProvider::SEMANTIC_COLORS repeat these values;
- * change all three together.
+ * UBG Blue (light + dark), the default theme. Filament's
+ * App\Providers\Filament\AdminPanelProvider::SEMANTIC_COLORS repeats the primary
+ * values; change both together. Other colour schemes are the `data-theme` blocks
+ * after `.dark`. `[data-theme='ubg-blue']` shares the light block so a scheme
+ * swatch can show UBG Blue light while the page is dark.
  *
  * Primary has two roles. `primary`/`primary-foreground` is a solid fill (buttons,
  * selected pills) and `text-primary` on page surfaces. `primary-muted`/
@@ -96,7 +97,8 @@
  * which drops below 4.5:1 in light mode. Dark primary is a light blue with a
  * dark foreground so `text-primary` stays readable on dark surfaces.
  */
-:root {
+:root,
+[data-theme='ubg-blue'] {
     --public-motion-enter-duration: 180ms;
     --public-motion-exit-duration: 120ms;
     --public-topic-enter-duration: 240ms;
@@ -120,7 +122,7 @@
     --destructive: oklch(0.57 0.2 27);
     --destructive-foreground: oklch(0.98 0 0);
     --border: #e2e8f0;
-    --input: #e2e8f0;
+    --input: #828d9c;
     --ring: #2563eb;
     --chart-1: oklch(0.45 0.1 250);
     --chart-2: oklch(0.6 0.1 200);
@@ -176,7 +178,7 @@
     --destructive: oklch(0.57 0.2 27);
     --destructive-foreground: oklch(0.98 0 0);
     --border: #202a35;
-    --input: #202a35;
+    --input: #5e6771;
     --ring: #60a5fa;
     --chart-1: oklch(0.75 0.1 250);
     --chart-2: oklch(0.7 0.1 200);
@@ -208,6 +210,200 @@
     --info-foreground: oklch(0.18 0.03 235);
     --info-muted: oklch(0.3 0.06 235);
     --info-muted-foreground: oklch(0.86 0.09 235);
+}
+
+/*
+ * Colour schemes. The picker (resources/js/components/theme-picker.tsx) sets
+ * `data-theme` on <html>; the root Blade view sets it from the validated `theme`
+ * cookie before first paint. UBG Blue is the default and has no block: it is
+ * :root and .dark above. Every other scheme defines the full colour set below in
+ * a light block and a `.dark` block, so nothing leaks from UBG Blue. Status tokens
+ * are shared and never change per scheme.
+ *
+ * Hue rule: a scheme's primary stays at least 40 degrees of OKLCH hue away from
+ * every status hue (success 160, warning 80, danger 27, info 235) or is nearly
+ * neutral (Graphite). That is why there is no green, orange or red scheme.
+ * tests/Unit/ThemeContrastTest.php enforces the contrast pairs and the hue rule;
+ * DESIGN.md explains how to add a scheme.
+ */
+[data-theme='indigo'] {
+    --background: #f8f9ff;
+    --foreground: #14151f;
+    --card: #ffffff;
+    --card-foreground: #14151f;
+    --popover: #ffffff;
+    --popover-foreground: #14151f;
+    --primary: #5449d0;
+    --primary-foreground: #ffffff;
+    --primary-muted: #eff1ff;
+    --primary-muted-foreground: #4635bc;
+    --secondary: #f0f1fc;
+    --secondary-foreground: #14151f;
+    --muted: #f0f1fc;
+    --muted-foreground: #57596c;
+    --accent: #e3e6ff;
+    --accent-foreground: #2c2d5a;
+    --border: #e1e2ed;
+    --input: #898b98;
+    --ring: #5449d0;
+    --sidebar: #f8f9ff;
+    --sidebar-foreground: #14151f;
+    --sidebar-primary: #5449d0;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f0f1fc;
+    --sidebar-accent-foreground: #14151f;
+    --sidebar-border: #e1e2ed;
+    --sidebar-ring: #5449d0;
+}
+
+.dark[data-theme='indigo'] {
+    --background: #0b0c10;
+    --foreground: #edeef5;
+    --card: #121217;
+    --card-foreground: #edeef5;
+    --popover: #121217;
+    --popover-foreground: #edeef5;
+    --primary: #9ea3ff;
+    --primary-foreground: #131428;
+    --primary-muted: #22233e;
+    --primary-muted-foreground: #c6ccff;
+    --secondary: #18191e;
+    --secondary-foreground: #edeef5;
+    --muted: #18191e;
+    --muted-foreground: #aeb0be;
+    --accent: #202237;
+    --accent-foreground: #cbcfec;
+    --border: #28282e;
+    --input: #626470;
+    --ring: #9ea3ff;
+    --sidebar: #0f1015;
+    --sidebar-foreground: #edeef5;
+    --sidebar-primary: #9ea3ff;
+    --sidebar-primary-foreground: #131428;
+    --sidebar-accent: #18191e;
+    --sidebar-accent-foreground: #edeef5;
+    --sidebar-border: #28282e;
+    --sidebar-ring: #9ea3ff;
+}
+
+[data-theme='rose'] {
+    --background: #fdf8fb;
+    --foreground: #1b1418;
+    --card: #ffffff;
+    --card-foreground: #1b1418;
+    --popover: #ffffff;
+    --popover-foreground: #1b1418;
+    --primary: #a61b86;
+    --primary-foreground: #ffffff;
+    --primary-muted: #fceef7;
+    --primary-muted-foreground: #920074;
+    --secondary: #f7eff4;
+    --secondary-foreground: #1b1418;
+    --muted: #f7eff4;
+    --muted-foreground: #63565f;
+    --accent: #f9dfef;
+    --accent-foreground: #4d203f;
+    --border: #e8e0e5;
+    --input: #948a90;
+    --ring: #a61b86;
+    --sidebar: #fdf8fb;
+    --sidebar-foreground: #1b1418;
+    --sidebar-primary: #a61b86;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f7eff4;
+    --sidebar-accent-foreground: #1b1418;
+    --sidebar-border: #e8e0e5;
+    --sidebar-ring: #a61b86;
+}
+
+.dark[data-theme='rose'] {
+    --background: #0e0b0d;
+    --foreground: #f2edf0;
+    --card: #151114;
+    --card-foreground: #f2edf0;
+    --popover: #151114;
+    --popover-foreground: #f2edf0;
+    --primary: #f385d1;
+    --primary-foreground: #220e1c;
+    --primary-muted: #361c2e;
+    --primary-muted-foreground: #f6bde2;
+    --secondary: #1c181a;
+    --secondary-foreground: #f2edf0;
+    --muted: #1c181a;
+    --muted-foreground: #b8aeb4;
+    --accent: #311c2a;
+    --accent-foreground: #e4c7d9;
+    --border: #2b282a;
+    --input: #6a6267;
+    --ring: #f385d1;
+    --sidebar: #130f11;
+    --sidebar-foreground: #f2edf0;
+    --sidebar-primary: #f385d1;
+    --sidebar-primary-foreground: #220e1c;
+    --sidebar-accent: #1c181a;
+    --sidebar-accent-foreground: #f2edf0;
+    --sidebar-border: #2b282a;
+    --sidebar-ring: #f385d1;
+}
+
+[data-theme='graphite'] {
+    --background: #f8f9fc;
+    --foreground: #14161a;
+    --card: #ffffff;
+    --card-foreground: #14161a;
+    --popover: #ffffff;
+    --popover-foreground: #14161a;
+    --primary: #44484e;
+    --primary-foreground: #ffffff;
+    --primary-muted: #eff0f2;
+    --primary-muted-foreground: #3f4348;
+    --secondary: #f0f2f6;
+    --secondary-foreground: #14161a;
+    --muted: #f0f2f6;
+    --muted-foreground: #575b62;
+    --accent: #e6e8ea;
+    --accent-foreground: #2c2e31;
+    --border: #e1e3e7;
+    --input: #898c91;
+    --ring: #44484e;
+    --sidebar: #f8f9fc;
+    --sidebar-foreground: #14161a;
+    --sidebar-primary: #44484e;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f0f2f6;
+    --sidebar-accent-foreground: #14161a;
+    --sidebar-border: #e1e3e7;
+    --sidebar-ring: #44484e;
+}
+
+.dark[data-theme='graphite'] {
+    --background: #0b0c0e;
+    --foreground: #edeef1;
+    --card: #121314;
+    --card-foreground: #edeef1;
+    --popover: #121314;
+    --popover-foreground: #edeef1;
+    --primary: #b4b8be;
+    --primary-foreground: #151617;
+    --primary-muted: #252628;
+    --primary-muted-foreground: #d5d8db;
+    --secondary: #18191b;
+    --secondary-foreground: #edeef1;
+    --muted: #18191b;
+    --muted-foreground: #aeb1b6;
+    --accent: #232426;
+    --accent-foreground: #cfd1d4;
+    --border: #28292b;
+    --input: #626569;
+    --ring: #b4b8be;
+    --sidebar: #0f1112;
+    --sidebar-foreground: #edeef1;
+    --sidebar-primary: #b4b8be;
+    --sidebar-primary-foreground: #151617;
+    --sidebar-accent: #18191b;
+    --sidebar-accent-foreground: #edeef1;
+    --sidebar-border: #28292b;
+    --sidebar-ring: #b4b8be;
 }
 
 @layer base {
