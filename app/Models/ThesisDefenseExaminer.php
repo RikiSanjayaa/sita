@@ -21,6 +21,7 @@ class ThesisDefenseExaminer extends Model
         'score',
         'notes',
         'revision_notes',
+        'revision_items',
         'decided_at',
         'assigned_by',
     ];
@@ -31,6 +32,7 @@ class ThesisDefenseExaminer extends Model
             'legacy_sempro_examiner_id' => 'integer',
             'order_no' => 'integer',
             'score' => 'decimal:2',
+            'revision_items' => 'array',
             'decided_at' => 'datetime',
         ];
     }

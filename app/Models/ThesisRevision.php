@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ThesisRevision extends Model
 {
+    /** @use HasFactory<\Database\Factories\ThesisRevisionFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -58,5 +59,15 @@ class ThesisRevision extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(ThesisDocument::class, 'revision_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(ThesisRevisionItem::class, 'revision_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function rounds(): HasMany
+    {
+        return $this->hasMany(ThesisRevisionRound::class, 'revision_id')->orderBy('round_no');
     }
 }

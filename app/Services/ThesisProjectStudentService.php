@@ -247,17 +247,23 @@ class ThesisProjectStudentService
             }
 
             if ($mode === 'sempro_revision') {
-                ThesisRevision::query()
+                $submittedRevisions = ThesisRevision::query()
                     ->where('project_id', $project->id)
                     ->whereHas('defense', fn($query) => $query
                         ->where('type', 'sempro')
                         ->where('status', 'completed')
                         ->where('result', 'pass_with_revision'))
                     ->whereIn('status', ['open', 'submitted'])
-                    ->update([
+                    ->get();
+
+                foreach ($submittedRevisions as $submittedRevision) {
+                    $submittedRevision->forceFill([
                         'status' => 'submitted',
                         'submitted_at' => $submittedAt,
-                    ]);
+                    ])->save();
+
+                    app(ThesisRevisionRoundService::class)->markSubmitted($submittedRevision, $submittedAt);
+                }
             }
 
             $eventDescription = match ($mode) {

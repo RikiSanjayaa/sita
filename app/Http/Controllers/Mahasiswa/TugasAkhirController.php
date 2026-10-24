@@ -16,6 +16,7 @@ use App\Services\ThesisProjectStudentService;
 use App\Services\ThesisProjectWorkflowResolver;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
+use App\Support\ThesisRevisionPayload;
 use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -286,6 +287,8 @@ class TugasAkhirController extends Controller
                     ->orderBy('type')
                     ->orderBy('attempt_no'),
                 'revisions.requestedBy',
+                'revisions.items',
+                'revisions.documents',
             ]);
     }
 
@@ -499,6 +502,8 @@ class TugasAkhirController extends Controller
                             'dueAt' => $revision->due_at?->locale('id')->translatedFormat('d F Y, H:i'),
                             'resolvedAt' => $revision->resolved_at?->locale('id')->translatedFormat('d F Y, H:i'),
                             'resolutionNotes' => $revision->resolution_notes,
+                            'items' => ThesisRevisionPayload::items($revision),
+                            'annotations' => ThesisRevisionPayload::annotations($revision),
                         ])
                         ->values()
                         ->all(),

@@ -17,6 +17,7 @@ class ThesisDefenseRevisionService
 {
     public function __construct(
         private readonly RealtimeNotificationService $realtimeNotificationService,
+        private readonly ThesisRevisionRoundService $revisionRounds,
     ) {}
 
     public function approveByLecturer(
@@ -72,6 +73,8 @@ class ThesisDefenseRevisionService
                 'resolved_by_user_id' => $lecturer->id,
                 'resolution_notes' => $notes,
             ])->save();
+
+            $this->revisionRounds->close($revision, $lecturer->id);
 
             $allResolved = ! ThesisRevision::query()
                 ->where('project_id', $project->id)

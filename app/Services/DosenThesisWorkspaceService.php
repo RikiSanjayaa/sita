@@ -42,6 +42,9 @@ class DosenThesisWorkspaceService
                 'defense.examiners.lecturer',
                 'defense.revisions.requestedBy',
                 'defense.revisions.resolvedBy',
+                'defense.revisions.items',
+                'defense.revisions.documents',
+                'defense.documents',
             ])
             ->where('lecturer_user_id', $lecturer->id)
             ->orderByDesc('id')

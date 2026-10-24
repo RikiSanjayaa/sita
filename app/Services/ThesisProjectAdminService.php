@@ -880,16 +880,27 @@ class ThesisProjectAdminService
 
     private function closeDefenseRevisions(ThesisDefense $defense, int $resolvedBy, string $resolutionNotes): void
     {
-        ThesisRevision::query()
+        $revisions = ThesisRevision::query()
             ->where('project_id', $defense->project_id)
             ->where('defense_id', $defense->getKey())
             ->whereIn('status', ['open', 'submitted'])
-            ->update([
+            ->get();
+
+        foreach ($revisions as $revision) {
+            $revision->forceFill([
                 'status' => 'resolved',
                 'resolved_at' => now(),
                 'resolved_by_user_id' => $resolvedBy,
                 'resolution_notes' => $resolutionNotes,
-            ]);
+            ])->save();
+
+            $this->revisionRounds()->close($revision, $resolvedBy);
+        }
+    }
+
+    private function revisionRounds(): ThesisRevisionRoundService
+    {
+        return app(ThesisRevisionRoundService::class);
     }
 
     private function syncDefenseRevisionsFromExaminers(ThesisDefense $defense, string $fallbackNotes, ?string $dueAt, int $fallbackRequesterUserId): void
@@ -917,18 +928,18 @@ class ThesisProjectAdminService
                     'resolved_by_user_id' => null,
                     'resolution_notes' => null,
                 ])->save();
-
-                return;
+            } else {
+                $revision = ThesisRevision::query()->create([
+                    'project_id' => $defense->project_id,
+                    'defense_id' => $defense->getKey(),
+                    'requested_by_user_id' => $fallbackRequesterUserId,
+                    'status' => 'open',
+                    'notes' => $fallbackNotes,
+                    'due_at' => $dueAt,
+                ]);
             }
 
-            ThesisRevision::query()->create([
-                'project_id' => $defense->project_id,
-                'defense_id' => $defense->getKey(),
-                'requested_by_user_id' => $fallbackRequesterUserId,
-                'status' => 'open',
-                'notes' => $fallbackNotes,
-                'due_at' => $dueAt,
-            ]);
+            $this->revisionRounds()->openInitialRound($revision, []);
 
             return;
         }
@@ -957,18 +968,19 @@ class ThesisProjectAdminService
                     'resolved_by_user_id' => null,
                     'resolution_notes' => null,
                 ])->save();
-
-                continue;
+            } else {
+                $revision = ThesisRevision::query()->create([
+                    'project_id' => $defense->project_id,
+                    'defense_id' => $defense->getKey(),
+                    'requested_by_user_id' => $examiner->lecturer_user_id,
+                    'status' => 'open',
+                    'notes' => $notes,
+                    'due_at' => $dueAt,
+                ]);
             }
 
-            ThesisRevision::query()->create([
-                'project_id' => $defense->project_id,
-                'defense_id' => $defense->getKey(),
-                'requested_by_user_id' => $examiner->lecturer_user_id,
-                'status' => 'open',
-                'notes' => $notes,
-                'due_at' => $dueAt,
-            ]);
+            $round = $this->revisionRounds()->openInitialRound($revision, $examiner->revision_items ?? []);
+            $this->revisionRounds()->attachAnnotation($revision, $examiner, $round->round_no);
         }
     }
 

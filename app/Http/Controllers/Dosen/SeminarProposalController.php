@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Dosen\SubmitDefenseDecisionRequest;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
+use App\Models\ThesisDocument;
 use App\Models\ThesisRevision;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\DosenThesisWorkspaceService;
 use App\Services\ThesisDefenseExaminerDecisionService;
 use App\Services\ThesisDefenseRevisionService;
 use App\Services\ThesisProjectNoteService;
+use App\Services\ThesisRevisionRoundService;
 use App\Support\AcademicTerminology;
+use App\Support\ThesisRevisionPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -75,6 +78,8 @@ class SeminarProposalController extends Controller
                     'resolvedAt' => $revision->resolved_at?->format('d M Y'),
                     'resolutionNotes' => $revision->resolution_notes,
                     'requestedBy' => $revision->requestedBy?->name ?? '-',
+                    'items' => ThesisRevisionPayload::items($revision),
+                    'annotations' => ThesisRevisionPayload::annotations($revision),
                     'canResolve' => $revision->requested_by_user_id === $lecturer->id
                         && in_array($revision->status, ['open', 'submitted'], true),
                 ])
@@ -106,6 +111,23 @@ class SeminarProposalController extends Controller
                 'myDecision' => $examiner->decision,
                 'myScore' => $examiner->score,
                 'myDecisionNotes' => $examiner->notes,
+                'myRevisionNotes' => $examiner->revision_notes,
+                'myRevisionItems' => collect($examiner->revision_items ?? [])
+                    ->map(fn (array $entry): array => [
+                        'location' => $entry['location'] ?? null,
+                        'description' => $entry['description'] ?? '',
+                        'priority' => $entry['priority'] ?? null,
+                        'priorityLabel' => ThesisRevisionPayload::priorityLabel($entry['priority'] ?? null),
+                    ])
+                    ->values()
+                    ->all(),
+                'myAnnotation' => $defense?->documents
+                    ->where('kind', ThesisRevisionRoundService::ANNOTATION_KIND)
+                    ->where('uploaded_by_user_id', $lecturer->id)
+                    ->whereNull('revision_id')
+                    ->sortByDesc('id')
+                    ->map(fn (ThesisDocument $document): array => ThesisRevisionPayload::document($document))
+                    ->first(),
                 'otherExaminers' => $otherExaminers,
                 'revisions' => $revisions,
             ];
@@ -129,12 +151,12 @@ class SeminarProposalController extends Controller
 
         $validated = $request->validated();
 
-        if ($defense->type === 'sempro' && $validated['decision'] === 'pass' && filled($validated['revision_notes'] ?? null)) {
+        if ($defense->type === 'sempro' && $validated['decision'] === 'pass' && (filled($validated['revision_notes'] ?? null) || $request->hasRevisionItems())) {
             $validated['decision'] = 'pass_with_revision';
         }
 
         try {
-            $this->decisionService->submit($lecturer, $defense, $validated);
+            $this->decisionService->submit($lecturer, $defense, $validated, $request->file('revision_annotation'));
         } catch (RuntimeException $exception) {
             return back()->withErrors([
                 'decision' => $exception->getMessage(),

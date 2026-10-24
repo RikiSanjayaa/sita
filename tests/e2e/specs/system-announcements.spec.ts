@@ -141,6 +141,7 @@ test.describe('System announcements', () => {
             await adminPage
                 .getByRole('button', { name: 'Create', exact: true })
                 .click();
+            await expect(adminPage).toHaveURL(/\/admin\/system-announcements$/);
 
             await mahasiswaPage.goto('/mahasiswa/dashboard');
             const notificationPanel = await openNotifications(mahasiswaPage);

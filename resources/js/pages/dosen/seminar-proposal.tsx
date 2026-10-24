@@ -1,10 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import {
+    ArrowDown,
+    ArrowUp,
     CheckCircle2,
     ChevronRight,
     Clock,
     FileWarning,
+    Plus,
     Send,
+    Trash2,
     XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -23,6 +27,13 @@ import { KeyValueList } from '@/components/patterns/key-value-list';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
+import {
+    type RevisionAnnotation,
+    RevisionAnnotationLinks,
+    type RevisionItem,
+    RevisionItemList,
+    showRevisionSummary,
+} from '@/components/revision-items';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import {
     type ProjectNotes,
@@ -38,6 +49,13 @@ import {
 } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Sheet,
     SheetContent,
@@ -82,6 +100,15 @@ type Revision = {
     resolutionNotes: string | null;
     requestedBy: string;
     canResolve: boolean;
+    items: RevisionItem[];
+    annotations: RevisionAnnotation[];
+};
+
+type MyRevisionItem = {
+    location: string | null;
+    description: string;
+    priority: 'major' | 'minor' | null;
+    priorityLabel: string | null;
 };
 
 type DefenseItem = {
@@ -106,6 +133,9 @@ type DefenseItem = {
     myDecision: string | null;
     myScore: number | null;
     myDecisionNotes: string | null;
+    myRevisionNotes: string | null;
+    myRevisionItems: MyRevisionItem[];
+    myAnnotation: RevisionAnnotation | null;
     otherExaminers: OtherExaminer[];
     revisions: Revision[];
 };
@@ -195,6 +225,199 @@ function DecisionBadge({
     );
 }
 
+type DraftItem = {
+    key: number;
+    location: string;
+    description: string;
+    priority: 'none' | 'major' | 'minor';
+};
+
+let draftItemKey = 0;
+
+function newDraftItem(): DraftItem {
+    draftItemKey += 1;
+    return {
+        key: draftItemKey,
+        location: '',
+        description: '',
+        priority: 'none',
+    };
+}
+
+// ── Revision items editor (inside the decision form) ────────────────
+function RevisionItemsEditor({
+    items,
+    onChange,
+}: {
+    items: DraftItem[];
+    onChange: (items: DraftItem[]) => void;
+}) {
+    function update(key: number, patch: Partial<DraftItem>) {
+        onChange(
+            items.map((item) =>
+                item.key === key ? { ...item, ...patch } : item,
+            ),
+        );
+    }
+
+    function move(index: number, offset: -1 | 1) {
+        const target = index + offset;
+        if (target < 0 || target >= items.length) return;
+        const next = [...items];
+        [next[index], next[target]] = [next[target], next[index]];
+        onChange(next);
+    }
+
+    return (
+        <div className="grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Butir Revisi (opsional)</Label>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="max-md:h-11"
+                    onClick={() => onChange([...items, newDraftItem()])}
+                >
+                    <Plus className="size-4" /> Tambah Butir
+                </Button>
+            </div>
+
+            {items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Tambahkan butir per lokasi di naskah agar mahasiswa dapat
+                    menindaklanjuti satu per satu.
+                </p>
+            ) : (
+                <ol className="divide-y rounded-md border">
+                    {items.map((item, index) => (
+                        <li
+                            key={item.key}
+                            className="grid gap-3 p-3"
+                            data-testid="revision-item-row"
+                        >
+                            <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
+                                <div className="grid gap-1.5">
+                                    <Label
+                                        htmlFor={`item-location-${item.key}`}
+                                    >
+                                        Butir {index + 1}: lokasi
+                                    </Label>
+                                    <Input
+                                        id={`item-location-${item.key}`}
+                                        value={item.location}
+                                        maxLength={255}
+                                        placeholder="Mis. Bab 3, hlm. 42"
+                                        className="max-md:h-11"
+                                        onChange={(e) =>
+                                            update(item.key, {
+                                                location: e.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label
+                                        htmlFor={`item-priority-${item.key}`}
+                                    >
+                                        Prioritas
+                                    </Label>
+                                    <Select
+                                        value={item.priority}
+                                        onValueChange={(value) =>
+                                            update(item.key, {
+                                                priority:
+                                                    value as DraftItem['priority'],
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger
+                                            id={`item-priority-${item.key}`}
+                                            className="max-md:h-11"
+                                        >
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">
+                                                Tanpa prioritas
+                                            </SelectItem>
+                                            <SelectItem value="major">
+                                                Mayor
+                                            </SelectItem>
+                                            <SelectItem value="minor">
+                                                Minor
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor={`item-description-${item.key}`}>
+                                    Uraian
+                                </Label>
+                                <Textarea
+                                    id={`item-description-${item.key}`}
+                                    rows={2}
+                                    maxLength={2000}
+                                    value={item.description}
+                                    placeholder="Apa yang perlu diperbaiki..."
+                                    className="resize-none"
+                                    onChange={(e) =>
+                                        update(item.key, {
+                                            description: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="max-md:h-11"
+                                    disabled={index === 0}
+                                    aria-label={`Naikkan butir ${index + 1}`}
+                                    onClick={() => move(index, -1)}
+                                >
+                                    <ArrowUp className="size-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="max-md:h-11"
+                                    disabled={index === items.length - 1}
+                                    aria-label={`Turunkan butir ${index + 1}`}
+                                    onClick={() => move(index, 1)}
+                                >
+                                    <ArrowDown className="size-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="ml-auto max-md:h-11"
+                                    aria-label={`Hapus butir ${index + 1}`}
+                                    onClick={() =>
+                                        onChange(
+                                            items.filter(
+                                                (entry) =>
+                                                    entry.key !== item.key,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <Trash2 className="size-4" /> Hapus
+                                </Button>
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            )}
+        </div>
+    );
+}
+
 // ── Decision Form (inside sheet) ────────────────────────────────────
 function DecisionForm({
     defenseId,
@@ -211,11 +434,21 @@ function DecisionForm({
     const [score, setScore] = useState<string>('');
     const [decisionNotes, setDecisionNotes] = useState<string>('');
     const [revisionNotes, setRevisionNotes] = useState<string>('');
+    const [revisionItems, setRevisionItems] = useState<DraftItem[]>([]);
+    const [annotation, setAnnotation] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const { errors } = usePage<SharedData>().props;
+    const revisionErrors = Object.entries(errors ?? {})
+        .filter(([key]) => key.startsWith('revision_'))
+        .map(([, message]) => String(message));
+    const filledItems = revisionItems.filter(
+        (item) => item.description.trim() !== '',
+    );
     const showRevisionNotes =
         decision === 'pass_with_revision' ||
         (defenseType === 'sempro' && decision === 'pass');
-    const revisionNotesRequired = decision === 'pass_with_revision';
+    const revisionNotesRequired =
+        decision === 'pass_with_revision' && filledItems.length === 0;
     const notesRequired = scoreRequired && defenseType === 'sempro';
 
     function submit() {
@@ -233,8 +466,24 @@ function DecisionForm({
                 revision_notes: showRevisionNotes
                     ? revisionNotes.trim() || null
                     : null,
+                ...(showRevisionNotes && filledItems.length > 0
+                    ? {
+                          revision_items: filledItems.map((item) => ({
+                              location: item.location.trim() || null,
+                              description: item.description.trim(),
+                              priority:
+                                  item.priority === 'none'
+                                      ? null
+                                      : item.priority,
+                          })),
+                      }
+                    : {}),
+                ...(showRevisionNotes && annotation
+                    ? { revision_annotation: annotation }
+                    : {}),
             },
             {
+                forceFormData: annotation !== null,
                 onFinish: () => setSubmitting(false),
                 onSuccess: () => onClose(),
             },
@@ -349,10 +598,48 @@ function DecisionForm({
                             rows={3}
                             value={revisionNotes}
                             onChange={(e) => setRevisionNotes(e.target.value)}
-                            placeholder="Jelaskan apa yang perlu direvisi..."
+                            placeholder="Ringkasan revisi untuk mahasiswa..."
                             className="resize-none"
                         />
                     </div>
+                )}
+
+                {showRevisionNotes && (
+                    <>
+                        <RevisionItemsEditor
+                            items={revisionItems}
+                            onChange={setRevisionItems}
+                        />
+
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="sheet-revision-annotation">
+                                Naskah Beranotasi (PDF, opsional)
+                            </Label>
+                            <Input
+                                id="sheet-revision-annotation"
+                                type="file"
+                                accept="application/pdf,.pdf"
+                                onChange={(e) =>
+                                    setAnnotation(
+                                        e.currentTarget.files?.[0] ?? null,
+                                    )
+                                }
+                                className="cursor-pointer max-md:h-11 max-md:py-2"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Unggah naskah yang sudah Anda beri catatan.
+                                Ukuran maksimal 20 MB.
+                            </p>
+                        </div>
+                    </>
+                )}
+
+                {revisionErrors.length > 0 && (
+                    <ul role="alert" className="text-sm text-destructive">
+                        {revisionErrors.map((message) => (
+                            <li key={message}>{message}</li>
+                        ))}
+                    </ul>
                 )}
             </div>
 
@@ -511,6 +798,41 @@ function DefenseDetailSheet({
                                             {item.myDecisionNotes}
                                         </p>
                                     )}
+                                    {item.myRevisionNotes && (
+                                        <p className="text-pretty">
+                                            <span className="font-medium">
+                                                Catatan revisi:
+                                            </span>{' '}
+                                            {item.myRevisionNotes}
+                                        </p>
+                                    )}
+                                    {item.myRevisionItems.length > 0 && (
+                                        <ol className="list-decimal space-y-1 pl-5">
+                                            {item.myRevisionItems.map(
+                                                (entry, index) => (
+                                                    <li
+                                                        key={index}
+                                                        className="text-pretty"
+                                                    >
+                                                        {entry.location && (
+                                                            <span className="font-medium">
+                                                                {entry.location}
+                                                                {': '}
+                                                            </span>
+                                                        )}
+                                                        {entry.description}
+                                                        {entry.priorityLabel &&
+                                                            ` (${entry.priorityLabel})`}
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ol>
+                                    )}
+                                    {item.myAnnotation && (
+                                        <RevisionAnnotationLinks
+                                            annotations={[item.myAnnotation]}
+                                        />
+                                    )}
                                 </li>
 
                                 {item.otherExaminers.map((ex) => (
@@ -584,9 +906,20 @@ function DefenseDetailSheet({
                                                         />
                                                     )}
                                             </div>
-                                            <p className="mt-2 leading-relaxed text-pretty">
-                                                {rev.notes}
-                                            </p>
+                                            {showRevisionSummary(
+                                                rev.notes,
+                                                rev.items,
+                                            ) && (
+                                                <p className="mt-2 leading-relaxed text-pretty">
+                                                    {rev.notes}
+                                                </p>
+                                            )}
+                                            <RevisionItemList
+                                                items={rev.items}
+                                            />
+                                            <RevisionAnnotationLinks
+                                                annotations={rev.annotations}
+                                            />
                                             {rev.canResolve && (
                                                 <Button
                                                     type="button"
