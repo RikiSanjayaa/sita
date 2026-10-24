@@ -317,12 +317,9 @@ function StudentTable({
     ];
 
     const focusOptions: { label: string; value: FocusFilter }[] = [
-        { label: 'Masa aktif bimbingan habis', value: 'masa_habis' },
+        { label: 'Masa aktif habis', value: 'masa_habis' },
         { label: 'Belum ada pembimbing', value: 'tanpa_pembimbing' },
-        {
-            label: 'Minimal bimbingan belum terpenuhi',
-            value: 'bimbingan_kurang',
-        },
+        { label: 'Bimbingan belum cukup', value: 'bimbingan_kurang' },
         { label: 'Tidak aktif', value: 'tidak_aktif' },
     ];
 

@@ -264,7 +264,7 @@ export default function KaprodiDashboardPage() {
                         <EmptyState
                             icon={CalendarClock}
                             title="Tidak ada agenda minggu ini"
-                            description="Jadwal ujian dan tenggat revisi muncul di sini."
+                            description="Jadwal ujian akan tampil di sini."
                             className="rounded-none border-0 bg-transparent"
                         />
                     )}
