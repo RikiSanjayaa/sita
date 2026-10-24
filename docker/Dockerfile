@@ -1,3 +1,6 @@
+ARG PHP_ASSETS_IMAGE=php:8.4.27-cli-alpine
+ARG PHP_RUNTIME_IMAGE=php:8.4.27-fpm-alpine
+
 FROM composer:2 AS vendor
 
 WORKDIR /var/www/html
@@ -12,7 +15,9 @@ RUN if [ "$INSTALL_DEV_DEPENDENCIES" = "true" ]; then \
     fi
 
 
-FROM php:8.4-cli-alpine AS assets
+FROM ${PHP_ASSETS_IMAGE} AS assets
+
+RUN php -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 4 && version_compare(PHP_VERSION, "8.4.27", ">=") ? 0 : 1);'
 
 WORKDIR /var/www/html
 
@@ -64,7 +69,9 @@ COPY --from=vendor /var/www/html/vendor ./vendor
 RUN npm run build
 
 
-FROM php:8.4-fpm-alpine AS app
+FROM ${PHP_RUNTIME_IMAGE} AS app
+
+RUN php -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 4 && version_compare(PHP_VERSION, "8.4.27", ">=") ? 0 : 1);'
 
 WORKDIR /var/www/html
 

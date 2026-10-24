@@ -86,6 +86,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: ${{ matrix.target }}
+          pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
