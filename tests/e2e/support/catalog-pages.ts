@@ -169,7 +169,7 @@ export const catalogPages: readonly CatalogPage[] = [
         role: 'mahasiswa',
         name: 'pengaturan-tampilan',
         path: '/settings/appearance',
-        heading: 'Tema',
+        heading: 'Mode tampilan',
     },
     {
         role: 'mahasiswa',
