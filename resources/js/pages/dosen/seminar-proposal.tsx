@@ -835,7 +835,7 @@ export default function DosenSeminarProposalPage() {
                     item.myDecision === 'pending';
                 const awaitsVerification = item.revisions.some(
                     (revision) =>
-                        revision.canResolve && revision.status === 'submitted',
+                        revision.canVerify && revision.status === 'submitted',
                 );
                 const matchStatus =
                     statusFilter === 'semua' ||
@@ -877,8 +877,7 @@ export default function DosenSeminarProposalPage() {
     ).length;
     const verificationCount = defenses.filter((i) =>
         i.revisions.some(
-            (revision) =>
-                revision.canResolve && revision.status === 'submitted',
+            (revision) => revision.canVerify && revision.status === 'submitted',
         ),
     ).length;
 
