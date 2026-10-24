@@ -36,15 +36,7 @@ test.describe('Theme scheme, guest', () => {
         await openPublicPicker(page);
 
         expect(await dataTheme(page)).toBe('ubg-blue');
-        for (const label of [
-            'UBG Blue',
-            'Indigo',
-            'Grafit',
-            'Ungu Akademik',
-            'Plum',
-            'Zaitun',
-            'Sepia',
-        ]) {
+        for (const label of ['UBG Blue', 'Indigo', 'Zaitun', 'Grafit']) {
             await expect(
                 page.getByRole('button', { name: label }),
             ).toBeVisible();
@@ -162,24 +154,28 @@ test.describe('Theme scheme, guest', () => {
         expect(await themeCookie(page)).toBe('ubg-blue');
     });
 
-    test('a saved Rose scheme, removed after review, falls back to UBG Blue', async ({
-        context,
-        baseURL,
-        page,
-    }) => {
-        await context.addCookies([
-            { name: COOKIE, value: 'rose', url: baseURL as string },
-        ]);
-        await page.addInitScript(() => {
-            localStorage.setItem('sita_theme_preset', 'rose');
-        });
-        await page.goto('/login');
+    for (const retired of ['rose', 'aubergine', 'plum', 'sepia']) {
+        test(`saved retired scheme ${retired} falls back to UBG Blue`, async ({
+            context,
+            baseURL,
+            page,
+        }) => {
+            await context.addCookies([
+                { name: COOKIE, value: retired, url: baseURL as string },
+            ]);
+            await page.addInitScript((value) => {
+                localStorage.setItem('sita_theme_preset', value);
+            }, retired);
+            await page.goto('/login');
 
-        expect(await dataTheme(page)).toBe('ubg-blue');
-        expect(await themeCookie(page)).toBe('ubg-blue');
-        await openPublicPicker(page);
-        await expect(page.getByRole('button', { name: 'Rose' })).toHaveCount(0);
-    });
+            expect(await dataTheme(page)).toBe('ubg-blue');
+            expect(await themeCookie(page)).toBe('ubg-blue');
+            await openPublicPicker(page);
+            await expect(
+                page.locator('[data-theme="' + retired + '"]'),
+            ).toHaveCount(0);
+        });
+    }
 });
 
 test.describe('Theme scheme, signed in', () => {

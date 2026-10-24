@@ -35,8 +35,7 @@ The thesis lifecycle of one faculty in one place: the same record drives the stu
 - Indonesian UI throughout.
 - Academic labels differ per degree (D3/S1/S2) and per OBE curriculum. Every label comes from `App\Support\AcademicTerminology` / `resources/js/lib/academic-terminology.ts`; terms are defined in `docs/GLOSSARY.md`.
 - Privacy: titles follow the public-title rule on public pages; lecturer notes and internal data never reach public pages.
-- Light and dark themes, plus a colour scheme the user picks (UBG Blue default, Indigo, Grafit). Every scheme meets the contrast contract in `DESIGN.md`; none uses a status hue.
-- Product review currently offers four formal replacements for Rose: Ungu Akademik, Plum, Zaitun and Sepia. The owner will choose one; the other candidates will be removed. Every candidate meets the same contrast and status-hue contract.
+- Light and dark themes, plus a colour scheme the user picks (UBG Blue default, Indigo, Zaitun, Grafit). Every scheme meets the contrast contract in `DESIGN.md`; none uses a status hue. The product owner selected near-neutral grey-green Zaitun as the replacement for Rose.
 - Planned: a progress page of all students for every logged-in user (#71), to let students follow their peers' progress.
 
 ## Brand Commitments

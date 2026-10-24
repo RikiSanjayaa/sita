@@ -23,5 +23,8 @@ it('falls back to the default scheme for a missing or unknown cookie', function 
     'missing' => [null],
     'retired preset' => ['emerald'],
     'rose, removed after review' => ['rose'],
+    'retired aubergine candidate' => ['aubergine'],
+    'retired plum candidate' => ['plum'],
+    'retired sepia candidate' => ['sepia'],
     'markup' => ['"><script>alert(1)</script>'],
 ]);

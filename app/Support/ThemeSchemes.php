@@ -15,7 +15,7 @@ final class ThemeSchemes
     public const DEFAULT = 'ubg-blue';
 
     /** @var list<string> */
-    public const IDS = ['ubg-blue', 'indigo', 'graphite', 'aubergine', 'plum', 'olive', 'sepia'];
+    public const IDS = ['ubg-blue', 'indigo', 'olive', 'graphite'];
 
     public static function resolve(mixed $value): string
     {
