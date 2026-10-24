@@ -74,11 +74,6 @@ jobs:
       REVERB_PORT: '9011'
       REVERB_SCHEME: http
       REVERB_ALLOWED_ORIGINS: 127.0.0.1,localhost
-      FRONTEND_REVERB_HOST: 127.0.0.1
-      VITE_REVERB_APP_KEY: local-key
-      VITE_REVERB_HOST: 127.0.0.1
-      VITE_REVERB_PORT: '9011'
-      VITE_REVERB_SCHEME: http
     steps:
       - name: Checkout
         uses: actions/checkout@v4

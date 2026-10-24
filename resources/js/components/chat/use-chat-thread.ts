@@ -240,10 +240,13 @@ export function useChatThread<T extends ChatThread>({
             return;
         }
 
+        const echo = window.Echo;
         const channels = initialThreads.map((thread) => {
             const channelName = `mentorship.thread.${thread.id}`;
 
-            return window.Echo.private(channelName).listen(
+            const channel = echo.private(channelName);
+
+            return channel.listen(
                 '.chat.message.created',
                 (event: { threadId: number; message: ChatMessage }) => {
                     setMessagesByThread((current) => {
@@ -329,7 +332,7 @@ export function useChatThread<T extends ChatThread>({
         return () => {
             for (const [index, thread] of initialThreads.entries()) {
                 channels[index]?.stopListening('.chat.message.created');
-                window.Echo.leave(`mentorship.thread.${thread.id}`);
+                echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
         // markThreadAsRead only closes over stable setters and `readUrl`.

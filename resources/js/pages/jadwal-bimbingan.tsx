@@ -265,7 +265,7 @@ export default function JadwalBimbinganPage() {
 
         return () => {
             channel.stopListening('.schedule.updated');
-            window.Echo.leaveChannel(`private-${channelName}`);
+            window.Echo?.leaveChannel(`private-${channelName}`);
         };
     }, [page.props.auth.user?.id]);
 
