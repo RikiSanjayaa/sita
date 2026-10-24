@@ -7,6 +7,14 @@ compose_files=(-f docker-compose.yml -f docker-compose.deploy.yml)
 echo "Pulling images..."
 docker compose "${compose_files[@]}" pull app web init
 
+echo "Checking the PHP security baseline before init..."
+docker compose "${compose_files[@]}" run --rm --no-deps --entrypoint php app -r '
+    if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4 || version_compare(PHP_VERSION, "8.4.27", "<")) {
+        fwrite(STDERR, "Deployment requires patched PHP 8.4.27+ on the 8.4 branch; found ".PHP_VERSION.PHP_EOL);
+        exit(1);
+    }
+'
+
 echo "Running init tasks (migrate/cache)..."
 docker compose "${compose_files[@]}" run --rm init init
 

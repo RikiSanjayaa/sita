@@ -2,7 +2,7 @@
 # Pin a release with APP_IMAGE / WEB_IMAGE, e.g. ghcr.io/rikisanjayaa/sita-app:sha-1a2b3c4.
 x-app-image: &app-image
   image: ${APP_IMAGE:-ghcr.io/rikisanjayaa/sita-app:main}
-  pull_policy: missing
+  pull_policy: always
 
 services:
   init: *app-image
@@ -12,4 +12,4 @@ services:
   reverb: *app-image
   web:
     image: ${WEB_IMAGE:-ghcr.io/rikisanjayaa/sita-web:main}
-    pull_policy: missing
+    pull_policy: always
