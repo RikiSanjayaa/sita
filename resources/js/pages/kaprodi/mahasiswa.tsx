@@ -626,13 +626,14 @@ function StudentTable({
                                                 -
                                             </span>
                                         )}
-                                        {row.mentorshipTicket?.suspended ? (
+                                        {row.mentorshipTicket?.suspended &&
+                                        !row.progress?.detail ? (
                                             <StatusBadge
                                                 domain="ticket"
                                                 status="overdue"
                                                 className="mt-1"
                                             >
-                                                Tiket habis
+                                                Masa aktif habis
                                             </StatusBadge>
                                         ) : null}
                                         {row.completedAt ? (
@@ -786,7 +787,7 @@ function StudentTable({
                                 status="overdue"
                                 className="mt-2"
                             >
-                                Tiket habis
+                                Masa aktif habis
                             </StatusBadge>
                         ) : null}
                     </SheetHeader>

@@ -12,7 +12,7 @@ const alertVariants = cva(
         warning:
           "border-warning-muted-foreground/30 bg-warning-muted text-warning-muted-foreground [&>svg]:text-current *:data-[slot=alert-description]:text-warning-muted-foreground",
         destructive:
-          "text-destructive-foreground [&>svg]:text-current *:data-[slot=alert-description]:text-destructive-foreground/80",
+          "border-danger-muted-foreground/30 bg-danger-muted text-danger-muted-foreground [&>svg]:text-current *:data-[slot=alert-description]:text-danger-muted-foreground",
       },
     },
     defaultVariants: {

@@ -71,11 +71,11 @@ class ThesisProjectInfolist
                             ->dateTime('d M Y H:i')
                             ->placeholder('-'),
                         TextEntry::make('mentorship_valid_from')
-                            ->label('Tiket Bimbingan Mulai')
+                            ->label('Masa aktif bimbingan mulai')
                             ->date('d M Y')
                             ->placeholder('-'),
                         TextEntry::make('mentorship_valid_until')
-                            ->label('Tiket Bimbingan Berlaku Sampai')
+                            ->label('Masa aktif bimbingan berakhir')
                             ->date('d M Y')
                             ->placeholder('-'),
                         TextEntry::make('notes')

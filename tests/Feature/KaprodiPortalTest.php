@@ -539,6 +539,61 @@ test('kaprodi mahasiswa page exposes progress risk from project and chat activit
             ->where('students.2.progress.detail.lastActivityAt', now()->format('d M Y')));
 });
 
+test('kaprodi mahasiswa page raises risk when the masa aktif bimbingan has lapsed', function (): void {
+    $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
+    $kaprodi = kaprodiRoleUser();
+    $lecturer = User::factory()->asDosen()->create();
+
+    DosenProfile::factory()->create(['user_id' => $lecturer->id, 'program_studi_id' => $prodi->id]);
+    KaprodiAssignment::factory()->create([
+        'program_studi_id' => $prodi->id,
+        'user_id' => $kaprodi->id,
+        'is_primary' => true,
+    ]);
+
+    $student = kaprodiStudent($prodi, 'Dewi Masa Aktif');
+    $project = kaprodiProject($student, $prodi);
+    $project->forceFill([
+        'started_at' => now()->subDays(20),
+        'mentorship_valid_from' => now()->subYear()->subDays(2)->toDateString(),
+        'mentorship_valid_until' => now()->subDay()->toDateString(),
+    ])->save();
+
+    ThesisSupervisorAssignment::query()->create([
+        'project_id' => $project->id,
+        'lecturer_user_id' => $lecturer->id,
+        'role' => 'primary',
+        'status' => 'active',
+        'assigned_by' => $kaprodi->id,
+        'started_at' => now()->subDays(20),
+    ]);
+
+    $thread = MentorshipChatThread::factory()->create([
+        'student_user_id' => $student->id,
+        'type' => 'pembimbing',
+    ]);
+
+    MentorshipChatMessage::factory()->create([
+        'mentorship_chat_thread_id' => $thread->id,
+        'sender_user_id' => $student->id,
+        'message' => 'Update progres terbaru.',
+        'sent_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($kaprodi)
+        ->get('/kaprodi/mahasiswa')
+        ->assertOk()
+        ->assertInertia(fn(Assert $page): Assert => $page
+            ->component('kaprodi/mahasiswa')
+            ->where('students.0.name', 'Dewi Masa Aktif')
+            ->where('students.0.progressRisk.level', 'medium')
+            ->where('students.0.progressRisk.label', 'Perlu Dipantau')
+            ->where('students.0.progressRisk.description', 'Masa aktif bimbingan habis.')
+            ->where('students.0.progressRisk.signals', ['Masa aktif bimbingan habis']));
+});
+
 test('kaprodi can assign supervisors and schedule exams for own active prodi project', function (): void {
     $prodi = ProgramStudi::factory()->create(['name' => 'Ilmu Komputer']);
     $kaprodi = kaprodiRoleUser();

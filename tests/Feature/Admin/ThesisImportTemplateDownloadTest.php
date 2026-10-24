@@ -20,7 +20,7 @@ test('admin can download the thesis import template and it reads back with the e
     $rows = app(SimpleXlsxReader::class)->rows($path);
     @unlink($path);
 
-    expect($rows[0])->toBe(['nim', 'judul', 'pembimbing_1_nik', 'pembimbing_2_nik', 'tahap', 'tanggal_mulai_tiket'])
+    expect($rows[0])->toBe(['nim', 'judul', 'pembimbing_1_nik', 'pembimbing_2_nik', 'tahap', 'tanggal_mulai_masa_aktif'])
         ->and($rows)->toHaveCount(3)
         ->and($rows[1][4])->toBe('Riset')
         ->and($rows[2][4])->toBe('Review Judul');

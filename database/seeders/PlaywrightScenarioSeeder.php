@@ -55,8 +55,8 @@ class PlaywrightScenarioSeeder extends Seeder
         $this->completedSempro($project, $admin, $dosen3, $dosen4);
         $service->assignSupervisors($project, $admin->id, $dosen1->id, $dosen2->id, 'Pembimbing skenario Playwright.');
 
-        // Expired mentorship ticket (issue #21): bimbingan entry points are blocked, reading still works.
-        $student = $this->student($role, $prodi, 'e2e-tiket-habis@sita.test', 'Tiara Tiket Habis', '2210511010');
+        // Expired masa aktif bimbingan (issue #21): bimbingan entry points are blocked, reading still works.
+        $student = $this->student($role, $prodi, 'e2e-masa-aktif-habis@sita.test', 'Tiara Masa Aktif Habis', '2210511010');
         $project = $this->project($student, $prodi, 'research', 'Pengaruh Pembelajaran Adaptif Terhadap Motivasi Belajar');
         $this->completedSempro($project, $admin, $dosen3, $dosen4);
         $service->assignSupervisors($project, $admin->id, $dosen1->id, null, 'Pembimbing skenario Playwright.');

@@ -16,6 +16,7 @@ const FORBIDDEN_TERMINOLOGY = [
     'Seminar Proposal Tesis',
     'Seminar Proposal Skripsi',
     'Seminar Proposal Tugas Akhir',
+    'Tiket',
 ];
 
 it('keeps retired academic labels out of app code', function (string $phrase): void {

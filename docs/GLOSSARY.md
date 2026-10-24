@@ -36,17 +36,18 @@ Exam names never carry the degree's final work ("Sempro Tugas Akhir" and "Semina
 
 ## Code equivalents
 
-| Code                                | Value                 | Label                                                  |
-| ----------------------------------- | --------------------- | ------------------------------------------------------ |
-| `thesis_projects` / `ThesisProject` | one row               | the student's final work (`finalWork`); never "Proyek" |
-| `thesis_defenses.type`              | `sempro`              | stage 1 exam (`proposalExam` / `proposalExamShort`)    |
-| `thesis_defenses.type`              | `sidang`              | final exam (`finalExam` / `finalExamShort`)            |
-| `ThesisDocument.kind`               | `proposal`            | "Naskah Proposal" (`proposalDocument`)                 |
-| `ThesisDocument.kind`               | `revision_submission` | "Dokumen Revisi"                                       |
-| `ThesisDocument.kind`               | `revision_annotation` | "Naskah beranotasi" (dari penguji, versi = putaran)    |
-| `thesis_revision_items`             | one row per butir     | "Butir revisi" (lokasi, uraian, prioritas Mayor/Minor) |
-| `ThesisDocument.kind`               | `final_manuscript`    | "Naskah Akhir"                                         |
-| `ThesisDocument.kind`               | `supporting_document` | "Lampiran"                                             |
+| Code                                                               | Value                               | Label                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------ | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `thesis_projects` / `ThesisProject`                                | one row                             | the student's final work (`finalWork`); never "Proyek"                                                                                                                                                                        |
+| `thesis_defenses.type`                                             | `sempro`                            | stage 1 exam (`proposalExam` / `proposalExamShort`)                                                                                                                                                                           |
+| `thesis_defenses.type`                                             | `sidang`                            | final exam (`finalExam` / `finalExamShort`)                                                                                                                                                                                   |
+| `ThesisDocument.kind`                                              | `proposal`                          | "Naskah Proposal" (`proposalDocument`)                                                                                                                                                                                        |
+| `ThesisDocument.kind`                                              | `revision_submission`               | "Dokumen Revisi"                                                                                                                                                                                                              |
+| `ThesisDocument.kind`                                              | `revision_annotation`               | "Naskah beranotasi" (dari penguji, versi = putaran)                                                                                                                                                                           |
+| `thesis_revision_items`                                            | one row per butir                   | "Butir revisi" (lokasi, uraian, prioritas Mayor/Minor)                                                                                                                                                                        |
+| `ThesisDocument.kind`                                              | `final_manuscript`                  | "Naskah Akhir"                                                                                                                                                                                                                |
+| `ThesisDocument.kind`                                              | `supporting_document`               | "Lampiran"                                                                                                                                                                                                                    |
+| `thesis_projects.mentorship_valid_from` / `mentorship_valid_until` | one year from supervisor assignment | "Masa aktif bimbingan" (#21); lapsed: badge "Masa aktif habis", bimbingan suspended until admin renews ("Perpanjang masa aktif 1 tahun"). Code: `MentorshipTicketService`, `isMentorshipSuspended()`; never "Tiket" in the UI |
 
 `defenseLabel($terms, $type, $short)` turns a `thesis_defenses.type` into the right label for either audience. Database values and enum names (`sempro`, `sidang`, `ThesisProject`) stay as they are; only labels changed.
 
@@ -65,5 +66,6 @@ Do not write these anywhere in the UI:
 | "Sempro Tugas Akhir", "Seminar Proposal Tesis", "Seminar Proposal Skripsi", "Seminar Proposal Tugas Akhir" | "Seminar Proposal" / "Sempro"                          |
 | "Ujian Akhir", "Ujian Tesis"                                                                               | `finalExam` ("Sidang Skripsi", ..., or "Sidang Akhir") |
 | "Proyek akhir"                                                                                             | `finalWork`                                            |
+| "Tiket", "Tiket bimbingan"                                                                                 | "Masa aktif bimbingan"                                 |
 
 Event labels already stored in `thesis_project_events.label` keep their old wording; only new events use these labels.

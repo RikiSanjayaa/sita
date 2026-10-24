@@ -146,7 +146,7 @@ class ThesisProjectImportService
         $stageInput = $raw['tahap'] ?? '';
         $primaryNik = $raw['pembimbing_1_nik'] ?? '';
         $secondaryNik = $raw['pembimbing_2_nik'] ?? '';
-        $ticketInput = $raw['tanggal_mulai_tiket'] ?? '';
+        $ticketInput = $raw['tanggal_mulai_masa_aktif'] ?? '';
 
         $student = null;
         $terms = AcademicTerminology::neutral();
@@ -202,7 +202,7 @@ class ThesisProjectImportService
             $ticketStart = $this->parseDate($ticketInput);
 
             if ($ticketStart === null) {
-                $errors[] = "Tanggal mulai tiket '{$ticketInput}' tidak valid. Gunakan format YYYY-MM-DD.";
+                $errors[] = "Tanggal mulai masa aktif '{$ticketInput}' tidak valid. Gunakan format YYYY-MM-DD.";
             }
         }
 

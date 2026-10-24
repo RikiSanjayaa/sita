@@ -7,6 +7,7 @@ use App\Models\MentorshipChatThread;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\User;
+use App\Services\MentorshipTicketService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\WitaDateTime;
 use Illuminate\Http\UploadedFile;
@@ -194,4 +195,18 @@ test('assigning supervisors starts a one year ticket when none is set', function
         ->and($project->mentorship_valid_until?->toDateString())->toBe(
             $today->copy()->addMonthsNoOverflow(config('sita.thesis_ticket_months', 12))->toDateString(),
         );
+});
+
+test('the expired banner message names the masa aktif bimbingan, the date and the next step', function () {
+    $fixture = mentorshipTicketFixture('2026-10-23');
+
+    $forStudent = MentorshipTicketService::suspensionMessage($fixture['project']);
+    $forDosen = MentorshipTicketService::suspensionMessage($fixture['project'], addressStudent: false);
+
+    expect($forStudent)
+        ->toContain('Masa aktif bimbingan Anda berakhir pada 23 Oktober 2026')
+        ->toContain('Hubungi admin program studi')
+        ->not->toContain('iket')
+        ->and($forDosen)->toContain('Masa aktif bimbingan mahasiswa berakhir pada 23 Oktober 2026')
+        ->not->toContain('Anda');
 });

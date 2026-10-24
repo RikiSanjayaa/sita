@@ -14,7 +14,7 @@ class ThesisImportTemplateDownloadController extends Controller
         $phases = AcademicTerminology::phaseLabels();
 
         $templateRows = [
-            ['nim', 'judul', 'pembimbing_1_nik', 'pembimbing_2_nik', 'tahap', 'tanggal_mulai_tiket'],
+            ['nim', 'judul', 'pembimbing_1_nik', 'pembimbing_2_nik', 'tahap', 'tanggal_mulai_masa_aktif'],
             ['2210510001', 'Rancang Bangun Sistem Informasi Akademik', '7301010101010001', '7301010101010002', $phases['research'], '2026-02-01'],
             ['2210510002', 'Analisis Sentimen Ulasan Aplikasi Mobile', '', '', $phases['title_review'], ''],
         ];
@@ -27,7 +27,7 @@ class ThesisImportTemplateDownloadController extends Controller
             ['pembimbing_1_nik', 'ya, kecuali tahap '.$phases['title_review'], 'NIK dosen yang mengajar di program studi mahasiswa.'],
             ['pembimbing_2_nik', 'tidak', 'Harus berbeda dari pembimbing 1.'],
             ['tahap', 'ya', implode(', ', $phases).'. Kode '.implode('/', array_keys($phases)).' juga diterima.'],
-            ['tanggal_mulai_tiket', 'tidak', 'Format YYYY-MM-DD. Mengisi masa berlaku tiket bimbingan; kosong berarti tiket dimulai hari import (tahap setelah pembimbing ditetapkan).'],
+            ['tanggal_mulai_masa_aktif', 'tidak', 'Format YYYY-MM-DD. Mengisi masa aktif bimbingan; kosong berarti masa aktif dimulai hari import (tahap setelah pembimbing ditetapkan).'],
             ['Catatan', '', 'Jika ada satu baris yang salah, tidak ada data yang tersimpan. Perbaiki file lalu unggah ulang.'],
         ];
 

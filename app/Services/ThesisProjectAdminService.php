@@ -464,7 +464,7 @@ class ThesisProjectAdminService
                 $freshProject,
                 actorUserId: $renewedBy,
                 eventType: 'mentorship_ticket_renewed',
-                label: 'Tiket bimbingan diperpanjang',
+                label: 'Masa aktif bimbingan diperpanjang',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
                 payload: [

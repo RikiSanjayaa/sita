@@ -26,7 +26,7 @@ export type PlaywrightAccountKey =
     | 'raka'
     | 'sinta'
     | 'wulan'
-    | 'tiket-habis'
+    | 'masa-aktif-habis'
     | 'lulus-tenggang'
     | 'lulus-lama';
 
@@ -155,8 +155,8 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
-    'tiket-habis': {
-        email: 'e2e-tiket-habis@sita.test',
+    'masa-aktif-habis': {
+        email: 'e2e-masa-aktif-habis@sita.test',
         password: 'password',
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
@@ -271,8 +271,8 @@ export const thesisScenarios = {
         location: 'Ruang Seminar E2E',
     },
     expiredTicket: {
-        studentKey: 'tiket-habis' as const,
-        studentName: 'Tiara Tiket Habis',
+        studentKey: 'masa-aktif-habis' as const,
+        studentName: 'Tiara Masa Aktif Habis',
         currentTitle: 'Pengaruh Pembelajaran Adaptif Terhadap Motivasi Belajar',
         supervisorKeys: ['dosen1'] as const,
     },

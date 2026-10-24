@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import { CalendarX2 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,12 +33,15 @@ export default ({
             {...props}
         >
             {mentorshipTicket?.suspended && (
-                <Alert variant="destructive" className="mb-4">
-                    <AlertTitle>Tiket bimbingan habis</AlertTitle>
-                    <AlertDescription>
-                        {mentorshipTicket.message}
-                    </AlertDescription>
-                </Alert>
+                <div className="mx-auto w-full max-w-7xl px-4 pt-4 md:px-6">
+                    <Alert variant="destructive">
+                        <CalendarX2 aria-hidden />
+                        <AlertTitle>Masa aktif bimbingan berakhir</AlertTitle>
+                        <AlertDescription className="text-pretty">
+                            {mentorshipTicket.message}
+                        </AlertDescription>
+                    </Alert>
+                </div>
             )}
             {children}
         </AppLayoutTemplate>

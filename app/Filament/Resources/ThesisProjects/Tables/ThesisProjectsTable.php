@@ -112,7 +112,7 @@ class ThesisProjectsTable
                     ->state(fn(ThesisProject $record): string => self::formatNextAgenda($record))
                     ->toggleable(),
                 TextColumn::make('mentorship_ticket')
-                    ->label('Tiket bimbingan')
+                    ->label('Masa aktif bimbingan')
                     ->badge()
                     ->state(fn(ThesisProject $record): string => self::mentorshipTicketLabel($record))
                     ->color(fn(ThesisProject $record): string => $record->isMentorshipSuspended() ? 'danger' : 'success')
@@ -193,9 +193,9 @@ class ThesisProjectsTable
                             ->where('status', 'scheduled')
                             ->whereNotNull('scheduled_for'))),
                 SelectFilter::make('mentorship_ticket')
-                    ->label('Tiket bimbingan')
+                    ->label('Masa aktif bimbingan')
                     ->options([
-                        'expired' => 'Tiket habis',
+                        'expired' => 'Masa aktif habis',
                         'unset' => 'Belum diatur',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -234,7 +234,7 @@ class ThesisProjectsTable
             ->toolbarActions([
                 BulkActionGroup::make([
                     BulkAction::make('renew_mentorship_tickets')
-                        ->label('Perpanjang tiket 1 tahun')
+                        ->label('Perpanjang masa aktif 1 tahun')
                         ->icon('heroicon-m-arrow-path')
                         ->requiresConfirmation()
                         ->action(function (Collection $records): void {
@@ -247,7 +247,7 @@ class ThesisProjectsTable
                             $count = app(ThesisProjectAdminService::class)->renewMentorshipTickets($records, $userId);
 
                             Notification::make()
-                                ->title($count.' tiket bimbingan diperpanjang 1 tahun')
+                                ->title($count.' masa aktif bimbingan diperpanjang 1 tahun')
                                 ->success()
                                 ->send();
                         }),
@@ -342,7 +342,7 @@ class ThesisProjectsTable
     public static function mentorshipTicketLabel(ThesisProject $record): string
     {
         if ($record->isMentorshipSuspended()) {
-            return 'Tiket habis';
+            return 'Masa aktif habis';
         }
 
         if ($record->mentorship_valid_until === null) {

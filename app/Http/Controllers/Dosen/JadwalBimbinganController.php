@@ -155,7 +155,7 @@ class JadwalBimbinganController extends Controller
         $data = $request->validated();
         $student = User::query()->findOrFail((int) $data['student_user_id']);
 
-        $suspension = $tickets->suspensionMessageForStudent($student->id);
+        $suspension = $tickets->suspensionMessageForStudent($student->id, addressStudent: false);
 
         if ($suspension !== null) {
             return back()->withErrors(['ticket' => $suspension]);
@@ -218,7 +218,7 @@ class JadwalBimbinganController extends Controller
         ]);
 
         if (in_array($data['decision'], ['approve', 'reschedule'], true)) {
-            $suspension = $tickets->suspensionMessageForStudent($schedule->student_user_id);
+            $suspension = $tickets->suspensionMessageForStudent($schedule->student_user_id, addressStudent: false);
 
             if ($suspension !== null) {
                 return back()->withErrors(['decision' => $suspension]);
@@ -288,7 +288,7 @@ class JadwalBimbinganController extends Controller
                 ->where('recurring_group_id', $groupId)
                 ->where('lecturer_user_id', $lecturer->id)
                 ->value('student_user_id');
-            $suspension = $studentUserId === null ? null : $tickets->suspensionMessageForStudent((int) $studentUserId);
+            $suspension = $studentUserId === null ? null : $tickets->suspensionMessageForStudent((int) $studentUserId, addressStudent: false);
 
             if ($suspension !== null) {
                 return back()->withErrors(['decision' => $suspension]);
