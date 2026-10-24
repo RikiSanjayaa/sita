@@ -60,11 +60,16 @@ jobs:
       - name: Tests
         run: ./vendor/bin/pest
 
-  e2e:
-    name: e2e
+  e2e-shard:
+    name: e2e (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    # The design-detector spec adds about 4 minutes (40 page scans).
-    timeout-minutes: 30
+    # Three runners share the suite (each with its own SQLite and servers);
+    # every shard also runs the setup project it depends on.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # A real Reverb server is started by the Playwright config, and the build must compile the same keys.
     env:
       REVERB_APP_ID: local-app
@@ -153,23 +158,34 @@ jobs:
 
       - name: Run e2e
         id: e2e
-        run: npm run e2e
+        run: npx playwright test --shard=${{ matrix.shard }}/3
 
       - name: Write e2e duration
         if: always()
         run: |
           if [ -n "${E2E_START:-}" ]; then
             elapsed=$(($(date +%s) - E2E_START))
-            printf 'Playwright e2e duration: %s seconds\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY" || :
+            printf 'Playwright e2e shard %s/3 duration: %s seconds\n' "${{ matrix.shard }}" "$elapsed" >> "$GITHUB_STEP_SUMMARY" || :
           fi
 
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          name: playwright-e2e-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  # Single status for the whole browser suite, so branch checks and tooling
+  # keep looking for one "e2e" result.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    needs: e2e-shard
+    if: always()
+    steps:
+      - name: All shards passed
+        run: test "${{ needs.e2e-shard.result }}" = "success"
