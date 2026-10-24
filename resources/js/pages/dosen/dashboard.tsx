@@ -155,7 +155,7 @@ export default function DosenDashboardPage() {
                                         <h3 className="text-sm font-semibold">
                                             {day.label}
                                         </h3>
-                                        <ul className="divide-y rounded-lg border">
+                                        <ul className="divide-y border-y">
                                             {day.events.map((event) => (
                                                 <li key={event.id}>
                                                     <Link
