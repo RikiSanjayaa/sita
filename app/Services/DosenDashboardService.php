@@ -63,7 +63,7 @@ class DosenDashboardService
      * Items for "Perlu tindakan", most urgent first. Items with a zero count are left out.
      *
      * @param  array<int, list<array{key: string, label: string}>>  $attention
-     * @return list<array{key: string, title: string, description: string, count: int, href: string, actionLabel: string}>
+     * @return list<array{key: string, title: string, description: string, count: int, href: string, actionLabel: string, students: list<string>}>
      */
     public function actionItems(User $lecturer, array $attention): array
     {
@@ -75,37 +75,53 @@ class DosenDashboardService
             ->where('lecturer_user_id', $lecturer->getKey())
             ->whereIn('student_user_id', $scheduleStudentIds);
 
-        $pendingSchedules = (clone $schedules)->where('status', 'pending')->count();
-        $overdueSchedules = (clone $schedules)
+        $pendingSchedulesQuery = (clone $schedules)->where('status', 'pending');
+        $overdueSchedulesQuery = (clone $schedules)
             ->whereIn('status', ['approved', 'rescheduled'])
-            ->where('scheduled_for', '<', now())
-            ->count();
+            ->where('scheduled_for', '<', now());
 
-        $submittedDocuments = MentorshipDocument::query()
+        $submittedDocumentsQuery = MentorshipDocument::query()
             ->where('lecturer_user_id', $lecturer->getKey())
             ->whereIn('student_user_id', $this->dosenBimbinganService->activeStudentIds($lecturer))
-            ->where('status', 'submitted')
-            ->count();
+            ->where('status', 'submitted');
 
-        $defensesToGrade = ThesisDefenseExaminer::query()
+        $defensesToGradeQuery = ThesisDefenseExaminer::query()
             ->where('lecturer_user_id', $lecturer->getKey())
             ->where('decision', 'pending')
             ->whereHas('defense', fn (Builder $query) => $query
                 ->where('status', 'scheduled')
                 ->where('scheduled_for', '<', now())
-                ->whereHas('project', fn (Builder $project) => $this->openProject($project)))
-            ->count();
+                ->whereHas('project', fn (Builder $project) => $this->openProject($project)));
 
         // Read through the aggregate status so structured revision rounds (#15) keep working.
-        $revisionsToVerify = ThesisRevision::query()
+        $revisionsToVerifyQuery = ThesisRevision::query()
             ->where('requested_by_user_id', $lecturer->getKey())
             ->where('status', 'submitted')
-            ->whereHas('project', fn (Builder $project) => $this->openProject($project))
-            ->count();
+            ->whereHas('project', fn (Builder $project) => $this->openProject($project));
 
-        $inactive = collect($attention)
+        $pendingSchedules = (clone $pendingSchedulesQuery)->count();
+        $overdueSchedules = (clone $overdueSchedulesQuery)->count();
+        $submittedDocuments = (clone $submittedDocumentsQuery)->count();
+        $defensesToGrade = (clone $defensesToGradeQuery)->count();
+        $revisionsToVerify = (clone $revisionsToVerifyQuery)->count();
+
+        $inactiveProjectIds = collect($attention)
             ->filter(fn (array $reasons): bool => collect($reasons)->contains('key', StudentAttention::REASON_INACTIVE))
-            ->count();
+            ->keys();
+        $inactive = $inactiveProjectIds->count();
+
+        // Keep the aggregate counts above: previews count distinct names, not work items.
+        // Each subquery reuses the count filters and the outer query returns at most three rows.
+        $studentQueries = [
+            'defenses_to_grade' => ThesisProject::query()->whereHas('defenses', fn (Builder $query) => $query
+                ->whereIn('id', (clone $defensesToGradeQuery)->select('defense_id')))->select('student_user_id'),
+            'revisions_to_verify' => ThesisProject::query()
+                ->whereIn('id', (clone $revisionsToVerifyQuery)->select('project_id'))->select('student_user_id'),
+            'pending_schedules' => (clone $pendingSchedulesQuery)->select('student_user_id'),
+            'overdue_sessions' => (clone $overdueSchedulesQuery)->select('student_user_id'),
+            'documents_to_review' => (clone $submittedDocumentsQuery)->select('student_user_id'),
+            'inactive_students' => ThesisProject::query()->whereKey($inactiveProjectIds->all())->select('student_user_id'),
+        ];
 
         $items = [
             ['key' => 'defenses_to_grade', 'count' => $defensesToGrade, 'title' => $examLabel.' menunggu penilaian Anda', 'description' => 'Ujian sudah berlangsung dan Anda belum memberi keputusan.', 'href' => '/dosen/seminar-proposal?status=pending', 'actionLabel' => 'Beri penilaian'],
@@ -118,6 +134,10 @@ class DosenDashboardService
 
         return collect($items)
             ->filter(fn (array $item): bool => $item['count'] > 0)
+            ->map(fn (array $item): array => [
+                ...$item,
+                'students' => $this->affectedStudentNames($studentQueries[$item['key']]),
+            ])
             ->values()
             ->all();
     }
@@ -125,7 +145,7 @@ class DosenDashboardService
     /**
      * Bimbingan and ujian from the start of today through the next AGENDA_DAYS days, grouped by day.
      *
-     * @return list<array{label: string, isToday: bool, events: list<array{id: string, kind: string, title: string, subtitle: string, time: string, href: string}>}>
+     * @return list<array{label: string, isToday: bool, events: list<array{id: string, category: 'ujian'|'bimbingan', kind: string, title: string, subtitle: string, time: string, href: string}>}>
      */
     public function agenda(User $lecturer): array
     {
@@ -156,6 +176,7 @@ class DosenDashboardService
                     'isToday' => $isToday,
                     'events' => $events->map(fn (array $event): array => [
                         'id' => (string) $event['id'],
+                        'category' => $event['category'],
                         'kind' => $event['category'] === 'ujian' ? $event['title'] : 'Bimbingan',
                         'title' => (string) $event['topic'],
                         'subtitle' => collect([$event['person'] ?? null, $event['location'] ?? null])
@@ -221,6 +242,22 @@ class DosenDashboardService
             })
             ->filter()
             ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Builder<*>  $studentIds
+     * @return list<string>
+     */
+    private function affectedStudentNames(Builder $studentIds): array
+    {
+        return User::query()
+            ->whereIn('id', $studentIds)
+            ->select('name')
+            ->distinct()
+            ->orderBy('name')
+            ->limit(3)
+            ->pluck('name')
             ->all();
     }
 

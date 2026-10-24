@@ -487,7 +487,7 @@ import { StatCard } from '@/components/patterns/stat-card';
 />;
 ```
 
-`StatCard`: `title`, `value`, `description?`, `icon`, `className?`. `EmptyState`: `icon`, `title`, `description?`, `className?`. Both moved here from `@/components/`; the old paths no longer exist.
+`StatCard`: `title`, `value`, `description?`, `icon`, `className?`, `compact?` (16px padding, 12px description, no icon chip for linked summary tiles). Values use tabular numerals. `EmptyState`: `icon`, `title`, `description?`, `className?`. Both moved here from `@/components/`; the old paths no longer exist.
 
 #### ActionQueue and KeyValueList
 
@@ -525,7 +525,7 @@ import { KeyValueList } from '@/components/patterns/key-value-list';
 />;
 ```
 
-`ActionQueue`: `label` (accessible name), `children`, `className?`. `ActionQueueItem`: `title`, `description?`, `icon?`, `meta?`, `action?`, `className?`; controls go in `action` so they are never nested in text. `KeyValueList`: `items: { key?, label, value }[]`, `layout?: 'stacked' | 'inline'`, `className?`; renders a `dl`.
+`ActionQueue`: `label` (accessible name), `children`, `className?`, `layout?: 'list' | 'bento'` (default `list`; bento becomes a two-column grid from `md`). `ActionQueueItem`: `title`, `description?`, `icon?`, `meta?`, `action?`, `className?`, `variant?: 'row' | 'card'` (default `row`), `count?`, `tone?`. Card items use an h3, a plain tabular count and a semantic icon chip; controls remain siblings of the text. `KeyValueList`: `items: { key?, label, value }[]`, `layout?: 'stacked' | 'inline'`, `className?`; renders a `dl`.
 
 ### Motion
 
@@ -585,12 +585,19 @@ Until a page is migrated, existing warnings there are accepted. New or touched p
 
 Overhaul of the dosen portal (#84) applies the #82 list treatment without changing the identity.
 
-- Every dosen page opens with `PageHeader` (h1 plus a one-line description) because the shell renders no heading. Blocks below are `DataSection` (h2) or `SectionCard`. The dashboard hero keeps its gradient panel and quota summary; its h1 is the greeting.
+- Every dosen page opens with `PageHeader` (h1 plus a one-line description) because the shell renders no heading. Blocks below are `DataSection` (h2) or `SectionCard`.
 - Lists (Mahasiswa Dosen, Sempro / Sinopsis & Sidang, Jadwal Bimbingan, Dokumen & Revisi) are `DataSection` > `DataToolbar` > `FilterPills` > one `DataTableContainer` with `stackedTable`. Two filter groups next to each other carry a visible label ("Jenis", "Status") and a divider from `md`.
 - Pagination and filters are client-side over the full prop set; the dosen controllers do not paginate on the server.
 - Row actions: one primary action (Chat, Buka, Kelola, Tanggapi) plus an "Aksi lainnya" menu where more than two remain. Icon-only actions have a tooltip and `aria-label`; on phones they show their label at 44px.
 - Jadwal Bimbingan pending requests are one divided list; the decision form opens on demand ("Tanggapi"), so nothing is hidden at rest and nothing sits in a card inside a card.
 - Pesan keeps the shared chat shell; the page only owns the group filter (`FilterPills`) and thread badge tones.
+
+#### Dosen dashboard (#31, #123)
+
+- Desktop: four linked summary tiles (active students/quota, exams from today's seven-day agenda, revisions awaiting verification, documents awaiting review), then the action grid with the agenda beside it from `xl`, then student progress. Summary values reuse the existing action and agenda payloads, including zeroes.
+- Action cards preserve server priority and filtered destinations. The first item spans both columns from `md`; danger/warning/info icon tints express the type of outstanding work. Counts stay plain, and each card previews up to three distinct affected names from bounded queries with the same eligibility filters as its aggregate count.
+- Below `md`, the action queue comes before the 2x2 summary and agenda. DOM and keyboard order follow that reading order via the existing mobile media-query hook. Dashboard action, summary and agenda links have at least 44px targets.
+- The agenda is a divided timeline, not nested cards. Empty action queues retain "Semua beres"; empty agendas have a quiet calendar state. Student progress and attention ordering remain unchanged.
 
 ### Portal: mahasiswa and shared shell (#83)
 
