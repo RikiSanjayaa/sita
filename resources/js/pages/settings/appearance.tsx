@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 
-import AppearanceSettingsPanel from '@/components/settings/appearance-settings-panel';
+import { ThemePicker } from '@/components/theme-picker';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { makeSettingsBreadcrumbs } from '@/pages/settings/breadcrumbs';
@@ -14,7 +14,7 @@ export default function Appearance() {
             <Head title="Pengaturan tampilan" />
 
             <SettingsLayout>
-                <AppearanceSettingsPanel />
+                <ThemePicker />
             </SettingsLayout>
         </AppLayout>
     );
