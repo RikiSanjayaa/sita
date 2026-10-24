@@ -89,17 +89,34 @@ type TableCase = {
     role: 'head' | 'lecturer0' | 'student0' | 'guest';
     // Public supervisors share one toolbar across concentration tables.
     sharedToolbar?: boolean;
+    // The section heading is the page's only h1 (no separate PageHeader).
+    pageHeading?: boolean;
 };
 
 const inventory: TableCase[] = [
-    { path: '/kaprodi/mahasiswa', section: 'Daftar Mahasiswa', role: 'head' },
-    { path: '/kaprodi/dokumen', section: 'Daftar Dokumen', role: 'head' },
+    {
+        path: '/kaprodi/mahasiswa',
+        section: 'Daftar Mahasiswa',
+        role: 'head',
+        pageHeading: true,
+    },
+    {
+        path: '/kaprodi/dokumen',
+        section: 'Daftar Dokumen',
+        role: 'head',
+        pageHeading: true,
+    },
     {
         path: '/kaprodi/sempro-sidang',
         section: 'Monitoring Ujian',
         role: 'head',
     },
-    { path: '/kaprodi/dosen-prodi', section: 'Daftar Dosen', role: 'head' },
+    {
+        path: '/kaprodi/dosen-prodi',
+        section: 'Daftar Dosen',
+        role: 'head',
+        pageHeading: true,
+    },
     {
         path: '/dosen/mahasiswa-bimbingan',
         section: 'Mahasiswa Aktif',
@@ -114,6 +131,7 @@ const inventory: TableCase[] = [
         path: '/dosen/dokumen-revisi',
         section: 'Daftar Dokumen',
         role: 'lecturer0',
+        pageHeading: true,
     },
     {
         path: '/dosen/seminar-proposal',
@@ -213,6 +231,16 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                   '[data-slot="sticky-filter-bar"]',
                               );
                         await expect(bar).toHaveCount(1);
+                        if (item.pageHeading) {
+                            await expect(page.locator('h1')).toHaveCount(1);
+                            await expect(
+                                page.getByRole('heading', {
+                                    level: 1,
+                                    name: item.section,
+                                    exact: true,
+                                }),
+                            ).toBeVisible();
+                        }
                         // Select only our program on the public supervisor directory.
                         if (item.sharedToolbar) {
                             await bar.getByRole('combobox').click();

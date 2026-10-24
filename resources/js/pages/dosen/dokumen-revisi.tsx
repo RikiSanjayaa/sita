@@ -9,7 +9,6 @@ import {
     stackedTable,
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
-import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { Button } from '@/components/ui/button';
@@ -180,11 +179,6 @@ export default function DosenDokumenRevisiPage() {
             <Head title="Dokumen & Revisi Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
-                <PageHeader
-                    title="Dokumen & Revisi"
-                    description="Tinjau dokumen mahasiswa dan kirim catatan revisi"
-                />
-
                 {flashMessage && (
                     <div
                         role="status"
@@ -196,12 +190,13 @@ export default function DosenDokumenRevisiPage() {
                 )}
 
                 <DataSection
+                    level={1}
                     title="Daftar Dokumen"
-                    summary={
+                    description={`Tinjau dokumen mahasiswa dan kirim catatan revisi. ${
                         statusCounts.review > 0
-                            ? `${statusCounts.review} dokumen perlu review`
-                            : 'Tidak ada dokumen yang menunggu review'
-                    }
+                            ? `${statusCounts.review} dokumen perlu review.`
+                            : 'Tidak ada dokumen yang menunggu review.'
+                    }`}
                 >
                     <StickyFilterBar>
                         <DataToolbar

@@ -16,7 +16,6 @@ import {
     stackedTable,
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
-import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -179,14 +178,10 @@ export default function KaprodiDosenProdiPage() {
             <Head title="Dosen Prodi" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
-                <PageHeader
-                    title="Dosen Prodi"
-                    description={`Beban pembimbing dan penguji di ${programStudi.name}`}
-                />
-
                 <DataSection
+                    level={1}
                     title="Daftar Dosen"
-                    summary={`${lecturers.length} dosen tercatat`}
+                    description={`${lecturers.length} dosen tercatat dengan beban pembimbing dan penguji di ${programStudi.name}.`}
                 >
                     <StickyFilterBar>
                         <DataToolbar

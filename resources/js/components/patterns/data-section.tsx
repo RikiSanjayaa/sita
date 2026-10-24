@@ -38,35 +38,59 @@ export const stackedTable = {
     td: 'px-4 py-3 max-md:block max-md:px-0 max-md:py-1 max-md:before:mb-0.5 max-md:before:block max-md:before:text-xs max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]',
 } as const;
 
-/** A titled block of a page: heading and summary, then its content. */
+/**
+ * A titled block of a page: heading and summary, then its content.
+ *
+ * Pass `level={1}` when the section is the page's main block and replaces a
+ * separate `PageHeader`: the title becomes the page h1 and `description` sits
+ * under it instead of a right-aligned `summary`.
+ */
 export function DataSection({
     title,
     summary,
+    description,
+    level = 2,
     children,
     className,
 }: {
     title?: ReactNode;
     summary?: ReactNode;
+    /** Text under the title; use with `level={1}` on pages with one main section. */
+    description?: ReactNode;
+    /** Heading level of the title. Defaults to 2. */
+    level?: 1 | 2;
     children: ReactNode;
     className?: string;
 }) {
     const titleId = useId();
+    const Heading = `h${level}` as const;
+    const heading = title ? (
+        <Heading
+            id={titleId}
+            className={cn(
+                'font-semibold tracking-tight',
+                level === 1 ? 'text-2xl text-balance' : 'text-xl',
+            )}
+        >
+            {title}
+        </Heading>
+    ) : null;
 
     return (
         <section
             aria-labelledby={title ? titleId : undefined}
             className={cn('space-y-4', className)}
         >
-            {title || summary ? (
+            {description ? (
+                <div className="space-y-1">
+                    {heading}
+                    <p className="text-sm text-pretty text-muted-foreground">
+                        {description}
+                    </p>
+                </div>
+            ) : title || summary ? (
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-                    {title ? (
-                        <h2
-                            id={titleId}
-                            className="text-xl font-semibold tracking-tight"
-                        >
-                            {title}
-                        </h2>
-                    ) : null}
+                    {heading}
                     {summary ? (
                         <p className="text-sm text-pretty text-muted-foreground tabular-nums">
                             {summary}

@@ -99,6 +99,8 @@
 :root {
     --public-motion-enter-duration: 180ms;
     --public-motion-exit-duration: 120ms;
+    --public-topic-enter-duration: 240ms;
+    --public-topic-exit-duration: 180ms;
     --background: #f8fafc;
     --foreground: #0f172a;
     --card: #ffffff;
@@ -262,24 +264,32 @@
         animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
 
+    /* Height animates through a 0fr -> 1fr grid row; the inner element clips
+       the content and carries the padding so nothing is left when closed. */
     .public-topic-details {
+        display: grid;
+        grid-template-rows: 1fr;
         opacity: 1;
-        transform: translateY(0);
-        transition-property: transform, opacity;
-        transition-duration: var(--public-motion-enter-duration);
+        transition-property: grid-template-rows, opacity;
+        transition-duration: var(--public-topic-enter-duration);
         transition-timing-function: var(--ease-out);
     }
 
     .public-topic-details[data-state='closed'] {
-        opacity: 0.9;
-        transform: translateY(-2px);
-        transition-duration: var(--public-motion-exit-duration);
+        grid-template-rows: 0fr;
+        opacity: 0;
+        transition-duration: var(--public-topic-exit-duration);
+    }
+
+    .public-topic-details-inner {
+        min-height: 0;
+        overflow: hidden;
     }
 
     @starting-style {
         .public-topic-details[data-state='open'][data-motion='on'] {
-            opacity: 0.9;
-            transform: translateY(4px);
+            grid-template-rows: 0fr;
+            opacity: 0;
         }
     }
 
@@ -289,11 +299,12 @@
 
     .public-topic-chevron {
         transform: rotate(0deg);
-        transition: transform 150ms var(--ease-out);
+        transition: transform var(--public-topic-exit-duration) var(--ease-out);
     }
 
     .public-topic-chevron[data-open='true'] {
         transform: rotate(90deg);
+        transition-duration: var(--public-topic-enter-duration);
     }
 
     .public-topic-trigger[data-motion='off'] .public-topic-chevron {
@@ -328,8 +339,6 @@
     @media (prefers-reduced-motion: reduce) {
         .public-topic-details,
         .public-topic-details[data-state='closed'] {
-            opacity: 1;
-            transform: none;
             transition: none;
         }
 
