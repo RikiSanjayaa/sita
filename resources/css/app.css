@@ -97,6 +97,8 @@
  * dark foreground so `text-primary` stays readable on dark surfaces.
  */
 :root {
+    --public-motion-enter-duration: 180ms;
+    --public-motion-exit-duration: 120ms;
     --background: #f8fafc;
     --foreground: #0f172a;
     --card: #ffffff;
@@ -258,6 +260,88 @@
 
     .animate-pop {
         animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    .public-topic-details {
+        opacity: 1;
+        transform: translateY(0);
+        transition-property: transform, opacity;
+        transition-duration: var(--public-motion-enter-duration);
+        transition-timing-function: var(--ease-out);
+    }
+
+    .public-topic-details[data-state='closed'] {
+        opacity: 0.9;
+        transform: translateY(-2px);
+        transition-duration: var(--public-motion-exit-duration);
+    }
+
+    @starting-style {
+        .public-topic-details[data-state='open'][data-motion='on'] {
+            opacity: 0.9;
+            transform: translateY(4px);
+        }
+    }
+
+    .public-topic-details[data-motion='off'] {
+        transition: none;
+    }
+
+    .public-topic-chevron {
+        transform: rotate(0deg);
+        transition: transform 150ms var(--ease-out);
+    }
+
+    .public-topic-chevron[data-open='true'] {
+        transform: rotate(90deg);
+    }
+
+    .public-topic-trigger[data-motion='off'] .public-topic-chevron {
+        transition: none;
+    }
+
+    .public-intro {
+        opacity: 1;
+        transform: none;
+    }
+
+    @keyframes public-intro-enter {
+        from {
+            opacity: 0.9;
+            transform: translateY(4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .public-intro[data-public-intro='playing'] {
+        animation-name: public-intro-enter;
+        animation-duration: var(--public-motion-enter-duration);
+        animation-timing-function: var(--ease-out);
+        animation-delay: 0ms;
+        animation-iteration-count: 1;
+        animation-fill-mode: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .public-topic-details,
+        .public-topic-details[data-state='closed'] {
+            opacity: 1;
+            transform: none;
+            transition: none;
+        }
+
+        .public-topic-chevron {
+            transition: none;
+        }
+
+        .public-intro[data-public-intro='playing'] {
+            animation: none;
+            opacity: 1;
+            transform: none;
+        }
     }
 }
 

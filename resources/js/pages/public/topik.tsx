@@ -13,6 +13,7 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { PublicLayout } from '@/components/public/public-layout';
+import { TopicDetailsRow } from '@/components/public/topic-details-row';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -108,6 +109,8 @@ function PublicTopicsContent({
         filters.program || 'semua',
     );
     const [openRowId, setOpenRowId] = useState<number | null>(null);
+    // True only while the latest action is a pointer/touch disclosure toggle.
+    const [animateDetails, setAnimateDetails] = useState(false);
 
     useEffect(() => {
         const normalizedProgram =
@@ -160,12 +163,18 @@ function PublicTopicsContent({
         filters.program.trim() !== '' ||
         filters.year.trim() !== '';
 
-    function toggleRow(rowId: number) {
+    function toggleRow(rowId: number, animate: boolean) {
+        setAnimateDetails(animate);
         setOpenRowId((current) => (current === rowId ? null : rowId));
     }
 
-    function changeYear(value: string) {
+    function closeDetails() {
+        setAnimateDetails(false);
         setOpenRowId(null);
+    }
+
+    function changeYear(value: string) {
+        closeDetails();
         router.get(
             '/topik',
             {
@@ -183,6 +192,7 @@ function PublicTopicsContent({
     }
 
     function visitPage(page: number) {
+        closeDetails();
         router.get(
             '/topik',
             {
@@ -201,6 +211,7 @@ function PublicTopicsContent({
     }
 
     function changePageSize(pageSize: number) {
+        closeDetails();
         router.get(
             '/topik',
             {
@@ -231,7 +242,7 @@ function PublicTopicsContent({
                         search={search}
                         onSearchChange={(value) => {
                             setSearch(value);
-                            setOpenRowId(null);
+                            closeDetails();
                         }}
                         placeholder="Cari judul, ringkasan, mahasiswa, atau NIM..."
                     >
@@ -240,7 +251,7 @@ function PublicTopicsContent({
                             value={programFilter}
                             onValueChange={(value) => {
                                 setProgramFilter(value);
-                                setOpenRowId(null);
+                                closeDetails();
                             }}
                             placeholder="Filter prodi"
                             options={[
@@ -306,6 +317,7 @@ function PublicTopicsContent({
                             >
                                 {semproTitles.map((item) => {
                                     const isOpen = openRowId === item.id;
+                                    const detailsId = `public-topic-details-${item.id}`;
 
                                     return (
                                         <Fragment key={item.id}>
@@ -321,19 +333,29 @@ function PublicTopicsContent({
                                                         type="button"
                                                         size="icon"
                                                         variant="ghost"
-                                                        className="size-11 rounded-full md:size-9"
-                                                        onClick={() =>
-                                                            toggleRow(item.id)
+                                                        className="public-topic-trigger size-11 rounded-full md:size-9"
+                                                        // detail === 0 is a keyboard-generated click.
+                                                        onClick={(event) =>
+                                                            toggleRow(
+                                                                item.id,
+                                                                event.detail >
+                                                                    0,
+                                                            )
                                                         }
                                                         aria-label="Buka detail topik"
                                                         aria-expanded={isOpen}
+                                                        aria-controls={
+                                                            detailsId
+                                                        }
+                                                        data-motion={
+                                                            animateDetails
+                                                                ? 'on'
+                                                                : 'off'
+                                                        }
                                                     >
                                                         <ChevronRight
-                                                            className={cn(
-                                                                'size-4 transition-transform',
-                                                                isOpen &&
-                                                                    'rotate-90',
-                                                            )}
+                                                            className="public-topic-chevron size-4"
+                                                            data-open={isOpen}
                                                         />
                                                     </Button>
                                                 </td>
@@ -391,103 +413,98 @@ function PublicTopicsContent({
                                                 </td>
                                             </tr>
 
-                                            {isOpen ? (
-                                                <tr className="bg-muted/40 max-md:block">
-                                                    <td
-                                                        colSpan={6}
-                                                        className="px-4 pt-1 pb-5 max-md:block"
-                                                    >
-                                                        <div className="grid gap-6 md:ml-14 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
-                                                            <div className="space-y-4">
-                                                                <div className="space-y-1">
-                                                                    <p className="text-xs font-medium text-muted-foreground">
-                                                                        Ringkasan{' '}
-                                                                        {
-                                                                            n.proposalDocument
-                                                                        }
-                                                                    </p>
-                                                                    <p className="max-w-3xl text-sm leading-6">
-                                                                        {item.summary ||
-                                                                            '-'}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <p className="text-xs font-medium text-muted-foreground">
-                                                                        Judul
-                                                                        Internasional
-                                                                    </p>
-                                                                    <p className="text-sm italic">
-                                                                        {item.titleEn ||
-                                                                            '-'}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-
-                                                            <dl className="space-y-4 text-sm">
-                                                                <div className="space-y-1">
-                                                                    <dt className="text-xs font-medium text-muted-foreground">
-                                                                        Pembimbing
-                                                                    </dt>
-                                                                    <dd>
-                                                                        {item
-                                                                            .advisors
-                                                                            .length >
-                                                                        0 ? (
-                                                                            <ul className="space-y-0.5">
-                                                                                {item.advisors.map(
-                                                                                    (
-                                                                                        advisor,
-                                                                                    ) => (
-                                                                                        <li
-                                                                                            key={`${item.id}-${advisor.label}`}
-                                                                                        >
-                                                                                            <span className="text-muted-foreground">
-                                                                                                {
-                                                                                                    advisor.label
-                                                                                                }
-
-                                                                                                :
-                                                                                            </span>{' '}
-                                                                                            {
-                                                                                                advisor.name
-                                                                                            }
-                                                                                        </li>
-                                                                                    ),
-                                                                                )}
-                                                                            </ul>
-                                                                        ) : (
-                                                                            <span className="text-muted-foreground">
-                                                                                Belum
-                                                                                ada
-                                                                                data
-                                                                                pembimbing.
-                                                                            </span>
-                                                                        )}
-                                                                    </dd>
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <dt className="text-xs font-medium text-muted-foreground">
-                                                                        {`${item.proposalExamLabel} selesai`}
-                                                                    </dt>
-                                                                    <dd>
-                                                                        {item.seminarDate ||
-                                                                            '-'}
-                                                                    </dd>
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <dt className="text-xs font-medium text-muted-foreground">
-                                                                        {`${item.finalExamLabel} selesai`}
-                                                                    </dt>
-                                                                    <dd>
-                                                                        {item.sidangDate ||
-                                                                            '-'}
-                                                                    </dd>
-                                                                </div>
-                                                            </dl>
+                                            <TopicDetailsRow
+                                                id={detailsId}
+                                                open={isOpen}
+                                                animate={animateDetails}
+                                            >
+                                                <div className="grid gap-6 md:ml-14 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-1">
+                                                            <p className="text-xs font-medium text-muted-foreground">
+                                                                Ringkasan{' '}
+                                                                {
+                                                                    n.proposalDocument
+                                                                }
+                                                            </p>
+                                                            <p className="max-w-3xl text-sm leading-6">
+                                                                {item.summary ||
+                                                                    '-'}
+                                                            </p>
                                                         </div>
-                                                    </td>
-                                                </tr>
-                                            ) : null}
+                                                        <div className="space-y-1">
+                                                            <p className="text-xs font-medium text-muted-foreground">
+                                                                Judul
+                                                                Internasional
+                                                            </p>
+                                                            <p className="text-sm italic">
+                                                                {item.titleEn ||
+                                                                    '-'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <dl className="space-y-4 text-sm">
+                                                        <div className="space-y-1">
+                                                            <dt className="text-xs font-medium text-muted-foreground">
+                                                                Pembimbing
+                                                            </dt>
+                                                            <dd>
+                                                                {item.advisors
+                                                                    .length >
+                                                                0 ? (
+                                                                    <ul className="space-y-0.5">
+                                                                        {item.advisors.map(
+                                                                            (
+                                                                                advisor,
+                                                                            ) => (
+                                                                                <li
+                                                                                    key={`${item.id}-${advisor.label}`}
+                                                                                >
+                                                                                    <span className="text-muted-foreground">
+                                                                                        {
+                                                                                            advisor.label
+                                                                                        }
+
+                                                                                        :
+                                                                                    </span>{' '}
+                                                                                    {
+                                                                                        advisor.name
+                                                                                    }
+                                                                                </li>
+                                                                            ),
+                                                                        )}
+                                                                    </ul>
+                                                                ) : (
+                                                                    <span className="text-muted-foreground">
+                                                                        Belum
+                                                                        ada data
+                                                                        pembimbing.
+                                                                    </span>
+                                                                )}
+                                                            </dd>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <dt className="text-xs font-medium text-muted-foreground">
+                                                                {`${item.proposalExamLabel} selesai`}
+                                                            </dt>
+                                                            <dd>
+                                                                {item.seminarDate ||
+                                                                    '-'}
+                                                            </dd>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <dt className="text-xs font-medium text-muted-foreground">
+                                                                {`${item.finalExamLabel} selesai`}
+                                                            </dt>
+                                                            <dd>
+                                                                {item.sidangDate ||
+                                                                    '-'}
+                                                            </dd>
+                                                        </div>
+                                                    </dl>
+                                                </div>
+                                            </TopicDetailsRow>
                                         </Fragment>
                                     );
                                 })}

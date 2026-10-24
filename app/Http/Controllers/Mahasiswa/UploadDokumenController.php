@@ -16,6 +16,7 @@ use App\Services\ChatMessagePayloadBuilder;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
+use App\Services\ThesisArchiveService;
 use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -104,7 +105,7 @@ class UploadDokumenController extends Controller
         return $roles;
     }
 
-    public function index(Request $request): Response
+    public function index(Request $request, ThesisArchiveService $archive): Response
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -169,6 +170,7 @@ class UploadDokumenController extends Controller
 
         return Inertia::render('upload-dokumen', [
             'uploadedDocuments' => $documents,
+            'archivedProject' => $archive->studentHasArchivedProject($student),
             'flashMessage' => $request->session()->get('success'),
             'errorMessage' => $request->session()->get('error'),
         ]);

@@ -9,6 +9,7 @@ use App\Models\MentorshipSchedule;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\MentorshipScheduleService;
+use App\Services\ThesisArchiveService;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
@@ -26,7 +27,7 @@ class JadwalBimbinganController extends Controller
         private readonly RealtimeNotificationService $realtimeNotificationService,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, ThesisArchiveService $archive): Response
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -144,6 +145,7 @@ class JadwalBimbinganController extends Controller
             'advisors' => $allLecturers,
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
+            'archivedProject' => $archive->studentHasArchivedProject($student),
             'flashMessage' => $request->session()->get('success'),
         ]);
     }

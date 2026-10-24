@@ -26,7 +26,9 @@ export type PlaywrightAccountKey =
     | 'raka'
     | 'sinta'
     | 'wulan'
-    | 'tiket-habis';
+    | 'tiket-habis'
+    | 'lulus-tenggang'
+    | 'lulus-lama';
 
 type PlaywrightAccount = {
     email: string;
@@ -183,6 +185,18 @@ export const playwrightAccounts: Record<
         loginPath: '/login',
         landingPath: '/mahasiswa/dashboard',
     },
+    'lulus-tenggang': {
+        email: 'e2e-lulus-tenggang@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
+    'lulus-lama': {
+        email: 'e2e-lulus-lama@sita.test',
+        password: 'password',
+        loginPath: '/login',
+        landingPath: '/mahasiswa/dashboard',
+    },
     phonePrompt: {
         email: 'e2e-popup@sita.test',
         password: 'password',
@@ -260,6 +274,19 @@ export const thesisScenarios = {
         studentKey: 'tiket-habis' as const,
         studentName: 'Tiara Tiket Habis',
         currentTitle: 'Pengaruh Pembelajaran Adaptif Terhadap Motivasi Belajar',
+        supervisorKeys: ['dosen1'] as const,
+    },
+    completedInGrace: {
+        studentKey: 'lulus-tenggang' as const,
+        studentName: 'Anindya Lulus Masa Tenggang',
+        currentTitle:
+            'Analisis Kepuasan Pengguna Aplikasi Perpustakaan Digital',
+        supervisorKeys: ['dosen1'] as const,
+    },
+    completedPastGrace: {
+        studentKey: 'lulus-lama' as const,
+        studentName: 'Arif Lulus Siap Arsip',
+        currentTitle: 'Perancangan Sistem Informasi Inventaris Laboratorium',
         supervisorKeys: ['dosen1'] as const,
     },
     sinopsisObe: {

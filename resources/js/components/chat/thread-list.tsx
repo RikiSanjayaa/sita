@@ -1,5 +1,12 @@
-import { Inbox, Search, SlidersHorizontal, UserPlus } from 'lucide-react';
-import { type ReactNode } from 'react';
+import {
+    ChevronDown,
+    ChevronRight,
+    Inbox,
+    Search,
+    SlidersHorizontal,
+    UserPlus,
+} from 'lucide-react';
+import { type ReactNode, useState } from 'react';
 
 import {
     PrivateRecipientCombobox,
@@ -11,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 
 import { ChatEmptyState } from './empty-state';
@@ -89,6 +97,71 @@ export function ThreadList<T extends ChatThread>({
             disabled={privateThread.processing}
         />
     );
+
+    const activeThreads = threads.filter((thread) => !thread.isCompleted);
+    const completedThreads = threads.filter((thread) => thread.isCompleted);
+    const [completedOpen, setCompletedOpen] = useState(false);
+    // The open thread must stay reachable in the list, so its section never hides it.
+    const showCompleted =
+        completedOpen ||
+        completedThreads.some((thread) => thread.id === activeThreadId);
+
+    function renderRow(thread: T) {
+        const latestMessage = messagesFor(thread).at(-1);
+        const isActive = activeThreadId === thread.id;
+
+        return (
+            <button
+                key={thread.id}
+                type="button"
+                className={cn(
+                    'flex w-full shrink-0 flex-col border-b p-4 text-left transition-colors last:border-b-0',
+                    isActive ? 'bg-primary-muted' : 'hover:bg-muted/50',
+                )}
+                onClick={() => onSelect(thread.id)}
+            >
+                <div className="flex w-full items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                        <p
+                            className={cn(
+                                'truncate text-sm font-semibold text-foreground',
+                            )}
+                        >
+                            {threadTitle(thread)}
+                        </p>
+                        <p
+                            className={cn(
+                                'line-clamp-2 text-sm text-pretty text-muted-foreground',
+                            )}
+                        >
+                            {latestMessage?.message ||
+                                latestMessage?.documentName ||
+                                thread.preview}
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                        <Badge
+                            variant="soft"
+                            className={cn(
+                                'px-2 py-0.5 text-xs font-medium',
+                                badgeClassName(thread),
+                            )}
+                        >
+                            {thread.threadLabel}
+                        </Badge>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {thread.lastTime}
+                            </span>
+                            {hasUnread?.(thread) && (
+                                <div className="size-2 rounded-full bg-primary" />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </button>
+        );
+    }
 
     return (
         <Card
@@ -181,67 +254,33 @@ export function ThreadList<T extends ChatThread>({
             <CardContent className="relative flex-1 overflow-hidden p-0">
                 <ScrollArea className="h-full w-full">
                     <div className="flex flex-col">
-                        {threads.length > 0 ? (
-                            threads.map((thread) => {
-                                const latestMessage =
-                                    messagesFor(thread).at(-1);
-                                const isActive = activeThreadId === thread.id;
-
-                                return (
-                                    <button
-                                        key={thread.id}
-                                        type="button"
-                                        className={cn(
-                                            'flex w-full shrink-0 flex-col border-b p-4 text-left transition-colors last:border-b-0',
-                                            isActive
-                                                ? 'bg-primary-muted'
-                                                : 'hover:bg-muted/50',
-                                        )}
-                                        onClick={() => onSelect(thread.id)}
-                                    >
-                                        <div className="flex w-full items-start justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-1.5">
-                                                <p
-                                                    className={cn(
-                                                        'truncate text-sm font-semibold text-foreground',
-                                                    )}
-                                                >
-                                                    {threadTitle(thread)}
-                                                </p>
-                                                <p
-                                                    className={cn(
-                                                        'line-clamp-2 text-sm text-pretty text-muted-foreground',
-                                                    )}
-                                                >
-                                                    {latestMessage?.message ||
-                                                        latestMessage?.documentName ||
-                                                        thread.preview}
-                                                </p>
-                                            </div>
-                                            <div className="flex shrink-0 flex-col items-end gap-2">
-                                                <Badge
-                                                    variant="soft"
-                                                    className={cn(
-                                                        'px-2 py-0.5 text-xs font-medium',
-                                                        badgeClassName(thread),
-                                                    )}
-                                                >
-                                                    {thread.threadLabel}
-                                                </Badge>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-medium text-muted-foreground">
-                                                        {thread.lastTime}
-                                                    </span>
-                                                    {hasUnread?.(thread) && (
-                                                        <div className="size-2 rounded-full bg-primary" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })
-                        ) : (
+                        {activeThreads.map(renderRow)}
+                        {completedThreads.length > 0 && (
+                            <div
+                                className="flex flex-col"
+                                data-testid="completed-threads"
+                            >
+                                <button
+                                    type="button"
+                                    aria-expanded={showCompleted}
+                                    className="flex w-full shrink-0 items-center gap-2 border-b bg-muted/40 px-4 py-3 text-left text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/60"
+                                    onClick={() =>
+                                        setCompletedOpen((open) => !open)
+                                    }
+                                >
+                                    {showCompleted ? (
+                                        <ChevronDown className="size-4" />
+                                    ) : (
+                                        <ChevronRight className="size-4" />
+                                    )}
+                                    {neutralAcademicTerminology.completedPhase}{' '}
+                                    ({completedThreads.length})
+                                </button>
+                                {showCompleted &&
+                                    completedThreads.map(renderRow)}
+                            </div>
+                        )}
+                        {threads.length === 0 && (
                             <ChatEmptyState
                                 className="p-6"
                                 icon={Inbox}

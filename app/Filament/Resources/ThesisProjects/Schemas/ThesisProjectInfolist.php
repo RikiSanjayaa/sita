@@ -151,6 +151,15 @@ class ThesisProjectInfolist
                                         self::mentorshipDocumentsEntry(),
                                     ])
                                     ->visible(fn(ThesisProject $record): bool => self::projectMentorshipDocuments($record)->isNotEmpty()),
+                                Section::make('Dokumen Bimbingan')
+                                    ->description('Data bimbingan sudah diarsipkan. Chat, jadwal, dan dokumen draft dihapus; ringkasan di bawah dicatat sebelum penghapusan.')
+                                    ->schema([
+                                        TextEntry::make('archive_summary_lines')
+                                            ->label('Ringkasan arsip')
+                                            ->state(fn(ThesisProject $record): array => self::archiveSummaryLines($record))
+                                            ->listWithLineBreaks(),
+                                    ])
+                                    ->visible(fn(ThesisProject $record): bool => $record->isArchived()),
                             ]),
                         Tab::make('Timeline')
                             ->icon('heroicon-m-clock')
@@ -340,6 +349,27 @@ class ThesisProjectInfolist
                     ->openUrlInNewTab(),
             ])
             ->contained(false);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function archiveSummaryLines(ThesisProject $record): array
+    {
+        $summary = $record->archive_summary ?? [];
+        $lines = [];
+
+        foreach ($summary['completed_mentorship'] ?? [] as $row) {
+            $lines[] = sprintf('%s: %d bimbingan selesai', $row['lecturer_name'] ?? 'Pembimbing', (int) ($row['completed'] ?? 0));
+        }
+
+        $lines[] = sprintf('Dokumen diunggah: %d', (int) ($summary['documents_uploaded'] ?? 0));
+        $lines[] = sprintf('Pesan: %d', (int) ($summary['messages'] ?? 0));
+
+        $lastActivity = $record->archivedLastActivity();
+        $lines[] = 'Aktivitas terakhir: '.($lastActivity === null ? '-' : WitaDateTime::format($lastActivity, 'd M Y', false));
+
+        return $lines;
     }
 
     private static function mentorshipDocumentsEntry(): RepeatableEntry

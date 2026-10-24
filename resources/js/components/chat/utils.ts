@@ -36,6 +36,17 @@ export function sortThreads<T extends ChatThread>(threads: T[]): T[] {
     });
 }
 
+/**
+ * Threads of completed theses go after the rest, so the default selection is
+ * never a read-only thread while an active one exists. Keeps relative order.
+ */
+export function activeFirst<T extends ChatThread>(threads: T[]): T[] {
+    return [
+        ...threads.filter((thread) => !thread.isCompleted),
+        ...threads.filter((thread) => thread.isCompleted),
+    ];
+}
+
 /** Server messages followed by locally received ones not yet on the server. */
 export function mergeMessages(
     serverMessages: ChatMessage[],
@@ -98,7 +109,12 @@ function queryThreadId(threads: ChatThread[]): number | null {
 }
 
 export function resolveInitialThreadId(threads: ChatThread[]): number | null {
-    return queryThreadId(threads) ?? threads[0]?.id ?? null;
+    return (
+        queryThreadId(threads) ??
+        threads.find((thread) => !thread.isCompleted)?.id ??
+        threads[0]?.id ??
+        null
+    );
 }
 
 export function resolveInitialMobileView(threads: ChatThread[]): MobileView {

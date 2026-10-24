@@ -10,7 +10,7 @@ function playwrightProject(string $email): ThesisProject
 {
     return ThesisProject::query()
         ->whereHas('student', fn ($query) => $query->where('email', $email))
-        ->with(['activeSupervisorAssignments', 'semproDefenses.examiners', 'sidangDefenses.examiners'])
+        ->with(['activeSupervisorAssignments', 'documents', 'semproDefenses.examiners', 'sidangDefenses.examiners'])
         ->firstOrFail();
 }
 
@@ -46,5 +46,11 @@ it('seeds one student per Playwright scenario and can be re-run to reset them', 
 
     expect(playwrightProject('e2e-tiket-habis@sita.test')->isMentorshipSuspended())->toBeTrue();
 
-    expect(ThesisProject::query()->whereIn('student_user_id', User::query()->where('email', 'like', 'e2e-%@sita.test')->pluck('id'))->count())->toBe(7);
+    $inGrace = playwrightProject('e2e-lulus-tenggang@sita.test');
+    $pastGrace = playwrightProject('e2e-lulus-lama@sita.test');
+    expect($inGrace->state)->toBe('completed')
+        ->and(ThesisProject::query()->dueForArchive()->pluck('id')->all())->toContain($pastGrace->id)->not->toContain($inGrace->id)
+        ->and($pastGrace->documents->where('kind', 'final_manuscript'))->toHaveCount(1);
+
+    expect(ThesisProject::query()->whereIn('student_user_id', User::query()->where('email', 'like', 'e2e-%@sita.test')->pluck('id'))->count())->toBe(9);
 });

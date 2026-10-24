@@ -46,6 +46,7 @@ class MentorshipProgressService
                     'student_user_id' => (int) $project->student_user_id,
                     'lecturer_user_id' => (int) $assignment->lecturer_user_id,
                     'started_at' => $assignment->started_at,
+                    'archived_completed' => $project->archivedCompletedCount((int) $assignment->lecturer_user_id),
                 ];
             }
         }
@@ -122,6 +123,19 @@ class MentorshipProgressService
             return [];
         }
 
+        // Archived projects no longer have their schedules; read the snapshot taken before deletion.
+        [$archived, $assignments] = $assignments->partition(
+            static fn(ThesisSupervisorAssignment $assignment): bool => $assignment->project->isArchived(),
+        );
+        $result = [];
+        foreach ($archived as $assignment) {
+            $result[(int) $assignment->project->student_user_id] = $assignment->project->archivedCompletedCount($lecturerId) ?? 0;
+        }
+
+        if ($assignments->isEmpty()) {
+            return $result;
+        }
+
         $counts = MentorshipSchedule::query()
             ->selectRaw('student_user_id, count(*) as completed_count')
             ->where('lecturer_user_id', $lecturerId)
@@ -141,7 +155,6 @@ class MentorshipProgressService
             ->map(static fn($count): int => (int) $count)
             ->all();
 
-        $result = [];
         foreach ($assignments as $assignment) {
             $studentId = (int) $assignment->project->student_user_id;
             $result[$studentId] = $counts[$studentId] ?? 0;
@@ -155,13 +168,27 @@ class MentorshipProgressService
      * same rule as forProject(): sessions since the start of each assignment. Pairs that
      * share a student and lecturer receive the same count.
      *
-     * @param  list<array{key: string, student_user_id: int, lecturer_user_id: int, started_at: ?CarbonInterface}>  $pairs
+     * A pair carrying archived_completed (the count from an archived project's snapshot) is
+     * answered from it, because the schedules it was counted from are deleted.
+     *
+     * @param  list<array{key: string, student_user_id: int, lecturer_user_id: int, started_at: ?CarbonInterface, archived_completed?: ?int}>  $pairs
      * @return array<string, int> completed count keyed by the pair key
      */
     public function completedCountsForPairs(array $pairs): array
     {
+        $result = [];
+        $live = [];
+        foreach ($pairs as $pair) {
+            if (($pair['archived_completed'] ?? null) !== null) {
+                $result[$pair['key']] = (int) $pair['archived_completed'];
+            } else {
+                $live[] = $pair;
+            }
+        }
+        $pairs = $live;
+
         if ($pairs === []) {
-            return [];
+            return $result;
         }
 
         $counts = MentorshipSchedule::query()
@@ -184,7 +211,6 @@ class MentorshipProgressService
                 "{$row->student_user_id}:{$row->lecturer_user_id}" => (int) $row->completed_count,
             ]);
 
-        $result = [];
         foreach ($pairs as $pair) {
             $result[$pair['key']] = $counts["{$pair['student_user_id']}:{$pair['lecturer_user_id']}"] ?? 0;
         }

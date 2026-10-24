@@ -117,6 +117,13 @@ class ThesisProjectsTable
                     ->state(fn(ThesisProject $record): string => self::mentorshipTicketLabel($record))
                     ->color(fn(ThesisProject $record): string => $record->isMentorshipSuspended() ? 'danger' : 'success')
                     ->toggleable(),
+                TextColumn::make('archive_status')
+                    ->label('Arsip')
+                    ->badge()
+                    ->state(fn(ThesisProject $record): ?string => self::archiveLabel($record))
+                    ->color(fn(ThesisProject $record): string => $record->isArchived() ? 'gray' : 'warning')
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('started_at')
                     ->label('Mulai')
                     ->dateTime('d M Y')
@@ -198,6 +205,19 @@ class ThesisProjectsTable
                                 ->whereNotNull('mentorship_valid_until')
                                 ->whereDate('mentorship_valid_until', '<', now(WitaDateTime::TIMEZONE)->toDateString()),
                             'unset' => $query->whereNull('mentorship_valid_until'),
+                            default => $query,
+                        };
+                    }),
+                SelectFilter::make('archive')
+                    ->label('Arsip')
+                    ->options([
+                        'archived' => 'Diarsipkan',
+                        'due' => 'Akan diarsipkan (dalam '.(int) config('sita.archive_grace_days', 30).' hari)',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'archived' => $query->whereNotNull('archived_at'),
+                            'due' => $query->where('state', 'completed')->whereNull('archived_at'),
                             default => $query,
                         };
                     }),
@@ -330,6 +350,23 @@ class ThesisProjectsTable
         }
 
         return 'Berlaku s.d. '.WitaDateTime::format($record->mentorship_valid_until, 'd M Y', false);
+    }
+
+    public static function archiveLabel(ThesisProject $record): ?string
+    {
+        if ($record->isArchived()) {
+            return 'Diarsipkan '.WitaDateTime::format($record->archived_at, 'd M Y', false);
+        }
+
+        $dueAt = $record->archiveDueAt();
+
+        if ($dueAt === null) {
+            return null;
+        }
+
+        $days = (int) ceil(now()->diffInDays($dueAt, false));
+
+        return $days > 0 ? 'Diarsipkan dalam '.$days.' hari' : 'Menunggu arsip';
     }
 
     public static function phaseLabel(string $phase): string

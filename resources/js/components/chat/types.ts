@@ -44,6 +44,8 @@ export type ChatThread = {
     preview: string;
     lastTime: string;
     latestActivityAt: string | null;
+    /** The thread's thesis is completed: listed under "Selesai" and read-only. */
+    isCompleted?: boolean;
 };
 
 export type ThreadMode = 'group' | 'private';
