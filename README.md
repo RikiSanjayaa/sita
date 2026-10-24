@@ -72,7 +72,7 @@ docker compose build --pull
 docker compose up -d --no-build
 ```
 
-Image hasil build lokal memakai nilai `VITE_REVERB_*` dari `.env` (default `ws://localhost:8089`), jadi chat real-time diarahkan ke Reverb lokal.
+Konfigurasi Reverb untuk browser dibaca saat runtime dari `REVERB_APP_KEY`, `REVERB_HOST`, `REVERB_PORT`, dan `REVERB_SCHEME` (default lokal `ws://localhost:8089`); alamat antar-container ada di `REVERB_INTERNAL_*`.
 
 Image PHP dipatok ke 8.4.27 atau rilis lebih baru pada cabang 8.4 untuk perbaikan CVE-2026-109618 dan CVE-2026-109619. Build memeriksa versi PHP pada stage asset dan runtime; `scripts/deploy-via-compose.sh` juga menolak image lama sebelum menjalankan init. Setelah pembaruan image, buat ulang `app`, `queue`, `scheduler`, dan `reverb`; restart container lama saja tidak mengganti PHP. Pada aaPanel, perbarui PHP-FPM site dan PHP CLI ke versi yang sudah diperbaiki, lalu restart seluruh worker terkait. Tag `main`/`latest` dan waktu build bukan bukti versi PHP; periksa binary yang benar-benar melayani aplikasi.
 
@@ -134,12 +134,12 @@ Playwright memakai database SQLite terpisah (`database/playwright.sqlite`) yang 
 
 ## Deployment
 
-- **Docker**: setiap push ke `main` yang lolos test dipublikasikan sebagai image `ghcr.io/rikisanjayaa/sita-app` dan `ghcr.io/rikisanjayaa/sita-web` (tag `main` dan `sha-<commit>`; tag git `vX.Y.Z` menghasilkan `X.Y.Z` dan `latest`). Di server, `bash scripts/deploy-via-compose.sh` menarik image itu, menjalankan migrasi, me-restart service, lalu healthcheck (`HEALTHCHECK_URL` opsional). Pin versi lewat `APP_IMAGE` dan `WEB_IMAGE`. Image dibangun dengan `VITE_REVERB_APP_KEY` dari GitHub variable, jadi `REVERB_APP_KEY` di server harus sama.
+- **Docker**: setiap push ke `main` yang lolos test dipublikasikan sebagai image `ghcr.io/rikisanjayaa/sita-app` dan `ghcr.io/rikisanjayaa/sita-web` (tag `main` dan `sha-<commit>`; tag git `vX.Y.Z` menghasilkan `X.Y.Z` dan `latest`). Di server, `bash scripts/deploy-via-compose.sh` menarik image itu, menjalankan migrasi, me-restart service, lalu healthcheck (`HEALTHCHECK_URL` opsional). Pin versi lewat `APP_IMAGE` dan `WEB_IMAGE`. Image tidak membakar konfigurasi Reverb: satu image yang sama berjalan di server mana pun, dan key/host/port/scheme Reverb untuk browser diambil dari `REVERB_*` di `.env` server saat runtime.
 - **aaPanel**: lihat [docs/AAPANEL_DEPLOYMENT.md](docs/AAPANEL_DEPLOYMENT.md).
 
 ## Troubleshooting
 
-- **Layar kosong dengan error `You must pass your app key when you instantiate Pusher`**: isi variabel `VITE_REVERB_*` di `.env`, lalu `php artisan config:clear` dan build ulang asset (`npm run build` atau `npm run dev`).
+- **Layar kosong dengan error `You must pass your app key when you instantiate Pusher`**: isi `REVERB_APP_KEY`, `REVERB_HOST`, `REVERB_PORT`, dan `REVERB_SCHEME` di `.env` server, lalu `php artisan config:clear` (tidak perlu build ulang asset).
 - **Perubahan frontend tidak muncul**: jalankan `npm run dev` atau `npm run build`.
 - **Chat tidak real-time**: pastikan proses Reverb berjalan (sudah termasuk di `composer run dev`).
 

@@ -1,9 +1,5 @@
 x-build-args: &build-args
   INSTALL_DEV_DEPENDENCIES: ${INSTALL_DEV_DEPENDENCIES:-false}
-  VITE_REVERB_APP_KEY: ${VITE_REVERB_APP_KEY:-local-key}
-  VITE_REVERB_HOST: ${VITE_REVERB_HOST:-localhost}
-  VITE_REVERB_PORT: ${VITE_REVERB_PORT:-8089}
-  VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME:-http}
 
 x-app-build: &app-build
   context: .

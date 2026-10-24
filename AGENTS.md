@@ -153,7 +153,7 @@ use Illuminate\Support\Facades\Auth;
 - E2E specs live in `tests/e2e/specs/`.
 - Playwright support utilities live in `tests/e2e/support/`.
 - Playwright uses a dedicated SQLite database at `database/playwright.sqlite` and auth state under `storage/playwright`.
-- Playwright starts Laravel and Reverb with isolated test settings. CI builds assets with matching `VITE_REVERB_*` values before starting the servers; keep one worker because all specs share the SQLite database.
+- Playwright starts Laravel and Reverb with isolated test settings. The browser gets its Reverb key/host/port/scheme at runtime from the `reverb-config` meta tag (`App\Support\ReverbClientConfig`, from `REVERB_*`), so no build-time Reverb values exist; keep one worker because all specs share the SQLite database.
 - Servers listen on 9010 (app) and 9011 (Reverb) and are reused if already running. To run Playwright in several checkouts at once, give each its own ports with `PLAYWRIGHT_APP_PORT` and `PLAYWRIGHT_REVERB_PORT`; otherwise a run can silently test another checkout's server.
 - Restore seeded account identity in `finally` when a scenario changes a profile; later specs reuse the same users and auth states.
 - `tests/e2e/setup/bootstrap.spec.ts` runs `optimize:clear`, `migrate:fresh --seed --force`, waits for `/up`, and captures login sessions.
@@ -172,7 +172,7 @@ use Illuminate\Support\Facades\Auth;
 ## Realtime Checklist
 
 - Ensure env has Reverb + Vite Reverb keys.
-- If blank screen shows missing Pusher app key, check `VITE_REVERB_APP_KEY`.
+- If blank screen shows missing Pusher app key, check `REVERB_APP_KEY` on the server (the `reverb-config` meta tag).
 - If frontend changes do not appear, run `npm run dev` or `npm run build`.
 
 ## Agent Workflow

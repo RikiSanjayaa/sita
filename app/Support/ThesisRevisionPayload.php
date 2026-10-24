@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\ThesisDocument;
 use App\Models\ThesisRevision;
 use App\Models\ThesisRevisionItem;
+use App\Models\ThesisRevisionRound;
 use App\Services\ThesisRevisionRoundService;
 
 /**
@@ -28,9 +29,50 @@ class ThesisRevisionPayload
                 'status' => $item->status,
                 'statusLabel' => self::itemStatusLabel($item->status),
                 'roundOpened' => $item->round_opened,
+                'studentResponse' => $item->student_response,
+                'studentResponseLocation' => $item->student_response_location,
+                'verificationComment' => $item->verification_comment,
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Round history of a revision, oldest first. Expects `rounds.studentDocument` loaded.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function rounds(ThesisRevision $revision): array
+    {
+        return $revision->rounds
+            ->map(fn (ThesisRevisionRound $round): array => [
+                'roundNo' => $round->round_no,
+                'status' => $round->status,
+                'statusLabel' => self::roundStatusLabel($round->status),
+                'openedAt' => $round->opened_at?->locale('id')->translatedFormat('d F Y, H:i'),
+                'submittedAt' => $round->student_submitted_at?->locale('id')->translatedFormat('d F Y, H:i'),
+                'reviewedAt' => $round->reviewed_at?->locale('id')->translatedFormat('d F Y, H:i'),
+                'manuscript' => $round->studentDocument instanceof ThesisDocument
+                    ? self::document($round->studentDocument)
+                    : null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    public static function currentRoundStatus(ThesisRevision $revision): ?string
+    {
+        return $revision->rounds->sortByDesc('round_no')->first()?->status;
+    }
+
+    public static function roundStatusLabel(string $status): string
+    {
+        return match ($status) {
+            ThesisRevisionRound::STATUS_AWAITING_STUDENT => 'Menunggu perbaikan mahasiswa',
+            ThesisRevisionRound::STATUS_AWAITING_REVIEW => 'Menunggu verifikasi penguji',
+            ThesisRevisionRound::STATUS_CLOSED => 'Selesai',
+            default => ucwords(str_replace('_', ' ', $status)),
+        };
     }
 
     /**
