@@ -11,7 +11,7 @@ export type StudentProgressDetail = {
     statusLabel: string | null;
     supervisors: StudentProgressSupervisor[];
     lastActivityAt: string | null;
-    isInactive: boolean;
+    lastActivityLabel: string;
     ticket: { suspended: boolean; validUntil: string | null };
 };
 
@@ -37,11 +37,6 @@ export function StudentProgressPeek({
                 <StatusBadge domain="phase" status={progress.phase}>
                     {progress.phaseLabel}
                 </StatusBadge>
-                {detail?.isInactive ? (
-                    <StatusBadge domain="active" status="inactive">
-                        Tidak aktif
-                    </StatusBadge>
-                ) : null}
                 {detail?.ticket.suspended ? (
                     <StatusBadge domain="ticket" status="overdue">
                         Tiket habis
@@ -56,11 +51,11 @@ export function StudentProgressPeek({
             {detail ? (
                 <>
                     <SupervisorCounts supervisors={detail.supervisors} />
-                    <p className="text-muted-foreground">
-                        Aktivitas terakhir:{' '}
-                        <span className="text-foreground tabular-nums">
-                            {detail.lastActivityAt ?? 'Belum ada'}
-                        </span>
+                    <p
+                        className="text-muted-foreground tabular-nums"
+                        title={detail.lastActivityAt ?? undefined}
+                    >
+                        {detail.lastActivityLabel}
                     </p>
                 </>
             ) : null}

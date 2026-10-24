@@ -17,6 +17,20 @@ Mahasiswa dan dosen harus sudah ada sebagai user. Import user lebih dulu (lihat 
 
 Kolom lain di file diabaikan. Baris kosong dilewati.
 
+## Contoh
+
+`docs/samples/contoh-import-tugas-akhir.xlsx` siap diunggah apa adanya. Isinya tiga mahasiswa Ilmu Komputer dari seeder tinjauan (`php artisan db:seed --class=ReviewScenarioSeeder --force`, aman diulang), masing-masing belum punya tugas akhir:
+
+| NIM          | Mahasiswa        | Tahap        | Pembimbing (NIK seed)                  |
+| ------------ | ---------------- | ------------ | -------------------------------------- |
+| `2210510111` | Putri Maharani   | Review Judul | -                                      |
+| `2210510112` | Rizal Firmansyah | Riset        | `7301010101010005`, `7301010101010006` |
+| `2210510113` | Siska Amelia     | Tahap Sidang | `7301010101010003`                     |
+
+Login: email `putri.maharani@sita.test`, `rizal.firmansyah@sita.test`, `siska.amelia@sita.test`, kata sandi `password`. Unggah sebagai admin Ilmu Komputer (`admin@sita.test`). Setelah berhasil, unggah ulang file yang sama ditolak (aturan 4). Seeder tidak membuat ulang tugas akhir yang sudah diimpor.
+
+Seeder yang sama membuat tiga mahasiswa untuk meninjau tiket bimbingan 1 tahun: `dewi.anggraini@sita.test` (tiket berlaku sekitar 10 bulan), `fajar.ramadhan@sita.test` (berakhir dalam 9 hari), dan `hendra.gunawan@sita.test` (berakhir kemarin). Tanggal tiket disegarkan setiap seeder dijalankan.
+
 ## Aturan
 
 1. Semua baris divalidasi lebih dulu. Jika ada satu error, tidak ada yang tersimpan dan error ditampilkan per baris (`Baris N: ...`, nomor baris sama dengan baris di Excel). Perbaiki file lalu unggah ulang.

@@ -140,7 +140,7 @@ it('shows supervision detail to active supervisors and examiners', function (): 
             $rows = collect($page->toArray()['props']['mahasiswaRows']);
 
             expect($rows)->toHaveCount(2);
-            $rows->each(fn (array $row) => expect($row['progress']['detail'])->toBeArray()->toHaveKeys(['statusLabel', 'supervisors', 'lastActivityAt', 'isInactive']));
+            $rows->each(fn (array $row) => expect($row['progress']['detail'])->toBeArray()->toHaveKeys(['statusLabel', 'supervisors', 'lastActivityAt', 'lastActivityLabel']));
         });
 });
 

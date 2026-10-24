@@ -322,17 +322,20 @@ class ThesisWorkflowSeeder extends Seeder
         $historicalSubmittedAt = CarbonImmutable::parse('2025-09-10 09:30:00');
         $historicalApprovedAt = CarbonImmutable::parse('2025-09-18 14:00:00');
         $historicalSemproAt = CarbonImmutable::parse('2025-10-05 10:00:00');
-        $historicalSidangAt = CarbonImmutable::parse('2025-11-08 10:00:00');
+        $historicalCancelledAt = CarbonImmutable::parse('2025-12-02 10:00:00');
 
+        // The old attempt passed sempro, then was abandoned when she changed research direction.
+        // It is cancelled (no sidang, no final manuscript), so the new attempt is her only current one.
         $historicalProject = $this->upsertProject(
             $student,
             $prodi,
             $historicalStartedAt,
-            'completed',
-            'completed',
-            CarbonImmutable::parse('2025-11-19 16:00:00'),
+            'research',
+            'cancelled',
+            null,
             $admin,
-            'Attempt lama yang sudah selesai dan ditutup.',
+            'Attempt lama dibatalkan karena mahasiswa mengganti arah penelitian.',
+            $historicalCancelledAt,
         );
 
         $historicalTitle = $this->upsertTitle(
@@ -340,7 +343,7 @@ class ThesisWorkflowSeeder extends Seeder
             versionNo: 1,
             titleId: 'Sistem Rekomendasi Ruang Belajar Kolaboratif Berbasis IoT',
             titleEn: 'IoT-Based Collaborative Study Space Recommendation System',
-            proposalSummary: 'Skripsi lama yang telah melewati sempro dan diarsipkan karena mahasiswa mengganti arah penelitian.',
+            proposalSummary: 'Skripsi lama yang telah melewati sempro dan dibatalkan karena mahasiswa mengganti arah penelitian.',
             status: 'approved',
             submittedBy: $student,
             submittedAt: $historicalSubmittedAt,
@@ -355,29 +358,8 @@ class ThesisWorkflowSeeder extends Seeder
         $this->upsertDefenseExaminer($historicalSempro, $examinerTwo, 'examiner', 2, 'pass', 80.5, 'Dokumen skripsi lama cukup baik.', $admin, $historicalSemproAt->addMinutes(85));
         $this->createSemproThread($historicalSempro, $student, [$examinerOne, $examinerTwo], $historicalSemproAt);
 
-        $this->upsertSupervisorAssignment($historicalProject, $supervisorOne, AdvisorType::Primary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:00:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing skripsi lama.');
-        $this->upsertSupervisorAssignment($historicalProject, $supervisorTwo, AdvisorType::Secondary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:05:00'), CarbonImmutable::parse('2025-11-18 10:00:00'), 'Pembimbing kedua skripsi lama.');
-
-        $historicalSidang = $this->upsertDefense($historicalProject, $historicalTitle, 'sidang', 1, 'completed', 'pass_with_revision', $historicalSidangAt, 'Ruang Sidang B', 'offline', $admin, $admin, $historicalSidangAt->addHours(2), 'Sidang historis untuk skripsi yang telah ditutup.');
-        $this->upsertDefenseExaminer($historicalSidang, $supervisorOne, 'primary_supervisor', 1, 'pass', 83.5, 'Pembimbing utama menyetujui dengan revisi minor.', $admin, $historicalSidangAt->addMinutes(95));
-        $this->upsertDefenseExaminer($historicalSidang, $supervisorTwo, 'secondary_supervisor', 2, 'pass_with_revision', 81, 'Pembimbing kedua menambahkan catatan format.', $admin, $historicalSidangAt->addMinutes(100));
-        $this->upsertDefenseExaminer($historicalSidang, $examinerOne, 'examiner', 3, 'pass', 84, 'Penguji menyetujui hasil sidang.', $admin, $historicalSidangAt->addMinutes(105));
-        $this->createSidangThread($historicalSidang, $student, [$supervisorOne, $supervisorTwo, $examinerOne], $historicalSidangAt);
-
-        $revision = $this->upsertRevision(
-            $historicalProject,
-            $historicalSidang,
-            $supervisorTwo,
-            'resolved',
-            'Finalisasi format penulisan dan kelengkapan lampiran.',
-            CarbonImmutable::parse('2025-11-15 23:59:00'),
-            CarbonImmutable::parse('2025-11-16 15:00:00'),
-            CarbonImmutable::parse('2025-11-19 12:00:00'),
-            $admin,
-            'Revisi final sudah diterima.',
-        );
-
-        $this->upsertThesisDocument($historicalProject, $historicalTitle, $student, 'final_manuscript', 1, 'Naskah Akhir', 'thesis/final/laila-final-manuscript.pdf', CarbonImmutable::parse('2025-11-16 15:00:00'), $historicalSidang, $revision);
+        $this->upsertSupervisorAssignment($historicalProject, $supervisorOne, AdvisorType::Primary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:00:00'), $historicalCancelledAt, 'Pembimbing skripsi lama.');
+        $this->upsertSupervisorAssignment($historicalProject, $supervisorTwo, AdvisorType::Secondary->value, 'ended', $admin, CarbonImmutable::parse('2025-10-10 09:05:00'), $historicalCancelledAt, 'Pembimbing kedua skripsi lama.');
 
         $newStartedAt = CarbonImmutable::parse('2026-03-01 08:00:00');
         $newSubmittedAt = CarbonImmutable::parse('2026-03-01 08:30:00');
@@ -395,7 +377,8 @@ class ThesisWorkflowSeeder extends Seeder
         );
         $this->upsertThesisDocument($newProject, $newTitle, $student, 'proposal', 1, 'Proposal Skripsi', 'thesis/proposals/laila-restart-proposal.pdf', $newSubmittedAt);
 
-        $this->recordEvent($historicalProject, $admin, 'project_closed', 'Skripsi selesai', 'Skripsi dinyatakan selesai.', CarbonImmutable::parse('2025-11-19 16:00:00'));
+        $this->recordEvent($historicalProject, $admin, 'sempro_completed', 'Sempro selesai', 'Sempro skripsi lama dinyatakan lulus.', $historicalSemproAt->addHours(2));
+        $this->recordEvent($historicalProject, $admin, 'project_cancelled', 'Skripsi dibatalkan', 'Mahasiswa mengganti arah penelitian; skripsi lama dibatalkan.', $historicalCancelledAt);
         $this->recordEvent($newProject, $student, 'project_created', 'Skripsi dimulai', 'Attempt baru dimulai setelah restart topik.', $newStartedAt);
     }
 
@@ -467,6 +450,7 @@ class ThesisWorkflowSeeder extends Seeder
         ?CarbonImmutable $completedAt = null,
         ?User $closedBy = null,
         ?string $notes = null,
+        ?CarbonImmutable $cancelledAt = null,
     ): ThesisProject {
         return ThesisProject::query()->updateOrCreate(
             [
@@ -478,6 +462,7 @@ class ThesisWorkflowSeeder extends Seeder
                 'phase' => $phase,
                 'state' => $state,
                 'completed_at' => $completedAt,
+                'cancelled_at' => $cancelledAt,
                 'closed_by' => $closedBy?->id,
                 'created_by' => $student->id,
                 'notes' => $notes,

@@ -29,6 +29,22 @@ test.describe('Progres Mahasiswa', () => {
     test.describe('mahasiswa', () => {
         test.use({ storageState: authStatePath('mahasiswa') });
 
+        test('words last activity as relative time, with no "Tidak aktif" flag', async ({
+            page,
+        }) => {
+            await page.goto('/progres-mahasiswa');
+            await expect(page.locator(rows).first()).toBeVisible();
+
+            await expect(page.getByText('Tidak aktif')).toHaveCount(0);
+            for (const cell of await page
+                .locator(`${rows} td[data-label="Aktivitas terakhir"]`)
+                .all()) {
+                await expect(cell).toHaveText(
+                    /^(Terakhir aktif .+|Belum ada aktivitas|-)$/,
+                );
+            }
+        });
+
         test('opens, searches, filters and opens a profile', async ({
             page,
         }) => {

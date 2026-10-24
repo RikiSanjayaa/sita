@@ -31,19 +31,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Inactive Student Threshold
-    |--------------------------------------------------------------------------
-    |
-    | Days without recorded progress (completed bimbingan, a student's chat
-    | message, or a student's document upload) before a student is flagged as
-    | inactive on progress cards and the Progres Mahasiswa page.
-    |
-    */
-
-    'inactive_after_days' => (int) env('SITA_INACTIVE_AFTER_DAYS', 30),
-
-    /*
-    |--------------------------------------------------------------------------
     | Completed Thesis Archive
     |--------------------------------------------------------------------------
     |

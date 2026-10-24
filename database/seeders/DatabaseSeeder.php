@@ -84,6 +84,9 @@ class DatabaseSeeder extends Seeder
             $thread = $this->seedThread($student->id);
             $this->seedThreadMessages($thread->id, $student->id, $dosen->id, $document);
         }
+
+        // After the loop above, so the import-ready students stay without any mentorship data.
+        $this->call(ReviewScenarioSeeder::class);
     }
 
     private function seedSchedules(int $assignmentId, int $studentId, int $dosenId, int $index): void
