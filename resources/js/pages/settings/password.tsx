@@ -9,7 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { makeSettingsBreadcrumbs } from '@/pages/settings/breadcrumbs';
-
 import { request } from '@/routes/password';
 import { edit, update } from '@/routes/user-password';
 

@@ -59,9 +59,8 @@ import {
 } from '@/lib/academic-grade';
 import { type StatusTone, toneClassName } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
-import { type SharedData, type UserProfileSummary } from '@/types';
-
 import { dashboard, tugasAkhir } from '@/routes';
+import { type SharedData, type UserProfileSummary } from '@/types';
 
 type Submission = {
     id: number;

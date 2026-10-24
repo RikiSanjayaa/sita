@@ -64,10 +64,9 @@ import {
 import { useUrlState } from '@/hooks/use-url-state';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-
 import * as routes from '@/routes';
 import * as mahasiswaUploadDokumenRoutes from '@/routes/mahasiswa/upload-dokumen';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type DokumenStatus =
     | 'Menunggu Review'
