@@ -632,10 +632,7 @@ function StudentTable({
                                             profileUrl={row.profileUrl}
                                         />
                                     </td>
-                                    <td
-                                        data-label="Angkatan"
-                                        className={stackedTable.td}
-                                    >
+                                    <td className={stackedTable.td}>
                                         <StudentCohort
                                             degreeLevel={row.degreeLevel}
                                             angkatan={row.angkatan}
@@ -645,10 +642,7 @@ function StudentTable({
                                             }
                                         />
                                     </td>
-                                    <td
-                                        data-label="Tahap"
-                                        className={stackedTable.td}
-                                    >
+                                    <td className={stackedTable.tdDetail}>
                                         {row.progress ? (
                                             <StudentProgressPeek
                                                 progress={row.progress}
@@ -661,7 +655,7 @@ function StudentTable({
                                                 {row.phase}
                                             </StatusBadge>
                                         ) : (
-                                            <span className="text-muted-foreground">
+                                            <span className="text-muted-foreground max-md:hidden">
                                                 -
                                             </span>
                                         )}
@@ -681,24 +675,20 @@ function StudentTable({
                                             </p>
                                         ) : null}
                                     </td>
-                                    <td
-                                        data-label="Risiko"
-                                        className={stackedTable.td}
-                                    >
+                                    <td className={stackedTable.tdDetail}>
                                         {row.progressRisk ? (
                                             <ProgressRiskBadge
                                                 risk={row.progressRisk}
                                             />
                                         ) : (
-                                            <span className="text-muted-foreground">
+                                            <span className="text-muted-foreground max-md:hidden">
                                                 -
                                             </span>
                                         )}
                                     </td>
                                     <td
-                                        data-label="Judul dan pembimbing"
                                         className={cn(
-                                            stackedTable.td,
+                                            stackedTable.tdDetail,
                                             'md:max-w-xs',
                                         )}
                                     >
@@ -708,7 +698,7 @@ function StudentTable({
                                         />
                                     </td>
                                     <td className={stackedTable.tdActions}>
-                                        <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                        <div className="flex items-center justify-end gap-1">
                                             {canManageSupervisors &&
                                             row.canManageSupervisors &&
                                             row.projectId !== null &&
@@ -1074,7 +1064,15 @@ function ProgressRiskBadge({
     const tone = { high: 'danger', medium: 'warning', low: 'success' } as const;
 
     return (
-        <div className={cn('flex max-w-48 flex-col gap-1', className)}>
+        <div
+            className={cn(
+                'flex max-w-48 flex-col gap-1 max-md:max-w-none max-md:flex-row max-md:flex-wrap max-md:items-center max-md:gap-x-2 max-md:gap-y-0.5',
+                className,
+            )}
+        >
+            <span className="text-xs text-muted-foreground md:hidden">
+                Risiko
+            </span>
             <Badge
                 variant="outline"
                 className={cn(

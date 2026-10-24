@@ -185,7 +185,6 @@ class PesanBimbinganController extends Controller
         return Inertia::render('dosen/pesan-bimbingan', [
             'threads' => $threads,
             'privateRecipients' => $this->privateChatService->recipientOptionsFor($lecturer),
-            'flashMessage' => $request->session()->get('success'),
         ]);
     }
 

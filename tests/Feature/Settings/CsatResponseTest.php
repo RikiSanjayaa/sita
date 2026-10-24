@@ -36,7 +36,16 @@ test('mahasiswa can view csat page and submit feedback', function (): void {
             'saran' => 'Tambahkan penjelasan status pada dashboard.',
         ])
         ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Terima kasih. Umpan balik Anda sudah tersimpan.')
         ->assertRedirect(route('settings.csat.show'));
+
+    $this->get(route('settings.csat.show'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('settings/csat')
+            ->where('flash.success', 'Terima kasih. Umpan balik Anda sudah tersimpan.')
+            ->where('flash.error', null)
+            ->missing('status'));
 
     $response = CsatResponse::query()->first();
 

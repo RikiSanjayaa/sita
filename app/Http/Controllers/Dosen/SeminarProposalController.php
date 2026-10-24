@@ -147,7 +147,6 @@ class SeminarProposalController extends Controller
                 $examinerRecords->pluck('defense.project')->filter()->unique('id'),
             ),
             'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
-            'errorMessage' => $request->session()->get('error'),
         ]);
     }
 

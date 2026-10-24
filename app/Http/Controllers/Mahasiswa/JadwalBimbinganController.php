@@ -9,10 +9,10 @@ use App\Models\MentorshipSchedule;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\MentorshipScheduleService;
-use App\Services\ThesisArchiveService;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
+use App\Services\ThesisArchiveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -146,7 +146,6 @@ class JadwalBimbinganController extends Controller
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
             'archivedProject' => $archive->studentHasArchivedProject($student),
-            'flashMessage' => $request->session()->get('success'),
         ]);
     }
 

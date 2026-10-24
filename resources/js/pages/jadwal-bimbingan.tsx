@@ -27,7 +27,6 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -103,7 +102,6 @@ type JadwalPageProps = {
     upcomingMeetings: UpcomingMeeting[];
     historyMeetings: HistoryMeeting[];
     archivedProject: boolean;
-    flashMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -742,15 +740,6 @@ export default function JadwalBimbinganPage() {
                     </div>
                 ) : (
                     <>
-                        {page.props.flashMessage && (
-                            <Alert>
-                                <AlertTitle>Berhasil</AlertTitle>
-                                <AlertDescription>
-                                    {page.props.flashMessage}
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
                         {/* Calendar */}
                         <CollapsibleCalendarSection
                             storageKey="jadwal-bimbingan-mahasiswa"
@@ -843,7 +832,12 @@ export default function JadwalBimbinganPage() {
                                                                 stackedTable.tdPlain
                                                             }
                                                         >
-                                                            <p className="min-w-40 text-sm leading-snug font-medium text-pretty">
+                                                            <p
+                                                                title={
+                                                                    meeting.topic
+                                                                }
+                                                                className="min-w-40 text-sm leading-snug font-medium text-pretty max-md:line-clamp-2 max-md:min-w-0"
+                                                            >
                                                                 {meeting.topic}
                                                             </p>
                                                             {meeting.createdByLecturer && (
@@ -856,14 +850,13 @@ export default function JadwalBimbinganPage() {
                                                             className={
                                                                 stackedTable.td
                                                             }
-                                                            data-label="Dosen"
                                                         >
-                                                            <p className="text-sm">
+                                                            <p className="text-sm max-md:inline">
                                                                 {
                                                                     meeting.lecturer
                                                                 }
                                                             </p>
-                                                            <div className="mt-1">
+                                                            <div className="mt-1 max-md:mt-0 max-md:ml-1 max-md:inline-block">
                                                                 <RelationTypeBadge
                                                                     relationType={
                                                                         meeting.relationType
@@ -911,7 +904,6 @@ export default function JadwalBimbinganPage() {
                                                                 stackedTable.td,
                                                                 'text-sm',
                                                             )}
-                                                            data-label="Lokasi"
                                                         >
                                                             <span className="inline-flex items-start gap-1.5">
                                                                 <MapPin
@@ -925,9 +917,8 @@ export default function JadwalBimbinganPage() {
                                                         </td>
                                                         <td
                                                             className={
-                                                                stackedTable.td
+                                                                stackedTable.tdAside
                                                             }
-                                                            data-label="Status"
                                                         >
                                                             <ScheduleStatusBadge
                                                                 status={
@@ -937,13 +928,23 @@ export default function JadwalBimbinganPage() {
                                                         </td>
                                                         <td
                                                             className={cn(
-                                                                stackedTable.td,
+                                                                stackedTable.tdDetail,
                                                                 'text-sm',
+                                                                !meeting.lecturerNote &&
+                                                                    'max-md:hidden',
                                                             )}
-                                                            data-label="Catatan dosen"
                                                         >
                                                             {meeting.lecturerNote ? (
-                                                                <p className="min-w-40 text-pretty">
+                                                                <p
+                                                                    title={
+                                                                        meeting.lecturerNote
+                                                                    }
+                                                                    className="min-w-40 text-pretty max-md:line-clamp-2 max-md:min-w-0"
+                                                                >
+                                                                    <span className="font-medium md:hidden">
+                                                                        Catatan
+                                                                        dosen:{' '}
+                                                                    </span>
                                                                     {
                                                                         meeting.lecturerNote
                                                                     }
@@ -1058,7 +1059,12 @@ export default function JadwalBimbinganPage() {
                                                                 stackedTable.tdPlain
                                                             }
                                                         >
-                                                            <p className="min-w-40 text-sm leading-snug font-medium text-pretty">
+                                                            <p
+                                                                title={
+                                                                    row.topic
+                                                                }
+                                                                className="min-w-40 text-sm leading-snug font-medium text-pretty max-md:line-clamp-2 max-md:min-w-0"
+                                                            >
                                                                 {row.topic}
                                                             </p>
                                                             {row.createdByLecturer && (
@@ -1078,12 +1084,11 @@ export default function JadwalBimbinganPage() {
                                                             className={
                                                                 stackedTable.td
                                                             }
-                                                            data-label="Dosen"
                                                         >
-                                                            <p className="text-sm">
+                                                            <p className="text-sm max-md:inline">
                                                                 {row.lecturer}
                                                             </p>
-                                                            <div className="mt-1">
+                                                            <div className="mt-1 max-md:mt-0 max-md:ml-1 max-md:inline-block">
                                                                 <RelationTypeBadge
                                                                     relationType={
                                                                         row.relationType
@@ -1096,7 +1101,6 @@ export default function JadwalBimbinganPage() {
                                                                 stackedTable.td,
                                                                 'text-sm md:whitespace-nowrap',
                                                             )}
-                                                            data-label="Waktu"
                                                         >
                                                             {formatDate(
                                                                 row.scheduledAt,
@@ -1107,7 +1111,6 @@ export default function JadwalBimbinganPage() {
                                                                 stackedTable.td,
                                                                 'text-sm',
                                                             )}
-                                                            data-label="Lokasi"
                                                         >
                                                             <span className="inline-flex items-start gap-1.5">
                                                                 <MapPin
@@ -1119,9 +1122,8 @@ export default function JadwalBimbinganPage() {
                                                         </td>
                                                         <td
                                                             className={
-                                                                stackedTable.td
+                                                                stackedTable.tdAside
                                                             }
-                                                            data-label="Status"
                                                         >
                                                             <ScheduleStatusBadge
                                                                 status={
