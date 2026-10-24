@@ -29,6 +29,7 @@ yarn-error.log
 /playwright-agent
 /playwright-report
 /test-results
+/catalog-output
 /storage/playwright
 /database/playwright.sqlite
 
