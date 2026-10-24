@@ -502,6 +502,7 @@ class TugasAkhirController extends Controller
                                 ? ($revision->requestedBy?->name ?? '-')
                                 : 'Penguji '.AcademicTerminology::forProject($project)['finalExamShort'],
                             'dueAt' => $revision->due_at?->locale('id')->translatedFormat('d F Y, H:i'),
+                            'dueAtIso' => $revision->due_at?->toIso8601String(),
                             'resolvedAt' => $revision->resolved_at?->locale('id')->translatedFormat('d F Y, H:i'),
                             'resolutionNotes' => $revision->resolution_notes,
                             'items' => ThesisRevisionPayload::items($revision),
