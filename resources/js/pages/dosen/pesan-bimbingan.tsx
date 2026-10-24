@@ -14,6 +14,7 @@ import { useChatThread } from '@/components/chat/use-chat-thread';
 import { useMessageSearch } from '@/components/chat/use-message-search';
 import { usePrivateThread } from '@/components/chat/use-private-thread';
 import {
+    activeFirst,
     buildThreadStateKey,
     privateTargetProfile,
     resolveInitialMobileView,
@@ -76,7 +77,7 @@ function getVisibleThreads(
     groupFilter: GroupThreadFilter,
     activeThreadId: number | null,
 ): ThreadItem[] {
-    return sortThreads(threads)
+    return activeFirst(sortThreads(threads))
         .map((thread) => {
             if (thread.id === activeThreadId) {
                 return { ...thread, unread: 0 };
@@ -314,7 +315,15 @@ function DosenPesanBimbinganContent({
                 <ChatPanel
                     emptyTitle="Pilih Grup Bimbingan"
                     footer={
-                        activeThread?.isArchived ? (
+                        activeThread?.isCompleted ? (
+                            <div className="shrink-0 p-4 text-center">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    {n.finalWork} sudah selesai. Percakapan ini
+                                    hanya dapat dibaca dan dihapus setelah masa
+                                    arsip.
+                                </p>
+                            </div>
+                        ) : activeThread?.isArchived ? (
                             <div className="shrink-0 p-4 text-center">
                                 <p className="text-sm font-medium text-muted-foreground">
                                     Sesi bimbingan telah selesai. Percakapan ini

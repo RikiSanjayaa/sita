@@ -106,6 +106,15 @@ Profil dosen menampilkan mahasiswa pengujian pada tugas akhir aktif terkini deng
 
 Satu definisi aktivitas terakhir mahasiswa (`StudentActivityService`) dipakai di daftar Mahasiswa Dosen, daftar Mahasiswa Prodi kaprodi, kartu mahasiswa di profil, dan halaman Progres Mahasiswa. Nilainya waktu paling baru dari dokumen terkait, pesan mahasiswa pada grup terkait atau chat pribadi dengan salah satu pembimbing/penguji tugas akhir itu, dan bimbingan yang dikonfirmasi selesai oleh dosen. Pesan dosen/sistem, chat pribadi dengan dosen di luar tugas akhir itu, serta permintaan atau penjadwalan bimbingan yang belum selesai tidak dihitung. Data bimbingan lama yang belum memiliki ID tugas akhir dibatasi menggunakan masa tugas akhir dan penugasan pembimbing. Baris riwayat dosen (pembimbing sudah berakhir) hanya menampilkan aktivitas selama dosen itu terkait dengan mahasiswa. Indikator "tidak aktif" memakai nilai yang sama dengan `SITA_INACTIVE_AFTER_DAYS`.
 
+## Arsip tugas akhir setelah lulus
+
+Tugas akhir `completed` yang melewati masa tenggang (`SITA_ARCHIVE_GRACE_DAYS`, bawaan 30 hari sejak `completed_at`) diarsipkan oleh `php artisan sita:archive-completed-theses`. Yang disimpan: data tugas akhir, judul, pembimbing, penguji, hasil dan nilai ujian, revisi, event, dan naskah akhir versi terakhir. Yang **dihapus permanen**: chat mahasiswa (pembimbing, sempro, sidang, pribadi dengan dosen) beserta lampirannya, jadwal bimbingan, dokumen draft, dan dokumen tugas akhir selain naskah akhir terakhir. Sebelum menghapus, command menyimpan ringkasan di `thesis_projects.archive_summary` (bimbingan selesai per pembimbing, jadwal per status, jumlah dokumen dan pesan, aktivitas terakhir) yang kemudian dibaca `MentorshipProgressService` dan `StudentActivityService`, sehingga angka mahasiswa terarsip tidak berubah.
+
+- `--dry-run` mencetak persis apa yang akan dihapus (baris, file, dan file yang dipertahankan karena masih dipakai baris lain) tanpa mengubah apa pun. Jalankan ini lebih dulu.
+- Satu tugas akhir per transaksi; file dihapus setelah commit dan hanya bila tidak ada baris lain yang mengacunya. Menjalankan ulang aman (idempoten). Tugas akhir `cancelled` dan `active` tidak pernah disentuh. Bila mahasiswa punya tugas akhir lain, hanya baris dalam rentang waktu tugas akhir ini yang dihapus.
+- Selama masa tenggang chat tugas akhir selesai tampil di bagian "Selesai" yang read-only.
+- Jadwal harian di `routes/console.php` hanya terdaftar bila `SITA_ARCHIVE_ENABLED=true` (bawaan `false`). Penghapusan tidak bisa dibatalkan: **jangan aktifkan di produksi sebelum backup database dikonfirmasi**.
+
 ## Pengujian dan kualitas kode
 
 | Perintah                                          | Fungsi                                                                       |

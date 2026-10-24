@@ -14,6 +14,7 @@ import { useChatThread } from '@/components/chat/use-chat-thread';
 import { useMessageSearch } from '@/components/chat/use-message-search';
 import { usePrivateThread } from '@/components/chat/use-private-thread';
 import {
+    activeFirst,
     buildThreadStateKey,
     privateTargetProfile,
     resolveInitialMobileView,
@@ -92,7 +93,8 @@ function PesanPageContent({
     auth,
 }: PesanPageContentProps) {
     const isMobile = useIsMobile();
-    const { mentorshipTicket } = usePage<SharedData>().props;
+    const { academicTerminology, mentorshipTicket } =
+        usePage<SharedData>().props;
 
     const [mobileView, setMobileView] = useState<MobileView>(() =>
         resolveInitialMobileView(initialThreads),
@@ -106,17 +108,19 @@ function PesanPageContent({
 
     const selectVisible = useCallback(
         (threads: ThreadItem[]) =>
-            threads
-                .filter((thread) =>
-                    threadMode === 'private'
-                        ? thread.threadType === 'private'
-                        : thread.threadType !== 'private',
-                )
-                .filter((thread) =>
-                    thread.name
-                        .toLowerCase()
-                        .includes(threadListSearch.trim().toLowerCase()),
-                ),
+            activeFirst(
+                threads
+                    .filter((thread) =>
+                        threadMode === 'private'
+                            ? thread.threadType === 'private'
+                            : thread.threadType !== 'private',
+                    )
+                    .filter((thread) =>
+                        thread.name
+                            .toLowerCase()
+                            .includes(threadListSearch.trim().toLowerCase()),
+                    ),
+            ),
         [threadListSearch, threadMode],
     );
 
@@ -193,14 +197,24 @@ function PesanPageContent({
                 <ChatPanel
                     emptyTitle="Pilih Percakapan"
                     footer={
-                        <Composer
-                            composer={chat.composer}
-                            disabled={
-                                activeThread === null ||
-                                mentorshipTicket?.suspended === true
-                            }
-                            isMobile={isMobile}
-                        />
+                        activeThread?.isCompleted ? (
+                            <div className="shrink-0 p-4 text-center">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    {academicTerminology.finalWork} Anda sudah
+                                    selesai. Percakapan ini hanya dapat dibaca
+                                    dan dihapus setelah masa arsip.
+                                </p>
+                            </div>
+                        ) : (
+                            <Composer
+                                composer={chat.composer}
+                                disabled={
+                                    activeThread === null ||
+                                    mentorshipTicket?.suspended === true
+                                }
+                                isMobile={isMobile}
+                            />
+                        )
                     }
                     isMobile={isMobile}
                     mobileView={mobileView}

@@ -5,6 +5,10 @@ namespace Database\Seeders;
 use App\Enums\AppRole;
 use App\Enums\DegreeLevel;
 use App\Models\MahasiswaProfile;
+use App\Models\MentorshipChatMessage;
+use App\Models\MentorshipChatThread;
+use App\Models\MentorshipDocument;
+use App\Models\MentorshipSchedule;
 use App\Models\ProgramStudi;
 use App\Models\Role;
 use App\Models\ThesisDefense;
@@ -12,6 +16,7 @@ use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
+use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ThesisProjectAdminService;
 use Carbon\CarbonImmutable;
@@ -56,6 +61,17 @@ class PlaywrightScenarioSeeder extends Seeder
         $this->completedSempro($project, $admin, $dosen3, $dosen4);
         $service->assignSupervisors($project, $admin->id, $dosen1->id, null, 'Pembimbing skenario Playwright.');
         $project->forceFill(['mentorship_valid_until' => CarbonImmutable::now()->subDay()->toDateString()])->save();
+
+        // An active bimbingan thread for dosen1 (issue #27), so the dosen chat list opens on an active thread and "Selesai" stays collapsed.
+        $this->clearMentorshipData($student);
+        $thread = MentorshipChatThread::query()->create(['student_user_id' => $student->id, 'type' => 'pembimbing']);
+        MentorshipChatMessage::query()->create([
+            'mentorship_chat_thread_id' => $thread->id,
+            'sender_user_id' => $student->id,
+            'message_type' => 'text',
+            'message' => 'Mohon arahan untuk bab 1.',
+            'sent_at' => now(),
+        ]);
 
         // Sempro scheduled with two examiners (dosen3 + dosen4).
         $student = $this->student($role, $prodi, 'e2e-sempro@sita.test', 'Dimas Penguji Sempro', '2210511002');
@@ -104,8 +120,131 @@ class PlaywrightScenarioSeeder extends Seeder
             [$dosen1->id, $dosen2->id, $dosen3->id],
         );
 
+        // Completed thesis, inside the archive grace period (issue #27): chat is read-only, nothing deleted yet.
+        $student = $this->student($role, $prodi, 'e2e-lulus-tenggang@sita.test', 'Anindya Lulus Masa Tenggang', '2210511011');
+        $this->completedWithMentorshipData($student, $prodi, $dosen1, 'Analisis Kepuasan Pengguna Aplikasi Perpustakaan Digital', completedDaysAgo: 10);
+
+        // Completed thesis past the grace period (issue #27): the archive command deletes its mentorship data.
+        $student = $this->student($role, $prodi, 'e2e-lulus-lama@sita.test', 'Arif Lulus Siap Arsip', '2210511012');
+        $this->completedWithMentorshipData($student, $prodi, $dosen1, 'Perancangan Sistem Informasi Inventaris Laboratorium', completedDaysAgo: 45);
+
         // Mahasiswa without a phone number: the pop-up must block until one is saved.
         $this->student($role, $prodi, 'e2e-popup@sita.test', 'Yudha Nomor HP Kosong', '2210511007', withPhoneNumber: false);
+    }
+
+    /**
+     * A completed thesis with the data the archive touches: chat (with an attachment), completed
+     * and pending bimbingan, a draft document and a final manuscript. Files live on the public disk.
+     */
+    private function completedWithMentorshipData(User $student, ProgramStudi $prodi, User $supervisor, string $title, int $completedDaysAgo): void
+    {
+        $this->clearMentorshipData($student);
+
+        $project = $this->project($student, $prodi, 'research', $title);
+        $completedAt = CarbonImmutable::now()->subDays($completedDaysAgo);
+        $project->forceFill([
+            'phase' => 'completed',
+            'state' => 'completed',
+            'completed_at' => $completedAt,
+            // Older than every other seeded project so these rows sort last in lists that other specs page through.
+            'started_at' => CarbonImmutable::now()->subYears(2),
+        ])->save();
+
+        ThesisSupervisorAssignment::query()->create([
+            'project_id' => $project->id,
+            'lecturer_user_id' => $supervisor->id,
+            'role' => 'primary',
+            'status' => 'ended',
+            'assigned_by' => $supervisor->id,
+            'started_at' => CarbonImmutable::now()->subMonths(6),
+            'ended_at' => $completedAt,
+        ]);
+
+        $finalPath = 'thesis/final/e2e-'.$student->id.'-naskah-akhir.pdf';
+        Storage::disk('public')->put($finalPath, 'final manuscript');
+        ThesisDocument::query()->create([
+            'project_id' => $project->id,
+            'uploaded_by_user_id' => $student->id,
+            'kind' => 'final_manuscript',
+            'version_no' => 1,
+            'status' => 'active',
+            'title' => 'Naskah Akhir',
+            'storage_disk' => 'public',
+            'storage_path' => $finalPath,
+            'stored_file_name' => basename($finalPath),
+            'file_name' => basename($finalPath),
+            'mime_type' => 'application/pdf',
+            'file_size_kb' => 1,
+            'uploaded_at' => $completedAt->subDays(3),
+        ]);
+
+        $thread = MentorshipChatThread::query()->create(['student_user_id' => $student->id, 'type' => 'pembimbing']);
+        $attachmentPath = 'chat/private/'.$student->id.'/thread/'.$thread->id.'/e2e-lampiran.pdf';
+        Storage::disk('public')->put($attachmentPath, 'chat attachment');
+        foreach ([
+            [$student, 'text', 'Selamat pagi Pak, bab 4 sudah saya kirim.', null],
+            [$supervisor, 'text', 'Baik, silakan lanjut ke bab 5.', null],
+            [$student, 'attachment', 'Mengirim lampiran', $attachmentPath],
+        ] as $index => [$sender, $type, $text, $attachment]) {
+            MentorshipChatMessage::query()->create([
+                'mentorship_chat_thread_id' => $thread->id,
+                'sender_user_id' => $sender->id,
+                'message_type' => $type,
+                'message' => $text,
+                'attachment_disk' => $attachment === null ? null : 'public',
+                'attachment_path' => $attachment,
+                'attachment_name' => $attachment === null ? null : 'lampiran.pdf',
+                'sent_at' => $completedAt->subDays(20 - $index),
+            ]);
+        }
+
+        foreach ([[40, 'completed'], [30, 'completed'], [25, 'pending']] as [$daysBefore, $status]) {
+            MentorshipSchedule::query()->create([
+                'student_user_id' => $student->id,
+                'lecturer_user_id' => $supervisor->id,
+                'topic' => 'Bimbingan bab '.($daysBefore / 5),
+                'status' => $status,
+                'requested_for' => $completedAt->subDays($daysBefore),
+                'scheduled_for' => $completedAt->subDays($daysBefore),
+                'location' => 'Ruang Dosen',
+                'created_by_user_id' => $student->id,
+                'created_at' => $completedAt->subDays($daysBefore + 2),
+                'updated_at' => $completedAt->subDays($daysBefore),
+            ]);
+        }
+
+        $draftPath = 'documents/mahasiswa/'.$student->id.'/e2e-draft-bab-4.pdf';
+        Storage::disk('public')->put($draftPath, 'draft document');
+        MentorshipDocument::query()->create([
+            'student_user_id' => $student->id,
+            'lecturer_user_id' => $supervisor->id,
+            'title' => 'Draft Bab 4',
+            'category' => 'draft-tugas-akhir',
+            'document_group' => $student->id.':draft-bab-4',
+            'version_number' => 1,
+            'file_name' => 'draft-bab-4.pdf',
+            'storage_disk' => 'public',
+            'storage_path' => $draftPath,
+            'stored_file_name' => basename($draftPath),
+            'mime_type' => 'application/pdf',
+            'file_size_kb' => 1,
+            'status' => 'approved',
+            'uploaded_by_user_id' => $student->id,
+            'uploaded_by_role' => 'mahasiswa',
+        ]);
+    }
+
+    /**
+     * Mentorship rows belong to the student, not the project, so re-seeding must clear them itself.
+     */
+    private function clearMentorshipData(User $student): void
+    {
+        MentorshipChatThread::query()->where('student_user_id', $student->id)->get()->each(function (MentorshipChatThread $thread): void {
+            $thread->messages()->delete();
+            $thread->delete();
+        });
+        MentorshipSchedule::query()->where('student_user_id', $student->id)->delete();
+        MentorshipDocument::query()->where('student_user_id', $student->id)->delete();
     }
 
     private function student(Role $role, ProgramStudi $prodi, string $email, string $name, string $nim, bool $isObeCurriculum = false, bool $withPhoneNumber = true): User

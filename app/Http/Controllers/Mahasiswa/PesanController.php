@@ -14,10 +14,12 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\CompletedChatThreadService;
 use App\Services\MentorshipTicketService;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
+use App\Services\ThesisArchiveService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
@@ -36,20 +38,24 @@ class PesanController extends Controller
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ChatMessagePayloadBuilder $payloadBuilder,
+        private readonly CompletedChatThreadService $completedChatThreads,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, ThesisArchiveService $archive): Response
     {
         $student = $request->user();
         abort_if($student === null, 401);
 
-        // Pembimbing thread (existing — single thread)
-        $pembimbingThread = MentorshipChatThread::query()
-            ->ofType('pembimbing')
-            ->firstOrCreate([
-                'student_user_id' => $student->id,
-                'type' => 'pembimbing',
-            ]);
+        // Pembimbing thread (existing — single thread). An archived thesis had its thread deleted; do not recreate an empty one.
+        $archivedProject = $archive->studentHasArchivedProject($student);
+        $pembimbingThread = $archivedProject
+            ? MentorshipChatThread::query()->ofType('pembimbing')->where('student_user_id', $student->id)->first()
+            : MentorshipChatThread::query()
+                ->ofType('pembimbing')
+                ->firstOrCreate([
+                    'student_user_id' => $student->id,
+                    'type' => 'pembimbing',
+                ]);
 
         // Penguji threads (from participant table)
         $pengujiThreadIds = MentorshipChatThreadParticipant::query()
@@ -58,7 +64,7 @@ class PesanController extends Controller
             ->pluck('thread_id')
             ->all();
 
-        $allThreadIds = array_unique(array_merge([$pembimbingThread->id], $pengujiThreadIds));
+        $allThreadIds = array_unique(array_merge($pembimbingThread === null ? [] : [$pembimbingThread->id], $pengujiThreadIds));
         $privateThreadIds = $this->privateChatService->threadsFor($student)
             ->pluck('id')
             ->all();
@@ -93,9 +99,10 @@ class PesanController extends Controller
             ->values()
             ->all();
 
+        $completedThreadIds = $this->completedChatThreads->completedThreadIds($threads);
         $secretExaminers = app(SecretSidangExaminers::class);
 
-        $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($student, $advisors, $secretExaminers) {
+        $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($advisors, $completedThreadIds, $secretExaminers, $student) {
             $messages = $thread->messages
                 ->map(fn(MentorshipChatMessage $m): array => $this->payloadBuilder->build($m))
                 ->values()
@@ -155,6 +162,7 @@ class PesanController extends Controller
                 'preview' => $this->payloadBuilder->displayText($thread->latestMessage?->message) ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
                 'latestActivityAt' => $thread->latestMessage?->created_at?->toIso8601String(),
+                'isCompleted' => isset($completedThreadIds[$thread->id]),
             ];
         })
             ->values()
@@ -202,6 +210,10 @@ class PesanController extends Controller
                 ->exists()
             : $thread->student_user_id === $student->id;
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
+
+        if ($this->completedChatThreads->isCompleted($thread)) {
+            return back()->withErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+        }
 
         $suspension = $tickets->suspensionMessageForStudent($student->id);
 

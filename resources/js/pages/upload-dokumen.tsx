@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 
+import { ArchivedMentorshipNotice } from '@/components/archived-mentorship-notice';
 import {
     DataSection,
     DataSelect,
@@ -100,6 +101,7 @@ type UploadedDokumenRow = {
 
 type UploadDokumenProps = {
     uploadedDocuments: UploadedDokumenRow[];
+    archivedProject: boolean;
     flashMessage?: string | null;
     errorMessage?: string | null;
 };
@@ -715,6 +717,10 @@ export default function UploadDokumenPage() {
                         </Button>
                     }
                 />
+
+                {page.props.archivedProject && (
+                    <ArchivedMentorshipNotice finalWork={terms.finalWork} />
+                )}
 
                 {(page.props.flashMessage || page.props.errorMessage) && (
                     <Alert

@@ -14,6 +14,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\CompletedChatThreadService;
 use App\Services\DosenBimbinganService;
 use App\Services\PrivateChatService;
 use App\Services\RealtimeNotificationService;
@@ -35,6 +36,7 @@ class PesanBimbinganController extends Controller
         private readonly RealtimeNotificationService $realtimeNotificationService,
         private readonly UserProfilePresenter $userProfilePresenter,
         private readonly ChatMessagePayloadBuilder $payloadBuilder,
+        private readonly CompletedChatThreadService $completedChatThreads,
     ) {}
 
     public function index(Request $request): Response
@@ -82,6 +84,8 @@ class PesanBimbinganController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $completedThreadIds = $this->completedChatThreads->completedThreadIds($threads);
+
         $readsByThread = MentorshipChatRead::query()
             ->where('user_id', $lecturer->id)
             ->whereIn('mentorship_chat_thread_id', $threads->pluck('id'))
@@ -110,7 +114,7 @@ class PesanBimbinganController extends Controller
         );
 
         $threads = $threads
-            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $defensesById, $lecturer, $ownReviews, $readsByThread): array {
+            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $completedThreadIds, $defensesById, $lecturer, $ownReviews, $readsByThread): array {
                 $latestMessage = $thread->latestMessage;
                 $lastReadAt = $readsByThread->get($thread->id)?->last_read_at;
                 $unreadCount = MentorshipChatMessage::query()
@@ -163,6 +167,7 @@ class PesanBimbinganController extends Controller
                     'latestActivityAt' => $latestMessage?->created_at?->toIso8601String(),
                     'isEscalated' => $thread->is_escalated,
                     'isArchived' => $this->isArchivedThread($thread, $activeStudentIds, $archivedStudentIds, $defensesById),
+                    'isCompleted' => isset($completedThreadIds[$thread->id]),
                     'threadType' => $thread->type,
                     'threadLabel' => $thread->type === 'private'
                         ? ($privatePartnerProfile['roleLabel'] ?? 'Pribadi')
@@ -229,6 +234,10 @@ class PesanBimbinganController extends Controller
 
         $canAccess = $this->canAccessThread($lecturer, $thread);
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
+
+        if ($this->completedChatThreads->isCompleted($thread)) {
+            return back()->withErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+        }
 
         $data = $request->validated();
 
