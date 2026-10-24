@@ -36,7 +36,15 @@ test.describe('Theme scheme, guest', () => {
         await openPublicPicker(page);
 
         expect(await dataTheme(page)).toBe('ubg-blue');
-        for (const label of ['UBG Blue', 'Indigo', 'Rose', 'Grafit']) {
+        for (const label of [
+            'UBG Blue',
+            'Indigo',
+            'Grafit',
+            'Ungu Akademik',
+            'Plum',
+            'Zaitun',
+            'Sepia',
+        ]) {
             await expect(
                 page.getByRole('button', { name: label }),
             ).toBeVisible();
@@ -73,7 +81,7 @@ test.describe('Theme scheme, guest', () => {
 
     test('dark mode switches to the scheme dark tokens', async ({ page }) => {
         await openPublicPicker(page);
-        await page.getByRole('button', { name: 'Rose' }).click();
+        await page.getByRole('button', { name: 'Grafit' }).click();
         const lightPrimary = await computedPrimary(page);
         await page.getByRole('button', { name: 'Gelap' }).click();
 
@@ -108,7 +116,7 @@ test.describe('Theme scheme, guest', () => {
         page,
     }) => {
         await openPublicPicker(page);
-        await page.getByRole('button', { name: 'Rose' }).click();
+        await page.getByRole('button', { name: 'Indigo' }).click();
         await page.context().clearCookies({ name: COOKIE });
 
         // The inline head script runs while <body> does not exist yet, long before
@@ -116,10 +124,10 @@ test.describe('Theme scheme, guest', () => {
         await page.addInitScript(() => {
             new MutationObserver(() => {
                 if (
-                    document.documentElement.dataset.theme === 'rose' &&
+                    document.documentElement.dataset.theme === 'indigo' &&
                     !document.body
                 ) {
-                    sessionStorage.setItem('rose-prepaint', 'yes');
+                    sessionStorage.setItem('indigo-prepaint', 'yes');
                 }
             }).observe(document, {
                 subtree: true,
@@ -130,9 +138,11 @@ test.describe('Theme scheme, guest', () => {
         await page.goto('/login');
 
         expect(
-            await page.evaluate(() => sessionStorage.getItem('rose-prepaint')),
+            await page.evaluate(() =>
+                sessionStorage.getItem('indigo-prepaint'),
+            ),
         ).toBe('yes');
-        await expect.poll(() => themeCookie(page)).toBe('rose');
+        await expect.poll(() => themeCookie(page)).toBe('indigo');
     });
 
     test('an unknown cookie or stored value falls back to UBG Blue', async ({
@@ -150,6 +160,25 @@ test.describe('Theme scheme, guest', () => {
 
         expect(await dataTheme(page)).toBe('ubg-blue');
         expect(await themeCookie(page)).toBe('ubg-blue');
+    });
+
+    test('a saved Rose scheme, removed after review, falls back to UBG Blue', async ({
+        context,
+        baseURL,
+        page,
+    }) => {
+        await context.addCookies([
+            { name: COOKIE, value: 'rose', url: baseURL as string },
+        ]);
+        await page.addInitScript(() => {
+            localStorage.setItem('sita_theme_preset', 'rose');
+        });
+        await page.goto('/login');
+
+        expect(await dataTheme(page)).toBe('ubg-blue');
+        expect(await themeCookie(page)).toBe('ubg-blue');
+        await openPublicPicker(page);
+        await expect(page.getByRole('button', { name: 'Rose' })).toHaveCount(0);
     });
 });
 

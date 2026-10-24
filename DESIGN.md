@@ -198,7 +198,7 @@ This file records the incumbent system as it is built, plus the rules that were 
 
 **Key Characteristics:**
 
-- One default brand colour (UBG Blue) plus three accessible alternative schemes (Indigo, Rose, Grafit), each with a light and a dark theme, all chosen by `data-theme` and defined only in `app.css`.
+- One default brand colour (UBG Blue) plus two accessible alternative schemes (Indigo, Grafit), each with a light and a dark theme, all chosen by `data-theme` and defined only in `app.css`.
 - Semantic status roles (primary, success, warning, danger, info, muted), each defined as four tokens in both themes.
 - Tonal layering with hairline borders; a single soft shadow on cards, larger shadows only on floating layers.
 - Sentence-case Indonesian labels, 12px minimum, one sans family.
@@ -242,7 +242,7 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 
 ### Named Rules
 
-**The Default Theme Rule.** UBG Blue (light and dark) is the default theme. The other schemes (Indigo, Rose, Grafit) are `[data-theme]` blocks in `app.css`, meet the same contrast contract, and are never written inline by JavaScript. See Colour schemes below.
+**The Default Theme Rule.** UBG Blue (light and dark) is the default theme. The other schemes (Indigo, Grafit) are `[data-theme]` blocks in `app.css`, meet the same contrast contract, and are never written inline by JavaScript. See Colour schemes below.
 
 **The Light Primary In Dark Rule.** Primary is `#2563eb` with white text in light mode, and `#60a5fa` with dark (`#0f172a`) text in dark mode. Dark primary is light on purpose: `text-primary` (links, active states, icons) must stay readable on dark surfaces, and the dark status solids follow the same light-fill/dark-text rule.
 
@@ -258,14 +258,19 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 
 The user picks a mode (terang, gelap, sistem) and a scheme in one shared component, `ThemePicker` (`resources/js/components/theme-picker.tsx`), used by the public settings dialog (`theme-settings-button.tsx`) and by Pengaturan Akun > Tampilan. A scheme is a pair of CSS blocks in `resources/css/app.css`, `[data-theme='<id>']` and `.dark[data-theme='<id>']`. UBG Blue is the default and lives in `:root` and `.dark`.
 
-| Id         | Label    | Primary              | Note                                  |
-| ---------- | -------- | -------------------- | ------------------------------------- |
-| `ubg-blue` | UBG Blue | blue                 | Default and brand.                    |
-| `indigo`   | Indigo   | violet-blue, hue 280 | 45 degrees from info (sky).           |
-| `rose`     | Rose     | magenta, hue 340     | 47 degrees from danger (red).         |
-| `graphite` | Grafit   | neutral gray         | No hue, so no status can be confused. |
+| Id          | Label         | Primary               | Note                                  |
+| ----------- | ------------- | --------------------- | ------------------------------------- |
+| `ubg-blue`  | UBG Blue      | blue                  | Default and brand.                    |
+| `indigo`    | Indigo        | violet-blue, hue 280  | 45 degrees from info (sky).           |
+| `graphite`  | Grafit        | neutral gray          | No hue, so no status can be confused. |
+| `aubergine` | Ungu Akademik | muted violet, hue 307 | Candidate for owner review.           |
+| `plum`      | Plum          | muted plum, hue 332   | Candidate for owner review.           |
+| `olive`     | Zaitun        | near-neutral olive    | Candidate; chroma below 0.02.         |
+| `sepia`     | Sepia         | warm near-neutral     | Candidate; chroma below 0.02.         |
 
-Old presets: Emerald (green), Sunset (orange) and Teal (cyan-green) are gone. Their hues sit on the success, warning and info tones, so a primary button or active link would read as a status. A saved `emerald`, `sunset` or `teal` value is not valid any more and falls back to UBG Blue; `indigo`, `rose` and `ubg-blue` keep working (Rose moved from red-pink to magenta so it clears the danger tone).
+Old presets: Emerald (green), Sunset (orange) and Teal (cyan-green) are gone. Their hues sit on the success, warning and info tones, so a primary button or active link would read as a status. Rose (magenta) was removed after product review because it does not suit an academic setting. A saved `emerald`, `sunset`, `teal` or `rose` value is not valid any more and falls back to UBG Blue; `indigo` and `ubg-blue` keep working.
+
+Four replacements are temporarily available for product review: Ungu Akademik, Plum, Zaitun and Sepia. All retain the contrast and status-hue contract without exceptions. Zaitun uses near-neutral chroma rather than relying on an exact 120-degree hue surviving sRGB rounding. The owner will select one; the other candidates will then be removed.
 
 **How it is applied.** `app.blade.php` puts `data-theme` on `<html>` from the `sita_theme_preset` cookie (validated against `App\Support\ThemeSchemes::IDS`, unencrypted like `appearance`), and a head script falls back to the same key in `localStorage` before first paint, so there is no colour flash. `use-theme-scheme.ts` stores the choice in both places, sets `data-theme`, and never writes a colour. The login page uses the same root view, so the choice is the same there.
 

@@ -22,5 +22,6 @@ it('falls back to the default scheme for a missing or unknown cookie', function 
 })->with([
     'missing' => [null],
     'retired preset' => ['emerald'],
+    'rose, removed after review' => ['rose'],
     'markup' => ['"><script>alert(1)</script>'],
 ]);

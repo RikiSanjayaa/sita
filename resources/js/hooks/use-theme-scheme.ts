@@ -6,7 +6,14 @@ const STORAGE_KEY = 'sita_theme_preset';
 const COOKIE_KEY = 'sita_theme_preset';
 
 export type ThemeScheme = {
-    id: 'ubg-blue' | 'indigo' | 'rose' | 'graphite';
+    id:
+        | 'ubg-blue'
+        | 'indigo'
+        | 'graphite'
+        | 'aubergine'
+        | 'plum'
+        | 'olive'
+        | 'sepia';
     label: string;
     description: string;
 };
@@ -25,14 +32,29 @@ export const THEME_SCHEMES: readonly ThemeScheme[] = [
         description: 'Ungu-biru yang tenang',
     },
     {
-        id: 'rose',
-        label: 'Rose',
-        description: 'Magenta modern dan hangat',
-    },
-    {
         id: 'graphite',
         label: 'Grafit',
         description: 'Abu-abu netral tanpa rona',
+    },
+    {
+        id: 'aubergine',
+        label: 'Ungu Akademik',
+        description: 'Ungu dalam yang tenang dan formal',
+    },
+    {
+        id: 'plum',
+        label: 'Plum',
+        description: 'Ungu terung redup, bukan merah muda',
+    },
+    {
+        id: 'olive',
+        label: 'Zaitun',
+        description: 'Hijau zaitun netral dan bersahaja',
+    },
+    {
+        id: 'sepia',
+        label: 'Sepia',
+        description: 'Abu-abu hangat seperti batu alam',
     },
 ];
 
