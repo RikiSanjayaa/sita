@@ -172,7 +172,6 @@ class PesanController extends Controller
             'hasDosbing' => ! empty($advisors),
             'threads' => $threadsData,
             'privateRecipients' => $this->privateChatService->recipientOptionsFor($student),
-            'flashMessage' => $request->session()->get('success'),
         ]);
     }
 

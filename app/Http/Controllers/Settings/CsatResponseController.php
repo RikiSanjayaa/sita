@@ -36,7 +36,6 @@ class CsatResponseController extends Controller
                 'lastSubmittedAt' => $latestResponse?->created_at?->toIso8601String(),
                 'lastScore' => $latestResponse?->score,
             ],
-            'status' => $request->session()->get('success'),
         ]);
     }
 
