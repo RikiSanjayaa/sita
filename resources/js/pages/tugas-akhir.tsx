@@ -200,6 +200,7 @@ type TugasAkhirPageProps = {
                 notes: string;
                 requestedBy: string;
                 dueAt: string | null;
+                dueAtIso: string | null;
                 resolvedAt: string | null;
                 resolutionNotes: string | null;
                 items: RevisionItem[];
@@ -245,6 +246,7 @@ type TugasAkhirPageProps = {
                 notes: string;
                 requestedBy: string;
                 dueAt: string | null;
+                dueAtIso: string | null;
                 resolvedAt: string | null;
                 resolutionNotes: string | null;
                 items: RevisionItem[];
@@ -1357,7 +1359,7 @@ function DefenseHistoryRow({
                                                             !isDone && (
                                                                 <DeadlineBadge
                                                                     dueAt={
-                                                                        rev.dueAt
+                                                                        rev.dueAtIso
                                                                     }
                                                                 />
                                                             )}

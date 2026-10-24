@@ -6,6 +6,7 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\User;
+use App\Support\WitaDateTime;
 use Illuminate\Support\Collection;
 
 class ChatMessagePayloadBuilder
@@ -43,7 +44,7 @@ class ChatMessagePayloadBuilder
             'message' => $this->displayText($secretLabel === null
                 ? $message->message
                 : str_replace((string) $message->sender?->name, $secretLabel, (string) $message->message)),
-            'time' => $message->created_at->format('d M Y H:i'),
+            'time' => WitaDateTime::format($message->created_at, withLabel: false),
             'type' => $message->message_type,
             'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
             'documentUrl' => $hasFile
