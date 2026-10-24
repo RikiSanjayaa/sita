@@ -156,7 +156,7 @@ class AdminDashboardService
             ->all();
 
         return [
-            'labels' => $currentMonths->map(fn ($month): string => $month->format('M Y'))->all(),
+            'labels' => $currentMonths->map(fn ($month): string => WitaDateTime::format($month, 'M Y', false))->all(),
             'current' => $current,
             'previous' => $previous,
             'currentTotal' => array_sum($current),
@@ -250,7 +250,7 @@ class AdminDashboardService
                 'description' => $event->description ?? 'Tanpa catatan tambahan.',
                 'student' => $event->project?->student?->name ?? '-',
                 'actor' => $event->actor?->name ?? 'Sistem',
-                'time' => $event->occurred_at?->diffForHumans() ?? '-',
+                'time' => $event->occurred_at?->locale('id')->diffForHumans() ?? '-',
                 'url' => ThesisProjectResource::getUrl('view', ['record' => $event->project]),
             ]);
     }

@@ -72,10 +72,13 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Kaprodi
 
-| Flow (menu)                                                                  | Spec             | Status   | Priority |
-| ---------------------------------------------------------------------------- | ---------------- | -------- | -------- |
-| Dashboard: bagian monitoring dan tautan menu                                 | `kaprodi-portal` | tercakup | P2       |
-| Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel | `kaprodi-portal` | sebagian | P1       |
+| Flow (menu)                                                                                                                                                             | Spec                                          | Status   | Priority |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- | -------- |
+| Dashboard: "Perlu Tindakan" di atas (masa aktif habis, pembimbing belum ditetapkan, siap dijadwalkan), tautan terfilter dan tombol Jadwalkan membuka dialog (issue #32) | `kaprodi-portal`, Pest `KaprodiDashboardTest` | tercakup | P1       |
+| Dashboard: bagian "Hari Ini & 7 Hari ke Depan", "Progres Mahasiswa", statistik dan arsip, tautan menu sidebar                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Mahasiswa Prodi: filter tindakan (`?activeFocus=`) dari dashboard (issue #32)                                                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Tanggal berbahasa Indonesia ("24 Okt 2026") di semua halaman kaprodi (PR #32)                                                                                           | Pest `IndonesianDatesTest`                    | tercakup | P2       |
+| Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel                                                                                            | `kaprodi-portal`                              | sebagian | P1       |
 
 | Mahasiswa Prodi: filter tahap/risiko/angkatan/konsentrasi | none | belum | P3 |
 | Mahasiswa Prodi: atur pembimbing (2 pembimbing) | `kaprodi-portal` | tercakup | P1 |

@@ -18,6 +18,7 @@ use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisRevisionRoundService;
 use App\Support\AcademicTerminology;
 use App\Support\ThesisRevisionPayload;
+use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -76,8 +77,9 @@ class SeminarProposalController extends Controller
                         'resolved' => 'Selesai',
                         default => ucwords(str_replace('_', ' ', $revision->status)),
                     },
-                    'dueAt' => $revision->due_at?->format('d M Y'),
-                    'resolvedAt' => $revision->resolved_at?->format('d M Y'),
+                    'dueAt' => WitaDateTime::formatOrNull($revision->due_at, 'd M Y'),
+                    'dueAtIso' => $revision->due_at?->toIso8601String(),
+                    'resolvedAt' => WitaDateTime::formatOrNull($revision->resolved_at, 'd M Y'),
                     'resolutionNotes' => $revision->resolution_notes,
                     'requestedBy' => $revision->requestedBy?->name ?? '-',
                     'items' => ThesisRevisionPayload::items($revision),
@@ -106,7 +108,8 @@ class SeminarProposalController extends Controller
                 'titleEn' => $title?->title_en ?? '-',
                 'defenseStatus' => $defense?->status,
                 'defenseResult' => $defense?->result,
-                'scheduledFor' => $defense?->scheduled_for?->format('d M Y H:i'),
+                'scheduledFor' => WitaDateTime::formatOrNull($defense?->scheduled_for),
+                'scheduledAt' => $defense?->scheduled_for?->toIso8601String(),
                 'location' => $defense?->location ?? '-',
                 'mode' => $defense?->mode ?? '-',
                 'myExaminerId' => $examiner->id,

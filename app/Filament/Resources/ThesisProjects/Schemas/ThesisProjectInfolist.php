@@ -236,8 +236,8 @@ class ThesisProjectInfolist
                     'nik' => $assignment->lecturer?->dosenProfile?->nik ?? '-',
                     'role' => $assignment->role === 'primary' ? 'Pembimbing 1' : 'Pembimbing 2',
                     'status' => $assignment->status,
-                    'started_at' => $assignment->started_at?->format('d M Y') ?? '-',
-                    'ended_at' => $assignment->ended_at?->format('d M Y') ?? '-',
+                    'started_at' => WitaDateTime::format($assignment->started_at, 'd M Y', false),
+                    'ended_at' => WitaDateTime::format($assignment->ended_at, 'd M Y', false),
                     'notes' => $assignment->notes ?? '-',
                 ])
                 ->values()
