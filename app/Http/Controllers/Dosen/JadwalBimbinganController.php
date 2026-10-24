@@ -107,6 +107,7 @@ class JadwalBimbinganController extends Controller
                     'location' => $item->location ?? '-',
                     'status' => $item->status,
                     'lecturerNote' => $item->lecturer_note,
+                    'isOverdue' => $item->scheduled_for?->isPast() ?? false,
                 ];
             })
             ->values()
