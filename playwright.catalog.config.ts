@@ -42,6 +42,9 @@ export default defineConfig({
         },
         {
             name: 'catalog',
+            // One test per page; without this Playwright shards by file and
+            // the whole spec would land in a single shard.
+            fullyParallel: true,
             testMatch: /specs[\\/]screenshot-catalog\.spec\.ts/,
             dependencies: ['setup'],
         },
