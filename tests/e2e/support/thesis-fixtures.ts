@@ -13,6 +13,7 @@ export type PlaywrightAccountKey =
     | 'dosen5'
     | 'dosen6'
     | 'mahasiswa'
+    | 'phonePrompt'
     | 'akbar'
     | 'nadia'
     | 'rizky'

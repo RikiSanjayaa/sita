@@ -7,7 +7,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
-import { initializePrimaryColor } from './hooks/use-primary-color';
+import { initializeThemeScheme } from './hooks/use-theme-scheme';
 
 type InitialPage = {
     props?: {
@@ -57,4 +57,4 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
-initializePrimaryColor();
+initializeThemeScheme();

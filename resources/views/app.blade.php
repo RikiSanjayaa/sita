@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ $theme ?? 'ubg-blue' }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,14 +21,29 @@
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color based on our theme in app.css --}}
+        {{-- The cookie sets data-theme on the server. When it is missing, fall back to the stored scheme before first paint. --}}
+        <script>
+            (function() {
+                try {
+                    const stored = localStorage.getItem('sita_theme_preset');
+
+                    if (@json($themeSchemes ?? []).includes(stored)) {
+                        document.documentElement.dataset.theme = stored;
+                    }
+                } catch (error) {
+                    // Storage is blocked; the server value stays.
+                }
+            })();
+        </script>
+
+        {{-- Page background before app.css loads; the scheme tokens live in app.css --}}
         <style>
             html {
-                background-color: #f8fafc;
+                background-color: var(--background, #f8fafc);
             }
 
             html.dark {
-                background-color: #0b0f14;
+                background-color: var(--background, #0b0f14);
             }
         </style>
 
