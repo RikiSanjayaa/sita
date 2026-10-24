@@ -82,7 +82,7 @@ export function ThemePicker({
                     </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                     {THEME_SCHEMES.map((scheme) => (
                         <button
                             key={scheme.id}
