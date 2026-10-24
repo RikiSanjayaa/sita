@@ -386,7 +386,11 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     </p>
                 ) : null}
             </td>
-            <td className={stackedTable.td}>
+            <td
+                data-label="Aktivitas terakhir"
+                data-label-hidden
+                className={stackedTable.td}
+            >
                 {row.progress ? (
                     <p
                         className="tabular-nums"

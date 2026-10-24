@@ -325,6 +325,8 @@ export default function KaprodiDosenProdiPage() {
                                                 </Link>
                                             </td>
                                             <td
+                                                data-label="Bimbingan"
+                                                data-label-hidden
                                                 className={cn(
                                                     stackedTable.td,
                                                     'max-md:flex max-md:items-center max-md:gap-x-2',
@@ -363,6 +365,8 @@ export default function KaprodiDosenProdiPage() {
                                                 </p>
                                             </td>
                                             <td
+                                                data-label="Ujian"
+                                                data-label-hidden
                                                 className={cn(
                                                     stackedTable.td,
                                                     'max-md:flex max-md:items-center max-md:gap-x-2',

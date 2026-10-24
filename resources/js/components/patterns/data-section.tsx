@@ -24,8 +24,9 @@ export const dataTh =
  *    status badge and actions at the right.
  * 2. Meta line (`td`): short secondary values flow inline, separated by a dot.
  *    The dot hangs in the gap after a cell, so cells may hold block content.
- *    A cell with `data-label` prefixes its value with that label; leave it off
- *    when the value is clear on its own.
+ *    A cell with `data-label` prefixes its value with that label; add
+ *    `data-label-hidden` to keep the attribute (tests select cells by it) without
+ *    the prefix when the value is clear on its own.
  * 3. Detail (`tdDetail`): long text (title, advisors, status description) on
  *    its own line. Clamp it to two lines on phones (`max-md:line-clamp-2`)
  *    and keep the full value in a `title` attribute and on the detail page.
@@ -52,7 +53,7 @@ export const stackedTable = {
     tdActions:
         'w-px px-4 py-3 whitespace-nowrap max-md:order-1 max-md:w-auto max-md:shrink-0 max-md:p-0',
     /** Short secondary value on the inline meta line. */
-    td: "stacked-meta px-4 py-3 max-md:order-3 max-md:mt-1 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:relative max-md:has-[~.stacked-meta]:after:absolute max-md:has-[~.stacked-meta]:after:top-0 max-md:has-[~.stacked-meta]:after:-right-2 max-md:has-[~.stacked-meta]:after:content-['·'] max-md:[&[data-label]]:before:mr-1 max-md:[&[data-label]]:before:content-[attr(data-label)]",
+    td: "stacked-meta px-4 py-3 max-md:order-3 max-md:mt-1 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:relative max-md:has-[~.stacked-meta]:after:absolute max-md:has-[~.stacked-meta]:after:top-0 max-md:has-[~.stacked-meta]:after:-right-2 max-md:has-[~.stacked-meta]:after:content-['·'] max-md:[&[data-label]:not([data-label-hidden])]:before:mr-1 max-md:[&[data-label]:not([data-label-hidden])]:before:content-[attr(data-label)]",
     /** Long text on its own line under the meta line; clamp it to two lines inside. */
     tdDetail:
         'px-4 py-3 max-md:order-4 max-md:mt-1 max-md:basis-full max-md:p-0',

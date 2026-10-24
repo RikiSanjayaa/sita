@@ -397,6 +397,8 @@ function StudentTable({
                                     </td>
 
                                     <td
+                                        data-label="Bimbingan"
+                                        data-label-hidden
                                         className={cn(
                                             stackedTable.td,
                                             'tabular-nums',
