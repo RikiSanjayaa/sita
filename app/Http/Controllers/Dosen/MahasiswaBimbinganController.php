@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\MentorshipProgressService;
 use App\Services\StudentActivityService;
+use App\Services\StudentAttention;
 use App\Services\StudentProgressSnapshot;
 use App\Services\ThesisProjectNoteService;
 use App\Services\UserProfilePresenter;
@@ -31,6 +32,7 @@ class MahasiswaBimbinganController extends Controller
         private readonly MentorshipProgressService $mentorshipProgressService,
         private readonly StudentActivityService $studentActivityService,
         private readonly StudentProgressSnapshot $studentProgressSnapshot,
+        private readonly StudentAttention $studentAttention,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -85,6 +87,11 @@ class MahasiswaBimbinganController extends Controller
         $lastActivityByProject = $this->studentProgressSnapshot->lastActivity($uniqueProjects, $lecturer);
         $progressByProject = $this->studentProgressSnapshot->forProjects($uniqueProjects, $lecturer, lastActivity: $lastActivityByProject);
         $latestActivity = $this->activityByRelation($assignments, $activeExaminerRecords, $lastActivityByProject);
+        $attentionByProject = $this->studentAttention->forSupervisedProjects(
+            new EloquentCollection($assignments->pluck('project')->filter()->unique('id')->values()->all()),
+            $lecturer,
+            $lastActivityByProject,
+        );
 
         // Row building calls UserProfilePresenter::summary() per student; preload what it needs once.
         (new EloquentCollection($projects->pluck('student')->filter()->all()))->loadMissing([
@@ -96,8 +103,8 @@ class MahasiswaBimbinganController extends Controller
             'kaprodiAssignment.programStudi',
             'mahasiswaProfile.programStudi',
         ]);
-        $rows = collect($assignments->map(function ($assignment) use ($latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject): array {
-            return $this->buildRow($assignment, $latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject);
+        $rows = collect($assignments->map(function ($assignment) use ($latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject, $attentionByProject): array {
+            return $this->buildRow($assignment, $latestActivity, $threadIdsByStudent, $completedByStudent, $progressByProject, $attentionByProject);
         }))
             ->merge($activeExaminerRecords->map(function (ThesisDefenseExaminer $examiner) use ($examThreadIdsByStudentAndType, $latestActivity, $progressByProject): array {
                 return $this->buildExaminerRow($examiner, $latestActivity, $examThreadIdsByStudentAndType, $progressByProject);
@@ -164,6 +171,7 @@ class MahasiswaBimbinganController extends Controller
      * @param  \Illuminate\Support\Collection<string,mixed>  $threadIdsByStudent
      * @param  array<int,int>  $completedByStudent
      * @param  array<int, array<string, mixed>>  $progressByProject
+     * @param  array<int, list<array{key: string, label: string}>>  $attentionByProject
      * @return array<string,mixed>
      */
     private function buildRow(
@@ -172,6 +180,7 @@ class MahasiswaBimbinganController extends Controller
         mixed $threadIdsByStudent,
         array $completedByStudent,
         array $progressByProject,
+        array $attentionByProject = [],
     ): array {
         $student = $assignment->project?->student;
         $profile = $student?->mahasiswaProfile;
@@ -214,6 +223,7 @@ class MahasiswaBimbinganController extends Controller
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
             'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
+            'attention' => $project === null ? [] : ($attentionByProject[$project->id] ?? []),
         ];
     }
 
@@ -278,6 +288,7 @@ class MahasiswaBimbinganController extends Controller
             'chatUrl' => $threadId === null ? null : "/dosen/pesan?thread={$threadId}",
             'whatsappUrl' => $studentSummary['whatsappUrl'] ?? null,
             'progress' => $project === null ? null : ($progressByProject[$project->id] ?? null),
+            'attention' => [],
         ];
     }
 
