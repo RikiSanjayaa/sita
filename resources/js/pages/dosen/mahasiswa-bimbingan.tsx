@@ -359,19 +359,18 @@ function StudentTable({
                                     </td>
 
                                     <td
-                                        data-label="Peran"
-                                        className={stackedTable.td}
+                                        className={cn(
+                                            stackedTable.td,
+                                            'max-md:flex max-md:items-center max-md:gap-1.5',
+                                        )}
                                     >
                                         <RelationBadge row={row} />
-                                        <p className="mt-1 text-xs text-muted-foreground">
+                                        <p className="mt-1 text-xs text-muted-foreground max-md:mt-0">
                                             {row.contextLabel}
                                         </p>
                                     </td>
 
-                                    <td
-                                        data-label="Tahap"
-                                        className={stackedTable.td}
-                                    >
+                                    <td className={stackedTable.tdDetail}>
                                         <div className="flex min-w-0 flex-col items-start gap-1">
                                             <StatusBadge
                                                 domain="phase"
@@ -381,13 +380,17 @@ function StudentTable({
                                                     ? row.contextDescription
                                                     : row.stageLabel}
                                             </StatusBadge>
-                                            <p className="text-xs text-pretty text-muted-foreground">
+                                            <p
+                                                className="text-xs text-pretty text-muted-foreground max-md:line-clamp-2"
+                                                title={row.stageDescription}
+                                            >
                                                 {row.stageDescription}
                                             </p>
                                             {row.progress ? (
                                                 <StudentProgressPeek
                                                     progress={row.progress}
                                                     className="mt-1"
+                                                    hideActivityOnPhone
                                                 />
                                             ) : null}
                                         </div>
@@ -395,6 +398,7 @@ function StudentTable({
 
                                     <td
                                         data-label="Bimbingan"
+                                        data-label-hidden
                                         className={cn(
                                             stackedTable.td,
                                             'tabular-nums',
@@ -421,7 +425,7 @@ function StudentTable({
 
                                     {showActions && (
                                         <td className={stackedTable.tdActions}>
-                                            <div className="flex items-center justify-end gap-1 max-md:justify-start max-md:gap-2">
+                                            <div className="flex items-center justify-end gap-1 max-md:gap-2">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger
                                                         asChild

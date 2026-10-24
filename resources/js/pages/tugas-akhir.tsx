@@ -1081,7 +1081,6 @@ function DefenseResultSection({
                                     {examiner.name}
                                 </td>
                                 <td
-                                    data-label="Peran"
                                     className={cn(
                                         stackedTable.td,
                                         'text-muted-foreground',
@@ -1089,10 +1088,7 @@ function DefenseResultSection({
                                 >
                                     {examiner.roleLabel}
                                 </td>
-                                <td
-                                    data-label="Keputusan"
-                                    className={stackedTable.td}
-                                >
+                                <td className={stackedTable.tdAside}>
                                     <Badge variant="outline">
                                         {examiner.decisionLabel}
                                     </Badge>
@@ -1115,10 +1111,12 @@ function DefenseResultSection({
                                     </td>
                                 )}
                                 <td
-                                    data-label="Catatan"
+                                    title={examiner.decisionNotes ?? undefined}
                                     className={cn(
-                                        stackedTable.td,
-                                        'text-muted-foreground',
+                                        stackedTable.tdDetail,
+                                        'text-muted-foreground max-md:line-clamp-2 max-md:text-xs',
+                                        examiner.decisionNotes === null &&
+                                            'max-md:hidden',
                                     )}
                                 >
                                     {examiner.decisionNotes ?? (
@@ -1186,20 +1184,31 @@ function DefenseHistoryRow({
                     </span>
                 </td>
 
-                <td data-label="Judul" className={stackedTable.td}>
-                    <p className="text-sm font-medium text-pretty md:line-clamp-2 md:max-w-xs">
+                <td className={stackedTable.tdDetail}>
+                    <p
+                        title={item.titleId}
+                        className="text-sm font-medium text-pretty max-md:line-clamp-2 md:line-clamp-2 md:max-w-xs"
+                    >
                         {item.titleId}
                     </p>
                     {item.titleEn && (
-                        <p className="text-xs text-pretty text-muted-foreground italic md:line-clamp-1 md:max-w-xs">
+                        <p
+                            title={item.titleEn}
+                            className="text-xs text-pretty text-muted-foreground italic max-md:line-clamp-1 md:line-clamp-1 md:max-w-xs"
+                        >
                             {item.titleEn}
                         </p>
                     )}
                 </td>
 
-                <td data-label="Jadwal & Lokasi" className={stackedTable.td}>
+                <td
+                    className={cn(
+                        stackedTable.td,
+                        !item.scheduledFor && !item.location && 'max-md:hidden',
+                    )}
+                >
                     {item.scheduledFor ? (
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground md:whitespace-nowrap">
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground max-md:mr-2 max-md:inline-flex md:whitespace-nowrap">
                             <CalendarClock
                                 className="size-3.5 shrink-0"
                                 aria-hidden="true"
@@ -1207,10 +1216,12 @@ function DefenseHistoryRow({
                             {item.scheduledFor}
                         </span>
                     ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground max-md:hidden">
+                            —
+                        </span>
                     )}
                     {item.location && (
-                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground max-md:mt-0 max-md:inline-flex">
                             <MapPin
                                 className="size-3.5 shrink-0"
                                 aria-hidden="true"
@@ -1221,11 +1232,11 @@ function DefenseHistoryRow({
                     )}
                 </td>
 
-                <td data-label="Status" className={stackedTable.td}>
+                <td className={stackedTable.tdAside}>
                     <Badge variant="outline">{item.statusLabel}</Badge>
                 </td>
 
-                <td data-label="Hasil & Nilai" className={stackedTable.td}>
+                <td className={stackedTable.td}>
                     <div className="flex flex-wrap items-center gap-1.5">
                         <Badge>{item.resultLabel}</Badge>
                         {averageScore !== null && (
@@ -1258,7 +1269,12 @@ function DefenseHistoryRow({
                     </div>
                 </td>
 
-                <td className={stackedTable.tdActions}>
+                <td
+                    className={cn(
+                        stackedTable.tdActions,
+                        'max-md:order-4 max-md:mt-2 max-md:basis-full',
+                    )}
+                >
                     <button
                         type="button"
                         aria-expanded={expanded}

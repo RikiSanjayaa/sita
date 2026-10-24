@@ -1101,18 +1101,19 @@ export default function DosenSeminarProposalPage() {
                                                 </div>
                                             </td>
                                             <td
-                                                data-label="Judul"
                                                 className={cn(
-                                                    stackedTable.td,
+                                                    stackedTable.tdDetail,
                                                     'md:max-w-[280px]',
                                                 )}
                                             >
-                                                <span className="line-clamp-2 text-pretty">
+                                                <span
+                                                    title={item.titleId}
+                                                    className="line-clamp-2 text-pretty"
+                                                >
                                                     {item.titleId}
                                                 </span>
                                             </td>
                                             <td
-                                                data-label="Ujian"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'whitespace-nowrap',
@@ -1122,10 +1123,11 @@ export default function DosenSeminarProposalPage() {
                                                 {item.attemptNo}
                                             </td>
                                             <td
-                                                data-label="Jadwal"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground',
+                                                    !item.scheduledFor &&
+                                                        'max-md:hidden',
                                                 )}
                                             >
                                                 {item.scheduledFor ?? '-'}
@@ -1153,8 +1155,7 @@ export default function DosenSeminarProposalPage() {
                                                 </div>
                                             </td>
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <DefenseStatusBadge
                                                     status={item.defenseStatus}
@@ -1165,19 +1166,21 @@ export default function DosenSeminarProposalPage() {
                                                     stackedTable.tdActions
                                                 }
                                             >
-                                                <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                <div className="flex items-center justify-end gap-1">
                                                     <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
                                                         aria-label={`Buka detail ${item.studentName}`}
-                                                        className="max-md:h-11"
+                                                        className="max-md:size-11 max-md:px-0"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             openItem(item);
                                                         }}
                                                     >
-                                                        Buka
+                                                        <span className="max-md:sr-only">
+                                                            Buka
+                                                        </span>
                                                         <ChevronRight
                                                             aria-hidden="true"
                                                             className="size-4"

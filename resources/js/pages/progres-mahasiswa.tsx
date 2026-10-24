@@ -351,7 +351,7 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     profileUrl={row.profileUrl}
                 />
             </td>
-            <td data-label="Prodi dan angkatan" className={stackedTable.td}>
+            <td className={stackedTable.td}>
                 <StudentCohort
                     degreeLevel={row.degreeLevel}
                     angkatan={row.angkatan}
@@ -360,7 +360,7 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     prodi={row.prodi}
                 />
             </td>
-            <td data-label="Tahap" className={stackedTable.td}>
+            <td className={stackedTable.tdDetail}>
                 <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge domain="phase" status={row.phaseKey}>
                         {row.phaseLabel}
@@ -372,7 +372,10 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     ) : null}
                 </div>
                 {detail?.statusLabel ? (
-                    <p className="mt-1 text-xs text-pretty text-muted-foreground">
+                    <p
+                        className="mt-1 text-xs text-pretty text-muted-foreground max-md:line-clamp-2"
+                        title={detail.statusLabel}
+                    >
                         {detail.statusLabel}
                     </p>
                 ) : null}
@@ -383,7 +386,11 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     </p>
                 ) : null}
             </td>
-            <td data-label="Aktivitas terakhir" className={stackedTable.td}>
+            <td
+                data-label="Aktivitas terakhir"
+                data-label-hidden
+                className={stackedTable.td}
+            >
                 {row.progress ? (
                     <p
                         className="tabular-nums"
@@ -395,10 +402,7 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     <span className="text-muted-foreground">-</span>
                 )}
             </td>
-            <td
-                data-label="Judul dan pembimbing"
-                className={cn(stackedTable.td, 'md:max-w-xs')}
-            >
+            <td className={cn(stackedTable.tdDetail, 'md:max-w-xs')}>
                 <StudentTitleAdvisors
                     title={row.title}
                     advisors={

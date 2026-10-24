@@ -201,18 +201,23 @@ function ScheduleTable({
                                     key={`${title}-${item.id}`}
                                     className={cn(stackedTable.tr, 'align-top')}
                                 >
-                                    <td className={stackedTable.tdPlain}>
+                                    <td className={stackedTable.tdAside}>
                                         <ScheduleBadges item={item} />
                                     </td>
                                     <td
                                         className={cn(
-                                            stackedTable.tdPlain,
+                                            stackedTable.td,
                                             'text-muted-foreground',
                                         )}
                                     >
                                         {item.scheduledFor ?? '-'}
                                     </td>
-                                    <td className={stackedTable.tdPlain}>
+                                    <td
+                                        className={cn(
+                                            stackedTable.tdPlain,
+                                            'max-md:-order-1',
+                                        )}
+                                    >
                                         <div className="font-medium text-foreground">
                                             {item.studentName}
                                         </div>
@@ -220,21 +225,23 @@ function ScheduleTable({
                                             {item.studentNim}
                                         </div>
                                         {item.statusDetail ? (
-                                            <div className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
+                                            <div
+                                                title={item.statusDetail}
+                                                className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground max-md:line-clamp-2"
+                                            >
                                                 {item.statusDetail}
                                             </div>
                                         ) : null}
                                     </td>
                                     <td
                                         className={cn(
-                                            stackedTable.tdPlain,
+                                            stackedTable.td,
                                             'text-muted-foreground',
                                         )}
                                     >
                                         {item.programStudi}
                                     </td>
                                     <td
-                                        data-label="Lokasi"
                                         className={cn(
                                             stackedTable.td,
                                             'text-muted-foreground',

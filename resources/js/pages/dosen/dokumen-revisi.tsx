@@ -284,21 +284,28 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="File / Judul"
-                                                className={stackedTable.td}
+                                                className={
+                                                    stackedTable.tdDetail
+                                                }
                                             >
                                                 <div className="flex min-w-0 items-start gap-2.5">
                                                     <div
                                                         aria-hidden="true"
-                                                        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground"
+                                                        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground max-md:hidden"
                                                     >
                                                         <FileText className="size-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-medium break-words md:max-w-56">
+                                                        <p
+                                                            className="font-medium break-words max-md:line-clamp-2 md:max-w-56"
+                                                            title={doc.title}
+                                                        >
                                                             {doc.title}
                                                         </p>
-                                                        <p className="text-xs break-all text-muted-foreground md:max-w-56">
+                                                        <p
+                                                            className="text-xs break-all text-muted-foreground max-md:line-clamp-1 md:max-w-56"
+                                                            title={doc.file}
+                                                        >
                                                             {doc.file}
                                                         </p>
                                                     </div>
@@ -306,8 +313,7 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <StatusBadge
                                                     domain="document"
@@ -323,7 +329,6 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="Waktu Upload"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground md:whitespace-nowrap',
@@ -333,14 +338,23 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="Catatan Revisi"
                                                 className={cn(
-                                                    stackedTable.td,
-                                                    'text-muted-foreground',
+                                                    stackedTable.tdDetail,
+                                                    'text-muted-foreground max-md:text-xs',
+                                                    !doc.revisionNotes &&
+                                                        'max-md:hidden',
                                                 )}
                                             >
                                                 {doc.revisionNotes ? (
-                                                    <p className="line-clamp-2 text-pretty md:max-w-56">
+                                                    <p
+                                                        className="text-pretty max-md:line-clamp-2 md:line-clamp-2 md:max-w-56"
+                                                        title={
+                                                            doc.revisionNotes
+                                                        }
+                                                    >
+                                                        <span className="md:hidden">
+                                                            Catatan:{' '}
+                                                        </span>
                                                         {doc.revisionNotes}
                                                     </p>
                                                 ) : (
@@ -349,9 +363,10 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                className={
-                                                    stackedTable.tdActions
-                                                }
+                                                className={cn(
+                                                    stackedTable.tdActions,
+                                                    'max-md:order-4 max-md:mt-2 max-md:basis-full',
+                                                )}
                                             >
                                                 <div className="flex items-center justify-end gap-1 max-md:flex-wrap max-md:justify-start max-md:gap-2">
                                                     <Tooltip>
