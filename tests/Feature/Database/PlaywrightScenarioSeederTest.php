@@ -44,7 +44,7 @@ it('seeds one student per Playwright scenario and can be re-run to reset them', 
     expect($sidang->status)->toBe('scheduled')
         ->and($sidang->examiners)->toHaveCount(3);
 
-    expect(playwrightProject('e2e-tiket-habis@sita.test')->isMentorshipSuspended())->toBeTrue();
+    expect(playwrightProject('e2e-masa-aktif-habis@sita.test')->isMentorshipSuspended())->toBeTrue();
 
     $inGrace = playwrightProject('e2e-lulus-tenggang@sita.test');
     $pastGrace = playwrightProject('e2e-lulus-lama@sita.test');

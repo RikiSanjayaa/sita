@@ -367,7 +367,7 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
                     </StatusBadge>
                     {detail?.ticket.suspended ? (
                         <StatusBadge domain="ticket" status="overdue">
-                            Tiket habis
+                            Masa aktif habis
                         </StatusBadge>
                     ) : null}
                 </div>

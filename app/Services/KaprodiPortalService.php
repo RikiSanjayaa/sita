@@ -673,6 +673,12 @@ class KaprodiPortalService
             $signals[] = 'Belum ada pembimbing aktif';
         }
 
+        $mentorshipLapsed = $project->isMentorshipSuspended();
+
+        if ($mentorshipLapsed) {
+            $signals[] = 'Masa aktif bimbingan habis';
+        }
+
         $openRevisions = $project->defenses
             ->flatMap(fn(ThesisDefense $defense): Collection => $defense->revisions)
             ->whereNull('resolved_at')
@@ -694,9 +700,11 @@ class KaprodiPortalService
         } elseif ($daysIdle >= $thresholds['medium'] || $signals !== []) {
             $level = 'medium';
             $label = 'Perlu Dipantau';
-            $description = $daysIdle >= $thresholds['medium']
-                ? "Aktivitas terakhir {$daysIdle} hari lalu."
-                : 'Ada sinyal progres yang perlu dipantau.';
+            $description = match (true) {
+                $daysIdle >= $thresholds['medium'] => "Aktivitas terakhir {$daysIdle} hari lalu.",
+                $mentorshipLapsed => 'Masa aktif bimbingan habis.',
+                default => 'Ada sinyal progres yang perlu dipantau.',
+            };
         } else {
             $level = 'low';
             $label = 'Terkendali';

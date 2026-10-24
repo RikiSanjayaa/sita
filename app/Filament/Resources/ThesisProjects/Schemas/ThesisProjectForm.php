@@ -109,10 +109,10 @@ class ThesisProjectForm
                             ->native(false)
                             ->seconds(false),
                         DatePicker::make('mentorship_valid_from')
-                            ->label('Tiket Bimbingan Berlaku Mulai')
+                            ->label('Masa aktif bimbingan mulai')
                             ->native(false),
                         DatePicker::make('mentorship_valid_until')
-                            ->label('Tiket Bimbingan Berlaku Sampai')
+                            ->label('Masa aktif bimbingan berakhir')
                             ->native(false),
                         Textarea::make('notes')
                             ->label('Catatan Admin')

@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
-const THESIS_IMPORT_HEADER = ['nim', 'judul', 'pembimbing_1_nik', 'pembimbing_2_nik', 'tahap', 'tanggal_mulai_tiket'];
+const THESIS_IMPORT_HEADER = ['nim', 'judul', 'pembimbing_1_nik', 'pembimbing_2_nik', 'tahap', 'tanggal_mulai_masa_aktif'];
 
 /**
  * @param  array<int, array<int, string>>  $rows
@@ -141,7 +141,7 @@ it('maps the stage to project, title, supervisor and defense structure', functio
     expect(ThesisProjectEvent::query()->where('project_id', $project->id)->where('event_type', 'project_imported')->exists())->toBeTrue();
 })->with('thesis import stages');
 
-it('imports a Review Judul row without supervisors and without a ticket', function (): void {
+it('imports a Review Judul row without supervisors and without a masa aktif bimbingan', function (): void {
     $student = thesisImportStudent($this->prodi, '2210510002');
 
     $result = app(ThesisProjectImportService::class)->import(
@@ -159,7 +159,7 @@ it('imports a Review Judul row without supervisors and without a ticket', functi
         ->and($project->mentorship_valid_until)->toBeNull();
 });
 
-it('uses the project of a completed import without leaving a supervisor ticket behind', function (): void {
+it('uses the project of a completed import without leaving a supervisor masa aktif behind', function (): void {
     $student = thesisImportStudent($this->prodi, '2210510003');
 
     app(ThesisProjectImportService::class)->import(
@@ -177,12 +177,12 @@ it('uses the project of a completed import without leaving a supervisor ticket b
         ->and($project->isMentorshipSuspended())->toBeFalse();
 });
 
-it('fills the mentorship ticket from tanggal_mulai_tiket in ISO and Excel serial form', function (string $input, string $from, string $until): void {
+it('fills the masa aktif bimbingan from tanggal_mulai_masa_aktif in ISO and Excel serial form', function (string $input, string $from, string $until): void {
     $student = thesisImportStudent($this->prodi, '2210510004');
     config(['sita.thesis_ticket_months' => 12]);
 
     app(ThesisProjectImportService::class)->import(
-        thesisImportWorkbook([['2210510004', 'Judul Tiket', '7301000000000001', '', 'Riset', $input]]),
+        thesisImportWorkbook([['2210510004', 'Judul Masa Aktif', '7301000000000001', '', 'Riset', $input]]),
         [],
         $this->actor,
     );
@@ -196,11 +196,11 @@ it('fills the mentorship ticket from tanggal_mulai_tiket in ISO and Excel serial
     'excel serial' => ['45748', '2025-04-01', '2026-04-01'],
 ]);
 
-it('starts the ticket today when no tanggal_mulai_tiket is given for an active stage', function (): void {
+it('starts the masa aktif today when no tanggal_mulai_masa_aktif is given for an active stage', function (): void {
     $student = thesisImportStudent($this->prodi, '2210510005');
 
     app(ThesisProjectImportService::class)->import(
-        thesisImportWorkbook([['2210510005', 'Judul Tiket Hari Ini', '7301000000000001', '', 'Riset', '']]),
+        thesisImportWorkbook([['2210510005', 'Judul Masa Aktif Hari Ini', '7301000000000001', '', 'Riset', '']]),
         [],
         $this->actor,
     );
@@ -211,7 +211,7 @@ it('starts the ticket today when no tanggal_mulai_tiket is given for an active s
         ->and($project->mentorship_valid_until)->not->toBeNull();
 });
 
-it('keeps the ticket of a lapsed start date so the project is suspended', function (): void {
+it('keeps the masa aktif of a lapsed start date so the project is suspended', function (): void {
     $student = thesisImportStudent($this->prodi, '2210510006');
 
     app(ThesisProjectImportService::class)->import(
@@ -232,8 +232,8 @@ dataset('thesis import errors', [
     'dosen beda prodi' => [fn() => ['2210510010', 'Judul', '7301000000009999', '', 'Riset', ''], 'tidak mengajar di program studi mahasiswa'],
     'tahap tidak dikenal' => [fn() => ['2210510010', 'Judul', '7301000000000001', '', 'Magang', ''], "Tahap 'Magang' tidak dikenal."],
     'tahap kosong' => [fn() => ['2210510010', 'Judul', '7301000000000001', '', '', ''], 'Tahap wajib diisi.'],
-    'tanggal salah format' => [fn() => ['2210510010', 'Judul', '7301000000000001', '', 'Riset', '01/02/2025'], "Tanggal mulai tiket '01/02/2025' tidak valid."],
-    'tanggal tidak ada di kalender' => [fn() => ['2210510010', 'Judul', '7301000000000001', '', 'Riset', '2025-02-30'], "Tanggal mulai tiket '2025-02-30' tidak valid."],
+    'tanggal salah format' => [fn() => ['2210510010', 'Judul', '7301000000000001', '', 'Riset', '01/02/2025'], "Tanggal mulai masa aktif '01/02/2025' tidak valid."],
+    'tanggal tidak ada di kalender' => [fn() => ['2210510010', 'Judul', '7301000000000001', '', 'Riset', '2025-02-30'], "Tanggal mulai masa aktif '2025-02-30' tidak valid."],
     'pembimbing 1 wajib' => [fn() => ['2210510010', 'Judul', '', '', 'Riset', ''], 'Pembimbing 1 wajib diisi kecuali pada tahap Review Judul.'],
     'pembimbing 2 tanpa 1' => [fn() => ['2210510010', 'Judul', '', '7301000000000002', 'Review Judul', ''], 'Pembimbing 2 tidak boleh diisi tanpa Pembimbing 1.'],
     'pembimbing sama' => [fn() => ['2210510010', 'Judul', '7301000000000001', '7301000000000001', 'Riset', ''], 'Pembimbing 1 dan Pembimbing 2 harus berbeda.'],

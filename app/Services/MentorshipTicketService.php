@@ -9,7 +9,7 @@ class MentorshipTicketService
 {
     /**
      * The student's current thesis project (same notion as ThesisProject::current()),
-     * whose ticket governs mentorship activity. Null when the current one is not active.
+     * whose masa aktif bimbingan (mentorship validity) governs mentorship activity. Null when the current one is not active.
      */
     public function activeProjectForStudent(int $studentUserId): ?ThesisProject
     {
@@ -23,17 +23,25 @@ class MentorshipTicketService
     /**
      * The reason a student's mentorship activity is blocked, or null while it is allowed.
      */
-    public function suspensionMessageForStudent(int $studentUserId): ?string
+    public function suspensionMessageForStudent(int $studentUserId, bool $addressStudent = true): ?string
     {
         $project = $this->activeProjectForStudent($studentUserId);
 
-        return $project?->isMentorshipSuspended() ? self::suspensionMessage($project) : null;
+        return $project?->isMentorshipSuspended() ? self::suspensionMessage($project, $addressStudent) : null;
     }
 
-    public static function suspensionMessage(ThesisProject $project): string
+    /**
+     * Wording for the student (banner, blocked requests) or, with $addressStudent false,
+     * for a dosen acting on that student's behalf.
+     */
+    public static function suspensionMessage(ThesisProject $project, bool $addressStudent = true): string
     {
-        return 'Masa berlaku tiket habis sejak '
-            .WitaDateTime::format($project->mentorship_valid_until, 'd M Y', withLabel: false)
-            .'. Hubungi admin untuk perpanjangan.';
+        $until = WitaDateTime::translated($project->mentorship_valid_until, 'j F Y', withLabel: false);
+
+        if (! $addressStudent) {
+            return "Masa aktif bimbingan mahasiswa berakhir pada {$until}. Penjadwalan bimbingan ditangguhkan sampai admin program studi memperpanjangnya.";
+        }
+
+        return "Masa aktif bimbingan Anda berakhir pada {$until}. Pengajuan jadwal bimbingan, pesan, dan unggah dokumen ditangguhkan sampai diperpanjang. Hubungi admin program studi untuk perpanjangan.";
     }
 }

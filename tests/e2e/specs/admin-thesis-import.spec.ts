@@ -14,7 +14,7 @@ const HEADER = [
     'pembimbing_1_nik',
     'pembimbing_2_nik',
     'tahap',
-    'tanggal_mulai_tiket',
+    'tanggal_mulai_masa_aktif',
 ];
 const LECTURER_NIK = '7301999900000001';
 const STUDENTS = [
@@ -289,7 +289,7 @@ test.describe('Admin thesis import', () => {
             ).toBeVisible();
             await expect(
                 notification.getByText(
-                    "Tanggal mulai tiket '2026-13-45' tidak valid.",
+                    "Tanggal mulai masa aktif '2026-13-45' tidak valid.",
                 ),
             ).toBeVisible();
 

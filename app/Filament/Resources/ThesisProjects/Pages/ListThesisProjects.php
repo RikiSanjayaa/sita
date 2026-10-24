@@ -42,7 +42,7 @@ class ListThesisProjects extends ListRecords
                     FileUpload::make('file')
                         ->label('File Excel')
                         ->placeholder('Upload file Excel (.xlsx)')
-                        ->helperText('Kolom: nim, judul, pembimbing_1_nik, pembimbing_2_nik, tahap, tanggal_mulai_tiket (opsional). Gunakan template resmi.')
+                        ->helperText('Kolom: nim, judul, pembimbing_1_nik, pembimbing_2_nik, tahap, tanggal_mulai_masa_aktif (opsional). Gunakan template resmi.')
                         ->acceptedFileTypes([
                             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         ])

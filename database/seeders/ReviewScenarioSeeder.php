@@ -150,7 +150,7 @@ class ReviewScenarioSeeder extends Seeder
             'version_no' => 1,
             'title_id' => $account['title'],
             'title_en' => $account['title'],
-            'proposal_summary' => 'Data contoh untuk meninjau tiket bimbingan.',
+            'proposal_summary' => 'Data contoh untuk meninjau masa aktif bimbingan.',
             'status' => 'approved',
             'submitted_by_user_id' => $student->id,
             'submitted_at' => $startedAt,
@@ -194,7 +194,7 @@ class ReviewScenarioSeeder extends Seeder
             $admin->id,
             $primary->id,
             $secondary?->id,
-            'Pembimbing data contoh tiket.',
+            'Pembimbing data contoh masa aktif.',
             silent: true,
         );
     }
