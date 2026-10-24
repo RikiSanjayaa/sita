@@ -74,9 +74,10 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow (menu)                                                                                                                                                             | Spec                                          | Status   | Priority |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- | -------- |
-| Dashboard: "Perlu Tindakan" di atas (masa aktif habis, pembimbing belum ditetapkan, siap dijadwalkan), tautan terfilter dan tombol Jadwalkan membuka dialog (issue #32) | `kaprodi-portal`, Pest `KaprodiDashboardTest` | tercakup | P1       |
-| Dashboard: bagian "Hari Ini & 7 Hari ke Depan", "Progres Mahasiswa", statistik dan arsip, tautan menu sidebar                                                           | `kaprodi-portal`                              | tercakup | P2       |
-| Mahasiswa Prodi: filter tindakan (`?activeFocus=`) dari dashboard (issue #32)                                                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Dashboard: "Perlu tindakan" di atas dengan item unggulan netral (satu nama "Terkait:" paling banyak) dan item sekunder tanpa nama; urutan, jumlah, tombol dan tautan terfilter nyata ke daftar mahasiswa, ujian dan dosen, serta tombol Jadwalkan membuka dialog (issue #32). Fixture terisolasi: terisi, semua beres | `kaprodi-dashboard`, Pest `KaprodiDashboardTest` | tercakup | P1 |
+| Dashboard: ringkasan prodi (4 tile bernilai nyata, tetap ada saat nol, tautan ke tujuan terfilter), agenda "Hari ini & 7 hari ke depan" (label hari, jam WITA), "Progres mahasiswa", fase, arsip; tata letak 390/768/1280px (aksi dulu di ponsel, ringkasan 2x2, ringkasan di atas dan agenda di samping di desktop), tanpa overflow, target 44px, urutan fokus keyboard mengikuti urutan baca | `kaprodi-dashboard` | tercakup | P2 |
+| Dashboard: tautan menu sidebar | `kaprodi-portal` | tercakup | P2 |
+| Mahasiswa Prodi: filter tindakan (`?activeFocus=`) dari dashboard (issue #32) | `kaprodi-dashboard` | tercakup | P2 |
 | Tanggal berbahasa Indonesia ("24 Okt 2026") di semua halaman kaprodi (PR #32)                                                                                           | Pest `IndonesianDatesTest`                    | tercakup | P2       |
 | Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel                                                                                            | `kaprodi-portal`                              | sebagian | P1       |
 
@@ -95,7 +96,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Mahasiswa Prodi: satu mahasiswa dengan tugas akhir lama completed/cancelled dan tugas akhir baru; riwayat tetap tersedia di admin (#95) | `project-visibility`, `profile-active-examiners`, plus Pest (`ProjectVisibilityTest`) | tercakup | P1 |
 | Dosen Prodi: buka chat privat dengan dosen (tombol Chat) | `kaprodi-portal` | tercakup | P1 |
 | Kaprodi: satu workspace dengan sidebar gabungan, tidak pindah ke dosen saat pindah halaman | `kaprodi-portal`, Pest `EnsureRoleTest` | tercakup | P1 |
-| Kaprodi dengan kapabilitas dibatasi | Pest only | belum | P3 |
+| Kaprodi dengan kapabilitas dibatasi: dashboard menyembunyikan aksi pembimbing, jadwal Sempro/Sidang dan kuota, hitungan ringkasan tetap sama | `kaprodi-dashboard`; halaman lain Pest only | sebagian | P3 |
 | Kaprodi: badge OBE (issue #6) | Pest only (`UserObeCurriculumTest`, `KaprodiPortalTest`) | belum | P3 |
 
 ## Admin (Filament `/admin`) and super admin
@@ -146,4 +147,4 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Known gaps worth closing next
 
-- Dashboards for mahasiswa and dosen (#31, #32 change them; add specs there). The admin dashboard has `admin-dashboard` (#33).
+- Dashboard mahasiswa remains landing-only; extend its coverage in #134. Dosen (#31/#123) and kaprodi (#32/#124) have isolated dashboard scenarios; admin keeps `admin-dashboard` and is redesigned in #33.
