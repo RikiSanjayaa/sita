@@ -112,10 +112,6 @@ REVERB_INTERNAL_SCHEME=http
 REVERB_SERVER_HOST=127.0.0.1
 REVERB_SERVER_PORT=8080
 REVERB_ALLOWED_ORIGINS=sita.kampus.ac.id
-VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
-VITE_REVERB_HOST="${REVERB_HOST}"
-VITE_REVERB_PORT="${REVERB_PORT}"
-VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 ```
 
 `REVERB_ALLOWED_ORIGINS` berisi hostname saja (tanpa `https://`), dipisah koma bila lebih dari satu. Jika kosong, Reverb memakai `*` dan menerima WebSocket dari origin mana pun; doctor akan menandainya `[FAIL]`.
