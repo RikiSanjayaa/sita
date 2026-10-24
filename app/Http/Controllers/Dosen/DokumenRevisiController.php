@@ -13,6 +13,7 @@ use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
 use App\Services\UserProfilePresenter;
+use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -49,7 +50,7 @@ class DokumenRevisiController extends Controller
                     'nim' => $document->student?->mahasiswaProfile?->nim ?? '-',
                     'title' => $document->title,
                     'file' => $document->file_name,
-                    'uploadedAt' => $document->created_at->format('d M Y H:i'),
+                    'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
                     'status' => match ($document->status) {
                         'approved' => 'Disetujui',
                         'needs_revision' => 'Perlu Revisi',
@@ -147,7 +148,7 @@ class DokumenRevisiController extends Controller
             'authorAvatar' => $author['avatar'] ?? null,
             'authorProfileUrl' => $author['profileUrl'] ?? null,
             'message' => $message->message,
-            'time' => $message->created_at->format('d M Y H:i'),
+            'time' => WitaDateTime::format($message->created_at, withLabel: false),
             'type' => 'document_event',
             'documentEventKind' => 'review',
             'documentName' => $document->file_name,

@@ -144,7 +144,7 @@ class StudentProgressSnapshot
         return [
             'statusLabel' => $this->statusLabel($project),
             'supervisors' => $supervisors,
-            'lastActivityAt' => $lastActivity?->format('d M Y'),
+            'lastActivityAt' => WitaDateTime::formatOrNull($lastActivity, 'd M Y'),
             'lastActivityLabel' => $lastActivity instanceof CarbonInterface
                 ? 'Terakhir aktif '.$lastActivity->copy()->locale('id')->diffForHumans()
                 : 'Belum ada aktivitas',

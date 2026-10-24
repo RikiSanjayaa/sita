@@ -9,21 +9,21 @@ class WitaDateTime
 {
     public const TIMEZONE = 'Asia/Makassar';
 
+    /**
+     * The one formatter for dates shown to users: WITA, Indonesian day and month names
+     * ("24 Okt 2026"), whatever the app locale. Never call Carbon's format() on a value a user reads.
+     */
     public static function format(?CarbonInterface $value, string $format = 'd M Y H:i', bool $withLabel = true): string
     {
-        if ($value === null) {
-            return '-';
-        }
+        return self::translated($value, $format, withLabel: $withLabel);
+    }
 
-        $formatted = CarbonImmutable::instance($value)
-            ->setTimezone(self::TIMEZONE)
-            ->format($format);
-
-        if (! $withLabel) {
-            return $formatted;
-        }
-
-        return $formatted.' WITA';
+    /**
+     * format() for nullable values where the page tests for null: no placeholder, no WITA label.
+     */
+    public static function formatOrNull(?CarbonInterface $value, string $format = 'd M Y H:i'): ?string
+    {
+        return $value === null ? null : self::translated($value, $format, withLabel: false);
     }
 
     public static function translated(?CarbonInterface $value, string $format, string $locale = 'id', bool $withLabel = true): string

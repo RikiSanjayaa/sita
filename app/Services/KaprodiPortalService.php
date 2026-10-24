@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
@@ -13,6 +14,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -23,41 +25,32 @@ class KaprodiPortalService
         private readonly MentorshipProgressService $mentorshipProgressService,
         private readonly StudentProgressSnapshot $studentProgressSnapshot,
         private readonly StudentActivityService $studentActivityService,
+        private readonly DosenBimbinganService $dosenBimbinganService,
     ) {}
 
     /**
+     * Action-first dashboard: what needs the kaprodi, this week's agenda, the students
+     * who need attention first, then the passive statistics.
+     *
      * @return array<string, mixed>
      */
-    public function dashboard(ProgramStudi $programStudi): array
+    public function dashboard(ProgramStudi $programStudi, KaprodiAssignment $assignment): array
     {
         $projects = $this->projects($programStudi);
         $students = $this->studentProfiles($programStudi);
         $lastActivityByProject = $this->studentActivityService->latestByProject($projects);
-        $attentionItems = $this->attentionItems($programStudi, $projects, $students, $lastActivityByProject);
+        $rows = $this->studentRows($students, $projects, $lastActivityByProject, []);
+        $actionable = $this->actionableProjects($projects, $students);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
-            'workSummary' => [
-                'label' => $attentionItems->isNotEmpty() ? 'Perlu Dipantau' : 'Terkendali',
-                'headline' => $attentionItems->isNotEmpty()
-                    ? $attentionItems->count().' perhatian'
-                    : 'Tidak ada perhatian mendesak',
-                'description' => $attentionItems->isNotEmpty()
-                    ? 'Ada jadwal, revisi, atau progres mahasiswa yang perlu dipantau kaprodi.'
-                    : 'Agenda dan progres prodi sedang dalam kondisi tenang.',
-                'metrics' => [
-                    [
-                        'label' => 'Mahasiswa',
-                        'value' => (string) $students->count(),
-                    ],
-                    [
-                        'label' => 'Arsip',
-                        'value' => (string) $projects->whereIn('state', ['completed', 'cancelled'])->count(),
-                    ],
-                ],
+            'actionItems' => $this->actionItems($programStudi, $assignment, $rows, $actionable),
+            'upcomingAgenda' => $this->deadlines($programStudi, 8),
+            'attentionStudents' => $this->attentionStudents($rows, $actionable, $projects, $lastActivityByProject),
+            'stats' => [
+                'students' => $students->count(),
+                'archives' => $projects->whereIn('state', ['completed', 'cancelled'])->count(),
             ],
-            'attentionItems' => $attentionItems->values()->all(),
-            'upcomingAgenda' => $this->deadlines($programStudi, 5),
             'recentArchives' => $this->archiveRows($programStudi, 4),
             'phaseDistribution' => $this->phaseDistribution($projects),
             'defenseProgress' => $this->defenseProgress($programStudi)->take(5)->values()->all(),
@@ -232,7 +225,7 @@ class KaprodiPortalService
                     'nim' => $document->student?->mahasiswaProfile?->nim,
                     'title' => $document->title,
                     'file' => $document->file_name,
-                    'uploadedAt' => $document->created_at?->format('d M Y H:i') ?? '-',
+                    'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
                     'uploadedSort' => $document->created_at?->getTimestamp() ?? 0,
                     'status' => $this->aggregateDocumentStatus($documents->pluck('status')),
                     'reviewCount' => $documents->count(),
@@ -250,8 +243,8 @@ class KaprodiPortalService
                             'reviewer' => $review->lecturer?->name ?? 'Belum diarahkan',
                             'status' => $this->statusLabel($review->status),
                             'revisionNotes' => $review->revision_notes,
-                            'uploadedAt' => $review->created_at?->format('d M Y H:i') ?? '-',
-                            'reviewedAt' => $review->reviewed_at?->format('d M Y H:i'),
+                            'uploadedAt' => WitaDateTime::format($review->created_at, withLabel: false),
+                            'reviewedAt' => WitaDateTime::formatOrNull($review->reviewed_at),
                         ])
                         ->values()
                         ->all(),
@@ -442,10 +435,14 @@ class KaprodiPortalService
      */
     private function deadlines(ProgramStudi $programStudi, int $limit = 8): array
     {
+        $windowStart = CarbonImmutable::now(WitaDateTime::TIMEZONE)->startOfDay()->setTimezone(config('app.timezone'));
+        $windowEnd = CarbonImmutable::now(WitaDateTime::TIMEZONE)->addDays(7)->endOfDay()->setTimezone(config('app.timezone'));
+
         $defenseDeadlines = ThesisDefense::query()
             ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '>=', now()->subDay())
+            ->whereBetween('scheduled_for', [$windowStart, $windowEnd])
+            ->whereIn('status', ['scheduled', 'awaiting_finalization'])
             ->with('project.student')
             ->orderBy('scheduled_for')
             ->limit(6)
@@ -461,6 +458,7 @@ class KaprodiPortalService
         $revisionDeadlines = ThesisRevision::query()
             ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('due_at')
+            ->whereBetween('due_at', [$windowStart, $windowEnd])
             ->whereNull('resolved_at')
             ->with('project.student')
             ->orderBy('due_at')
@@ -495,6 +493,11 @@ class KaprodiPortalService
                     ->where('student_user_id', $profile->user_id)
                     ->sortByDesc('started_at')
                     ->first();
+
+                $risk = $this->progressRisk(
+                    $project,
+                    $lastActivityByProject[$project?->id] ?? null,
+                );
 
                 return [
                     'id' => $profile->user_id,
@@ -533,9 +536,12 @@ class KaprodiPortalService
                         ->values()
                         ->all() ?? [],
                     'mentorshipProgress' => $project instanceof ThesisProject ? $mentorshipProgress[$project->getKey()] ?? [] : [],
-                    'progressRisk' => $this->progressRisk(
+                    'progressRisk' => $risk,
+                    'needsAction' => $this->needsActionFlags(
                         $project,
-                        $lastActivityByProject[$project?->id] ?? null,
+                        (bool) $profile->is_active,
+                        $mentorshipProgress[$project?->getKey()] ?? [],
+                        $risk,
                     ),
                     'progress' => $progress[$project?->id] ?? null,
                     'profileUrl' => route('users.profile.show', ['user' => $profile->user_id]),
@@ -1056,70 +1062,295 @@ class KaprodiPortalService
             ->get();
     }
 
-    private function attentionItems(ProgramStudi $programStudi, EloquentCollection $projects, EloquentCollection $students, array $lastActivityByProject): Collection
+    /**
+     * A project is "actionable" while the student is still being supervised: active,
+     * not archived and a student who is not deactivated. Every action queue and the
+     * attention list read only these, so archived students never show up there.
+     */
+    private function isActionable(ThesisProject $project, bool $studentActive): bool
+    {
+        return $studentActive && $project->state === 'active' && ! $project->isArchived();
+    }
+
+    /**
+     * @return EloquentCollection<int, ThesisProject>
+     */
+    private function actionableProjects(EloquentCollection $projects, EloquentCollection $students): EloquentCollection
+    {
+        $activeStudentIds = $students
+            ->filter(fn(MahasiswaProfile $profile): bool => (bool) $profile->is_active)
+            ->pluck('user_id')
+            ->flip();
+
+        return $projects
+            ->filter(fn(ThesisProject $project): bool => $this->isActionable($project, $activeStudentIds->has($project->student_user_id)))
+            ->values();
+    }
+
+    /**
+     * Row flags the Mahasiswa Prodi filter and the dashboard queue share, so both count
+     * the same students: masa_habis, tanpa_pembimbing, bimbingan_kurang, tidak_aktif.
+     *
+     * @param  array<int, array<string, mixed>>  $mentorshipProgress
+     * @param  array<string, mixed>  $risk
+     * @return list<string>
+     */
+    private function needsActionFlags(?ThesisProject $project, bool $studentActive, array $mentorshipProgress, array $risk): array
+    {
+        if (! $project instanceof ThesisProject || ! $this->isActionable($project, $studentActive)) {
+            return [];
+        }
+
+        $flags = [];
+
+        if ($project->isMentorshipSuspended()) {
+            $flags[] = 'masa_habis';
+        }
+
+        $passedSempro = in_array($project->phase, ['research', 'sidang'], true)
+            || $project->defenses->contains(fn(ThesisDefense $defense): bool => $defense->type === 'sempro'
+                && $defense->status === 'completed'
+                && in_array($defense->result, ThesisProject::PUBLIC_TITLE_SEMPRO_RESULTS, true));
+
+        if ($passedSempro && $project->activeSupervisorAssignments->isEmpty()) {
+            $flags[] = 'tanpa_pembimbing';
+        }
+
+        if ($project->phase === 'sidang' && $this->mentorshipProgressService->unmet($mentorshipProgress) !== []) {
+            $flags[] = 'bimbingan_kurang';
+        }
+
+        if (($risk['level'] ?? null) === 'high') {
+            $flags[] = 'tidak_aktif';
+        }
+
+        return $flags;
+    }
+
+    /**
+     * "Perlu tindakan", most urgent first. Scheduling and supervisor items need the matching
+     * kaprodi capability; items with a zero count are left out.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  EloquentCollection<int, ThesisProject>  $actionable
+     * @return list<array{id: string, label: string, description: string, value: int, href: string, tone: string, actionLabel: string, names: list<string>}>
+     */
+    private function actionItems(ProgramStudi $programStudi, KaprodiAssignment $assignment, Collection $rows, EloquentCollection $actionable): array
     {
         $terms = AcademicTerminology::neutral();
-        $unfinalizedDefenses = ThesisDefense::query()
-            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
+        $flagged = fn(string $flag): Collection => $rows
+            ->filter(fn(array $row): bool => in_array($flag, $row['needsAction'], true))
+            ->pluck('name');
+        $needsSchedule = fn(string $phase, string $type): Collection => $actionable
+            ->filter(fn(ThesisProject $project): bool => $project->phase === $phase && $this->needsDefenseSchedule($project, $type))
+            ->map(fn(ThesisProject $project): string => $project->student?->name ?? 'Mahasiswa');
+        $item = fn(string $id, string $label, string $description, string $href, string $tone, string $actionLabel, Collection $names): ?array => $names->isEmpty() ? null : [
+            'id' => $id,
+            'label' => $label,
+            'description' => $description,
+            'value' => $names->count(),
+            'href' => $href,
+            'tone' => $tone,
+            'actionLabel' => $actionLabel,
+            'names' => $names->take(3)->values()->all(),
+        ];
+
+        $awaitingFinalization = ThesisDefense::query()
+            ->whereHas('project', fn($query) => $query
+                ->current()
+                ->where('program_studi_id', $programStudi->id)
+                ->where('state', 'active')
+                ->whereNull('archived_at'))
             ->where('status', 'awaiting_finalization')
-            ->count();
+            ->with('project.student')
+            ->get()
+            ->map(fn(ThesisDefense $defense): string => $defense->project?->student?->name ?? 'Mahasiswa');
 
-        $openRevisions = ThesisRevision::query()
-            ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
-            ->whereNull('resolved_at')
-            ->count();
+        $items = [
+            $item(
+                'awaiting-finalization',
+                'Ujian menunggu finalisasi',
+                'Ujian sudah dilaksanakan, hasilnya belum difinalisasi.',
+                route('kaprodi.sempro-sidang', ['status' => 'awaiting_finalization']),
+                'warning',
+                'Buka ujian',
+                $awaitingFinalization,
+            ),
+            $item(
+                'mentorship-lapsed',
+                'Masa aktif bimbingan habis',
+                'Penjadwalan bimbingan ditangguhkan sampai admin memperpanjang masa aktifnya.',
+                route('kaprodi.mahasiswa.index', ['activeFocus' => 'masa_habis']),
+                'danger',
+                'Lihat mahasiswa',
+                $flagged('masa_habis'),
+            ),
+            $assignment->hasCapability(KaprodiAssignment::CAPABILITY_MANAGE_SUPERVISORS) ? $item(
+                'without-supervisor',
+                'Pembimbing belum ditetapkan',
+                'Sudah melewati '.$terms['proposalExamShort'].', belum ada pembimbing aktif.',
+                route('kaprodi.mahasiswa.index', ['activeFocus' => 'tanpa_pembimbing']),
+                'warning',
+                'Tetapkan pembimbing',
+                $flagged('tanpa_pembimbing'),
+            ) : null,
+            $assignment->hasCapability(KaprodiAssignment::CAPABILITY_SCHEDULE_SIDANG) ? $item(
+                'schedule-sidang',
+                'Siap dijadwalkan '.$terms['finalExamShort'],
+                'Belum punya jadwal '.$terms['finalExamShort'].'.',
+                route('kaprodi.sempro-sidang', ['jadwalkan' => 'sidang']),
+                'warning',
+                'Jadwalkan',
+                $needsSchedule('sidang', 'sidang'),
+            ) : null,
+            $assignment->hasCapability(KaprodiAssignment::CAPABILITY_SCHEDULE_SEMPRO) ? $item(
+                'schedule-sempro',
+                'Siap dijadwalkan '.$terms['proposalExamShort'],
+                'Belum punya jadwal '.$terms['proposalExamShort'].'.',
+                route('kaprodi.sempro-sidang', ['jadwalkan' => 'sempro']),
+                'warning',
+                'Jadwalkan',
+                $needsSchedule('sempro', 'sempro'),
+            ) : null,
+            $item(
+                'inactive',
+                'Mahasiswa tidak aktif',
+                'Tidak ada aktivitas progres dalam waktu lama.',
+                route('kaprodi.mahasiswa.index', ['activeFocus' => 'tidak_aktif']),
+                'danger',
+                'Lihat mahasiswa',
+                $flagged('tidak_aktif'),
+            ),
+            $item(
+                'mentorship-minimum',
+                'Minimal bimbingan belum terpenuhi',
+                'Menjelang '.$terms['finalExamShort'].', jumlah bimbingan belum mencapai minimal.',
+                route('kaprodi.mahasiswa.index', ['activeFocus' => 'bimbingan_kurang']),
+                'warning',
+                'Lihat mahasiswa',
+                $flagged('bimbingan_kurang'),
+            ),
+            $assignment->hasCapability(KaprodiAssignment::CAPABILITY_MANAGE_LECTURER_QUOTA) ? $item(
+                'over-quota',
+                'Dosen melebihi kuota bimbingan',
+                'Jumlah mahasiswa bimbingan aktif melewati kuota dosen.',
+                route('kaprodi.dosen-prodi'),
+                'warning',
+                'Atur kuota',
+                $this->lecturersOverQuota($actionable),
+            ) : null,
+        ];
 
-        $studentsWithoutProject = $students
-            ->filter(fn(MahasiswaProfile $profile): bool => $projects->where('student_user_id', $profile->user_id)->isEmpty())
-            ->count();
+        return array_values(array_filter($items));
+    }
 
-        $projectsWithoutSupervisor = $projects
-            ->filter(fn(ThesisProject $project): bool => $project->state === 'active' && $project->activeSupervisorAssignments->isEmpty())
-            ->count();
+    /**
+     * The latest attempt of the exam is missing, cancelled or failed, so a new one can be scheduled.
+     */
+    private function needsDefenseSchedule(ThesisProject $project, string $type): bool
+    {
+        $latest = $project->defenses
+            ->where('type', $type)
+            ->sortByDesc('attempt_no')
+            ->first();
 
-        // The risk count only reads progressRisk, so no peek snapshot is built here.
-        $riskStudents = $this->studentRows($students, $projects, $lastActivityByProject, [])
-            ->where('status', 'Aktif')
-            ->where('progressRisk.level', 'high')
-            ->count();
+        return ! $latest instanceof ThesisDefense
+            || in_array($latest->status, ['draft', 'cancelled'], true)
+            || ($latest->status === 'completed' && $latest->result === 'fail');
+    }
 
-        return collect([
-            [
-                'id' => 'progress-risk',
-                'label' => 'Risiko telat',
-                'value' => $riskStudents,
-                'description' => 'Mahasiswa aktif dengan jeda progres panjang.',
-                'href' => route('kaprodi.mahasiswa.index'),
-            ],
-            [
-                'id' => 'unfinalized-defenses',
-                'label' => 'Ujian belum final',
-                'value' => $unfinalizedDefenses,
-                'description' => 'Semua '.AcademicTerminology::neutral()['proposalExamShort'].' / '.AcademicTerminology::neutral()['finalExamShort'].' menunggu finalisasi hasil.',
-                'href' => route('kaprodi.sempro-sidang'),
-            ],
-            [
-                'id' => 'open-revisions',
-                'label' => 'Revisi terbuka',
-                'value' => $openRevisions,
-                'description' => 'Revisi masih berjalan atau melewati tenggat.',
-                'href' => route('kaprodi.sempro-sidang'),
-            ],
-            [
-                'id' => 'students-without-project',
-                'label' => 'Tanpa '.$terms['finalWorkLower'],
-                'value' => $studentsWithoutProject,
-                'description' => 'Mahasiswa prodi belum memiliki '.$terms['finalWorkLower'].' aktif/arsip.',
-                'href' => route('kaprodi.mahasiswa.index'),
-            ],
-            [
-                'id' => 'projects-without-supervisor',
-                'label' => 'Tanpa pembimbing',
-                'value' => $projectsWithoutSupervisor,
-                'description' => $terms['finalWork'].' aktif belum memiliki pembimbing aktif.',
-                'href' => route('kaprodi.dosen-prodi'),
-            ],
-        ])->filter(fn(array $item): bool => $item['value'] > 0)->values();
+    /**
+     * Names of lecturers whose active students (same rule as the Dosen Prodi page) exceed
+     * their quota.
+     *
+     * @param  EloquentCollection<int, ThesisProject>  $actionable
+     * @return Collection<int, string>
+     */
+    private function lecturersOverQuota(EloquentCollection $actionable): Collection
+    {
+        $studentsByLecturer = [];
+
+        foreach ($actionable as $project) {
+            foreach ($project->activeSupervisorAssignments as $assignment) {
+                $studentsByLecturer[$assignment->lecturer_user_id][$project->student_user_id] = true;
+            }
+        }
+
+        if ($studentsByLecturer === []) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', array_keys($studentsByLecturer))
+            ->with('dosenProfile')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn(User $lecturer): bool => count($studentsByLecturer[$lecturer->id]) > $this->dosenBimbinganService->lecturerQuota($lecturer))
+            ->pluck('name')
+            ->values();
+    }
+
+    /**
+     * Students who need attention, worst first: lapsed masa aktif bimbingan, inactive,
+     * mentorship minimum unmet, no supervisor, then "perlu dipantau". Each carries the
+     * StudentProgressSnapshot card payload, built only for the shown students.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return array{total: int, students: list<array<string, mixed>>}
+     */
+    private function attentionStudents(Collection $rows, EloquentCollection $actionable, EloquentCollection $projects, array $lastActivityByProject, int $limit = 6): array
+    {
+        $problemLabels = [
+            'masa_habis' => 'Masa aktif bimbingan habis',
+            'bimbingan_kurang' => 'Minimal bimbingan belum terpenuhi',
+            'tanpa_pembimbing' => 'Belum ada pembimbing aktif',
+        ];
+        $rank = static function (array $row): int {
+            foreach (['masa_habis', 'tidak_aktif', 'bimbingan_kurang', 'tanpa_pembimbing'] as $position => $flag) {
+                if (in_array($flag, $row['needsAction'], true)) {
+                    return $position;
+                }
+            }
+
+            return 4;
+        };
+        $actionableIds = $actionable->pluck('id')->flip();
+
+        $ranked = $rows
+            ->filter(fn(array $row): bool => $actionableIds->has($row['projectId'])
+                && ($row['needsAction'] !== [] || $row['progressRisk']['level'] === 'medium'))
+            ->sortBy(fn(array $row): array => [$rank($row), $row['name']])
+            ->values();
+        $shown = $ranked->take($limit);
+        $snapshots = $this->studentProgressSnapshot->forProjects(
+            $projects->whereIn('id', $shown->pluck('projectId')->all())->values(),
+            null,
+            detailForAll: true,
+            lastActivity: $lastActivityByProject,
+        );
+
+        return [
+            'total' => $ranked->count(),
+            'students' => $shown->map(function (array $row) use ($problemLabels, $snapshots): array {
+                $problems = collect($row['needsAction'])
+                    ->map(fn(string $flag): string => $flag === 'tidak_aktif' ? $row['progressRisk']['description'] : $problemLabels[$flag])
+                    ->values()
+                    ->all();
+
+                return [
+                    'id' => $row['id'],
+                    'name' => $row['name'],
+                    'nim' => $row['nim'],
+                    'avatar' => $row['avatar'],
+                    'profileUrl' => $row['profileUrl'],
+                    'level' => $row['progressRisk']['level'] === 'high' || array_intersect(['masa_habis', 'tidak_aktif'], $row['needsAction']) !== []
+                        ? 'high'
+                        : 'medium',
+                    'problems' => $problems === [] ? [$row['progressRisk']['description']] : $problems,
+                    'progress' => $snapshots[$row['projectId']] ?? null,
+                ];
+            })->values()->all(),
+        ];
     }
 
     private function archiveRows(ProgramStudi $programStudi, ?int $limit): Collection
@@ -1196,6 +1427,7 @@ class KaprodiPortalService
 
                 $activeStudents = $supervisorAssignments
                     ->where('status', 'active')
+                    ->filter(fn(ThesisSupervisorAssignment $assignment): bool => $assignment->project?->state === 'active' && ! $assignment->project->isArchived())
                     ->pluck('project.student.name')
                     ->filter()
                     ->unique()

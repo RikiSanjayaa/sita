@@ -179,6 +179,16 @@ type ScheduleDialogState = {
     exam?: ExamRow;
 };
 
+function requestedScheduleType(): 'sempro' | 'sidang' | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const type = new URLSearchParams(window.location.search).get('jadwalkan');
+
+    return type === 'sempro' || type === 'sidang' ? type : null;
+}
+
 function examScheduleBlockedReason(
     project: SchedulableProject,
     type: 'sempro' | 'sidang',
@@ -295,8 +305,25 @@ export default function KaprodiSemproSidangPage() {
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
+    // The dashboard links here with ?jadwalkan=sempro|sidang to open the schedule dialog.
     const [scheduleDialog, setScheduleDialog] =
-        useState<ScheduleDialogState | null>(null);
+        useState<ScheduleDialogState | null>(() => {
+            const requested = requestedScheduleType();
+
+            return (requested === 'sempro' && canScheduleSempro) ||
+                (requested === 'sidang' && canScheduleSidang)
+                ? { type: requested }
+                : null;
+        });
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.has('jadwalkan')) {
+            url.searchParams.delete('jadwalkan');
+            window.history.replaceState(window.history.state, '', url);
+        }
+    }, []);
 
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase();

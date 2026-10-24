@@ -72,10 +72,13 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Kaprodi
 
-| Flow (menu)                                                                  | Spec             | Status   | Priority |
-| ---------------------------------------------------------------------------- | ---------------- | -------- | -------- |
-| Dashboard: bagian monitoring dan tautan menu                                 | `kaprodi-portal` | tercakup | P2       |
-| Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel | `kaprodi-portal` | sebagian | P1       |
+| Flow (menu)                                                                                                                                                             | Spec                                          | Status   | Priority |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- | -------- |
+| Dashboard: "Perlu Tindakan" di atas (masa aktif habis, pembimbing belum ditetapkan, siap dijadwalkan), tautan terfilter dan tombol Jadwalkan membuka dialog (issue #32) | `kaprodi-portal`, Pest `KaprodiDashboardTest` | tercakup | P1       |
+| Dashboard: bagian "Hari Ini & 7 Hari ke Depan", "Progres Mahasiswa", statistik dan arsip, tautan menu sidebar                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Mahasiswa Prodi: filter tindakan (`?activeFocus=`) dari dashboard (issue #32)                                                                                           | `kaprodi-portal`                              | tercakup | P2       |
+| Tanggal berbahasa Indonesia ("24 Okt 2026") di semua halaman kaprodi (PR #32)                                                                                           | Pest `IndonesianDatesTest`                    | tercakup | P2       |
+| Mahasiswa Prodi: cari, buka profil, menu aksi lainnya, target 44px di ponsel                                                                                            | `kaprodi-portal`                              | sebagian | P1       |
 
 | Mahasiswa Prodi: filter tahap/risiko/angkatan/konsentrasi | none | belum | P3 |
 | Mahasiswa Prodi: atur pembimbing (2 pembimbing) | `kaprodi-portal` | tercakup | P1 |
@@ -97,27 +100,27 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Admin (Filament `/admin`) and super admin
 
-| Flow (menu / resource)                                                                                             | Spec                                                                                   | Status   | Priority |
-| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/admin`): Perlu tindakan, agenda 7 hari, statistik; baris antrean membuka daftar terfilter (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest`                                         | tercakup | P2       |
-| Thesis Projects: tab Dokumen/Ujian, tabel dokumen scroll horizontal + unduh sticky, empty state (issue #59)        | `admin-dashboard`, Pest `ThesisProjectResourceTest`                                    | sebagian | P3       |
-| Thesis Projects: perpanjang masa aktif dari baris daftar / dashboard (issue #33)                                   | `admin-dashboard`, Pest `AdminActionQueueTest`                                         | tercakup | P2       |
-| Users: impor Excel mahasiswa/dosen (termasuk kolom template OBE, issue #6)                                         | `admin-user-import`                                                                    | sebagian | P2       |
-| Thesis Projects: impor Excel tugas akhir berjalan, template, error per baris (issue #24)                           | `admin-thesis-import`, Pest `ThesisProjectImportServiceTest`                           | sebagian | P2       |
-| Users: buat, ubah, nonaktifkan                                                                                     | none (konsentrasi lookup in `program-studi`)                                           | belum    | P2       |
-| Sempro (`/admin/sempros`) dan Judul & Naskah Proposal                                                              | `admin-sempro`, `admin-sidang` (service calls via tinker, results checked in portals)  | sebagian | P1       |
-| Thesis Projects: jadwal, finalisasi, tutup                                                                         | `admin-sempro`, `admin-sidang`                                                         | sebagian | P1       |
-| Thesis Projects: peringatan bimbingan < 6 pada action jadwalkan sidang (issue #20)                                 | Pest only (`MentorshipProgressTest`)                                                   | belum    | P2       |
-| Thesis Projects: tab Catatan, read-only (issue #13)                                                                | Pest only (`ThesisProjectNoteTest`)                                                    | belum    | P3       |
-| Thesis Projects: masa aktif bimbingan, perpanjang 1 tahun (satu dan massal), filter masa aktif habis (issue #21)   | Pest only (`MentorshipTicketTest`; Filament table and page actions not covered by e2e) | belum    | P2       |
-| Thesis Projects: kolom/filter Arsip, ringkasan arsip (issue #27)                                                   | Pest only (`ThesisProjectArchiveFilamentTest`)                                         | belum    | P3       |
-| Program Studi: konsentrasi                                                                                         | `program-studi`                                                                        | tercakup | P3       |
-| Fakultas, Bidang Keilmuan                                                                                          | none                                                                                   | belum    | P3       |
-| Pengumuman Sistem                                                                                                  | `system-announcements`                                                                 | tercakup | P2       |
-| Respons CSAT                                                                                                       | `csat`                                                                                 | tercakup | P3       |
-| Panduan Mahasiswa (StudentGuides)                                                                                  | none                                                                                   | belum    | P3       |
-| Audit Sistem (tabel), Thesis Project Events                                                                        | Pest only (Audit Sistem table, issue #36)                                              | belum    | P3       |
-| Isolasi sesi admin / mahasiswa / dosen                                                                             | `session-isolation`                                                                    | tercakup | P2       |
+| Flow (menu / resource)                                                                                           | Spec                                                                                   | Status   | Priority |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------- | -------- |
+| Dashboard (`/admin`): Perlu tindakan, agenda 7 hari, statistik; baris antrean membuka daftar terfilter (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
+| Thesis Projects: tab Dokumen/Ujian, tabel dokumen scroll horizontal + unduh sticky, empty state (issue #59) | `admin-dashboard`, Pest `ThesisProjectResourceTest` | sebagian | P3 |
+| Thesis Projects: perpanjang masa aktif dari baris daftar / dashboard (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
+| Users: impor Excel mahasiswa/dosen (termasuk kolom template OBE, issue #6)                                       | `admin-user-import`                                                                    | sebagian | P2       |
+| Thesis Projects: impor Excel tugas akhir berjalan, template, error per baris (issue #24)                         | `admin-thesis-import`, Pest `ThesisProjectImportServiceTest`                           | sebagian | P2       |
+| Users: buat, ubah, nonaktifkan                                                                                   | none (konsentrasi lookup in `program-studi`)                                           | belum    | P2       |
+| Sempro (`/admin/sempros`) dan Judul & Naskah Proposal                                                            | `admin-sempro`, `admin-sidang` (service calls via tinker, results checked in portals)  | sebagian | P1       |
+| Thesis Projects: jadwal, finalisasi, tutup                                                                       | `admin-sempro`, `admin-sidang`                                                         | sebagian | P1       |
+| Thesis Projects: peringatan bimbingan < 6 pada action jadwalkan sidang (issue #20)                               | Pest only (`MentorshipProgressTest`)                                                   | belum    | P2       |
+| Thesis Projects: tab Catatan, read-only (issue #13)                                                              | Pest only (`ThesisProjectNoteTest`)                                                    | belum    | P3       |
+| Thesis Projects: masa aktif bimbingan, perpanjang 1 tahun (satu dan massal), filter masa aktif habis (issue #21) | Pest only (`MentorshipTicketTest`; Filament table and page actions not covered by e2e) | belum    | P2       |
+| Thesis Projects: kolom/filter Arsip, ringkasan arsip (issue #27)                                                 | Pest only (`ThesisProjectArchiveFilamentTest`)                                         | belum    | P3       |
+| Program Studi: konsentrasi                                                                                       | `program-studi`                                                                        | tercakup | P3       |
+| Fakultas, Bidang Keilmuan                                                                                        | none                                                                                   | belum    | P3       |
+| Pengumuman Sistem                                                                                                | `system-announcements`                                                                 | tercakup | P2       |
+| Respons CSAT                                                                                                     | `csat`                                                                                 | tercakup | P3       |
+| Panduan Mahasiswa (StudentGuides)                                                                                | none                                                                                   | belum    | P3       |
+| Audit Sistem (tabel), Thesis Project Events                                                                      | Pest only (Audit Sistem table, issue #36)                                              | belum    | P3       |
+| Isolasi sesi admin / mahasiswa / dosen                                                                           | `session-isolation`                                                                    | tercakup | P2       |
 
 ## Publik (tanpa login)
 
