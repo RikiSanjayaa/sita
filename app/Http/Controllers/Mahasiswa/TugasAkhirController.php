@@ -534,7 +534,7 @@ class TugasAkhirController extends Controller
                     'category' => $document->category ?? '-',
                     'fileName' => $document->file_name,
                     'version' => sprintf('v%d', $document->version_number),
-                    'uploadedAt' => $document->created_at?->format('d M Y H:i'),
+                    'uploadedAt' => WitaDateTime::formatOrNull($document->created_at),
                     'downloadUrl' => route('files.documents.download', ['document' => $document->id]),
                 ];
             })

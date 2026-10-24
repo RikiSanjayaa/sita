@@ -157,7 +157,7 @@ it('takes the last activity from student-side records only', function (string $s
         'lecturer chat message' => snapshotChatFrom($student, $primary, 1),
     };
 
-    $expected = $daysAgo === null ? null : now()->subDays($daysAgo)->format('d M Y');
+    $expected = $daysAgo === null ? null : \App\Support\WitaDateTime::format(now()->subDays($daysAgo), 'd M Y', false);
 
     expect(snapshotFor($project, $student)['detail']['lastActivityAt'])->toBe($expected);
 })->with([
@@ -174,7 +174,7 @@ it('uses the most recent of the student-side activities', function (): void {
     snapshotUpload($student, $primary, 6);
     snapshotChatFrom($student, $student, 2);
 
-    expect(snapshotFor($project, $student)['detail']['lastActivityAt'])->toBe(now()->subDays(2)->format('d M Y'));
+    expect(snapshotFor($project, $student)['detail']['lastActivityAt'])->toBe(\App\Support\WitaDateTime::format(now()->subDays(2), 'd M Y', false));
 });
 
 it('words the last activity as relative time, or says there is none', function (?int $activityDaysAgo, string $expected): void {

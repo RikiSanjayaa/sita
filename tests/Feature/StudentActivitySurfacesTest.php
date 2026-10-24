@@ -73,7 +73,7 @@ it('shows one last activity value on the dosen list, kaprodi list, profile card 
         'message_type' => 'text',
         'sent_at' => now()->subDays(3),
     ]);
-    $expected = now()->subDays(3)->format('d M Y');
+    $expected = \App\Support\WitaDateTime::format(now()->subDays(3), 'd M Y', false);
 
     $this->actingAs($primary)->get('/dosen/mahasiswa-bimbingan')->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -107,7 +107,7 @@ it('counts activity with the other supervisor of the same project on the dosen l
 
     $this->actingAs($primary)->get('/dosen/mahasiswa-bimbingan')->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('mahasiswaRows.0.progress.detail.lastActivityAt', now()->subDays(2)->format('d M Y'))
+            ->where('mahasiswaRows.0.progress.detail.lastActivityAt', \App\Support\WitaDateTime::format(now()->subDays(2), 'd M Y', false))
             ->where('mahasiswaRows.0.lastUpdate', now()->subDays(2)->locale('id')->diffForHumans()));
 });
 

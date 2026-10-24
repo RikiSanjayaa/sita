@@ -225,7 +225,7 @@ class KaprodiPortalService
                     'nim' => $document->student?->mahasiswaProfile?->nim,
                     'title' => $document->title,
                     'file' => $document->file_name,
-                    'uploadedAt' => $document->created_at?->format('d M Y H:i') ?? '-',
+                    'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
                     'uploadedSort' => $document->created_at?->getTimestamp() ?? 0,
                     'status' => $this->aggregateDocumentStatus($documents->pluck('status')),
                     'reviewCount' => $documents->count(),
@@ -243,8 +243,8 @@ class KaprodiPortalService
                             'reviewer' => $review->lecturer?->name ?? 'Belum diarahkan',
                             'status' => $this->statusLabel($review->status),
                             'revisionNotes' => $review->revision_notes,
-                            'uploadedAt' => $review->created_at?->format('d M Y H:i') ?? '-',
-                            'reviewedAt' => $review->reviewed_at?->format('d M Y H:i'),
+                            'uploadedAt' => WitaDateTime::format($review->created_at, withLabel: false),
+                            'reviewedAt' => WitaDateTime::formatOrNull($review->reviewed_at),
                         ])
                         ->values()
                         ->all(),

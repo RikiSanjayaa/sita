@@ -489,7 +489,7 @@ export default function DosenJadwalBimbinganPage() {
                 });
             }
         }
-        const p = new Date(`${date} ${time}`);
+        const p = new Date(`${date}T${time}`);
         if (isNaN(p.getTime())) return `${date} pukul ${time}`;
         return (
             p.toLocaleDateString('id-ID', {

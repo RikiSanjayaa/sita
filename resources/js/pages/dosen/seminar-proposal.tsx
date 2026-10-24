@@ -96,6 +96,8 @@ type Revision = {
     status: string;
     statusLabel: string;
     dueAt: string | null;
+    /** ISO 8601, for the deadline badge; dueAt is the Indonesian display text. */
+    dueAtIso: string | null;
     resolvedAt: string | null;
     resolutionNotes: string | null;
     requestedBy: string;
@@ -125,6 +127,8 @@ type DefenseItem = {
     defenseStatus: string;
     defenseResult: string;
     scheduledFor: string | null;
+    /** ISO 8601, for sorting; scheduledFor is the Indonesian display text. */
+    scheduledAt: string | null;
     location: string;
     mode: string;
     myExaminerId: number;
@@ -901,7 +905,7 @@ function DefenseDetailSheet({
                                                     rev.status !==
                                                         'resolved' && (
                                                         <DeadlineBadge
-                                                            dueAt={rev.dueAt}
+                                                            dueAt={rev.dueAtIso}
                                                             status={rev.status}
                                                         />
                                                     )}
@@ -1038,7 +1042,7 @@ export default function DosenSeminarProposalPage() {
     const filteredDefenses = useMemo(() => {
         const q = search.trim().toLowerCase();
         const time = (item: DefenseItem) =>
-            item.scheduledFor ? new Date(item.scheduledFor).getTime() : 0;
+            item.scheduledAt ? new Date(item.scheduledAt).getTime() : 0;
 
         return defenses
             .filter((item) => {

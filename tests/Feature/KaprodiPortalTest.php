@@ -532,11 +532,11 @@ test('kaprodi mahasiswa page exposes progress risk from project and chat activit
             ->where('students.1.progressRisk.level', 'low')
             ->where('students.1.progressRisk.label', 'Terkendali')
             ->where('students.1.progressRisk.lastActivityLabel', 'Aktivitas mahasiswa')
-            ->where('students.1.progress.detail.lastActivityAt', now()->format('d M Y'))
+            ->where('students.1.progress.detail.lastActivityAt', \App\Support\WitaDateTime::format(now(), 'd M Y', false))
             ->where('students.2.name', 'Citra Dokumen')
             ->where('students.2.progressRisk.level', 'low')
             ->where('students.2.progressRisk.lastActivityLabel', 'Aktivitas mahasiswa')
-            ->where('students.2.progress.detail.lastActivityAt', now()->format('d M Y')));
+            ->where('students.2.progress.detail.lastActivityAt', \App\Support\WitaDateTime::format(now(), 'd M Y', false)));
 });
 
 test('kaprodi mahasiswa page raises risk when the masa aktif bimbingan has lapsed', function (): void {
