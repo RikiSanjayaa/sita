@@ -8,7 +8,7 @@ web
 
 ## Users
 
-- **Mahasiswa** (D3, S1, S2) writing a thesis. Mostly on a phone. They submit a title and proposal, request bimbingan sessions, upload documents, chat with supervisors and examiners, and follow their own progress through sempro, research, sidang and revisions.
+- **Mahasiswa** (D3, S1, S2) writing a thesis. Thesis work (writing documents, searching literature) happens on a laptop or computer, so that is where they mainly use SiTA. Some may open it on a phone, which has to stay readable and unbroken but is not optimised. They submit a title and proposal, request bimbingan sessions, upload documents, chat with supervisors and examiners, and follow their own progress through sempro, research, sidang and revisions.
 - **Dosen** supervising and examining students. Mostly on a laptop. They accept or reschedule bimbingan, review uploaded documents, grade exams, verify revisions, and write notes on students.
 - **Kaprodi** (head of study programme; also holds the dosen role). On a laptop. They monitor every student in the programme, assign supervisors, schedule sempro and sidang, and manage lecturer quotas.
 - **Admin** (faculty staff). On a laptop, in the Filament panel at `/admin`. They manage users (including Excel import), study programmes, thesis records, announcements and the audit log.
@@ -52,7 +52,7 @@ The thesis lifecycle of one faculty in one place: the same record drives the stu
 
 - Next step first: every screen answers "where does this thesis stand and what happens next".
 - One record, many views: the same data reads consistently across roles; a status means the same thing everywhere.
-- Fit the device of the role: phone-first for mahasiswa, laptop-first for dosen, kaprodi and admin, without breaking the other.
+- Desktop first for every role. Mobile stays supported but is not optimised: content must be readable and nothing may break (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed). Portal pages below `md` show a dismissible notice that SiTA is most comfortable on a laptop.
 - Document, do not coordinate: build only the workflow the faculty asked for; leave scheduling chatter to WhatsApp.
 
 ## Accessibility & Inclusion
