@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
-use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectEvent;
 use App\Models\ThesisRevision;
@@ -161,100 +159,6 @@ class AdminDashboardService
             'currentTotal' => array_sum($current),
             'previousTotal' => array_sum($previous),
         ];
-    }
-
-    public function priorityItems(?User $user): array
-    {
-        $metrics = $this->metrics($user);
-        $baseUrl = ThesisProjectResource::getUrl('index');
-
-        return [
-            [
-                'label' => 'Perlu '.AcademicTerminology::neutral()['proposalExamShort'],
-                'count' => $metrics['needsSempro'],
-                'description' => 'Mahasiswa masih berada di '.mb_strtolower(AcademicTerminology::neutral()['titleReviewPhase']).' atau '.mb_strtolower(AcademicTerminology::neutral()['proposalPhase']).' tetapi belum punya agenda '.AcademicTerminology::neutral()['proposalExamShort'].'.',
-                'url' => $baseUrl.'?activeTab=perlu-sempro',
-            ],
-            [
-                'label' => 'Perlu '.AcademicTerminology::neutral()['finalExam'],
-                'count' => $metrics['needsSidang'],
-                'description' => AcademicTerminology::neutral()['finalWork'].' pada '.mb_strtolower(AcademicTerminology::neutral()['researchPhase']).' atau '.mb_strtolower(AcademicTerminology::neutral()['finalExamPhase']).' belum memiliki jadwal atau riwayat '.AcademicTerminology::neutral()['finalExam'].'.',
-                'url' => $baseUrl.'?activeTab=perlu-sidang',
-            ],
-            [
-                'label' => 'Pembimbing Kurang',
-                'count' => $metrics['incompleteSupervisors'],
-                'description' => AcademicTerminology::neutral()['finalWork'].' aktif di fase lanjut dengan jumlah pembimbing belum lengkap.',
-                'url' => $baseUrl.'?activeTab=perlu-pembimbing',
-            ],
-            [
-                'label' => 'Revisi Terbuka',
-                'count' => $metrics['openRevisions'],
-                'description' => 'Revisi yang masih perlu dipantau sebelum '.AcademicTerminology::neutral()['finalWork'].' bisa bergerak maju.',
-                'url' => $baseUrl.'?activeTab=revisi-terbuka',
-            ],
-        ];
-    }
-
-    public function recentEvents(?User $user, int $limit = 7): Collection
-    {
-        $query = ThesisProjectEvent::query()
-            ->with([
-                'actor',
-                'project.student',
-                'project.programStudi',
-            ])
-            ->latest('occurred_at');
-
-        if ($user?->adminProgramStudiId() !== null) {
-            $query->whereHas('project', function (Builder $projectQuery) use ($user): void {
-                $projectQuery->where('program_studi_id', $user->adminProgramStudiId());
-            });
-        }
-
-        return $query
-            ->limit($limit)
-            ->get()
-            ->map(fn(ThesisProjectEvent $event): array => [
-                'label' => $event->label,
-                'description' => $event->description ?? 'Tanpa catatan tambahan.',
-                'student' => $event->project?->student?->name ?? '-',
-                'actor' => $event->actor?->name ?? 'Sistem',
-                'time' => $event->occurred_at?->locale('id')->diffForHumans() ?? '-',
-                'url' => ThesisProjectResource::getUrl('view', ['record' => $event->project]),
-            ]);
-    }
-
-    public function agendaItems(?User $user, int $limit = 6): Collection
-    {
-        $query = ThesisDefense::query()
-            ->with([
-                'project.student.mahasiswaProfile',
-                'project.programStudi',
-            ])
-            ->where('status', 'scheduled')
-            ->whereNotNull('scheduled_for')
-            ->whereBetween('scheduled_for', [now(), now()->copy()->addDays(14)])
-            ->orderBy('scheduled_for');
-
-        if ($user?->adminProgramStudiId() !== null) {
-            $query->whereHas('project', function (Builder $projectQuery) use ($user): void {
-                $projectQuery->where('program_studi_id', $user->adminProgramStudiId());
-            });
-        }
-
-        return $query
-            ->limit($limit)
-            ->get()
-            ->map(fn(ThesisDefense $defense): array => [
-                'label' => AcademicTerminology::defenseLabel(AcademicTerminology::neutral(), $defense->type),
-                'student' => $defense->project?->student?->name ?? '-',
-                'nim' => $defense->project?->student?->mahasiswaProfile?->nim ?? '-',
-                'programStudi' => $defense->project?->programStudi?->name ?? '-',
-                'when' => WitaDateTime::translated($defense->scheduled_for, 'D, d M Y H:i'),
-                'location' => trim(implode(' - ', array_filter([$defense->location, $defense->mode]))),
-                'url' => ThesisProjectResource::getUrl('view', ['record' => $defense->project]),
-            ]);
     }
 
     private function projectsQuery(?User $user): Builder
