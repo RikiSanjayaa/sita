@@ -324,7 +324,7 @@ function PublicTopicsContent({
                                             <tr
                                                 className={cn(
                                                     stackedTable.tr,
-                                                    'cursor-pointer align-top transition-colors hover:bg-muted/40 max-md:relative max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:pr-14',
+                                                    'cursor-pointer align-top transition-colors hover:bg-muted/40 max-md:relative max-md:pr-14',
                                                     isOpen && 'bg-muted/40',
                                                 )}
                                                 // The whole row toggles for pointer users; the
@@ -378,10 +378,9 @@ function PublicTopicsContent({
                                                     </Button>
                                                 </td>
                                                 <td
-                                                    className={cn(
-                                                        stackedTable.tdPlain,
-                                                        'max-md:order-2 max-md:basis-full',
-                                                    )}
+                                                    className={
+                                                        stackedTable.tdPlain
+                                                    }
                                                 >
                                                     <div className="font-medium text-foreground">
                                                         {item.studentName}
@@ -391,36 +390,37 @@ function PublicTopicsContent({
                                                     </div>
                                                 </td>
                                                 <td
-                                                    className={cn(
-                                                        stackedTable.tdPlain,
-                                                        'max-md:order-1 max-md:basis-full',
-                                                    )}
+                                                    className={
+                                                        stackedTable.tdDetail
+                                                    }
                                                 >
-                                                    <div className="max-w-md leading-6 font-medium text-foreground">
+                                                    <div
+                                                        title={item.title}
+                                                        className="max-w-md leading-6 font-medium text-foreground max-md:line-clamp-2"
+                                                    >
                                                         {item.title}
                                                     </div>
                                                 </td>
                                                 <td
                                                     className={cn(
-                                                        stackedTable.tdPlain,
-                                                        'text-muted-foreground max-md:order-3',
+                                                        stackedTable.td,
+                                                        'text-muted-foreground',
                                                     )}
                                                 >
                                                     {item.programStudi}
                                                 </td>
                                                 <td
                                                     className={cn(
-                                                        stackedTable.tdPlain,
-                                                        'text-muted-foreground tabular-nums max-md:order-4',
+                                                        stackedTable.td,
+                                                        'text-muted-foreground tabular-nums',
                                                     )}
                                                 >
                                                     {item.year}
                                                 </td>
                                                 <td
-                                                    className={cn(
-                                                        stackedTable.tdPlain,
-                                                        'max-md:order-5',
-                                                    )}
+                                                    className={
+                                                        stackedTable.tdAside
+                                                    }
                                                 >
                                                     <StatusBadge
                                                         domain="state"

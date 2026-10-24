@@ -16,26 +16,46 @@ export const dataTh =
     'px-4 py-3 text-left text-xs font-medium text-muted-foreground';
 
 /**
- * Classes that turn a `<table>` into a stacked list below `md`, so phones read
- * rows top to bottom instead of scrolling sideways. Cells carry `data-label`
- * and show it above their value on phones.
+ * Classes that turn a `<table>` into a compact list below `md`, so phones read
+ * rows top to bottom instead of scrolling sideways. Each `<tr>` becomes a
+ * wrapping flex row with three tiers, whatever the DOM order of its cells:
+ *
+ * 1. Main line (`tdPlain`, `tdAside`, `tdActions`): identity at the left,
+ *    status badge and actions at the right.
+ * 2. Meta line (`td`): short secondary values flow inline, separated by a dot.
+ *    The dot hangs in the gap after a cell, so cells may hold block content.
+ *    A cell with `data-label` prefixes its value with that label; leave it off
+ *    when the value is clear on its own.
+ * 3. Detail (`tdDetail`): long text (title, advisors, status description) on
+ *    its own line. Clamp it to two lines on phones (`max-md:line-clamp-2`)
+ *    and keep the full value in a `title` attribute and on the detail page.
+ *
+ * From `md` every cell is an ordinary table cell and the row is unchanged.
  */
 export const stackedTable = {
     table: 'w-full text-sm max-md:block',
     thead: 'max-md:sr-only',
     tbody: 'max-md:block max-md:divide-y',
-    tr: 'max-md:block max-md:px-4 max-md:py-3',
-    /** Cell without a label above it on phones, e.g. the name column. */
-    tdPlain: 'px-4 py-3 max-md:block max-md:px-0 max-md:py-1',
+    tr: "max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:px-4 max-md:py-3 max-md:before:order-2 max-md:before:h-0 max-md:before:basis-full max-md:before:content-['']",
+    /** Identity cell (name and NIM): fills the main line. */
+    tdPlain:
+        'px-4 py-3 max-md:order-1 max-md:min-w-0 max-md:flex-1 max-md:basis-0 max-md:p-0',
+    /** Primary status cell: stays at the right of the main line. */
+    tdAside:
+        'px-4 py-3 max-md:order-1 max-md:max-w-[45%] max-md:shrink-0 max-md:p-0',
     /**
-     * Row-actions cell: a compact icon/menu cluster at the right of the row,
-     * and on phones the last line of the entry. Put it last in the row, wrap
-     * the controls in `flex items-center justify-end gap-1 max-md:justify-start`,
-     * and give its header cell `<span className="sr-only">Aksi</span>`.
+     * Row-actions cell: a compact icon/menu cluster at the right of the row
+     * and of the main line on phones. Put it last in the row, wrap the
+     * controls in `flex items-center justify-end gap-1`, and give its header
+     * cell `<span className="sr-only">Aksi</span>`.
      */
     tdActions:
-        'w-px px-4 py-3 whitespace-nowrap max-md:block max-md:w-auto max-md:px-0 max-md:pt-2 max-md:pb-0',
-    td: 'px-4 py-3 max-md:block max-md:px-0 max-md:py-1 max-md:before:mb-0.5 max-md:before:block max-md:before:text-xs max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]',
+        'w-px px-4 py-3 whitespace-nowrap max-md:order-1 max-md:w-auto max-md:shrink-0 max-md:p-0',
+    /** Short secondary value on the inline meta line. */
+    td: "stacked-meta px-4 py-3 max-md:order-3 max-md:mt-1 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:relative max-md:has-[~.stacked-meta]:after:absolute max-md:has-[~.stacked-meta]:after:top-0 max-md:has-[~.stacked-meta]:after:-right-2 max-md:has-[~.stacked-meta]:after:content-['·'] max-md:[&[data-label]]:before:mr-1 max-md:[&[data-label]]:before:content-[attr(data-label)]",
+    /** Long text on its own line under the meta line; clamp it to two lines inside. */
+    tdDetail:
+        'px-4 py-3 max-md:order-4 max-md:mt-1 max-md:basis-full max-md:p-0',
 } as const;
 
 /**

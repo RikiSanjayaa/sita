@@ -25,14 +25,22 @@ export type StudentProgress = {
 export function StudentProgressPeek({
     progress,
     className,
+    hideActivityOnPhone = false,
 }: {
     progress: StudentProgress;
     className?: string;
+    /** Drop the last-activity line below md when the row already shows it. */
+    hideActivityOnPhone?: boolean;
 }) {
     const detail = progress.detail;
 
     return (
-        <div className={cn('space-y-2 text-sm', className)}>
+        <div
+            className={cn(
+                'space-y-2 text-sm max-md:space-y-1 max-md:text-xs',
+                className,
+            )}
+        >
             <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge domain="phase" status={progress.phase}>
                     {progress.phaseLabel}
@@ -45,14 +53,22 @@ export function StudentProgressPeek({
             </div>
 
             {detail?.statusLabel ? (
-                <p className="text-muted-foreground">{detail.statusLabel}</p>
+                <p
+                    className="text-muted-foreground max-md:line-clamp-2"
+                    title={detail.statusLabel}
+                >
+                    {detail.statusLabel}
+                </p>
             ) : null}
 
             {detail ? (
                 <>
                     <SupervisorCounts supervisors={detail.supervisors} />
                     <p
-                        className="text-muted-foreground tabular-nums"
+                        className={cn(
+                            'text-muted-foreground tabular-nums',
+                            hideActivityOnPhone && 'max-md:hidden',
+                        )}
                         title={detail.lastActivityAt ?? undefined}
                     >
                         {detail.lastActivityLabel}
@@ -75,7 +91,7 @@ export function SupervisorCounts({
     }
 
     return (
-        <ul className="space-y-1">
+        <ul className="space-y-1 max-md:space-y-0">
             {supervisors.map((supervisor) => (
                 <li
                     key={`${supervisor.roleLabel}-${supervisor.name}`}

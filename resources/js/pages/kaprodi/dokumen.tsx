@@ -307,7 +307,7 @@ export default function KaprodiDokumenPage() {
 
                                             <td
                                                 className={cn(
-                                                    stackedTable.tdPlain,
+                                                    stackedTable.tdDetail,
                                                     'md:max-w-xs',
                                                 )}
                                             >
@@ -319,11 +319,15 @@ export default function KaprodiDokumenPage() {
                                                             doc,
                                                         );
                                                     }}
+                                                    title={doc.title}
                                                     className="line-clamp-2 rounded-sm text-left font-medium hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                                                 >
                                                     {doc.title}
                                                 </button>
-                                                <p className="truncate text-xs text-muted-foreground">
+                                                <p
+                                                    className="truncate text-xs text-muted-foreground"
+                                                    title={`${doc.source}${doc.file ? ` · ${doc.file}` : ''}`}
+                                                >
                                                     {doc.source}
                                                     {doc.file
                                                         ? ` · ${doc.file}`
@@ -332,8 +336,7 @@ export default function KaprodiDokumenPage() {
                                             </td>
 
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <DocumentStatusBadge
                                                     status={doc.status}
@@ -341,7 +344,6 @@ export default function KaprodiDokumenPage() {
                                             </td>
 
                                             <td
-                                                data-label="Waktu upload"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground md:whitespace-nowrap',
@@ -350,15 +352,12 @@ export default function KaprodiDokumenPage() {
                                                 {doc.uploadedAt}
                                             </td>
 
-                                            <td
-                                                data-label="Review dosen"
-                                                className={stackedTable.td}
-                                            >
-                                                <p className="tabular-nums">
+                                            <td className={stackedTable.td}>
+                                                <p className="tabular-nums max-md:inline">
                                                     {doc.reviewCount} review
                                                 </p>
                                                 {reviewSummary(doc) ? (
-                                                    <p className="text-xs text-muted-foreground">
+                                                    <p className="text-xs text-muted-foreground max-md:ml-1 max-md:inline">
                                                         {reviewSummary(doc)}
                                                     </p>
                                                 ) : null}
@@ -370,7 +369,7 @@ export default function KaprodiDokumenPage() {
                                                 }
                                             >
                                                 <div
-                                                    className="flex items-center justify-end gap-1 max-md:justify-start"
+                                                    className="flex items-center justify-end gap-1"
                                                     onClick={(event) =>
                                                         event.stopPropagation()
                                                     }

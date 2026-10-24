@@ -296,7 +296,12 @@ export default function KaprodiDosenProdiPage() {
                                                             .concentrations
                                                             ?.length ?? 0) >
                                                         0 ? (
-                                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                            <p
+                                                                title={lecturer.concentrations.join(
+                                                                    ', ',
+                                                                )}
+                                                                className="mt-1 text-xs text-muted-foreground max-md:truncate"
+                                                            >
                                                                 {lecturer.concentrations.join(
                                                                     ', ',
                                                                 )}
@@ -305,7 +310,12 @@ export default function KaprodiDosenProdiPage() {
                                                         {lecturer
                                                             .expertiseFields
                                                             .length > 0 ? (
-                                                            <p className="text-xs text-muted-foreground">
+                                                            <p
+                                                                title={lecturer.expertiseFields.join(
+                                                                    ', ',
+                                                                )}
+                                                                className="text-xs text-muted-foreground max-md:truncate"
+                                                            >
                                                                 {lecturer.expertiseFields.join(
                                                                     ', ',
                                                                 )}
@@ -315,8 +325,10 @@ export default function KaprodiDosenProdiPage() {
                                                 </Link>
                                             </td>
                                             <td
-                                                data-label="Bimbingan"
-                                                className={stackedTable.td}
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'max-md:flex max-md:items-center max-md:gap-x-2',
+                                                )}
                                             >
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                                     <span className="inline-flex items-center gap-1.5">
@@ -351,8 +363,10 @@ export default function KaprodiDosenProdiPage() {
                                                 </p>
                                             </td>
                                             <td
-                                                data-label="Ujian"
-                                                className={stackedTable.td}
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'max-md:flex max-md:items-center max-md:gap-x-2',
+                                                )}
                                             >
                                                 <p className="tabular-nums">
                                                     {terms.proposalExamShort}{' '}
@@ -365,7 +379,7 @@ export default function KaprodiDosenProdiPage() {
                                                     <StatusBadge
                                                         domain="schedule"
                                                         status="scheduled"
-                                                        className="mt-1"
+                                                        className="mt-1 max-md:mt-0"
                                                     >
                                                         {
                                                             lecturer.upcomingExamCount
@@ -375,15 +389,26 @@ export default function KaprodiDosenProdiPage() {
                                                 ) : null}
                                             </td>
                                             <td
-                                                data-label="Mahasiswa aktif"
                                                 className={cn(
-                                                    stackedTable.td,
+                                                    stackedTable.tdDetail,
                                                     'md:max-w-xs',
+                                                    lecturer.activeStudents
+                                                        .length === 0 &&
+                                                        'max-md:hidden',
                                                 )}
                                             >
                                                 {lecturer.activeStudents
                                                     .length > 0 ? (
-                                                    <p className="line-clamp-2 text-xs text-pretty text-muted-foreground">
+                                                    <p
+                                                        title={lecturer.activeStudents.join(
+                                                            ', ',
+                                                        )}
+                                                        className="line-clamp-2 text-xs text-pretty text-muted-foreground"
+                                                    >
+                                                        <span className="md:hidden">
+                                                            Mahasiswa
+                                                            aktif:{' '}
+                                                        </span>
                                                         {lecturer.activeStudents.join(
                                                             ', ',
                                                         )}
@@ -400,7 +425,7 @@ export default function KaprodiDosenProdiPage() {
                                                     stackedTable.tdActions
                                                 }
                                             >
-                                                <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                <div className="flex items-center justify-end gap-1">
                                                     {canManageQuota ? (
                                                         <RowIconButton
                                                             label="Atur kuota bimbingan"
@@ -429,6 +454,7 @@ export default function KaprodiDosenProdiPage() {
                                                     <RowIconButton
                                                         asChild
                                                         label="Buka profil dosen"
+                                                        className="max-md:hidden"
                                                     >
                                                         <Link
                                                             href={
