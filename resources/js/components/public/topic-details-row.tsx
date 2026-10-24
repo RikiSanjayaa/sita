@@ -87,14 +87,16 @@ export function TopicDetailsRow({
             aria-hidden={open ? undefined : true}
             inert={!open}
         >
-            <td colSpan={6} className="px-4 pt-1 pb-5 max-md:block">
+            <td colSpan={6} className="p-0 max-md:block">
                 <div
                     ref={contentRef}
                     className="public-topic-details"
                     data-state={open ? 'open' : 'closed'}
                     data-motion={animate ? 'on' : 'off'}
                 >
-                    {children}
+                    <div className="public-topic-details-inner px-4 pt-1 pb-5">
+                        {children}
+                    </div>
                 </div>
             </td>
         </tr>

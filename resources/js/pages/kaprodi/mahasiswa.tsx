@@ -25,7 +25,6 @@ import {
     stackedTable,
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
-import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
@@ -229,13 +228,10 @@ export default function KaprodiMahasiswaPage() {
             <Head title="Mahasiswa Prodi" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
-                <PageHeader
-                    title="Mahasiswa Prodi"
-                    description={`Daftar mahasiswa dan arsip ${terms.finalWorkLower} di ${programStudi.name}`}
-                />
                 <DataSection
+                    level={1}
                     title="Daftar Mahasiswa"
-                    summary={`${totalRows} mahasiswa dan arsip ${terms.finalWorkLower}`}
+                    description={`${totalRows} mahasiswa dan arsip ${terms.finalWorkLower} di ${programStudi.name}.`}
                 >
                     <StudentTable
                         rows={activeRows}
