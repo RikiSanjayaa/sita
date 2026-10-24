@@ -36,8 +36,11 @@ import {
     RevisionAnnotationLinks,
     type RevisionItem,
     RevisionItemList,
+    type RevisionRound,
+    RevisionRoundHistory,
     showRevisionSummary,
 } from '@/components/revision-items';
+import { RevisionResponseForm } from '@/components/revision-response-form';
 import {
     type ThesisNote,
     ThesisNotesPanel,
@@ -201,6 +204,8 @@ type TugasAkhirPageProps = {
                 resolutionNotes: string | null;
                 items: RevisionItem[];
                 annotations: RevisionAnnotation[];
+                rounds: RevisionRound[];
+                canRespond: boolean;
             }>;
         }>;
         sidang: Array<{
@@ -244,6 +249,8 @@ type TugasAkhirPageProps = {
                 resolutionNotes: string | null;
                 items: RevisionItem[];
                 annotations: RevisionAnnotation[];
+                rounds: RevisionRound[];
+                canRespond: boolean;
             }>;
         }>;
     };
@@ -1151,6 +1158,7 @@ function DefenseHistoryRow({
     const finalGrade = resolveAcademicGrade(averageScore);
     const hasRevisions = item.revisions.length > 0;
     const pendingRevisions = item.revisions.filter((r) => !r.resolvedAt).length;
+    const needsResponse = item.revisions.some((rev) => rev.canRespond);
     const hasFiles =
         item.primaryDocumentName !== null ||
         item.supportingDocuments.length > 0;
@@ -1243,7 +1251,9 @@ function DefenseHistoryRow({
                                     ),
                                 )}
                             >
-                                {item.revisions.length} revisi
+                                {needsResponse
+                                    ? 'Perlu ditanggapi'
+                                    : `${item.revisions.length} revisi`}
                             </span>
                         )}
                     </div>
@@ -1372,13 +1382,30 @@ function DefenseHistoryRow({
                                                         </p>
                                                     )}
                                                     <RevisionItemList
-                                                        items={rev.items}
+                                                        items={
+                                                            rev.canRespond
+                                                                ? rev.items.filter(
+                                                                      (item) =>
+                                                                          item.status ===
+                                                                          'accepted',
+                                                                  )
+                                                                : rev.items
+                                                        }
                                                     />
                                                     <RevisionAnnotationLinks
                                                         annotations={
                                                             rev.annotations
                                                         }
                                                     />
+                                                    <RevisionRoundHistory
+                                                        rounds={rev.rounds}
+                                                    />
+                                                    {rev.canRespond && (
+                                                        <RevisionResponseForm
+                                                            revisionId={rev.id}
+                                                            items={rev.items}
+                                                        />
+                                                    )}
 
                                                     {rev.resolutionNotes && (
                                                         <p className="mt-2 border-l-2 pl-3 text-sm text-pretty text-muted-foreground">

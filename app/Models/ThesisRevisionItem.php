@@ -30,6 +30,7 @@ class ThesisRevisionItem extends Model
         'status',
         'student_response',
         'student_response_location',
+        'verification_comment',
         'verified_at',
         'verified_by_user_id',
         'sort_order',

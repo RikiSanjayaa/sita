@@ -7,6 +7,7 @@ use App\Models\ThesisDocument;
 use App\Models\ThesisRevision;
 use App\Models\ThesisRevisionItem;
 use App\Models\ThesisRevisionRound;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -96,6 +97,144 @@ class ThesisRevisionRoundService
             ]);
 
         $this->syncStatus($revision);
+    }
+
+    /**
+     * The round the revision is currently in (the highest round number).
+     */
+    public function currentRound(ThesisRevision $revision): ?ThesisRevisionRound
+    {
+        return $revision->rounds()->reorder()->orderByDesc('round_no')->first();
+    }
+
+    /**
+     * Items the student still has to answer in the open round.
+     *
+     * @return Collection<int, ThesisRevisionItem>
+     */
+    public function itemsAwaitingStudent(ThesisRevision $revision): Collection
+    {
+        return $revision->items()
+            ->whereIn('status', [ThesisRevisionItem::STATUS_OPEN, ThesisRevisionItem::STATUS_REOPENED])
+            ->get();
+    }
+
+    /**
+     * Items the student answered and the examiner has yet to verify.
+     *
+     * @return Collection<int, ThesisRevisionItem>
+     */
+    public function itemsAwaitingReview(ThesisRevision $revision): Collection
+    {
+        return $revision->items()
+            ->where('status', ThesisRevisionItem::STATUS_ADDRESSED)
+            ->get();
+    }
+
+    /**
+     * Record the student's answer for every open/reopened item, attach the
+     * corrected manuscript to the round and move the round to awaiting review.
+     *
+     * @param  array<int, array{response: string, location?: ?string}>  $responses  keyed by item id
+     */
+    public function submitResponses(
+        ThesisRevision $revision,
+        ThesisRevisionRound $round,
+        array $responses,
+        ThesisDocument $manuscript,
+    ): void {
+        DB::transaction(function () use ($revision, $round, $responses, $manuscript): void {
+            foreach ($this->itemsAwaitingStudent($revision) as $item) {
+                $answer = $responses[$item->getKey()];
+
+                $item->forceFill([
+                    'status' => ThesisRevisionItem::STATUS_ADDRESSED,
+                    'student_response' => trim($answer['response']),
+                    'student_response_location' => filled($answer['location'] ?? null) ? trim($answer['location']) : null,
+                ])->save();
+            }
+
+            $round->forceFill(['student_document_id' => $manuscript->getKey()])->save();
+
+            $this->markSubmitted($revision, now());
+        });
+    }
+
+    /**
+     * Apply the examiner's verdict on the answered items of the awaiting-review
+     * round. Accepted items stay accepted; rejected ones are reopened and brand
+     * new ones are added, both carried into the next round. With nothing left
+     * open the revision is closed instead.
+     *
+     * @param  array<int, array{decision: string, comment?: ?string}>  $verdicts  keyed by item id
+     * @param  array<int, array{location?: ?string, description: string, priority?: ?string}>  $newItems
+     * @return ThesisRevisionRound|null the next round, or null when the revision is fully accepted
+     */
+    public function applyVerdicts(
+        ThesisRevision $revision,
+        ThesisRevisionRound $round,
+        array $verdicts,
+        array $newItems,
+        int $verifiedByUserId,
+    ): ?ThesisRevisionRound {
+        return DB::transaction(function () use ($revision, $round, $verdicts, $newItems, $verifiedByUserId): ?ThesisRevisionRound {
+            $now = now();
+            $reopened = false;
+
+            foreach ($this->itemsAwaitingReview($revision) as $item) {
+                $verdict = $verdicts[$item->getKey()];
+                $accepted = $verdict['decision'] === ThesisRevisionItem::STATUS_ACCEPTED;
+
+                $item->forceFill([
+                    'status' => $accepted ? ThesisRevisionItem::STATUS_ACCEPTED : ThesisRevisionItem::STATUS_REOPENED,
+                    'verification_comment' => filled($verdict['comment'] ?? null) ? trim($verdict['comment']) : null,
+                    'verified_at' => $now,
+                    'verified_by_user_id' => $verifiedByUserId,
+                ])->save();
+
+                $reopened = $reopened || ! $accepted;
+            }
+
+            $newItems = collect($newItems)
+                ->filter(fn (array $item): bool => filled($item['description'] ?? null))
+                ->values();
+
+            if (! $reopened && $newItems->isEmpty()) {
+                $this->close($revision, $verifiedByUserId);
+
+                return null;
+            }
+
+            $round->forceFill([
+                'status' => ThesisRevisionRound::STATUS_CLOSED,
+                'reviewed_at' => $now,
+            ])->save();
+
+            $next = $revision->rounds()->create([
+                'round_no' => $round->round_no + 1,
+                'opened_at' => $now,
+                'status' => ThesisRevisionRound::STATUS_AWAITING_STUDENT,
+            ]);
+
+            $sortOrder = (int) $revision->items()->max('sort_order');
+
+            foreach ($newItems as $item) {
+                $revision->items()->create([
+                    'round_opened' => $next->round_no,
+                    'location' => filled($item['location'] ?? null) ? trim($item['location']) : null,
+                    'description' => trim($item['description']),
+                    'priority' => in_array($item['priority'] ?? null, ThesisRevisionItem::PRIORITIES, true)
+                        ? $item['priority']
+                        : null,
+                    'status' => ThesisRevisionItem::STATUS_OPEN,
+                    'sort_order' => ++$sortOrder,
+                ]);
+            }
+
+            $this->syncStatus($revision);
+
+            return $next;
+        });
     }
 
     /**

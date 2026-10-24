@@ -8,15 +8,17 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
+use App\Models\ThesisProjectEvent;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
-use App\Models\ThesisRevisionItem;
 use App\Models\ThesisRevisionRound;
 use App\Models\User;
+use App\Notifications\RealtimeNotification;
 use App\Services\ThesisDefenseRevisionService;
 use App\Services\ThesisProjectAdminService;
 use App\Services\ThesisRevisionRoundService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 function structuredRevisionExam(string $type = 'sidang'): array
@@ -258,7 +260,7 @@ test('aggregate revision status follows the latest round', function (string $rou
     'closed' => ['closed', 'resolved'],
 ]);
 
-test('lecturer approval closes the round and accepts every item', function (): void {
+test('lecturer verification accepting every item closes the round', function (): void {
     [$defense, [$first], , $project] = structuredRevisionExam();
     $defense->forceFill(['status' => 'completed', 'result' => 'pass_with_revision'])->save();
     ThesisDefenseExaminer::query()->where('defense_id', $defense->id)->where('lecturer_user_id', $first->id)->update(['decision' => 'pass_with_revision']);
@@ -266,7 +268,16 @@ test('lecturer approval closes the round and accepts every item', function (): v
     $revision = ThesisRevision::factory()->create(['project_id' => $project->id, 'defense_id' => $defense->id, 'requested_by_user_id' => $first->id]);
     app(ThesisRevisionRoundService::class)->openInitialRound($revision, structuredRevisionItems());
 
-    app(ThesisDefenseRevisionService::class)->approveByLecturer($first, $revision);
+    $service = app(ThesisRevisionRoundService::class);
+    $round = $service->currentRound($revision);
+    $revision->items()->update(['status' => 'addressed', 'student_response' => 'Sudah.']);
+    $round->forceFill(['status' => 'awaiting_review'])->save();
+
+    app(ThesisDefenseRevisionService::class)->verify(
+        $first,
+        $revision,
+        $revision->items()->pluck('id')->mapWithKeys(fn (int $id): array => [$id => ['decision' => 'accepted']])->all(),
+    );
 
     expect($revision->fresh()->status)->toBe('resolved')
         ->and($revision->rounds()->sole()->status)->toBe('closed')
@@ -376,4 +387,233 @@ test('dosen and mahasiswa pages expose items and annotated manuscripts', functio
     expect($revisionProps)->not->toBeNull()
         ->and($revisionProps['items'])->toHaveCount(2)
         ->and($revisionProps['annotations'])->toHaveCount(1);
+});
+
+/**
+ * A completed exam with one revision (two items) requested by the first
+ * examiner; the second examiner passed without revision.
+ *
+ * @return array{0: ThesisRevision, 1: User, 2: User, 3: ThesisProject, 4: ThesisDefense}
+ */
+function revisionAwaitingStudent(string $type = 'sempro'): array
+{
+    [$defense, [$first, $second], , $project] = structuredRevisionExam($type);
+
+    $defense->forceFill(['status' => 'completed', 'result' => 'pass_with_revision'])->save();
+    ThesisDefenseExaminer::query()->where('defense_id', $defense->id)->where('lecturer_user_id', $first->id)->update(['decision' => 'pass_with_revision']);
+    ThesisDefenseExaminer::query()->where('defense_id', $defense->id)->where('lecturer_user_id', $second->id)->update(['decision' => 'pass']);
+
+    $revision = ThesisRevision::factory()->create([
+        'project_id' => $project->id,
+        'defense_id' => $defense->id,
+        'requested_by_user_id' => $first->id,
+    ]);
+    app(ThesisRevisionRoundService::class)->openInitialRound($revision, structuredRevisionItems());
+
+    return [$revision, $first, $project->student, $project, $defense];
+}
+
+function respondToRevision($test, User $student, ThesisRevision $revision, array $overrides = [])
+{
+    $responses = $revision->items()
+        ->whereIn('status', ['open', 'reopened'])
+        ->pluck('id')
+        ->mapWithKeys(fn (int $id): array => [$id => ['addressed' => '1', 'response' => "Tanggapan {$id}.", 'location' => 'Bab 3, hlm. 50']])
+        ->all();
+
+    return $test->actingAs($student)->post(
+        route('mahasiswa.tugas-akhir.revisions.respond', $revision),
+        array_replace([
+            'responses' => $responses,
+            'manuscript' => UploadedFile::fake()->create('perbaikan.pdf', 200, 'application/pdf'),
+        ], $overrides),
+    );
+}
+
+function verifyRevisionItems($test, User $lecturer, ThesisRevision $revision, array $decisions, array $extra = [])
+{
+    $ids = $revision->items()->where('status', 'addressed')->pluck('id')->values();
+
+    return $test->actingAs($lecturer)->post(
+        route('dosen.seminar-proposal.revisions.verify', $revision),
+        ['verdicts' => $ids->mapWithKeys(fn (int $id, int $index): array => [$id => $decisions[$index]])->all()] + $extra,
+    );
+}
+
+test('a full two-round cycle resolves the revision and moves the project on', function (): void {
+    Storage::fake('public');
+    Notification::fake();
+    [$revision, $lecturer, $student, $project] = revisionAwaitingStudent();
+
+    // Round 1: the student answers both items and uploads the corrected manuscript.
+    respondToRevision($this, $student, $revision)->assertSessionHasNoErrors()->assertRedirect();
+
+    $round = $revision->rounds()->sole();
+    expect($round->status)->toBe('awaiting_review')
+        ->and($round->student_submitted_at)->not->toBeNull()
+        ->and($round->studentDocument)->not->toBeNull()
+        ->and($round->studentDocument->kind)->toBe('revision_response')
+        ->and($round->studentDocument->revision_id)->toBe($revision->id)
+        ->and($revision->fresh()->status)->toBe('submitted')
+        ->and($revision->items()->pluck('status')->unique()->all())->toBe(['addressed'])
+        ->and($revision->items()->first()->student_response_location)->toBe('Bab 3, hlm. 50');
+    Notification::assertSentTo($lecturer, RealtimeNotification::class);
+
+    // Verdict: accept the first item, reject the second and add a new one.
+    verifyRevisionItems($this, $lecturer, $revision, [
+        ['decision' => 'accepted'],
+        ['decision' => 'reopened', 'comment' => 'Metode sampling masih belum jelas.'],
+    ], ['new_items' => [['location' => 'Bab 4', 'description' => 'Tambahkan uji reliabilitas.', 'priority' => 'minor']]])
+        ->assertSessionHasNoErrors();
+
+    $revision->refresh();
+    expect($revision->status)->toBe('open')
+        ->and($revision->rounds()->pluck('status', 'round_no')->all())->toBe([1 => 'closed', 2 => 'awaiting_student'])
+        ->and($revision->items()->pluck('status')->all())->toBe(['accepted', 'reopened', 'open'])
+        ->and($revision->items()->where('status', 'reopened')->sole()->verification_comment)->toBe('Metode sampling masih belum jelas.')
+        ->and($revision->items()->where('status', 'open')->sole()->round_opened)->toBe(2)
+        ->and($project->fresh()->phase)->toBe('sempro');
+
+    // Round 2: only the reopened and the new item need an answer.
+    respondToRevision($this, $student, $revision)->assertSessionHasNoErrors();
+    expect($revision->rounds()->where('round_no', 2)->sole()->status)->toBe('awaiting_review');
+
+    verifyRevisionItems($this, $lecturer, $revision, [['decision' => 'accepted'], ['decision' => 'accepted']])
+        ->assertSessionHasNoErrors();
+
+    $revision->refresh();
+    expect($revision->status)->toBe('resolved')
+        ->and($revision->resolved_by_user_id)->toBe($lecturer->id)
+        ->and($revision->rounds()->pluck('status')->unique()->all())->toBe(['closed'])
+        ->and($revision->items()->pluck('status')->unique()->all())->toBe(['accepted'])
+        ->and($project->fresh()->phase)->toBe('research');
+
+    expect(ThesisProjectEvent::query()->where('project_id', $project->id)->pluck('event_type')->all())
+        ->toContain('revision_submitted', 'revision_round_opened', 'revision_resolved');
+
+    Notification::assertSentTo($student, RealtimeNotification::class, fn (RealtimeNotification $notification): bool => str_contains($notification->toArray($student)['title'], 'Putaran revisi 2'));
+    Notification::assertSentTo($student, RealtimeNotification::class, fn (RealtimeNotification $notification): bool => $notification->toArray($student)['title'] === 'Revisi Sempro disetujui');
+});
+
+test('the student cannot send a revision while an item is unanswered', function (): void {
+    Storage::fake('public');
+    [$revision, , $student] = revisionAwaitingStudent();
+    $itemIds = $revision->items()->pluck('id');
+
+    respondToRevision($this, $student, $revision, [
+        'responses' => [$itemIds[0] => ['addressed' => '1', 'response' => 'Sudah.']],
+    ])->assertSessionHasErrors("responses.{$itemIds[1]}.response");
+
+    respondToRevision($this, $student, $revision, [
+        'responses' => [
+            $itemIds[0] => ['addressed' => '1', 'response' => 'Sudah.'],
+            $itemIds[1] => ['addressed' => '1', 'response' => ''],
+        ],
+    ])->assertSessionHasErrors("responses.{$itemIds[1]}.response");
+
+    respondToRevision($this, $student, $revision, [
+        'responses' => [
+            $itemIds[0] => ['addressed' => '1', 'response' => 'Sudah.'],
+            $itemIds[1] => ['addressed' => '0', 'response' => 'Belum.'],
+        ],
+    ])->assertSessionHasErrors("responses.{$itemIds[1]}.addressed");
+
+    respondToRevision($this, $student, $revision, ['manuscript' => null])->assertSessionHasErrors('manuscript');
+
+    expect($revision->rounds()->sole()->status)->toBe('awaiting_student')
+        ->and($revision->items()->pluck('status')->unique()->all())->toBe(['open'])
+        ->and(ThesisDocument::query()->where('kind', 'revision_response')->count())->toBe(0);
+});
+
+test('only the owning student can respond and only the requesting examiner can verify', function (): void {
+    Storage::fake('public');
+    [$revision, $lecturer, $student, $project, $defense] = revisionAwaitingStudent();
+    $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
+    $otherLecturer = ThesisDefenseExaminer::query()->where('defense_id', $defense->id)->where('lecturer_user_id', '!=', $lecturer->id)->firstOrFail()->lecturer;
+
+    respondToRevision($this, $otherStudent, $revision)->assertForbidden();
+    respondToRevision($this, $student, $revision)->assertSessionHasNoErrors();
+
+    verifyRevisionItems($this, $otherLecturer, $revision, [['decision' => 'accepted'], ['decision' => 'accepted']])->assertForbidden();
+    verifyRevisionItems($this, $student, $revision, [['decision' => 'accepted'], ['decision' => 'accepted']])->assertForbidden();
+
+    expect($revision->fresh()->status)->toBe('submitted');
+});
+
+test('verification needs a verdict for every answered item and a comment on rejections', function (): void {
+    Storage::fake('public');
+    [$revision, $lecturer, $student] = revisionAwaitingStudent();
+    respondToRevision($this, $student, $revision)->assertSessionHasNoErrors();
+    $itemIds = $revision->items()->pluck('id');
+
+    $this->actingAs($lecturer)
+        ->post(route('dosen.seminar-proposal.revisions.verify', $revision), ['verdicts' => [$itemIds[0] => ['decision' => 'accepted']]])
+        ->assertSessionHasErrors("verdicts.{$itemIds[1]}.decision");
+
+    verifyRevisionItems($this, $lecturer, $revision, [['decision' => 'accepted'], ['decision' => 'reopened', 'comment' => '']])
+        ->assertSessionHasErrors("verdicts.{$itemIds[1]}.comment");
+
+    verifyRevisionItems($this, $lecturer, $revision, [['decision' => 'accepted'], ['decision' => 'accepted']], ['new_items' => [['description' => '']]])
+        ->assertSessionHasErrors('new_items.0.description');
+
+    expect($revision->fresh()->status)->toBe('submitted')
+        ->and($revision->rounds()->sole()->status)->toBe('awaiting_review');
+});
+
+test('round transitions only run in the matching state', function (string $roundStatus, string $action, bool $allowed): void {
+    Storage::fake('public');
+    [$revision, $lecturer, $student] = revisionAwaitingStudent();
+    $revision->items()->update(['status' => 'addressed', 'student_response' => 'Sudah.']);
+    $revision->rounds()->sole()->forceFill(['status' => $roundStatus])->save();
+    $service = app(ThesisDefenseRevisionService::class);
+
+    $run = fn () => $action === 'respond'
+        ? $service->submitResponses(
+            $student,
+            $revision,
+            $revision->items()->pluck('id')->mapWithKeys(fn (int $id): array => [$id => ['response' => 'Lagi.']])->all(),
+            UploadedFile::fake()->create('perbaikan.pdf', 10, 'application/pdf'),
+        )
+        : $service->verify(
+            $lecturer,
+            $revision,
+            $revision->items()->pluck('id')->mapWithKeys(fn (int $id): array => [$id => ['decision' => 'accepted']])->all(),
+        );
+
+    if ($allowed) {
+        // The student path needs unanswered items; reopen them first.
+        if ($action === 'respond') {
+            $revision->items()->update(['status' => 'open']);
+        }
+        expect($run())->not->toBeNull();
+
+        return;
+    }
+
+    expect($run)->toThrow(RuntimeException::class);
+})->with([
+    'respond while awaiting student' => ['awaiting_student', 'respond', true],
+    'respond while awaiting review' => ['awaiting_review', 'respond', false],
+    'respond after closing' => ['closed', 'respond', false],
+    'verify while awaiting review' => ['awaiting_review', 'verify', true],
+    'verify while awaiting student' => ['awaiting_student', 'verify', false],
+    'verify after closing' => ['closed', 'verify', false],
+]);
+
+test('the dosen and mahasiswa pages expose what each side may do per round', function (): void {
+    Storage::fake('public');
+    [$revision, $lecturer, $student] = revisionAwaitingStudent();
+
+    $studentRevision = fn () => data_get($this->actingAs($student)->get('/mahasiswa/tugas-akhir')->assertOk()->viewData('page'), 'props.defenseHistory.sempro.0.revisions.0');
+    $dosenRevision = fn () => data_get($this->actingAs($lecturer)->get(route('dosen.seminar-proposal'))->assertOk()->viewData('page'), 'props.defenses.0.revisions.0');
+
+    expect($studentRevision())->toMatchArray(['canRespond' => true])
+        ->and($dosenRevision())->toMatchArray(['canVerify' => false]);
+
+    respondToRevision($this, $student, $revision)->assertSessionHasNoErrors();
+
+    expect($studentRevision())->toMatchArray(['canRespond' => false])
+        ->and($studentRevision()['rounds'][0]['manuscript']['fileName'])->toBe('perbaikan.pdf')
+        ->and($studentRevision()['items'][0])->toMatchArray(['status' => 'addressed', 'studentResponseLocation' => 'Bab 3, hlm. 50'])
+        ->and($dosenRevision())->toMatchArray(['canVerify' => true]);
 });

@@ -185,7 +185,7 @@ function resolveSemproRevisionForStudent(
 ): void {
     runArtisan([
         'tinker',
-        `--execute=$project = App\\Models\\ThesisProject::query()->whereHas("student", fn($q) => $q->where("email", "${studentEmail}"))->where("state", "active")->latest("started_at")->firstOrFail(); $revision = App\\Models\\ThesisRevision::query()->where("project_id", $project->id)->whereHas("requestedBy", fn($q) => $q->where("email", "${lecturerEmail}"))->latest("id")->firstOrFail(); $lecturer = App\\Models\\User::query()->where("email", "${lecturerEmail}")->firstOrFail(); app(App\\Services\\ThesisDefenseRevisionService::class)->approveByLecturer($lecturer, $revision);`,
+        `--execute=$project = App\\Models\\ThesisProject::query()->whereHas("student", fn($q) => $q->where("email", "${studentEmail}"))->where("state", "active")->latest("started_at")->firstOrFail(); $revision = App\\Models\\ThesisRevision::query()->where("project_id", $project->id)->whereHas("requestedBy", fn($q) => $q->where("email", "${lecturerEmail}"))->latest("id")->firstOrFail(); $lecturer = App\\Models\\User::query()->where("email", "${lecturerEmail}")->firstOrFail(); $revision->items()->update(["status" => "addressed", "student_response" => "Sudah diperbaiki."]); app(App\\Services\\ThesisRevisionRoundService::class)->markSubmitted($revision, now()); app(App\\Services\\ThesisDefenseRevisionService::class)->verify($lecturer, $revision, $revision->items->mapWithKeys(fn($item) => [$item->id => ["decision" => "accepted"]])->all());`,
     ]);
 }
 

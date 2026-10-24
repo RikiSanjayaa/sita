@@ -9,6 +9,7 @@ use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
+use App\Models\ThesisRevisionRound;
 use App\Models\User;
 use App\Services\MentorshipProgressService;
 use App\Services\ThesisProjectNoteService;
@@ -289,6 +290,7 @@ class TugasAkhirController extends Controller
                 'revisions.requestedBy',
                 'revisions.items',
                 'revisions.documents',
+                'revisions.rounds.studentDocument',
             ]);
     }
 
@@ -504,6 +506,11 @@ class TugasAkhirController extends Controller
                             'resolutionNotes' => $revision->resolution_notes,
                             'items' => ThesisRevisionPayload::items($revision),
                             'annotations' => ThesisRevisionPayload::annotations($revision),
+                            'rounds' => ThesisRevisionPayload::rounds($revision),
+                            'canRespond' => ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_STUDENT
+                                && in_array($revision->status, ['open', 'submitted'], true)
+                                && $defense->status === 'completed'
+                                && $defense->result === 'pass_with_revision',
                         ])
                         ->values()
                         ->all(),
