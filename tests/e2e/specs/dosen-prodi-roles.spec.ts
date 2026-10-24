@@ -217,7 +217,9 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                     await page.mouse.wheel(0, 900);
                     await expect
                         .poll(() =>
-                            main.evaluate((element) => element.scrollTop),
+                            page.evaluate(
+                                () => document.scrollingElement!.scrollTop,
+                            ),
                         )
                         .toBeGreaterThan(600);
 
