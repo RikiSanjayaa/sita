@@ -144,7 +144,6 @@ class JadwalBimbinganController extends Controller
             'historySchedules' => $historySchedules,
             'supervisedStudents' => $this->mentorshipScheduleService->supervisedStudents($lecturer),
             'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
-            'flashMessage' => $request->session()->get('success'),
         ]);
     }
 

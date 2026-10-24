@@ -387,6 +387,13 @@ A fully round pill (`rounded-full`, 12px medium text, `px-2 py-0.5`) with the mu
 
 `StatCard` is a card with a 30px bold value, a muted description and a 40px `primary-muted` icon chip. `EmptyState` is a dashed `rounded-xl` frame with a 40px round `muted` icon holder, a 14px medium title and a muted description.
 
+### Action feedback and notifications
+
+- Mount one Sonner `AppToaster` at the React root for public, portal and settings pages. It follows `resolvedAppearance` and reads card, border, primary and semantic status tokens, so every colour scheme uses the same feedback pattern. Filament keeps its own notifications.
+- Redirects share `flash.success` and `flash.error` through Inertia. Success lasts 4.5 seconds; errors last 8 seconds so the user has time to read them. Each occurrence has an id: StrictMode and history navigation must not repeat it, while repeating the same action may show the same message again.
+- Use a toast for a completed action or a new realtime notification. Realtime notifications keep their icon and description, a "Buka" action that marks the item read before navigating, and a close control. Do not also show "Tersimpan" or a flash Alert for the same action.
+- Keep an `Alert` for a condition that remains relevant on the page (expired mentoring access, unavailable prerequisites, archived records). Keep field validation beside the field. Authentication statuses such as an email-verification link being sent remain in their dedicated flow.
+
 ### Data lists and tables
 
 Approved in #82 for the public list pages; tables and lists in the mahasiswa, dosen and kaprodi portals adopt the same patterns. They live in `resources/js/components/patterns/data-section.tsx`.
