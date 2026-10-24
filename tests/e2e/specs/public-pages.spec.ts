@@ -114,13 +114,20 @@ test.describe('Public pages', () => {
             await expect(
                 page.getByRole('button', { name: 'Buka detail topik' }),
             ).toHaveCount(1);
-            await row
-                .getByRole('button', { name: 'Buka detail topik' })
-                .click();
+            const trigger = row.getByRole('button', {
+                name: 'Buka detail topik',
+            });
+            // Clicking anywhere on the row (here the title) toggles it too.
+            await row.getByText('Optimasi Rute Pengiriman Logistik').click();
+            await expect(trigger).toHaveAttribute('aria-expanded', 'true');
             await expect(page.getByText('Judul Internasional')).toBeVisible();
             await expect(
                 page.getByText('Ringkasan proposal skenario Playwright.'),
             ).toBeVisible();
+            await row.getByText('Optimasi Rute Pengiriman Logistik').click();
+            await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+            await trigger.click();
+            await expect(trigger).toHaveAttribute('aria-expanded', 'true');
             await search.fill('tidak-ada-topik-seperti-ini');
             await expect(
                 page.getByText('Tidak ada topik', { exact: true }),

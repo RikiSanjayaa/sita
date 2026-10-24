@@ -324,9 +324,27 @@ function PublicTopicsContent({
                                             <tr
                                                 className={cn(
                                                     stackedTable.tr,
-                                                    'align-top transition-colors hover:bg-muted/40 max-md:relative max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:pr-14',
+                                                    'cursor-pointer align-top transition-colors hover:bg-muted/40 max-md:relative max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:pr-14',
                                                     isOpen && 'bg-muted/40',
                                                 )}
+                                                // The whole row toggles for pointer users; the
+                                                // chevron button stays the keyboard/AT control.
+                                                onClick={(event) => {
+                                                    if (
+                                                        (
+                                                            event.target as HTMLElement
+                                                        ).closest(
+                                                            'button, a',
+                                                        ) ||
+                                                        window
+                                                            .getSelection()
+                                                            ?.toString()
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    toggleRow(item.id, true);
+                                                }}
                                             >
                                                 <td className="px-4 py-3 max-md:absolute max-md:top-1 max-md:right-1 max-md:p-0">
                                                     <Button
