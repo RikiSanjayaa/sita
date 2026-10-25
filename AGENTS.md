@@ -127,7 +127,7 @@ use Illuminate\Support\Facades\Auth;
 ## UI work
 
 - Before any UI change read `.claude/skills/impeccable/SKILL.md` and follow its Setup, then `PRODUCT.md` and `DESIGN.md`. `DESIGN.md` holds the design system rules (tokens, patterns, prohibited palettes, Filament pairing).
-- Verify by viewing the rendered page at 1280px and 390px wide, in light and dark.
+- Desktop is the primary target for every role; mobile is supported but not optimised. Verify by viewing the rendered page at 1280px, in light and dark. Check 390px only to confirm nothing is broken (no horizontal overflow, text reachable, buttons pressable); do not spend time polishing mobile.
 - Every pull request that adds, changes or removes UI includes screenshots so it can be reviewed without checking out the branch: each touched page at 1280px and 390px, light and dark, plus any changed state (dialog, sheet, empty, error). For a redesign add the matching "before" shots. Capture seeded demo data only (the repository is public). Upload with `scripts/pr-screenshots.sh <key> <images...>` (key such as `pr-123-dashboard`); it pushes the images to the `pr-assets` branch and prints Markdown to paste under a "Screenshots" heading in the PR body, or in a comment on the PR or the related issue.
 - Run the detector spec for the areas you touched: `npx playwright test tests/e2e/specs/design-detector.spec.ts --project=chromium`. It is advisory until an area is listed in `BLOCKING_AREAS` in that spec; an area on that list must have zero findings.
 - The engine binary is not committed. The launcher `.claude/skills/impeccable/scripts/impeccable` downloads the pinned version into `~/.impeccable/bin` on first use.
