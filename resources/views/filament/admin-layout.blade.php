@@ -4,96 +4,250 @@
     Colors come from Filament's own palette variables, which AdminPanelProvider pairs with DESIGN.md.
 --}}
 <style>
-    /* Dashboard: Perlu tindakan */
+    /* Dashboard widgets share the panel's neutral ramp and semantic token pairs. */
+    .sita-admin-actions,
+    .sita-admin-agenda,
+    .sita-admin-overview {
+        --sita-paper: #fff;
+        --sita-ink: var(--gray-950);
+        --sita-secondary: var(--gray-600);
+        --sita-rule: var(--gray-200);
+        min-width: 0;
+        color: var(--sita-ink);
+    }
+
+    .dark .sita-admin-actions,
+    .dark .sita-admin-agenda,
+    .dark .sita-admin-overview {
+        --sita-paper: var(--gray-900);
+        --sita-ink: var(--gray-50);
+        --sita-secondary: var(--gray-300);
+        --sita-rule: var(--gray-800);
+    }
+
+    .sita-admin-actions [data-tone],
+    .sita-admin-overview [data-tone] {
+        --sita-tone: var(--sita-secondary);
+        --sita-tone-muted: var(--sita-rule);
+        --sita-tone-ink: var(--sita-ink);
+    }
+
+    @foreach (['primary', 'success', 'warning', 'danger', 'info'] as $tone)
+        .sita-admin-actions [data-tone="{{ $tone }}"],
+        .sita-admin-overview [data-tone="{{ $tone }}"] {
+            --sita-tone: var(--sita-{{ $tone }});
+            --sita-tone-muted: var(--sita-{{ $tone }}-muted);
+            --sita-tone-ink: var(--sita-{{ $tone }}-muted-foreground);
+        }
+    @endforeach
+
+    .sita-dashboard-heading {
+        display: grid;
+        gap: 0.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .sita-dashboard-heading h2 {
+        font-size: 1.125rem;
+        line-height: 1.5;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+    }
+
+    .sita-dashboard-heading p,
+    .sita-action-queue-description,
+    .sita-action-queue-samples,
+    .sita-agenda-empty p {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        color: var(--sita-secondary);
+        text-wrap: pretty;
+    }
+
     .sita-action-queue {
         display: grid;
+        gap: 1rem;
         margin: 0;
         padding: 0;
         list-style: none;
     }
 
     .sita-action-queue-row {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        min-width: 0;
+        padding: 1rem;
+        border: 1px solid var(--sita-rule);
+        border-radius: 0.75rem;
+        background-color: var(--sita-paper);
+        overflow-wrap: anywhere;
+    }
+
+    .sita-action-card-header {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 0.5rem 1rem;
-        padding-block: 0.75rem;
-        border-top: 1px solid var(--gray-200);
+        gap: 0.75rem;
+        width: 100%;
     }
 
-    .dark .sita-action-queue-row {
-        border-top-color: rgb(255 255 255 / 0.1);
-    }
-
-    .sita-action-queue-row:first-child {
-        border-top: 0;
-        padding-top: 0;
-    }
-
-    .sita-action-queue-row:last-child {
-        padding-bottom: 0;
-    }
-
-    .sita-action-queue-icon {
-        width: 1.25rem;
-        height: 1.25rem;
-        color: var(--gray-500);
-    }
-
-    .sita-action-queue-text {
-        display: grid;
-        gap: 0.125rem;
-        min-width: 0;
-    }
-
-    .sita-action-queue-label {
-        margin: 0;
+    .sita-action-card-header h3 {
         font-size: 0.875rem;
+        line-height: 1.5;
         font-weight: 600;
-        line-height: 1.25rem;
-        color: var(--gray-950);
+        text-wrap: balance;
     }
 
-    .dark .sita-action-queue-label {
-        color: #fff;
+    .sita-action-card-icon {
+        display: grid;
+        place-items: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.5rem;
+        background-color: var(--sita-tone-muted);
+        color: var(--sita-tone-ink);
     }
 
-    .sita-action-queue-description,
-    .sita-action-queue-samples {
-        margin: 0;
-        font-size: 0.8125rem;
-        line-height: 1.25rem;
-        color: var(--gray-600);
+    .sita-action-card-icon svg { width: 1.25rem; height: 1.25rem; }
+
+    .sita-action-card-count {
+        font-size: 1.5rem;
+        line-height: 1.25;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--sita-tone-ink);
     }
 
-    .dark .sita-action-queue-description,
-    .dark .sita-action-queue-samples {
-        color: var(--gray-300);
+    .sita-action-card-featured {
+        gap: 1rem;
+        padding: 1.5rem;
+        border-color: var(--sita-primary);
     }
 
-    .sita-action-queue-samples {
-        color: var(--gray-500);
-    }
+    .sita-action-card-featured h3 { font-size: 1.125rem; }
+    .sita-action-card-featured .sita-action-card-count { font-size: 2rem; }
+    .sita-action-queue-samples { font-weight: 500; }
+    .sita-action-queue-row > .fi-btn { margin-top: auto; min-height: 2.75rem; }
 
-    .dark .sita-action-queue-samples {
-        color: var(--gray-400);
-    }
-
-    .sita-action-queue-actions {
+    .sita-dashboard-clear {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background: var(--sita-primary-muted);
+        color: var(--sita-primary-muted-foreground);
     }
 
-    @media (max-width: 40rem) {
-        .sita-action-queue-row {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
+    .sita-dashboard-clear > svg { width: 2rem; height: 2rem; flex-shrink: 0; }
+    .sita-dashboard-clear h3 { font-size: 1rem; font-weight: 600; }
+    .sita-dashboard-clear p { margin-top: 0.25rem; font-size: 0.875rem; }
 
-        .sita-action-queue-actions {
-            grid-column: 1 / -1;
-            justify-content: space-between;
-        }
+    .sita-admin-overview {
+        border: 1px solid var(--sita-rule);
+        border-radius: 0.75rem;
+        background: var(--sita-paper);
+        overflow: hidden;
+    }
+
+    .sita-admin-overview .fi-sc { gap: 0; }
+    .sita-admin-overview .fi-section-content { padding: 0; }
+    .sita-admin-overview .fi-sc-has-gap { gap: 0; }
+    .sita-admin-stat.fi-wi-stats-overview-stat {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas: "icon value" "label label" "description description";
+        align-content: start;
+        gap: 0.5rem 0.75rem;
+        height: 100%;
+        padding: 1.25rem;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .sita-admin-stat .fi-wi-stats-overview-stat-content,
+    .sita-admin-stat .fi-wi-stats-overview-stat-label-ctn { display: contents; }
+    .sita-admin-stat .fi-wi-stats-overview-stat-label-ctn > svg {
+        grid-area: icon;
+        width: 2.5rem;
+        height: 2.5rem;
+        padding: 0.625rem;
+        border-radius: 0.5rem;
+        background: var(--sita-tone-muted);
+        color: var(--sita-tone-ink);
+    }
+    .sita-admin-stat .fi-wi-stats-overview-stat-label {
+        grid-area: label;
+        color: var(--sita-ink);
+        font-size: 0.875rem;
+        line-height: 1.5;
+        font-weight: 600;
+    }
+    .sita-admin-stat .fi-wi-stats-overview-stat-value {
+        grid-area: value;
+        align-self: center;
+        text-align: right;
+        color: var(--sita-tone-ink);
+        font-size: 1.75rem;
+        line-height: 1.25;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+    }
+    .sita-admin-stat .fi-wi-stats-overview-stat-description {
+        grid-area: description;
+        color: var(--sita-secondary);
+        font-size: 0.75rem;
+        line-height: 1.5;
+    }
+    .sita-admin-overview .fi-grid-col:not(:last-child) > .fi-sc-component > .sita-admin-stat { border-inline-end: 1px solid var(--sita-rule); }
+
+    .sita-agenda-day + .sita-agenda-day { margin-top: 1.5rem; }
+    .sita-agenda-day h3 { margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 600; }
+    .sita-agenda-day ol { list-style: none; margin: 0; padding: 0; }
+    .sita-agenda-day li + li { border-top: 1px solid var(--sita-rule); }
+    .sita-agenda-link {
+        display: grid;
+        grid-template-columns: 4rem minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 0.75rem;
+        padding-block: 1rem;
+        min-height: 2.75rem;
+        border-radius: 0.25rem;
+        overflow-wrap: anywhere;
+    }
+    .sita-agenda-link time {
+        display: grid;
+        gap: 0.25rem;
+        color: var(--sita-primary);
+        font-weight: 600;
+        font-size: 1rem;
+        font-variant-numeric: tabular-nums;
+    }
+    .sita-agenda-link time span { font-size: 0.75rem; font-weight: 400; }
+    .sita-agenda-person { display: grid; gap: 0.25rem; font-size: 0.875rem; line-height: 1.5; }
+    .sita-agenda-person > strong { font-weight: 600; }
+    .sita-agenda-person > span { color: var(--sita-secondary); font-size: 0.75rem; }
+    .sita-agenda-link > svg { width: 1rem; height: 1rem; margin-top: 0.25rem; color: var(--sita-secondary); }
+    .sita-agenda-link:hover { background: var(--sita-primary-muted); }
+    .sita-agenda-link:focus-visible { outline: 2px solid var(--sita-primary); outline-offset: 3px; }
+    .sita-agenda-empty { display: flex; gap: 0.75rem; padding-block: 1rem; }
+    .sita-agenda-empty > svg { width: 1.5rem; height: 1.5rem; color: var(--sita-secondary); flex-shrink: 0; }
+    .sita-agenda-empty h3 { font-size: 0.875rem; font-weight: 500; }
+
+    @media (min-width: 48rem) {
+        .sita-action-queue { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .sita-action-card-featured { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 47.999rem) {
+        .sita-admin-stat.fi-wi-stats-overview-stat { padding: 1rem; }
+        .sita-admin-stat .fi-wi-stats-overview-stat-value { font-size: 1.5rem; }
+        .sita-admin-overview .fi-grid-col:nth-child(2) > .fi-sc-component > .sita-admin-stat { border-inline-end: 0; }
+        .sita-admin-overview .fi-grid-col:nth-child(-n+2) > .fi-sc-component > .sita-admin-stat { border-bottom: 1px solid var(--sita-rule); }
     }
 
     /*

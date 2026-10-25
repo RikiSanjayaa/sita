@@ -2,70 +2,30 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ThesisDefense;
 use App\Models\User;
-use App\Support\AcademicTerminology;
-use App\Support\WitaDateTime;
-use Filament\Actions\Action;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Filament\Widgets\TableWidget;
+use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 
-class AdminAgendaWidget extends TableWidget
+class AdminAgendaWidget extends Widget
 {
     public const DAYS_AHEAD = 7;
 
     protected static bool $isLazy = false;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = ['default' => 'full', 'xl' => 4];
 
-    public function table(Table $table): Table
+    protected string $view = 'filament.widgets.admin-agenda';
+
+    /** @return Collection<int, ThesisDefense> */
+    public function getExams(): Collection
     {
         /** @var User|null $user */
         $user = Auth::user();
 
-        return $table
-            ->heading('Agenda ujian '.self::DAYS_AHEAD.' hari ke depan')
-            ->query(self::agendaQuery($user))
-            ->defaultSort('scheduled_for')
-            ->paginated(false)
-            ->emptyStateHeading('Tidak ada ujian terjadwal')
-            ->emptyStateDescription('Tidak ada ujian yang dijadwalkan dalam '.self::DAYS_AHEAD.' hari ke depan.')
-            ->emptyStateIcon('heroicon-o-calendar')
-            ->columns([
-                TextColumn::make('scheduled_for')
-                    ->label('Waktu')
-                    ->state(fn (ThesisDefense $record): string => WitaDateTime::translated($record->scheduled_for, 'D, j M Y H:i'))
-                    ->description(fn (ThesisDefense $record): ?string => $record->scheduled_until === null
-                        ? null
-                        : 'sampai '.WitaDateTime::translated($record->scheduled_until, 'H:i'))
-                    ->extraHeaderAttributes(['class' => 'whitespace-nowrap'])
-                    ->wrap(),
-                TextColumn::make('project.student.name')
-                    ->label('Mahasiswa')
-                    ->description(fn (ThesisDefense $record): string => $record->project?->student?->mahasiswaProfile?->nim ?? '-'),
-                TextColumn::make('type')
-                    ->label('Ujian')
-                    ->badge()
-                    ->color(fn (string $state): string => $state === 'sidang' ? 'primary' : 'info')
-                    ->formatStateUsing(fn (ThesisDefense $record): string => AcademicTerminology::defenseLabel(
-                        AcademicTerminology::forProject($record->project),
-                        $record->type,
-                    )),
-                TextColumn::make('location')
-                    ->label('Lokasi')
-                    ->state(fn (ThesisDefense $record): string => trim(implode(' - ', array_filter([$record->location, $record->mode]))) ?: '-')
-                    ->wrap(),
-            ])
-            ->recordActions([
-                Action::make('openProject')
-                    ->label('Buka')
-                    ->url(fn (ThesisDefense $record): string => ThesisProjectResource::getUrl('view', ['record' => $record->project]))
-                    ->icon('heroicon-m-arrow-top-right-on-square'),
-            ]);
+        return self::agendaQuery($user)->orderBy('scheduled_for')->get();
     }
 
     /**

@@ -21,8 +21,6 @@ class AdminActionQueueService
 
     private const ARCHIVE_WARNING_DAYS = 7;
 
-    private const SAMPLE_SIZE = 3;
-
     /**
      * Queue keys in priority order.
      *
@@ -66,24 +64,15 @@ class AdminActionQueueService
      */
     public function items(?User $user): Collection
     {
-        return collect(self::KEYS)
+        $items = collect(self::KEYS)
             ->map(function (string $key) use ($user): ?array {
-                $query = $this->queueQuery($key, $user);
-                $count = (clone $query)->count();
+                $count = $this->queueQuery($key, $user)->count();
 
                 if ($count === 0) {
                     return null;
                 }
 
                 $definition = $this->definition($key);
-                $names = $query
-                    ->with('student:id,name')
-                    ->orderBy('thesis_projects.id')
-                    ->limit(self::SAMPLE_SIZE)
-                    ->get()
-                    ->map(fn (ThesisProject $project): string => $project->student?->name ?? '-')
-                    ->all();
-                $rest = $count - count($names);
 
                 return [
                     'key' => $key,
@@ -93,12 +82,35 @@ class AdminActionQueueService
                     'color' => $definition['color'],
                     'icon' => $definition['icon'],
                     'count' => $count,
-                    'samples' => implode(', ', $names).($rest > 0 ? ' dan '.$rest.' lainnya' : ''),
+                    'samples' => '',
                     'url' => $this->url($key),
                 ];
             })
             ->filter()
             ->values();
+
+        $first = $items->first();
+
+        if ($first !== null) {
+            $items->put(0, [...$first, 'samples' => $this->preview($first['key'], $first['count'], $user)]);
+        }
+
+        return $items;
+    }
+
+    /**
+     * One eligible student name for the featured queue, plus how many more it holds.
+     */
+    private function preview(string $key, int $count, ?User $user): string
+    {
+        $project = $this->queueQuery($key, $user)
+            ->with('student:id,name')
+            ->orderBy('thesis_projects.id')
+            ->first();
+
+        $rest = $count - 1;
+
+        return ($project?->student?->name ?? '-').($rest > 0 ? ' dan '.$rest.' lainnya' : '');
     }
 
     public function queueQuery(string $key, ?User $user): Builder
