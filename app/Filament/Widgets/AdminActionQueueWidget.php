@@ -14,7 +14,7 @@ class AdminActionQueueWidget extends Widget
 
     protected string $view = 'filament.widgets.admin-action-queue';
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = ['default' => 'full', 'xl' => 8];
 
     /**
      * @return Collection<int, array{key: string, label: string, description: string, action: string, color: string, icon: string, count: int, samples: string, url: string}>

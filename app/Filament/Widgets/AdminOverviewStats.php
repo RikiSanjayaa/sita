@@ -5,7 +5,6 @@ namespace App\Filament\Widgets;
 use App\Models\User;
 use App\Services\AdminDashboardService;
 use App\Support\AcademicTerminology;
-use Filament\Support\Enums\IconPosition;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +14,10 @@ class AdminOverviewStats extends StatsOverviewWidget
     protected static bool $isLazy = false;
 
     protected int|string|array $columnSpan = 'full';
+
+    protected string $view = 'filament.widgets.admin-overview-stats';
+
+    protected int|array|null $columns = ['default' => 2, 'md' => 4];
 
     protected function getStats(): array
     {
@@ -26,21 +29,25 @@ class AdminOverviewStats extends StatsOverviewWidget
         $terms = AcademicTerminology::neutral();
 
         return [
-            Stat::make('Gap '.$terms['proposalExamShort'].' Fase Awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
+            Stat::make('Gap '.$terms['proposalExamShort'].' fase awal', $this->formatPercentage($metrics['needsSempro'], $metrics['earlyStageProjects']))
                 ->description("{$metrics['needsSempro']} dari {$metrics['earlyStageProjects']} {$terms['finalWorkLower']} fase awal belum punya agenda {$terms['proposalExamShort']}")
-                ->descriptionIcon('heroicon-m-clock', IconPosition::Before)
+                ->icon('heroicon-m-clock')
+                ->extraAttributes(['class' => 'sita-admin-stat', 'data-tone' => 'warning'])
                 ->color('warning'),
-            Stat::make('Gap '.$terms['finalExam'].' Fase Lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
+            Stat::make('Gap '.$terms['finalExam'].' fase lanjut', $this->formatPercentage($metrics['needsSidang'], $metrics['lateStageProjects']))
                 ->description("{$metrics['needsSidang']} dari {$metrics['lateStageProjects']} {$terms['finalWorkLower']} fase lanjut belum punya agenda {$terms['finalExam']}")
-                ->descriptionIcon('heroicon-m-academic-cap', IconPosition::Before)
+                ->icon('heroicon-m-academic-cap')
+                ->extraAttributes(['class' => 'sita-admin-stat', 'data-tone' => 'primary'])
                 ->color('primary'),
-            Stat::make('Revisi Lewat Batas', $metrics['overdueRevisionProjects'].' '.$terms['finalWorkLower'])
+            Stat::make('Revisi lewat batas', $metrics['overdueRevisionProjects'])
                 ->description("{$metrics['overdueRevisionProjects']} {$terms['finalWorkLower']} aktif revisinya lewat batas")
-                ->descriptionIcon('heroicon-m-exclamation-triangle', IconPosition::Before)
+                ->icon('heroicon-m-exclamation-triangle')
+                ->extraAttributes(['class' => 'sita-admin-stat', 'data-tone' => 'danger'])
                 ->color('danger'),
-            Stat::make('Belum Ada Pembimbing', $metrics['unassignedLateStageProjects'].' '.$terms['finalWorkLower'])
+            Stat::make('Belum ada pembimbing', $metrics['unassignedLateStageProjects'])
                 ->description("{$metrics['unassignedLateStageProjects']} {$terms['finalWorkLower']} fase lanjut belum diberi pembimbing")
-                ->descriptionIcon('heroicon-m-user-group', IconPosition::Before)
+                ->icon('heroicon-m-user-group')
+                ->extraAttributes(['class' => 'sita-admin-stat', 'data-tone' => 'info'])
                 ->color('info'),
         ];
     }

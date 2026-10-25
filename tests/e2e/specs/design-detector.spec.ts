@@ -13,13 +13,17 @@ import {
     type PlaywrightAccountKey,
 } from '../support/thesis-fixtures';
 
-type Area = 'public' | 'mahasiswa' | 'dosen' | 'kaprodi';
+type Area = 'public' | 'mahasiswa' | 'dosen' | 'kaprodi' | 'admin';
 
 /**
  * Areas whose findings fail the build; every other area is advisory and the
  * spec only fails when its scan cannot run. When an area has been overhauled
  * and scans clean, add it here; from then on any non-advisory finding on its
  * pages fails.
+ *
+ * `admin` (Filament, #33) is scanned on `/admin` but stays advisory: Filament's
+ * own components can raise findings that are not ours to fix. Move it here once
+ * the product owner decides the remaining findings are acceptable or zero.
  */
 const BLOCKING_AREAS: readonly Area[] = [
     'public',
@@ -92,6 +96,11 @@ const areas: readonly AreaPages[] = [
             '/kaprodi/dosen-prodi',
         ],
     },
+    {
+        area: 'admin',
+        account: 'admin',
+        paths: ['/admin'],
+    },
 ];
 
 const viewports = [
@@ -157,7 +166,7 @@ test.describe('Design detector (impeccable detect --cdp)', () => {
                             expect(
                                 new URL(page.url()).pathname,
                                 `${path} redirected to the login page`,
-                            ).not.toBe('/login');
+                            ).not.toMatch(/\/login$/);
                         }
 
                         await page

@@ -1,48 +1,51 @@
-<x-filament-widgets::widget>
-    @php
-        $items = $this->getItems();
-    @endphp
+<x-filament-widgets::widget class="sita-admin-actions">
+    @php($items = $this->getItems())
 
-    <x-filament::section
-        heading="Perlu tindakan"
-        description="Urut dari yang paling mendesak. Setiap baris membuka daftar yang sudah difilter."
-        :compact="true"
-    >
+    <section aria-labelledby="admin-action-heading">
+        <header class="sita-dashboard-heading">
+            <h2 id="admin-action-heading">Perlu tindakan</h2>
+            <p>Urut dari yang paling mendesak.</p>
+        </header>
+
         @if ($items->isEmpty())
-            <div class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                <x-filament::icon icon="heroicon-m-check-circle" class="size-5 text-success-600 dark:text-success-400" />
-                <p>Tidak ada yang perlu ditindak. Semua antrean kosong.</p>
+            <div class="sita-dashboard-clear">
+                <x-filament::icon icon="heroicon-o-check-circle" aria-hidden="true" />
+                <div>
+                    <h3>Semua beres</h3>
+                    <p>Tidak ada yang perlu ditindak. Semua antrean kosong.</p>
+                </div>
             </div>
         @else
             <ul class="sita-action-queue" role="list">
                 @foreach ($items as $item)
-                    <li class="sita-action-queue-row" wire:key="queue-{{ $item['key'] }}">
-                        <x-filament::icon :icon="$item['icon']" class="sita-action-queue-icon" />
-
-                        <div class="sita-action-queue-text">
-                            <p class="sita-action-queue-label">{{ $item['label'] }}</p>
+                    <li
+                        @class(['sita-action-queue-row sita-action-card', 'sita-action-card-featured' => $loop->first])
+                        data-tone="{{ $item['color'] }}"
+                        wire:key="queue-{{ $item['key'] }}"
+                    >
+                        <div class="sita-action-card-header">
+                            <span class="sita-action-card-icon"><x-filament::icon :icon="$item['icon']" aria-hidden="true" /></span>
+                            <h3>{{ $item['label'] }}</h3>
+                            <span class="sita-action-card-count" aria-label="{{ $item['count'] }} {{ \App\Support\AcademicTerminology::neutral()['finalWorkLower'] }}">{{ $item['count'] }}</span>
+                        </div>
+                        @if ($loop->first)
                             <p class="sita-action-queue-description">{{ $item['description'] }}</p>
-                            <p class="sita-action-queue-samples">{{ $item['samples'] }}</p>
-                        </div>
-
-                        <div class="sita-action-queue-actions">
-                            <x-filament::badge :color="$item['color']" size="lg">
-                                {{ $item['count'] }}
-                            </x-filament::badge>
-                            <x-filament::button
-                                tag="a"
-                                :href="$item['url']"
-                                size="sm"
-                                color="gray"
-                                icon="heroicon-m-arrow-right"
-                                icon-position="after"
-                            >
-                                {{ $item['action'] }}
-                            </x-filament::button>
-                        </div>
+                            @if (filled($item['samples']))
+                                <p class="sita-action-queue-samples">{{ $item['samples'] }}</p>
+                            @endif
+                        @endif
+                        <x-filament::button
+                            tag="a"
+                            :href="$item['url']"
+                            :color="$loop->first ? 'primary' : 'gray'"
+                            icon="heroicon-m-arrow-right"
+                            icon-position="after"
+                        >
+                            {{ $item['action'] }}
+                        </x-filament::button>
                     </li>
                 @endforeach
             </ul>
         @endif
-    </x-filament::section>
+    </section>
 </x-filament-widgets::widget>

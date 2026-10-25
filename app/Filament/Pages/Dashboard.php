@@ -59,8 +59,8 @@ class Dashboard extends BaseDashboard
     {
         return [
             AdminActionQueueWidget::class,
-            AdminAgendaWidget::class,
             AdminOverviewStats::class,
+            AdminAgendaWidget::class,
             AdminWorkloadChart::class,
             ProjectPhaseChart::class,
             RecentProjectEventsWidget::class,

@@ -113,7 +113,8 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 
 | Flow (menu / resource)                                                                                           | Spec                                                                                   | Status   | Priority |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/admin`): Perlu tindakan, agenda 7 hari, statistik; baris antrean membuka daftar terfilter (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
+| Dashboard (`/admin`): "Perlu tindakan" dengan delapan kategori berurutan urgensi, jumlah nyata, satu nama pratinjau paling banyak (hanya kartu pertama; kartu sekunder tanpa nama), tombol ke daftar tugas akhir dengan filter `action_queue` tepat dan hanya mahasiswa kategori itu; ringkasan akademik dengan nilai statistik nyata (nol tetap tampil saat semua beres); agenda 7 hari datar tanpa tabel; "Semua beres". Admin prodi hanya melihat prodinya (nama prodi lain tidak muncul di dashboard maupun daftar). Fixture terisolasi: terisi, semua beres (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
+| Dashboard (`/admin`): tata letak 1280px (ringkasan di atas, grid aksi dua kolom dengan kartu pertama selebar dua kolom di samping agenda, chart di bawah) dan 390px (urutan DOM, fokus keyboard dan visual: aksi, ringkasan 2x2, agenda, chart), tanpa overflow, target 44px (issue #33). Detektor desain admin: area `admin` pada `design-detector` (`/admin`) masih advisory | `admin-dashboard`, `design-detector` | tercakup | P2 |
 | Thesis Projects: tab Dokumen/Ujian, tabel dokumen scroll horizontal + unduh sticky, empty state (issue #59) | `admin-dashboard`, Pest `ThesisProjectResourceTest` | sebagian | P3 |
 | Thesis Projects: perpanjang masa aktif dari baris daftar / dashboard (issue #33) | `admin-dashboard`, Pest `AdminActionQueueTest` | tercakup | P2 |
 | Users: impor Excel mahasiswa/dosen (termasuk kolom template OBE, issue #6)                                       | `admin-user-import`                                                                    | sebagian | P2       |
@@ -159,7 +160,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 
 ## Known gaps worth closing next
 
-- Dashboard dosen (#31/#123), kaprodi (#32/#124) dan mahasiswa (#134/#137) memiliki skenario terisolasi; admin tetap memakai `admin-dashboard` dan didesain ulang di #33.
+- Dashboard dosen (#31/#123), kaprodi (#32/#124), mahasiswa (#134/#137) dan admin (#33/#125) memiliki skenario terisolasi. Catalog screenshot admin tetap memakai data seed bersama; state terisi/semua beres admin diambil lewat `createAdminDashboardFixture` di `support/admin-dashboard.ts`.
 
 ### Recovery branches audit (2026-10-25)
 

@@ -9,6 +9,20 @@
             [$solid, $foreground, $muted, $mutedForeground] = $tokens['light'];
             [$darkSolid, $darkForeground, $darkMuted, $darkMutedForeground] = $tokens['dark'];
         @endphp
+        :root {
+            --sita-{{ $role }}: {{ $solid }};
+            --sita-{{ $role }}-foreground: {{ $foreground }};
+            --sita-{{ $role }}-muted: {{ $muted }};
+            --sita-{{ $role }}-muted-foreground: {{ $mutedForeground }};
+        }
+
+        .dark {
+            --sita-{{ $role }}: {{ $darkSolid }};
+            --sita-{{ $role }}-foreground: {{ $darkForeground }};
+            --sita-{{ $role }}-muted: {{ $darkMuted }};
+            --sita-{{ $role }}-muted-foreground: {{ $darkMutedForeground }};
+        }
+
         .fi-btn.fi-color.fi-color-{{ $role }}:not(.fi-outlined) {
             --bg: {{ $solid }};
             --text: {{ $foreground }};

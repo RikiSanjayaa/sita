@@ -13,6 +13,7 @@ use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\AdminActionQueueService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 /**
@@ -199,7 +200,7 @@ it('scopes queues to the program studi of an admin prodi and shows everything to
         ->toBe(collect([$own->id, $foreign->id])->sort()->values()->all());
 });
 
-it('summarises many projects with the first names and a remainder', function (): void {
+it('previews a single name with a remainder for a large queue', function (): void {
     $prodi = ProgramStudi::factory()->create();
     foreach (range(1, 5) as $_) {
         queueSupervisor(queueProject($prodi, ['mentorship_valid_until' => now()->subDay()->toDateString()]));
@@ -208,7 +209,8 @@ it('summarises many projects with the first names and a remainder', function ():
     $item = app(AdminActionQueueService::class)->items(queueAdmin($prodi))->firstWhere('key', 'mentorship_lapsed');
 
     expect($item['count'])->toBe(5)
-        ->and($item['samples'])->toEndWith(' dan 2 lainnya');
+        ->and($item['samples'])->toEndWith(' dan 4 lainnya')
+        ->and($item['samples'])->not->toContain(',');
 });
 
 it('opens the thesis project list already filtered by the queue', function (): void {
@@ -271,20 +273,107 @@ it('renders the action queue first, then the agenda, then the statistics', funct
             'Masa aktif bimbingan habis',
             'Perpanjang',
             'Agenda ujian 7 hari ke depan',
-            'Gap ',
             'Sebaran Fase Tugas Akhir',
         ]);
 });
 
-it('shows an empty state when nothing needs action', function (): void {
+it('shows an all-clear state and no queue items when nothing needs action', function (): void {
     $prodi = ProgramStudi::factory()->create();
     queueSupervisor(queueProject($prodi));
+    $admin = queueAdmin($prodi);
+
+    expect(app(AdminActionQueueService::class)->items($admin))->toBeEmpty();
 
     /** @var \Tests\TestCase $this */
-    $this->actingAs(queueAdmin($prodi))
+    $this->actingAs($admin)
         ->get('/admin')
         ->assertOk()
-        ->assertSee('Tidak ada yang perlu ditindak');
+        ->assertSee('Semua beres');
+});
+
+it('reports every queue, in priority order, for a scoped admin', function (): void {
+    $prodi = ProgramStudi::factory()->create();
+    $otherProdi = ProgramStudi::factory()->create();
+    $expected = [];
+    foreach (queueScenarios() as [$key, $make]) {
+        $make($prodi);
+        $make($otherProdi);
+        $expected[] = $key;
+    }
+
+    $service = app(AdminActionQueueService::class);
+    $scoped = $service->items(queueAdmin($prodi));
+    $all = $service->items(queueAdmin(null));
+
+    expect($scoped->pluck('key')->all())->toBe($expected)
+        ->and($scoped->pluck('count')->unique()->all())->toBe([1])
+        ->and($all->pluck('key')->all())->toBe($expected)
+        ->and($all->pluck('count')->unique()->all())->toBe([2]);
+
+    foreach ($scoped as $item) {
+        expect($item['url'])->toContain('action_queue')->toContain($item['key']);
+    }
+});
+
+it('previews one name only on the first non-empty queue', function (): void {
+    $prodi = ProgramStudi::factory()->create();
+    $scenarios = queueScenarios();
+    $keys = array_keys($scenarios);
+
+    // Two projects in the second queue and one in the third; the first queue is empty.
+    $first = $scenarios[$keys[1]][1]($prodi);
+    $second = $scenarios[$keys[1]][1]($prodi);
+    $scenarios[$keys[2]][1]($prodi);
+
+    $items = app(AdminActionQueueService::class)->items(queueAdmin($prodi));
+
+    expect($items->pluck('key')->all())->toBe([$keys[1], $keys[2]])
+        ->and($items[0]['count'])->toBe(2)
+        ->and($items[0]['samples'])->not->toBe('')
+        ->and($items[0]['samples'])->toEndWith(' dan 1 lainnya')
+        ->and($items[0]['samples'])->not->toContain(',')
+        ->and($items[1]['samples'])->toBe('');
+
+    // Once the leading queue clears, the preview moves to the next one.
+    $first->forceFill(['archived_at' => now()])->save();
+    $second->forceFill(['archived_at' => now()])->save();
+
+    $after = app(AdminActionQueueService::class)->items(queueAdmin($prodi));
+
+    expect($after->pluck('key')->all())->toBe([$keys[2]])
+        ->and($after[0]['samples'])->not->toBe('');
+});
+
+it('runs a bounded number of queries however many projects are queued', function (): void {
+    $prodi = ProgramStudi::factory()->create();
+    $admin = queueAdmin($prodi);
+    $service = app(AdminActionQueueService::class);
+
+    foreach (queueScenarios() as [, $make]) {
+        $make($prodi);
+    }
+
+    // Resolve the actor's scope before both measurements so only queue size changes.
+    $admin->adminProgramStudiId();
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $service->items($admin);
+    $small = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    foreach (queueScenarios() as [, $make]) {
+        $make($prodi);
+        $make($prodi);
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $service->items($admin);
+    $large = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($large)->toBe($small);
 });
 
 it('lists only scheduled ujian of the next seven days for the admin program studi', function (): void {
@@ -309,6 +398,7 @@ it('lists only scheduled ujian of the next seven days for the admin program stud
 
         $soon = $make($prodi, 3);
         $make($prodi, 9);
+        $make($prodi, -1);
         $make($prodi, 2, 'completed');
         $make($otherProdi, 2);
 
