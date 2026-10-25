@@ -25,7 +25,6 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -102,8 +101,6 @@ type UploadedDokumenRow = {
 type UploadDokumenProps = {
     uploadedDocuments: UploadedDokumenRow[];
     archivedProject: boolean;
-    flashMessage?: string | null;
-    errorMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -722,21 +719,6 @@ export default function UploadDokumenPage() {
                     <ArchivedMentorshipNotice finalWork={terms.finalWork} />
                 )}
 
-                {(page.props.flashMessage || page.props.errorMessage) && (
-                    <Alert
-                        variant={
-                            page.props.errorMessage ? 'destructive' : 'default'
-                        }
-                    >
-                        <AlertTitle>
-                            {page.props.errorMessage ? 'Error' : 'Berhasil'}
-                        </AlertTitle>
-                        <AlertDescription>
-                            {page.props.errorMessage || page.props.flashMessage}
-                        </AlertDescription>
-                    </Alert>
-                )}
-
                 <DataSection title="Panduan Upload">
                     <ul className="grid gap-3 sm:grid-cols-2">
                         {panduanItems.map((item) => (
@@ -856,10 +838,13 @@ export default function UploadDokumenPage() {
                                                         />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <div className="text-sm font-medium break-words md:max-w-56 md:truncate">
+                                                        <div
+                                                            className="text-sm font-medium break-words max-md:line-clamp-2 md:max-w-56 md:truncate"
+                                                            title={row.title}
+                                                        >
                                                             {row.title}
                                                         </div>
-                                                        <div className="text-xs break-all text-muted-foreground md:max-w-56 md:truncate">
+                                                        <div className="text-xs break-all text-muted-foreground max-md:truncate md:max-w-56 md:truncate">
                                                             {row.fileName}
                                                             {row.version
                                                                 ? ` — ${row.version}`
@@ -869,10 +854,7 @@ export default function UploadDokumenPage() {
                                                 </div>
                                             </td>
 
-                                            <td
-                                                className={stackedTable.td}
-                                                data-label="Kategori"
-                                            >
+                                            <td className={stackedTable.td}>
                                                 {row.category}
                                             </td>
 
@@ -881,19 +863,20 @@ export default function UploadDokumenPage() {
                                                     stackedTable.td,
                                                     'text-muted-foreground',
                                                 )}
-                                                data-label="Diunggah"
                                             >
                                                 <span className="whitespace-nowrap">
                                                     {row.uploadedAt}
                                                 </span>
-                                                <span className="block text-xs">
+                                                <span className="block text-xs max-md:ml-1 max-md:inline">
                                                     {row.size}
                                                 </span>
                                             </td>
 
                                             <td
-                                                className={stackedTable.td}
-                                                data-label="Status"
+                                                className={cn(
+                                                    stackedTable.tdAside,
+                                                    'max-md:text-right',
+                                                )}
                                             >
                                                 <DokumenStatusBadge
                                                     status={row.status}
@@ -906,9 +889,10 @@ export default function UploadDokumenPage() {
                                             </td>
 
                                             <td
-                                                className={
-                                                    stackedTable.tdActions
-                                                }
+                                                className={cn(
+                                                    stackedTable.tdActions,
+                                                    'max-md:order-4 max-md:mt-2 max-md:basis-full',
+                                                )}
                                                 onClick={(event) =>
                                                     event.stopPropagation()
                                                 }

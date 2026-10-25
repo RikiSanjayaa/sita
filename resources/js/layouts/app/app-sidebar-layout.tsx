@@ -5,6 +5,7 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { DesktopNotice } from '@/components/desktop-notice';
 import PhonePromptDialog from '@/components/phone-prompt-dialog';
 import { type AppRole, type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -25,12 +26,13 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <AppSidebar role={role} />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
+            <AppContent variant="sidebar" className="overflow-x-clip">
                 <AppSidebarHeader
                     breadcrumbs={breadcrumbs}
                     title={title}
                     subtitle={subtitle}
                 />
+                <DesktopNotice />
                 {children}
             </AppContent>
             {phonePrompt && <PhonePromptDialog prompt={phonePrompt} />}

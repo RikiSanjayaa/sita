@@ -13,9 +13,11 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
+use App\Support\DefenseRevisionLog;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
@@ -50,6 +52,10 @@ class KaprodiPortalService
             'stats' => [
                 'students' => $students->count(),
                 'archives' => $projects->whereIn('state', ['completed', 'cancelled'])->count(),
+                'activeStudents' => $students->filter(fn(MahasiswaProfile $profile): bool => (bool) $profile->is_active)->count(),
+                'withoutSupervisors' => $rows->filter(fn(array $row): bool => in_array('tanpa_pembimbing', $row['needsAction'], true))->count(),
+                'upcomingExams' => $this->agendaDefenses($programStudi)->count(),
+                'expiredMentorship' => $rows->filter(fn(array $row): bool => in_array('masa_habis', $row['needsAction'], true))->count(),
             ],
             'recentArchives' => $this->archiveRows($programStudi, 4),
             'phaseDistribution' => $this->phaseDistribution($projects),
@@ -98,8 +104,7 @@ class KaprodiPortalService
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
-                'examiners.lecturer',
-                'revisions',
+                ...DefenseRevisionLog::RELATIONS,
             ])
             ->latest('scheduled_for')
             ->get();
@@ -154,6 +159,7 @@ class KaprodiPortalService
                     ->values()
                     ->all(),
                 'revisionCount' => $defense->revisions->count(),
+                'revisionLog' => DefenseRevisionLog::forDefense($defense),
                 'studentProfileUrl' => route('users.profile.show', ['user' => $defense->project?->student_user_id]),
             ])->values()->all(),
             'schedulableProjects' => $this->schedulableProjects($programStudi)->values()->all(),
@@ -431,18 +437,65 @@ class KaprodiPortalService
     }
 
     /**
-     * @return array<int, array{id: string, badge: string, title: string, subtitle: string, date: string}>
+     * Today (WITA) through seven days ahead, as app-timezone instants for the queries.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
      */
-    private function deadlines(ProgramStudi $programStudi, int $limit = 8): array
+    private function agendaWindow(): array
     {
-        $windowStart = CarbonImmutable::now(WitaDateTime::TIMEZONE)->startOfDay()->setTimezone(config('app.timezone'));
-        $windowEnd = CarbonImmutable::now(WitaDateTime::TIMEZONE)->addDays(7)->endOfDay()->setTimezone(config('app.timezone'));
+        $now = CarbonImmutable::now(WitaDateTime::TIMEZONE);
 
-        $defenseDeadlines = ThesisDefense::query()
+        return [
+            $now->startOfDay()->setTimezone(config('app.timezone')),
+            $now->addDays(7)->endOfDay()->setTimezone(config('app.timezone')),
+        ];
+    }
+
+    /**
+     * Scheduled exams inside the agenda window. The agenda list and the upcoming-exam
+     * statistic both read this, so they can never disagree on what counts.
+     *
+     * @return Builder<ThesisDefense>
+     */
+    private function agendaDefenses(ProgramStudi $programStudi): Builder
+    {
+        [$windowStart, $windowEnd] = $this->agendaWindow();
+
+        return ThesisDefense::query()
             ->whereHas('project', fn($query) => $query->current()->where('program_studi_id', $programStudi->id))
             ->whereNotNull('scheduled_for')
             ->whereBetween('scheduled_for', [$windowStart, $windowEnd])
-            ->whereIn('status', ['scheduled', 'awaiting_finalization'])
+            ->whereIn('status', ['scheduled', 'awaiting_finalization']);
+    }
+
+    /**
+     * Day label, clock time and today flag of an agenda entry, all in WITA.
+     *
+     * @return array{dayLabel: string, time: string, isToday: bool}
+     */
+    private function agendaTiming(CarbonInterface $at): array
+    {
+        $today = CarbonImmutable::now(WitaDateTime::TIMEZONE)->startOfDay();
+        $local = CarbonImmutable::instance($at)->setTimezone(WitaDateTime::TIMEZONE)->locale('id');
+        $isToday = $local->isSameDay($today);
+
+        return [
+            'dayLabel' => $isToday
+                ? 'Hari ini, '.$local->translatedFormat('j F')
+                : ($local->isSameDay($today->addDay()) ? 'Besok, '.$local->translatedFormat('j F') : $local->translatedFormat('l, j F')),
+            'time' => $local->format('H.i'),
+            'isToday' => $isToday,
+        ];
+    }
+
+    /**
+     * @return array<int, array{id: string, badge: string, title: string, subtitle: string, date: string, dayLabel: string, time: string, isToday: bool}>
+     */
+    private function deadlines(ProgramStudi $programStudi, int $limit = 8): array
+    {
+        [$windowStart, $windowEnd] = $this->agendaWindow();
+
+        $defenseDeadlines = $this->agendaDefenses($programStudi)
             ->with('project.student')
             ->orderBy('scheduled_for')
             ->limit(6)
@@ -453,6 +506,7 @@ class KaprodiPortalService
                 'title' => $defense->project?->student?->name ?? 'Mahasiswa',
                 'subtitle' => $this->statusLabel($defense->status).' - '.$defense->location,
                 'date' => WitaDateTime::format($defense->scheduled_for),
+                ...$this->agendaTiming($defense->scheduled_for),
             ]);
 
         $revisionDeadlines = ThesisRevision::query()
@@ -470,6 +524,7 @@ class KaprodiPortalService
                 'title' => $revision->project?->student?->name ?? 'Mahasiswa',
                 'subtitle' => $revision->notes ?? 'Deadline revisi',
                 'date' => WitaDateTime::format($revision->due_at),
+                ...$this->agendaTiming($revision->due_at),
             ]);
 
         return $defenseDeadlines
@@ -1152,7 +1207,7 @@ class KaprodiPortalService
             'href' => $href,
             'tone' => $tone,
             'actionLabel' => $actionLabel,
-            'names' => $names->take(3)->values()->all(),
+            'names' => $names->values()->all(),
         ];
 
         $awaitingFinalization = ThesisDefense::query()
@@ -1214,7 +1269,7 @@ class KaprodiPortalService
             ) : null,
             $item(
                 'inactive',
-                'Mahasiswa tidak aktif',
+                'Belum ada aktivitas 30 hari terakhir',
                 'Tidak ada aktivitas progres dalam waktu lama.',
                 route('kaprodi.mahasiswa.index', ['activeFocus' => 'tidak_aktif']),
                 'danger',
@@ -1241,7 +1296,15 @@ class KaprodiPortalService
             ) : null,
         ];
 
-        return array_values(array_filter($items));
+        // Only the leading card carries a name (at most one); the rest are counts only.
+        return collect($items)
+            ->filter()
+            ->values()
+            ->map(fn(array $item, int $index): array => [
+                ...$item,
+                'names' => $index === 0 ? array_slice($item['names'], 0, 1) : [],
+            ])
+            ->all();
     }
 
     /**

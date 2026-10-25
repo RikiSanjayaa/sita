@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\KaprodiAssignment;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
+use App\Models\ThesisProject;
+use App\Models\User;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -40,16 +42,9 @@ class ThesisDocumentDownloadController extends Controller
                 ->whereHas('defense', static fn($query) => $query->where('project_id', $project->id))
                 ->exists();
 
-            abort_unless($isSupervisor || $isExaminer, 403);
+            abort_unless($isSupervisor || $isExaminer || $this->canDownloadAsKaprodi($user, $project), 403);
         } elseif ($user->hasRole('kaprodi')) {
-            $assignment = $user->kaprodiAssignment;
-
-            abort_unless(
-                $assignment instanceof KaprodiAssignment
-                && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_DOWNLOAD_DOCUMENTS)
-                && $project->program_studi_id === $user->kaprodiProgramStudiId(),
-                403,
-            );
+            abort_unless($this->canDownloadAsKaprodi($user, $project), 403);
         } else {
             abort(403);
         }
@@ -74,5 +69,18 @@ class ThesisDocumentDownloadController extends Controller
             $document->storage_path,
             $document->file_name,
         );
+    }
+
+    private function canDownloadAsKaprodi(User $user, ThesisProject $project): bool
+    {
+        if (! $user->hasRole('kaprodi')) {
+            return false;
+        }
+
+        $assignment = $user->kaprodiAssignment;
+
+        return $assignment instanceof KaprodiAssignment
+            && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_DOWNLOAD_DOCUMENTS)
+            && $project->program_studi_id === $user->kaprodiProgramStudiId();
     }
 }

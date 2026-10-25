@@ -172,8 +172,6 @@ class UploadDokumenController extends Controller
         return Inertia::render('upload-dokumen', [
             'uploadedDocuments' => $documents,
             'archivedProject' => $archive->studentHasArchivedProject($student),
-            'flashMessage' => $request->session()->get('success'),
-            'errorMessage' => $request->session()->get('error'),
         ]);
     }
 

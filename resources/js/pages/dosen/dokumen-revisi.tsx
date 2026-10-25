@@ -57,7 +57,6 @@ type DocumentQueueItem = {
 
 type DokumenRevisiProps = {
     documentQueue: DocumentQueueItem[];
-    flashMessage?: string | null;
 };
 
 type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
@@ -78,9 +77,7 @@ const actionButtonClassName =
     'text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-auto max-md:gap-2 max-md:border max-md:px-3 md:size-8';
 
 export default function DosenDokumenRevisiPage() {
-    const { documentQueue, flashMessage } = usePage<
-        SharedData & DokumenRevisiProps
-    >().props;
+    const { documentQueue } = usePage<SharedData & DokumenRevisiProps>().props;
 
     const [search, setSearch] = useUrlState('search', '');
     const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>(
@@ -179,16 +176,6 @@ export default function DosenDokumenRevisiPage() {
             <Head title="Dokumen & Revisi Dosen" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
-                {flashMessage && (
-                    <div
-                        role="status"
-                        className="flex items-center gap-2 rounded-xl bg-success-muted px-5 py-3 text-sm font-medium text-success-muted-foreground"
-                    >
-                        <CheckCircle2 className="size-4 shrink-0" />
-                        {flashMessage}
-                    </div>
-                )}
-
                 <DataSection
                     level={1}
                     title="Daftar Dokumen"
@@ -297,21 +284,28 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="File / Judul"
-                                                className={stackedTable.td}
+                                                className={
+                                                    stackedTable.tdDetail
+                                                }
                                             >
                                                 <div className="flex min-w-0 items-start gap-2.5">
                                                     <div
                                                         aria-hidden="true"
-                                                        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground"
+                                                        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground max-md:hidden"
                                                     >
                                                         <FileText className="size-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-medium break-words md:max-w-56">
+                                                        <p
+                                                            className="font-medium break-words max-md:line-clamp-2 md:max-w-56"
+                                                            title={doc.title}
+                                                        >
                                                             {doc.title}
                                                         </p>
-                                                        <p className="text-xs break-all text-muted-foreground md:max-w-56">
+                                                        <p
+                                                            className="text-xs break-all text-muted-foreground max-md:line-clamp-1 md:max-w-56"
+                                                            title={doc.file}
+                                                        >
                                                             {doc.file}
                                                         </p>
                                                     </div>
@@ -319,8 +313,7 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <StatusBadge
                                                     domain="document"
@@ -336,7 +329,6 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="Waktu Upload"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground md:whitespace-nowrap',
@@ -346,14 +338,23 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                data-label="Catatan Revisi"
                                                 className={cn(
-                                                    stackedTable.td,
-                                                    'text-muted-foreground',
+                                                    stackedTable.tdDetail,
+                                                    'text-muted-foreground max-md:text-xs',
+                                                    !doc.revisionNotes &&
+                                                        'max-md:hidden',
                                                 )}
                                             >
                                                 {doc.revisionNotes ? (
-                                                    <p className="line-clamp-2 text-pretty md:max-w-56">
+                                                    <p
+                                                        className="text-pretty max-md:line-clamp-2 md:line-clamp-2 md:max-w-56"
+                                                        title={
+                                                            doc.revisionNotes
+                                                        }
+                                                    >
+                                                        <span className="md:hidden">
+                                                            Catatan:{' '}
+                                                        </span>
                                                         {doc.revisionNotes}
                                                     </p>
                                                 ) : (
@@ -362,9 +363,10 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                className={
-                                                    stackedTable.tdActions
-                                                }
+                                                className={cn(
+                                                    stackedTable.tdActions,
+                                                    'max-md:order-4 max-md:mt-2 max-md:basis-full',
+                                                )}
                                             >
                                                 <div className="flex items-center justify-end gap-1 max-md:flex-wrap max-md:justify-start max-md:gap-2">
                                                     <Tooltip>

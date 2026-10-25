@@ -11,7 +11,10 @@ import { useMemo, useState } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
-import { DeadlineBadge } from '@/components/deadline-badge';
+import {
+    DefenseRevisionLog,
+    type DefenseRevisionLogData,
+} from '@/components/defense-revision-log';
 import {
     DataSection,
     DataToolbar,
@@ -26,23 +29,16 @@ import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
     type RevisionAnnotation,
     RevisionAnnotationLinks,
-    type RevisionItem,
-    RevisionItemList,
-    type RevisionRound,
-    RevisionRoundHistory,
-    showRevisionSummary,
 } from '@/components/revision-items';
 import {
     type DraftItem,
     RevisionItemsEditor,
 } from '@/components/revision-items-editor';
-import { RevisionVerifyForm } from '@/components/revision-verify-form';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import {
     type ProjectNotes,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -86,23 +82,6 @@ type OtherExaminer = {
     score: number | null;
 };
 
-type Revision = {
-    id: number;
-    notes: string;
-    status: string;
-    statusLabel: string;
-    dueAt: string | null;
-    /** ISO 8601, for the deadline badge; dueAt is the Indonesian display text. */
-    dueAtIso: string | null;
-    resolvedAt: string | null;
-    resolutionNotes: string | null;
-    requestedBy: string;
-    canVerify: boolean;
-    rounds: RevisionRound[];
-    items: RevisionItem[];
-    annotations: RevisionAnnotation[];
-};
-
 type MyRevisionItem = {
     location: string | null;
     description: string;
@@ -138,15 +117,14 @@ type DefenseItem = {
     myRevisionItems: MyRevisionItem[];
     myAnnotation: RevisionAnnotation | null;
     otherExaminers: OtherExaminer[];
-    revisions: Revision[];
+    revisionLog: DefenseRevisionLogData;
+    verifiableRevisionIds: number[];
 };
 
 type PageProps = {
     defenses: DefenseItem[];
     projectNotes: Record<string, ProjectNotes>;
     workspaceEvents: BimbinganEvent[];
-    flashMessage?: string | null;
-    errorMessage?: string | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -672,69 +650,13 @@ function DefenseDetailSheet({
                             </ul>
                         </section>
 
-                        {item.revisions.length > 0 && (
-                            <section>
-                                <h3 className="mb-2 text-base font-semibold">
-                                    Revisi ({item.revisions.length})
-                                </h3>
-                                <ul className="divide-y border-y text-sm">
-                                    {item.revisions.map((rev) => (
-                                        <li key={rev.id} className="py-3">
-                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                                <StatusBadge
-                                                    domain="revision"
-                                                    status={rev.status}
-                                                >
-                                                    {rev.statusLabel}
-                                                </StatusBadge>
-                                                <span className="text-muted-foreground">
-                                                    {rev.requestedBy}
-                                                </span>
-                                                {rev.dueAt &&
-                                                    rev.status !==
-                                                        'resolved' && (
-                                                        <DeadlineBadge
-                                                            dueAt={rev.dueAtIso}
-                                                            status={rev.status}
-                                                        />
-                                                    )}
-                                            </div>
-                                            {showRevisionSummary(
-                                                rev.notes,
-                                                rev.items,
-                                            ) && (
-                                                <p className="mt-2 leading-relaxed text-pretty">
-                                                    {rev.notes}
-                                                </p>
-                                            )}
-                                            <RevisionItemList
-                                                items={
-                                                    rev.canVerify
-                                                        ? rev.items.filter(
-                                                              (item) =>
-                                                                  item.status !==
-                                                                  'addressed',
-                                                          )
-                                                        : rev.items
-                                                }
-                                            />
-                                            <RevisionAnnotationLinks
-                                                annotations={rev.annotations}
-                                            />
-                                            <RevisionRoundHistory
-                                                rounds={rev.rounds}
-                                            />
-                                            {rev.canVerify && (
-                                                <RevisionVerifyForm
-                                                    revisionId={rev.id}
-                                                    items={rev.items}
-                                                />
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
+                        <DefenseRevisionLog
+                            log={item.revisionLog}
+                            action={{
+                                type: 'verify',
+                                revisionIds: item.verifiableRevisionIds,
+                            }}
+                        />
 
                         <section>
                             <h3 className="mb-2 text-base font-semibold">
@@ -783,8 +705,6 @@ export default function DosenSeminarProposalPage() {
     const {
         defenses,
         workspaceEvents,
-        flashMessage,
-        errorMessage,
         academicTerminology: n,
     } = usePage<SharedData & PageProps>().props;
 
@@ -837,10 +757,8 @@ export default function DosenSeminarProposalPage() {
                 const isPending =
                     item.defenseStatus === 'scheduled' &&
                     item.myDecision === 'pending';
-                const awaitsVerification = item.revisions.some(
-                    (revision) =>
-                        revision.canVerify && revision.status === 'submitted',
-                );
+                const awaitsVerification =
+                    item.verifiableRevisionIds.length > 0;
                 const matchStatus =
                     statusFilter === 'semua' ||
                     (statusFilter === 'pending' && isPending) ||
@@ -879,10 +797,8 @@ export default function DosenSeminarProposalPage() {
     const pendingCount = defenses.filter(
         (i) => i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
     ).length;
-    const verificationCount = defenses.filter((i) =>
-        i.revisions.some(
-            (revision) => revision.canVerify && revision.status === 'submitted',
-        ),
+    const verificationCount = defenses.filter(
+        (item) => item.verifiableRevisionIds.length > 0,
     ).length;
 
     const filteredWorkspaceEvents = workspaceEvents.filter((e) =>
@@ -959,17 +875,6 @@ export default function DosenSeminarProposalPage() {
                     title={`${n.proposalExamShort} & ${n.finalExam}`}
                     description={`Jadwal dan penilaian ${n.proposalExamShort} serta ${n.finalExam}`}
                 />
-
-                {(flashMessage || errorMessage) && (
-                    <Alert variant={errorMessage ? 'destructive' : 'default'}>
-                        <AlertTitle>
-                            {errorMessage ? 'Error' : 'Berhasil'}
-                        </AlertTitle>
-                        <AlertDescription>
-                            {errorMessage || flashMessage}
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 <CollapsibleCalendarSection
                     storageKey="dosen-seminar-proposal"
@@ -1117,18 +1022,19 @@ export default function DosenSeminarProposalPage() {
                                                 </div>
                                             </td>
                                             <td
-                                                data-label="Judul"
                                                 className={cn(
-                                                    stackedTable.td,
+                                                    stackedTable.tdDetail,
                                                     'md:max-w-[280px]',
                                                 )}
                                             >
-                                                <span className="line-clamp-2 text-pretty">
+                                                <span
+                                                    title={item.titleId}
+                                                    className="line-clamp-2 text-pretty"
+                                                >
                                                     {item.titleId}
                                                 </span>
                                             </td>
                                             <td
-                                                data-label="Ujian"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'whitespace-nowrap',
@@ -1138,10 +1044,11 @@ export default function DosenSeminarProposalPage() {
                                                 {item.attemptNo}
                                             </td>
                                             <td
-                                                data-label="Jadwal"
                                                 className={cn(
                                                     stackedTable.td,
                                                     'text-muted-foreground',
+                                                    !item.scheduledFor &&
+                                                        'max-md:hidden',
                                                 )}
                                             >
                                                 {item.scheduledFor ?? '-'}
@@ -1169,8 +1076,7 @@ export default function DosenSeminarProposalPage() {
                                                 </div>
                                             </td>
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <DefenseStatusBadge
                                                     status={item.defenseStatus}
@@ -1181,19 +1087,21 @@ export default function DosenSeminarProposalPage() {
                                                     stackedTable.tdActions
                                                 }
                                             >
-                                                <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                <div className="flex items-center justify-end gap-1">
                                                     <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
                                                         aria-label={`Buka detail ${item.studentName}`}
-                                                        className="max-md:h-11"
+                                                        className="max-md:size-11 max-md:px-0"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             openItem(item);
                                                         }}
                                                     >
-                                                        Buka
+                                                        <span className="max-md:sr-only">
+                                                            Buka
+                                                        </span>
                                                         <ChevronRight
                                                             aria-hidden="true"
                                                             className="size-4"

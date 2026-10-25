@@ -3,6 +3,9 @@ import createServer from '@inertiajs/react/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import ReactDOMServer from 'react-dom/server';
 
+import { AppToaster } from './components/app-toaster';
+import { type SharedData } from './types';
+
 type InertiaPage = {
     props?: {
         name?: string;
@@ -28,7 +31,16 @@ createServer((page) =>
                 import.meta.glob('./pages/**/*.tsx'),
             ),
         setup: ({ App, props }) => {
-            return <App {...props} />;
+            return (
+                <>
+                    <App {...props} />
+                    <AppToaster
+                        initialFlash={
+                            props.initialPage.props.flash as SharedData['flash']
+                        }
+                    />
+                </>
+            );
         },
     }),
 );

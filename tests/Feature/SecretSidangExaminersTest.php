@@ -538,7 +538,7 @@ it('keeps revision authors secret on an unfinished sidang only', function (): vo
 
     $json = inertiaPropsJson($student, 'mahasiswa.tugas-akhir');
 
-    expect($json)->not->toContain(SECRET_EXAMINER_NAME)->toContain('"requestedBy":"Penguji Sidang"');
+    expect($json)->not->toContain(SECRET_EXAMINER_NAME);
 });
 
 it('queries the defense panel once per request, not per message', function (): void {

@@ -1,7 +1,6 @@
 import { Settings2 } from 'lucide-react';
 
-import AppearanceTabs from '@/components/appearance-tabs';
-import { Badge } from '@/components/ui/badge';
+import { ThemePicker } from '@/components/theme-picker';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -11,12 +10,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { THEME_PRESETS, usePrimaryColor } from '@/hooks/use-primary-color';
-import { cn } from '@/lib/utils';
 
 export function ThemeSettingsButton() {
-    const { presetId, resetPreset, updatePreset } = usePrimaryColor();
-
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -37,113 +32,14 @@ export function ThemeSettingsButton() {
                         <div className="border-b px-5 pt-12 pb-4 sm:border-none sm:px-0 sm:pt-0 sm:pb-0">
                             <DialogTitle>Pengaturan Tampilan</DialogTitle>
                             <DialogDescription>
-                                Ubah mode terang-gelap dan preset warna tanpa
+                                Ubah mode terang-gelap dan skema warna tanpa
                                 mengganggu fokus halaman publik.
                             </DialogDescription>
                         </div>
                     </DialogHeader>
 
-                    <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:max-h-[70vh] sm:px-0 sm:py-0">
-                        <section className="space-y-3">
-                            <div>
-                                <p className="text-sm font-semibold">
-                                    Mode Tampilan
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Pilih terang, gelap, atau ikuti sistem
-                                    perangkat.
-                                </p>
-                            </div>
-                            <AppearanceTabs className="self-start" />
-                        </section>
-
-                        <section className="space-y-3">
-                            <div>
-                                <p className="text-sm font-semibold">
-                                    Preset Warna
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Terapkan skema warna yang konsisten di
-                                    landing page dan area aplikasi lain.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-3">
-                                {THEME_PRESETS.map((preset) => {
-                                    const isActive = preset.id === presetId;
-
-                                    return (
-                                        <button
-                                            key={preset.id}
-                                            type="button"
-                                            onClick={() =>
-                                                updatePreset(preset.id)
-                                            }
-                                            className={cn(
-                                                'rounded-xl border p-4 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
-                                                isActive
-                                                    ? 'border-primary bg-primary-muted'
-                                                    : 'hover:bg-muted/60',
-                                            )}
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p className="text-sm font-semibold">
-                                                        {preset.label}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {preset.description}
-                                                    </p>
-                                                </div>
-                                                {isActive ? (
-                                                    <Badge variant="secondary">
-                                                        Aktif
-                                                    </Badge>
-                                                ) : null}
-                                            </div>
-
-                                            <div className="mt-4 flex items-center gap-2">
-                                                <span
-                                                    className="size-5 rounded-full border"
-                                                    style={{
-                                                        backgroundColor:
-                                                            preset.light
-                                                                .background,
-                                                    }}
-                                                    aria-hidden
-                                                />
-                                                <span
-                                                    className="size-5 rounded-full border"
-                                                    style={{
-                                                        backgroundColor:
-                                                            preset.primary,
-                                                    }}
-                                                    aria-hidden
-                                                />
-                                                <span
-                                                    className="size-5 rounded-full border"
-                                                    style={{
-                                                        backgroundColor:
-                                                            preset.light.accent,
-                                                    }}
-                                                    aria-hidden
-                                                />
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="flex justify-end">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={resetPreset}
-                                >
-                                    Reset ke Default UBG
-                                </Button>
-                            </div>
-                        </section>
+                    <div className="flex-1 overflow-y-auto px-5 py-5 sm:max-h-[70vh] sm:px-0 sm:py-0 sm:pt-4">
+                        <ThemePicker headingLevel="h3" />
                     </div>
                 </div>
             </DialogContent>

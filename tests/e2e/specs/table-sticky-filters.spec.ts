@@ -181,9 +181,7 @@ async function login(page: Page, role: TableCase['role']): Promise<void> {
 
 async function scrollIntoRows(page: Page, bar: Locator): Promise<void> {
     await bar.scrollIntoViewIfNeeded();
-    const portal = page.locator('[data-slot="sidebar-inset"]');
-    const scrollContainer =
-        (await portal.count()) > 0 ? portal : page.locator('html');
+    const scrollContainer = page.locator('html');
     const distance = await bar.evaluate(
         (element) => element.getBoundingClientRect().bottom + 360,
     );

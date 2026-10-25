@@ -6,7 +6,8 @@ import { authStatePath, thesisScenarios } from '../support/thesis-fixtures';
 
 // Kaprodi portal (kaprodi@sita.test, program studi Ilmu Komputer). Cross-role
 // checks run against the dedicated scenario students from
-// PlaywrightScenarioSeeder, reset in beforeAll. kaprodi-design-patterns.spec.ts
+// PlaywrightScenarioSeeder, reset in beforeAll. The dashboard has its own
+// isolated fixtures in kaprodi-dashboard.spec.ts. kaprodi-design-patterns.spec.ts
 // covers the pattern components on the sempro-sidang page, not these flows.
 const unscheduled = thesisScenarios.semproUnscheduled;
 const withoutSupervisors = thesisScenarios.passedWithoutSupervisors;
@@ -52,64 +53,6 @@ test.describe('Kaprodi portal', () => {
 
     test.beforeAll(() => {
         seedPlaywrightScenarios();
-    });
-
-    test('dashboard leads with the action queue and every item opens a filtered list', async ({
-        page,
-    }) => {
-        await page.goto('/kaprodi/dashboard');
-        await expect(page).toHaveTitle(/Dashboard Kaprodi/);
-
-        for (const title of [
-            'Perlu Tindakan',
-            'Hari Ini & 7 Hari ke Depan',
-            'Progres Mahasiswa',
-            'Fase Mahasiswa',
-            'Arsip Terbaru',
-        ]) {
-            await expect(
-                page.getByRole('heading', { name: title, exact: true }),
-            ).toBeVisible();
-        }
-
-        const queue = page.getByRole('list', { name: 'Perlu tindakan' });
-        const lapsed = queue
-            .getByRole('listitem')
-            .filter({ hasText: 'Masa aktif bimbingan habis' });
-        await expect(lapsed).toContainText(
-            thesisScenarios.expiredTicket.studentName,
-        );
-        await expect(
-            queue
-                .getByRole('listitem')
-                .filter({ hasText: 'Pembimbing belum ditetapkan' }),
-        ).toContainText(withoutSupervisors.studentName);
-
-        await lapsed.getByRole('link', { name: 'Lihat mahasiswa' }).click();
-        await expect(page).toHaveURL(
-            /\/kaprodi\/mahasiswa\?activeFocus=masa_habis$/,
-        );
-        await expect(
-            studentRow(page, thesisScenarios.expiredTicket.studentName),
-        ).toBeVisible();
-        await expect(
-            studentRow(page, withoutSupervisors.studentName),
-        ).toHaveCount(0);
-    });
-
-    test('dashboard schedule item opens the Sempro schedule dialog', async ({
-        page,
-    }) => {
-        await page.goto('/kaprodi/dashboard');
-        await page
-            .getByRole('listitem')
-            .filter({ hasText: unscheduled.studentName })
-            .filter({ hasText: 'Siap dijadwalkan' })
-            .getByRole('link', { name: 'Jadwalkan' })
-            .click();
-
-        await expect(page).toHaveURL(/\/kaprodi\/sempro-sidang/);
-        await expect(page.getByRole('dialog')).toBeVisible();
     });
 
     test('sidebar links open every kaprodi menu', async ({ page }) => {

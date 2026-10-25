@@ -19,6 +19,10 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { DateRangePicker } from '@/components/date-range-picker';
+import {
+    DefenseRevisionLog,
+    type DefenseRevisionLogData,
+} from '@/components/defense-revision-log';
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     LecturerMultiSearch,
@@ -119,6 +123,7 @@ type ExamRow = {
     canManageSchedule: boolean;
     examiners: ExaminerRow[];
     revisionCount: number;
+    revisionLog: DefenseRevisionLogData;
     studentProfileUrl: string;
 };
 
@@ -558,13 +563,18 @@ export default function KaprodiSemproSidangPage() {
                                                 <p className="text-muted-foreground tabular-nums">
                                                     {item.nim ?? '-'}
                                                 </p>
-                                                <p className="mt-1 line-clamp-2 text-xs text-pretty text-muted-foreground">
+                                                <p
+                                                    title={item.title}
+                                                    className="mt-1 line-clamp-2 text-xs text-pretty text-muted-foreground"
+                                                >
                                                     {item.title}
                                                 </p>
                                             </td>
                                             <td
-                                                data-label="Jadwal"
-                                                className={stackedTable.td}
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    'max-md:flex max-md:gap-x-1',
+                                                )}
                                             >
                                                 <p className="font-medium">
                                                     {item.type} #{item.attempt}
@@ -574,14 +584,24 @@ export default function KaprodiSemproSidangPage() {
                                                 </p>
                                             </td>
                                             <td
-                                                data-label="Dosen terlibat"
-                                                className={stackedTable.td}
+                                                className={
+                                                    stackedTable.tdDetail
+                                                }
                                             >
-                                                <ul className="flex flex-col gap-1 text-xs text-pretty">
+                                                <ul
+                                                    title={item.examiners
+                                                        .map(
+                                                            (examiner) =>
+                                                                `${examiner.role}: ${examiner.name}`,
+                                                        )
+                                                        .join(', ')}
+                                                    className="text-xs text-pretty max-md:line-clamp-2 md:flex md:flex-col md:gap-1"
+                                                >
                                                     {item.examiners.map(
                                                         (examiner) => (
                                                             <li
                                                                 key={`${item.id}-${examiner.id}-${examiner.role}`}
+                                                                className="max-md:mr-2 max-md:inline"
                                                             >
                                                                 <span className="text-muted-foreground">
                                                                     {
@@ -611,7 +631,13 @@ export default function KaprodiSemproSidangPage() {
                                             </td>
                                             <td
                                                 data-label="Nilai"
-                                                className={stackedTable.td}
+                                                className={cn(
+                                                    stackedTable.td,
+                                                    item.averageScore ===
+                                                        null &&
+                                                        item.grade === null &&
+                                                        'max-md:hidden',
+                                                )}
                                             >
                                                 {item.averageScore === null &&
                                                 item.grade === null ? (
@@ -633,8 +659,7 @@ export default function KaprodiSemproSidangPage() {
                                                 )}
                                             </td>
                                             <td
-                                                data-label="Status"
-                                                className={stackedTable.td}
+                                                className={stackedTable.tdAside}
                                             >
                                                 <StatusBadge
                                                     domain="defense"
@@ -649,7 +674,7 @@ export default function KaprodiSemproSidangPage() {
                                                 }
                                             >
                                                 <div
-                                                    className="flex items-center justify-end gap-1 max-md:justify-start"
+                                                    className="flex items-center justify-end gap-1"
                                                     onClick={(event) =>
                                                         event.stopPropagation()
                                                     }
@@ -875,6 +900,7 @@ function ExamDetailSheet({
                                 />
                             </div>
                         </div>
+                        <DefenseRevisionLog log={item.revisionLog} />
                     </div>
                 </ScrollArea>
             </SheetContent>

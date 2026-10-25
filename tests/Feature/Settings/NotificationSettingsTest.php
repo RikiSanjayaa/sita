@@ -4,12 +4,14 @@ use App\Models\User;
 use App\Notifications\RealtimeNotification;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('user can update notification settings', function () {
     $user = User::factory()->create();
 
     $response = $this
         ->actingAs($user)
+        ->from(route('setting-notifikasi'))
         ->patch(route('settings.notifications.update'), [
             'browserNotifications' => true,
             'pesanBaru' => false,
@@ -21,7 +23,16 @@ test('user can update notification settings', function () {
             'konfirmasiBimbingan' => false,
         ]);
 
-    $response->assertSessionHasNoErrors()->assertRedirect();
+    $response->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Pengaturan notifikasi berhasil diperbarui.')
+        ->assertRedirect(route('setting-notifikasi'));
+
+    $this->get(route('setting-notifikasi'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('settings/notifications')
+            ->where('flash.success', 'Pengaturan notifikasi berhasil diperbarui.')
+            ->where('flash.error', null));
 
     $user->refresh();
 

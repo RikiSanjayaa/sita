@@ -63,6 +63,11 @@ export interface MentorshipTicketStatus {
 
 export interface SharedData {
     name: string;
+    flash: {
+        id: string | null;
+        success: string | null;
+        error: string | null;
+    };
     auth: Auth;
     sidebarOpen: boolean;
     notificationSettings?: NotificationSettings;

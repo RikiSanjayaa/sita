@@ -341,6 +341,15 @@ Tabel ini dipakai untuk tugas revisi formal yang harus diselesaikan sebelum phas
 - validasi aplikasi:
     - project tidak boleh maju ke phase berikutnya bila masih ada revisi `open` atau `submitted`
 
+### Log revisi lintas portal (#16)
+
+`App\Support\DefenseRevisionLog::forDefense()` menyajikan revisi per penguji, lalu putaran secara kronologis. Portal mahasiswa, dosen dan kaprodi memakai `DefenseRevisionLog` React; infolist Filament memakai presenter PHP yang sama. Log memuat butir, tanggapan dan lokasi perbaikan, hasil verifikasi, naskah beranotasi/perbaikan, tanggal transisi dalam WITA, serta override admin yang terkait ujian tersebut.
+
+- `ThesisRevisionRoundService` merekam `thesis_revision_rounds.item_snapshot` saat putaran ditutup, sebelum tanggapan putaran berikutnya mengubah butir yang sama. Putaran lama tanpa snapshot ditandai sebagai data terbaru yang tersedia, bukan rekaman historis.
+- Jalankan migrasi `2026_10_31_090000_add_item_snapshot_to_thesis_revision_rounds_table.php`. Kolom JSON bersifat nullable; tidak ada backfill yang mengarang tanggapan lama. Rollback menghapus rekaman putaran, sehingga deploy kode lama lebih aman dengan membiarkan kolom ini tetap ada.
+- Mahasiswa tidak menerima revisi atau tautan naskah dari penguji tambahan Sidang sebelum ujian berstatus `completed`. Hak unduh tetap diperiksa server; kaprodi yang juga dosen memakai capability `download_documents` dan scope program studi bila bukan pembimbing/penguji.
+- Pemanggil daftar wajib eager-load `DefenseRevisionLog::RELATIONS` agar log tidak memicu query per ujian.
+
 ## Dokumen Proyek: `thesis_documents`
 
 Tabel ini menggantikan pemecahan file tugas akhir ke banyak konteks yang tidak seragam.

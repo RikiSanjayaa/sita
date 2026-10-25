@@ -363,6 +363,7 @@ class ThesisProjectAdminService
                 label: 'Revisi '.$terminology['proposalExamShort'].' disetujui',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
+                payload: ['defense_id' => $defense->id, 'source' => 'admin_override'],
             );
 
             return $freshProject;
@@ -833,6 +834,7 @@ class ThesisProjectAdminService
                 label: 'Revisi '.$terminology['finalExamShort'].' disetujui',
                 description: $notes,
                 occurredAt: now()->toDateTimeString(),
+                payload: ['defense_id' => $defense->id, 'source' => 'admin_override'],
             );
 
             return $freshProject;

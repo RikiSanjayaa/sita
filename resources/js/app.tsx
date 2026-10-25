@@ -6,8 +6,10 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { AppToaster } from './components/app-toaster';
 import { initializeTheme } from './hooks/use-appearance';
-import { initializePrimaryColor } from './hooks/use-primary-color';
+import { initializeThemeScheme } from './hooks/use-theme-scheme';
+import { type SharedData } from './types';
 
 type InitialPage = {
     props?: {
@@ -47,6 +49,11 @@ createInertiaApp({
         root.render(
             <StrictMode>
                 <App {...props} />
+                <AppToaster
+                    initialFlash={
+                        props.initialPage.props.flash as SharedData['flash']
+                    }
+                />
             </StrictMode>,
         );
     },
@@ -57,4 +64,4 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
-initializePrimaryColor();
+initializeThemeScheme();

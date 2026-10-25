@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 import {
     useEffect,
+    useEffectEvent,
     useMemo,
-    useRef,
     useState,
     type MouseEvent,
     type ReactNode,
@@ -39,6 +39,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
+import { dismissNotification, showNotification } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import {
     type BreadcrumbItem as BreadcrumbItemType,
@@ -211,9 +212,6 @@ function HeaderNotifications() {
     const [notificationOverrides, setNotificationOverrides] = useState<
         Record<string, NotificationOverride>
     >({});
-    const [toastNotification, setToastNotification] =
-        useState<HeaderNotification | null>(null);
-    const toastTimeoutRef = useRef<number | null>(null);
     const notificationItems = useMemo(
         () =>
             deriveNotificationItems(
@@ -232,24 +230,8 @@ function HeaderNotifications() {
         [notificationItems],
     );
 
-    useEffect(() => {
-        return () => {
-            if (toastTimeoutRef.current !== null) {
-                window.clearTimeout(toastTimeoutRef.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.Echo || !auth.user?.id) {
-            return;
-        }
-
-        const channelName = `App.Models.User.${auth.user.id}`;
-        const echo = window.Echo;
-        const channel = echo.private(channelName);
-
-        channel.notification((payload: IncomingNotification) => {
+    const receiveNotification = useEffectEvent(
+        (payload: IncomingNotification) => {
             const nextNotification = mapIncomingNotification(payload);
             const isThreadCurrentlyOpen = isThreadNotificationOpen(
                 nextNotification.url ?? null,
@@ -296,15 +278,36 @@ function HeaderNotifications() {
                         : nextNotification,
                 );
             });
-            setToastNotification(nextNotification);
-
-            if (toastTimeoutRef.current !== null) {
-                window.clearTimeout(toastTimeoutRef.current);
-            }
-
-            toastTimeoutRef.current = window.setTimeout(() => {
-                setToastNotification(null);
-            }, 4500);
+            const NotificationIcon =
+                notificationIconMap[nextNotification.icon] ?? Bell;
+            showNotification(
+                <button
+                    type="button"
+                    className="text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    onClick={() =>
+                        void handleNotificationClick(nextNotification)
+                    }
+                >
+                    {nextNotification.title}
+                </button>,
+                {
+                    id: `notification:${nextNotification.id}`,
+                    icon: <NotificationIcon className="size-5 text-primary" />,
+                    description: (
+                        <LinkifiedText
+                            text={nextNotification.description}
+                            onLinkClick={() =>
+                                void markNotificationRead(nextNotification)
+                            }
+                        />
+                    ),
+                    action: {
+                        label: 'Buka',
+                        onClick: () =>
+                            void handleNotificationClick(nextNotification),
+                    },
+                },
+            );
 
             if (
                 notificationSettings?.browserNotifications &&
@@ -330,12 +333,20 @@ function HeaderNotifications() {
                     }
                 };
             }
-        });
+        },
+    );
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.Echo || !auth.user?.id)
+            return;
+        const channelName = `App.Models.User.${auth.user.id}`;
+        const echo = window.Echo;
+        echo.private(channelName).notification(receiveNotification);
 
         return () => {
             echo.leave(channelName);
         };
-    }, [auth.user?.id, notificationSettings?.browserNotifications]);
+    }, [auth.user?.id]);
 
     const submitNotificationMutation = (
         url: string,
@@ -451,9 +462,7 @@ function HeaderNotifications() {
             },
         }));
 
-        if (toastNotification?.id === notificationId) {
-            setToastNotification(null);
-        }
+        dismissNotification(notificationId);
 
         await submitNotificationMutation(
             `/settings/notifications/${notificationId}`,
@@ -496,6 +505,7 @@ function HeaderNotifications() {
     ) => {
         const markedAsRead = await markNotificationRead(notification);
 
+        if (markedAsRead) dismissNotification(notification.id);
         if (markedAsRead && notification.url) {
             visitNotificationUrl(notification.url);
         }
@@ -511,17 +521,6 @@ function HeaderNotifications() {
 
         void handleNotificationClick(notification);
     };
-
-    const toast = useMemo(
-        () =>
-            toastNotification === null
-                ? null
-                : applyNotificationOverride(
-                      toastNotification,
-                      notificationOverrides[toastNotification.id],
-                  ),
-        [notificationOverrides, toastNotification],
-    );
 
     return (
         <>
@@ -672,59 +671,6 @@ function HeaderNotifications() {
                     </div>
                 </SheetContent>
             </Sheet>
-
-            {toast !== null &&
-                (() => {
-                    const ToastIcon = notificationIconMap[toast.icon] ?? Bell;
-                    return (
-                        <div
-                            data-testid="notification-toast"
-                            className="group fixed top-[72px] right-4 z-[100] flex w-[min(380px,calc(100vw-2rem))] animate-in cursor-pointer items-start gap-4 rounded-xl border bg-card p-4 text-left shadow-lg transition-all fade-in slide-in-from-top-6 hover:border-primary/30 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none sm:right-6 sm:slide-in-from-right-8"
-                            onClick={(event) =>
-                                handleNotificationCardClick(event, toast)
-                            }
-                        >
-                            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-muted text-primary-muted-foreground">
-                                <ToastIcon className="size-5" />
-                            </div>
-                            <div className="flex-1 space-y-1 overflow-hidden">
-                                <button
-                                    type="button"
-                                    className="block w-full truncate text-left text-sm font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                                    onClick={() =>
-                                        handleNotificationClick(toast)
-                                    }
-                                >
-                                    {toast.title}
-                                </button>
-                                <p className="line-clamp-2 text-sm text-muted-foreground">
-                                    <LinkifiedText
-                                        text={toast.description}
-                                        onLinkClick={() =>
-                                            void markNotificationRead(toast)
-                                        }
-                                    />
-                                </p>
-                                {toast.url ? (
-                                    <button
-                                        type="button"
-                                        className="pt-1 text-xs font-medium text-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                                        onClick={() =>
-                                            handleNotificationClick(toast)
-                                        }
-                                    >
-                                        Lihat detail &rarr;
-                                    </button>
-                                ) : null}
-                            </div>
-                            {toast.unread ? (
-                                <div className="mt-1.5 shrink-0">
-                                    <div className="size-2 rounded-full bg-primary shadow-sm" />
-                                </div>
-                            ) : null}
-                        </div>
-                    );
-                })()}
         </>
     );
 }

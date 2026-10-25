@@ -190,7 +190,7 @@ components:
 
 **Creative North Star: "The Thesis Ledger"**
 
-SiTA is a record of where each thesis stands, so the interface reads like a well-kept ledger: pale surfaces, hairline borders, one blue, and status colour that means the same thing on every page. It is calm on purpose. A student on a phone and a lecturer on a laptop both need to find the next step in a few seconds, and nothing decorative should compete with that.
+SiTA is a record of where each thesis stands, so the interface reads like a well-kept ledger: pale surfaces, hairline borders, one blue, and status colour that means the same thing on every page. It is calm on purpose. A student and a lecturer both need to find the next step in a few seconds, and nothing decorative should compete with that.
 
 The system is the shadcn/ui stack (Radix primitives, `cva` variants, Tailwind v4 tokens) with a domain layer on top: shared page patterns in `resources/js/components/patterns/` and semantic status tokens in `resources/css/app.css`. Pages compose those patterns and tokens. They do not hand-roll status colours or redeclare the patterns. The Filament admin panel at `/admin` is a separate surface that is kept visually paired with the React tokens (see Components).
 
@@ -198,11 +198,11 @@ This file records the incumbent system as it is built, plus the rules that were 
 
 **Key Characteristics:**
 
-- One brand colour (UBG Blue) with a light and a dark theme; UBG Blue is the only theme that meets WCAG AA.
+- One default brand colour (UBG Blue) plus three accessible alternative schemes (Indigo, Zaitun, Grafit), each with a light and a dark theme, all chosen by `data-theme` and defined only in `app.css`.
 - Semantic status roles (primary, success, warning, danger, info, muted), each defined as four tokens in both themes.
 - Tonal layering with hairline borders; a single soft shadow on cards, larger shadows only on floating layers.
 - Sentence-case Indonesian labels, 12px minimum, one sans family.
-- Phone-first for mahasiswa, laptop-first for dosen, kaprodi and admin.
+- Desktop first for every role. Mobile only has to be readable and not broken; do not polish it.
 
 ## Colors
 
@@ -221,7 +221,8 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 - **Paper** (`#ffffff`, dark `#11161c`): card and popover surface.
 - **Mist** (`#f1f5f9`, dark `#151c23`): muted and secondary surface (pill and table-header fills).
 - **Slate Text** (`#5a6a80`, dark `#9fb0bd`): `text-muted-foreground`, secondary copy and labels.
-- **Hairline** (`#e2e8f0`, dark `#202a35`): borders and input strokes.
+- **Hairline** (`#e2e8f0`, dark `#202a35`): borders and dividers.
+- **Input stroke** (`#828d9c`, dark `#5e6771`): `--input`, the border of inputs, selects, checkboxes and outline buttons; at least 3:1 on page and card surfaces.
 - **Highlight Blue** (`#e0ecff`, dark `#17202a`) with text `#1e3a5f` (dark `#c2d0da`): hover and focus fill for ghost buttons, menu items and outline hover (`accent`).
 
 ### Status roles
@@ -241,7 +242,7 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 
 ### Named Rules
 
-**The Default Theme Rule.** UBG Blue (light and dark) is the default theme and the only one that meets WCAG AA. `resources/js/hooks/use-primary-color.ts` writes the selected preset inline on `<html>`, overriding `app.css`, so its `ubg-blue` entry must carry the same values as `:root`/`.dark`. The other presets (emerald, sunset, rose, indigo, teal) are proof-of-concept and fail AA in light and dark; accessible schemes defined as CSS tokens are tracked in #50.
+**The Default Theme Rule.** UBG Blue (light and dark) is the default theme. The other schemes (Indigo, Zaitun, Grafit) are `[data-theme]` blocks in `app.css`, meet the same contrast contract, and are never written inline by JavaScript. See Colour schemes below.
 
 **The Light Primary In Dark Rule.** Primary is `#2563eb` with white text in light mode, and `#60a5fa` with dark (`#0f172a`) text in dark mode. Dark primary is light on purpose: `text-primary` (links, active states, icons) must stay readable on dark surfaces, and the dark status solids follow the same light-fill/dark-text rule.
 
@@ -252,6 +253,43 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 **The Muted Badge Rule.** Badges and callouts use the muted surface with its `-muted-foreground` text (`bg-success-muted text-success-muted-foreground`). Solid fills (`bg-danger text-danger-foreground`) are for emphasis such as alerts and buttons.
 
 **The Paired Palettes Rule.** The Filament admin cannot load the React stylesheet, so its palettes mirror these tokens. See Components, Filament admin.
+
+### Colour schemes
+
+The user picks a mode (terang, gelap, sistem) and a scheme in one shared component, `ThemePicker` (`resources/js/components/theme-picker.tsx`), used by the public settings dialog (`theme-settings-button.tsx`) and by Pengaturan Akun > Tampilan. A scheme is a pair of CSS blocks in `resources/css/app.css`, `[data-theme='<id>']` and `.dark[data-theme='<id>']`. UBG Blue is the default and lives in `:root` and `.dark`.
+
+| Id         | Label    | Primary                 | Note                                              |
+| ---------- | -------- | ----------------------- | ------------------------------------------------- |
+| `ubg-blue` | UBG Blue | blue                    | Default and brand.                                |
+| `indigo`   | Indigo   | violet-blue, hue 280    | 45 degrees from info (sky).                       |
+| `olive`    | Zaitun   | near-neutral grey-green | Chroma below 0.02; selected by the product owner. |
+| `graphite` | Grafit   | neutral gray            | No hue, so no status can be confused.             |
+
+Old presets: Emerald (green), Sunset (orange) and Teal (cyan-green) are gone. Their hues sit on the success, warning and info tones, so a primary button or active link would read as a status. Rose (magenta) was removed after product review because it does not suit an academic setting. Saved `emerald`, `sunset`, `teal`, `rose` and unselected review-candidate values fall back to UBG Blue.
+
+The product owner selected Zaitun as the replacement for Rose. Its near-neutral grey-green sits between the blue schemes and Grafit in the picker. It retains the contrast and status-hue contract without exceptions: chroma below 0.02 avoids relying on an exact 120-degree hue surviving sRGB rounding.
+
+**How it is applied.** `app.blade.php` puts `data-theme` on `<html>` from the `sita_theme_preset` cookie (validated against `App\Support\ThemeSchemes::IDS`, unencrypted like `appearance`), and a head script falls back to the same key in `localStorage` before first paint, so there is no colour flash. `use-theme-scheme.ts` stores the choice in both places, sets `data-theme`, and never writes a colour. The login page uses the same root view, so the choice is the same there.
+
+**Required tokens.** Each scheme block defines all of: `background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground`, `primary`, `primary-foreground`, `primary-muted`, `primary-muted-foreground`, `secondary`, `secondary-foreground`, `muted`, `muted-foreground`, `accent`, `accent-foreground`, `border`, `input`, `ring`, and the sidebar set (`sidebar`, `sidebar-foreground`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-accent`, `sidebar-accent-foreground`, `sidebar-border`, `sidebar-ring`). Status, destructive and chart tokens are shared. Use six-digit hex so the contrast test can read them.
+
+**Contrast contract** (every scheme, light and dark; `tests/Unit/ThemeContrastTest.php` computes WCAG ratios from the CSS):
+
+- Text, at least 4.5:1: `foreground` on `background`, `card` and `muted`; `muted-foreground` on `background`, `card`, `muted` and `sidebar`; `primary` on `background` and `card`; `primary-foreground` on `primary`; `primary-muted-foreground` on `primary-muted`; `accent-foreground` on `accent`; `card-foreground`, `popover-foreground` and `secondary-foreground` on their surfaces; the sidebar pairs (`sidebar-foreground`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-accent-foreground`).
+- Controls, at least 3:1: `ring` on `background` and `card`, `input` on `background` and `card` (so the border of an input, select, checkbox or outline button is visible), `sidebar-ring` on `sidebar`. `border` stays a decorative hairline and is not held to 3:1.
+- Hue: a non-default scheme's `primary` and `primary-muted-foreground` stay at least 40 degrees of OKLCH hue from every status hue, or have chroma under 0.02.
+
+**Roles.** `primary`/`primary-foreground` is the solid fill and `text-primary` on page surfaces; `primary-muted`/`primary-muted-foreground` is the tint pair. In dark mode `primary` is a light shade with a dark foreground, as in the Light Primary In Dark Rule.
+
+**Add a scheme.**
+
+1. Pick a hue at least 40 degrees from 27, 80, 160 and 235 (or a near-neutral). Build the light and dark palettes, check every pair above, and write the two blocks after the existing ones in `app.css`, in the same token order.
+2. Add the id to `ThemeSchemes::IDS` and to `THEME_SCHEMES` in `use-theme-scheme.ts` with an Indonesian label and a short description.
+3. Run `php artisan test --compact tests/Unit/ThemeContrastTest.php tests/Feature/ThemeSchemeCookieTest.php`, then `tests/e2e/specs/theme-scheme.spec.ts` and an axe color-contrast pass on the key pages in light and dark. The new scheme must add no violation compared with UBG Blue in the same mode.
+
+**Swatches.** A swatch element carries its own `data-theme` (and `dark` for the dark half) and reads `var(--background)`, `var(--primary)` and the like. It cannot use `bg-primary`, because `@theme` resolves `--color-primary` once at the root.
+
+**Filament decision.** The admin panel stays on UBG Blue in every scheme. It does not load the React stylesheet or read `data-theme`, and its palettes are fixed in `SEMANTIC_COLORS`. The picker therefore does not change `/admin`.
 
 ## Typography
 
@@ -277,7 +315,7 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 
 A sidebar shell for the portals and a centered content column. The sidebar is 16rem wide (18rem as a mobile sheet, 3rem collapsed to icons) and its open state is stored in the `sidebar_state` cookie. The sticky app header is 4rem high with a bottom border. Page content sits in a `max-w-7xl` (80rem) column with `gap-4` between blocks; the settings layout uses the same column with `px-4 md:px-6` gutters and a `max-w-xl` compact variant. Auth screens use a narrow card (`max-w-md` or `max-w-sm`).
 
-Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Mahasiswa pages are designed for a phone first; dosen, kaprodi and admin pages for a laptop first, without breaking the other.
+Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Every role is designed for a laptop first. Below `md` a page only has to stay readable and unbroken (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed); portal pages show the dismissible `DesktopNotice` there (width read on the client, dismissal kept in `sessionStorage`).
 
 Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns. They are a read-and-look-up surface, not a landing page: `PublicLayout` (`resources/js/components/public/`) gives a header with the page nav, a `PageHeader` h1 with description, and a footer; the page content sits directly on the page background in a `max-w-6xl` column with no outer card.
 
@@ -349,15 +387,22 @@ A fully round pill (`rounded-full`, 12px medium text, `px-2 py-0.5`) with the mu
 
 `StatCard` is a card with a 30px bold value, a muted description and a 40px `primary-muted` icon chip. `EmptyState` is a dashed `rounded-xl` frame with a 40px round `muted` icon holder, a 14px medium title and a muted description.
 
+### Action feedback and notifications
+
+- Mount one Sonner `AppToaster` at the React root for public, portal and settings pages. It follows `resolvedAppearance` and reads card, border, primary and semantic status tokens, so every colour scheme uses the same feedback pattern. Filament keeps its own notifications.
+- Redirects share `flash.success` and `flash.error` through Inertia. Success lasts 4.5 seconds; errors last 8 seconds so the user has time to read them. Each occurrence has an id: StrictMode and history navigation must not repeat it, while repeating the same action may show the same message again.
+- Use a toast for a completed action or a new realtime notification. Realtime notifications keep their icon and description, a "Buka" action that marks the item read before navigating, and a close control. Do not also show "Tersimpan" or a flash Alert for the same action.
+- Keep an `Alert` for a condition that remains relevant on the page (expired mentoring access, unavailable prerequisites, archived records). Keep field validation beside the field. Authentication statuses such as an email-verification link being sent remain in their dedicated flow.
+
 ### Data lists and tables
 
 Approved in #82 for the public list pages; tables and lists in the mahasiswa, dosen and kaprodi portals adopt the same patterns. They live in `resources/js/components/patterns/data-section.tsx`.
 
 - **Compose:** `DataSection` (h2 title, optional summary) > `DataToolbar` (search left, filters right, with `DataSelect` for a select filter) > `FilterPills` for the quick filter > one `DataTableContainer` with `DataTablePagination`. The container is the only bordered surface: no `Card` around it, and no card per row.
 - **Sticky controls (#94):** group search, selects, quick filters and reset controls inside one `StickyFilterBar` per table. From `md`, it stays beneath the portal header (64px, 48px with collapsed sidebar) or public header (81px, `layout="public"`). Below `md`, controls scroll normally so stacked filters do not obscure the list. Multi-table public schedules repeat the synchronized search in each table's filter bar.
-- **Stacked on phones:** below `md` the table becomes a divided list through the `stackedTable` classes (`table`, `thead`, `tbody`, `tr`, `td`, `tdPlain`) instead of scrolling sideways. Name-like cells use `tdPlain`; secondary cells use `td` with a `data-label`, shown above the value. Header cells use `dataTh`. The breakpoint is the viewport's, so a portal table that is too wide beside the sidebar between `md` and `lg` keeps a `min-w-*` and scrolls inside its container.
+- **Compact rows on phones (#129):** below `md` the table becomes a divided list through the `stackedTable` classes instead of scrolling sideways, and each row is a compact entry, not one block per cell. Cells take one of four roles whatever their DOM order: `tdPlain` is the identity (name, NIM) at the left of the first line; `tdAside` is the primary status badge and `tdActions` the icon/menu cluster, both at the right of that line; `td` is a short secondary value on a shared meta line (small, muted, dot between values; `data-label` prefixes the value, and `data-label-hidden` keeps the attribute for tests without the prefix when the value is clear alone); `tdDetail` is long text (title, supervisors, status description) on its own line, clamped to two lines with the full text in `title`. A row targets 120-160px at 390px. Header cells use `dataTh`. The breakpoint is the viewport's, so a portal table that is too wide beside the sidebar between `md` and `lg` keeps a `min-w-*` and scrolls inside its container.
 - **44px on phones:** search, select, filter pills (`itemClassName="max-md:h-11 max-md:px-4"`) and icon buttons are 44px high below `md` and 36px from `md`.
-- **Actions cell:** the last cell uses `stackedTable.tdActions`: a compact icon or menu cluster at the right of the row (`flex items-center justify-end gap-1 max-md:justify-start`), and the last line of the entry on phones. Its header cell holds `<span className="sr-only">Aksi</span>`. Keep the cluster to two icon buttons or one menu; icon buttons carry an `aria-label`.
+- **Actions cell:** the last cell uses `stackedTable.tdActions`: a compact icon or menu cluster at the right of the row (`flex items-center justify-end gap-1`), and at the right of the first line of the entry on phones (a text button, wider than two icons, moves to the detail line with `max-md:order-4 max-md:basis-full`). Its header cell holds `<span className="sr-only">Aksi</span>`. Keep the cluster to two icon buttons or one menu; icon buttons carry an `aria-label`.
 - **Detail on demand:** expanded detail is rendered only when open, never hidden at rest.
 
 ### Portal: kaprodi
@@ -367,7 +412,9 @@ Decided in #85, desktop-first and clean at 390px. The five kaprodi pages (dashbo
 - **Row actions:** one primary action stays visible; the rest sit in an "Aksi lainnya" `DropdownMenu`. Mahasiswa Prodi keeps "Atur pembimbing" visible and moves profile, documents, exam schedule and lecturer notes into the menu; Sempro / Sidang keeps "Ubah jadwal"; Dokumen and Dosen Prodi keep two icon buttons. Icon-only buttons are `RowIconButton` (`components/kaprodi/row-icon-button.tsx`): ghost icon button, tooltip, `aria-label`, 44px below `md`.
 - **Filters:** one quick filter per list as `FilterPills` with counts over the whole list (phase on Mahasiswa Prodi, status on Dokumen, concentration on Dosen Prodi, type and status on Sempro / Sidang). Secondary filters (risk, angkatan, konsentrasi) are `DataSelect`s in the toolbar. These lists are paginated in the browser over the complete list, so filters and counts cover every row. A separate "Reset filter" ghost button appears only while a filter is set.
 - **Cells:** the exam table folds title and NIM under the student name, and the lecturer table folds concentration and expertise under the name. A missing value is a single muted `-`. Status and phase use `StatusBadge` through the `phase`, `defense`, `document` and `state` domains; risk uses `toneClassName`. Dosen Prodi distinguishes P1 with the primary-muted pair and P2 with the success-muted pair (#96); only these role labels are pills. Their counts, quota and exam counts stay plain tabular text.
-- **Dashboard:** the welcome panel keeps its gradient and the "Ringkasan prodi" aside. The four navigation shortcuts, phase and exam counts, attention items, agenda and archives are `SectionCard`s holding divided rows (no nested cards, no filled primary tile); count values are tabular text.
+- **Dashboard (#32, #124):** follows the approved dosen dashboard (#123), using the existing snapshot and bento variants. Desktop starts with one divided four-cell summary strip (active enrolled students, students without supervisors after the proposal stage, upcoming exams, expired mentorship); action cards and an unboxed agenda sit alongside each other from `xl`. Below `md`, actual DOM and keyboard order is actions, 2x2 summary, agenda, then progress. The heading keeps a compact Bimbingan Saya link, not a second lecturer workspace.
+- **Dashboard actions:** the first permitted nonempty action spans both columns with a neutral surface, explanation, one contextual name and a normal primary CTA. Secondary cards carry only icon, title, count and action. Name previews are limited to the leading item; counts, capability gates, prodi scope, urgency order and filtered destinations remain unchanged.
+- **Dashboard agenda and progress:** WITA day headings and primary-colored clock labels form a timeline without a SectionCard wrapper. Existing exam/revision order and limits stay intact; the exam snapshot is an independent aggregate, not a count of the truncated agenda. Progress is one divided two-column surface with the existing attention order and shared student content. Phase/exam statistics and archives remain below. All-clear uses the same quiet primary-muted treatment as dosen; the empty agenda stays flat. Active enrolled count follows the profile's active flag, not project state.
 
 ### Calendar
 
@@ -376,6 +423,7 @@ FullCalendar variables (borders, buttons, today highlight) are mapped to the tok
 ### Filament admin
 
 - `App\Providers\Filament\AdminPanelProvider::SEMANTIC_COLORS` mirrors the color values from `resources/css/app.css`, because the panel does not load the React stylesheet. Keep those two palettes paired. Separately, the TypeScript domain-status mapping mirrors `App\Support\Filament\BadgeStyles::DOMAIN_TONES`.
+- The colour scheme picker (`data-theme`) does not reach the admin panel. Filament stays on UBG Blue; see Colour schemes.
 - Filament primary matches the React tokens: solid `#2563eb`/white in light, `#60a5fa`/`#0f172a` in dark, and `primary` badges use the primary-muted pair. Filament draws dark-mode text, links, active navigation, tabs and pagination from palette shade 400, so shade 400 is the dark `--primary`.
 - Status palettes are derived from those constants (shade 400 = dark solid, 500 = light solid, 600 = light muted-foreground, 50 = muted surface); primary uses a blue ramp. Filament chooses button shades dynamically, so palettes alone cannot guarantee token matching. `resources/views/filament/semantic-colors.blade.php`, rendered at `PanelsRenderHook::STYLES_AFTER`, pins solid `.fi-btn` backgrounds/foregrounds and `.fi-badge` muted surfaces/text to the light/dark tokens, and removes the badge ring so badges match `StatusBadge`. Outlined, gray and disabled states retain Filament behavior.
 
@@ -487,7 +535,7 @@ import { StatCard } from '@/components/patterns/stat-card';
 />;
 ```
 
-`StatCard`: `title`, `value`, `description?`, `icon`, `className?`. `EmptyState`: `icon`, `title`, `description?`, `className?`. Both moved here from `@/components/`; the old paths no longer exist.
+`StatCard`: `title`, `value`, `description?`, `icon`, `className?`, `variant?: 'default' | 'snapshot'`, `tone?`. The snapshot variant follows the landing-page cells: a semantic icon tint opposite a colored plain count, with title and description below. Its neutral container can be flattened inside one divided summary strip. Values use tabular numerals. `EmptyState`: `icon`, `title`, `description?`, `className?`. Both moved here from `@/components/`; the old paths no longer exist.
 
 #### ActionQueue and KeyValueList
 
@@ -525,7 +573,7 @@ import { KeyValueList } from '@/components/patterns/key-value-list';
 />;
 ```
 
-`ActionQueue`: `label` (accessible name), `children`, `className?`. `ActionQueueItem`: `title`, `description?`, `icon?`, `meta?`, `action?`, `className?`; controls go in `action` so they are never nested in text. `KeyValueList`: `items: { key?, label, value }[]`, `layout?: 'stacked' | 'inline'`, `className?`; renders a `dl`.
+`ActionQueue`: `label` (accessible name), `children`, `className?`, `layout?: 'list' | 'bento'` (default `list`; bento becomes a two-column grid from `md`). `ActionQueueItem`: `title`, `description?`, `icon?`, `meta?`, `action?`, `className?`, `variant?: 'row' | 'card' | 'featured'` (default `row`), `count?`, `tone?`. Card items use 12px padding and a compact icon/title/count header with an optional action. Featured items keep a neutral surface with more generous title/count sizing and a subtle primary border, never a solid primary fill. Both use an h3, plain tabular counts and semantic icon tints; controls remain siblings of the text. `KeyValueList`: `items: { key?, label, value }[]`, `layout?: 'stacked' | 'inline'`, `className?`; renders a `dl`.
 
 ### Motion
 
@@ -543,7 +591,9 @@ The public introduction (the homepage hero title with its description, and the `
 - **Do** express status with a semantic token (`bg-success-muted text-success-muted-foreground`), `StatusBadge` or `statusClassName`.
 - **Do** pair every solid fill with its `-foreground` and every muted surface with its `-muted-foreground`, and recheck contrast when changing values or adding combinations.
 - **Do** import a pattern when a page needs a header, stat card, empty state, filter pills or key/value list; if the pattern lacks something, extend the pattern.
-- **Do** keep `app.css`, the `ubg-blue` preset in `use-primary-color.ts` and `AdminPanelProvider::SEMANTIC_COLORS` equal; change all three together.
+- **Do** keep `app.css` (UBG Blue) and `AdminPanelProvider::SEMANTIC_COLORS` equal; Filament stays on UBG Blue whatever scheme the React app uses.
+- **Do** define a new colour scheme only as `[data-theme]` blocks in `app.css`, with every token, and let `tests/Unit/ThemeContrastTest.php` pass before using it.
+- **Do** switch scheme only through `data-theme`; never write colour values from JavaScript (`style.setProperty`, inline colour styles), and preview a scheme in a swatch with `var(--token)` under its own `data-theme`, not with `bg-*` utilities.
 - **Do** keep `status-styles.ts` and `BadgeStyles::DOMAIN_TONES` aligned; change both sides together.
 - **Do** take every label from `AcademicTerminology` / `academic-terminology.ts`, in Indonesian sentence case.
 - **Do** use `text-xs font-medium text-muted-foreground` for small labels.
@@ -585,12 +635,19 @@ Until a page is migrated, existing warnings there are accepted. New or touched p
 
 Overhaul of the dosen portal (#84) applies the #82 list treatment without changing the identity.
 
-- Every dosen page opens with `PageHeader` (h1 plus a one-line description) because the shell renders no heading. Blocks below are `DataSection` (h2) or `SectionCard`. The dashboard hero keeps its gradient panel and quota summary; its h1 is the greeting.
+- Every dosen page opens with `PageHeader` (h1 plus a one-line description) because the shell renders no heading. Blocks below are `DataSection` (h2) or `SectionCard`.
 - Lists (Mahasiswa Dosen, Sempro / Sinopsis & Sidang, Jadwal Bimbingan, Dokumen & Revisi) are `DataSection` > `DataToolbar` > `FilterPills` > one `DataTableContainer` with `stackedTable`. Two filter groups next to each other carry a visible label ("Jenis", "Status") and a divider from `md`.
 - Pagination and filters are client-side over the full prop set; the dosen controllers do not paginate on the server.
 - Row actions: one primary action (Chat, Buka, Kelola, Tanggapi) plus an "Aksi lainnya" menu where more than two remain. Icon-only actions have a tooltip and `aria-label`; on phones they show their label at 44px.
 - Jadwal Bimbingan pending requests are one divided list; the decision form opens on demand ("Tanggapi"), so nothing is hidden at rest and nothing sits in a card inside a card.
 - Pesan keeps the shared chat shell; the page only owns the group filter (`FilterPills`) and thread badge tones.
+
+#### Dosen dashboard (#31, #123)
+
+- Desktop: four linked snapshot cells in one divided strip (active students/quota, exams from today's seven-day agenda, revisions awaiting verification, documents awaiting review), then the action grid with the unboxed agenda beside it from `xl`, then student progress in two divided columns. The strip follows the landing-page card treatment: icon opposite colored value, title and context below. Active students use success, exams primary, revisions warning and documents info; all are existing semantic tokens. Cells have no independent border or shadow. Summary values reuse the existing payloads, including zeroes.
+- Latest product-owner direction replaces the proposed solid Cobalt focus card with the landing-page treatment. Every action keeps a neutral surface; the first item spans two columns with a larger title/count, explanation, at most one affected name for context and a conventional primary CTA. Supporting cards show only the icon, title, count and action, with no student-name preview or repeated explanation. Only the leading action runs a bounded one-name query; secondary payload entries have empty previews. Server priority, filtered destinations and all aggregate counts remain unchanged. No new palette, font, imagery or dependencies.
+- Below `md`, the action queue comes before the 2x2 summary and agenda. DOM and keyboard order follow that reading order via the existing mobile media-query hook. Dashboard action, summary and agenda links have at least 44px targets.
+- The agenda and student-progress headings sit directly on the page, without a SectionCard frame. The agenda is a divided timeline with prominent blue time labels; the progress list is one bordered, divided surface with the shared row content and attention ordering. Empty action queues retain "Semua beres" on a quiet primary-muted surface; empty agendas have a flat calendar state.
 
 ### Portal: mahasiswa and shared shell (#83)
 
@@ -599,6 +656,13 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - **Settings:** `SettingsLayout` renders the page `h1` ("Pengaturan akun") and a section nav with the `primary-muted` active pair; settings pages start at `h2`. Notification and appearance switches carry a `label`/`id` pair.
 - **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
 - **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
+
+#### Mahasiswa dashboard (#134, #137)
+
+- Lead with one academic title and workflow-status card at every width. The title (and optional English title/start date) is the primary content; status and its explanation sit alongside on desktop and stack on phones. Do not add advisor, agenda or unread-message counts/links to this card: agenda and advisors already have their own sections, and unread navigation indicators belong to a separate change. No additional queries.
+- Keep one PageHeader h1. The main action opens the student's academic record or title submission; its button sits beside the copy when space permits and below on narrow screens. Scheduling and upload remain compact contextual cards with their original eligibility. Unavailable actions show their prerequisite and a disabled control. Messages stay reachable through a compact link even before a thread exists, rather than another sidebar shortcut card. Never infer an all-clear state from unavailable prerequisites.
+- The agenda is an unboxed linked timeline beside actions from xl. Progress shows its percentage and a continuous vertical line connecting the academic stages, with completed segments in primary and future segments in border. Do not repeat the academic title inside progress or divide stages into separate cards. Advisors use one divided list of profile rows. No additional student or examiner data is queried.
+- Actual DOM and focus order is academic title/status, actions, agenda, progress and advisors at every width. Application navigation uses Inertia. Preserve the shared desktop notice and compact phone table behavior outside the page. Dashboard controls keep 44px targets without a separate mobile redesign.
 
 ### Detector guard (Impeccable)
 
@@ -610,4 +674,4 @@ These are defects the build carries today. They are not part of the system and n
 
 - Instrument Sans is flagged by the detector as an overused font; it is the incumbent brand face and is kept on purpose. The exception is recorded in `.impeccable/config.json` (`impeccable ignores add-value overused-font "Instrument Sans"`).
 - `.animate-pop` uses an overshoot cubic-bezier (`0.175, 0.885, 0.32, 1.275`), and `DataTable` count chips use `text-[10px]`.
-- The `shadcn` destructive button uses `text-white`, and the proof-of-concept theme presets fail AA.
+- The `shadcn` destructive button uses `text-white`.

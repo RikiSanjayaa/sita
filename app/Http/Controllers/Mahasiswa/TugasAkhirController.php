@@ -9,6 +9,7 @@ use App\Models\MentorshipDocument;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
+use App\Models\ThesisRevision;
 use App\Models\ThesisRevisionRound;
 use App\Models\User;
 use App\Services\MentorshipProgressService;
@@ -17,6 +18,7 @@ use App\Services\ThesisProjectStudentService;
 use App\Services\ThesisProjectWorkflowResolver;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
+use App\Support\DefenseRevisionLog;
 use App\Support\ThesisRevisionPayload;
 use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
@@ -134,8 +136,6 @@ class TugasAkhirController extends Controller
                 'sidang' => $this->mapDefenseHistory($project, 'sidang'),
             ],
             'profileProgramStudi' => $this->resolveProgramStudiForStudent($student),
-            'flashMessage' => $request->session()->get('success'),
-            'errorMessage' => $request->session()->get('error'),
         ]);
     }
 
@@ -284,13 +284,10 @@ class TugasAkhirController extends Controller
                 'documents',
                 'activeSupervisorAssignments.lecturer',
                 'defenses' => fn($query) => $query
-                    ->with(['documents', 'examiners.lecturer'])
+                    ->with(['documents', ...DefenseRevisionLog::RELATIONS])
                     ->orderBy('type')
                     ->orderBy('attempt_no'),
-                'revisions.requestedBy',
-                'revisions.items',
-                'revisions.documents',
-                'revisions.rounds.studentDocument',
+                'revisions',
             ]);
     }
 
@@ -486,35 +483,13 @@ class TugasAkhirController extends Controller
                         ])
                         ->values()
                         ->all(),
-                    'revisions' => $project->revisions
-                        ->where('defense_id', $defense->id)
-                        ->sortByDesc('id')
-                        ->map(fn($revision): array => [
-                            'id' => $revision->id,
-                            'statusLabel' => match ($revision->status) {
-                                'open' => 'Terbuka',
-                                'submitted' => 'Dikirim',
-                                'resolved' => 'Selesai',
-                                default => ucwords(str_replace('_', ' ', $revision->status)),
-                            },
-                            'notes' => $revision->notes,
-                            'requestedBy' => $defense->examinersVisibleToStudent()
-                                ? ($revision->requestedBy?->name ?? '-')
-                                : 'Penguji '.AcademicTerminology::forProject($project)['finalExamShort'],
-                            'dueAt' => $revision->due_at?->locale('id')->translatedFormat('d F Y, H:i'),
-                            'dueAtIso' => $revision->due_at?->toIso8601String(),
-                            'resolvedAt' => $revision->resolved_at?->locale('id')->translatedFormat('d F Y, H:i'),
-                            'resolutionNotes' => $revision->resolution_notes,
-                            'items' => ThesisRevisionPayload::items($revision),
-                            'annotations' => ThesisRevisionPayload::annotations($revision),
-                            'rounds' => ThesisRevisionPayload::rounds($revision),
-                            'canRespond' => ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_STUDENT
-                                && in_array($revision->status, ['open', 'submitted'], true)
-                                && $defense->status === 'completed'
-                                && $defense->result === 'pass_with_revision',
-                        ])
-                        ->values()
-                        ->all(),
+                    'revisionLog' => DefenseRevisionLog::forDefense($defense, forStudent: true),
+                    'respondableRevisionIds' => $defense->revisions
+                        ->filter(fn (ThesisRevision $revision): bool => ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_STUDENT
+                            && in_array($revision->status, ['open', 'submitted'], true)
+                            && $defense->status === 'completed'
+                            && $defense->result === 'pass_with_revision')
+                        ->pluck('id')->values()->all(),
                 ];
             })
             ->values()
