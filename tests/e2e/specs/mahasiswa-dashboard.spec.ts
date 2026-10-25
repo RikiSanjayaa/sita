@@ -83,17 +83,7 @@ async function expectSummary(
     page: Page,
     fixture: MahasiswaDashboardFixture,
 ): Promise<void> {
-    const summary = region(page, 'Ringkasan akademik');
     const { expected } = fixture;
-    for (const label of [
-        `${expected.advisorCount} pembimbing aktif`,
-        `${expected.agendaCount} agenda mendatang`,
-        `${expected.unreadMessages} pesan belum dibaca`,
-    ]) {
-        await expect(
-            summary.getByRole('link', { name: label, exact: true }),
-        ).toBeVisible();
-    }
     await expect(
         region(page, 'Progres akademik').getByText(`${expected.progress}%`, {
             exact: true,
@@ -222,24 +212,6 @@ test('enabled CTAs navigate and query links open their real dialogs', async ({
             await expect(
                 page.getByRole('dialog', { name: dialog }),
             ).toBeVisible();
-            await page.goto(dashboardPath);
-        }
-        for (const [label, href] of [
-            [/pembimbing aktif/, '#dosen-pembimbing'],
-            [/agenda mendatang/, '#agenda-mendatang'],
-            [/pesan belum dibaca/, '/mahasiswa/pesan'],
-        ] as const) {
-            const link = region(page, 'Ringkasan akademik').getByRole('link', {
-                name: label,
-            });
-            await expect(link).toHaveAttribute('href', href);
-            await link.click();
-            if (href.startsWith('#')) {
-                await expect(page).toHaveURL((url) => url.hash === href);
-                await expect(page.locator(href)).toBeInViewport();
-            } else {
-                await expectDestination(page, href);
-            }
             await page.goto(dashboardPath);
         }
         await region(page, 'Agenda mendatang')
@@ -374,7 +346,6 @@ test('390px reading order is real DOM and keyboard order, with usable targets an
                     dashboardLinks.push(link);
                 }
             }
-            expect(dashboardLinks.length).toBeGreaterThanOrEqual(6);
             await dashboardLinks[0].focus();
             for (const link of dashboardLinks.slice(1)) {
                 await page.keyboard.press('Tab');

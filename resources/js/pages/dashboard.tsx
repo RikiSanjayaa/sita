@@ -83,12 +83,6 @@ type TimelineStep = {
 
 type DashboardProps = {
     summary: DashboardSummary;
-    stats: Array<{
-        title: string;
-        value: string;
-        description: string;
-        icon: string;
-    }>;
     quickActionState: QuickActionState;
     upcomingActivities: UpcomingActivity[];
     timeline: TimelineStep[];
@@ -100,7 +94,6 @@ const listRowFocus =
 export default function DashboardPage() {
     const {
         summary,
-        stats,
         quickActionState,
         upcomingActivities,
         timeline,
@@ -168,65 +161,6 @@ export default function DashboardPage() {
                     </dd>
                 </dl>
             </div>
-            <nav
-                aria-label="Tautan akademik"
-                className="flex flex-wrap gap-x-6 border-t pt-2"
-            >
-                <a
-                    href="#dosen-pembimbing"
-                    className={cn(
-                        'inline-flex min-h-11 items-center gap-2 text-sm hover:underline',
-                        listRowFocus,
-                    )}
-                >
-                    <Users
-                        className="size-4 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <span>
-                        <span className="font-medium tabular-nums">
-                            {stats[1].value}
-                        </span>{' '}
-                        pembimbing aktif
-                    </span>
-                </a>
-                <a
-                    href="#agenda-mendatang"
-                    className={cn(
-                        'inline-flex min-h-11 items-center gap-2 text-sm hover:underline',
-                        listRowFocus,
-                    )}
-                >
-                    <CalendarClock
-                        className="size-4 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <span>
-                        <span className="font-medium tabular-nums">
-                            {stats[2].value}
-                        </span>{' '}
-                        agenda mendatang
-                    </span>
-                </a>
-                <Link
-                    href={pesan().url}
-                    className={cn(
-                        'inline-flex min-h-11 items-center gap-2 text-sm hover:underline',
-                        listRowFocus,
-                    )}
-                >
-                    <MessageSquareText
-                        className="size-4 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <span>
-                        <span className="font-medium tabular-nums">
-                            {stats[3].value}
-                        </span>{' '}
-                        pesan belum dibaca
-                    </span>
-                </Link>
-            </nav>
         </section>
     );
 
