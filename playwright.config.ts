@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,6 +20,16 @@ const databasePath = path.join(
     'playwright.sqlite',
 );
 
+// Ephemeral fixture credentials exist only in this isolated browser test run.
+const pushKey = generateKeyPairSync('ec', {
+    namedCurve: 'prime256v1',
+}).privateKey.export({ format: 'jwk' });
+const pushPublicKey = Buffer.concat([
+    Buffer.from([4]),
+    Buffer.from(pushKey.x!, 'base64url'),
+    Buffer.from(pushKey.y!, 'base64url'),
+]).toString('base64url');
+
 const webServerEnvironment = {
     ...process.env,
     APP_ENV: 'playwright',
@@ -31,6 +42,10 @@ const webServerEnvironment = {
     FILAMENT_CACHE_STORE: 'database',
     MAIL_MAILER: 'array',
     QUEUE_CONNECTION: 'sync',
+    WEB_PUSH_ENABLED: 'true',
+    VAPID_SUBJECT: 'mailto:playwright@example.test',
+    VAPID_PUBLIC_KEY: pushPublicKey,
+    VAPID_PRIVATE_KEY: pushKey.d!,
     SESSION_DRIVER: 'file',
     BROADCAST_CONNECTION: 'reverb',
     REVERB_APP_ID: 'local-app',

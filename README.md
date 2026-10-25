@@ -101,6 +101,44 @@ Tersedia setelah seeding; semua memakai password `password`.
 | Kaprodi                | `kaprodi@sita.test`   |
 | Admin (panel `/admin`) | `admin@sita.test`     |
 
+## Notifikasi Web Push dan PWA
+
+Web Push menjangkau perangkat yang sudah didaftarkan, tanpa tab SiTA harus tetap terbuka. Riwayat notifikasi dalam aplikasi dan pembaruan Reverb tetap berjalan. Email notifikasi dan WhatsApp tidak termasuk; email autentikasi tidak berubah.
+
+Di **Pengaturan Akun > Notifikasi**, sakelar akun mengatur pengiriman ke semua perangkat. **Aktifkan di perangkat ini** meminta izin dan mendaftarkan langganan perangkat secara terpisah. Izin browser saja bukan langganan aktif. Setiap perangkat harus dihubungkan sendiri; **Matikan di perangkat ini** tidak mematikan perangkat lain. Logout mencabut langganan yang didaftarkan oleh sesi itu. Berganti akun tidak memindahkan langganan akun sebelumnya. Jika browser mengganti endpoint atau sesi berakhir, hubungkan ulang secara eksplisit.
+
+### Mengaktifkan di server
+
+Default `WEB_PUSH_ENABLED=false`. Gunakan HTTPS pada origin utama (instalasi subpath belum didukung oleh scope service worker `/`). Jalankan migrasi dan buat kunci VAPID **sekali**:
+
+```bash
+php artisan migrate --force
+php artisan webpush:vapid --show
+```
+
+Simpan `VAPID_PUBLIC_KEY` dan `VAPID_PRIVATE_KEY` yang dihasilkan pada konfigurasi rahasia deployment; jangan commit atau mengganti pasangan kunci pada setiap deploy. Isi `VAPID_SUBJECT` dengan kontak pengelola seperti `mailto:admin@domain-kampus.ac.id`, lalu set `WEB_PUSH_ENABLED=true`. Kunci privat tidak pernah dikirim ke browser. Untuk Docker, jalankan perintah Artisan melalui service `app` dan simpan nilai pada `.env` server yang diterima semua service, bukan hanya di dalam container sementara. Untuk aaPanel gunakan PHP CLI site yang sama dengan aplikasi.
+
+```bash
+php artisan config:cache
+php artisan queue:restart
+php artisan queue:work database --queue=default --tries=1
+```
+
+Worker database harus tetap dijalankan oleh pengelola proses; service `queue` bawaan Docker sudah memakai koneksi database dari template. Bila `QUEUE_CONNECTION` aplikasi diganti ke Redis atau koneksi lain, jalankan worker database tambahan untuk Web Push. Push selalu asynchronous pada koneksi database, sekalipun kanal lain memakai `sync`. `CACHE_STORE` produksi harus persisten dan dibagi semua worker (bawaan `database`), bukan `array`, agar penggabungan chat lintas request bekerja. Periksa `php artisan queue:failed` bila ada kegagalan; riwayat notifikasi dalam SiTA tetap tersedia.
+
+Kirim kategori akademik langsung; chat digabung per penerima dan percakapan dalam jendela 60 detik. Worker memeriksa ulang preferensi, status baca, dan langganan sebelum mengirim. Payload layar kunci selalu generik, tanpa nama, isi chat, judul tugas akhir, atau identitas penguji. Pesan provider memiliki TTL 15 menit untuk chat dan 1 jam untuk akademik sejak dikirim ke provider; antrean yang sudah lebih tua dari batas kategori itu dibuang. TTL bukan bukti pesan tampil atau dibaca. Endpoint kedaluwarsa (404/410) dibersihkan channel. Endpoint baru dibatasi pada provider HTTPS FCM, Mozilla dan Apple; provider lain ditolak, bukan dipanggil sebagai URL bebas.
+
+Manifest mendukung pemasangan PWA dan service worker menerima push serta membuka tujuan same-origin. Tidak ada cache halaman privat atau dukungan membuka aplikasi offline. Worker menjadi satu-satunya sumber notifikasi OS; saat jendela SiTA fokus, umpan balik tetap melalui notifikasi dalam aplikasi.
+
+### Batas perangkat dan pemeriksaan sebelum produksi
+
+- Chrome/Firefox desktop memerlukan browser atau penerima background yang aktif. Tab ditutup tidak sama dengan browser benar-benar berhenti; PWA tidak menjamin autostart saat boot.
+- Safari macOS memiliki integrasi push sistem. Di iPhone/iPad, tambahkan SiTA ke Layar Utama dan buka dari ikon tersebut sebelum mengaktifkan izin (iOS/iPadOS 16.4 atau lebih baru).
+- Perangkat mati/offline tidak menerima saat itu. Pengiriman saat online lagi bergantung pada TTL dan kebijakan provider. Penolakan izin diubah melalui pengaturan situs browser, bukan dengan meminta izin berulang-ulang dari aplikasi.
+- Logout/opt-out menghentikan pengiriman berikutnya, tetapi pesan yang sudah diterima provider tidak dapat ditarik kembali. Worker memeriksa pemilik lokal sebelum menampilkan atau membuka pesan; tidak ada konten sensitif pada layar kunci.
+
+Sebelum aktivasi produksi, isi bukti perangkat nyata pada [issue implementasi #144](https://github.com/RikiSanjayaa/sita/issues/144): OS/versi browser, izin dan langganan, waktu kirim/TTL, hasil tab ditutup dan browser background, browser berhenti, restart sebelum/sesudah browser dibuka, offline lalu online, serta iOS Home Screen. Test server, emulasi push, dan respons sukses provider tidak menggantikan bukti tampilan notifikasi OS. Batas platform dan sumber riset ada di [#28](https://github.com/RikiSanjayaa/sita/issues/28).
+
 ## Indikator pesan belum dibaca
 
 Menu Pesan pada portal mahasiswa, dosen, dan kaprodi menampilkan jumlah pesan dari orang lain yang belum dibaca dalam percakapan yang dapat diakses, bukan jumlah percakapan. Badge merah memakai warna yang sama dengan lonceng: tepat setelah label pada sidebar/drawer, atau menempel ikon saat sidebar diciutkan. Nilai di atas 99 ditampilkan sebagai `99+`; label aksesibel tetap menyebut jumlah lengkap. Nilai nol tidak menampilkan badge. Pesan sendiri dan event dokumen sistem tidak dihitung. Membuka daftar percakapan saja tidak mengurangi jumlah; receipt disimpan untuk pesan terakhir yang benar-benar tampil pada percakapan aktif, saat tab terlihat. Lonceng menghitung notifikasi global, termasuk pengumuman dan aktivitas akademik, bukan hanya chat. Membaca chat tidak menandai notifikasi lonceng sebagai dibaca, dan sebaliknya.

@@ -8,14 +8,27 @@ import {
     Megaphone,
     MessageSquareText,
     Timer,
+    TriangleAlert,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
+import NotificationSettingsController from '@/actions/App/Http/Controllers/Settings/NotificationSettingsController';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
+import {
+    disablePush,
+    enablePush,
+    PushError,
+    type PushState,
+    type PushStatus,
+    readPushStatus,
+} from '@/lib/web-push';
 import { type NotificationSettings, type SharedData } from '@/types';
 
 type JenisNotifikasiItem = {
@@ -25,27 +38,69 @@ type JenisNotifikasiItem = {
     icon: typeof Bell;
 };
 
-const permissionLabels: Record<NotificationPermission | 'unsupported', string> =
-    {
-        default: 'Belum diminta',
-        granted: 'Diizinkan',
-        denied: 'Ditolak',
-        unsupported: 'Tidak didukung',
-    };
+const stateLabels: Record<PushState, string> = {
+    loading: 'Memeriksa',
+    unsupported: 'Tidak didukung',
+    insecure: 'Butuh HTTPS',
+    'ios-install': 'Pasang di Layar Utama',
+    unavailable: 'Belum disiapkan',
+    denied: 'Izin ditolak',
+    inactive: 'Belum aktif',
+    active: 'Aktif',
+    error: 'Gagal membaca status',
+};
+
+function deviceDescription(
+    status: PushStatus,
+    accountEnabled: boolean,
+): string {
+    switch (status.state) {
+        case 'loading':
+            return 'Memeriksa izin, langganan browser, dan data di server.';
+        case 'unsupported':
+            return 'Browser ini tidak mendukung notifikasi push. Coba browser lain atau pasang SiTA di perangkat yang mendukung.';
+        case 'insecure':
+            return 'Notifikasi push hanya jalan lewat HTTPS. Buka SiTA dengan alamat https.';
+        case 'ios-install':
+            return 'Di iPhone dan iPad, tambahkan SiTA ke Layar Utama lewat menu Bagikan, lalu buka dari ikonnya dan aktifkan notifikasi di sini.';
+        case 'unavailable':
+            return 'Server belum diatur untuk mengirim notifikasi push. Hubungi admin SiTA.';
+        case 'denied':
+            return 'Izin notifikasi ditolak di browser. Ubah izin situs lewat pengaturan browser, lalu kembali ke halaman ini.';
+        case 'error':
+            return (
+                status.message ??
+                'Status notifikasi perangkat ini tidak bisa dibaca.'
+            );
+        case 'active':
+            return accountEnabled
+                ? 'Perangkat terhubung. Notifikasi dapat masuk saat tab ditutup jika browser atau layanan push sistem berjalan.'
+                : 'Perangkat ini terhubung, tetapi notifikasi browser akun dimatikan, jadi belum ada yang dikirim.';
+        case 'inactive':
+            return status.hasLocalSubscription
+                ? 'Browser masih menyimpan langganan, tetapi server tidak mengenalinya untuk akun dan sesi ini. Aktifkan ulang untuk menghubungkannya.'
+                : status.permission === 'granted'
+                  ? 'Izin sudah diberikan, tetapi perangkat ini belum terhubung ke akun Anda.'
+                  : 'Browser akan meminta izin saat Anda mengaktifkan notifikasi di perangkat ini.';
+    }
+}
 
 export default function NotificationSettingsPanel() {
-    const { notificationSettings, academicTerminology: terms } =
-        usePage<SharedData>().props;
+    const {
+        auth,
+        notificationSettings,
+        academicTerminology: terms,
+    } = usePage<SharedData>().props;
+    const userId = auth.user.id;
     const [isSaving, setIsSaving] = useState(false);
-    const [browserPermission, setBrowserPermission] = useState<
-        NotificationPermission | 'unsupported'
-    >(() => {
-        if (typeof window === 'undefined' || !('Notification' in window)) {
-            return 'unsupported';
-        }
-
-        return window.Notification.permission;
+    const [deviceStatus, setDeviceStatus] = useState<PushStatus>({
+        state: 'loading',
+        permission: 'default',
+        hasLocalSubscription: false,
     });
+    const [isDeviceBusy, setIsDeviceBusy] = useState(false);
+    const [deviceError, setDeviceError] = useState<string | null>(null);
+    const statusRequest = useRef(0);
 
     const [settings, setSettings] = useState<NotificationSettings>(() => ({
         browserNotifications:
@@ -59,95 +114,82 @@ export default function NotificationSettingsPanel() {
         konfirmasiBimbingan: notificationSettings?.konfirmasiBimbingan ?? true,
     }));
 
-    const persistSettings = (nextSettings: NotificationSettings) => {
+    const setAndPersistSettings = (nextSettings: NotificationSettings) => {
+        const previous = settings;
+
+        setSettings(nextSettings);
         setIsSaving(true);
 
         router.patch(
-            '/settings/notifications',
+            NotificationSettingsController.update.url(),
             { ...nextSettings },
             {
                 preserveScroll: true,
+                onError: () => setSettings(previous),
                 onFinish: () => setIsSaving(false),
             },
         );
     };
 
-    const setAndPersistSettings = (nextSettings: NotificationSettings) => {
-        setSettings(nextSettings);
-        persistSettings(nextSettings);
+    // Read-only refresh: the latest request wins, so a slow answer cannot
+    // overwrite a newer state.
+    const refreshDeviceStatus = async () => {
+        const request = ++statusRequest.current;
+        const next = await readPushStatus(userId);
+
+        if (request === statusRequest.current) {
+            setDeviceStatus(next);
+        }
     };
 
     useEffect(() => {
-        if (typeof window === 'undefined' || !('Notification' in window)) {
-            return;
-        }
-
-        const syncPermission = () => {
-            setBrowserPermission(window.Notification.permission);
+        const refresh = () => {
+            if (document.visibilityState === 'visible') {
+                void refreshDeviceStatus();
+            }
         };
 
-        window.addEventListener('focus', syncPermission);
-        document.addEventListener('visibilitychange', syncPermission);
+        refresh();
+        window.addEventListener('focus', refresh);
+        document.addEventListener('visibilitychange', refresh);
 
         return () => {
-            window.removeEventListener('focus', syncPermission);
-            document.removeEventListener('visibilitychange', syncPermission);
+            window.removeEventListener('focus', refresh);
+            document.removeEventListener('visibilitychange', refresh);
         };
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]);
 
-    const requestBrowserPermission = async () => {
-        if (typeof window === 'undefined' || !('Notification' in window)) {
-            setBrowserPermission('unsupported');
+    // Runs from a click handler. `enablePush` asks for permission before its
+    // first await, which iOS requires, so nothing may be awaited before it.
+    const runDeviceAction = async (
+        action: typeof enablePush | typeof disablePush,
+        successMessage: string,
+    ) => {
+        ++statusRequest.current;
 
-            return;
-        }
+        setIsDeviceBusy(true);
+        setDeviceError(null);
 
-        const permission = await window.Notification.requestPermission();
-        setBrowserPermission(permission);
+        try {
+            const next = await action(userId);
 
-        if (permission === 'granted' && !settings.browserNotifications) {
-            setAndPersistSettings({
-                ...settings,
-                browserNotifications: true,
-            });
-        }
-    };
+            ++statusRequest.current;
+            setDeviceStatus(next);
 
-    const handleBrowserNotificationToggle = async (checked: boolean) => {
-        if (!checked) {
-            setAndPersistSettings({
-                ...settings,
-                browserNotifications: false,
-            });
-
-            return;
-        }
-
-        if (
-            browserPermission === 'unsupported' ||
-            browserPermission === 'denied'
-        ) {
-            return;
-        }
-
-        if (browserPermission === 'default') {
-            const permission = await window.Notification.requestPermission();
-            setBrowserPermission(permission);
-
-            if (permission !== 'granted') {
-                setAndPersistSettings({
-                    ...settings,
-                    browserNotifications: false,
-                });
-
-                return;
+            if (next.state === 'active' || action === disablePush) {
+                toast.success(successMessage);
             }
+        } catch (error) {
+            setDeviceError(
+                error instanceof PushError
+                    ? error.message
+                    : 'Terjadi kesalahan. Coba lagi.',
+            );
+            void refreshDeviceStatus();
+        } finally {
+            setIsDeviceBusy(false);
         }
-
-        setAndPersistSettings({
-            ...settings,
-            browserNotifications: true,
-        });
     };
 
     const items: JenisNotifikasiItem[] = useMemo(
@@ -200,7 +242,7 @@ export default function NotificationSettingsPanel() {
                 icon: CheckCircle2,
             },
         ],
-        [],
+        [terms.finalWorkLower],
     );
 
     const enabledJenisCount = useMemo(
@@ -208,9 +250,11 @@ export default function NotificationSettingsPanel() {
         [items, settings],
     );
 
+    const canEnableDevice = deviceStatus.state === 'inactive';
+    const isLoading = deviceStatus.state === 'loading';
+
     return (
         <div className="space-y-8">
-            {/* Notifikasi browser section */}
             <div className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -218,15 +262,9 @@ export default function NotificationSettingsPanel() {
                             Notifikasi browser
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Aktifkan notifikasi desktop untuk mendapatkan
-                            pemberitahuan real-time.
+                            Pengaturan akun. Berlaku untuk semua perangkat yang
+                            Anda hubungkan.
                         </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 self-start">
-                        <Badge variant="secondary">Disarankan</Badge>
-                        <Badge variant="outline">
-                            {permissionLabels[browserPermission]}
-                        </Badge>
                     </div>
                 </div>
 
@@ -236,52 +274,122 @@ export default function NotificationSettingsPanel() {
                             htmlFor="browser-notifications"
                             className="text-sm font-medium"
                         >
-                            Aktifkan notifikasi browser
+                            Kirim notifikasi ke browser
                         </label>
                         <div className="mt-1 text-sm text-muted-foreground">
-                            Terima notifikasi meskipun browser tidak aktif.
+                            Jika dimatikan, tidak ada perangkat yang menerima
+                            notifikasi. Perangkat tetap terhubung dan menerima
+                            lagi saat ini dinyalakan.
                         </div>
-                        <div className="mt-3 text-xs text-muted-foreground">
-                            {browserPermission === 'denied'
-                                ? 'Izin notifikasi ditolak di browser. Ubah melalui pengaturan browser untuk mengaktifkan kembali.'
-                                : 'Jika belum diizinkan, browser akan meminta izin saat fitur ini diaktifkan.'}
-                        </div>
-
-                        {browserPermission === 'default' ||
-                        browserPermission === 'denied' ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="mt-3"
-                                onClick={requestBrowserPermission}
-                                disabled={isSaving}
-                            >
-                                {browserPermission === 'default'
-                                    ? 'Minta izin notifikasi'
-                                    : 'Coba minta izin lagi'}
-                            </Button>
-                        ) : null}
                     </div>
 
                     <Switch
                         id="browser-notifications"
                         checked={settings.browserNotifications}
-                        onCheckedChange={handleBrowserNotificationToggle}
-                        aria-label="Aktifkan notifikasi browser"
-                        className="self-start sm:mt-1"
-                        disabled={
-                            browserPermission === 'unsupported' ||
-                            browserPermission === 'denied' ||
-                            isSaving
+                        onCheckedChange={(checked) =>
+                            setAndPersistSettings({
+                                ...settings,
+                                browserNotifications: checked,
+                            })
                         }
+                        aria-label="Kirim notifikasi ke browser"
+                        className="self-start sm:mt-1"
+                        disabled={isSaving}
                     />
+                </div>
+
+                <div className="space-y-3 rounded-xl border p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                            <h3 className="text-sm font-medium">
+                                Perangkat ini
+                            </h3>
+                            <p
+                                className="mt-1 text-sm text-pretty text-muted-foreground"
+                                aria-live="polite"
+                            >
+                                {deviceDescription(
+                                    deviceStatus,
+                                    settings.browserNotifications,
+                                )}
+                            </p>
+                        </div>
+                        <Badge variant="outline" className="w-fit self-start">
+                            {isLoading ? <Spinner className="size-3" /> : null}
+                            {stateLabels[deviceStatus.state]}
+                        </Badge>
+                    </div>
+
+                    {deviceError ? (
+                        <Alert variant="destructive">
+                            <TriangleAlert />
+                            <AlertTitle>
+                                Pengaturan perangkat belum selesai
+                            </AlertTitle>
+                            <AlertDescription>{deviceError}</AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    <div className="flex flex-wrap gap-2">
+                        {canEnableDevice ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() =>
+                                    void runDeviceAction(
+                                        enablePush,
+                                        'Notifikasi aktif di perangkat ini.',
+                                    )
+                                }
+                                disabled={isDeviceBusy}
+                            >
+                                {isDeviceBusy ? <Spinner /> : null}
+                                {deviceStatus.hasLocalSubscription
+                                    ? 'Hubungkan ulang perangkat ini'
+                                    : 'Aktifkan di perangkat ini'}
+                            </Button>
+                        ) : null}
+
+                        {deviceStatus.hasLocalSubscription ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    void runDeviceAction(
+                                        disablePush,
+                                        'Notifikasi dimatikan di perangkat ini.',
+                                    )
+                                }
+                                disabled={isDeviceBusy}
+                            >
+                                {isDeviceBusy ? <Spinner /> : null}
+                                {deviceStatus.state === 'active'
+                                    ? 'Matikan di perangkat ini'
+                                    : 'Lepaskan langganan lama'}
+                            </Button>
+                        ) : null}
+
+                        {deviceStatus.state === 'denied' ||
+                        deviceStatus.state === 'error' ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void refreshDeviceStatus()}
+                                disabled={isDeviceBusy}
+                            >
+                                {deviceStatus.state === 'denied'
+                                    ? 'Periksa izin lagi'
+                                    : 'Coba lagi'}
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
             </div>
 
             <Separator />
 
-            {/* Jenis notifikasi section */}
             <div className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -291,7 +399,7 @@ export default function NotificationSettingsPanel() {
                         <p className="mt-1 text-sm text-muted-foreground">
                             {settings.browserNotifications
                                 ? 'Pilih jenis notifikasi yang ingin Anda terima.'
-                                : 'Aktifkan notifikasi browser untuk memilih jenis notifikasi yang ingin Anda terima.'}
+                                : 'Nyalakan notifikasi browser untuk memilih jenis notifikasi yang ingin Anda terima.'}
                         </p>
                     </div>
                     <Badge variant="outline" className="w-fit self-start">
