@@ -12,7 +12,7 @@ import {
     pickFilamentSelect,
 } from '../support/golden-path';
 import { openRecoveryDefense, test } from '../support/recovery';
-import { thesisFixtures } from '../support/thesis-fixtures';
+import { authStatePath, thesisFixtures } from '../support/thesis-fixtures';
 
 const proposalFile = path.join(
     process.cwd(),
@@ -423,12 +423,136 @@ test.describe('cancelled research recovery', () => {
     });
 });
 
+function annotationUpload(name: string): {
+    name: string;
+    mimeType: string;
+    buffer: Buffer;
+} {
+    return {
+        name,
+        mimeType: 'application/pdf',
+        buffer: readFileSync(proposalFile),
+    };
+}
+
+function defenseRevisionLog(scope: Page | Locator): Locator {
+    return scope
+        .getByRole('region', { name: /^Log revisi / })
+        .filter({ hasText: 'Putaran 1' });
+}
+
+function revisionRound(log: Locator, roundNo: number): Locator {
+    return log
+        .getByRole('heading', { name: `Putaran ${roundNo}`, exact: true })
+        .locator('xpath=../..');
+}
+
+async function expectTwoRoundRevisionLog(
+    log: Locator,
+    expected: {
+        examiner: string;
+        location: string;
+        description: string;
+        roundOneResponse: string;
+        rejection: string;
+        roundTwoResponses: string[];
+        extraItem: string;
+        annotations: [string, string];
+        manuscript: string;
+    },
+): Promise<void> {
+    await expect(log).toBeVisible();
+    // Grouped per examiner: only the examiner who requested revisions has a group.
+    await expect(log.getByRole('heading', { level: 4 })).toHaveCount(1);
+    await expect(
+        log.getByRole('heading', { level: 4, name: expected.examiner }),
+    ).toBeVisible();
+
+    const roundOne = revisionRound(log, 1);
+    await expect(roundOne).toContainText(expected.location);
+    await expect(roundOne).toContainText(expected.description);
+    // The round-one response and rejection survive the round-two edits.
+    await expect(roundOne).toContainText(expected.roundOneResponse);
+    await expect(roundOne).toContainText(expected.rejection);
+    await expect(roundOne).not.toContainText(expected.extraItem);
+    for (const response of expected.roundTwoResponses) {
+        await expect(roundOne).not.toContainText(response);
+    }
+    await expect(
+        roundOne.getByRole('link', {
+            name: `Naskah beranotasi: ${expected.annotations[0]}`,
+        }),
+    ).toHaveAttribute(
+        'href',
+        /\/files\/thesis-documents\/\d+\/download\?inline=1$/,
+    );
+    await expect(
+        roundOne.getByRole('link', {
+            name: `Naskah beranotasi: ${expected.annotations[1]}`,
+        }),
+    ).toHaveCount(0);
+    await expect(
+        roundOne.getByRole('link', {
+            name: `Naskah perbaikan: ${expected.manuscript}`,
+        }),
+    ).toHaveAttribute(
+        'href',
+        /\/files\/thesis-documents\/\d+\/download\?inline=1$/,
+    );
+
+    const roundTwo = revisionRound(log, 2);
+    await expect(roundTwo).toContainText(expected.description);
+    await expect(roundTwo).toContainText(expected.extraItem);
+    for (const response of expected.roundTwoResponses) {
+        await expect(roundTwo).toContainText(response);
+    }
+    await expect(
+        roundTwo.getByRole('link', {
+            name: `Naskah beranotasi: ${expected.annotations[1]}`,
+        }),
+    ).toHaveAttribute(
+        'href',
+        /\/files\/thesis-documents\/\d+\/download\?inline=1$/,
+    );
+    await expect(
+        roundTwo.getByRole('link', {
+            name: `Naskah beranotasi: ${expected.annotations[0]}`,
+        }),
+    ).toHaveCount(0);
+    await expect(
+        roundTwo.getByRole('link', {
+            name: `Naskah perbaikan: ${expected.manuscript}`,
+        }),
+    ).toHaveAttribute(
+        'href',
+        /\/files\/thesis-documents\/\d+\/download\?inline=1$/,
+    );
+    for (const round of [roundOne, roundTwo]) {
+        for (const label of ['Naskah beranotasi:', 'Naskah perbaikan:']) {
+            const href = await round
+                .getByRole('link', { name: new RegExp(`^${label}`) })
+                .getAttribute('href');
+            expect(href).not.toBeNull();
+            const document = await log.page().request.get(href!);
+            expect(document.status()).toBe(200);
+            expect(document.headers()['content-type']).toContain(
+                'application/pdf',
+            );
+            expect(await document.body()).toEqual(readFileSync(proposalFile));
+        }
+    }
+}
+
 async function submitRecoveryDecision(
     page: Page,
     decision: 'Lulus' | 'Lulus dengan Syarat' | 'Tidak Lulus',
     notes: string,
     score?: string,
-    revision?: { location: string; description: string },
+    revision?: {
+        location: string;
+        description: string;
+        annotationName?: string;
+    },
 ): Promise<void> {
     await page
         .getByRole('button', { name: 'Input Keputusan Saya', exact: true })
@@ -447,6 +571,11 @@ async function submitRecoveryDecision(
         await page
             .getByRole('textbox', { name: 'Uraian', exact: true })
             .fill(revision.description);
+    }
+    if (revision?.annotationName !== undefined) {
+        await page
+            .getByLabel(/naskah beranotasi/i)
+            .setInputFiles(annotationUpload(revision.annotationName));
     }
     await Promise.all([
         page.waitForResponse(
@@ -509,6 +638,30 @@ test.describe('conditional Sidang recovery', () => {
         };
         const rejection = 'Batas generalisasi hasil belum dijelaskan.';
         const extraItem = 'Tambahkan evaluasi pada dataset pembanding.';
+        const roundOneResponse = 'Keterbatasan dataset sudah ditambahkan.';
+        const roundTwoResponses = [
+            'Batas generalisasi diperjelas untuk setiap kelompok data.',
+            'Evaluasi dataset pembanding dan hasilnya sudah ditambahkan.',
+        ];
+        const annotations: [string, string] = [
+            'anotasi-sidang-putaran-1.pdf',
+            'anotasi-sidang-putaran-2.pdf',
+        ];
+        const fajarName = 'Dr. Fajar Nugraha, M.Kom.';
+        const kaprodiContext = await browser.newContext({
+            storageState: authStatePath('kaprodi'),
+        });
+        const expectedLog = {
+            examiner: fajarName,
+            location: revision.location,
+            description: revision.description,
+            roundOneResponse,
+            rejection,
+            roundTwoResponses,
+            extraItem,
+            annotations,
+            manuscript: path.basename(proposalFile),
+        };
 
         try {
             await test.step('The complete panel grades and admin records the conditional result through its real workflow', async () => {
@@ -546,7 +699,7 @@ test.describe('conditional Sidang recovery', () => {
                     'Lulus dengan Syarat',
                     'Lengkapi pembahasan sebelum kelulusan.',
                     '78',
-                    revision,
+                    { ...revision, annotationName: annotations[0] },
                 );
                 await openAdminProject(admin, goldenPathStudent.name);
                 const modal = await openWorkflowAction(
@@ -612,6 +765,9 @@ test.describe('conditional Sidang recovery', () => {
                 await fajar
                     .getByRole('textbox', { name: 'Uraian', exact: true })
                     .fill(extraItem);
+                await fajar
+                    .getByLabel(/naskah beranotasi putaran berikutnya/i)
+                    .setInputFiles(annotationUpload(annotations[1]));
                 await fajar
                     .getByRole('button', {
                         name: 'Simpan dan buka putaran berikutnya',
@@ -706,12 +862,10 @@ test.describe('conditional Sidang recovery', () => {
                     .getByRole('row')
                     .filter({ hasText: 'Sidang Skripsi #1' })
                     .click();
-                await expect(
-                    student.getByText('Putaran 1', { exact: true }).first(),
-                ).toBeVisible();
-                await expect(
-                    student.getByText('Putaran 2', { exact: true }).first(),
-                ).toBeVisible();
+                await expectTwoRoundRevisionLog(
+                    defenseRevisionLog(student),
+                    expectedLog,
+                );
                 await attachStageScreenshot(
                     testInfo,
                     student,
@@ -727,6 +881,48 @@ test.describe('conditional Sidang recovery', () => {
                         .getByText('Selesai', { exact: true })
                         .first(),
                 ).toBeVisible();
+                await admin
+                    .getByRole('tab', { name: 'Ujian', exact: true })
+                    .click();
+                await expectTwoRoundRevisionLog(
+                    defenseRevisionLog(admin),
+                    expectedLog,
+                );
+                await attachStageScreenshot(
+                    testInfo,
+                    admin,
+                    'recovery-sidang-log-revisi-admin-dua-putaran',
+                );
+                await openRecoveryDefense(
+                    fajar,
+                    goldenPathStudent.name,
+                    'Sidang Akhir',
+                    1,
+                );
+                await expectTwoRoundRevisionLog(
+                    defenseRevisionLog(fajar.getByRole('dialog')),
+                    expectedLog,
+                );
+                const kaprodi = await kaprodiContext.newPage();
+                await kaprodi.goto('/kaprodi/sempro-sidang');
+                await kaprodi
+                    .getByPlaceholder('Cari nama, NIM, judul, atau dosen...')
+                    .fill(goldenPathStudent.name);
+                await kaprodi
+                    .getByRole('row')
+                    .filter({ hasText: goldenPathStudent.name })
+                    .filter({ hasText: /Sidang/ })
+                    .getByRole('button', { name: goldenPathStudent.name })
+                    .click();
+                await expectTwoRoundRevisionLog(
+                    defenseRevisionLog(kaprodi.getByRole('dialog')),
+                    expectedLog,
+                );
+                await attachStageScreenshot(
+                    testInfo,
+                    kaprodi,
+                    'recovery-sidang-log-revisi-kaprodi-dua-putaran',
+                );
                 await publicPage.reload();
                 const row = publicPage
                     .getByRole('row')
@@ -742,7 +938,7 @@ test.describe('conditional Sidang recovery', () => {
                 );
             });
         } finally {
-            await publicContext.close();
+            await Promise.all([publicContext.close(), kaprodiContext.close()]);
         }
     });
 });

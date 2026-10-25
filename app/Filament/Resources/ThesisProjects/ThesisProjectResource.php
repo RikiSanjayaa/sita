@@ -10,6 +10,7 @@ use App\Filament\Resources\ThesisProjects\Schemas\ThesisProjectInfolist;
 use App\Filament\Resources\ThesisProjects\Tables\ThesisProjectsTable;
 use App\Models\ThesisProject;
 use App\Support\AcademicTerminology;
+use App\Support\DefenseRevisionLog;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -86,8 +87,7 @@ class ThesisProjectResource extends Resource
                     ->with([
                         'titleVersion',
                         'examiners.lecturer.dosenProfile',
-                        'revisions.requestedBy',
-                        'revisions.resolvedBy',
+                        ...DefenseRevisionLog::RELATIONS,
                     ])
                     ->orderBy('type')
                     ->orderBy('attempt_no'),

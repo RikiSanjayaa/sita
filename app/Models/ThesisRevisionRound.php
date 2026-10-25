@@ -24,6 +24,7 @@ class ThesisRevisionRound extends Model
         'student_submitted_at',
         'student_document_id',
         'reviewed_at',
+        'item_snapshot',
         'status',
     ];
 
@@ -34,6 +35,7 @@ class ThesisRevisionRound extends Model
             'opened_at' => 'datetime',
             'student_submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'item_snapshot' => 'array',
         ];
     }
 

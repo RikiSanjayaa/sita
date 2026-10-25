@@ -208,6 +208,7 @@ class ThesisRevisionRoundService
             $round->forceFill([
                 'status' => ThesisRevisionRound::STATUS_CLOSED,
                 'reviewed_at' => $now,
+                'item_snapshot' => $this->snapshotItems($revision, $round->round_no),
             ])->save();
 
             $next = $revision->rounds()->create([
@@ -255,16 +256,32 @@ class ThesisRevisionRoundService
                     'updated_at' => $now,
                 ]);
 
-            $revision->rounds()
-                ->where('status', '!=', ThesisRevisionRound::STATUS_CLOSED)
-                ->update([
+            foreach ($revision->rounds()->where('status', '!=', ThesisRevisionRound::STATUS_CLOSED)->get() as $round) {
+                $round->forceFill([
                     'status' => ThesisRevisionRound::STATUS_CLOSED,
                     'reviewed_at' => $now,
-                    'updated_at' => $now,
-                ]);
+                    'item_snapshot' => $this->snapshotItems($revision, $round->round_no),
+                ])->save();
+            }
 
             $this->syncStatus($revision);
         });
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function snapshotItems(ThesisRevision $revision, int $roundNo): array
+    {
+        return $revision->items()->where('round_opened', '<=', $roundNo)
+            ->with('verifiedBy')
+            ->get([
+                'id', 'location', 'description', 'priority', 'status', 'round_opened',
+                'student_response', 'student_response_location', 'verification_comment',
+                'verified_at', 'verified_by_user_id',
+            ])
+            ->map(fn (ThesisRevisionItem $item): array => [
+                ...$item->attributesToArray(),
+                'verified_by_name' => $item->verifiedBy?->name,
+            ])->all();
     }
 
     /**

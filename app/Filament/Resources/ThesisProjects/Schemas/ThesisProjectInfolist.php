@@ -13,11 +13,13 @@ use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Support\AcademicTerminology;
+use App\Support\DefenseRevisionLog;
 use App\Support\Filament\BadgeStyles;
 use App\Support\WitaDateTime;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -129,10 +131,12 @@ class ThesisProjectInfolist
                                 Section::make(fn(ThesisProject $record): string => 'Riwayat '.AcademicTerminology::forProject($record)['proposalExamShort'])
                                     ->schema([
                                         self::defenseEntry('sempro'),
+                                        self::revisionLogEntry('sempro'),
                                     ]),
                                 Section::make(fn(ThesisProject $record): string => 'Riwayat '.AcademicTerminology::forProject($record)['finalExam'])
                                     ->schema([
                                         self::defenseEntry('sidang'),
+                                        self::revisionLogEntry('sidang'),
                                     ]),
                             ]),
                         Tab::make('Dokumen')
@@ -281,7 +285,6 @@ class ThesisProjectInfolist
                 TableColumn::make('Lokasi'),
                 TableColumn::make('Mode'),
                 TableColumn::make('Penguji'),
-                TableColumn::make('Revisi'),
             ])
             ->schema([
                 TextEntry::make('attempt'),
@@ -297,9 +300,23 @@ class ThesisProjectInfolist
                 TextEntry::make('location'),
                 TextEntry::make('mode'),
                 TextEntry::make('examiners')->listWithLineBreaks(),
-                TextEntry::make('revisions')->listWithLineBreaks(),
             ])
             ->contained(false);
+    }
+
+    private static function revisionLogEntry(string $type): ViewEntry
+    {
+        return ViewEntry::make($type.'_revision_log')
+            ->label('Log revisi')
+            ->hiddenLabel()
+            ->default([])
+            ->state(fn (ThesisProject $record): array => $record->defenses
+                ->where('type', $type)->sortBy('attempt_no')
+                ->map(fn (ThesisDefense $defense): array => [
+                    'label' => AcademicTerminology::defenseLabel(AcademicTerminology::forProject($record), $type).' #'.$defense->attempt_no,
+                    'log' => DefenseRevisionLog::forDefense($defense),
+                ])->values()->all())
+            ->view('filament.infolists.defense-revision-log');
     }
 
     private static function thesisDocumentsEntry(): RepeatableEntry
@@ -706,15 +723,6 @@ class ThesisProjectInfolist
                         self::defenseRoleLabel($examiner->role, $examiner->order_no),
                         self::examinerDecisionLabel($examiner->decision),
                         $examiner->score !== null ? sprintf(' - Nilai %s', $examiner->score) : '',
-                    ))
-                    ->values()
-                    ->all(),
-                'revisions' => $defense->revisions
-                    ->sortByDesc(fn(ThesisRevision $revision): int => $revision->created_at?->getTimestamp() ?? 0)
-                    ->map(fn(ThesisRevision $revision): string => sprintf(
-                        '%s - %s',
-                        self::revisionStatusLabel($revision->status),
-                        $revision->notes,
                     ))
                     ->values()
                     ->all(),

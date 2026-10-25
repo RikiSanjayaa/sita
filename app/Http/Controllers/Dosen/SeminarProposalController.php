@@ -17,6 +17,7 @@ use App\Services\ThesisDefenseRevisionService;
 use App\Services\ThesisProjectNoteService;
 use App\Services\ThesisRevisionRoundService;
 use App\Support\AcademicTerminology;
+use App\Support\DefenseRevisionLog;
 use App\Support\ThesisRevisionPayload;
 use App\Support\WitaDateTime;
 use Illuminate\Http\RedirectResponse;
@@ -66,31 +67,11 @@ class SeminarProposalController extends Controller
                 ->values()
                 ->all() ?? [];
 
-            $revisions = $defense?->revisions
-                ?->map(fn(ThesisRevision $revision): array => [
-                    'id' => $revision->id,
-                    'notes' => $revision->notes,
-                    'status' => $revision->status,
-                    'statusLabel' => match ($revision->status) {
-                        'open' => 'Terbuka',
-                        'submitted' => 'Dikirim',
-                        'resolved' => 'Selesai',
-                        default => ucwords(str_replace('_', ' ', $revision->status)),
-                    },
-                    'dueAt' => WitaDateTime::formatOrNull($revision->due_at, 'd M Y'),
-                    'dueAtIso' => $revision->due_at?->toIso8601String(),
-                    'resolvedAt' => WitaDateTime::formatOrNull($revision->resolved_at, 'd M Y'),
-                    'resolutionNotes' => $revision->resolution_notes,
-                    'requestedBy' => $revision->requestedBy?->name ?? '-',
-                    'items' => ThesisRevisionPayload::items($revision),
-                    'annotations' => ThesisRevisionPayload::annotations($revision),
-                    'rounds' => ThesisRevisionPayload::rounds($revision),
-                    'canVerify' => $revision->requested_by_user_id === $lecturer->id
-                        && in_array($revision->status, ['open', 'submitted'], true)
-                        && ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_REVIEW,
-                ])
-                ->values()
-                ->all() ?? [];
+            $verifiableRevisionIds = $defense?->revisions
+                ?->filter(fn (ThesisRevision $revision): bool => $revision->requested_by_user_id === $lecturer->id
+                    && in_array($revision->status, ['open', 'submitted'], true)
+                    && ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_REVIEW)
+                ->pluck('id')->values()->all() ?? [];
 
             return [
                 'defenseId' => $defense?->id,
@@ -136,7 +117,8 @@ class SeminarProposalController extends Controller
                     ->map(fn (ThesisDocument $document): array => ThesisRevisionPayload::document($document))
                     ->first(),
                 'otherExaminers' => $otherExaminers,
-                'revisions' => $revisions,
+                'revisionLog' => DefenseRevisionLog::forDefense($defense),
+                'verifiableRevisionIds' => $verifiableRevisionIds,
             ];
         })->all();
 

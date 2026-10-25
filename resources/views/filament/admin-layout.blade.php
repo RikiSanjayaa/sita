@@ -155,4 +155,90 @@
             background-color: var(--gray-900);
         }
     }
+    .sita-revision-logs,
+    .sita-revision-log {
+        display: grid;
+        gap: 1rem;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .sita-revision-logs {
+        gap: 1.5rem;
+    }
+
+    .sita-revision-log h3,
+    .sita-revision-log h4,
+    .sita-revision-log h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .sita-revision-log h3 {
+        font-size: 1rem;
+    }
+
+    .sita-revision-group,
+    .sita-revision-item {
+        display: grid;
+        gap: 0.75rem;
+        min-width: 0;
+        border-top: 1px solid var(--gray-200);
+        padding-top: 0.75rem;
+    }
+
+    .dark .sita-revision-group,
+    .dark .sita-revision-item {
+        border-color: var(--gray-800);
+    }
+
+    .sita-revision-state {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .sita-revision-log ol {
+        display: grid;
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .sita-revision-meta {
+        color: var(--gray-600);
+        font-size: 0.75rem;
+    }
+
+    .dark .sita-revision-meta {
+        color: var(--gray-300);
+    }
+
+    .sita-revision-copy {
+        white-space: pre-line;
+    }
+
+    .sita-revision-log dt,
+    .sita-revision-log dd {
+        display: inline;
+    }
+
+    .sita-revision-log a {
+        display: inline-block;
+        min-height: 2.75rem;
+        max-width: 100%;
+        padding-block: 0.5rem;
+        color: var(--primary-600);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+    }
+
+    .dark .sita-revision-log a {
+        color: var(--primary-400);
+    }
 </style>

@@ -13,6 +13,7 @@ use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Support\AcademicTerminology;
+use App\Support\DefenseRevisionLog;
 use App\Support\WitaDateTime;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -103,8 +104,7 @@ class KaprodiPortalService
             ->with([
                 'project.student.mahasiswaProfile',
                 'project.latestTitle',
-                'examiners.lecturer',
-                'revisions',
+                ...DefenseRevisionLog::RELATIONS,
             ])
             ->latest('scheduled_for')
             ->get();
@@ -159,6 +159,7 @@ class KaprodiPortalService
                     ->values()
                     ->all(),
                 'revisionCount' => $defense->revisions->count(),
+                'revisionLog' => DefenseRevisionLog::forDefense($defense),
                 'studentProfileUrl' => route('users.profile.show', ['user' => $defense->project?->student_user_id]),
             ])->values()->all(),
             'schedulableProjects' => $this->schedulableProjects($programStudi)->values()->all(),
