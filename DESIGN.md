@@ -657,6 +657,13 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
 - **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
 
+#### Mahasiswa dashboard (#134, #137)
+
+- Reuse the approved snapshot strip and neutral action variants for one student's existing payload. Status is a readable text value, not a fabricated counter; active advisors, upcoming agenda entries and unread messages use the server's existing counts, including zeroes. Status text uses a smaller value size so the complete workflow label fits.
+- Keep one PageHeader h1. The main action opens the student's academic record or title submission; scheduling and upload remain compact contextual cards with their original eligibility. Unavailable actions show their prerequisite and a disabled control. Messages stay reachable through a compact link even before a thread exists, rather than another sidebar shortcut card. Never infer an all-clear state from unavailable prerequisites.
+- The agenda is an unboxed linked timeline beside actions from xl. Its dates and scope are the existing payload's, not a seven-day promise. Progress keeps the academic title, start date, percentage and timeline in one divided surface; advisors use one divided list of profile rows. No additional student or examiner data is queried.
+- Below md, actual DOM and focus order is actions, 2x2 summary, agenda, progress and advisors. Same-document summary anchors jump to agenda/advisors; application navigation uses Inertia. Preserve the shared desktop notice and compact phone table behavior outside the page. Dashboard controls keep 44px targets without a separate mobile redesign.
+
 ### Detector guard (Impeccable)
 
 The `design-detector` Playwright spec runs `impeccable detect` against the key pages of every role at 1280px and 390px and reports findings per page. It is advisory until an area is listed in `BLOCKING_AREAS` in `tests/e2e/specs/design-detector.spec.ts`; once an area has been overhauled it is added there and its findings fail the build.
