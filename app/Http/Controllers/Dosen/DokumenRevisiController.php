@@ -66,7 +66,6 @@ class DokumenRevisiController extends Controller
 
         return Inertia::render('dosen/dokumen-revisi', [
             'documentQueue' => $documentQueue,
-            'flashMessage' => $request->session()->get('success'),
         ]);
     }
 

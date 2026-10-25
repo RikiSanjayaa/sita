@@ -1047,11 +1047,23 @@ test('kaprodi can update own prodi lecturer supervision quota safely', function 
     ]);
 
     $this->actingAs($kaprodi)
+        ->from(route('kaprodi.dosen-prodi'))
         ->patch("/kaprodi/dosen-prodi/{$lecturer->id}/quota", [
             'supervision_quota' => 20,
         ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+        ->assertRedirect(route('kaprodi.dosen-prodi'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Kuota bimbingan dosen berhasil diperbarui.');
+
+    $this->get(route('kaprodi.dosen-prodi'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('kaprodi/dosen-prodi')
+            ->where('flash.id', fn ($id): bool => is_string($id) && $id !== '')
+            ->where('flash.success', 'Kuota bimbingan dosen berhasil diperbarui.')
+            ->where('flash.error', null)
+            ->missing('flashMessage')
+            ->missing('errorMessage'));
 
     expect($lecturer->dosenProfile?->refresh()->supervision_quota)->toBe(20);
 

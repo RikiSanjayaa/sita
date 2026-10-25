@@ -28,7 +28,6 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -104,7 +103,6 @@ type JadwalBimbinganProps = {
     historySchedules: HistorySchedule[];
     supervisedStudents: SupervisedStudent[];
     workspaceEvents: BimbinganEvent[];
-    flashMessage?: string | null;
 };
 
 type DecisionFormState = {
@@ -189,7 +187,6 @@ export default function DosenJadwalBimbinganPage() {
         upcomingSchedules,
         historySchedules,
         supervisedStudents,
-        flashMessage,
         workspaceEvents,
         auth,
         academicTerminology: n,
@@ -631,13 +628,6 @@ export default function DosenJadwalBimbinganPage() {
                         </Button>
                     }
                 />
-
-                {flashMessage && (
-                    <Alert>
-                        <AlertTitle>Berhasil</AlertTitle>
-                        <AlertDescription>{flashMessage}</AlertDescription>
-                    </Alert>
-                )}
 
                 <CollapsibleCalendarSection
                     storageKey="dosen-jadwal-bimbingan"

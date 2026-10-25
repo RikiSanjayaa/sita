@@ -1,14 +1,26 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
+    ArrowUpRight,
     CalendarClock,
     CheckCircle2,
     ClipboardCheck,
     FileArchive,
+    FileClock,
     GraduationCap,
+    Presentation,
+    UserRoundX,
+    UserSearch,
+    UserX,
+    Users,
     UsersRound,
+    type LucideIcon,
 } from 'lucide-react';
 
+import dosenDashboard from '@/actions/App/Http/Controllers/Dosen/DashboardController';
+import dashboard from '@/actions/App/Http/Controllers/Kaprodi/DashboardController';
+import studentsIndex from '@/actions/App/Http/Controllers/Kaprodi/MahasiswaController';
+import exams from '@/actions/App/Http/Controllers/Kaprodi/SemproSidangController';
 import {
     ActionQueue,
     ActionQueueItem,
@@ -17,6 +29,7 @@ import { DataSection } from '@/components/patterns/data-section';
 import { EmptyState } from '@/components/patterns/empty-state';
 import { PageHeader } from '@/components/patterns/page-header';
 import { SectionCard } from '@/components/patterns/section-card';
+import { StatCard } from '@/components/patterns/stat-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StudentIdentity } from '@/components/patterns/student-cells';
 import {
@@ -25,6 +38,7 @@ import {
 } from '@/components/profile/student-progress-peek';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { toneClassName, type StatusTone } from '@/lib/status-styles';
@@ -32,7 +46,7 @@ import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/kaprodi/dashboard' },
+    { title: 'Dashboard', href: dashboard.url() },
 ];
 
 type ProgramStudi = {
@@ -58,6 +72,9 @@ type AgendaItem = {
     title: string;
     subtitle: string;
     date: string;
+    dayLabel: string;
+    time: string;
+    isToday: boolean;
 };
 
 type AttentionStudent = {
@@ -98,7 +115,14 @@ type DashboardProps = {
     actionItems: ActionItem[];
     upcomingAgenda: AgendaItem[];
     attentionStudents: { total: number; students: AttentionStudent[] };
-    stats: { students: number; archives: number };
+    stats: {
+        students: number;
+        archives: number;
+        activeStudents: number;
+        withoutSupervisors: number;
+        upcomingExams: number;
+        expiredMentorship: number;
+    };
     recentArchives: ArchiveItem[];
     phaseDistribution: DistributionItem[];
     defenseProgress: DefenseProgressItem[];
@@ -122,6 +146,17 @@ const riskLabel = {
     low: 'Terkendali',
 } as const;
 
+const actionIcons: Record<string, LucideIcon> = {
+    'awaiting-finalization': ClipboardCheck,
+    'mentorship-lapsed': FileClock,
+    'without-supervisor': UserSearch,
+    'schedule-sidang': Presentation,
+    'schedule-sempro': CalendarClock,
+    inactive: UserX,
+    'mentorship-minimum': GraduationCap,
+    'over-quota': Users,
+};
+
 export default function KaprodiDashboardPage() {
     const {
         programStudi,
@@ -134,6 +169,227 @@ export default function KaprodiDashboardPage() {
         defenseProgress,
     } = usePage<SharedData & DashboardProps>().props;
     const terms = neutralAcademicTerminology;
+    const isMobile = useIsMobile();
+    const summaryTiles = [
+        {
+            title: 'Mahasiswa prodi aktif',
+            value: String(stats.activeStudents),
+            description: 'Mahasiswa terdaftar dengan status aktif',
+            href: studentsIndex.url(),
+            icon: Users,
+            tone: 'success' as const,
+        },
+        {
+            title: 'Tanpa pembimbing',
+            value: String(stats.withoutSupervisors),
+            description: `Sudah melewati ${terms.proposalPhase.toLowerCase()}`,
+            href: studentsIndex.url({
+                query: { activeFocus: 'tanpa_pembimbing' },
+            }),
+            icon: UserRoundX,
+            tone: 'warning' as const,
+        },
+        {
+            title: 'Ujian 7 hari ke depan',
+            value: String(stats.upcomingExams),
+            description: 'Terjadwal mulai hari ini',
+            href: exams.url(),
+            icon: Presentation,
+            tone: 'primary' as const,
+        },
+        {
+            title: 'Masa aktif bimbingan habis',
+            value: String(stats.expiredMentorship),
+            description: 'Menunggu perpanjangan masa aktif',
+            href: studentsIndex.url({ query: { activeFocus: 'masa_habis' } }),
+            icon: FileClock,
+            tone: 'danger' as const,
+        },
+    ];
+    const agendaDays: {
+        label: string;
+        isToday: boolean;
+        events: AgendaItem[];
+    }[] = [];
+    for (const event of upcomingAgenda) {
+        const previous = agendaDays.at(-1);
+        if (previous?.label === event.dayLabel) {
+            previous.events.push(event);
+        } else {
+            agendaDays.push({
+                label: event.dayLabel,
+                isToday: event.isToday,
+                events: [event],
+            });
+        }
+    }
+
+    const summarySection = (
+        <nav
+            aria-label="Ringkasan prodi"
+            className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card lg:grid-cols-4"
+        >
+            <PageHeader level={2} title="Ringkasan prodi" className="sr-only" />
+            {summaryTiles.map((tile, index) => (
+                <Link
+                    key={tile.title}
+                    href={tile.href}
+                    className={cn(
+                        'group relative min-w-0 border-b transition-colors hover:bg-muted focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset lg:border-b-0',
+                        index % 2 === 0 && 'border-r',
+                        index === 1 && 'lg:border-r',
+                        index > 1 && 'max-lg:border-b-0',
+                    )}
+                >
+                    <StatCard
+                        {...tile}
+                        variant="snapshot"
+                        className="rounded-none border-0 bg-transparent shadow-none"
+                    />
+                </Link>
+            ))}
+        </nav>
+    );
+
+    const actionSection = (
+        <section
+            aria-label="Perlu tindakan"
+            className="grid min-w-0 content-start gap-4"
+        >
+            <PageHeader
+                level={2}
+                title="Perlu tindakan"
+                description={
+                    actionItems.length > 0
+                        ? 'Urut dari yang paling mendesak. Setiap tombol membuka daftar yang sudah difilter.'
+                        : undefined
+                }
+            />
+            {actionItems.length > 0 ? (
+                <ActionQueue label="Perlu tindakan" layout="bento">
+                    {actionItems.map((item, index) => (
+                        <ActionQueueItem
+                            key={item.id}
+                            variant={index === 0 ? 'featured' : 'card'}
+                            icon={actionIcons[item.id] ?? AlertCircle}
+                            tone={item.tone}
+                            count={item.value}
+                            title={item.label}
+                            description={
+                                index === 0 ? item.description : undefined
+                            }
+                            className={
+                                index === 0 ? 'md:col-span-2' : undefined
+                            }
+                            meta={
+                                index === 0 && item.names.length > 0 ? (
+                                    <p className="text-xs leading-relaxed text-pretty text-muted-foreground">
+                                        <span className="font-medium text-foreground">
+                                            Terkait:{' '}
+                                        </span>
+                                        {item.names[0]}
+                                    </p>
+                                ) : undefined
+                            }
+                            action={
+                                <Button
+                                    asChild
+                                    variant={index === 0 ? 'default' : 'ghost'}
+                                    size="sm"
+                                    className={cn(
+                                        'min-h-11 gap-2',
+                                        index > 0 &&
+                                            'px-0 text-xs text-primary hover:bg-primary-muted hover:text-primary-muted-foreground',
+                                    )}
+                                >
+                                    <Link href={item.href}>
+                                        {item.actionLabel}
+                                        <ArrowUpRight
+                                            className="size-4 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                    </Link>
+                                </Button>
+                            }
+                        />
+                    ))}
+                </ActionQueue>
+            ) : (
+                <EmptyState
+                    icon={CheckCircle2}
+                    title="Semua beres"
+                    description="Tidak ada yang perlu ditindaklanjuti saat ini."
+                    className="flex min-h-64 flex-col justify-center border-solid border-primary/20 bg-primary-muted [&>p]:text-primary-muted-foreground"
+                />
+            )}
+        </section>
+    );
+
+    const agendaSection = (
+        <section
+            aria-label="Hari ini & 7 hari ke depan"
+            className="grid min-w-0 content-start gap-5 self-start"
+        >
+            <PageHeader
+                level={2}
+                title="Hari ini & 7 hari ke depan"
+                description="Jadwal ujian dan tenggat revisi minggu ini, dalam WITA."
+            />
+            {agendaDays.length > 0 ? (
+                <div className="grid gap-6">
+                    {agendaDays.map((day) => (
+                        <section
+                            key={day.events[0].id}
+                            aria-label={day.label}
+                            className="grid gap-3"
+                        >
+                            <h3
+                                className={cn(
+                                    'text-sm font-semibold',
+                                    day.isToday && 'text-primary',
+                                )}
+                            >
+                                {day.label}
+                            </h3>
+                            <ul className="grid gap-2 border-l border-primary/25 pl-4">
+                                {day.events.map((event) => (
+                                    <li key={event.id} className="relative">
+                                        <span
+                                            aria-hidden="true"
+                                            className="absolute top-5 -left-5 size-2 rounded-full border border-primary bg-card"
+                                        />
+                                        <div className="flex min-h-11 gap-3 px-2 py-3">
+                                            <span className="w-12 shrink-0 text-lg leading-tight font-semibold text-primary tabular-nums">
+                                                {event.time}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-medium text-foreground">
+                                                    {event.badge}
+                                                </p>
+                                                <p className="mt-1 text-sm font-medium text-pretty">
+                                                    {event.title}
+                                                </p>
+                                                <p className="mt-1 text-sm text-pretty text-muted-foreground">
+                                                    {event.subtitle}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    ))}
+                </div>
+            ) : (
+                <EmptyState
+                    icon={CalendarClock}
+                    title="Tidak ada agenda minggu ini"
+                    description="Jadwal ujian akan tampil di sini."
+                    className="rounded-none border-0 bg-transparent px-0"
+                />
+            )}
+        </section>
+    );
 
     return (
         <KaprodiLayout
@@ -143,17 +399,14 @@ export default function KaprodiDashboardPage() {
         >
             <Head title="Dashboard Kaprodi" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
                 <PageHeader
-                    title="Dashboard Kaprodi"
+                    title="Dashboard kaprodi"
                     description={`Yang perlu ditindaklanjuti di program studi ${programStudi.name}.`}
+                    className="[&_h1]:text-3xl [&_h1]:leading-tight"
                     actions={
-                        <Button
-                            variant="outline"
-                            asChild
-                            className="max-md:h-11"
-                        >
-                            <Link href="/dosen/dashboard">
+                        <Button variant="outline" asChild className="min-h-11">
+                            <Link href={dosenDashboard.url()}>
                                 <GraduationCap aria-hidden="true" />
                                 Bimbingan Saya
                             </Link>
@@ -161,162 +414,90 @@ export default function KaprodiDashboardPage() {
                     }
                 />
 
-                <DataSection
-                    title="Perlu Tindakan"
-                    description="Urut dari yang paling mendesak. Setiap item membuka daftar yang sudah difilter."
-                >
-                    {actionItems.length > 0 ? (
-                        <ActionQueue label="Perlu tindakan">
-                            {actionItems.map((item) => {
-                                const more = item.value - item.names.length;
-
-                                return (
-                                    <ActionQueueItem
-                                        key={item.id}
-                                        icon={AlertCircle}
-                                        title={item.label}
-                                        meta={
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    'rounded-full border-transparent tabular-nums',
-                                                    toneClassName(item.tone),
-                                                )}
-                                            >
-                                                {item.value}
-                                            </Badge>
-                                        }
-                                        description={
-                                            <>
-                                                {item.description}
-                                                <span className="mt-0.5 block text-xs text-pretty">
-                                                    {item.names.join(', ')}
-                                                    {more > 0
-                                                        ? `, +${more} lainnya`
-                                                        : ''}
-                                                </span>
-                                            </>
-                                        }
-                                        action={
-                                            <Button
-                                                size="sm"
-                                                asChild
-                                                className="max-md:h-11 max-md:w-full"
-                                            >
-                                                <Link href={item.href}>
-                                                    {item.actionLabel}
-                                                </Link>
-                                            </Button>
-                                        }
-                                    />
-                                );
-                            })}
-                        </ActionQueue>
-                    ) : (
-                        <EmptyState
-                            icon={CheckCircle2}
-                            title="Semua beres"
-                            description="Tidak ada yang perlu ditindaklanjuti saat ini."
-                        />
-                    )}
-                </DataSection>
-
-                <SectionCard
-                    title="Hari Ini & 7 Hari ke Depan"
-                    description="Jadwal ujian dan tenggat revisi minggu ini."
-                    contentClassName={
-                        upcomingAgenda.length > 0 ? listContentClass : undefined
-                    }
-                >
-                    {upcomingAgenda.length > 0 ? (
-                        <ul className="divide-y border-y">
-                            {upcomingAgenda.map((agenda) => (
-                                <li key={agenda.id} className={rowClass}>
-                                    <span className={iconChipClass}>
-                                        <CalendarClock
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="text-sm font-medium">
-                                                {agenda.title}
-                                            </p>
-                                            <Badge variant="outline">
-                                                {agenda.badge}
-                                            </Badge>
-                                        </div>
-                                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                                            {agenda.subtitle}
-                                        </p>
-                                        <p className="mt-0.5 text-xs font-medium sm:hidden">
-                                            {agenda.date}
-                                        </p>
-                                    </div>
-                                    <p className="hidden text-right text-xs font-medium sm:block">
-                                        {agenda.date}
-                                    </p>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <EmptyState
-                            icon={CalendarClock}
-                            title="Tidak ada agenda minggu ini"
-                            description="Jadwal ujian akan tampil di sini."
-                            className="rounded-none border-0 bg-transparent"
-                        />
-                    )}
-                </SectionCard>
+                {isMobile ? (
+                    <>
+                        {actionSection}
+                        {summarySection}
+                        {agendaSection}
+                    </>
+                ) : (
+                    <>
+                        {summarySection}
+                        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                            {actionSection}
+                            {agendaSection}
+                        </div>
+                    </>
+                )}
 
                 <DataSection
-                    title="Progres Mahasiswa"
+                    title="Progres mahasiswa"
                     description="Mahasiswa yang paling perlu dipantau lebih dulu."
                 >
                     {attentionStudents.students.length > 0 ? (
                         <div className="space-y-4">
                             <ul
                                 aria-label="Mahasiswa yang perlu dipantau"
-                                className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+                                className="grid overflow-hidden rounded-xl border bg-card md:grid-cols-2"
                             >
-                                {attentionStudents.students.map((student) => (
-                                    <li
-                                        key={student.id}
-                                        className="flex flex-col gap-3 rounded-lg border bg-card p-4"
-                                    >
-                                        <div className="flex items-start justify-between gap-2 text-sm">
-                                            <StudentIdentity
-                                                name={student.name}
-                                                nim={student.nim}
-                                                avatar={student.avatar}
-                                                profileUrl={student.profileUrl}
-                                            />
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    'shrink-0 rounded-full border-transparent',
-                                                    toneClassName(
-                                                        riskTone[student.level],
+                                {attentionStudents.students.map(
+                                    (student, index) => (
+                                        <li
+                                            key={student.id}
+                                            className={cn(
+                                                'flex min-w-0 flex-col gap-3 border-b p-4 last:border-b-0 [&_a]:min-h-11',
+                                                index % 2 === 0 &&
+                                                    'md:border-r',
+                                                index >=
+                                                    attentionStudents.students
+                                                        .length -
+                                                        (attentionStudents
+                                                            .students.length %
+                                                            2 || 2) &&
+                                                    'md:border-b-0',
+                                            )}
+                                        >
+                                            <div className="flex items-start justify-between gap-2 text-sm">
+                                                <StudentIdentity
+                                                    name={student.name}
+                                                    nim={student.nim}
+                                                    avatar={student.avatar}
+                                                    profileUrl={
+                                                        student.profileUrl
+                                                    }
+                                                />
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        'shrink-0 rounded-full border-transparent',
+                                                        toneClassName(
+                                                            riskTone[
+                                                                student.level
+                                                            ],
+                                                        ),
+                                                    )}
+                                                >
+                                                    {riskLabel[student.level]}
+                                                </Badge>
+                                            </div>
+                                            <ul className="list-disc space-y-0.5 pl-5 text-sm text-pretty">
+                                                {student.problems.map(
+                                                    (problem) => (
+                                                        <li key={problem}>
+                                                            {problem}
+                                                        </li>
                                                     ),
                                                 )}
-                                            >
-                                                {riskLabel[student.level]}
-                                            </Badge>
-                                        </div>
-                                        <ul className="list-disc space-y-0.5 pl-5 text-sm text-pretty">
-                                            {student.problems.map((problem) => (
-                                                <li key={problem}>{problem}</li>
-                                            ))}
-                                        </ul>
-                                        {student.progress ? (
-                                            <StudentProgressPeek
-                                                progress={student.progress}
-                                                className="border-t pt-3"
-                                            />
-                                        ) : null}
-                                    </li>
-                                ))}
+                                            </ul>
+                                            {student.progress ? (
+                                                <StudentProgressPeek
+                                                    progress={student.progress}
+                                                    className="border-t pt-3"
+                                                />
+                                            ) : null}
+                                        </li>
+                                    ),
+                                )}
                             </ul>
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <p className="text-sm text-pretty text-muted-foreground">
@@ -329,9 +510,9 @@ export default function KaprodiDashboardPage() {
                                     variant="outline"
                                     size="sm"
                                     asChild
-                                    className="max-md:h-11"
+                                    className="min-h-11"
                                 >
-                                    <Link href="/kaprodi/mahasiswa">
+                                    <Link href={studentsIndex.url()}>
                                         <UsersRound aria-hidden="true" />
                                         Semua mahasiswa
                                     </Link>
@@ -349,7 +530,7 @@ export default function KaprodiDashboardPage() {
 
                 <div className="grid items-start gap-6 xl:grid-cols-3">
                     <SectionCard
-                        title="Fase Mahasiswa"
+                        title="Fase mahasiswa"
                         description={`${stats.students} mahasiswa terdaftar di prodi.`}
                         contentClassName={listContentClass}
                     >
@@ -409,7 +590,7 @@ export default function KaprodiDashboardPage() {
                     </SectionCard>
 
                     <SectionCard
-                        title="Arsip Terbaru"
+                        title="Arsip terbaru"
                         description={`${stats.archives} ${terms.finalWorkLower} sudah selesai atau dibatalkan.`}
                         contentClassName={
                             recentArchives.length > 0

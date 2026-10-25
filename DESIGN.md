@@ -190,7 +190,7 @@ components:
 
 **Creative North Star: "The Thesis Ledger"**
 
-SiTA is a record of where each thesis stands, so the interface reads like a well-kept ledger: pale surfaces, hairline borders, one blue, and status colour that means the same thing on every page. It is calm on purpose. A student on a phone and a lecturer on a laptop both need to find the next step in a few seconds, and nothing decorative should compete with that.
+SiTA is a record of where each thesis stands, so the interface reads like a well-kept ledger: pale surfaces, hairline borders, one blue, and status colour that means the same thing on every page. It is calm on purpose. A student and a lecturer both need to find the next step in a few seconds, and nothing decorative should compete with that.
 
 The system is the shadcn/ui stack (Radix primitives, `cva` variants, Tailwind v4 tokens) with a domain layer on top: shared page patterns in `resources/js/components/patterns/` and semantic status tokens in `resources/css/app.css`. Pages compose those patterns and tokens. They do not hand-roll status colours or redeclare the patterns. The Filament admin panel at `/admin` is a separate surface that is kept visually paired with the React tokens (see Components).
 
@@ -202,7 +202,7 @@ This file records the incumbent system as it is built, plus the rules that were 
 - Semantic status roles (primary, success, warning, danger, info, muted), each defined as four tokens in both themes.
 - Tonal layering with hairline borders; a single soft shadow on cards, larger shadows only on floating layers.
 - Sentence-case Indonesian labels, 12px minimum, one sans family.
-- Phone-first for mahasiswa, laptop-first for dosen, kaprodi and admin.
+- Desktop first for every role. Mobile only has to be readable and not broken; do not polish it.
 
 ## Colors
 
@@ -315,7 +315,7 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 
 A sidebar shell for the portals and a centered content column. The sidebar is 16rem wide (18rem as a mobile sheet, 3rem collapsed to icons) and its open state is stored in the `sidebar_state` cookie. The sticky app header is 4rem high with a bottom border. Page content sits in a `max-w-7xl` (80rem) column with `gap-4` between blocks; the settings layout uses the same column with `px-4 md:px-6` gutters and a `max-w-xl` compact variant. Auth screens use a narrow card (`max-w-md` or `max-w-sm`).
 
-Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Mahasiswa pages are designed for a phone first; dosen, kaprodi and admin pages for a laptop first, without breaking the other.
+Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Every role is designed for a laptop first. Below `md` a page only has to stay readable and unbroken (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed); portal pages show the dismissible `DesktopNotice` there (width read on the client, dismissal kept in `sessionStorage`).
 
 Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns. They are a read-and-look-up surface, not a landing page: `PublicLayout` (`resources/js/components/public/`) gives a header with the page nav, a `PageHeader` h1 with description, and a footer; the page content sits directly on the page background in a `max-w-6xl` column with no outer card.
 
@@ -387,6 +387,13 @@ A fully round pill (`rounded-full`, 12px medium text, `px-2 py-0.5`) with the mu
 
 `StatCard` is a card with a 30px bold value, a muted description and a 40px `primary-muted` icon chip. `EmptyState` is a dashed `rounded-xl` frame with a 40px round `muted` icon holder, a 14px medium title and a muted description.
 
+### Action feedback and notifications
+
+- Mount one Sonner `AppToaster` at the React root for public, portal and settings pages. It follows `resolvedAppearance` and reads card, border, primary and semantic status tokens, so every colour scheme uses the same feedback pattern. Filament keeps its own notifications.
+- Redirects share `flash.success` and `flash.error` through Inertia. Success lasts 4.5 seconds; errors last 8 seconds so the user has time to read them. Each occurrence has an id: StrictMode and history navigation must not repeat it, while repeating the same action may show the same message again.
+- Use a toast for a completed action or a new realtime notification. Realtime notifications keep their icon and description, a "Buka" action that marks the item read before navigating, and a close control. Do not also show "Tersimpan" or a flash Alert for the same action.
+- Keep an `Alert` for a condition that remains relevant on the page (expired mentoring access, unavailable prerequisites, archived records). Keep field validation beside the field. Authentication statuses such as an email-verification link being sent remain in their dedicated flow.
+
 ### Data lists and tables
 
 Approved in #82 for the public list pages; tables and lists in the mahasiswa, dosen and kaprodi portals adopt the same patterns. They live in `resources/js/components/patterns/data-section.tsx`.
@@ -405,7 +412,9 @@ Decided in #85, desktop-first and clean at 390px. The five kaprodi pages (dashbo
 - **Row actions:** one primary action stays visible; the rest sit in an "Aksi lainnya" `DropdownMenu`. Mahasiswa Prodi keeps "Atur pembimbing" visible and moves profile, documents, exam schedule and lecturer notes into the menu; Sempro / Sidang keeps "Ubah jadwal"; Dokumen and Dosen Prodi keep two icon buttons. Icon-only buttons are `RowIconButton` (`components/kaprodi/row-icon-button.tsx`): ghost icon button, tooltip, `aria-label`, 44px below `md`.
 - **Filters:** one quick filter per list as `FilterPills` with counts over the whole list (phase on Mahasiswa Prodi, status on Dokumen, concentration on Dosen Prodi, type and status on Sempro / Sidang). Secondary filters (risk, angkatan, konsentrasi) are `DataSelect`s in the toolbar. These lists are paginated in the browser over the complete list, so filters and counts cover every row. A separate "Reset filter" ghost button appears only while a filter is set.
 - **Cells:** the exam table folds title and NIM under the student name, and the lecturer table folds concentration and expertise under the name. A missing value is a single muted `-`. Status and phase use `StatusBadge` through the `phase`, `defense`, `document` and `state` domains; risk uses `toneClassName`. Dosen Prodi distinguishes P1 with the primary-muted pair and P2 with the success-muted pair (#96); only these role labels are pills. Their counts, quota and exam counts stay plain tabular text.
-- **Dashboard:** the welcome panel keeps its gradient and the "Ringkasan prodi" aside. The four navigation shortcuts, phase and exam counts, attention items, agenda and archives are `SectionCard`s holding divided rows (no nested cards, no filled primary tile); count values are tabular text.
+- **Dashboard (#32, #124):** follows the approved dosen dashboard (#123), using the existing snapshot and bento variants. Desktop starts with one divided four-cell summary strip (active enrolled students, students without supervisors after the proposal stage, upcoming exams, expired mentorship); action cards and an unboxed agenda sit alongside each other from `xl`. Below `md`, actual DOM and keyboard order is actions, 2x2 summary, agenda, then progress. The heading keeps a compact Bimbingan Saya link, not a second lecturer workspace.
+- **Dashboard actions:** the first permitted nonempty action spans both columns with a neutral surface, explanation, one contextual name and a normal primary CTA. Secondary cards carry only icon, title, count and action. Name previews are limited to the leading item; counts, capability gates, prodi scope, urgency order and filtered destinations remain unchanged.
+- **Dashboard agenda and progress:** WITA day headings and primary-colored clock labels form a timeline without a SectionCard wrapper. Existing exam/revision order and limits stay intact; the exam snapshot is an independent aggregate, not a count of the truncated agenda. Progress is one divided two-column surface with the existing attention order and shared student content. Phase/exam statistics and archives remain below. All-clear uses the same quiet primary-muted treatment as dosen; the empty agenda stays flat. Active enrolled count follows the profile's active flag, not project state.
 
 ### Calendar
 

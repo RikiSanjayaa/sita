@@ -45,7 +45,6 @@ import {
     type ThesisNote,
     ThesisNotesPanel,
 } from '@/components/thesis-notes-panel';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTableContainer } from '@/components/ui/data-table';
@@ -257,8 +256,6 @@ type TugasAkhirPageProps = {
         }>;
     };
     profileProgramStudi: string;
-    flashMessage?: string | null;
-    errorMessage?: string | null;
 };
 
 type FormData = {
@@ -1591,8 +1588,6 @@ export default function TugasAkhirSaya() {
         semproResult,
         sidangResult,
         defenseHistory,
-        flashMessage,
-        errorMessage,
         academicTerminology: terms,
     } = usePage<SharedData & TugasAkhirPageProps>().props;
 
@@ -1673,15 +1668,6 @@ export default function TugasAkhirSaya() {
                     title={terms.finalWork}
                     description={`Judul, ${terms.proposalDocument.toLowerCase()}, ${terms.proposalExamShort}, dan ${terms.finalExam} Anda`}
                 />
-
-                {/* Flash / Error */}
-                {(flashMessage || errorMessage) && (
-                    <Alert variant={errorMessage ? 'destructive' : 'default'}>
-                        <AlertDescription>
-                            {errorMessage || flashMessage}
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 {/* ── Create submission ── */}
                 {canCreateSubmission && (

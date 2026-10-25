@@ -25,7 +25,6 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -102,8 +101,6 @@ type UploadedDokumenRow = {
 type UploadDokumenProps = {
     uploadedDocuments: UploadedDokumenRow[];
     archivedProject: boolean;
-    flashMessage?: string | null;
-    errorMessage?: string | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -720,21 +717,6 @@ export default function UploadDokumenPage() {
 
                 {page.props.archivedProject && (
                     <ArchivedMentorshipNotice finalWork={terms.finalWork} />
-                )}
-
-                {(page.props.flashMessage || page.props.errorMessage) && (
-                    <Alert
-                        variant={
-                            page.props.errorMessage ? 'destructive' : 'default'
-                        }
-                    >
-                        <AlertTitle>
-                            {page.props.errorMessage ? 'Error' : 'Berhasil'}
-                        </AlertTitle>
-                        <AlertDescription>
-                            {page.props.errorMessage || page.props.flashMessage}
-                        </AlertDescription>
-                    </Alert>
                 )}
 
                 <DataSection title="Panduan Upload">

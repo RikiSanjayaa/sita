@@ -9,6 +9,7 @@ use App\Services\MentorshipTicketService;
 use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -95,6 +96,13 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'flash' => [
+                'id' => fn (): ?string => $request->session()->hasAny(['success', 'error'])
+                    ? (string) Str::uuid()
+                    : null,
+                'success' => fn (): ?string => $request->session()->get('success'),
+                'error' => fn (): ?string => $request->session()->get('error'),
+            ],
             'auth' => [
                 'user' => $userPayload,
                 'activeRole' => $activeRole,
