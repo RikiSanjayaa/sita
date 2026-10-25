@@ -6,7 +6,6 @@ use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Models\MentorshipChatMessage;
-use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\ThesisDefense;
@@ -14,6 +13,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\ChatUnreadService;
 use App\Services\CompletedChatThreadService;
 use App\Services\DosenBimbinganService;
 use App\Services\PrivateChatService;
@@ -76,7 +76,7 @@ class PesanBimbinganController extends Controller
                 'participants.user.dosenProfile.programStudi',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
-                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->latest('id')->limit(30),
             ])
             ->whereIn('id', $allThreadIds)
             ->withMax('messages', 'created_at')
@@ -85,12 +85,6 @@ class PesanBimbinganController extends Controller
             ->get();
 
         $completedThreadIds = $this->completedChatThreads->completedThreadIds($threads);
-
-        $readsByThread = MentorshipChatRead::query()
-            ->where('user_id', $lecturer->id)
-            ->whereIn('mentorship_chat_thread_id', $threads->pluck('id'))
-            ->get()
-            ->keyBy('mentorship_chat_thread_id');
 
         $defensesById = ThesisDefense::query()
             ->with('project')
@@ -114,16 +108,11 @@ class PesanBimbinganController extends Controller
         );
 
         $threads = $threads
-            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $completedThreadIds, $defensesById, $lecturer, $ownReviews, $readsByThread): array {
+            ->map(function (MentorshipChatThread $thread) use ($activeStudentIds, $archivedStudentIds, $completedThreadIds, $defensesById, $lecturer, $ownReviews): array {
                 $latestMessage = $thread->latestMessage;
-                $lastReadAt = $readsByThread->get($thread->id)?->last_read_at;
                 $unreadCount = MentorshipChatMessage::query()
-                    ->where('mentorship_chat_thread_id', $thread->id)
-                    ->where('sender_user_id', '!=', $lecturer->id)
-                    ->where('message_type', '!=', 'document_event') // Do not count system events as separate unread messages
-                    ->when($lastReadAt !== null, function ($query) use ($lastReadAt) {
-                        $query->where('created_at', '>', $lastReadAt);
-                    })
+                    ->where('mentorship_chat_messages.mentorship_chat_thread_id', $thread->id)
+                    ->unreadFor($lecturer->id)
                     ->count();
 
                 $memberProfiles = $thread->type === 'pembimbing'
@@ -173,7 +162,7 @@ class PesanBimbinganController extends Controller
                         ? ($privatePartnerProfile['roleLabel'] ?? 'Pribadi')
                         : $this->threadLabel($thread, $defensesById->get($thread->context_id)?->project),
                     'messages' => $thread->messages
-                        ->sortBy('created_at')
+                        ->sortBy([['created_at', 'asc'], ['id', 'asc']])
                         ->values()
                         ->map(fn(MentorshipChatMessage $message): array => $this->payloadBuilder->build($message, $ownReviews))
                         ->all(),
@@ -203,7 +192,7 @@ class PesanBimbinganController extends Controller
         return redirect()->route('dosen.pesan', ['thread' => $thread->id, 'mode' => 'private']);
     }
 
-    public function markAsRead(Request $request, MentorshipChatThread $thread): JsonResponse
+    public function markAsRead(Request $request, MentorshipChatThread $thread, ChatUnreadService $chatUnread): JsonResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
@@ -211,17 +200,8 @@ class PesanBimbinganController extends Controller
         // Allow marking as read for bimbingan threads (by student assignment) or penguji threads (by participant)
         abort_unless($this->canAccessThread($lecturer, $thread), 403);
 
-        $lastMessageAt = $thread->messages()->max('created_at');
-
-        MentorshipChatRead::query()->updateOrCreate(
-            [
-                'mentorship_chat_thread_id' => $thread->id,
-                'user_id' => $lecturer->id,
-            ],
-            [
-                'last_read_at' => $lastMessageAt ?? now(),
-            ],
-        );
+        $data = $request->validate(['last_message_id' => ['required', 'integer']]);
+        $chatUnread->markRead($lecturer, $thread, (int) $data['last_message_id']);
 
         return response()->json(['ok' => true]);
     }

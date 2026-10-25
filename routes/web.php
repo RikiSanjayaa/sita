@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ThesisImportTemplateDownloadController;
 use App\Http\Controllers\Admin\UserImportTemplateDownloadController;
+use App\Http\Controllers\ChatUnreadController;
 use App\Http\Controllers\File\ChatAttachmentDownloadController;
 use App\Http\Controllers\File\DocumentDownloadController;
 use App\Http\Controllers\File\ThesisDocumentDownloadController;
@@ -22,6 +23,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', PortalController::class)->name('dashboard');
     Route::get('portal', PortalController::class)->name('portal');
     Route::post('role/switch', RoleSwitchController::class)->name('role.switch');
+    Route::get('chat/unread', ChatUnreadController::class)->name('chat.unread');
     Route::get('profil/{user}', ProfileShowController::class)->name('users.profile.show');
     Route::get('progres-mahasiswa', StudentProgressController::class)->name('progres-mahasiswa');
     Route::get('files/documents/{document}/download', DocumentDownloadController::class)->name('files.documents.download');

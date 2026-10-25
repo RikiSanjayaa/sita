@@ -1,6 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 
+import { markAsRead } from '@/actions/App/Http/Controllers/Mahasiswa/PesanController';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Composer } from '@/components/chat/composer';
 import { MessageList } from '@/components/chat/message-list';
@@ -130,6 +131,8 @@ function PesanPageContent({
         supportsDocumentName: (thread) => thread.threadType !== 'private',
         selectVisible,
         sendUrl: (threadId) => `/mahasiswa/pesan/${threadId}/messages`,
+        readUrl: (threadId) => markAsRead(threadId).url,
+        isChatVisible: !isMobile || mobileView === 'chat',
         onSent: () => setMobileView('chat'),
     });
     const messageSearch = useMessageSearch(chat.activeMessages);

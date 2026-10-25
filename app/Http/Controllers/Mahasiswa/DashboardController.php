@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipChatMessage;
-use App\Models\MentorshipChatRead;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\MentorshipSchedule;
@@ -167,25 +166,10 @@ class DashboardController extends Controller
             return 0;
         }
 
-        $readsByThread = MentorshipChatRead::query()
-            ->where('user_id', $studentUserId)
-            ->whereIn('mentorship_chat_thread_id', $threadIds)
-            ->get()
-            ->keyBy('mentorship_chat_thread_id');
-
-        return $threadIds->sum(function (int $threadId) use ($readsByThread, $studentUserId): int {
-            $lastReadAt = $readsByThread->get($threadId)?->last_read_at;
-
-            return MentorshipChatMessage::query()
-                ->where('mentorship_chat_thread_id', $threadId)
-                ->where('sender_user_id', '!=', $studentUserId)
-                ->where('message_type', '!=', 'document_event')
-                ->when(
-                    $lastReadAt !== null,
-                    fn($query) => $query->where('created_at', '>', $lastReadAt),
-                )
-                ->count();
-        });
+        return MentorshipChatMessage::query()
+            ->whereIn('mentorship_chat_messages.mentorship_chat_thread_id', $threadIds)
+            ->unreadFor($studentUserId)
+            ->count();
     }
 
     /**

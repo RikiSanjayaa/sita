@@ -28,6 +28,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
+import { read as markAsRead } from '@/routes/dosen/pesan';
 
 import {
     type BreadcrumbItem,
@@ -74,31 +75,20 @@ function getVisibleThreads(
     search: string,
     mode: ThreadMode,
     groupFilter: GroupThreadFilter,
-    activeThreadId: number | null,
 ): ThreadItem[] {
-    return activeFirst(sortThreads(threads))
-        .map((thread) => {
-            if (thread.id === activeThreadId) {
-                return { ...thread, unread: 0 };
-            }
+    return activeFirst(sortThreads(threads)).filter((thread) => {
+        const matchesFilter =
+            mode === 'private'
+                ? thread.threadType === 'private'
+                : thread.threadType !== 'private' &&
+                  (groupFilter === 'semua' ||
+                      thread.threadType === groupFilter);
 
-            return thread;
-        })
-        .filter((thread) => {
-            const matchesFilter =
-                mode === 'private'
-                    ? thread.threadType === 'private'
-                    : thread.threadType !== 'private' &&
-                      (groupFilter === 'semua' ||
-                          thread.threadType === groupFilter);
-
-            return (
-                matchesFilter &&
-                thread.student
-                    .toLowerCase()
-                    .includes(search.trim().toLowerCase())
-            );
-        });
+        return (
+            matchesFilter &&
+            thread.student.toLowerCase().includes(search.trim().toLowerCase())
+        );
+    });
 }
 
 function threadBadgeClassName(thread: ThreadItem): string {
@@ -154,14 +144,8 @@ function DosenPesanBimbinganContent({
     const privateThread = usePrivateThread('/dosen/pesan/private');
 
     const selectVisible = useCallback(
-        (threads: ThreadItem[], activeThreadId: number | null) =>
-            getVisibleThreads(
-                threads,
-                search,
-                threadMode,
-                groupThreadFilter,
-                activeThreadId,
-            ),
+        (threads: ThreadItem[]) =>
+            getVisibleThreads(threads, search, threadMode, groupThreadFilter),
         [groupThreadFilter, search, threadMode],
     );
 
@@ -170,7 +154,8 @@ function DosenPesanBimbinganContent({
         userId: auth.user?.id,
         selectVisible,
         sendUrl: (threadId) => `/dosen/pesan/${threadId}/messages`,
-        readUrl: (threadId) => `/dosen/pesan/${threadId}/read`,
+        readUrl: (threadId) => markAsRead(threadId).url,
+        isChatVisible: !isMobile || mobileView === 'chat',
         clearParams: clearedUrlParams,
         onDocumentEvent: () => router.reload({ only: ['threads'] }),
         onSent: () => setMobileView('chat'),
@@ -189,7 +174,6 @@ function DosenPesanBimbinganContent({
         messageSearch.reset();
         syncThreadSearchParam(threadId, clearedUrlParams);
         setMobileView('chat');
-        void chat.markThreadAsRead(threadId);
     }
 
     /** Keeps the requested thread if still listed, else moves to the first. */
@@ -207,10 +191,6 @@ function DosenPesanBimbinganContent({
         chat.setActiveThreadId(nextActiveThreadId);
         messageSearch.reset();
         syncThreadSearchParam(nextActiveThreadId, clearedUrlParams);
-
-        if (nextActiveThreadId !== null) {
-            void chat.markThreadAsRead(nextActiveThreadId);
-        }
     }
 
     function handleSearchChange(nextSearch: string) {
@@ -221,7 +201,6 @@ function DosenPesanBimbinganContent({
                 nextSearch,
                 threadMode,
                 groupThreadFilter,
-                chat.requestedThreadId,
             ),
         );
     }
@@ -236,7 +215,6 @@ function DosenPesanBimbinganContent({
                 search,
                 nextMode,
                 groupThreadFilter,
-                chat.requestedThreadId,
             ),
         );
     }
@@ -244,13 +222,7 @@ function DosenPesanBimbinganContent({
     function handleGroupThreadFilterChange(nextFilter: GroupThreadFilter) {
         setGroupThreadFilter(nextFilter);
         reconcileActiveThread(
-            getVisibleThreads(
-                chat.threadItems,
-                search,
-                threadMode,
-                nextFilter,
-                chat.requestedThreadId,
-            ),
+            getVisibleThreads(chat.threadItems, search, threadMode, nextFilter),
         );
     }
 

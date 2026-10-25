@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import {
     useEffect,
+    useEffectEvent,
     useMemo,
     useState,
     type Dispatch,
@@ -26,11 +27,9 @@ type ChatThreadOptions<T extends ChatThread> = {
     initialThreads: T[];
     /** Called after a message was sent successfully. */
     onSent?: () => void;
-    /**
-     * Endpoint marking a thread as read. When set, threads are expected to
-     * carry an `unread` counter that is maintained here.
-     */
+    /** Endpoint marking a conversation as read after its messages are visible. */
     readUrl?: (threadId: number) => string;
+    isChatVisible?: boolean;
     /**
      * Threads shown in the list, in display order, given the current threads
      * and the active thread id. Holds the page's mode/search/filter rules.
@@ -78,7 +77,6 @@ type ChatThreadState<T extends ChatThread> = {
     /** Active thread id after falling back to the first visible thread. */
     activeThreadId: number | null;
     composer: ChatComposerState;
-    markThreadAsRead: (threadId: number) => Promise<void>;
     messagesFor: (thread: T) => ChatMessage[];
     requestedThreadId: number | null;
     /** Requests a thread; resolves to a visible one if it is filtered out. */
@@ -103,6 +101,7 @@ export function useChatThread<T extends ChatThread>({
     onDocumentEvent,
     onSent,
     readUrl,
+    isChatVisible = true,
     selectVisible,
     sendUrl,
     supportsDocumentName,
@@ -204,25 +203,24 @@ export function useChatThread<T extends ChatThread>({
         activeThread !== null &&
         (supportsDocumentName?.(activeThread) ?? false);
 
-    async function markThreadAsRead(threadId: number): Promise<void> {
-        if (!readUrl) {
+    async function markThreadAsRead(
+        threadId: number,
+        lastMessageId: number,
+    ): Promise<void> {
+        if (
+            !readUrl ||
+            !isChatVisible ||
+            document.visibilityState !== 'visible'
+        ) {
             return;
         }
-
-        setThreadItems((current) =>
-            current.map((thread) =>
-                thread.id === threadId
-                    ? ({ ...thread, unread: 0 } as T & WithUnread)
-                    : thread,
-            ),
-        );
 
         const csrfToken =
             document
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute('content') ?? '';
 
-        await fetch(readUrl(threadId), {
+        const response = await fetch(readUrl(threadId), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -231,9 +229,41 @@ export function useChatThread<T extends ChatThread>({
                 'X-Requested-With': 'XMLHttpRequest',
             },
             credentials: 'same-origin',
-            body: JSON.stringify({}),
+            body: JSON.stringify({ last_message_id: lastMessageId }),
         });
+        if (response.ok) {
+            setThreadItems((current) =>
+                current.map((thread) =>
+                    thread.id === threadId && 'unread' in thread
+                        ? ({ ...thread, unread: 0 } as T & WithUnread)
+                        : thread,
+                ),
+            );
+            window.dispatchEvent(new Event('chat:read'));
+        }
     }
+
+    const latestVisibleMessageId = (
+        pendingSend?.threadId === activeThreadId
+            ? activeMessages.at(-2)
+            : activeMessages.at(-1)
+    )?.id;
+    const readVisibleThread = useEffectEvent(() => {
+        if (activeThreadId !== null && latestVisibleMessageId !== undefined) {
+            void markThreadAsRead(activeThreadId, latestVisibleMessageId).catch(
+                console.error,
+            );
+        }
+    });
+    useEffect(() => {
+        readVisibleThread();
+        window.addEventListener('focus', readVisibleThread);
+        document.addEventListener('visibilitychange', readVisibleThread);
+        return () => {
+            window.removeEventListener('focus', readVisibleThread);
+            document.removeEventListener('visibilitychange', readVisibleThread);
+        };
+    }, [activeThreadId, latestVisibleMessageId, isChatVisible, initialThreads]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.Echo) {
@@ -300,12 +330,14 @@ export function useChatThread<T extends ChatThread>({
                             latestActivityAt: new Date().toISOString(),
                         };
 
-                        if (readUrl) {
+                        if (readUrl && 'unread' in targetThread) {
                             const withUnread = updatedThread as T & WithUnread;
 
                             withUnread.unread =
                                 isIncomingMessage &&
-                                activeThreadId !== event.threadId
+                                (activeThreadId !== event.threadId ||
+                                    !isChatVisible ||
+                                    document.visibilityState !== 'visible')
                                     ? withUnread.unread + 1
                                     : withUnread.unread;
                         }
@@ -317,14 +349,6 @@ export function useChatThread<T extends ChatThread>({
                             ),
                         ]);
                     });
-
-                    if (
-                        readUrl &&
-                        event.threadId === activeThreadId &&
-                        isIncomingMessage
-                    ) {
-                        void markThreadAsRead(event.threadId);
-                    }
                 },
             );
         });
@@ -335,9 +359,9 @@ export function useChatThread<T extends ChatThread>({
                 echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
-        // markThreadAsRead only closes over stable setters and `readUrl`.
+        // Subscription callbacks use this render's read visibility and document handler.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userId, initialThreads, activeThreadId]);
+    }, [userId, initialThreads, activeThreadId, isChatVisible]);
 
     const canSend = useMemo(
         () =>
@@ -498,7 +522,6 @@ export function useChatThread<T extends ChatThread>({
             setMessage: (value) => form.setData('message', value),
             showDocumentName,
         },
-        markThreadAsRead,
         messagesFor: (thread) =>
             mergeMessages(thread.messages, messagesByThread[thread.id] ?? []),
         requestedThreadId,

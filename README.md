@@ -101,6 +101,12 @@ Tersedia setelah seeding; semua memakai password `password`.
 | Kaprodi                | `kaprodi@sita.test`   |
 | Admin (panel `/admin`) | `admin@sita.test`     |
 
+## Indikator pesan belum dibaca
+
+Menu Pesan pada portal mahasiswa, dosen, dan kaprodi menampilkan jumlah pesan dari orang lain yang belum dibaca dalam percakapan yang dapat diakses, bukan jumlah percakapan. Badge merah memakai warna yang sama dengan lonceng: tepat setelah label pada sidebar/drawer, atau menempel ikon saat sidebar diciutkan. Nilai di atas 99 ditampilkan sebagai `99+`; label aksesibel tetap menyebut jumlah lengkap. Nilai nol tidak menampilkan badge. Pesan sendiri dan event dokumen sistem tidak dihitung. Membuka daftar percakapan saja tidak mengurangi jumlah; receipt disimpan untuk pesan terakhir yang benar-benar tampil pada percakapan aktif, saat tab terlihat. Lonceng menghitung notifikasi global, termasuk pengumuman dan aktivitas akademik, bukan hanya chat. Membaca chat tidak menandai notifikasi lonceng sebagai dibaca, dan sebaliknya.
+
+`MentorshipChatRead` menjadi sumber status baca. `last_read_message_id` membatasi pesan yang sudah terlihat, termasuk ketika dua pesan dikirim pada detik yang sama; receipt lama tanpa ID tetap memakai `last_read_at`. Jalankan migrasi sebelum memakai kode baru. `GET /chat/unread` mengembalikan `{ "unreadMessageCount": 3 }` (jumlah sebenarnya, tidak dibatasi 99), dan channel privat `chat.unread.{userId}` hanya mengirim invalidasi tanpa identitas percakapan atau penguji. Muat awal, navigasi, reload, kembali fokus, koneksi ulang Reverb, dan perubahan receipt menyinkronkan jumlah dari server.
+
 ## Direktori dan aktivitas mahasiswa
 
 Direktori publik dan portal non-admin memakai tugas akhir terkini per mahasiswa, berdasarkan `started_at` lalu ID; tanggal mulai kosong berada paling akhir. Tugas akhir cancelled atau yang sudah digantikan tidak muncul sebagai tugas akhir berjalan, tetapi tetap tersimpan dan dapat dibuka di admin. Pembatalan tugas akhir terbaru tidak mengaktifkan kembali data lama. Publikasi tugas akhir completed yang belum digantikan tetap mengikuti aturan visibilitas judul. Perubahan judul pada tugas akhir yang sama tetap menyimpan riwayat versinya.
