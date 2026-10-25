@@ -16,7 +16,8 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow (menu)                                                                                                                                                                                  | Spec                                                                    | Status   | Priority |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------- | -------- |
-| Dashboard (`/mahasiswa/dashboard`)                                                                                                                                                           | landing only, via auth setup                                            | belum    | P2       |
+| Dashboard (`/mahasiswa/dashboard`): fixture DB terisolasi untuk awal, pending, ditolak, dibatalkan, terisi, sidang terjadwal, selesai dan arsip; kartu judul/status, progres, agenda dan pembimbing tanpa ringkasan angka berulang; kelayakan CTA, tujuan nyata, dialog dari query dan profil; penguji sidang rahasia tidak bocor pada halaman/payload (issue #134) | `mahasiswa-dashboard`, plus Pest (`MahasiswaDashboardTest`) | tercakup | P1 |
+| Dashboard: urutan DOM dan fokus ringkasan judul/status, tindakan, agenda, progres, pembimbing; target minimal 44px dan tanpa overflow di 390/1280px; katalog utama, belum mulai, pending dan selesai (issue #134) | `mahasiswa-dashboard`, `screenshot-catalog` | tercakup | P2 |
 | Tugas Akhir: judul, naskah proposal, revisi judul                                                                                                                                            | `mahasiswa-thesis`                                                      | tercakup | P1       |
 | Tugas Akhir: pilih berkas untuk sempro/sidang aktif                                                                                                                                          | `mahasiswa-thesis`                                                      | tercakup | P1       |
 | Tugas Akhir: hasil sempro, revisi, selesai                                                                                                                                                   | `admin-sempro`, `dosen-penilaian`                                       | tercakup | P1       |
@@ -150,4 +151,4 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 ## Known gaps worth closing next
 
-- Dashboard mahasiswa remains landing-only; extend its coverage in #134. Dosen (#31/#123) and kaprodi (#32/#124) have isolated dashboard scenarios; admin keeps `admin-dashboard` and is redesigned in #33.
+- Dashboard dosen (#31/#123), kaprodi (#32/#124) dan mahasiswa (#134/#137) memiliki skenario terisolasi; admin tetap memakai `admin-dashboard` dan didesain ulang di #33.

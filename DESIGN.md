@@ -657,6 +657,13 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
 - **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
 
+#### Mahasiswa dashboard (#134, #137)
+
+- Lead with one academic title and workflow-status card at every width. The title (and optional English title/start date) is the primary content; status and its explanation sit alongside on desktop and stack on phones. Do not add advisor, agenda or unread-message counts/links to this card: agenda and advisors already have their own sections, and unread navigation indicators belong to a separate change. No additional queries.
+- Keep one PageHeader h1. The main action opens the student's academic record or title submission; its button sits beside the copy when space permits and below on narrow screens. Scheduling and upload remain compact contextual cards with their original eligibility. Unavailable actions show their prerequisite and a disabled control. Messages stay reachable through a compact link even before a thread exists, rather than another sidebar shortcut card. Never infer an all-clear state from unavailable prerequisites.
+- The agenda is an unboxed linked timeline beside actions from xl. Progress shows its percentage and a continuous vertical line connecting the academic stages, with completed segments in primary and future segments in border. Do not repeat the academic title inside progress or divide stages into separate cards. Advisors use one divided list of profile rows. No additional student or examiner data is queried.
+- Actual DOM and focus order is academic title/status, actions, agenda, progress and advisors at every width. Application navigation uses Inertia. Preserve the shared desktop notice and compact phone table behavior outside the page. Dashboard controls keep 44px targets without a separate mobile redesign.
+
 ### Detector guard (Impeccable)
 
 The `design-detector` Playwright spec runs `impeccable detect` against the key pages of every role at 1280px and 390px and reports findings per page. It is advisory until an area is listed in `BLOCKING_AREAS` in `tests/e2e/specs/design-detector.spec.ts`; once an area has been overhauled it is added there and its findings fail the build.

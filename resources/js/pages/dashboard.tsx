@@ -1,8 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
+    ArrowUpRight,
     CalendarClock,
     Check,
-    ChevronRight,
     Circle,
     FileText,
     MessageSquareText,
@@ -10,11 +10,14 @@ import {
     Users,
 } from 'lucide-react';
 
+import {
+    ActionQueue,
+    ActionQueueItem,
+} from '@/components/patterns/action-queue';
 import { EmptyState } from '@/components/patterns/empty-state';
-import { SectionCard } from '@/components/patterns/section-card';
+import { PageHeader } from '@/components/patterns/page-header';
 import { PersonCardLink } from '@/components/profile/person-card-link';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -85,21 +88,6 @@ type DashboardProps = {
     timeline: TimelineStep[];
 };
 
-/* ─── Upcoming activity type tokens ────────────────────────────── */
-const activityTypeBadge: Record<string, string> = {
-    bimbingan: 'bg-info-muted text-info-muted-foreground',
-    sempro: 'bg-primary-muted text-primary-muted-foreground',
-    sidang: 'bg-warning-muted text-warning-muted-foreground',
-};
-
-const activityTypeIcon: Record<string, string> = {
-    bimbingan: 'bg-info-muted text-info-muted-foreground',
-    sempro: 'bg-primary-muted text-primary-muted-foreground',
-    sidang: 'bg-warning-muted text-warning-muted-foreground',
-};
-
-const fallbackActivityClass = 'bg-muted text-muted-foreground';
-
 const listRowFocus =
     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none';
 
@@ -111,439 +99,346 @@ export default function DashboardPage() {
         timeline,
         academicTerminology: terms,
     } = usePage<SharedData & DashboardProps>().props;
-
-    const quickActions: Array<{
-        title: string;
-        description: string;
-        href: string;
-        icon: typeof FileText;
-        enabled: boolean;
-        primary: boolean;
-    }> = [
-        {
-            title: quickActionState.canSubmitTitle
-                ? 'Ajukan Judul'
-                : `Buka ${terms.finalWork}`,
-            description: quickActionState.canSubmitTitle
-                ? `Mulai pengajuan judul dan ${terms.proposalDocument.toLowerCase()} ${terms.finalWorkLower}.`
-                : `Lihat status ${terms.proposalDocument.toLowerCase()}, dosen, dan detail ${terms.finalWorkLower}.`,
-            href: tugasAkhir().url,
-            icon: FileText,
-            enabled: true,
-            primary: true,
-        },
+    const mainAction = {
+        title: quickActionState.canSubmitTitle
+            ? 'Ajukan Judul'
+            : `Lanjutkan ${terms.finalWorkLower}`,
+        label: quickActionState.canSubmitTitle
+            ? 'Ajukan Judul'
+            : `Buka ${terms.finalWork}`,
+        description: quickActionState.canSubmitTitle
+            ? `Mulai pengajuan judul dan ${terms.proposalDocument.toLowerCase()} ${terms.finalWorkLower}.`
+            : `Lihat status ${terms.proposalDocument.toLowerCase()}, dosen, dan detail ${terms.finalWorkLower}.`,
+    };
+    const secondaryActions = [
         {
             title: 'Ajukan Bimbingan',
-            description: quickActionState.canScheduleMeeting
-                ? 'Buat janji dengan pembimbing atau penguji.'
-                : 'Aktif setelah pembimbing atau penguji terhubung.',
+            unavailable: 'Aktif setelah pembimbing atau penguji terhubung.',
             href: jadwalBimbingan({ query: { open: 'ajukan' } }).url,
             icon: CalendarClock,
             enabled: quickActionState.canScheduleMeeting,
-            primary: false,
         },
         {
             title: 'Upload Dokumen',
-            description: quickActionState.canUploadDocument
-                ? `Unggah ${terms.proposalDocument.toLowerCase()}, revisi, atau dokumen terbaru.`
-                : `Aktif saat ada pembimbing atau ${terms.proposalExamShort} aktif.`,
+            unavailable: `Aktif saat ada pembimbing atau ${terms.proposalExamShort} aktif.`,
             href: uploadDokumen({ query: { open: 'unggah' } }).url,
             icon: Upload,
             enabled: quickActionState.canUploadDocument,
-            primary: false,
-        },
-        {
-            title: 'Buka Pesan',
-            description: quickActionState.hasThreads
-                ? 'Lanjutkan percakapan dengan pembimbing.'
-                : 'Aktif saat thread akademik tersedia.',
-            href: pesan().url,
-            icon: MessageSquareText,
-            enabled: true,
-            primary: false,
         },
     ];
+
+    const summarySection = (
+        <section
+            aria-label="Ringkasan akademik"
+            className="grid gap-5 rounded-xl border bg-card p-5 md:p-6"
+        >
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1.6fr)_minmax(12rem,1fr)] md:gap-8">
+                <div className="grid content-start gap-3">
+                    <h2 className="text-xl leading-snug font-semibold text-pretty break-words">
+                        {summary.projectTitle ??
+                            `Siapkan pengajuan judul ${terms.finalWorkLower} Anda.`}
+                    </h2>
+                    {summary.projectTitleEn && (
+                        <p className="text-sm leading-relaxed text-pretty break-words text-muted-foreground italic">
+                            {summary.projectTitleEn}
+                        </p>
+                    )}
+                    {summary.startedAt && (
+                        <p className="text-xs text-muted-foreground">
+                            Mulai {summary.startedAt}
+                        </p>
+                    )}
+                </div>
+                <dl className="grid content-start gap-2 border-t pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-8">
+                    <dt className="text-sm text-muted-foreground">
+                        Status saat ini
+                    </dt>
+                    <dd className="text-lg leading-snug font-semibold text-primary">
+                        {summary.workflow.label}
+                    </dd>
+                    <dd className="text-sm leading-relaxed text-pretty text-muted-foreground">
+                        {summary.workflow.description}
+                    </dd>
+                </dl>
+            </div>
+        </section>
+    );
+
+    const actionSection = (
+        <section aria-label="Tindakan Anda" className="grid min-w-0 gap-4">
+            <PageHeader
+                level={2}
+                title="Tindakan Anda"
+                actions={
+                    <Button
+                        asChild
+                        variant="ghost"
+                        className="min-h-11 gap-2 text-primary"
+                    >
+                        <Link
+                            href={pesan().url}
+                            title={
+                                quickActionState.hasThreads
+                                    ? 'Lanjutkan percakapan dengan pembimbing.'
+                                    : 'Aktif saat thread akademik tersedia.'
+                            }
+                        >
+                            <MessageSquareText aria-hidden="true" />
+                            Buka Pesan
+                        </Link>
+                    </Button>
+                }
+            />
+            <ActionQueue label="Tindakan Anda" layout="bento">
+                <ActionQueueItem
+                    variant="featured"
+                    title={mainAction.title}
+                    icon={FileText}
+                    description={mainAction.description}
+                    className="sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-6 md:col-span-2 sm:[&>div:last-child]:col-start-2 sm:[&>div:last-child]:row-span-2 sm:[&>div:last-child]:row-start-1 sm:[&>div:last-child]:mt-0 sm:[&>div:last-child]:border-0 sm:[&>div:last-child]:pt-0"
+                    action={
+                        <Button asChild className="min-h-11 gap-2">
+                            <Link href={tugasAkhir().url}>
+                                {mainAction.label}
+                                <ArrowUpRight aria-hidden="true" />
+                            </Link>
+                        </Button>
+                    }
+                />
+                {secondaryActions.map((action) => (
+                    <ActionQueueItem
+                        key={action.title}
+                        variant="card"
+                        title={action.title}
+                        icon={action.icon}
+                        tone={action.enabled ? 'primary' : 'neutral'}
+                        description={
+                            action.enabled ? undefined : action.unavailable
+                        }
+                        action={
+                            action.enabled ? (
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="sm"
+                                    className="min-h-11 gap-2 px-0 text-xs text-primary hover:bg-primary-muted hover:text-primary-muted-foreground"
+                                >
+                                    <Link href={action.href}>
+                                        {action.title}
+                                        <ArrowUpRight aria-hidden="true" />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button
+                                    disabled
+                                    variant="ghost"
+                                    size="sm"
+                                    className="min-h-11 text-xs"
+                                >
+                                    {action.title}
+                                </Button>
+                            )
+                        }
+                    />
+                ))}
+            </ActionQueue>
+        </section>
+    );
+
+    const agendaSection = (
+        <section
+            id="agenda-mendatang"
+            aria-label="Agenda mendatang"
+            className="grid min-w-0 scroll-mt-24 content-start gap-4 self-start"
+        >
+            <PageHeader
+                level={2}
+                title="Agenda mendatang"
+                description={`Bimbingan, ${terms.proposalExamShort}, dan ${terms.finalExam} terdekat.`}
+            />
+            {upcomingActivities.length > 0 ? (
+                <ul className="divide-y border-l border-primary/25 pl-4">
+                    {upcomingActivities.map((activity) => (
+                        <li key={activity.id} className="relative">
+                            <span
+                                aria-hidden="true"
+                                className="absolute top-5 -left-5 size-2 rounded-full border border-primary bg-card"
+                            />
+                            <Link
+                                href={activity.href}
+                                className={cn(
+                                    'group grid min-h-11 gap-2 rounded-md px-2 py-4 transition-colors hover:bg-accent/50',
+                                    listRowFocus,
+                                )}
+                            >
+                                <span className="text-sm font-semibold text-primary tabular-nums">
+                                    {activity.date ?? '-'}
+                                </span>
+                                <span className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                    <span className="font-medium">
+                                        {activity.badge}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                        {activity.status}
+                                    </span>
+                                </span>
+                                <span className="text-sm font-medium text-pretty group-hover:underline">
+                                    {activity.title}
+                                </span>
+                                <span className="text-xs leading-relaxed text-pretty text-muted-foreground">
+                                    {activity.subtitle}
+                                </span>
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <EmptyState
+                    icon={CalendarClock}
+                    title="Belum ada agenda mendatang"
+                    description={`Saat ada bimbingan, ${terms.proposalExamShort}, atau ${terms.finalExam} terjadwal, semuanya akan muncul di sini.`}
+                    className="rounded-none border-0 bg-transparent px-0 py-4"
+                />
+            )}
+        </section>
+    );
 
     return (
         <AppLayout
             breadcrumbs={breadcrumbs}
             title="Dashboard Mahasiswa"
-            subtitle={`Ringkasan ${terms.finalWorkLower}, aksi cepat, dan agenda akademik terdekat`}
+            subtitle={`Ringkasan ${terms.finalWorkLower}, tindakan, dan agenda akademik`}
         >
             <Head title="Dashboard Mahasiswa" />
-
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8">
-                {/* ── Hero ── */}
-                <Card className="overflow-hidden border-border/70 p-0 shadow-sm">
-                    <CardContent className="bg-gradient-to-br from-background via-background to-accent/12 p-6 lg:p-8">
-                        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr] lg:gap-8">
-                            <div className="space-y-5">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                        {summary.workflow.label}
-                                    </Badge>
-                                    {summary.programStudi ? (
-                                        <Badge variant="outline">
-                                            {summary.programStudi}
-                                        </Badge>
-                                    ) : null}
-                                    {summary.startedAt ? (
-                                        <Badge variant="outline">
-                                            Mulai {summary.startedAt}
-                                        </Badge>
-                                    ) : null}
-                                </div>
-
-                                <div className="space-y-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        Judul {terms.finalWorkLower}{' '}
-                                        {summary.studentName}:
-                                    </p>
-                                    <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-balance text-foreground lg:text-3xl">
-                                        {summary.projectTitle ??
-                                            `Siapkan pengajuan judul dan mulai perjalanan ${terms.finalWorkLower} Anda.`}
-                                    </h1>
-                                    {summary.projectTitleEn ? (
-                                        <p className="max-w-3xl text-sm leading-6 text-pretty text-muted-foreground italic lg:text-base">
-                                            {summary.projectTitleEn}
-                                        </p>
-                                    ) : null}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col justify-center border-t pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
-                                <h2 className="text-xs font-medium text-muted-foreground">
-                                    Status saat ini
-                                </h2>
-                                <p className="mt-2 text-2xl font-semibold tracking-tight text-balance text-foreground">
-                                    {summary.workflow.label}
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8">
+                <PageHeader
+                    title="Dashboard mahasiswa"
+                    description={`${summary.studentName}${summary.programStudi ? ` · ${summary.programStudi}` : ''}`}
+                />
+                {summarySection}
+                <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)] xl:gap-8">
+                    {actionSection}
+                    {agendaSection}
+                </div>
+                <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)] xl:gap-8">
+                    <section
+                        aria-label="Progres akademik"
+                        className="grid min-w-0 gap-4"
+                    >
+                        <PageHeader
+                            level={2}
+                            title="Progres akademik"
+                            actions={
+                                <p className="text-sm text-muted-foreground">
+                                    Progres tahapan{' '}
+                                    <span className="font-semibold text-foreground tabular-nums">
+                                        {summary.progress}%
+                                    </span>
                                 </p>
-                                <p className="mt-2 text-sm leading-6 text-pretty text-muted-foreground">
-                                    {summary.workflow.description}
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
-                    <div className="grid content-start gap-6">
-                        {/* ── Aksi Cepat ── */}
-                        <SectionCard
-                            title="Aksi Cepat"
-                            description="Pintasan untuk langkah yang paling sering Anda gunakan"
-                            className="gap-4 overflow-hidden pb-0"
-                            contentClassName="px-0"
-                        >
-                            <ul className="divide-y border-t">
-                                {quickActions.map((action) => {
-                                    const Icon = action.icon;
-
-                                    if (!action.enabled) {
-                                        return (
-                                            <li
-                                                key={action.title}
-                                                className="flex items-center gap-4 bg-muted/40 px-6 py-4"
-                                            >
-                                                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                                                    <Icon className="size-5" />
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold text-muted-foreground">
-                                                        {action.title}
-                                                    </p>
-                                                    <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-pretty text-muted-foreground">
-                                                        {action.description}
-                                                    </p>
-                                                </div>
-                                            </li>
-                                        );
-                                    }
-
-                                    return (
-                                        <li key={action.title}>
-                                            <Link
-                                                href={action.href}
+                            }
+                        />
+                        <div className="divide-y overflow-hidden rounded-xl border bg-card">
+                            <ol className="px-5 py-5 md:px-6">
+                                {timeline.map((step, index) => (
+                                    <li
+                                        key={step.title}
+                                        aria-current={
+                                            step.status === 'current'
+                                                ? 'step'
+                                                : undefined
+                                        }
+                                        className="relative flex gap-4 pb-6 last:pb-0"
+                                    >
+                                        {index < timeline.length - 1 && (
+                                            <span
+                                                aria-hidden="true"
                                                 className={cn(
-                                                    'group flex min-h-14 items-center gap-4 px-6 py-4 transition-colors',
-                                                    listRowFocus,
-                                                    action.primary
-                                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                                        : 'hover:bg-muted/50',
-                                                )}
-                                            >
-                                                <span
-                                                    className={cn(
-                                                        'flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105',
-                                                        action.primary
-                                                            ? 'bg-primary-foreground/15 text-primary-foreground'
-                                                            : 'bg-primary-muted text-primary-muted-foreground',
-                                                    )}
-                                                >
-                                                    <Icon className="size-5" />
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p
-                                                        className={cn(
-                                                            'text-sm font-semibold',
-                                                            action.primary
-                                                                ? 'text-primary-foreground'
-                                                                : 'text-foreground',
-                                                        )}
-                                                    >
-                                                        {action.title}
-                                                    </p>
-                                                    <p
-                                                        className={cn(
-                                                            'mt-0.5 line-clamp-2 text-xs leading-relaxed text-pretty',
-                                                            action.primary
-                                                                ? 'text-primary-foreground'
-                                                                : 'text-muted-foreground',
-                                                        )}
-                                                    >
-                                                        {action.description}
-                                                    </p>
-                                                </div>
-                                                <ChevronRight
-                                                    className={cn(
-                                                        'size-4 shrink-0 transition-transform group-hover:translate-x-0.5',
-                                                        action.primary
-                                                            ? 'text-primary-foreground'
-                                                            : 'text-muted-foreground',
-                                                    )}
-                                                />
-                                            </Link>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </SectionCard>
-
-                        {/* ── Kegiatan Mendatang ── */}
-                        <SectionCard
-                            title="Kegiatan Mendatang"
-                            description={`Jadwal bimbingan, ${terms.proposalExamShort}, dan ${terms.finalExam} terdekat.`}
-                            className="overflow-hidden pb-0"
-                            contentClassName="px-0"
-                        >
-                            {upcomingActivities.length > 0 ? (
-                                <ul className="divide-y border-t">
-                                    {upcomingActivities.map((activity) => (
-                                        <li key={activity.id}>
-                                            <Link
-                                                href={activity.href}
-                                                className={cn(
-                                                    'group flex min-h-14 items-center gap-4 px-6 py-3.5 transition-colors hover:bg-muted/50',
-                                                    listRowFocus,
-                                                )}
-                                            >
-                                                <span
-                                                    className={cn(
-                                                        'flex size-8 shrink-0 items-center justify-center rounded-lg',
-                                                        activityTypeIcon[
-                                                            activity.type
-                                                        ] ??
-                                                            fallbackActivityClass,
-                                                    )}
-                                                >
-                                                    <CalendarClock className="size-4" />
-                                                </span>
-
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <p className="text-sm font-medium text-foreground">
-                                                            {activity.title}
-                                                        </p>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={cn(
-                                                                'rounded-full border-transparent text-xs font-medium',
-                                                                activityTypeBadge[
-                                                                    activity
-                                                                        .type
-                                                                ] ??
-                                                                    fallbackActivityClass,
-                                                            )}
-                                                        >
-                                                            {activity.badge}
-                                                        </Badge>
-                                                    </div>
-                                                    <p className="mt-0.5 text-xs text-pretty text-muted-foreground">
-                                                        {activity.subtitle}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-muted-foreground sm:hidden">
-                                                        <span className="font-medium text-foreground">
-                                                            {activity.date ??
-                                                                '-'}
-                                                        </span>
-                                                        {' · '}
-                                                        {activity.status}
-                                                    </p>
-                                                </div>
-
-                                                <div className="hidden shrink-0 items-center gap-3 sm:flex">
-                                                    <div className="text-right">
-                                                        <p className="text-xs font-medium text-foreground">
-                                                            {activity.date ??
-                                                                '-'}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {activity.status}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="px-6 pb-6">
-                                    <EmptyState
-                                        icon={CalendarClock}
-                                        title="Belum ada agenda mendatang"
-                                        description={`Saat ada bimbingan, ${terms.proposalExamShort}, atau ${terms.finalExam} terjadwal, semuanya akan muncul di sini.`}
-                                        className="rounded-none border-0 bg-transparent p-0"
-                                    />
-                                </div>
-                            )}
-                        </SectionCard>
-                    </div>
-
-                    <div className="grid content-start gap-6">
-                        {/* ── Dosen Pembimbing ── */}
-                        <SectionCard
-                            title="Dosen Pembimbing"
-                            description={`Pembimbing aktif untuk ${terms.finalWorkLower} Anda.`}
-                            className="overflow-hidden pb-0"
-                            contentClassName="px-0"
-                        >
-                            {summary.advisors.length > 0 ? (
-                                <ul className="divide-y border-t">
-                                    {summary.advisors.map((advisor, index) => (
-                                        <li key={advisor.id}>
-                                            <PersonCardLink
-                                                person={advisor}
-                                                label={`Pembimbing ${index + 1}`}
-                                                className={cn(
-                                                    'min-h-14 rounded-none border-0 px-6 py-3.5 hover:bg-muted/50',
-                                                    listRowFocus,
+                                                    'absolute top-7 -bottom-0.5 left-3.5 w-px',
+                                                    step.status === 'done'
+                                                        ? 'bg-primary'
+                                                        : 'bg-border',
                                                 )}
                                             />
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="px-6 pb-6">
-                                    <EmptyState
-                                        icon={Users}
-                                        title="Belum ada pembimbing aktif"
-                                        description="Pembimbing akan tampil di sini setelah ditetapkan admin."
-                                        className="rounded-none border-0 bg-transparent p-0"
-                                    />
-                                </div>
-                            )}
-                        </SectionCard>
-
-                        {/* ── Timeline Progres ── */}
-                        <SectionCard
-                            title="Timeline Progres"
-                            description={`Tahap utama perjalanan ${terms.finalWorkLower} Anda`}
-                        >
-                            <ol className="relative">
-                                {timeline.map((step, index) => {
-                                    const isDone = step.status === 'done';
-                                    const isCurrent = step.status === 'current';
-                                    const isLast =
-                                        index === timeline.length - 1;
-
-                                    return (
-                                        <li
-                                            key={step.title}
-                                            aria-current={
-                                                isCurrent ? 'step' : undefined
-                                            }
-                                            className="relative flex gap-4"
+                                        )}
+                                        <span
+                                            aria-hidden="true"
+                                            className={cn(
+                                                'relative z-10 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full',
+                                                step.status === 'done'
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : step.status === 'current'
+                                                      ? 'bg-primary-muted text-primary-muted-foreground'
+                                                      : 'bg-muted text-muted-foreground',
+                                            )}
                                         >
-                                            <div className="flex flex-col items-center">
-                                                <div
+                                            {step.status === 'done' ? (
+                                                <Check className="size-4" />
+                                            ) : (
+                                                <Circle
                                                     className={cn(
-                                                        'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2',
-                                                        isDone
-                                                            ? 'border-primary bg-primary text-primary-foreground'
-                                                            : isCurrent
-                                                              ? 'border-primary bg-background'
-                                                              : 'border-border bg-muted',
+                                                        'size-3',
+                                                        step.status ===
+                                                            'current' &&
+                                                            'fill-current',
                                                     )}
-                                                >
-                                                    {isDone ? (
-                                                        <Check className="size-4" />
-                                                    ) : isCurrent ? (
-                                                        <Circle className="size-3 fill-primary text-primary" />
-                                                    ) : (
-                                                        <Circle className="size-2.5 fill-muted-foreground text-muted-foreground" />
-                                                    )}
-
-                                                    {isCurrent && (
-                                                        <span className="absolute inset-0 rounded-full border-2 border-primary/20 motion-safe:animate-ping" />
-                                                    )}
-                                                </div>
-
-                                                {!isLast && (
-                                                    <div
-                                                        className={cn(
-                                                            'w-0.5 flex-1',
-                                                            isDone
-                                                                ? 'bg-primary'
-                                                                : 'bg-border',
-                                                        )}
-                                                    />
+                                                />
+                                            )}
+                                        </span>
+                                        <div className="grid min-w-0 flex-1 gap-1">
+                                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                                <h3 className="text-sm font-semibold">
+                                                    {step.title}
+                                                </h3>
+                                                {step.date && (
+                                                    <span className="text-xs text-muted-foreground tabular-nums">
+                                                        {step.date}
+                                                    </span>
                                                 )}
                                             </div>
-
-                                            <div
-                                                className={cn(
-                                                    'min-w-0 pb-6',
-                                                    isLast && 'pb-0',
-                                                )}
-                                            >
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <p
-                                                        className={cn(
-                                                            'text-sm font-semibold',
-                                                            isCurrent
-                                                                ? 'text-primary'
-                                                                : isDone
-                                                                  ? 'text-foreground'
-                                                                  : 'text-muted-foreground',
-                                                        )}
-                                                    >
-                                                        {step.title}
-                                                    </p>
-                                                    {step.date && (
-                                                        <span
-                                                            className={cn(
-                                                                'rounded-full px-2 py-0.5 text-xs font-medium',
-                                                                isDone ||
-                                                                    isCurrent
-                                                                    ? 'bg-primary-muted text-primary-muted-foreground'
-                                                                    : 'bg-muted text-muted-foreground',
-                                                            )}
-                                                        >
-                                                            {step.date}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="mt-1 text-xs leading-relaxed text-pretty text-muted-foreground">
-                                                    {step.description}
-                                                </p>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
+                                            <p className="text-xs leading-relaxed text-pretty text-muted-foreground">
+                                                {step.description}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
                             </ol>
-                        </SectionCard>
-                    </div>
+                        </div>
+                    </section>
+                    <section
+                        id="dosen-pembimbing"
+                        aria-label="Dosen pembimbing"
+                        className="grid min-w-0 scroll-mt-24 gap-4"
+                    >
+                        <PageHeader
+                            level={2}
+                            title="Dosen pembimbing"
+                            description={`Pembimbing aktif untuk ${terms.finalWorkLower} Anda.`}
+                        />
+                        {summary.advisors.length > 0 ? (
+                            <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+                                {summary.advisors.map((advisor, index) => (
+                                    <li key={advisor.id}>
+                                        <PersonCardLink
+                                            person={advisor}
+                                            label={`Pembimbing ${index + 1}`}
+                                            variant="row"
+                                            className={cn(
+                                                'min-h-11',
+                                                listRowFocus,
+                                            )}
+                                        />
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <EmptyState
+                                icon={Users}
+                                title="Belum ada pembimbing aktif"
+                                description="Pembimbing akan tampil di sini setelah ditetapkan admin."
+                                className="border-solid bg-card"
+                            />
+                        )}
+                    </section>
                 </div>
             </div>
         </AppLayout>

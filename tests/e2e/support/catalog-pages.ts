@@ -109,7 +109,7 @@ export const catalogPages: readonly CatalogPage[] = [
         role: 'mahasiswa',
         name: 'dashboard',
         path: '/mahasiswa/dashboard',
-        heading: 'Status saat ini',
+        heading: 'Dashboard mahasiswa',
     },
     {
         role: 'mahasiswa',
@@ -184,6 +184,27 @@ export const catalogPages: readonly CatalogPage[] = [
         heading: /Kepuasan pengguna/,
     },
     // States
+    {
+        role: 'mahasiswa',
+        name: 'dashboard-not-started',
+        path: '/mahasiswa/dashboard',
+        heading: 'Dashboard mahasiswa',
+        account: 'farhan',
+    },
+    {
+        role: 'mahasiswa',
+        name: 'dashboard-pending',
+        path: '/mahasiswa/dashboard',
+        heading: 'Dashboard mahasiswa',
+        account: 'rizky',
+    },
+    {
+        role: 'mahasiswa',
+        name: 'dashboard-completed',
+        path: '/mahasiswa/dashboard',
+        heading: 'Dashboard mahasiswa',
+        account: 'lulus-tenggang',
+    },
     {
         role: 'mahasiswa',
         name: 'jadwal-bimbingan-dialog-ajukan',
