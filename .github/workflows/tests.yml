@@ -169,7 +169,7 @@ jobs:
           fi
 
       - name: Upload Playwright artifacts
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-e2e-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
