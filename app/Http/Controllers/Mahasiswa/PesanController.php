@@ -14,6 +14,7 @@ use App\Models\ThesisDefense;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\ChatUnreadService;
 use App\Services\CompletedChatThreadService;
 use App\Services\MentorshipTicketService;
 use App\Services\PrivateChatService;
@@ -23,6 +24,7 @@ use App\Services\ThesisArchiveService;
 use App\Services\UserProfilePresenter;
 use App\Support\AcademicTerminology;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -78,7 +80,7 @@ class PesanController extends Controller
                 'participants.user.dosenProfile.programStudi',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
-                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->orderBy('created_at')->limit(50),
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->latest('id')->limit(50),
             ])
             ->whereIn('id', $allThreadIds)
             ->withMax('messages', 'created_at')
@@ -104,6 +106,7 @@ class PesanController extends Controller
 
         $threadsData = $threads->map(function (MentorshipChatThread $thread) use ($advisors, $completedThreadIds, $secretExaminers, $student) {
             $messages = $thread->messages
+                ->sortBy([['created_at', 'asc'], ['id', 'asc']])
                 ->map(fn(MentorshipChatMessage $m): array => $this->payloadBuilder->build($m))
                 ->values()
                 ->all();
@@ -194,6 +197,18 @@ class PesanController extends Controller
         $thread = $this->privateChatService->findOrCreateThread($student, $recipient);
 
         return redirect()->route('mahasiswa.pesan', ['thread' => $thread->id]);
+    }
+
+    public function markAsRead(Request $request, MentorshipChatThread $thread, ChatUnreadService $unread): JsonResponse
+    {
+        $student = $request->user();
+        abort_if($student === null, 401);
+        abort_unless($unread->canSeeThread($student, 'mahasiswa', $thread), 403);
+
+        $data = $request->validate(['last_message_id' => ['required', 'integer']]);
+        $unread->markRead($student, $thread, (int) $data['last_message_id']);
+
+        return response()->json(['ok' => true]);
     }
 
     public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread, MentorshipTicketService $tickets): RedirectResponse

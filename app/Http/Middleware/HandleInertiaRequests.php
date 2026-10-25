@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\AppRole;
 use App\Models\KaprodiAssignment;
 use App\Models\User;
+use App\Services\ChatUnreadService;
 use App\Services\MentorshipTicketService;
 use App\Support\AcademicTerminology;
 use App\Support\WitaDateTime;
@@ -113,6 +114,8 @@ class HandleInertiaRequests extends Middleware
             'notificationSettings' => $notificationSettings,
             'notifications' => $notifications,
             'unreadNotificationCount' => $unreadNotificationCount,
+            'hasUnreadMessages' => fn (): bool => $user !== null
+                && app(ChatUnreadService::class)->hasUnreadMessages($user, $activeRole),
             'academicTerminology' => $user?->hasRole('mahasiswa')
                 ? AcademicTerminology::forStudent($user)
                 : AcademicTerminology::neutral(),

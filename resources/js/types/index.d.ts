@@ -73,6 +73,7 @@ export interface SharedData {
     notificationSettings?: NotificationSettings;
     notifications?: HeaderNotification[];
     unreadNotificationCount?: number;
+    hasUnreadMessages: boolean;
     academicTerminology: AcademicTerminology;
     phonePrompt?: PhonePrompt | null;
     mentorshipTicket?: MentorshipTicketStatus | null;
