@@ -52,6 +52,9 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | Page | 1280 light | 1280 dark | 390 light | 390 dark |
 | --- | --- | --- | --- | --- |
 | `dashboard` | [png](mahasiswa/dashboard-1280-light.png) | [png](mahasiswa/dashboard-1280-dark.png) | [png](mahasiswa/dashboard-390-light.png) | [png](mahasiswa/dashboard-390-dark.png) |
+| `dashboard-completed` | [png](mahasiswa/dashboard-completed-1280-light.png) | [png](mahasiswa/dashboard-completed-1280-dark.png) | [png](mahasiswa/dashboard-completed-390-light.png) | [png](mahasiswa/dashboard-completed-390-dark.png) |
+| `dashboard-not-started` | [png](mahasiswa/dashboard-not-started-1280-light.png) | [png](mahasiswa/dashboard-not-started-1280-dark.png) | [png](mahasiswa/dashboard-not-started-390-light.png) | [png](mahasiswa/dashboard-not-started-390-dark.png) |
+| `dashboard-pending` | [png](mahasiswa/dashboard-pending-1280-light.png) | [png](mahasiswa/dashboard-pending-1280-dark.png) | [png](mahasiswa/dashboard-pending-390-light.png) | [png](mahasiswa/dashboard-pending-390-dark.png) |
 | `jadwal-bimbingan` | [png](mahasiswa/jadwal-bimbingan-1280-light.png) | [png](mahasiswa/jadwal-bimbingan-1280-dark.png) | [png](mahasiswa/jadwal-bimbingan-390-light.png) | [png](mahasiswa/jadwal-bimbingan-390-dark.png) |
 | `jadwal-bimbingan-dialog-ajukan` | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-1280-light.png) | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-1280-dark.png) | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-390-light.png) | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-390-dark.png) |
 | `jadwal-bimbingan-kosong` | [png](mahasiswa/jadwal-bimbingan-kosong-1280-light.png) | [png](mahasiswa/jadwal-bimbingan-kosong-1280-dark.png) | [png](mahasiswa/jadwal-bimbingan-kosong-390-light.png) | [png](mahasiswa/jadwal-bimbingan-kosong-390-dark.png) |
