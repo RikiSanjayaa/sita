@@ -15,6 +15,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 - The `kaprodi` account (`kaprodi@sita.test`) has a stored auth state like the other accounts.
 - `golden-path` owns a fresh student (`GoldenPathScenarioSeeder`, `support/golden-path.ts`) and removes its academic records and uploaded files after the run, including failures. Staff use separate contexts with the setup project's auth states; every academic transition is performed through the UI, with a screenshot attached per stage.
 - `thesis-recovery` uses `RecoveryScenarioSeeder` for fresh, research, scheduled Sempro and scheduled Sidang starting states. Each test recreates the rehearsal student and owns its cleanup; it does not reset shared scenario students. Admin, student and lecturers have separate browser contexts. All recovery transitions use UI controls; seed/service calls only establish starting conditions and remove owned data.
+- Retry scheduling waits for the time picker to display the entered value before submitting the admin form; no fixed sleep or additional retry masks delayed widget updates.
 
 ## Mahasiswa
 

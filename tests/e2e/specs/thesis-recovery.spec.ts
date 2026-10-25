@@ -769,7 +769,8 @@ async function fillAdminRetrySchedule(
         )
         .click();
     await calendar.press('Escape');
-    await modal.getByRole('combobox', { name: /^Jam/ }).click();
+    const timeField = modal.getByRole('combobox', { name: /^Jam/ });
+    await timeField.click();
     const time = modal.getByRole('dialog', { name: /^Jam/ });
     await time
         .getByRole('spinbutton', { name: 'Hour', exact: true })
@@ -778,6 +779,8 @@ async function fillAdminRetrySchedule(
         .getByRole('spinbutton', { name: 'Minute', exact: true })
         .fill('00');
     await modal.getByLabel('Lokasi').fill(location);
+    // Filament commits debounced spinbutton edits before updating this display.
+    await expect(timeField).toHaveValue('11:00');
 }
 
 for (const type of ['sempro', 'sidang'] as const) {
