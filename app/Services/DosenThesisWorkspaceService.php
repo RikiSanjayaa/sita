@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Support\DefenseRevisionLog;
 use Illuminate\Support\Collection;
 
 class DosenThesisWorkspaceService
@@ -39,12 +40,7 @@ class DosenThesisWorkspaceService
             ->with([
                 'defense.project.student.mahasiswaProfile',
                 'defense.project.latestTitle',
-                'defense.examiners.lecturer',
-                'defense.revisions.requestedBy',
-                'defense.revisions.resolvedBy',
-                'defense.revisions.items',
-                'defense.revisions.documents',
-                'defense.revisions.rounds.studentDocument',
+                ...array_map(fn (string $relation): string => 'defense.'.$relation, DefenseRevisionLog::RELATIONS),
                 'defense.documents',
             ])
             ->where('lecturer_user_id', $lecturer->id)

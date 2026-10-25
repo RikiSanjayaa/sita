@@ -8,58 +8,9 @@ use App\Models\ThesisRevisionItem;
 use App\Models\ThesisRevisionRound;
 use App\Services\ThesisRevisionRoundService;
 
-/**
- * Inertia payload for the structured part of a ThesisRevision (items and the
- * examiner's annotated manuscripts). Expects `items` and `documents` loaded.
- */
+/** Shared revision labels and manuscript links for the log and decision forms. */
 class ThesisRevisionPayload
 {
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public static function items(ThesisRevision $revision): array
-    {
-        return $revision->items
-            ->map(fn (ThesisRevisionItem $item): array => [
-                'id' => $item->id,
-                'location' => $item->location,
-                'description' => $item->description,
-                'priority' => $item->priority,
-                'priorityLabel' => self::priorityLabel($item->priority),
-                'status' => $item->status,
-                'statusLabel' => self::itemStatusLabel($item->status),
-                'roundOpened' => $item->round_opened,
-                'studentResponse' => $item->student_response,
-                'studentResponseLocation' => $item->student_response_location,
-                'verificationComment' => $item->verification_comment,
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * Round history of a revision, oldest first. Expects `rounds.studentDocument` loaded.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    public static function rounds(ThesisRevision $revision): array
-    {
-        return $revision->rounds
-            ->map(fn (ThesisRevisionRound $round): array => [
-                'roundNo' => $round->round_no,
-                'status' => $round->status,
-                'statusLabel' => self::roundStatusLabel($round->status),
-                'openedAt' => $round->opened_at?->locale('id')->translatedFormat('d F Y, H:i'),
-                'submittedAt' => $round->student_submitted_at?->locale('id')->translatedFormat('d F Y, H:i'),
-                'reviewedAt' => $round->reviewed_at?->locale('id')->translatedFormat('d F Y, H:i'),
-                'manuscript' => $round->studentDocument instanceof ThesisDocument
-                    ? self::document($round->studentDocument)
-                    : null,
-            ])
-            ->values()
-            ->all();
-    }
-
     public static function currentRoundStatus(ThesisRevision $revision): ?string
     {
         return $revision->rounds->sortByDesc('round_no')->first()?->status;

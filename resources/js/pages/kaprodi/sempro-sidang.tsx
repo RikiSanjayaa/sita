@@ -19,6 +19,10 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import { DateRangePicker } from '@/components/date-range-picker';
+import {
+    DefenseRevisionLog,
+    type DefenseRevisionLogData,
+} from '@/components/defense-revision-log';
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     LecturerMultiSearch,
@@ -119,6 +123,7 @@ type ExamRow = {
     canManageSchedule: boolean;
     examiners: ExaminerRow[];
     revisionCount: number;
+    revisionLog: DefenseRevisionLogData;
     studentProfileUrl: string;
 };
 
@@ -895,6 +900,7 @@ function ExamDetailSheet({
                                 />
                             </div>
                         </div>
+                        <DefenseRevisionLog log={item.revisionLog} />
                     </div>
                 </ScrollArea>
             </SheetContent>

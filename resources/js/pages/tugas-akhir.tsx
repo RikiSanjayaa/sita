@@ -21,7 +21,10 @@ import {
 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
-import { DeadlineBadge } from '@/components/deadline-badge';
+import {
+    DefenseRevisionLog,
+    type DefenseRevisionLogData,
+} from '@/components/defense-revision-log';
 import { LecturerSearchSelect } from '@/components/lecturer-search-select';
 import { type MentorshipProgressRow } from '@/components/mentorship-progress';
 import {
@@ -31,16 +34,6 @@ import {
 } from '@/components/patterns/data-section';
 import { PageHeader } from '@/components/patterns/page-header';
 import { PersonCardLink } from '@/components/profile/person-card-link';
-import {
-    type RevisionAnnotation,
-    RevisionAnnotationLinks,
-    type RevisionItem,
-    RevisionItemList,
-    type RevisionRound,
-    RevisionRoundHistory,
-    showRevisionSummary,
-} from '@/components/revision-items';
-import { RevisionResponseForm } from '@/components/revision-response-form';
 import {
     type ThesisNote,
     ThesisNotesPanel,
@@ -193,20 +186,8 @@ type TugasAkhirPageProps = {
                 score: number | string | null;
                 decisionNotes: string | null;
             }>;
-            revisions: Array<{
-                id: number;
-                statusLabel: string;
-                notes: string;
-                requestedBy: string;
-                dueAt: string | null;
-                dueAtIso: string | null;
-                resolvedAt: string | null;
-                resolutionNotes: string | null;
-                items: RevisionItem[];
-                annotations: RevisionAnnotation[];
-                rounds: RevisionRound[];
-                canRespond: boolean;
-            }>;
+            revisionLog: DefenseRevisionLogData;
+            respondableRevisionIds: number[];
         }>;
         sidang: Array<{
             id: number;
@@ -239,20 +220,8 @@ type TugasAkhirPageProps = {
                 score: number | string | null;
                 decisionNotes: string | null;
             }>;
-            revisions: Array<{
-                id: number;
-                statusLabel: string;
-                notes: string;
-                requestedBy: string;
-                dueAt: string | null;
-                dueAtIso: string | null;
-                resolvedAt: string | null;
-                resolutionNotes: string | null;
-                items: RevisionItem[];
-                annotations: RevisionAnnotation[];
-                rounds: RevisionRound[];
-                canRespond: boolean;
-            }>;
+            revisionLog: DefenseRevisionLogData;
+            respondableRevisionIds: number[];
         }>;
     };
     profileProgramStudi: string;
@@ -1153,9 +1122,14 @@ function DefenseHistoryRow({
         item.examiners.map((e) => e.score),
     );
     const finalGrade = resolveAcademicGrade(averageScore);
-    const hasRevisions = item.revisions.length > 0;
-    const pendingRevisions = item.revisions.filter((r) => !r.resolvedAt).length;
-    const needsResponse = item.revisions.some((rev) => rev.canRespond);
+    const revisions = item.revisionLog.examiners.flatMap(
+        (examiner) => examiner.revisions,
+    );
+    const hasRevisions = revisions.length > 0;
+    const pendingRevisions = revisions.filter(
+        (revision) => !revision.resolvedAt,
+    ).length;
+    const needsResponse = item.respondableRevisionIds.length > 0;
     const hasFiles =
         item.primaryDocumentName !== null ||
         item.supportingDocuments.length > 0;
@@ -1263,7 +1237,7 @@ function DefenseHistoryRow({
                             >
                                 {needsResponse
                                     ? 'Perlu ditanggapi'
-                                    : `${item.revisions.length} revisi`}
+                                    : `${revisions.length} revisi`}
                             </span>
                         )}
                     </div>
@@ -1338,106 +1312,13 @@ function DefenseHistoryRow({
                                 </div>
                             )}
 
-                            {hasRevisions && (
-                                <div>
-                                    <DetailHeading>
-                                        Catatan Revisi ({item.revisions.length})
-                                    </DetailHeading>
-                                    <ul className="divide-y">
-                                        {item.revisions.map((rev) => {
-                                            const isDone = !!rev.resolvedAt;
-
-                                            return (
-                                                <li
-                                                    key={rev.id}
-                                                    className="py-3"
-                                                >
-                                                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                                        <span
-                                                            className={cn(
-                                                                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                                                                toneClassName(
-                                                                    isDone
-                                                                        ? 'success'
-                                                                        : 'warning',
-                                                                ),
-                                                            )}
-                                                        >
-                                                            {rev.statusLabel}
-                                                        </span>
-                                                        <span className="text-xs font-medium text-muted-foreground">
-                                                            {rev.requestedBy}
-                                                        </span>
-                                                        {rev.dueAt &&
-                                                            !isDone && (
-                                                                <DeadlineBadge
-                                                                    dueAt={
-                                                                        rev.dueAtIso
-                                                                    }
-                                                                />
-                                                            )}
-                                                        {rev.resolvedAt && (
-                                                            <span className="flex items-center gap-1 text-xs text-success-muted-foreground">
-                                                                <CheckCircle2
-                                                                    className="size-3.5"
-                                                                    aria-hidden="true"
-                                                                />
-                                                                Selesai:{' '}
-                                                                {rev.resolvedAt}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {showRevisionSummary(
-                                                        rev.notes,
-                                                        rev.items,
-                                                    ) && (
-                                                        <p className="text-sm text-pretty">
-                                                            {rev.notes}
-                                                        </p>
-                                                    )}
-                                                    <RevisionItemList
-                                                        items={
-                                                            rev.canRespond
-                                                                ? rev.items.filter(
-                                                                      (item) =>
-                                                                          item.status ===
-                                                                          'accepted',
-                                                                  )
-                                                                : rev.items
-                                                        }
-                                                    />
-                                                    <RevisionAnnotationLinks
-                                                        annotations={
-                                                            rev.annotations
-                                                        }
-                                                    />
-                                                    <RevisionRoundHistory
-                                                        rounds={rev.rounds}
-                                                    />
-                                                    {rev.canRespond && (
-                                                        <RevisionResponseForm
-                                                            revisionId={rev.id}
-                                                            items={rev.items}
-                                                        />
-                                                    )}
-
-                                                    {rev.resolutionNotes && (
-                                                        <p className="mt-2 border-l-2 pl-3 text-sm text-pretty text-muted-foreground">
-                                                            <span className="font-medium text-foreground">
-                                                                Penyelesaian:
-                                                            </span>{' '}
-                                                            {
-                                                                rev.resolutionNotes
-                                                            }
-                                                        </p>
-                                                    )}
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            )}
+                            <DefenseRevisionLog
+                                log={item.revisionLog}
+                                action={{
+                                    type: 'respond',
+                                    revisionIds: item.respondableRevisionIds,
+                                }}
+                            />
 
                             {hasFiles && (
                                 <div>

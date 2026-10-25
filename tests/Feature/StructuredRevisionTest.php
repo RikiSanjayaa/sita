@@ -357,39 +357,6 @@ test('backfill gives every existing revision one round and one item from its not
         ->and($structured->items()->count())->toBe(2);
 });
 
-test('dosen and mahasiswa pages expose items and annotated manuscripts', function (): void {
-    [$defense, [$first], , $project] = structuredRevisionExam('sempro');
-    $defense->forceFill(['status' => 'completed', 'result' => 'pass_with_revision'])->save();
-    $revision = ThesisRevision::factory()->create(['project_id' => $project->id, 'defense_id' => $defense->id, 'requested_by_user_id' => $first->id]);
-    app(ThesisRevisionRoundService::class)->openInitialRound($revision, structuredRevisionItems());
-    ThesisDocument::query()->create([
-        'project_id' => $project->id,
-        'defense_id' => $defense->id,
-        'revision_id' => $revision->id,
-        'uploaded_by_user_id' => $first->id,
-        'kind' => 'revision_annotation',
-        'status' => 'active',
-        'version_no' => 1,
-        'title' => 'Naskah beranotasi',
-        'storage_disk' => 'public',
-        'storage_path' => 'thesis/x.pdf',
-        'file_name' => 'x.pdf',
-    ]);
-
-    $dosenPage = $this->actingAs($first)->get(route('dosen.seminar-proposal'))->assertOk()->viewData('page');
-    expect(data_get($dosenPage, 'props.defenses.0.revisions.0.items'))->toHaveCount(2)
-        ->and(data_get($dosenPage, 'props.defenses.0.revisions.0.items.0.location'))->toBe('Bab 3, hlm. 42')
-        ->and(data_get($dosenPage, 'props.defenses.0.revisions.0.annotations.0.fileName'))->toBe('x.pdf');
-
-    $studentPage = $this->actingAs($project->student)->get('/mahasiswa/tugas-akhir')->assertOk()->viewData('page');
-    $revisionProps = data_get($studentPage, 'props.defenseHistory.sempro.0.revisions.0');
-
-    expect($revisionProps)->not->toBeNull()
-        ->and($revisionProps['items'])->toHaveCount(2)
-        ->and($revisionProps['annotations'])->toHaveCount(1)
-        ->and(array_key_exists('dueAtIso', $revisionProps))->toBeTrue();
-});
-
 /**
  * A completed exam with one revision (two items) requested by the first
  * examiner; the second examiner passed without revision.
@@ -476,7 +443,9 @@ test('a full two-round cycle resolves the revision and moves the project on', fu
         ->and($project->fresh()->phase)->toBe('sempro');
 
     // Round 2: only the reopened and the new item need an answer.
-    respondToRevision($this, $student, $revision)->assertSessionHasNoErrors();
+    $secondResponses = $revision->items()->whereIn('status', ['open', 'reopened'])->pluck('id')
+        ->mapWithKeys(fn (int $id): array => [$id => ['addressed' => '1', 'response' => 'Tanggapan putaran kedua.', 'location' => 'Bab 4, halaman 60']])->all();
+    respondToRevision($this, $student, $revision, ['responses' => $secondResponses])->assertSessionHasNoErrors();
     expect($revision->rounds()->where('round_no', 2)->sole()->status)->toBe('awaiting_review');
 
     verifyRevisionItems($this, $lecturer, $revision, [['decision' => 'accepted'], ['decision' => 'accepted']])
@@ -488,6 +457,15 @@ test('a full two-round cycle resolves the revision and moves the project on', fu
         ->and($revision->rounds()->pluck('status')->unique()->all())->toBe(['closed'])
         ->and($revision->items()->pluck('status')->unique()->all())->toBe(['accepted'])
         ->and($project->fresh()->phase)->toBe('research');
+
+    $recordedFirstRound = $revision->rounds()->where('round_no', 1)->sole()->item_snapshot;
+    $recordedSecondRound = $revision->rounds()->where('round_no', 2)->sole()->item_snapshot;
+    expect($recordedFirstRound[1]['status'])->toBe('reopened')
+        ->and($recordedFirstRound[1]['verification_comment'])->toBe('Metode sampling masih belum jelas.')
+        ->and($recordedFirstRound[1]['student_response_location'])->toBe('Bab 3, hlm. 50')
+        ->and($recordedSecondRound[1]['status'])->toBe('accepted')
+        ->and($recordedSecondRound[1]['student_response'])->toBe('Tanggapan putaran kedua.')
+        ->and($recordedSecondRound[1]['student_response_location'])->toBe('Bab 4, halaman 60');
 
     expect(ThesisProjectEvent::query()->where('project_id', $project->id)->pluck('event_type')->all())
         ->toContain('revision_submitted', 'revision_round_opened', 'revision_resolved');
@@ -601,20 +579,18 @@ test('round transitions only run in the matching state', function (string $round
     'verify after closing' => ['closed', 'verify', false],
 ]);
 
-test('the dosen and mahasiswa pages expose what each side may do per round', function (): void {
+test('round submission switches the available action from student to requesting examiner', function (): void {
     Storage::fake('public');
     [$revision, $lecturer, $student] = revisionAwaitingStudent();
 
-    $studentRevision = fn () => data_get($this->actingAs($student)->get('/mahasiswa/tugas-akhir')->assertOk()->viewData('page'), 'props.defenseHistory.sempro.0.revisions.0');
-    $dosenRevision = fn () => data_get($this->actingAs($lecturer)->get(route('dosen.seminar-proposal'))->assertOk()->viewData('page'), 'props.defenses.0.revisions.0');
+    $studentActions = fn () => data_get($this->actingAs($student)->get('/mahasiswa/tugas-akhir')->assertOk()->viewData('page'), 'props.defenseHistory.sempro.0.respondableRevisionIds');
+    $lecturerActions = fn () => data_get($this->actingAs($lecturer)->get(route('dosen.seminar-proposal'))->assertOk()->viewData('page'), 'props.defenses.0.verifiableRevisionIds');
 
-    expect($studentRevision())->toMatchArray(['canRespond' => true])
-        ->and($dosenRevision())->toMatchArray(['canVerify' => false]);
+    expect($studentActions())->toBe([$revision->id])
+        ->and($lecturerActions())->toBe([]);
 
     respondToRevision($this, $student, $revision)->assertSessionHasNoErrors();
 
-    expect($studentRevision())->toMatchArray(['canRespond' => false])
-        ->and($studentRevision()['rounds'][0]['manuscript']['fileName'])->toBe('perbaikan.pdf')
-        ->and($studentRevision()['items'][0])->toMatchArray(['status' => 'addressed', 'studentResponseLocation' => 'Bab 3, hlm. 50'])
-        ->and($dosenRevision())->toMatchArray(['canVerify' => true]);
+    expect($studentActions())->toBe([])
+        ->and($lecturerActions())->toBe([$revision->id]);
 });

@@ -11,7 +11,10 @@ import { useMemo, useState } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
-import { DeadlineBadge } from '@/components/deadline-badge';
+import {
+    DefenseRevisionLog,
+    type DefenseRevisionLogData,
+} from '@/components/defense-revision-log';
 import {
     DataSection,
     DataToolbar,
@@ -26,17 +29,11 @@ import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
     type RevisionAnnotation,
     RevisionAnnotationLinks,
-    type RevisionItem,
-    RevisionItemList,
-    type RevisionRound,
-    RevisionRoundHistory,
-    showRevisionSummary,
 } from '@/components/revision-items';
 import {
     type DraftItem,
     RevisionItemsEditor,
 } from '@/components/revision-items-editor';
-import { RevisionVerifyForm } from '@/components/revision-verify-form';
 import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
 import {
     type ProjectNotes,
@@ -85,23 +82,6 @@ type OtherExaminer = {
     score: number | null;
 };
 
-type Revision = {
-    id: number;
-    notes: string;
-    status: string;
-    statusLabel: string;
-    dueAt: string | null;
-    /** ISO 8601, for the deadline badge; dueAt is the Indonesian display text. */
-    dueAtIso: string | null;
-    resolvedAt: string | null;
-    resolutionNotes: string | null;
-    requestedBy: string;
-    canVerify: boolean;
-    rounds: RevisionRound[];
-    items: RevisionItem[];
-    annotations: RevisionAnnotation[];
-};
-
 type MyRevisionItem = {
     location: string | null;
     description: string;
@@ -137,7 +117,8 @@ type DefenseItem = {
     myRevisionItems: MyRevisionItem[];
     myAnnotation: RevisionAnnotation | null;
     otherExaminers: OtherExaminer[];
-    revisions: Revision[];
+    revisionLog: DefenseRevisionLogData;
+    verifiableRevisionIds: number[];
 };
 
 type PageProps = {
@@ -669,69 +650,13 @@ function DefenseDetailSheet({
                             </ul>
                         </section>
 
-                        {item.revisions.length > 0 && (
-                            <section>
-                                <h3 className="mb-2 text-base font-semibold">
-                                    Revisi ({item.revisions.length})
-                                </h3>
-                                <ul className="divide-y border-y text-sm">
-                                    {item.revisions.map((rev) => (
-                                        <li key={rev.id} className="py-3">
-                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                                <StatusBadge
-                                                    domain="revision"
-                                                    status={rev.status}
-                                                >
-                                                    {rev.statusLabel}
-                                                </StatusBadge>
-                                                <span className="text-muted-foreground">
-                                                    {rev.requestedBy}
-                                                </span>
-                                                {rev.dueAt &&
-                                                    rev.status !==
-                                                        'resolved' && (
-                                                        <DeadlineBadge
-                                                            dueAt={rev.dueAtIso}
-                                                            status={rev.status}
-                                                        />
-                                                    )}
-                                            </div>
-                                            {showRevisionSummary(
-                                                rev.notes,
-                                                rev.items,
-                                            ) && (
-                                                <p className="mt-2 leading-relaxed text-pretty">
-                                                    {rev.notes}
-                                                </p>
-                                            )}
-                                            <RevisionItemList
-                                                items={
-                                                    rev.canVerify
-                                                        ? rev.items.filter(
-                                                              (item) =>
-                                                                  item.status !==
-                                                                  'addressed',
-                                                          )
-                                                        : rev.items
-                                                }
-                                            />
-                                            <RevisionAnnotationLinks
-                                                annotations={rev.annotations}
-                                            />
-                                            <RevisionRoundHistory
-                                                rounds={rev.rounds}
-                                            />
-                                            {rev.canVerify && (
-                                                <RevisionVerifyForm
-                                                    revisionId={rev.id}
-                                                    items={rev.items}
-                                                />
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
+                        <DefenseRevisionLog
+                            log={item.revisionLog}
+                            action={{
+                                type: 'verify',
+                                revisionIds: item.verifiableRevisionIds,
+                            }}
+                        />
 
                         <section>
                             <h3 className="mb-2 text-base font-semibold">
@@ -832,10 +757,8 @@ export default function DosenSeminarProposalPage() {
                 const isPending =
                     item.defenseStatus === 'scheduled' &&
                     item.myDecision === 'pending';
-                const awaitsVerification = item.revisions.some(
-                    (revision) =>
-                        revision.canVerify && revision.status === 'submitted',
-                );
+                const awaitsVerification =
+                    item.verifiableRevisionIds.length > 0;
                 const matchStatus =
                     statusFilter === 'semua' ||
                     (statusFilter === 'pending' && isPending) ||
@@ -874,10 +797,8 @@ export default function DosenSeminarProposalPage() {
     const pendingCount = defenses.filter(
         (i) => i.defenseStatus === 'scheduled' && i.myDecision === 'pending',
     ).length;
-    const verificationCount = defenses.filter((i) =>
-        i.revisions.some(
-            (revision) => revision.canVerify && revision.status === 'submitted',
-        ),
+    const verificationCount = defenses.filter(
+        (item) => item.verifiableRevisionIds.length > 0,
     ).length;
 
     const filteredWorkspaceEvents = workspaceEvents.filter((e) =>
