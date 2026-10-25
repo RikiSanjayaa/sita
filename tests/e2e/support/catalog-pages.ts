@@ -264,7 +264,7 @@ export const catalogPages: readonly CatalogPage[] = [
         role: 'kaprodi',
         name: 'dashboard',
         path: '/kaprodi/dashboard',
-        heading: 'Perlu Tindakan',
+        heading: 'Perlu tindakan',
     },
     {
         role: 'kaprodi',
