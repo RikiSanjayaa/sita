@@ -6,11 +6,14 @@ Maps user flows to Playwright specs in `tests/e2e/specs/`. E2E covers cross-role
 
 Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles covered, **belum** = no spec. Priority: **P1** core thesis workflow or demo path, **P2** supporting, **P3** admin/support.
 
+Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cabang pemulihan. Bedakan transisi UI, transisi campuran service/Tinker, fixture status dan Pest saja; audit recovery di bagian akhir melacak batasnya di #140.
+
 ## Fixtures
 
 - `thesisScenarios` in `support/thesis-fixtures.ts` lists the shared seeded students (`akbar`, `nadia`, `putra`, `mahasiswa`, ...). Earlier specs change their state (reschedule, finalize, close), so do not depend on their initial state.
 - Dedicated scenario students come from `database/seeders/PlaywrightScenarioSeeder.php` (run by the setup project, not by `DatabaseSeeder`). Specs call `seedPlaywrightScenarios()` in `beforeAll` to rebuild them: `twoSupervisors` (dosen1 + dosen2), `semproTwoExaminers` (dosen3 + dosen4), `semproUnscheduled`, `passedWithoutSupervisors`, `sidangWithPanel` (dosen1, dosen2, dosen3). Add new scenario students there plus an entry in `thesisScenarios`. Scenarios for OBE, expired ticket and archived students are added by the feature issues themselves (`completedInGrace`, `completedPastGrace`: issue #27).
 - The `kaprodi` account (`kaprodi@sita.test`) has a stored auth state like the other accounts.
+- `golden-path` owns a fresh student (`GoldenPathScenarioSeeder`, `support/golden-path.ts`) and removes its academic records and uploaded files after the run, including failures. Staff use separate contexts with the setup project's auth states; every academic transition is performed through the UI, with a screenshot attached per stage.
 
 ## Mahasiswa
 
@@ -18,9 +21,9 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------- | -------- |
 | Dashboard (`/mahasiswa/dashboard`): fixture DB terisolasi untuk awal, pending, ditolak, dibatalkan, terisi, sidang terjadwal, selesai dan arsip; kartu judul/status, progres, agenda dan pembimbing tanpa ringkasan angka berulang; kelayakan CTA, tujuan nyata, dialog dari query dan profil; penguji sidang rahasia tidak bocor pada halaman/payload (issue #134) | `mahasiswa-dashboard`, plus Pest (`MahasiswaDashboardTest`) | tercakup | P1 |
 | Dashboard: urutan DOM dan fokus ringkasan judul/status, tindakan, agenda, progres, pembimbing; target minimal 44px dan tanpa overflow di 390/1280px; katalog utama, belum mulai, pending dan selesai (issue #134) | `mahasiswa-dashboard`, `screenshot-catalog` | tercakup | P2 |
-| Tugas Akhir: judul, naskah proposal, revisi judul                                                                                                                                            | `mahasiswa-thesis`                                                      | tercakup | P1       |
+| Tugas Akhir: pengajuan judul/naskah pertama dan edit saat review belum diputuskan (bukan ganti judul yang sudah disetujui) | `mahasiswa-thesis` | tercakup | P1 |
 | Tugas Akhir: pilih berkas untuk sempro/sidang aktif                                                                                                                                          | `mahasiswa-thesis`                                                      | tercakup | P1       |
-| Tugas Akhir: hasil sempro, revisi, selesai                                                                                                                                                   | `admin-sempro`, `dosen-penilaian`                                       | tercakup | P1       |
+| Tugas Akhir: hasil Sempro, tanggapan/verifikasi revisi dua putaran sampai selesai; finalisasi admin di spec lama memakai service, alur utama golden path memakai UI | `dosen-penilaian`, `admin-sempro`, `golden-path` | tercakup | P1 |
 | Tugas Akhir: pembimbing tampil setelah ditetapkan kaprodi; jumlah "x bimbingan" per pembimbing (issue #20)                                                                                   | `kaprodi-portal`                                                        | tercakup | P1       |
 | Tugas Akhir: dosen diskusi proposal wajib saat pengajuan judul (issue #18)                                                                                                                   | `mahasiswa-thesis`, plus Pest (`DiscussionLecturerTest`)                | tercakup | P1       |
 | Tugas Akhir: bagian Catatan Dosen (hanya catatan untuk mahasiswa, issue #13)                                                                                                                 | `dosen-catatan`, plus Pest (`ThesisProjectNoteTest`)                    | tercakup | P1       |
@@ -113,7 +116,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 | Thesis Projects: impor Excel tugas akhir berjalan, template, error per baris (issue #24)                         | `admin-thesis-import`, Pest `ThesisProjectImportServiceTest`                           | sebagian | P2       |
 | Users: buat, ubah, nonaktifkan                                                                                   | none (konsentrasi lookup in `program-studi`)                                           | belum    | P2       |
 | Sempro (`/admin/sempros`) dan Judul & Naskah Proposal                                                            | `admin-sempro`, `admin-sidang` (service calls via tinker, results checked in portals)  | sebagian | P1       |
-| Thesis Projects: jadwal, finalisasi, tutup                                                                       | `admin-sempro`, `admin-sidang`                                                         | sebagian | P1       |
+| Thesis Projects: jadwal/finalisasi/kelulusan alur utama melalui UI; cabang tidak lulus dan ujian ulang pada spec lama masih memakai service/Tinker | `golden-path`, `admin-sempro`, `admin-sidang`; cabang recovery #140 | sebagian | P1 |
 | Thesis Projects: peringatan bimbingan < 6 pada action jadwalkan sidang (issue #20)                               | Pest only (`MentorshipProgressTest`)                                                   | belum    | P2       |
 | Thesis Projects: tab Catatan, read-only (issue #13)                                                              | Pest only (`ThesisProjectNoteTest`)                                                    | belum    | P3       |
 | Thesis Projects: masa aktif bimbingan, perpanjang 1 tahun (satu dan massal), filter masa aktif habis (issue #21) | Pest only (`MentorshipTicketTest`; Filament table and page actions not covered by e2e) | belum    | P2       |
@@ -143,6 +146,7 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 
 | Flow                                                                                                                                                                                                                                                                                                                                      | Spec                                                                                                     | Status   | Priority |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------- | -------- |
+| Golden path (gladi demo, #39): satu mahasiswa baru dari pengajuan judul/naskah dan dosen diskusi, persetujuan admin, Sempro dua penguji, lampiran chat dan hasil review, revisi per butir sampai verifikasi, pembimbing dan bimbingan lintas peran, peringatan minimum saat jadwal Sidang, penilaian/finalisasi sampai lulus dan judul publik; screenshot setiap tahap | `golden-path` | tercakup | P1 |
 | Detektor desain Impeccable (`impeccable detect --cdp`): halaman publik, mahasiswa, dosen dan kaprodi di 1280px dan 390px; temuan jadi annotation dan lampiran JSON per halaman. Area di `BLOCKING_AREAS` (`public`, `mahasiswa`, `dosen`, `kaprodi`, termasuk halaman pengaturan) gagal bila ada temuan non-advisory. Bukan uji perilaku. | `design-detector`                                                                                        | tercakup | P3       |
 | Judul bagian jadi satu-satunya h1 di kaprodi mahasiswa, dokumen, dosen prodi dan dosen dokumen-revisi (tanpa PageHeader terpisah)                                                                                                                                                                                                         | `table-sticky-filters`                                                                                   | tercakup | P2       |
 | Search dan filter tabel sticky setelah scroll nyata: kaprodi, dosen, mahasiswa dan publik; desktop expanded/collapsed, mobile static, light/dark (#94)                                                                                                                                                                                    | `table-sticky-filters`, `dosen-prodi-roles`                                                              | tercakup | P2       |
@@ -152,3 +156,30 @@ Status: **tercakup** = main flow has a spec, **sebagian** = some steps or roles 
 ## Known gaps worth closing next
 
 - Dashboard dosen (#31/#123), kaprodi (#32/#124) dan mahasiswa (#134/#137) memiliki skenario terisolasi; admin tetap memakai `admin-dashboard` dan didesain ulang di #33.
+
+### Recovery branches audit (2026-10-25)
+
+Tindak lanjut implementasi: #140 (lanjutan #38, bukan membuka ulang scope yang selesai). Bahan panduan: #25. Golden path #39 / PR #139 tetap terpisah dari cabang recovery.
+
+Arti bukti pada tabel ini:
+
+- **UI**: transisi yang diklaim dilakukan lewat kontrol pengguna; seed/service hanya untuk setup dan cleanup.
+- **Campuran**: sebagian transisi akademik masih dipanggil melalui service/Tinker; tampilan hasil di portal diperiksa.
+- **Fixture status**: status awal dibuat oleh fixture; tampilan, CTA atau batas akses diuji, bukan aksi yang menghasilkan status tersebut.
+- **Pest**: backend/Livewire diuji, bukan perjalanan browser lintas peran.
+
+| Cabang | Bukti yang ada | Batas / pekerjaan berikutnya (#140) |
+| --- | --- | --- |
+| Edit judul/naskah saat review belum diputuskan | UI: `mahasiswa-thesis` | Tercakup untuk pengajuan pending saja. |
+| Judul ditolak lalu mengajukan ulang sampai disetujui | Fixture status/CTA: `mahasiswa-dashboard`; Pest: `MahasiswaWorkflowTest`, `Admin/ThesisProjectResourceTest` | Belum ada perjalanan UI lengkap penolakan admin, alasan mahasiswa, pengajuan baru dan persetujuan. |
+| Ganti judul/naskah yang sudah disetujui saat riset | Pest: `Admin/ThesisProjectResourceTest` memeriksa perubahan, event dan notifikasi | Belum ada E2E lintas peran untuk perubahan admin dan dampaknya yang terlihat mahasiswa. |
+| Seluruh tugas akhir dibatalkan, lalu pengajuan baru | Fixture status/CTA: `mahasiswa-dashboard`; fixture riwayat: `project-visibility`, `profile-active-examiners`; Pest status/akses: `MahasiswaWorkflowTest`, `ProjectVisibilityTest`, `ProfileShowTest` | Belum ada transisi pembatalan sampai pengajuan baru lewat UI. Pastikan aksi produk dan aktor yang berwenang dahulu; jangan menyamakan pembatalan umum dengan penolakan judul atau pembatalan jadwal bimbingan. |
+| Dokumen/lampiran perlu revisi, mahasiswa membaca catatan dan mengunggah perbaikan, dosen menyetujui | UI: `bimbingan-chat`, `chat-attachment-review`; hasil review lampiran juga pada `golden-path` | Sudah ada skenario khusus; jangan diduplikasi hanya untuk menambah jumlah test. |
+| Revisi Sempro ditolak lagi, butir ditambah, putaran berikutnya diterima | UI mahasiswa/dosen: `dosen-penilaian`; finalisasi awal admin masih service (campuran) | Dua putaran sudah teruji. `golden-path` menguji finalisasi admin lewat UI untuk alur utama, bukan seluruh cabang multi-putaran. |
+| Sidang lulus bersyarat sampai revisi diverifikasi dan mahasiswa lulus | UI keputusan panel: `dosen-penilaian`; penyelesaian revisi juga diuji Pest (`Admin/ThesisProjectAdminServiceTest`) | Belum ada E2E seluruh perjalanan tanggapan mahasiswa, penolakan/putaran lanjutan, verifikasi dan kelulusan. |
+| Sempro/Sidang tidak lulus lalu ujian ulang | Campuran: `admin-sempro`, `admin-sidang` | Hasil/attempt di portal teruji; ganti transisi service/Tinker dengan UI admin pada cabang recovery yang diklaim. |
+| Jadwal bimbingan ditolak, dibatalkan atau dijadwalkan ulang | UI: `jadwal-bimbingan`, `bimbingan-chat` | Tercakup untuk jadwal; bukan bukti pembatalan seluruh tugas akhir. |
+
+Bukti baseline: isi spec dan artefak [CI PR #139, run 40162543429](https://github.com/RikiSanjayaa/sita/actions/runs/40162543429) diperiksa; skenario E2E yang diaudit lulus tanpa retry. Ini bukti historis untuk cakupan di atas, bukan jaminan semua edge case tercakup. Bootstrap shard 3 sempat retry, terpisah dari skenario tersebut.
+
+Untuk #25, setiap keadaan perlu menjelaskan arti status, alasan, aktor yang harus bertindak, tindakan berikutnya serta data yang tetap tersimpan/diganti/dihapus. Simpan screenshot keadaan pemulihan penting sebagai attachment CI dengan data seed. Jangan menjanjikan semua berkas lama selalu tersimpan: test penggantian naskah oleh admin memastikan berkas proposal lama dihapus ketika diganti dengan berkas baru. Detail acceptance criteria dan batas keputusan produk dikelola di #140.
