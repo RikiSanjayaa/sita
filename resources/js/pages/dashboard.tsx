@@ -8,7 +8,6 @@ import {
     MessageSquareText,
     Upload,
     Users,
-    type LucideIcon,
 } from 'lucide-react';
 
 import {
@@ -17,12 +16,9 @@ import {
 } from '@/components/patterns/action-queue';
 import { EmptyState } from '@/components/patterns/empty-state';
 import { PageHeader } from '@/components/patterns/page-header';
-import { StatCard } from '@/components/patterns/stat-card';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
 import AppLayout from '@/layouts/app-layout';
-import { type StatusTone } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import {
@@ -98,13 +94,6 @@ type DashboardProps = {
     timeline: TimelineStep[];
 };
 
-const statIcons: Record<string, LucideIcon> = {
-    'file-text': FileText,
-    users: Users,
-    'calendar-clock': CalendarClock,
-    'message-square-text': MessageSquareText,
-};
-const statTones: StatusTone[] = ['primary', 'success', 'info', 'warning'];
 const listRowFocus =
     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none';
 
@@ -117,11 +106,10 @@ export default function DashboardPage() {
         timeline,
         academicTerminology: terms,
     } = usePage<SharedData & DashboardProps>().props;
-    const isMobile = useIsMobile();
     const mainAction = {
         title: quickActionState.canSubmitTitle
             ? 'Ajukan Judul'
-            : summary.workflow.label,
+            : `Lanjutkan ${terms.finalWorkLower}`,
         label: quickActionState.canSubmitTitle
             ? 'Ajukan Judul'
             : `Buka ${terms.finalWork}`,
@@ -145,66 +133,100 @@ export default function DashboardPage() {
             enabled: quickActionState.canUploadDocument,
         },
     ];
-    const summaryDestinations = [
-        tugasAkhir().url,
-        '#dosen-pembimbing',
-        '#agenda-mendatang',
-        pesan().url,
-    ];
 
     const summarySection = (
-        <section aria-label="Ringkasan akademik">
-            <PageHeader
-                level={2}
-                title="Ringkasan akademik"
-                className="sr-only"
-            />
-            <div className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card lg:grid-cols-4">
-                {stats.map((stat, index) => {
-                    const href = summaryDestinations[index];
-                    const card = (
-                        <StatCard
-                            {...stat}
-                            icon={statIcons[stat.icon] ?? FileText}
-                            variant="snapshot"
-                            tone={statTones[index]}
-                            className={cn(
-                                'rounded-none border-0 bg-transparent shadow-none',
-                                index === 0 &&
-                                    '[&_[data-slot=card-title]]:text-base [&_[data-slot=card-title]]:leading-snug xl:[&_[data-slot=card-title]]:text-xl',
-                            )}
-                        />
-                    );
-                    const linkClassName = cn(
-                        'block h-full min-h-11 min-w-0 transition-colors hover:bg-muted',
-                        listRowFocus,
-                    );
-
-                    return (
-                        <div
-                            key={stat.title}
-                            role="group"
-                            aria-label={stat.title}
-                            className={cn(
-                                'min-w-0 border-b lg:border-b-0',
-                                index % 2 === 0 && 'border-r',
-                                index === 1 && 'lg:border-r',
-                                index > 1 && 'max-lg:border-b-0',
-                            )}
-                        >
-                            {href.startsWith('#') ? (
-                                <a href={href} className={linkClassName}>
-                                    {card}
-                                </a>
-                            ) : (
-                                <Link href={href} className={linkClassName}>
-                                    {card}
-                                </Link>
-                            )}
-                        </div>
-                    );
-                })}
+        <section
+            aria-label="Ringkasan akademik"
+            className="grid gap-5 rounded-xl border bg-card p-5 md:p-6"
+        >
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1.6fr)_minmax(12rem,1fr)] md:gap-8">
+                <div className="grid content-start gap-3">
+                    <h2 className="text-xl leading-snug font-semibold text-pretty break-words">
+                        {summary.projectTitle ??
+                            `Siapkan pengajuan judul ${terms.finalWorkLower} Anda.`}
+                    </h2>
+                    {summary.projectTitleEn && (
+                        <p className="text-sm leading-relaxed text-pretty break-words text-muted-foreground italic">
+                            {summary.projectTitleEn}
+                        </p>
+                    )}
+                    {summary.startedAt && (
+                        <p className="text-xs text-muted-foreground">
+                            Mulai {summary.startedAt}
+                        </p>
+                    )}
+                </div>
+                <dl className="grid content-start gap-2 border-t pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-8">
+                    <dt className="text-sm text-muted-foreground">
+                        Status saat ini
+                    </dt>
+                    <dd className="text-lg leading-snug font-semibold text-primary">
+                        {summary.workflow.label}
+                    </dd>
+                    <dd className="text-sm leading-relaxed text-pretty text-muted-foreground">
+                        {summary.workflow.description}
+                    </dd>
+                </dl>
             </div>
+            <nav
+                aria-label="Tautan akademik"
+                className="flex flex-wrap gap-x-6 border-t pt-2"
+            >
+                <a
+                    href="#dosen-pembimbing"
+                    className={cn(
+                        'inline-flex min-h-11 items-center gap-2 text-sm hover:underline',
+                        listRowFocus,
+                    )}
+                >
+                    <Users
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span>
+                        <span className="font-medium tabular-nums">
+                            {stats[1].value}
+                        </span>{' '}
+                        pembimbing aktif
+                    </span>
+                </a>
+                <a
+                    href="#agenda-mendatang"
+                    className={cn(
+                        'inline-flex min-h-11 items-center gap-2 text-sm hover:underline',
+                        listRowFocus,
+                    )}
+                >
+                    <CalendarClock
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span>
+                        <span className="font-medium tabular-nums">
+                            {stats[2].value}
+                        </span>{' '}
+                        agenda mendatang
+                    </span>
+                </a>
+                <Link
+                    href={pesan().url}
+                    className={cn(
+                        'inline-flex min-h-11 items-center gap-2 text-sm hover:underline',
+                        listRowFocus,
+                    )}
+                >
+                    <MessageSquareText
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span>
+                        <span className="font-medium tabular-nums">
+                            {stats[3].value}
+                        </span>{' '}
+                        pesan belum dibaca
+                    </span>
+                </Link>
+            </nav>
         </section>
     );
 
@@ -239,7 +261,7 @@ export default function DashboardPage() {
                     title={mainAction.title}
                     icon={FileText}
                     description={mainAction.description}
-                    className="md:col-span-2"
+                    className="sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-6 md:col-span-2 sm:[&>div:last-child]:col-start-2 sm:[&>div:last-child]:row-span-2 sm:[&>div:last-child]:row-start-1 sm:[&>div:last-child]:mt-0 sm:[&>div:last-child]:border-0 sm:[&>div:last-child]:pt-0"
                     action={
                         <Button asChild className="min-h-11 gap-2">
                             <Link href={tugasAkhir().url}>
@@ -359,10 +381,9 @@ export default function DashboardPage() {
                     title="Dashboard mahasiswa"
                     description={`${summary.studentName}${summary.programStudi ? ` · ${summary.programStudi}` : ''}`}
                 />
-                {!isMobile && summarySection}
+                {summarySection}
                 <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)] xl:gap-8">
                     {actionSection}
-                    {isMobile && summarySection}
                     {agendaSection}
                 </div>
                 <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)] xl:gap-8">
@@ -383,32 +404,8 @@ export default function DashboardPage() {
                             }
                         />
                         <div className="divide-y overflow-hidden rounded-xl border bg-card">
-                            <div className="grid gap-3 p-5 md:p-6">
-                                {summary.projectTitle ? (
-                                    <>
-                                        <h3 className="text-lg leading-snug font-semibold text-pretty break-words">
-                                            {summary.projectTitle}
-                                        </h3>
-                                        {summary.projectTitleEn && (
-                                            <p className="text-sm leading-relaxed text-pretty break-words text-muted-foreground italic">
-                                                {summary.projectTitleEn}
-                                            </p>
-                                        )}
-                                    </>
-                                ) : (
-                                    <p className="text-sm leading-relaxed text-muted-foreground">
-                                        Siapkan pengajuan judul dan mulai
-                                        perjalanan {terms.finalWorkLower} Anda.
-                                    </p>
-                                )}
-                                {summary.startedAt && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Mulai {summary.startedAt}
-                                    </p>
-                                )}
-                            </div>
-                            <ol className="divide-y">
-                                {timeline.map((step) => (
+                            <ol className="px-5 py-5 md:px-6">
+                                {timeline.map((step, index) => (
                                     <li
                                         key={step.title}
                                         aria-current={
@@ -416,12 +413,23 @@ export default function DashboardPage() {
                                                 ? 'step'
                                                 : undefined
                                         }
-                                        className="flex gap-4 px-5 py-4 md:px-6"
+                                        className="relative flex gap-4 pb-6 last:pb-0"
                                     >
+                                        {index < timeline.length - 1 && (
+                                            <span
+                                                aria-hidden="true"
+                                                className={cn(
+                                                    'absolute top-7 -bottom-0.5 left-3.5 w-px',
+                                                    step.status === 'done'
+                                                        ? 'bg-primary'
+                                                        : 'bg-border',
+                                                )}
+                                            />
+                                        )}
                                         <span
                                             aria-hidden="true"
                                             className={cn(
-                                                'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full',
+                                                'relative z-10 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full',
                                                 step.status === 'done'
                                                     ? 'bg-primary text-primary-foreground'
                                                     : step.status === 'current'

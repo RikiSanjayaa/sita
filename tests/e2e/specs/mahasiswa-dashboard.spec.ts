@@ -12,8 +12,8 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 const dashboardPath = '/mahasiswa/dashboard';
 const regionNames = [
-    'Tindakan Anda',
     'Ringkasan akademik',
+    'Tindakan Anda',
     'Agenda mendatang',
     'Progres akademik',
     'Dosen pembimbing',
@@ -85,17 +85,15 @@ async function expectSummary(
 ): Promise<void> {
     const summary = region(page, 'Ringkasan akademik');
     const { expected } = fixture;
-    const stats = [
-        ['Dosen Terhubung', String(expected.advisorCount)],
-        ['Agenda Mendatang', String(expected.agendaCount)],
-        ['Pesan Belum Dibaca', String(expected.unreadMessages)],
-    ];
-    for (const [label, value] of stats) {
-        const stat = summary.getByRole('group', { name: label, exact: true });
-        await expect(stat).toBeVisible();
-        await expect(stat.getByText(value, { exact: true })).toBeVisible();
+    for (const label of [
+        `${expected.advisorCount} pembimbing aktif`,
+        `${expected.agendaCount} agenda mendatang`,
+        `${expected.unreadMessages} pesan belum dibaca`,
+    ]) {
+        await expect(
+            summary.getByRole('link', { name: label, exact: true }),
+        ).toBeVisible();
     }
-    await expect(summary.getByRole('group')).toHaveCount(4);
     await expect(
         region(page, 'Progres akademik').getByText(`${expected.progress}%`, {
             exact: true,
@@ -174,7 +172,7 @@ test('populated dashboard renders real counts, progress, ordered agenda and advi
         ).toHaveCount(1);
         await expectEligibility(page, fixture);
         await expectAgenda(page, fixture);
-        await expect(region(page, 'Progres akademik')).toContainText(
+        await expect(region(page, 'Ringkasan akademik')).toContainText(
             fixture.projectTitle,
         );
         const advisor = region(page, 'Dosen pembimbing').getByRole('link', {
@@ -227,14 +225,13 @@ test('enabled CTAs navigate and query links open their real dialogs', async ({
             await page.goto(dashboardPath);
         }
         for (const [label, href] of [
-            ['Status Saat Ini', '/mahasiswa/tugas-akhir'],
-            ['Dosen Terhubung', '#dosen-pembimbing'],
-            ['Agenda Mendatang', '#agenda-mendatang'],
-            ['Pesan Belum Dibaca', '/mahasiswa/pesan'],
+            [/pembimbing aktif/, '#dosen-pembimbing'],
+            [/agenda mendatang/, '#agenda-mendatang'],
+            [/pesan belum dibaca/, '/mahasiswa/pesan'],
         ] as const) {
-            const link = region(page, 'Ringkasan akademik')
-                .getByRole('group', { name: label, exact: true })
-                .getByRole('link');
+            const link = region(page, 'Ringkasan akademik').getByRole('link', {
+                name: label,
+            });
             await expect(link).toHaveAttribute('href', href);
             await link.click();
             if (href.startsWith('#')) {
