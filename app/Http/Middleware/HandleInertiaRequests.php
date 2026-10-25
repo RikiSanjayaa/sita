@@ -114,8 +114,9 @@ class HandleInertiaRequests extends Middleware
             'notificationSettings' => $notificationSettings,
             'notifications' => $notifications,
             'unreadNotificationCount' => $unreadNotificationCount,
-            'hasUnreadMessages' => fn (): bool => $user !== null
-                && app(ChatUnreadService::class)->hasUnreadMessages($user, $activeRole),
+            'unreadMessageCount' => fn (): int => $user === null
+                ? 0
+                : app(ChatUnreadService::class)->unreadMessageCount($user, $activeRole),
             'academicTerminology' => $user?->hasRole('mahasiswa')
                 ? AcademicTerminology::forStudent($user)
                 : AcademicTerminology::neutral(),

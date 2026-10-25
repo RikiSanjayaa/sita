@@ -13,11 +13,11 @@ import { type NavItem } from '@/types';
 export function NavMain({
     items = [],
     label = 'Menu utama',
-    hasUnreadMessages = false,
+    unreadMessageCount = 0,
 }: {
     items: NavItem[];
     label?: string;
-    hasUnreadMessages?: boolean;
+    unreadMessageCount?: number;
 }) {
     const { urlIsActive } = useActiveUrl();
 
@@ -27,26 +27,31 @@ export function NavMain({
             <SidebarMenu>
                 {items.map((item) => {
                     const hasUnread =
-                        hasUnreadMessages &&
+                        unreadMessageCount > 0 &&
                         (item.href === '/mahasiswa/pesan' ||
                             item.href === '/dosen/pesan');
                     const accessibleLabel = hasUnread
-                        ? `${item.title}, pesan belum dibaca`
+                        ? `${item.title}, ${unreadMessageCount} pesan belum dibaca`
                         : item.title;
 
                     return (
                         <SidebarMenuItem key={item.title}>
                             <SidebarMenuButton
                                 asChild
-                                className="relative max-md:h-11"
+                                className="relative group-data-[collapsible=icon]:overflow-visible max-md:h-11"
                                 isActive={urlIsActive(item.href)}
                                 tooltip={{ children: accessibleLabel }}
                             >
                                 {typeof item.href === 'string' &&
                                 item.href.startsWith('/admin') ? (
-                                    <a href={item.href}>
+                                    <a
+                                        href={item.href}
+                                        aria-label={accessibleLabel}
+                                    >
                                         {item.icon && <item.icon />}
-                                        <span>{item.title}</span>
+                                        <span className="min-w-0 truncate group-data-[collapsible=icon]:hidden">
+                                            {item.title}
+                                        </span>
                                     </a>
                                 ) : (
                                     <Link
@@ -56,12 +61,18 @@ export function NavMain({
                                         data-unread={hasUnread || undefined}
                                     >
                                         {item.icon && <item.icon />}
-                                        <span>{item.title}</span>
+                                        <span className="min-w-0 truncate group-data-[collapsible=icon]:hidden">
+                                            {item.title}
+                                        </span>
                                         {hasUnread && (
                                             <span
                                                 aria-hidden="true"
-                                                className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-sidebar"
-                                            />
+                                                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-none font-medium text-destructive-foreground tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-1.5 group-data-[collapsible=icon]:-right-3 group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar"
+                                            >
+                                                {unreadMessageCount > 99
+                                                    ? '99+'
+                                                    : unreadMessageCount}
+                                            </span>
                                         )}
                                     </Link>
                                 )}

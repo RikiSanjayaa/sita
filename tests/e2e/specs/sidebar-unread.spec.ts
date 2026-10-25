@@ -3,23 +3,27 @@ import { expect, test, type Page } from '@playwright/test';
 import {
     bellCount,
     closeSidebarDrawer,
-    collapseSidebar,
     createSidebarUnreadFixture,
-    expandSidebar,
+    expectBadgeBesideLabel,
+    expectBadgeMatchesBell,
     expectPesanRead,
     expectPesanUnread,
-    fetchUnreadFlag,
+    fetchUnreadCount,
     insertNotification,
     loginAs,
     mobileViewport,
     openPrivateThread,
     openSession,
     openSidebarDrawer,
+    pesanBadge,
+    pesanGeometry,
     pesanLink,
     readRequestPattern,
     resetNotifications,
     seedIncomingMessage,
+    seedIncomingMessages,
     sendMessageFromUi,
+    setSidebarState,
     sidebarScope,
     unreadPesanLabel,
     waitForUnreadChannel,
@@ -27,15 +31,15 @@ import {
     type SidebarUnreadSession,
 } from '../support/sidebar-unread';
 
-// Sidebar "Pesan" unread dot (issue #138). Every test builds its own fixture
+// Sidebar "Pesan" numeric unread badge (issue #138). Every test builds its own fixture
 // (support/sidebar-unread.ts): accounts, private threads and notifications are
 // created and removed per test, the shared seed is never touched. Realtime
 // behaviour goes through the real chat UI and the real Reverb server; nothing
 // dispatches or fakes a socket event.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const noUnread = { hasUnreadMessages: false };
-const hasUnread = { hasUnreadMessages: true };
+const noUnread = { unreadMessageCount: 0 };
+const oneUnread = { unreadMessageCount: 1 };
 
 async function closeAll(sessions: SidebarUnreadSession[]): Promise<void> {
     for (const session of sessions) {
@@ -51,7 +55,7 @@ async function openNotificationsPanel(page: Page): Promise<void> {
 }
 
 test.describe('Sidebar unread indicator on Pesan', () => {
-    test('a message from the UI lights the dot outside Pesan in realtime, survives navigation and reload, and clears only after the thread is read', async ({
+    test('a message from the UI raises the Pesan count outside Pesan in realtime, survives navigation and reload, and clears only after the thread is read', async ({
         browser,
     }) => {
         const fixture = createSidebarUnreadFixture();
@@ -68,7 +72,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await waitForUnreadChannel(recipient.page, lecturer);
             const link = pesanLink(recipient.page, lecturer);
             await expectPesanRead(link);
-            expect(await fetchUnreadFlag(recipient.page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(recipient.page)).toEqual(noUnread);
 
             await sendMessageFromUi(
                 sender.page,
@@ -79,16 +83,17 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             );
 
             // No reload and no navigation on the recipient: the socket invalidation alone does it.
-            await expectPesanUnread(link);
+            await expectPesanUnread(link, 1);
+            await expectBadgeBesideLabel(link);
             expect(recipient.unreadEvents()).toBeGreaterThan(0);
-            expect(await fetchUnreadFlag(recipient.page)).toEqual(hasUnread);
+            expect(await fetchUnreadCount(recipient.page)).toEqual(oneUnread);
 
-            // The sender never gets a dot for their own message.
+            // The sender's own message never increases their unread count.
             await sender.page.goto(student.otherPagePath);
             await expectPesanRead(pesanLink(sender.page, student));
-            expect(await fetchUnreadFlag(sender.page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(sender.page)).toEqual(noUnread);
 
-            // Inertia navigation to another page without chat keeps the dot.
+            // Inertia navigation to another page without chat keeps the count.
             await sidebarScope(recipient.page)
                 .getByRole('link', { name: 'Mahasiswa Dosen', exact: true })
                 .click();
@@ -101,7 +106,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await recipient.page.reload();
             await expectPesanUnread(pesanLink(recipient.page, lecturer));
 
-            // Opening the actual thread saves the receipt and clears the dot.
+            // Opening the actual thread saves the receipt and clears its unread count.
             await openPrivateThread(
                 recipient.page,
                 fixture,
@@ -109,7 +114,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
                 'studentLecturer',
             );
             await expectPesanRead(pesanLink(recipient.page, lecturer));
-            expect(await fetchUnreadFlag(recipient.page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(recipient.page)).toEqual(noUnread);
 
             await recipient.page.reload();
             await expectPesanRead(pesanLink(recipient.page, lecturer));
@@ -159,14 +164,14 @@ test.describe('Sidebar unread indicator on Pesan', () => {
 
             await recipient.page.reload();
             await expectPesanRead(pesanLink(recipient.page, student));
-            expect(await fetchUnreadFlag(recipient.page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(recipient.page)).toEqual(noUnread);
         } finally {
             await closeAll(sessions);
             fixture.cleanup();
         }
     });
 
-    test('notifications and chat receipts are separate: the dot appears with message notifications off, and neither read action clears the other', async ({
+    test('notifications and chat receipts are separate: the count appears with message notifications off, and neither read action clears the other', async ({
         browser,
     }) => {
         const fixture = createSidebarUnreadFixture();
@@ -174,7 +179,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
         const sessions: SidebarUnreadSession[] = [];
 
         try {
-            // "Pesan baru" notifications off: the dot must not depend on them.
+            // "Pesan baru" notifications off: chat unread must not depend on them.
             resetNotifications(fixture, 'lecturer', false);
             seedIncomingMessage(
                 fixture,
@@ -189,10 +194,16 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             const { page } = session;
 
             await page.goto(lecturer.otherPagePath);
-            await expectPesanUnread(pesanLink(page, lecturer));
+            await expectPesanUnread(pesanLink(page, lecturer), 1);
             await expect.poll(() => bellCount(page)).toBe(1);
 
-            // Reading every notification leaves the chat dot alone.
+            // The Pesan badge and the bell badge share the destructive colours,
+            // and the badge sits beside the label.
+            await expectBadgeMatchesBell(page, pesanLink(page, lecturer));
+            await setSidebarState(page, 'expanded');
+            await expectBadgeBesideLabel(pesanLink(page, lecturer));
+
+            // Reading every global notification leaves the chat count alone.
             await openNotificationsPanel(page);
             await page.getByRole('button', { name: 'Baca semua' }).click();
             await expect(
@@ -225,7 +236,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
         }
     });
 
-    test('a receipt saved in another browser tab clears the dot in the tab outside Pesan', async ({
+    test('a receipt saved in another browser tab clears the count in the tab outside Pesan', async ({
         browser,
     }) => {
         const fixture = createSidebarUnreadFixture();
@@ -266,7 +277,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
         }
     });
 
-    test('on a 390px phone the thread list does not read, opening a thread reads only that thread, and the drawer dot has no number', async ({
+    test('on a 390px phone the thread list does not read, opening a thread reads only that thread (2, then 1, then 0), and the drawer badge sits beside the label', async ({
         browser,
     }) => {
         const fixture = createSidebarUnreadFixture();
@@ -316,28 +327,36 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await page.waitForTimeout(750);
             expect(receipts).toEqual([]);
             await withDrawerPesan(page, lecturer, async (link) => {
-                await expectPesanUnread(link);
+                await expectPesanUnread(link, 2);
+                await expectBadgeBesideLabel(link);
                 await expect(
                     sidebarScope(page, true).getByRole('link', {
-                        name: unreadPesanLabel,
+                        name: unreadPesanLabel(2),
                     }),
                 ).toBeVisible();
                 const box = await link.boundingBox();
                 expect(box?.height).toBeGreaterThanOrEqual(44);
             });
+            expect(await fetchUnreadCount(page)).toEqual({
+                unreadMessageCount: 2,
+            });
             await page.reload();
-            await withDrawerPesan(page, lecturer, expectPesanUnread);
+            await withDrawerPesan(page, lecturer, (link) =>
+                expectPesanUnread(link, 2),
+            );
             expect(receipts).toEqual([]);
 
-            // Opening the first thread reads it; the second one keeps the dot.
+            // Opening the first thread reads it; the second one keeps one unread message.
             await openPrivateThread(
                 page,
                 fixture,
                 'lecturer',
                 'studentLecturer',
             );
-            await withDrawerPesan(page, lecturer, expectPesanUnread);
-            expect(await fetchUnreadFlag(page)).toEqual(hasUnread);
+            await withDrawerPesan(page, lecturer, (link) =>
+                expectPesanUnread(link, 1),
+            );
+            expect(await fetchUnreadCount(page)).toEqual(oneUnread);
             expect(
                 receipts.some((url) =>
                     readRequestPattern(
@@ -354,14 +373,14 @@ test.describe('Sidebar unread indicator on Pesan', () => {
                 'otherStudentLecturer',
             );
             await withDrawerPesan(page, lecturer, expectPesanRead);
-            expect(await fetchUnreadFlag(page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(page)).toEqual(noUnread);
         } finally {
             await closeAll(sessions);
             fixture.cleanup();
         }
     });
 
-    test('kaprodi sees the dot in its lecturer navigation, expanded and collapsed, without moving the label, and other accounts stay clean', async ({
+    test('kaprodi sees the count badge in its lecturer navigation, expanded and collapsed, without moving the label, and other accounts stay clean', async ({
         browser,
     }) => {
         const fixture = createSidebarUnreadFixture();
@@ -375,11 +394,13 @@ test.describe('Sidebar unread indicator on Pesan', () => {
 
             await page.goto(kaprodi.otherPagePath);
             const link = pesanLink(page, kaprodi);
-            const label = link.locator('span:not([aria-hidden])');
+            await setSidebarState(page, 'expanded');
             await expectPesanRead(link);
-            const readLinkBox = await link.boundingBox();
-            const readLabelBox = await label.boundingBox();
-            expect(readLinkBox).not.toBeNull();
+            const readExpanded = await pesanGeometry(link);
+            expect(readExpanded.link).not.toBeNull();
+            await setSidebarState(page, 'collapsed');
+            const readCollapsed = await pesanGeometry(link);
+            await setSidebarState(page, 'expanded');
 
             seedIncomingMessage(
                 fixture,
@@ -388,27 +409,26 @@ test.describe('Sidebar unread indicator on Pesan', () => {
                 'Konsultasi untuk kaprodi',
             );
             await page.reload();
-            await expectPesanUnread(link);
+            await setSidebarState(page, 'expanded');
+            await expectPesanUnread(link, 1);
+            await expectBadgeBesideLabel(link);
 
-            // The dot is an overlay: link target and label keep their geometry.
-            const unreadLinkBox = await link.boundingBox();
-            const unreadLabelBox = await label.boundingBox();
-            expect(unreadLinkBox?.width).toBeCloseTo(readLinkBox!.width, 0);
-            expect(unreadLinkBox?.height).toBeCloseTo(readLinkBox!.height, 0);
-            expect(unreadLabelBox?.x).toBeCloseTo(readLabelBox!.x, 0);
-            expect(unreadLabelBox?.y).toBeCloseTo(readLabelBox!.y, 0);
+            // The badge is an overlay: link target, label and icon keep their geometry.
+            expect(await pesanGeometry(link)).toEqual(readExpanded);
 
-            // Collapsed: icon only, still announced with the unread label.
-            await collapseSidebar(page);
-            await expectPesanUnread(link);
+            // Collapsed: icon only, numeric badge over it, still announced with the count.
+            await setSidebarState(page, 'collapsed');
+            await expectPesanUnread(link, 1);
+            await expect(pesanBadge(link)).toBeVisible();
             await expect(
                 sidebarScope(page).getByRole('link', {
-                    name: unreadPesanLabel,
+                    name: unreadPesanLabel(1),
                 }),
             ).toBeVisible();
             const collapsedBox = await link.boundingBox();
             expect(collapsedBox?.width).toBeGreaterThanOrEqual(32);
             expect(collapsedBox?.height).toBeGreaterThanOrEqual(32);
+            expect(await pesanGeometry(link)).toEqual(readCollapsed);
 
             // The thread only belongs to the student and the kaprodi.
             const student1 = await openSession(browser, student);
@@ -418,13 +438,93 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await lecturer1.page.goto(lecturer.otherPagePath);
             await expectPesanRead(pesanLink(student1.page, student));
             await expectPesanRead(pesanLink(lecturer1.page, lecturer));
-            expect(await fetchUnreadFlag(lecturer1.page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(lecturer1.page)).toEqual(noUnread);
 
-            // Reading it as the kaprodi clears the dot.
-            await expandSidebar(page);
+            // Reading it as the kaprodi clears the badge.
+            await setSidebarState(page, 'expanded');
             await openPrivateThread(page, fixture, 'kaprodi', 'studentKaprodi');
             await expectPesanRead(pesanLink(page, kaprodi));
-            expect(await fetchUnreadFlag(page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(page)).toEqual(noUnread);
+        } finally {
+            await closeAll(sessions);
+            fixture.cleanup();
+        }
+    });
+
+    test('many unread messages in one thread count every message, cap the visible badge at 99+ with the exact accessible count, and clear when the thread is read', async ({
+        browser,
+    }) => {
+        const fixture = createSidebarUnreadFixture();
+        const { lecturer } = fixture.accounts;
+        const sessions: SidebarUnreadSession[] = [];
+
+        try {
+            seedIncomingMessages(
+                fixture,
+                'studentLecturer',
+                'student',
+                3,
+                'Pesan awal',
+            );
+
+            const session = await openSession(browser, lecturer);
+            sessions.push(session);
+            const { page } = session;
+
+            await page.goto(lecturer.otherPagePath);
+            await setSidebarState(page, 'expanded');
+            const link = pesanLink(page, lecturer);
+
+            // Messages are counted, not threads: one thread with three messages is 3.
+            await expectPesanUnread(link, 3);
+            expect(await fetchUnreadCount(page)).toEqual({
+                unreadMessageCount: 3,
+            });
+            const expandedWithThree = await pesanGeometry(link);
+            await setSidebarState(page, 'collapsed');
+            const collapsedWithThree = await pesanGeometry(link);
+            await setSidebarState(page, 'expanded');
+
+            // 97 more makes exactly 100: the badge reads 99+, the label keeps 100.
+            seedIncomingMessages(
+                fixture,
+                'studentLecturer',
+                'student',
+                97,
+                'Pesan susulan',
+            );
+            await page.reload();
+            await setSidebarState(page, 'expanded');
+            await expectPesanUnread(link, 100);
+            await expect(pesanBadge(link)).toHaveText('99+');
+            await expect(link).toHaveAttribute(
+                'aria-label',
+                'Pesan, 100 pesan belum dibaca',
+            );
+            expect(await fetchUnreadCount(page)).toEqual({
+                unreadMessageCount: 100,
+            });
+            await expectBadgeBesideLabel(link);
+            expect(await pesanGeometry(link)).toEqual(expandedWithThree);
+
+            // Collapsed: the wider badge is an overlay, the target and icon stay put.
+            await setSidebarState(page, 'collapsed');
+            await expectPesanUnread(link, 100);
+            await expect(pesanBadge(link)).toBeVisible();
+            expect(await pesanGeometry(link)).toEqual(collapsedWithThree);
+            await setSidebarState(page, 'expanded');
+
+            // Exactly 99 would show the plain number; one read thread clears everything.
+            await openPrivateThread(
+                page,
+                fixture,
+                'lecturer',
+                'studentLecturer',
+            );
+            await expectPesanRead(link);
+            expect(await fetchUnreadCount(page)).toEqual(noUnread);
+            await page.reload();
+            await expectPesanRead(link);
         } finally {
             await closeAll(sessions);
             fixture.cleanup();
@@ -460,7 +560,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await expectPesanUnread(pesanLink(lecturerSession.page, lecturer));
             await expectPesanRead(pesanLink(studentSession.page, student));
             await expectPesanRead(pesanLink(otherSession.page, otherStudent));
-            expect(await fetchUnreadFlag(otherSession.page)).toEqual(noUnread);
+            expect(await fetchUnreadCount(otherSession.page)).toEqual(noUnread);
 
             // The same browser signs in as someone else: nothing carries over.
             await loginAs(lecturerSession.page, otherStudent);
@@ -468,7 +568,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await expectPesanRead(
                 pesanLink(lecturerSession.page, otherStudent),
             );
-            expect(await fetchUnreadFlag(lecturerSession.page)).toEqual(
+            expect(await fetchUnreadCount(lecturerSession.page)).toEqual(
                 noUnread,
             );
 
@@ -477,7 +577,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await lecturerSession.page.goto(lecturer.otherPagePath);
             await expectPesanUnread(pesanLink(lecturerSession.page, lecturer));
 
-            // Anonymous callers never get the boolean.
+            // Anonymous callers never get the count.
             const anonymous = await browser.newContext({
                 storageState: { cookies: [], origins: [] },
             });
@@ -498,7 +598,7 @@ test.describe('Sidebar unread indicator on Pesan', () => {
         }
     });
 
-    test('the student drawer shows the dot, keeps it after reopening, and opening the drawer does not read', async ({
+    test('the student drawer shows the count badge beside the label, keeps it after reopening, and opening the drawer does not read', async ({
         browser,
     }) => {
         const fixture = createSidebarUnreadFixture();
@@ -518,10 +618,14 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             await session.page.goto(student.otherPagePath);
 
             await openSidebarDrawer(session.page);
-            await expectPesanUnread(pesanLink(session.page, student, true));
+            const link = pesanLink(session.page, student, true);
+            await expectPesanUnread(link, 1);
+            await expectBadgeBesideLabel(link);
             await closeSidebarDrawer(session.page);
-            await withDrawerPesan(session.page, student, expectPesanUnread);
-            expect(await fetchUnreadFlag(session.page)).toEqual(hasUnread);
+            await withDrawerPesan(session.page, student, (drawerLink) =>
+                expectPesanUnread(drawerLink, 1),
+            );
+            expect(await fetchUnreadCount(session.page)).toEqual(oneUnread);
         } finally {
             await closeAll(sessions);
             fixture.cleanup();

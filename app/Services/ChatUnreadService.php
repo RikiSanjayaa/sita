@@ -14,12 +14,13 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Single source of truth for the sidebar "Pesan" dot: does the user have a chat message,
- * visible in the active role's Pesan page, that arrived after their own read receipt?
+ * Single source of truth for the sidebar "Pesan" badge: how many chat messages, in threads
+ * visible in the active role's Pesan page, arrived after the user's own read receipt?
  *
  * Visibility mirrors the Pesan pages (Mahasiswa\PesanController, Dosen\PesanBimbinganController);
  * the unread rule mirrors their per-thread counters (other sender, no document_event, newer
- * than MentorshipChatRead.last_read_at). Read-only: never creates threads or receipts.
+ * than the receipt's id watermark, or last_read_at for legacy receipts). The count is exact and
+ * counts messages, not threads. Read-only: never creates threads or receipts.
  */
 class ChatUnreadService
 {
@@ -27,18 +28,18 @@ class ChatUnreadService
         private readonly DosenBimbinganService $dosenBimbinganService,
     ) {}
 
-    public function hasUnreadMessages(User $user, ?string $activeRole): bool
+    public function unreadMessageCount(User $user, ?string $activeRole): int
     {
         $threads = $this->visibleThreads($user, $activeRole);
 
         if ($threads === null) {
-            return false;
+            return 0;
         }
 
         return MentorshipChatMessage::query()
             ->whereIn('mentorship_chat_messages.mentorship_chat_thread_id', $threads->select('mentorship_chat_threads.id'))
             ->unreadFor($user->id)
-            ->exists();
+            ->count();
     }
 
     /**
@@ -97,7 +98,7 @@ class ChatUnreadService
 
     /**
      * Users whose unread state may change when a message lands in, or a receipt is saved for, the thread.
-     * Deliberately generous: the event is an identity-free invalidation, the client re-fetches its own boolean.
+     * Deliberately generous: the event is an identity-free invalidation, the client re-fetches its own count.
      *
      * @return array<int, int>
      */

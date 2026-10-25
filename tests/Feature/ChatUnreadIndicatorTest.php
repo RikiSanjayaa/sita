@@ -70,11 +70,15 @@ function unreadRead($test, User $user, string $route, MentorshipChatThread $thre
     ]);
 }
 
-function unreadFlag($test, User $user, ?string $role = null): bool
+function unreadCount($test, User $user, ?string $role = null): int
 {
     $request = $role === null ? $test->actingAs($user) : $test->actingAs($user)->withSession(['active_role' => $role]);
+    $response = $request->getJson(route('chat.unread'))->assertOk();
 
-    return $request->getJson(route('chat.unread'))->assertOk()->json('hasUnreadMessages');
+    expect(array_keys($response->json()))->toBe(['unreadMessageCount'])
+        ->and($response->json('unreadMessageCount'))->toBeInt();
+
+    return $response->json('unreadMessageCount');
 }
 
 it('requires authentication for the unread endpoint', function (): void {
@@ -84,27 +88,27 @@ it('requires authentication for the unread endpoint', function (): void {
 it('turns on for an incoming message and off only after the receipt is saved', function (): void {
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
 
-    expect(unreadFlag($this, $student))->toBeFalse()
-        ->and(unreadFlag($this, $lecturer))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0)
+        ->and(unreadCount($this, $lecturer))->toBe(0);
 
     unreadMessage($thread, $lecturer, 'text', now()->subMinute());
 
-    expect(unreadFlag($this, $student))->toBeTrue()
-        ->and(unreadFlag($this, $lecturer))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(1)
+        ->and(unreadCount($this, $lecturer))->toBe(0);
 
     // Visiting the page does not read anything.
     $this->actingAs($student)->get(route('mahasiswa.pesan'))->assertOk();
-    expect(unreadFlag($this, $student))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(1);
 
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread)->assertOk();
 
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 
     unreadMessage($thread, $lecturer, 'text', now()->addMinute());
-    expect(unreadFlag($this, $student))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(1);
 
     unreadRead($this, $lecturer, 'dosen.pesan.read', $thread)->assertOk();
-    expect(unreadFlag($this, $lecturer))->toBeFalse();
+    expect(unreadCount($this, $lecturer))->toBe(0);
 });
 
 it('stays on until every thread with unread messages is read', function (): void {
@@ -120,10 +124,10 @@ it('stays on until every thread with unread messages is read', function (): void
     unreadMessage($private, $other, 'text', now()->subMinute());
 
     unreadRead($this, $student, 'mahasiswa.pesan.read', $bimbingan)->assertOk();
-    expect(unreadFlag($this, $student))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(1);
 
     unreadRead($this, $student, 'mahasiswa.pesan.read', $private)->assertOk();
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 });
 
 it('ignores own messages and document_event system messages', function (): void {
@@ -134,13 +138,13 @@ it('ignores own messages and document_event system messages', function (): void 
 
     // The student's own message and the system event are not unread for the student;
     // the student's message is an ordinary incoming message for the lecturer.
-    expect(unreadFlag($this, $student))->toBeFalse()
-        ->and(unreadFlag($this, $lecturer))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(0)
+        ->and(unreadCount($this, $lecturer))->toBe(1);
 
     unreadRead($this, $lecturer, 'dosen.pesan.read', $thread)->assertOk();
     unreadMessage($thread, $student, 'document_event', now()->addMinute());
 
-    expect(unreadFlag($this, $lecturer))->toBeFalse();
+    expect(unreadCount($this, $lecturer))->toBe(0);
 });
 
 it('keeps unread state isolated per account, role and forbidden thread', function (): void {
@@ -151,13 +155,13 @@ it('keeps unread state isolated per account, role and forbidden thread', functio
 
     unreadMessage($thread, $lecturer);
 
-    expect(unreadFlag($this, $stranger))->toBeFalse()
-        ->and(unreadFlag($this, $strangerLecturer))->toBeFalse()
-        ->and(unreadFlag($this, $admin))->toBeFalse();
+    expect(unreadCount($this, $stranger))->toBe(0)
+        ->and(unreadCount($this, $strangerLecturer))->toBe(0)
+        ->and(unreadCount($this, $admin))->toBe(0);
 
     unreadRead($this, $stranger, 'mahasiswa.pesan.read', $thread)->assertForbidden();
     expect(MentorshipChatRead::query()->count())->toBe(0)
-        ->and(unreadFlag($this, $student))->toBeTrue();
+        ->and(unreadCount($this, $student))->toBe(1);
 
     // A dual-role account only sees the unread state of the active role.
     $dual = User::factory()->asMahasiswa()->create();
@@ -165,14 +169,14 @@ it('keeps unread state isolated per account, role and forbidden thread', functio
     $thread2 = MentorshipChatThread::factory()->create(['student_user_id' => $dual->id, 'type' => 'pembimbing']);
     unreadMessage($thread2, $lecturer);
 
-    expect(unreadFlag($this, $dual, 'mahasiswa'))->toBeTrue()
-        ->and(unreadFlag($this, $dual, 'dosen'))->toBeFalse();
+    expect(unreadCount($this, $dual, 'mahasiswa'))->toBe(1)
+        ->and(unreadCount($this, $dual, 'dosen'))->toBe(0);
 });
 
 it('does not create a pembimbing thread when computing the indicator', function (): void {
     $student = User::factory()->asMahasiswa()->create();
 
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
     $this->actingAs($student)->get(route('dashboard'));
 
     expect(MentorshipChatThread::query()->count())->toBe(0);
@@ -182,16 +186,17 @@ it('counts messages of an archived (ended) supervision for the lecturer', functi
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan('ended');
     unreadMessage($thread, $student);
 
-    expect(unreadFlag($this, $lecturer))->toBeTrue();
+    expect(unreadCount($this, $lecturer))->toBe(1);
 });
 
-it('exposes the flag as a lazy shared inertia prop', function (): void {
+it('exposes the count as a lazy shared inertia prop', function (): void {
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    unreadMessage($thread, $lecturer);
     unreadMessage($thread, $lecturer);
 
     $this->actingAs($student)
         ->get(route('mahasiswa.pesan'))
-        ->assertInertia(fn (Assert $page) => $page->where('hasUnreadMessages', true));
+        ->assertInertia(fn (Assert $page) => $page->where('unreadMessageCount', 2));
 });
 
 it('reading notifications and reading chats do not affect each other', function (): void {
@@ -208,10 +213,10 @@ it('reading notifications and reading chats do not affect each other', function 
     $this->actingAs($student)->post('/settings/notifications/read-all')->assertSuccessful();
 
     expect($student->unreadNotifications()->count())->toBe(0)
-        ->and(unreadFlag($this, $student))->toBeTrue();
+        ->and(unreadCount($this, $student))->toBe(1);
 
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread)->assertOk();
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 });
 
 it('broadcasts an identity-free invalidation to the recipient regardless of notification preferences', function (): void {
@@ -304,6 +309,22 @@ it('shows the latest 50 messages in ascending order to the student when a thread
             ->where('threads.0.messages.49.message', 'Pesan 55'));
 });
 
+it('shows the newest lecturer messages chronologically when their timestamps match', function (): void {
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    $at = now()->startOfSecond();
+    $messages = collect(range(1, 35))
+        ->map(fn (): MentorshipChatMessage => unreadMessage($thread, $student, 'text', $at));
+
+    $this->actingAs($lecturer)
+        ->get(route('dosen.pesan'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('threads.0.messages.0.id', $messages[5]->id)
+            ->where('threads.0.messages.29.id', $messages[34]->id));
+
+    unreadRead($this, $lecturer, 'dosen.pesan.read', $thread, $messages[34]->id)->assertOk();
+    expect(unreadCount($this, $lecturer))->toBe(0);
+});
+
 it('requires a valid last_message_id from the same thread when saving a receipt', function (): void {
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
     $foreign = unreadMessage(MentorshipChatThread::factory()->create(['type' => 'pembimbing']), $lecturer);
@@ -314,7 +335,7 @@ it('requires a valid last_message_id from the same thread when saving a receipt'
     $this->actingAs($lecturer)->postJson(route('dosen.pesan.read', $thread), ['last_message_id' => $foreign->id])->assertUnprocessable();
 
     expect(MentorshipChatRead::query()->count())->toBe(0)
-        ->and(unreadFlag($this, $student))->toBeTrue();
+        ->and(unreadCount($this, $student))->toBe(1);
 });
 
 it('only reads up to the last seen message and never moves the receipt backwards', function (): void {
@@ -323,14 +344,14 @@ it('only reads up to the last seen message and never moves the receipt backwards
     $second = unreadMessage($thread, $lecturer, 'text', now()->subMinutes(2));
 
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $first->id)->assertOk();
-    expect(unreadFlag($this, $student))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(1);
 
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $second->id)->assertOk();
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 
     // A stale tab that only saw the first message must not make the second unread again.
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $first->id)->assertOk();
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 });
 
 it('keeps a message that arrives in the same second as the receipt unread', function (): void {
@@ -339,11 +360,11 @@ it('keeps a message that arrives in the same second as the receipt unread', func
 
     $seen = unreadMessage($thread, $lecturer, 'text', $at);
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $seen->id)->assertOk();
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 
     unreadMessage($thread, $lecturer, 'text', $at);
 
-    expect(unreadFlag($this, $student))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(1);
     expect(MentorshipChatRead::query()->firstOrFail()->last_read_message_id)->toBe($seen->id);
 });
 
@@ -357,7 +378,7 @@ it('never lowers the id watermark when an older window is saved afterwards', fun
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $first->id)->assertOk();
 
     expect(MentorshipChatRead::query()->firstOrFail()->last_read_message_id)->toBe($second->id)
-        ->and(unreadFlag($this, $student))->toBeFalse();
+        ->and(unreadCount($this, $student))->toBe(0);
 });
 
 it('falls back to the timestamp for receipts saved before the id watermark existed', function (): void {
@@ -371,13 +392,68 @@ it('falls back to the timestamp for receipts saved before the id watermark exist
         'last_read_message_id' => null,
     ]);
 
-    expect(unreadFlag($this, $student))->toBeFalse();
+    expect(unreadCount($this, $student))->toBe(0);
 
     unreadMessage($thread, $lecturer, 'text', now());
-    expect(unreadFlag($this, $student))->toBeTrue();
+    expect(unreadCount($this, $student))->toBe(1);
 
     // The first new-style receipt upgrades the legacy row to an id watermark.
     unreadRead($this, $student, 'mahasiswa.pesan.read', $thread)->assertOk();
-    expect(unreadFlag($this, $student))->toBeFalse()
+    expect(unreadCount($this, $student))->toBe(0)
         ->and(MentorshipChatRead::query()->firstOrFail()->last_read_message_id)->not->toBeNull();
+});
+
+it('counts exact incoming messages across threads, not threads', function (): void {
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $bimbingan] = unreadBimbingan();
+    $other = User::factory()->asDosen()->create();
+    $stranger = User::factory()->asMahasiswa()->create();
+
+    $private = MentorshipChatThread::factory()->create(['student_user_id' => $student->id, 'type' => 'private', 'private_key' => $student->id.':'.$other->id]);
+    foreach ([$student, $other] as $participant) {
+        MentorshipChatThreadParticipant::query()->create(['thread_id' => $private->id, 'user_id' => $participant->id, 'role' => $participant->is($student) ? 'student' : 'lecturer']);
+    }
+    $foreign = MentorshipChatThread::factory()->create(['student_user_id' => $stranger->id, 'type' => 'pembimbing']);
+
+    $first = unreadMessage($bimbingan, $lecturer, 'text', now()->subMinutes(5));
+    unreadMessage($bimbingan, $lecturer, 'text', now()->subMinutes(4));
+    unreadMessage($bimbingan, $lecturer, 'text', now()->subMinutes(3));
+    $privateFirst = unreadMessage($private, $other, 'text', now()->subMinutes(2));
+    unreadMessage($private, $other, 'text', now()->subMinute());
+
+    // Own, system, sender-less and foreign-thread messages never count.
+    unreadMessage($bimbingan, $student);
+    unreadMessage($bimbingan, $lecturer, 'document_event');
+    unreadMessage($private, null);
+    unreadMessage($foreign, $lecturer);
+    unreadMessage($foreign, $lecturer);
+
+    expect(unreadCount($this, $student))->toBe(5)
+        ->and(unreadCount($this, $stranger))->toBe(2)
+        ->and(unreadCount($this, $lecturer))->toBe(1);
+
+    // A partial read only removes the messages it covered and leaves the other thread alone.
+    unreadRead($this, $student, 'mahasiswa.pesan.read', $bimbingan, $first->id)->assertOk();
+    expect(unreadCount($this, $student))->toBe(4);
+
+    unreadRead($this, $student, 'mahasiswa.pesan.read', $private, $privateFirst->id)->assertOk();
+    expect(unreadCount($this, $student))->toBe(3);
+
+    unreadRead($this, $student, 'mahasiswa.pesan.read', $bimbingan)->assertOk();
+    expect(unreadCount($this, $student))->toBe(1);
+
+    unreadRead($this, $student, 'mahasiswa.pesan.read', $private)->assertOk();
+    expect(unreadCount($this, $student))->toBe(0);
+});
+
+it('keeps the backend count exact above 99', function (): void {
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+
+    MentorshipChatMessage::factory()->count(120)->create([
+        'mentorship_chat_thread_id' => $thread->id,
+        'sender_user_id' => $lecturer->id,
+        'message_type' => 'text',
+        'message' => 'Halo',
+    ]);
+
+    expect(unreadCount($this, $student))->toBe(120);
 });

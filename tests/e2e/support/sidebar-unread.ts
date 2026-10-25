@@ -67,10 +67,10 @@ export type SidebarUnreadFixture = {
     cleanup: () => void;
 };
 
-export const unreadPesanLabel = 'Pesan, pesan belum dibaca';
+export function unreadPesanLabel(count = 1): string {
+    return `Pesan, ${count} pesan belum dibaca`;
+}
 export const readPesanLabel = 'Pesan';
-/** The dot is the only aria-hidden span inside the link (the icon is an svg). */
-export const unreadDotSelector = 'span[aria-hidden="true"]';
 export const mobileViewport = { width: 390, height: 844 } as const;
 export const desktopViewport = { width: 1280, height: 800 } as const;
 
@@ -246,6 +246,27 @@ export function seedIncomingMessage(
     `);
 }
 
+/** Stores `count` text messages from `sender` in the thread in one database round trip. */
+export function seedIncomingMessages(
+    fixture: SidebarUnreadFixture,
+    threadKey: SidebarUnreadThreadKey,
+    senderKey: SidebarUnreadAccountKey,
+    count: number,
+    prefix: string,
+): void {
+    php(`
+        ${decodeSnippet({
+            thread: fixture.threads[threadKey].id,
+            sender: fixture.accounts[senderKey].id,
+            count,
+            prefix,
+        })}
+        for ($i = 1; $i <= $cfg['count']; $i++) {
+            App\\Models\\MentorshipChatMessage::query()->create(['mentorship_chat_thread_id' => $cfg['thread'], 'sender_user_id' => $cfg['sender'], 'message_type' => 'text', 'message' => $cfg['prefix'].' '.$i, 'sent_at' => now()]);
+        }
+    `);
+}
+
 /** Writes the same read marker the Pesan page writes once a thread is opened. */
 export function markThreadReadInDatabase(
     fixture: SidebarUnreadFixture,
@@ -381,8 +402,8 @@ export async function waitForUnreadChannel(
     }, account.id);
 }
 
-/** The shared boolean as the authenticated endpoint reports it. */
-export async function fetchUnreadFlag(page: Page): Promise<unknown> {
+/** The shared count as the authenticated endpoint reports it. */
+export async function fetchUnreadCount(page: Page): Promise<unknown> {
     const response = await page.context().request.get('/chat/unread', {
         headers: { Accept: 'application/json' },
     });
@@ -416,34 +437,134 @@ export async function closeSidebarDrawer(page: Page): Promise<void> {
     await expect(sidebarScope(page, true)).toHaveCount(0);
 }
 
-export async function collapseSidebar(page: Page): Promise<void> {
-    await page.locator('[data-slot="sidebar-trigger"]').click();
-    await expect(
-        page.locator('[data-slot="sidebar"][data-state="collapsed"]'),
-    ).toBeVisible();
+/** Visible badge text: the exact count up to 99, "99+" above it. */
+export function badgeText(count: number): string {
+    return count > 99 ? '99+' : String(count);
 }
 
-export async function expandSidebar(page: Page): Promise<void> {
-    await page.locator('[data-slot="sidebar-trigger"]').click();
-    await expect(
-        page.locator('[data-slot="sidebar"][data-state="expanded"]'),
-    ).toBeVisible();
+/** The numeric badge: the only aria-hidden span that is a direct child of the link. */
+export function pesanBadge(link: Locator): Locator {
+    return link.locator(':scope > span[aria-hidden="true"]');
 }
 
-/** Unread: data-unread, accessible label, one aria-hidden dot and no digits. */
-export async function expectPesanUnread(link: Locator): Promise<void> {
+/** The "Pesan" label: the direct child span that is not the badge. */
+export function pesanLabel(link: Locator): Locator {
+    return link.locator(':scope > span:not([aria-hidden])');
+}
+
+/** Unread: data-unread, exact accessible count label, one numeric aria-hidden badge. */
+export async function expectPesanUnread(
+    link: Locator,
+    count = 1,
+): Promise<void> {
     await expect(link).toHaveAttribute('data-unread', 'true');
-    await expect(link).toHaveAttribute('aria-label', unreadPesanLabel);
-    await expect(link.locator(unreadDotSelector)).toHaveCount(1);
-    expect(((await link.textContent()) ?? '').trim()).toBe('Pesan');
+    await expect(link).toHaveAttribute('aria-label', unreadPesanLabel(count));
+    await expect(pesanBadge(link)).toHaveCount(1);
+    await expect(pesanBadge(link)).toHaveText(badgeText(count));
+    await expect(pesanLabel(link)).toHaveText('Pesan');
+    expect(((await link.textContent()) ?? '').replace(/\s+/g, '')).toBe(
+        `Pesan${badgeText(count)}`,
+    );
 }
 
-/** Read: no flag, no dot, no badge text at all. */
+/** Read: no flag, no badge (never a "0"), plain "Pesan" label and name. */
 export async function expectPesanRead(link: Locator): Promise<void> {
     await expect(link).not.toHaveAttribute('data-unread', 'true');
-    await expect(link).not.toHaveAttribute('aria-label', unreadPesanLabel);
-    await expect(link.locator(unreadDotSelector)).toHaveCount(0);
+    await expect(link).not.toHaveAttribute('aria-label', /^Pesan, /);
+    await expect(pesanBadge(link)).toHaveCount(0);
     expect(((await link.textContent()) ?? '').trim()).toBe('Pesan');
+}
+
+async function colors(locator: Locator): Promise<{ bg: string; fg: string }> {
+    return locator.evaluate((element) => {
+        const style = getComputedStyle(element);
+
+        return { bg: style.backgroundColor, fg: style.color };
+    });
+}
+
+/**
+ * The Pesan badge renders with the same destructive background and foreground
+ * as the header bell badge. Needs an unrelated unread notification so the bell
+ * badge exists.
+ */
+export async function expectBadgeMatchesBell(
+    page: Page,
+    link: Locator,
+): Promise<void> {
+    const bellBadge = page
+        .getByRole('button', { name: 'Open notifications' })
+        .locator('span')
+        .first();
+
+    await expect(bellBadge).toBeVisible();
+    const bell = await colors(bellBadge);
+    const badge = await colors(pesanBadge(link));
+
+    expect(bell.bg).not.toBe('rgba(0, 0, 0, 0)');
+    expect(badge).toEqual(bell);
+}
+
+/** Expanded sidebar / drawer: the badge sits next to the label, vertically centred on it. */
+export async function expectBadgeBesideLabel(link: Locator): Promise<void> {
+    const measurements = await link.evaluate((element) => {
+        const badge = element
+            .querySelector(':scope > span[aria-hidden="true"]')!
+            .getBoundingClientRect();
+        const label = element
+            .querySelector(':scope > span:not([aria-hidden])')!
+            .getBoundingClientRect();
+
+        return {
+            gap: badge.left - label.right,
+            verticalOffset: Math.abs(
+                (badge.top + badge.bottom - label.top - label.bottom) / 2,
+            ),
+        };
+    });
+    const { gap, verticalOffset } = measurements;
+
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(8);
+    expect(verticalOffset).toBeLessThanOrEqual(2);
+}
+
+/** Geometry that must not move when the count changes: the link target, its label and its icon. */
+export async function pesanGeometry(link: Locator): Promise<{
+    link: unknown;
+    label: unknown;
+    icon: unknown;
+}> {
+    return {
+        link: await link.boundingBox(),
+        label: await pesanLabel(link)
+            .boundingBox()
+            .catch(() => null),
+        icon: await link.locator('svg').first().boundingBox(),
+    };
+}
+
+/** Clicks the sidebar trigger only when the desktop sidebar is not already in `state`. */
+export async function setSidebarState(
+    page: Page,
+    state: 'expanded' | 'collapsed',
+): Promise<void> {
+    const sidebar = page.locator('[data-slot="sidebar"][data-state]');
+
+    if ((await sidebar.getAttribute('data-state')) !== state) {
+        await page.locator('[data-slot="sidebar-trigger"]').click();
+    }
+
+    await expect(sidebar).toHaveAttribute('data-state', state);
+    await page.waitForFunction(() =>
+        document
+            .getAnimations()
+            .every(
+                (animation) =>
+                    animation.effect?.getTiming().iterations === Infinity ||
+                    animation.playState !== 'running',
+            ),
+    );
 }
 
 /** Header bell count (text of the destructive badge), 0 when the bell has none. */

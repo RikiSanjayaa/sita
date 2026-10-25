@@ -375,6 +375,8 @@ Primitives live in `resources/js/components/ui/` (shadcn style: Radix, `cva`, `c
 
 Sidebar items are 6px-radius, 14px rows; the active item uses the `primary-muted` pair with a faint `primary/15` border and medium weight, hover uses `sidebar-accent`. The sidebar has its own tokens (`--sidebar*`) equal to the page tokens in both themes. On mobile it becomes an 18rem sheet. Menus per role come from `resources/js/config/role-navigation.ts`.
 
+Unread Pesan uses a numeric attention badge, not an academic status badge: `bg-destructive text-destructive-foreground`, matching the header notification bell. Expanded navigation and the mobile drawer place the badge inline 8px after the label, vertically centred; icon-only navigation anchors it at the icon's upper-right without reducing the click target or obscuring the icon. Use 12px tabular numerals, show `99+` above 99, announce the exact count in the link's accessible name, and hide the badge at zero. Count unread messages from chat receipts; the bell counts independent global notifications (including announcements and academic updates). Reading one must not clear the other.
+
 ### Status badge
 
 A fully round pill (`rounded-full`, 12px medium text, `px-2 py-0.5`) with the muted surface and its muted-foreground text for the status tone. Tone comes from `statusClassName(domain, status)`, never from a palette hue.

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/sidebar';
 import { roleNavigationConfig } from '@/config/role-navigation';
 import { useActiveUrl } from '@/hooks/use-active-url';
-import { useUnreadMessages } from '@/hooks/use-unread-messages';
+import { useUnreadMessageCount } from '@/hooks/use-unread-message-count';
 import { AppRole, SharedData, type NavItem } from '@/types';
 
 import AppLogo from './app-logo';
@@ -29,7 +29,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role }: AppSidebarProps) {
     const { auth, academicTerminology } = usePage<SharedData>().props;
-    const hasUnreadMessages = useUnreadMessages();
+    const unreadMessageCount = useUnreadMessageCount();
     const { currentUrl } = useActiveUrl();
     const activeRole = role ?? auth.activeRole ?? 'mahasiswa';
     const navigation = roleNavigationConfig[activeRole];
@@ -74,14 +74,14 @@ export function AppSidebar({ role }: AppSidebarProps) {
                 <NavMain
                     items={mainNavigation}
                     label={navigation.mainLabel}
-                    hasUnreadMessages={hasUnreadMessages}
+                    unreadMessageCount={unreadMessageCount}
                 />
                 {sections.map((section) => (
                     <NavMain
                         key={section.label}
                         items={section.items}
                         label={section.label}
-                        hasUnreadMessages={hasUnreadMessages}
+                        unreadMessageCount={unreadMessageCount}
                     />
                 ))}
             </SidebarContent>

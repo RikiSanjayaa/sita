@@ -76,7 +76,7 @@ class PesanBimbinganController extends Controller
                 'participants.user.dosenProfile.programStudi',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
-                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->limit(30),
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->latest('id')->limit(30),
             ])
             ->whereIn('id', $allThreadIds)
             ->withMax('messages', 'created_at')
@@ -162,7 +162,7 @@ class PesanBimbinganController extends Controller
                         ? ($privatePartnerProfile['roleLabel'] ?? 'Pribadi')
                         : $this->threadLabel($thread, $defensesById->get($thread->context_id)?->project),
                     'messages' => $thread->messages
-                        ->sortBy('created_at')
+                        ->sortBy([['created_at', 'asc'], ['id', 'asc']])
                         ->values()
                         ->map(fn(MentorshipChatMessage $message): array => $this->payloadBuilder->build($message, $ownReviews))
                         ->all(),

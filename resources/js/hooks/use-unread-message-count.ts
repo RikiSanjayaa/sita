@@ -5,9 +5,9 @@ import { unread } from '@/routes/chat';
 import { type SharedData } from '@/types';
 
 /** The server owns unread state; events only invalidate the current account's snapshot. */
-export function useUnreadMessages(): boolean {
+export function useUnreadMessageCount(): number {
     const { props, url } = usePage<SharedData>();
-    const { auth, hasUnreadMessages } = props;
+    const { auth, unreadMessageCount } = props;
     const scope = `${auth.user?.id ?? ''}:${auth.activeRole ?? ''}`;
     const enabled = Boolean(
         auth.user?.id &&
@@ -16,7 +16,7 @@ export function useUnreadMessages(): boolean {
     const [snapshot, setSnapshot] = useState({
         scope,
         source: props,
-        value: hasUnreadMessages,
+        value: unreadMessageCount,
     });
 
     useEffect(() => {
@@ -46,13 +46,13 @@ export function useUnreadMessages(): boolean {
                     if (!response.ok) {
                         break;
                     }
-                    const data: { hasUnreadMessages: boolean } =
+                    const data: { unreadMessageCount: number } =
                         await response.json();
                     if (!controller.signal.aborted) {
                         setSnapshot({
                             scope,
                             source: props,
-                            value: data.hasUnreadMessages,
+                            value: data.unreadMessageCount,
                         });
                     }
                 } catch (error) {
@@ -94,10 +94,10 @@ export function useUnreadMessages(): boolean {
     }, [auth.user?.id, enabled, props, scope, url]);
 
     if (!enabled) {
-        return false;
+        return 0;
     }
 
     return snapshot.scope === scope && snapshot.source === props
         ? snapshot.value
-        : hasUnreadMessages;
+        : unreadMessageCount;
 }

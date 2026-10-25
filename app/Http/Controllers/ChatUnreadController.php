@@ -16,7 +16,7 @@ class ChatUnreadController extends Controller
         $activeRole = $user->resolveActiveRole($request->session()->get('active_role'));
 
         return response()
-            ->json(['hasUnreadMessages' => $unread->hasUnreadMessages($user, $activeRole)])
+            ->json(['unreadMessageCount' => $unread->unreadMessageCount($user, $activeRole)])
             ->header('Cache-Control', 'no-store, private');
     }
 }
