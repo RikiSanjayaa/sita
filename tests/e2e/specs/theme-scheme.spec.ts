@@ -47,6 +47,82 @@ test.describe('Theme scheme, guest', () => {
         await expect(page.getByText('Aktif', { exact: true })).toHaveCount(0);
     });
 
+    for (const width of [1280, 390]) {
+        for (const mode of ['light', 'dark']) {
+            test(`selected scheme ring stays inside the public dialog at ${width}px in ${mode}`, async ({
+                page,
+            }) => {
+                await page.setViewportSize({ width, height: 900 });
+                await page.addInitScript(
+                    (value) => localStorage.setItem('appearance', value),
+                    mode,
+                );
+                await openPublicPicker(page);
+                for (const name of ['UBG Blue', 'Indigo', 'Zaitun', 'Grafit']) {
+                    const option = page.getByRole('button', { name });
+                    await option.click();
+                    await expect(option).toHaveAttribute(
+                        'aria-pressed',
+                        'true',
+                    );
+                    await option.evaluate((element) =>
+                        element.scrollIntoView({ block: 'center' }),
+                    );
+                    const clearance = await option.evaluate((element) => {
+                        const box = element.getBoundingClientRect();
+                        const shadows = [
+                            ...getComputedStyle(element).boxShadow.matchAll(
+                                /0px 0px 0px ([\d.]+)px/g,
+                            ),
+                        ];
+                        const ring = Math.max(
+                            ...shadows.map((match) => Number(match[1])),
+                        );
+                        const gaps = [
+                            box.left,
+                            innerWidth - box.right,
+                            box.top,
+                            innerHeight - box.bottom,
+                        ];
+                        for (
+                            let parent = element.parentElement;
+                            parent;
+                            parent = parent.parentElement
+                        ) {
+                            const style = getComputedStyle(parent);
+                            const clip = parent.getBoundingClientRect();
+                            if (
+                                ['auto', 'hidden', 'scroll', 'clip'].includes(
+                                    style.overflowX,
+                                )
+                            ) {
+                                gaps.push(
+                                    box.left - clip.left,
+                                    clip.right - box.right,
+                                );
+                            }
+                            if (
+                                ['auto', 'hidden', 'scroll', 'clip'].includes(
+                                    style.overflowY,
+                                )
+                            ) {
+                                gaps.push(
+                                    box.top - clip.top,
+                                    clip.bottom - box.bottom,
+                                );
+                            }
+                        }
+                        return Math.min(...gaps) - ring;
+                    });
+                    expect(
+                        clearance,
+                        `${name} selected ring is not clipped`,
+                    ).toBeGreaterThanOrEqual(0);
+                }
+            });
+        }
+    }
+
     test('choosing a scheme sets data-theme from CSS tokens, never inline colours', async ({
         page,
     }) => {

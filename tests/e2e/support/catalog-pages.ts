@@ -107,6 +107,13 @@ export const catalogPages: readonly CatalogPage[] = [
     { role: 'public', name: 'beranda', path: '/', heading: /Akses cepat/ },
     {
         role: 'public',
+        name: 'beranda-dialog-tampilan',
+        path: '/',
+        heading: /Akses cepat/,
+        prepare: (page) => openDialog(page, /^Buka pengaturan tampilan$/),
+    },
+    {
+        role: 'public',
         name: 'jadwal',
         path: '/jadwal',
         heading: 'Jadwal Akan Datang',

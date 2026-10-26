@@ -289,6 +289,8 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 
 **Swatches.** A swatch element carries its own `data-theme` (and `dark` for the dark half) and reads `var(--background)`, `var(--primary)` and the like. It cannot use `bg-primary`, because `@theme` resolves `--color-primary` once at the root.
 
+The public appearance dialog reserves 4px of horizontal and bottom clearance inside its desktop scroll container so selected and keyboard-focus rings on theme choices are not clipped. Keep the shared ThemePicker and authenticated settings styling unchanged.
+
 **Filament decision.** The admin panel stays on UBG Blue in every scheme. It does not load the React stylesheet or read `data-theme`, and its palettes are fixed in `SEMANTIC_COLORS`. The picker therefore does not change `/admin`.
 
 ## Typography
