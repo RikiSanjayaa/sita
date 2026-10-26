@@ -146,6 +146,10 @@ test('hostile or unsupported endpoints are rejected', function (string $endpoint
     'suffix lookalike' => 'https://fcm.googleapis.com.evil.test/a',
     'prefix lookalike' => 'https://evilfcm.googleapis.com/a',
     'fcm subdomain' => 'https://evil.fcm.googleapis.com/a',
+    'google wildcard' => 'https://other.google.com/fcm/send/a',
+    'jmt subdomain' => 'https://evil.jmt17.google.com/fcm/send/a',
+    'jmt suffix lookalike' => 'https://jmt17.google.com.evil.test/fcm/send/a',
+    'jmt prefix lookalike' => 'https://eviljmt17.google.com/fcm/send/a',
     'mozilla lookalike' => 'https://xupdates.push.services.mozilla.com/a',
     'apple lookalike' => 'https://notweb.push.apple.com/a',
     'backslash' => 'https://fcm.googleapis.com\\@evil.test/a',
@@ -162,6 +166,7 @@ test('legitimate provider hosts and shards are accepted', function (string $endp
 })->with([
     'fcm' => 'https://fcm.googleapis.com/fcm/send/abc',
     'fcm wp' => 'https://fcm.googleapis.com/wp/abc',
+    'chromium alternate fcm' => 'https://jmt17.google.com/fcm/send/abc',
     'mozilla' => 'https://updates.push.services.mozilla.com/wpush/v2/abc',
     'apple' => 'https://web.push.apple.com/QAbc',
     'apple shard' => 'https://16.web.push.apple.com/QAbc',

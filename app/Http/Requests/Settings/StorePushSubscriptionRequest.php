@@ -15,12 +15,13 @@ class StorePushSubscriptionRequest extends FormRequest
      */
     public const ALLOWED_PUSH_HOSTS = [
         'fcm.googleapis.com',
+        'jmt17.google.com',
         'updates.push.services.mozilla.com',
         'web.push.apple.com',
     ];
 
     /** Hosts that must match exactly (no shard subdomains). */
-    private const EXACT_ONLY_HOSTS = ['fcm.googleapis.com'];
+    private const EXACT_ONLY_HOSTS = ['fcm.googleapis.com', 'jmt17.google.com'];
 
     public function authorize(): bool
     {
