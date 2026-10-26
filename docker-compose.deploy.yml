@@ -3,6 +3,9 @@
 x-app-image: &app-image
   image: ${APP_IMAGE:-ghcr.io/rikisanjayaa/sita-app:main}
   pull_policy: always
+  env_file:
+    - path: .env.webpush
+      required: false
 
 services:
   init: *app-image

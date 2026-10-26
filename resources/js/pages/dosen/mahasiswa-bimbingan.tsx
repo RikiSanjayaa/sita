@@ -589,7 +589,7 @@ function StudentTable({
                                                         {row.whatsappUrl && (
                                                             <DropdownMenuItem
                                                                 asChild
-                                                                className="bg-success text-success-foreground focus:bg-success/90 focus:text-success-foreground [&_svg]:text-current"
+                                                                className="text-success focus:text-success [&_svg]:text-current"
                                                             >
                                                                 <a
                                                                     href={

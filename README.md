@@ -136,6 +136,8 @@ php artisan webpush:vapid --show
 
 Simpan `VAPID_PUBLIC_KEY` dan `VAPID_PRIVATE_KEY` yang dihasilkan pada konfigurasi rahasia deployment; jangan commit atau mengganti pasangan kunci pada setiap deploy. Isi `VAPID_SUBJECT` dengan kontak pengelola seperti `mailto:admin@domain-kampus.ac.id`, lalu set `WEB_PUSH_ENABLED=true`. Kunci privat tidak pernah dikirim ke browser. Untuk Docker, jalankan perintah Artisan melalui service `app` dan simpan nilai pada `.env` server yang diterima semua service, bukan hanya di dalam container sementara. Untuk aaPanel gunakan PHP CLI site yang sama dengan aplikasi.
 
+Untuk Docker, override deployment juga membaca `.env.webpush` bila file tersebut tersedia. Simpan `WEB_PUSH_ENABLED`, `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, dan `VAPID_PRIVATE_KEY` pada file privat di luar checkout (mode `0600`), lalu tautkan sebagai `.env.webpush` pada setiap checkout deployment. File ini mengesampingkan nilai push dari `.env` tanpa mengubah secret yang sudah ada. Jangan commit file/kunci tersebut atau membuat pasangan kunci baru saat mengganti image. Recreate service `app`, `queue`, `scheduler`, dan `reverb` agar semuanya menerima environment yang sama; restart proses saja tidak memuat ulang environment container.
+
 ```bash
 php artisan config:cache
 php artisan queue:restart
