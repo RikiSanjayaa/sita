@@ -1,6 +1,6 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Download, FileText, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Download, Eye, FileText } from 'lucide-react';
+import { useMemo } from 'react';
 
 import {
     DataSection,
@@ -18,16 +18,6 @@ import {
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
     TooltipContent,
@@ -53,6 +43,7 @@ type DocumentQueueItem = {
     status: 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
     revisionNotes: string | null;
     fileUrl: string | null;
+    detailUrl: string;
 };
 
 type DokumenRevisiProps = {
@@ -85,43 +76,6 @@ export default function DosenDokumenRevisiPage() {
         'semua',
     );
     const pageState = useUrlState('page', 1);
-    const [revisiDocDialog, setRevisiDocDialog] =
-        useState<DocumentQueueItem | null>(null);
-
-    const form = useForm({
-        status: 'needs_revision' as 'needs_revision' | 'approved',
-        revision_notes: '',
-    });
-
-    function submitApprove(documentId: number) {
-        form.transform((data) => ({
-            ...data,
-            status: 'approved',
-            revision_notes: null,
-        }));
-        form.post(`/dosen/dokumen-revisi/${documentId}/review`, {
-            preserveScroll: true,
-        });
-    }
-
-    function submitRevisi(e: React.FormEvent) {
-        e.preventDefault();
-        if (!revisiDocDialog) return;
-
-        form.transform((data) => ({
-            ...data,
-            status: 'needs_revision',
-            revision_notes: data.revision_notes || null,
-        }));
-
-        form.post(`/dosen/dokumen-revisi/${revisiDocDialog.id}/review`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setRevisiDocDialog(null);
-                form.reset();
-            },
-        });
-    }
 
     const filteredDocuments = useMemo(() => {
         const lower = search.toLowerCase();
@@ -296,12 +250,13 @@ export default function DosenDokumenRevisiPage() {
                                                         <FileText className="size-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p
-                                                            className="font-medium break-words max-md:line-clamp-2 md:max-w-56"
+                                                        <Link
+                                                            href={doc.detailUrl}
+                                                            className="block font-medium break-words hover:text-primary max-md:line-clamp-2 md:max-w-56"
                                                             title={doc.title}
                                                         >
                                                             {doc.title}
-                                                        </p>
+                                                        </Link>
                                                         <p
                                                             className="text-xs break-all text-muted-foreground max-md:line-clamp-1 md:max-w-56"
                                                             title={doc.file}
@@ -403,80 +358,36 @@ export default function DosenDokumenRevisiPage() {
                                                         </TooltipContent>
                                                     </Tooltip>
 
-                                                    {doc.status ===
-                                                        'Perlu Review' && (
-                                                        <>
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                asChild
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className={
+                                                                    actionButtonClassName
+                                                                }
+                                                            >
+                                                                <Link
+                                                                    href={
+                                                                        doc.detailUrl
+                                                                    }
+                                                                    aria-label={`Detail dokumen ${doc.title}`}
                                                                 >
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className={cn(
-                                                                            actionButtonClassName,
-                                                                            'text-warning-muted-foreground hover:bg-warning-muted hover:text-warning-muted-foreground',
-                                                                        )}
-                                                                        disabled={
-                                                                            form.processing
-                                                                        }
-                                                                        onClick={() => {
-                                                                            form.reset();
-                                                                            form.clearErrors();
-                                                                            setRevisiDocDialog(
-                                                                                doc,
-                                                                            );
-                                                                        }}
-                                                                    >
-                                                                        <XCircle className="size-4" />
-                                                                        <span className="md:sr-only">
-                                                                            Kirim
-                                                                            Catatan
-                                                                            Revisi
-                                                                        </span>
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    Kirim
-                                                                    Catatan
-                                                                    Revisi
-                                                                </TooltipContent>
-                                                            </Tooltip>
-
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className={cn(
-                                                                            actionButtonClassName,
-                                                                            'text-success-muted-foreground hover:bg-success-muted hover:text-success-muted-foreground',
-                                                                        )}
-                                                                        disabled={
-                                                                            form.processing
-                                                                        }
-                                                                        onClick={() =>
-                                                                            submitApprove(
-                                                                                doc.id,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <CheckCircle2 className="size-4" />
-                                                                        <span className="md:sr-only">
-                                                                            Setujui
-                                                                            Dokumen
-                                                                        </span>
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    Setujui
-                                                                    Dokumen
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </>
-                                                    )}
+                                                                    <Eye
+                                                                        aria-hidden="true"
+                                                                        className="size-4"
+                                                                    />
+                                                                    <span className="md:sr-only">
+                                                                        Detail
+                                                                    </span>
+                                                                </Link>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Detail dokumen
+                                                        </TooltipContent>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>
@@ -501,76 +412,6 @@ export default function DosenDokumenRevisiPage() {
                     )}
                 </DataSection>
             </div>
-
-            <Dialog
-                open={revisiDocDialog !== null}
-                onOpenChange={(open) => !open && setRevisiDocDialog(null)}
-            >
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Kirim Catatan Revisi</DialogTitle>
-                        <DialogDescription>
-                            Tulis detail revisi yang perlu diperbaiki oleh
-                            mahasiswa untuk dokumen{' '}
-                            <span className="font-medium text-foreground">
-                                {revisiDocDialog?.file}
-                            </span>
-                            .
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form
-                        onSubmit={submitRevisi}
-                        className="flex flex-col gap-4 py-2"
-                    >
-                        <div className="grid gap-2">
-                            <Label htmlFor="revision_notes">
-                                Catatan Revisi
-                            </Label>
-                            <Textarea
-                                id="revision_notes"
-                                value={form.data.revision_notes}
-                                onChange={(e) =>
-                                    form.setData(
-                                        'revision_notes',
-                                        e.target.value,
-                                    )
-                                }
-                                placeholder="Tuliskan masukan atau rincian perbaikan di sini..."
-                                className="min-h-[120px] resize-none"
-                                required
-                            />
-                            {form.errors.revision_notes && (
-                                <p className="text-sm font-medium text-destructive">
-                                    {form.errors.revision_notes}
-                                </p>
-                            )}
-                        </div>
-
-                        <DialogFooter className="pt-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setRevisiDocDialog(null)}
-                                disabled={form.processing}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={
-                                    form.processing ||
-                                    !form.data.revision_notes?.trim()
-                                }
-                            >
-                                {form.processing
-                                    ? 'Menyimpan...'
-                                    : 'Kirim Catatan'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
         </DosenLayout>
     );
 }

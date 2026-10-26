@@ -35,6 +35,8 @@ function createSharedChatUpload(): array
 
     createActiveMentorshipAssignment($student, $first, $admin, AdvisorType::Primary);
     createActiveMentorshipAssignment($student, $second, $admin, AdvisorType::Secondary);
+    syncThesisSupervisor($student, $first, $admin, AdvisorType::Primary->value);
+    syncThesisSupervisor($student, $second, $admin, AdvisorType::Secondary->value);
 
     $group = fake()->uuid();
 
@@ -101,6 +103,7 @@ test('the lecturer who received the upload gets their own review copy in the pay
     expect($payload['ownReview'])->toBe([
         'id' => $copies['first']->id,
         'status' => 'submitted',
+        'detailUrl' => route('dosen.dokumen-revisi.show', $copies['first']),
     ]);
 });
 
@@ -112,6 +115,7 @@ test('another lecturer on the same upload gets only their own copy, never the ot
     expect($payload['ownReview'])->toBe([
         'id' => $copies['second']->id,
         'status' => 'submitted',
+        'detailUrl' => route('dosen.dokumen-revisi.show', $copies['second']),
     ]);
     expect($payload['ownReview']['id'])->not->toBe($copies['first']->id);
 });
@@ -145,7 +149,7 @@ test('the review copy keeps the lecturer own status after they review it', funct
 
     $copies['first']->update(['status' => 'needs_revision']);
 
-    expect(payloadFor($message->fresh(), $first)['ownReview'])->toBe(['id' => $copies['first']->id, 'status' => 'needs_revision']);
+    expect(payloadFor($message->fresh(), $first)['ownReview'])->toBe(['id' => $copies['first']->id, 'status' => 'needs_revision', 'detailUrl' => route('dosen.dokumen-revisi.show', $copies['first'])]);
     expect(payloadFor($message->fresh(), $second)['ownReview']['status'])->toBe('submitted');
 });
 
@@ -206,6 +210,8 @@ test('the review request is validated by its form request', function (array $pay
     'status unknown' => [['status' => 'rejected'], 'status'],
     'status submitted is not a review outcome' => [['status' => 'submitted'], 'status'],
     'notes must be a string' => [['status' => 'needs_revision', 'revision_notes' => ['x']], 'revision_notes'],
+    'revision note missing' => [['status' => 'needs_revision'], 'revision_notes'],
+    'revision note blank' => [['status' => 'needs_revision', 'revision_notes' => '   '], 'revision_notes'],
 ]);
 
 test('a lecturer cannot review another lecturer copy of the same upload', function () {

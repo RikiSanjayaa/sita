@@ -395,6 +395,23 @@ Tabel ini menggantikan pemecahan file tugas akhir ke banyak konteks yang tidak s
     - `archived`
     - `rejected`
 
+### Berkas pilihan mahasiswa pada detail ujian (#151)
+
+- Sumber daftar dosen adalah `ThesisDefense.documents` pada attempt yang ditugaskan, dengan `project_id` yang cocok dan tanpa `revision_id`. Sempro/Sinopsis memakai `proposal`, Sidang memakai `final_manuscript`; `supporting_document` menjadi lampiran. Tidak ada pencarian unggahan terakhir atau penautan otomatis saat GET.
+- `sourceWorkspaceDocument` menyediakan nomor versi unggahan dan waktu unggah asal, ditampilkan dalam WITA. Jika sumber sudah tidak tersedia, metadata snapshot dipakai. Aksi buka/unduh selalu menuju snapshot `ThesisDocument`; file yang hilang menghasilkan 404, bukan dibuat ulang dari workspace.
+- Penguji tanpa hak pembimbing/administratif hanya dapat mengunduh dokumen attempt yang ditugaskan. Anotasi tanpa revisi terbit hanya dapat dibuka penulis atau pemegang hak administrasi; anotasi penguji tambahan Sidang tetap tidak dapat diunduh mahasiswa sebelum ujian selesai.
+- Grup chat dicari berdasarkan jenis, ID ujian, mahasiswa dan keanggotaan dosen. Fallback memakai thread pribadi yang ada atau kontak mahasiswa terpilih, tanpa pembuatan chat pada GET.
+- Nama berkas menuju detail snapshot role-aware. `reviewDetailUrl` hanya tersedia jika salinan review workspace dengan mahasiswa, grup dan versi sumber yang sama dapat diakses pengguna. Dosen memakai ID salinannya sendiri; snapshot tidak berubah ketika salinan workspace mendapat review atau unggahan versi baru. Kembali ke ujian mempertahankan parameter `defense`.
+
+### Halaman detail dan review dokumen (#152)
+
+- `DocumentDetailController` memakai `DocumentDetailService` untuk payload detail workspace/snapshot. Route mahasiswa, dosen dan kaprodi memeriksa portal, bukan gabungan semua peran pengguna. `DocumentAccessService` menyatukan aturan detail dan file; unduhan portal kaprodi membawa `portal=kaprodi` agar hak dosen tidak melewati capability unduh kaprodi.
+- Identitas upload adalah mahasiswa, `document_group`, dan `version_number`. Grup null legacy diisolasi per ID. Riwayat dosen hanya menautkan salinan miliknya; reviewer lain tetap terbaca pada versi yang sama tanpa memberikan tautan edit salinan mereka. Identitas penguji Sidang rahasia tetap dianonimkan untuk mahasiswa.
+- Editor tunggal berada di `resources/js/pages/documents/show.tsx`. `ReviewMentorshipDocumentRequest` menerima `needs_revision` dengan catatan wajib atau `approved` dengan catatan opsional, memangkas whitespace, dan memeriksa penugasan aktif, status mahasiswa/proyek, masa aktif dan versi terbaru. Lampiran chat memakai versi sebagai identitas upload, bukan pengganti lampiran sebelumnya.
+- Guard Back didaftarkan di `app.tsx` sebelum Inertia menginisialisasi listener history. Halaman review dapat membatalkan event `sita:before-popstate` saat draft belum disimpan; navigasi Inertia dan reload juga memeriksa draft. Ini menjaga URL dan editor tetap sama saat pengguna membatalkan konfirmasi.
+- Catatan persetujuan disimpan di `revision_notes`, tetap terkait reviewer dan versi yang sama, dengan `reviewed_at`. Tidak ada migrasi schema, approval tambahan, atau perubahan keputusan ujian. Halaman mahasiswa dan kaprodi hanya membaca; versi historis dan data yang tidak lagi dapat direview tidak menerima mutasi.
+- Tautan daftar, notifikasi dan Tinjau chat memakai URL detail; navigasi ke thread hanya tersedia untuk percakapan yang sudah ada dan dapat diakses. GET detail tidak membuat thread. Event hasil review tetap dikirim ke chat asal dengan nama penguji rahasia diganti peran.
+
 ### Constraint dan index
 
 - index `project_id, kind, status`

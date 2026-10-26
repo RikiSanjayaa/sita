@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Dosen;
 
 use App\Models\MentorshipDocument;
+use App\Services\DocumentAccessService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReviewMentorshipDocumentRequest extends FormRequest
@@ -17,7 +18,14 @@ class ReviewMentorshipDocumentRequest extends FormRequest
 
         return $document instanceof MentorshipDocument
             && $lecturer !== null
-            && $document->lecturer_user_id === $lecturer->id;
+            && app(DocumentAccessService::class)->reviewReadOnlyReason($lecturer, $document) === null;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('revision_notes'))) {
+            $this->merge(['revision_notes' => trim($this->input('revision_notes'))]);
+        }
     }
 
     /**
@@ -27,7 +35,7 @@ class ReviewMentorshipDocumentRequest extends FormRequest
     {
         return [
             'status' => ['required', 'in:needs_revision,approved'],
-            'revision_notes' => ['nullable', 'string'],
+            'revision_notes' => ['required_if:status,needs_revision', 'nullable', 'string'],
         ];
     }
 
@@ -39,6 +47,7 @@ class ReviewMentorshipDocumentRequest extends FormRequest
         return [
             'status.required' => 'Status review wajib dipilih.',
             'status.in' => 'Status review tidak valid.',
+            'revision_notes.required_if' => 'Catatan revisi wajib diisi saat meminta revisi.',
         ];
     }
 }

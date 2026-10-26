@@ -63,6 +63,23 @@ async function openNotesSheet(page: Page): Promise<void> {
     await expect(page.getByRole('dialog')).toBeVisible();
 }
 
+async function openDocumentPage(page: Page, prefix: string): Promise<void> {
+    if (prefix === '/dosen/dokumen-revisi') {
+        await page
+            .getByPlaceholder(/Cari mahasiswa.*file/i)
+            .fill('Mahasiswa SiTA');
+    }
+    const scope =
+        prefix === '/dosen/dokumen-revisi'
+            ? page.locator('tr').filter({ hasText: 'Mahasiswa SiTA' })
+            : page.locator('main');
+    await scope.locator(`a[href*="${prefix}/"]`).first().click();
+    await expect(page).toHaveURL(new RegExp(`${prefix}/\\d+$`));
+    await expect(
+        page.getByRole('heading', { name: 'Detail dokumen', exact: true }),
+    ).toBeVisible();
+}
+
 export const catalogPages: readonly CatalogPage[] = [
     // Public and auth screens
     { role: 'public', name: 'beranda', path: '/', heading: /Akses cepat/ },
@@ -128,6 +145,13 @@ export const catalogPages: readonly CatalogPage[] = [
         name: 'upload-dokumen',
         path: '/mahasiswa/upload-dokumen',
         heading: 'Dokumen yang Diupload',
+    },
+    {
+        role: 'mahasiswa',
+        name: 'dokumen-detail',
+        path: '/mahasiswa/upload-dokumen',
+        heading: 'Dokumen yang Diupload',
+        prepare: (page) => openDocumentPage(page, '/mahasiswa/upload-dokumen'),
     },
     {
         role: 'mahasiswa',
@@ -265,6 +289,46 @@ export const catalogPages: readonly CatalogPage[] = [
         path: '/dosen/dokumen-revisi',
         heading: 'Daftar Dokumen',
     },
+    {
+        role: 'dosen',
+        name: 'dokumen-detail',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: (page) => openDocumentPage(page, '/dosen/dokumen-revisi'),
+    },
+    {
+        role: 'dosen',
+        name: 'dokumen-detail-draft',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: async (page) => {
+            await openDocumentPage(page, '/dosen/dokumen-revisi');
+            await page
+                .getByRole('textbox', { name: 'Catatan dosen' })
+                .fill(
+                    'Perjelas sumber data dan metode pengambilan sampel sebelum revisi berikutnya.',
+                );
+        },
+    },
+    {
+        role: 'dosen',
+        name: 'dokumen-detail-revision-required',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: async (page) => {
+            await openDocumentPage(page, '/dosen/dokumen-revisi');
+            await page.getByRole('textbox', { name: 'Catatan dosen' }).fill('');
+            await page
+                .getByRole('button', { name: 'Minta revisi', exact: true })
+                .click();
+            await expect(
+                page.getByText(
+                    'Catatan revisi wajib diisi saat meminta revisi.',
+                    { exact: true },
+                ),
+            ).toBeVisible();
+        },
+    },
     { role: 'dosen', name: 'pesan', path: '/dosen/pesan', heading: 'Pesan' },
     {
         role: 'dosen',
@@ -310,6 +374,20 @@ export const catalogPages: readonly CatalogPage[] = [
         name: 'dokumen',
         path: '/kaprodi/dokumen',
         heading: 'Daftar Dokumen',
+    },
+    {
+        role: 'kaprodi',
+        name: 'dokumen-detail-workspace',
+        path: '/kaprodi/dokumen',
+        heading: 'Daftar Dokumen',
+        prepare: (page) => openDocumentPage(page, '/kaprodi/dokumen/workspace'),
+    },
+    {
+        role: 'kaprodi',
+        name: 'dokumen-detail-thesis',
+        path: '/kaprodi/dokumen',
+        heading: 'Daftar Dokumen',
+        prepare: (page) => openDocumentPage(page, '/kaprodi/dokumen/thesis'),
     },
     {
         role: 'kaprodi',

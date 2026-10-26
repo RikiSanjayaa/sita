@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Mahasiswa;
 
-use App\Enums\AdvisorType;
 use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Models\MentorshipAssignment;
@@ -13,6 +12,7 @@ use App\Models\ThesisDocument;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\ChatMessagePayloadBuilder;
+use App\Services\DocumentDetailService;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
@@ -43,69 +43,6 @@ class UploadDokumenController extends Controller
         private readonly ChatMessagePayloadBuilder $payloadBuilder,
     ) {}
 
-    /**
-     * @param  Collection<int, MentorshipDocument>  $versions
-     */
-    private function reviewStatus(Collection $versions): string
-    {
-        $reviewCopies = $versions->whereNotNull('lecturer_user_id');
-
-        if ($reviewCopies->isEmpty()) {
-            return 'Tersimpan';
-        }
-
-        if ($reviewCopies->contains(fn(MentorshipDocument $version): bool => $version->status === 'needs_revision')) {
-            return 'Perlu Revisi';
-        }
-
-        $approvedCount = $reviewCopies->filter(fn(MentorshipDocument $version): bool => $version->status === 'approved')->count();
-
-        return match (true) {
-            $approvedCount === $reviewCopies->count() => 'Disetujui',
-            $approvedCount > 0 => 'Sebagian direview',
-            default => 'Menunggu Review',
-        };
-    }
-
-    /**
-     * @return array<int, string> peran dosen keyed by lecturer user id
-     */
-    private function reviewerRoles(User $student): array
-    {
-        $terms = AcademicTerminology::forStudent($student);
-        $roles = [];
-
-        $examinerGroups = [
-            [$this->activeSemproDefenses($student->id), 'Penguji '.$terms['proposalExamShort']],
-            [$this->activeSidangDefenses($student->id), 'Penguji '.$terms['finalExamShort']],
-        ];
-
-        foreach ($examinerGroups as [$defenses, $label]) {
-            foreach ($defenses as $defense) {
-                foreach ($defense->examiners as $examiner) {
-                    $roles[(int) $examiner->lecturer_user_id] ??= $label;
-                }
-            }
-        }
-
-        $supervisorAssignments = ThesisSupervisorAssignment::query()
-            ->whereHas('project', fn($query) => $query
-                ->where('student_user_id', $student->id)
-                ->where('state', 'active'))
-            ->where('status', 'active')
-            ->get(['lecturer_user_id', 'role']);
-
-        foreach ($supervisorAssignments as $assignment) {
-            $roles[(int) $assignment->lecturer_user_id] = match ($assignment->role) {
-                AdvisorType::Primary->value => 'Pembimbing 1',
-                AdvisorType::Secondary->value => 'Pembimbing 2',
-                default => 'Dosen',
-            };
-        }
-
-        return $roles;
-    }
-
     public function index(Request $request, ThesisArchiveService $archive): Response
     {
         $student = $request->user();
@@ -126,11 +63,11 @@ class UploadDokumenController extends Controller
             ->map(static fn($id): int => (int) $id)
             ->flip();
 
-        $reviewerRoles = $this->reviewerRoles($student);
+        $reviewerRoles = app(DocumentDetailService::class)->reviewerRoles($student);
         $secretExaminers = app(SecretSidangExaminers::class);
 
         $documents = $documents
-            ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', (string) $document->document_group, $document->version_number))
+            ->groupBy(fn(MentorshipDocument $document): string => sprintf('%s:%d', $document->document_group ?? 'legacy-'.$document->id, $document->version_number))
             ->map(function ($versions) use ($linkedWorkspaceDocumentIds, $reviewerRoles, $secretExaminers, $student): array {
                 /** @var MentorshipDocument $document */
                 $document = $versions->firstWhere('lecturer_user_id', null) ?? $versions->first();
@@ -140,13 +77,14 @@ class UploadDokumenController extends Controller
 
                 return [
                     'id' => $document->id,
+                    'detailUrl' => DocumentDetailService::workspaceUrl($document, 'mahasiswa'),
                     'title' => $document->title,
                     'category' => $document->category ?? '-',
                     'version' => $document->category === 'lampiran-chat' ? null : sprintf('v%d', $document->version_number),
                     'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
                     'fileName' => $document->file_name,
                     'size' => sprintf('%d KB', (int) $document->file_size_kb),
-                    'status' => $this->reviewStatus($versions),
+                    'status' => DocumentDetailService::statusLabel(DocumentDetailService::aggregateStatus($versions)),
                     'reviews' => $versions
                         ->whereNotNull('lecturer_user_id')
                         ->map(fn(MentorshipDocument $version): array => [
@@ -297,22 +235,12 @@ class UploadDokumenController extends Controller
                 $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
             }
 
-            $notifiedUserIds = [];
+            foreach (User::query()->whereIn('id', $recipientLecturerIds)->get() as $recipient) {
 
-            foreach ($assignments as $assignment) {
-                if ($assignment->lecturer === null) {
-                    continue;
-                }
-
-                if (in_array($assignment->lecturer->id, $notifiedUserIds, true)) {
-                    continue;
-                }
-                $notifiedUserIds[] = $assignment->lecturer->id;
-
-                $this->realtimeNotificationService->notifyUser($assignment->lecturer, 'statusTugasAkhir', [
+                $this->realtimeNotificationService->notifyUser($recipient, 'statusTugasAkhir', [
                     'title' => 'Dokumen bimbingan baru diunggah',
                     'description' => sprintf('%s mengunggah dokumen %s.', $student->name, trim($data['category'])),
-                    'url' => '/dosen/dokumen-revisi',
+                    'url' => DocumentDetailService::workspaceUrl($createdDocuments->firstWhere('lecturer_user_id', $recipient->id), 'dosen'),
                     'icon' => 'file-text',
                     'createdAt' => now()->toIso8601String(),
                 ]);

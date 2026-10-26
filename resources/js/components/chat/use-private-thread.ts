@@ -12,9 +12,14 @@ export type PrivateThreadState = {
 };
 
 /** Picker state for opening a private thread with a chosen recipient. */
-export function usePrivateThread(postUrl: string): PrivateThreadState {
-    const [isOpen, setIsOpen] = useState(false);
-    const form = useForm<{ recipient_id: string }>({ recipient_id: '' });
+export function usePrivateThread(
+    postUrl: string,
+    initialRecipientId = '',
+): PrivateThreadState {
+    const [isOpen, setIsOpen] = useState(initialRecipientId !== '');
+    const form = useForm<{ recipient_id: string }>({
+        recipient_id: initialRecipientId,
+    });
 
     return {
         close: () => setIsOpen(false),
