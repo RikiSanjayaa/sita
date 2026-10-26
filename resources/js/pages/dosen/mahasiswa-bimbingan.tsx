@@ -589,7 +589,7 @@ function StudentTable({
                                                         {row.whatsappUrl && (
                                                             <DropdownMenuItem
                                                                 asChild
-                                                                className="text-success focus:text-success [&_svg]:text-current"
+                                                                className="text-success focus:text-success"
                                                             >
                                                                 <a
                                                                     href={
@@ -598,7 +598,7 @@ function StudentTable({
                                                                     target="_blank"
                                                                     rel="noreferrer"
                                                                 >
-                                                                    <WhatsAppIcon className="size-4" />
+                                                                    <WhatsAppIcon className="size-4 text-success" />
                                                                     WhatsApp
                                                                 </a>
                                                             </DropdownMenuItem>
