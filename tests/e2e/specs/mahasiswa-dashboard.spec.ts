@@ -329,13 +329,13 @@ test('390px reading order is real DOM and keyboard order, with usable targets an
                 );
             }
 
-            const links = page.locator(
-                '[role="region"] a[href], section[aria-label] a[href]',
+            const targets = page.locator(
+                '[role="region"] a[href], section[aria-label] a[href], [role="region"][tabindex="0"]',
             );
-            const dashboardLinks: Locator[] = [];
-            for (const link of await links.all()) {
+            const dashboardTargets: Locator[] = [];
+            for (const target of await targets.all()) {
                 if (
-                    await link.evaluate(
+                    await target.evaluate(
                         (element, names) =>
                             names.some((name) =>
                                 element.closest(`[aria-label="${name}"]`),
@@ -343,13 +343,13 @@ test('390px reading order is real DOM and keyboard order, with usable targets an
                         [...regionNames],
                     )
                 ) {
-                    dashboardLinks.push(link);
+                    dashboardTargets.push(target);
                 }
             }
-            await dashboardLinks[0].focus();
-            for (const link of dashboardLinks.slice(1)) {
+            await dashboardTargets[0].focus();
+            for (const target of dashboardTargets.slice(1)) {
                 await page.keyboard.press('Tab');
-                await expect(link).toBeFocused();
+                await expect(target).toBeFocused();
             }
         }
     });
