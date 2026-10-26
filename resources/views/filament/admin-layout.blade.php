@@ -266,6 +266,17 @@
         overflow-x: auto;
     }
 
+    .sita-expandable-note { min-width: 10rem; max-width: 32rem; }
+    .sita-expandable-note summary { cursor: pointer; list-style: none; }
+    .sita-expandable-note summary::-webkit-details-marker { display: none; }
+    .sita-expandable-note summary:focus-visible { outline: 2px solid var(--sita-primary); outline-offset: 2px; border-radius: 0.25rem; }
+    .sita-note-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+    .sita-note-open, .sita-note-close { display: block; color: var(--sita-primary); font-weight: 500; padding-block: 0.375rem; }
+    .sita-note-close, .sita-expandable-note[open] .sita-note-open, .sita-expandable-note[open] .sita-note-preview { display: none; }
+    .sita-expandable-note[open] .sita-note-close { display: block; }
+    .sita-note-full { white-space: pre-wrap; overflow-wrap: anywhere; }
+    @media (max-width: 47.999rem) { .sita-expandable-note summary { min-height: 2.75rem; } }
+
     @container (min-width: 36rem) {
         .sita-detail-table > table {
             width: max-content;

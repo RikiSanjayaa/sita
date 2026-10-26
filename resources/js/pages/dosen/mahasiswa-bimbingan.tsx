@@ -3,7 +3,6 @@ import {
     CalendarClock,
     ChevronDown,
     FileText,
-    MessageCircle,
     MessageSquareText,
     MessagesSquare,
     MoreHorizontal,
@@ -54,6 +53,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { WhatsAppIcon } from '@/components/whatsapp-icon';
 import { useInitials } from '@/hooks/use-initials';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
@@ -238,32 +238,50 @@ function StudentTable({
                     placeholder="Cari nama atau NIM..."
                 />
 
-                <FilterPills
-                    label={`Peran, ${title.toLowerCase()}`}
-                    value={roleFilter}
-                    onValueChange={setRoleFilter}
-                    itemClassName="max-md:h-11 max-md:px-4"
-                    options={roleTabs.map((tab) => ({
-                        ...tab,
-                        count: rows.filter((row) => matchesRole(row, tab.value))
-                            .length,
-                    }))}
-                />
-
-                {hasAttention ? (
-                    <FilterPills
-                        label={`Perhatian, ${title.toLowerCase()}`}
-                        value={attentionFilter}
-                        onValueChange={setAttentionFilter}
-                        itemClassName="max-md:h-11 max-md:px-4"
-                        options={attentionTabs.map((tab) => ({
-                            ...tab,
-                            count: rows.filter((row) =>
-                                matchesAttention(row, tab.value),
-                            ).length,
-                        }))}
-                    />
-                ) : null}
+                <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-2 md:gap-y-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-xs font-medium text-muted-foreground max-md:w-full">
+                            Peran
+                        </span>
+                        <FilterPills
+                            label={`Peran, ${title.toLowerCase()}`}
+                            value={roleFilter}
+                            onValueChange={setRoleFilter}
+                            itemClassName="max-md:h-11 max-md:px-4"
+                            options={roleTabs.map((tab) => ({
+                                ...tab,
+                                count: rows.filter((row) =>
+                                    matchesRole(row, tab.value),
+                                ).length,
+                            }))}
+                        />
+                    </div>
+                    {hasAttention ? (
+                        <>
+                            <span
+                                aria-hidden="true"
+                                className="h-5 w-px bg-border max-md:hidden"
+                            />
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-xs font-medium text-muted-foreground max-md:w-full">
+                                    Perhatian
+                                </span>
+                                <FilterPills
+                                    label={`Perhatian, ${title.toLowerCase()}`}
+                                    value={attentionFilter}
+                                    onValueChange={setAttentionFilter}
+                                    itemClassName="max-md:h-11 max-md:px-4"
+                                    options={attentionTabs.map((tab) => ({
+                                        ...tab,
+                                        count: rows.filter((row) =>
+                                            matchesAttention(row, tab.value),
+                                        ).length,
+                                    }))}
+                                />
+                            </div>
+                        </>
+                    ) : null}
+                </div>
             </StickyFilterBar>
 
             {filtered.length > 0 ? (
@@ -571,6 +589,7 @@ function StudentTable({
                                                         {row.whatsappUrl && (
                                                             <DropdownMenuItem
                                                                 asChild
+                                                                className="bg-success text-success-foreground focus:bg-success/90 focus:text-success-foreground [&_svg]:text-current"
                                                             >
                                                                 <a
                                                                     href={
@@ -579,8 +598,8 @@ function StudentTable({
                                                                     target="_blank"
                                                                     rel="noreferrer"
                                                                 >
-                                                                    <MessageCircle className="size-4" />
-                                                                    WA
+                                                                    <WhatsAppIcon className="size-4" />
+                                                                    WhatsApp
                                                                 </a>
                                                             </DropdownMenuItem>
                                                         )}

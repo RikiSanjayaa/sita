@@ -656,6 +656,7 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - Latest product-owner direction replaces the proposed solid Cobalt focus card with the landing-page treatment. Every action keeps a neutral surface; the first item spans two columns with a larger title/count, explanation, at most one affected name for context and a conventional primary CTA. Supporting cards show only the icon, title, count and action, with no student-name preview or repeated explanation. Only the leading action runs a bounded one-name query; secondary payload entries have empty previews. Server priority, filtered destinations and all aggregate counts remain unchanged. No new palette, font, imagery or dependencies.
 - Below `md`, the action queue comes before the 2x2 summary and agenda. DOM and keyboard order follow that reading order via the existing mobile media-query hook. Dashboard action, summary and agenda links have at least 44px targets.
 - The agenda and student-progress headings sit directly on the page, without a SectionCard frame. The agenda is a divided timeline with prominent blue time labels; the progress list is one bordered, divided surface with the shared row content and attention ordering. Empty action queues retain "Semua beres" on a quiet primary-muted surface; empty agendas have a flat calendar state.
+- Constrained agenda scroll regions pack date groups at the start, rather than stretching sparse date/event tracks into the available height. Student-progress hover and focus-within fill the entire divided row, including its attention footer.
 
 ### Portal: mahasiswa and shared shell (#83)
 
@@ -665,6 +666,8 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
 - **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
 - **Document details:** Upload Dokumen uses the same ghost eye-only `RowIconButton` as lecturer/head-of-programme document lists, with a document-specific tooltip and accessible name, 36px desktop and 44px phones. Keep download/delete as separate meaningful actions and preserve the existing detail sheet.
+- **Contact actions:** WhatsApp uses the shared actual WhatsApp mark and the existing green `success` foreground/background pair on profiles, settings and row menus. Internal chat retains its own icon and normal theme treatment. Visible nonempty email, phone and NIM values have compact, named copy controls with truthful success/failure feedback; unavailable values have no copy action.
+- **Admin notes:** table cells show a two-line excerpt for long review, lecturer and activity notes. A native keyboard-operable disclosure opens the complete escaped, multiline text in place; closing returns to the compact row. Short or absent notes do not require an extra click. Read-only views and visibility rules remain unchanged. Filament contact/identity entries use its built-in copyable behavior.
 
 #### Mahasiswa dashboard (#134, #137)
 

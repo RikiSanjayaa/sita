@@ -60,6 +60,22 @@ test.beforeAll(() => {
                 'reviewed_at' => $status === 'needs_revision' ? now() : null,
             ])->save();
         }
+        $project = App\\Models\\ThesisProject::where('student_user_id', $student->id)->current()->firstOrFail();
+        foreach (['internal', 'student'] as $visibility) {
+            App\\Models\\ThesisProjectNote::firstOrCreate([
+                'project_id' => $project->id, 'author_user_id' => $lecturer->id,
+                'visibility' => $visibility,
+                'body' => 'Katalog UX148 '.$visibility.': '.str_repeat('Jelaskan metode, pembahasan hasil, dan langkah berikutnya. ', 12),
+            ]);
+        }
+        foreach ([9, 10] as $hour) {
+            App\\Models\\MentorshipSchedule::factory()->create([
+                'student_user_id' => $student->id, 'lecturer_user_id' => $lecturer->id,
+                'status' => 'approved', 'topic' => 'Katalog UX148 agenda '.$hour,
+                'requested_for' => now()->addDay()->setTime($hour, 0),
+                'scheduled_for' => now()->addDay()->setTime($hour, 0),
+            ]);
+        }
     `,
     ]);
 });
@@ -68,7 +84,9 @@ test.afterAll(() => {
     runArtisan([
         'tinker',
         '--execute',
-        `App\\Models\\MentorshipDocument::where('document_group', 'like', '${reviewFixtureGroup}%')->delete();`,
+        `App\\Models\\MentorshipDocument::where('document_group', 'like', '${reviewFixtureGroup}%')->delete();
+         App\\Models\\ThesisProjectNote::where('body', 'like', 'Katalog UX148 %')->delete();
+         App\\Models\\MentorshipSchedule::where('topic', 'like', 'Katalog UX148 agenda %')->delete();`,
     ]);
 });
 
@@ -98,6 +116,7 @@ for (const entry of catalogPages) {
                         : { cookies: [], origins: [] },
                     viewport: { width, height },
                     deviceScaleFactor: 1,
+                    permissions: ['clipboard-read', 'clipboard-write'],
                     colorScheme: theme,
                     reducedMotion: 'reduce',
                     locale: 'id-ID',

@@ -20,7 +20,12 @@ class UserInfolist
                     ->schema([
                         TextEntry::make('name'),
                         TextEntry::make('email')
-                            ->label('Email address'),
+                            ->label('Email address')
+                            ->copyable(),
+                        TextEntry::make('phone_number')
+                            ->label('Nomor HP')
+                            ->copyable()
+                            ->placeholder('Belum diisi'),
                         TextEntry::make('role')
                             ->label('Role')
                             ->badge()
@@ -38,6 +43,7 @@ class UserInfolist
                     ->schema([
                         TextEntry::make('mahasiswaProfile.nim')
                             ->label('NIM')
+                            ->copyable()
                             ->placeholder('-'),
                         TextEntry::make('mahasiswaProfile.programStudi.name')
                             ->label('Prodi')

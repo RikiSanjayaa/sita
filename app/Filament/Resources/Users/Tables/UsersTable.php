@@ -38,8 +38,14 @@ class UsersTable
                     ->toggleable(),
                 TextColumn::make('email')
                     ->label('Email address')
+                    ->copyable()
                     ->searchable()
                     ->sortable()
+                    ->toggleable(),
+                TextColumn::make('phone_number')
+                    ->label('Nomor HP')
+                    ->copyable()
+                    ->placeholder('Belum diisi')
                     ->toggleable(),
                 TextColumn::make('role')
                     ->label('Role')
@@ -51,6 +57,7 @@ class UsersTable
                     ->toggleable(),
                 TextColumn::make('mahasiswaProfile.nim')
                     ->label('NIM')
+                    ->copyable()
                     ->searchable()
                     ->visible(fn(HasTable $livewire): bool => self::isTab($livewire, 'mahasiswa'))
                     ->toggleable(),

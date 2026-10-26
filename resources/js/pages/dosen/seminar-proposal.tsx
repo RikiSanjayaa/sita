@@ -1,9 +1,10 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     Eye,
     Clock,
     FileWarning,
+    MessageSquareText,
     Send,
     XCircle,
 } from 'lucide-react';
@@ -65,6 +66,7 @@ import {
 } from '@/lib/academic-grade';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
+import { store as startPrivateChat } from '@/routes/dosen/pesan/private';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -99,6 +101,8 @@ type DefenseItem = {
     attemptNo: number;
     studentName: string;
     studentNim: string;
+    studentUserId: number | null;
+    chatUrl: string | null;
     titleId: string;
     titleEn: string;
     defenseStatus: string;
@@ -469,6 +473,7 @@ function DefenseDetailSheet({
 }) {
     const { projectNotes } = usePage<SharedData & PageProps>().props;
     const [showDecisionForm, setShowDecisionForm] = useState(false);
+    const [openingChat, setOpeningChat] = useState(false);
 
     if (!item) return null;
 
@@ -539,6 +544,44 @@ function DefenseDetailSheet({
                                 },
                             ]}
                         />
+
+                        {item.chatUrl ? (
+                            <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="gap-2 max-md:min-h-11"
+                            >
+                                <Link href={item.chatUrl}>
+                                    <MessageSquareText className="size-4" />
+                                    Buka chat grup ujian
+                                </Link>
+                            </Button>
+                        ) : item.studentUserId !== null ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="gap-2 max-md:min-h-11"
+                                disabled={openingChat}
+                                onClick={() => {
+                                    setOpeningChat(true);
+                                    router.post(
+                                        startPrivateChat.url(),
+                                        { recipient_id: item.studentUserId },
+                                        {
+                                            onFinish: () =>
+                                                setOpeningChat(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                <MessageSquareText className="size-4" />
+                                {openingChat
+                                    ? 'Membuka chat...'
+                                    : 'Chat pribadi mahasiswa'}
+                            </Button>
+                        ) : null}
 
                         <section>
                             <h3 className="mb-2 text-base font-semibold">

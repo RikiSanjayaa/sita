@@ -100,22 +100,34 @@ test.describe('Profile settings', () => {
             ).toBeVisible();
 
             await page.getByLabel('Nama lengkap').fill(nextName);
-            await page.getByLabel('Email').fill(nextEmail);
-            await page.getByLabel('Nomor HP').fill(nextPhone);
+            await page
+                .getByRole('textbox', { name: 'Email', exact: true })
+                .fill(nextEmail);
+            await page
+                .getByRole('textbox', { name: 'Nomor HP', exact: true })
+                .fill(nextPhone);
             await page
                 .getByRole('button', { name: 'Simpan perubahan' })
                 .click();
 
             await expect(page).toHaveURL(/\/settings\/profile/);
             await expect(page.getByLabel('Nama lengkap')).toHaveValue(nextName);
-            await expect(page.getByLabel('Email')).toHaveValue(nextEmail);
-            await expect(page.getByLabel('Nomor HP')).toHaveValue(nextPhone);
+            await expect(
+                page.getByRole('textbox', { name: 'Email', exact: true }),
+            ).toHaveValue(nextEmail);
+            await expect(
+                page.getByRole('textbox', { name: 'Nomor HP', exact: true }),
+            ).toHaveValue(nextPhone);
 
             await page.reload();
 
             await expect(page.getByLabel('Nama lengkap')).toHaveValue(nextName);
-            await expect(page.getByLabel('Email')).toHaveValue(nextEmail);
-            await expect(page.getByLabel('Nomor HP')).toHaveValue(nextPhone);
+            await expect(
+                page.getByRole('textbox', { name: 'Email', exact: true }),
+            ).toHaveValue(nextEmail);
+            await expect(
+                page.getByRole('textbox', { name: 'Nomor HP', exact: true }),
+            ).toHaveValue(nextPhone);
 
             await page
                 .locator('[data-test="header-user-menu-trigger"]')
@@ -208,4 +220,62 @@ test.describe('Jumlah bimbingan di profil (issue #70)', () => {
             await context.close();
         }
     });
+});
+
+test('profile identity fields copy their exact values and WhatsApp remains distinct from internal chat', async ({
+    browser,
+}) => {
+    const context = await browser.newContext({
+        storageState: authStatePath('dosen1'),
+        permissions: ['clipboard-read', 'clipboard-write'],
+    });
+    try {
+        const page = await context.newPage();
+        await page.goto(`/profil/${userIdByEmail('mahasiswa@sita.test')}`);
+        for (const label of ['NIM', 'Email', 'Nomor HP']) {
+            const button = page.getByRole('button', {
+                name: `Salin ${label}`,
+                exact: true,
+            });
+            const field = button.locator('..');
+            const value = (
+                await field.locator(':scope > span').first().innerText()
+            ).trim();
+            await button.focus();
+            await button.press('Enter');
+            expect(
+                await page.evaluate(() => navigator.clipboard.readText()),
+            ).toBe(value);
+            await expect(field.getByRole('status')).toHaveText(
+                `${label} disalin`,
+            );
+        }
+        await expect(
+            page.getByRole('link', { name: 'WhatsApp', exact: true }),
+        ).toHaveAttribute('href', /^https:\/\/wa\.me\//);
+        await expect(
+            page.getByRole('button', { name: 'Chat Pribadi', exact: true }),
+        ).toBeVisible();
+        await page.setViewportSize({ width: 390, height: 844 });
+        const emailCopy = page.getByRole('button', {
+            name: 'Salin Email',
+            exact: true,
+        });
+        const box = (await emailCopy.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        await page.goto('/settings/profile');
+        const email = await page
+            .getByLabel('Email', { exact: true })
+            .inputValue();
+        await page
+            .getByRole('button', { name: 'Salin Email', exact: true })
+            .first()
+            .click();
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+            email,
+        );
+    } finally {
+        await context.close();
+    }
 });

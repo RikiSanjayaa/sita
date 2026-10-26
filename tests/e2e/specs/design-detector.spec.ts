@@ -65,6 +65,7 @@ const areas: readonly AreaPages[] = [
             '/progres-mahasiswa',
             '/mahasiswa/panduan',
             '/settings/profile',
+            '/profil/10',
             '/settings/password',
             '/settings/appearance',
             '/settings/notifications',
@@ -99,7 +100,13 @@ const areas: readonly AreaPages[] = [
     {
         area: 'admin',
         account: 'admin',
-        paths: ['/admin'],
+        paths: [
+            '/admin',
+            '/admin/users',
+            '/admin/users/10',
+            '/admin/thesis-projects',
+            '/admin/thesis-projects/1',
+        ],
     },
 ];
 

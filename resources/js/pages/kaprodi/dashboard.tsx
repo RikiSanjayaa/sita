@@ -340,7 +340,7 @@ export default function KaprodiDashboardPage() {
                     role="region"
                     aria-label="Daftar agenda mendatang"
                     tabIndex={0}
-                    className="grid gap-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring xl:min-h-0 xl:overflow-y-auto xl:overscroll-y-contain xl:pr-2 xl:pl-1"
+                    className="grid content-start gap-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring xl:min-h-0 xl:overflow-y-auto xl:overscroll-y-contain xl:pr-2 xl:pl-1"
                 >
                     {agendaDays.map((day) => (
                         <section

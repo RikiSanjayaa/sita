@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dosen;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dosen\SubmitDefenseDecisionRequest;
 use App\Http\Requests\Dosen\VerifyRevisionRequest;
+use App\Models\MentorshipChatThread;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
@@ -46,7 +47,14 @@ class SeminarProposalController extends Controller
             ->filter(fn(ThesisDefenseExaminer $examiner): bool => in_array($examiner->defense?->type, ['sempro', 'sidang'], true))
             ->values();
 
-        $defenses = $examinerRecords->map(function (ThesisDefenseExaminer $examiner) use ($lecturer): array {
+        $chatThreadIds = MentorshipChatThread::query()
+            ->whereIn('context_id', $examinerRecords->pluck('defense_id')->unique())
+            ->whereIn('type', ['sempro', 'sidang'])
+            ->whereHas('participants', fn ($query) => $query->where('user_id', $lecturer->id)->where('role', 'examiner'))
+            ->get(['id', 'type', 'context_id', 'student_user_id'])
+            ->keyBy(fn (MentorshipChatThread $thread): string => $thread->type.':'.$thread->context_id.':'.$thread->student_user_id);
+
+        $defenses = $examinerRecords->map(function (ThesisDefenseExaminer $examiner) use ($lecturer, $chatThreadIds): array {
             $defense = $examiner->defense;
             $project = $defense?->project;
             $student = $project?->student;
@@ -54,6 +62,7 @@ class SeminarProposalController extends Controller
             $terminology = $project === null
                 ? AcademicTerminology::neutral()
                 : AcademicTerminology::forProject($project);
+            $chatThread = $defense === null ? null : $chatThreadIds->get($defense->type.':'.$defense->id.':'.$student?->id);
 
             $otherExaminers = $defense?->examiners
                 ?->filter(fn(ThesisDefenseExaminer $item) => $item->lecturer_user_id !== $lecturer->id)
@@ -85,6 +94,8 @@ class SeminarProposalController extends Controller
                 'attemptNo' => $defense?->attempt_no,
                 'studentName' => $student?->name ?? '-',
                 'studentNim' => $student?->mahasiswaProfile?->nim ?? '-',
+                'studentUserId' => $student?->id,
+                'chatUrl' => $chatThread === null ? null : route('dosen.pesan', ['thread' => $chatThread->id]),
                 'titleId' => $title?->title_id ?? '-',
                 'titleEn' => $title?->title_en ?? '-',
                 'defenseStatus' => $defense?->status,

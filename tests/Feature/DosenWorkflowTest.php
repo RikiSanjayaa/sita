@@ -1078,3 +1078,42 @@ test('sidang project completes only after all requesting lecturers resolve their
     expect($adminNotifications)->toHaveCount(1)
         ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi Sidang selesai');
 });
+
+it('links an exam to its authorized group or leaves private chat creation to an explicit action', function (string $threadCase) {
+    $lecturer = createDosenUser();
+    $student = createMahasiswaUser('CHAT-DETAIL-'.$threadCase);
+    $project = createThesisProjectForStudent($student);
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle->id,
+        'type' => 'sempro', 'attempt_no' => 1, 'status' => 'scheduled',
+        'result' => 'pending', 'scheduled_for' => now()->addDay(),
+    ]);
+    assignDefenseExaminer($defense, $lecturer, 'examiner', 1);
+
+    $thread = null;
+    if ($threadCase !== 'missing') {
+        $thread = MentorshipChatThread::query()->create([
+            'student_user_id' => $student->id,
+            'type' => $threadCase === 'wrong-type' ? 'sidang' : 'sempro',
+            'context_id' => $defense->id,
+            'label' => 'Grup ujian',
+        ]);
+        if ($threadCase !== 'not-member') {
+            MentorshipChatThreadParticipant::query()->create([
+                'thread_id' => $thread->id,
+                'user_id' => $lecturer->id,
+                'role' => 'examiner',
+            ]);
+        }
+    }
+
+    $threadCount = MentorshipChatThread::query()->count();
+    $this->actingAs($lecturer)->get(route('dosen.seminar-proposal'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('defenses', 1)
+            ->where('defenses.0.studentUserId', $student->id)
+            ->where('defenses.0.chatUrl', $threadCase === 'member' ? route('dosen.pesan', ['thread' => $thread->id]) : null));
+    expect(MentorshipChatThread::query()->count())->toBe($threadCount);
+})->with(['member', 'missing', 'not-member', 'wrong-type']);

@@ -415,3 +415,106 @@ test.describe('Dosen penilaian ujian', () => {
         }
     });
 });
+
+test('exam detail opens the existing group, or private student chat when no group exists', async ({
+    browser,
+}) => {
+    seedPlaywrightScenarios();
+    const context = await browser.newContext({
+        storageState: authStatePath(sempro.examinerKeys[0]),
+    });
+    try {
+        const page = await context.newPage();
+        await openDefenseSheet(page, sempro.studentName, 'Sempro / Sinopsis');
+        const group = page.getByRole('link', {
+            name: 'Buka chat grup ujian',
+            exact: true,
+        });
+        const href = await group.getAttribute('href');
+        const threadId = new URL(href!, 'http://sita.test').searchParams.get(
+            'thread',
+        );
+        const chatResponsePromise = page.waitForResponse(
+            (response) =>
+                response.request().method() === 'GET' &&
+                new URL(response.url()).pathname === '/dosen/pesan',
+        );
+        await group.click();
+        await expect(page).toHaveURL(
+            new RegExp(`/dosen/pesan\\?thread=${threadId}`),
+        );
+        await expect(
+            page.getByRole('heading', { name: 'Pesan', exact: true }),
+        ).toBeVisible();
+        await expect(
+            page
+                .locator('[data-slot="card-title"]')
+                .filter({ hasText: sempro.studentName }),
+        ).toBeVisible();
+        const chatResponse = await chatResponsePromise;
+        const chatPayload = (await chatResponse.json()) as {
+            props: { threads: { id: number; threadType: string }[] };
+        };
+        const existingPrivateIds = new Set(
+            chatPayload.props.threads
+                .filter((thread) => thread.threadType === 'private')
+                .map((thread) => thread.id),
+        );
+        let openedPrivateId: number | null = null;
+
+        // Only detach this group's context temporarily; never delete shared messages.
+        runArtisan([
+            'tinker',
+            '--execute',
+            `App\\Models\\MentorshipChatThread::whereKey(${threadId})->update(['context_id' => null]);`,
+        ]);
+        try {
+            await openDefenseSheet(
+                page,
+                sempro.studentName,
+                'Sempro / Sinopsis',
+            );
+            await page
+                .getByRole('button', {
+                    name: 'Chat pribadi mahasiswa',
+                    exact: true,
+                })
+                .click();
+            await expect(page).toHaveURL(
+                (url) =>
+                    url.pathname === '/dosen/pesan' &&
+                    url.searchParams.get('mode') === 'private' &&
+                    /^\d+$/.test(url.searchParams.get('thread') ?? ''),
+            );
+            await expect(
+                page.getByRole('heading', { name: 'Pesan', exact: true }),
+            ).toBeVisible();
+            await expect(
+                page
+                    .locator('[data-slot="card-title"]')
+                    .filter({ hasText: sempro.studentName }),
+            ).toBeVisible();
+            openedPrivateId = Number(
+                new URL(page.url()).searchParams.get('thread'),
+            );
+        } finally {
+            runArtisan([
+                'tinker',
+                '--execute',
+                `App\\Models\\MentorshipChatThread::whereKey(${threadId})->update(['context_id' => App\\Models\\ThesisDefense::whereHas('project.student', fn($q) => $q->where('name', '${sempro.studentName}'))->where('type', 'sempro')->value('id')]);`,
+            ]);
+            if (
+                openedPrivateId !== null &&
+                !existingPrivateIds.has(openedPrivateId)
+            ) {
+                runArtisan([
+                    'tinker',
+                    '--execute',
+                    `App\\Models\\MentorshipChatThread::whereKey(${openedPrivateId})->where('type', 'private')->delete();`,
+                ]);
+            }
+        }
+    } finally {
+        await context.close();
+    }
+});
