@@ -227,12 +227,16 @@ async function captureState(
             ).toBe(true);
             const dialog = page.getByRole('dialog');
             if (await dialog.count()) {
-                const bounds = await dialog.boundingBox();
-                expect(bounds).not.toBeNull();
-                expect(bounds!.x).toBeGreaterThanOrEqual(0);
-                expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
-                    width + 1,
-                );
+                // Visibility includes the slide-in animation. Check the final
+                // position, not an intermediate transform outside the viewport.
+                await expect(async () => {
+                    const bounds = await dialog.boundingBox();
+                    expect(bounds).not.toBeNull();
+                    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+                    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+                        width + 1,
+                    );
+                }).toPass({ timeout: 10_000 });
             }
             const screenshotName = `${name}-${width}-${theme}.png`;
             const screenshotPath = info.outputPath(screenshotName);

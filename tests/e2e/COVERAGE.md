@@ -16,6 +16,8 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 - `golden-path` owns a fresh student (`GoldenPathScenarioSeeder`, `support/golden-path.ts`) and removes its academic records and uploaded files after the run, including failures. Staff use separate contexts with the setup project's auth states; every academic transition is performed through the UI, with a screenshot attached per stage.
 - `thesis-recovery` uses `RecoveryScenarioSeeder` for fresh, research, scheduled Sempro and scheduled Sidang starting states. Each test recreates the rehearsal student and owns its cleanup; it does not reset shared scenario students. Admin, student and lecturers have separate browser contexts. All recovery transitions use UI controls; seed/service calls only establish starting conditions and remove owned data.
 - Retry scheduling waits for the time picker to display the entered value before submitting the admin form; no fixed sleep or additional retry masks delayed widget updates.
+- Katalog validasi review dokumen mengirim token CSRF sesi dari meta halaman lewat header pada request review saja. Clock server katalog membuat cookie `XSRF-TOKEN` kedaluwarsa terhadap clock browser sebenarnya; tanpa header, redirect sesi dapat disangka respons validasi. Capture tetap menekan tombol UI dan memeriksa pesan validasi server.
+- Pemeriksaan batas drawer berkas ujian menunggu posisi akhir animasi sebelum mengukur viewport; ukuran drawer yang benar-benar melampaui layar tetap menggagalkan pemeriksaan.
 
 ## Mahasiswa
 

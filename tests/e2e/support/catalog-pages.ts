@@ -317,6 +317,23 @@ export const catalogPages: readonly CatalogPage[] = [
         heading: 'Daftar Dokumen',
         prepare: async (page) => {
             await openDocumentPage(page, '/dosen/dokumen-revisi');
+            // The pinned server clock expires XSRF-TOKEN before the browser's
+            // real clock. Send the session's real meta token, as login does.
+            const csrfToken = await page
+                .locator('meta[name="csrf-token"]')
+                .getAttribute('content');
+            expect(csrfToken).toBeTruthy();
+            await page.route(
+                '**/dosen/dokumen-revisi/*/review',
+                async (route) => {
+                    await route.continue({
+                        headers: {
+                            ...route.request().headers(),
+                            'X-CSRF-TOKEN': csrfToken!,
+                        },
+                    });
+                },
+            );
             await page.getByRole('textbox', { name: 'Catatan dosen' }).fill('');
             await page
                 .getByRole('button', { name: 'Minta revisi', exact: true })
