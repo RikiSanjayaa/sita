@@ -16,9 +16,13 @@ const lecturerNote =
     '\nAkhir catatan dosen.';
 
 async function openSession(page: Page): Promise<number> {
-    await page
-        .getByRole('button', { name: `Detail sesi ${topic}`, exact: true })
-        .click();
+    const action = page.getByRole('button', {
+        name: `Detail sesi ${topic}`,
+        exact: true,
+    });
+    await expect(action).toHaveText('');
+    await action.click();
+    await expect(page.locator('[data-slot="sheet-content"]')).toBeVisible();
     const notes = page.getByRole('dialog').locator('[data-session-notes]');
     await expect(notes).toBeVisible();
     return Number(await notes.getAttribute('data-session-notes'));
@@ -41,10 +45,42 @@ async function saveNote(page: Page, body: string): Promise<void> {
     ).toBeVisible();
 }
 
+async function openProfileSession(page: Page): Promise<void> {
+    const toggle = page.getByRole('button', {
+        name: 'Sesi bimbingan dengan Dr. Budi Santoso, M.Kom.',
+        exact: true,
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('[data-monitoring-session]')).toHaveCount(0);
+    await expect(page.locator('[data-session-notes]')).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const row = page
+        .locator('[data-monitoring-session]')
+        .filter({ hasText: topic });
+    await expect(row).toBeVisible();
+    await expect(row.getByText(studentNote, { exact: true })).toHaveCount(0);
+    await expect(row.getByText(lecturerNote, { exact: true })).toHaveCount(0);
+    await row
+        .getByRole('button', { name: `Detail sesi ${topic}`, exact: true })
+        .click();
+    const drawer = page.locator('[data-slot="sheet-content"]');
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByText(studentNote, { exact: true })).toBeVisible();
+    await expect(drawer.getByText(lecturerNote, { exact: true })).toBeVisible();
+    await expect(drawer.getByRole('textbox')).toHaveCount(0);
+    await expect
+        .poll(async () => {
+            const box = await drawer.boundingBox();
+            return box === null ? -1 : Math.round(box.x + box.width);
+        })
+        .toBe(page.viewportSize()!.width);
+}
+
 test('participants write independent session notes and scoped monitoring reads the same persisted content', async ({
     browser,
 }, info) => {
-    test.setTimeout(240_000);
+    test.setTimeout(360_000);
     seedPlaywrightScenarios();
     runArtisan([
         'tinker',
@@ -72,6 +108,11 @@ test('participants write independent session notes and scoped monitoring reads t
         const studentPage = await studentContext.newPage();
         const lecturerPage = await lecturerContext.newPage();
         await studentPage.goto('/mahasiswa/jadwal-bimbingan');
+        await attachDocumentStates(
+            studentPage,
+            info,
+            'mahasiswa-schedule-actions',
+        );
         const scheduleId = await openSession(studentPage);
         await expect(
             studentPage
@@ -108,6 +149,11 @@ test('participants write independent session notes and scoped monitoring reads t
         ).toHaveValue(studentNote);
 
         await lecturerPage.goto('/dosen/jadwal-bimbingan');
+        await attachDocumentStates(
+            lecturerPage,
+            info,
+            'dosen-schedule-actions',
+        );
         await openSession(lecturerPage);
         await expect(
             lecturerPage
@@ -150,21 +196,27 @@ test('participants write independent session notes and scoped monitoring reads t
         const studentId = initialProps.auth.user.id as number;
         const kaprodiPage = await kaprodiContext.newPage();
         await kaprodiPage.goto(`/profil/${studentId}`);
-        const monitor = kaprodiPage.locator(
-            `[data-monitoring-session="${scheduleId}"]`,
+        await attachDocumentStates(
+            kaprodiPage,
+            info,
+            'kaprodi-profile-collapsed',
         );
-        await expect(
-            monitor.getByText(studentNote, { exact: true }),
-        ).toBeVisible();
-        await expect(
-            monitor.getByText(lecturerNote, { exact: true }),
-        ).toBeVisible();
-        await expect(monitor.getByRole('textbox')).toHaveCount(0);
+        await kaprodiPage
+            .getByRole('button', {
+                name: 'Sesi bimbingan dengan Dr. Budi Santoso, M.Kom.',
+                exact: true,
+            })
+            .click();
+        await attachDocumentStates(
+            kaprodiPage,
+            info,
+            'kaprodi-profile-expanded',
+        );
         await kaprodiPage.reload();
-        await expect(
-            monitor.getByText(lecturerNote, { exact: true }),
-        ).toBeVisible();
+        await openProfileSession(kaprodiPage);
         await attachDocumentStates(kaprodiPage, info, 'kaprodi-session-notes');
+        await kaprodiPage.reload();
+        await openProfileSession(kaprodiPage);
 
         const adminPage = await adminContext.newPage();
         await adminPage.goto('/admin/thesis-projects');
@@ -264,32 +316,48 @@ test('participants write independent session notes and scoped monitoring reads t
             [lecturerPage, 'dosen'],
         ] as const) {
             await page.reload();
-            const archived = page.locator(
-                `[data-archived-session="${scheduleId}"]`,
-            );
+            await expect(page.locator('[data-session-notes]')).toHaveCount(0);
             await expect(
-                archived.getByText(studentNote, { exact: true }),
-            ).toBeVisible();
-            await expect(
-                archived.getByText(lecturerNote, { exact: true }),
-            ).toBeVisible();
-            await expect(archived.getByRole('textbox')).toHaveCount(0);
-            await expect(
-                archived.getByRole('button', { name: 'Simpan catatan sesi' }),
+                page.getByRole('heading', {
+                    name: 'Arsip catatan sesi bimbingan',
+                }),
             ).toHaveCount(0);
+            await page.goto(`/profil/${studentId}`);
+            await openProfileSession(page);
             await attachDocumentStates(
                 page,
                 info,
                 `${name}-session-notes-archived`,
             );
+            await page
+                .getByRole('dialog')
+                .locator('article')
+                .last()
+                .scrollIntoViewIfNeeded();
+            await expect(
+                page
+                    .getByRole('dialog')
+                    .getByRole('button', { name: 'Close', exact: true }),
+            ).toBeInViewport();
+            await page
+                .getByRole('dialog')
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            await expect(
+                page.getByRole('button', {
+                    name: 'Sesi bimbingan dengan Dr. Budi Santoso, M.Kom.',
+                    exact: true,
+                }),
+            ).toHaveAttribute('aria-expanded', 'true');
+            await expect(
+                page.getByRole('button', {
+                    name: `Detail sesi ${topic}`,
+                    exact: true,
+                }),
+            ).toBeFocused();
         }
         await kaprodiPage.reload();
-        await expect(
-            monitor.getByText(studentNote, { exact: true }),
-        ).toBeVisible();
-        await expect(
-            monitor.getByText(lecturerNote, { exact: true }),
-        ).toBeVisible();
+        await openProfileSession(kaprodiPage);
         await adminPage.reload();
         await adminPage
             .getByRole('tab', { name: 'Catatan', exact: true })

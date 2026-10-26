@@ -3,6 +3,7 @@ import {
     CalendarClock,
     CalendarPlus,
     CheckCircle2,
+    Eye,
     Inbox,
     MapPin,
     Repeat,
@@ -16,12 +17,8 @@ import {
     DosenScheduleCreateDialog,
     type SupervisedStudent,
 } from '@/components/dosen-schedule-create-dialog';
-import {
-    ArchivedMentorshipSessionNotes,
-    MentorshipSessionNotes,
-    type MentorshipSessionNotesContext,
-    type MentorshipSessionNotesData,
-} from '@/components/mentorship-session-notes';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
+import { type MentorshipSessionNotesData } from '@/components/mentorship-session-notes';
 import {
     DataSection,
     DataToolbar,
@@ -34,9 +31,9 @@ import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
 import {
-    ScheduleDetailModal,
+    ScheduleDetailDrawer,
     type ScheduleDetail,
-} from '@/components/schedule-detail-modal';
+} from '@/components/schedule-detail-drawer';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -115,7 +112,6 @@ type JadwalBimbinganProps = {
     historySchedules: HistorySchedule[];
     supervisedStudents: SupervisedStudent[];
     workspaceEvents: BimbinganEvent[];
-    archivedSessionNotes: MentorshipSessionNotesContext[];
 };
 
 type DecisionFormState = {
@@ -129,7 +125,7 @@ type DecisionFormErrors = {
     lecturer_note?: string;
 };
 
-type ScheduleModalStatus =
+type ScheduleDetailStatus =
     | 'scheduled'
     | 'pending'
     | 'approved'
@@ -201,7 +197,6 @@ export default function DosenJadwalBimbinganPage() {
         historySchedules,
         supervisedStudents,
         workspaceEvents,
-        archivedSessionNotes,
         auth,
         academicTerminology: n,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
@@ -276,13 +271,10 @@ export default function DosenJadwalBimbinganPage() {
                   selectedSchedule?.sessionNotes ??
                   pendingRequests.find(
                       (request) => request.id === selectedEvent.id,
-                  )?.sessionNotes ??
-                  archivedSessionNotes.find(
-                      (session) => session.id === selectedEvent.id,
                   )?.sessionNotes,
           }
         : null;
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
 
     useEffect(() => {
         const userId = auth.user?.id;
@@ -591,7 +583,7 @@ export default function DosenJadwalBimbinganPage() {
         );
         const scheduleStatus = (
             event.status === 'scheduled' ? 'approved' : event.status
-        ) as ScheduleModalStatus;
+        ) as ScheduleDetailStatus;
 
         if (fullSchedule) {
             setSelectedEvent({
@@ -602,7 +594,7 @@ export default function DosenJadwalBimbinganPage() {
                 start: event.start,
                 end: event.end,
                 location: fullSchedule.location,
-                status: fullSchedule.status.toLowerCase() as ScheduleModalStatus,
+                status: fullSchedule.status.toLowerCase() as ScheduleDetailStatus,
                 notes: fullSchedule.lecturerNote,
                 sessionNotes: fullSchedule.sessionNotes,
             });
@@ -622,10 +614,10 @@ export default function DosenJadwalBimbinganPage() {
                 )?.sessionNotes,
             });
         }
-        setIsDetailModalOpen(true);
+        setIsDetailDrawerOpen(true);
     }
 
-    function openHistorySchedule(schedule: HistorySchedule) {
+    function openScheduleDetail(schedule: UpcomingSchedule | HistorySchedule) {
         const start =
             schedule.date === schedule.time
                 ? schedule.date
@@ -639,11 +631,11 @@ export default function DosenJadwalBimbinganPage() {
             start,
             end: Number.isNaN(end.getTime()) ? start : end.toISOString(),
             location: schedule.location,
-            status: schedule.status.toLowerCase() as ScheduleModalStatus,
+            status: schedule.status.toLowerCase() as ScheduleDetailStatus,
             notes: schedule.lecturerNote,
             sessionNotes: schedule.sessionNotes,
         });
-        setIsDetailModalOpen(true);
+        setIsDetailDrawerOpen(true);
     }
 
     const workspaceFilterOptions: { label: string; value: WorkspaceFilter }[] =
@@ -1301,16 +1293,8 @@ export default function DosenJadwalBimbinganPage() {
                                                         key={`${item.id}-${item.mahasiswa}`}
                                                         className={cn(
                                                             stackedTable.tr,
-                                                            'cursor-pointer align-top transition-colors hover:bg-muted/40',
+                                                            'align-top',
                                                         )}
-                                                        onClick={() => {
-                                                            setSelectedUpcoming(
-                                                                item,
-                                                            );
-                                                            setUpcomingSheetOpen(
-                                                                true,
-                                                            );
-                                                        }}
                                                     >
                                                         <td
                                                             className={
@@ -1372,6 +1356,19 @@ export default function DosenJadwalBimbinganPage() {
                                                             )}
                                                         >
                                                             <div className="flex items-center justify-end gap-1 max-md:justify-start">
+                                                                <RowIconButton
+                                                                    label={`Detail sesi ${item.topic}`}
+                                                                    onClick={() =>
+                                                                        openScheduleDetail(
+                                                                            item,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Eye
+                                                                        aria-hidden="true"
+                                                                        className="size-4"
+                                                                    />
+                                                                </RowIconButton>
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"
@@ -1558,20 +1555,21 @@ export default function DosenJadwalBimbinganPage() {
                                                     stackedTable.tdActions
                                                 }
                                             >
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="max-md:h-11"
-                                                    aria-label={`Detail sesi ${item.topic}`}
-                                                    onClick={() =>
-                                                        openHistorySchedule(
-                                                            item,
-                                                        )
-                                                    }
-                                                >
-                                                    Detail sesi
-                                                </Button>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <RowIconButton
+                                                        label={`Detail sesi ${item.topic}`}
+                                                        onClick={() =>
+                                                            openScheduleDetail(
+                                                                item,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                    </RowIconButton>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1594,14 +1592,11 @@ export default function DosenJadwalBimbinganPage() {
                         />
                     )}
                 </section>
-                <ArchivedMentorshipSessionNotes
-                    sessions={archivedSessionNotes}
-                />
             </div>
 
-            <ScheduleDetailModal
-                open={isDetailModalOpen}
-                onOpenChange={setIsDetailModalOpen}
+            <ScheduleDetailDrawer
+                open={isDetailDrawerOpen}
+                onOpenChange={setIsDetailDrawerOpen}
                 schedule={selectedDetail}
                 currentUserRole="dosen"
             />
@@ -1666,15 +1661,6 @@ export default function DosenJadwalBimbinganPage() {
                                             {selectedUpcoming.lecturerNote}
                                         </p>
                                     )}
-
-                                    <div className="min-w-0 border-t pt-5">
-                                        <MentorshipSessionNotes
-                                            sessionId={selectedUpcoming.id}
-                                            notes={
-                                                selectedUpcoming.sessionNotes
-                                            }
-                                        />
-                                    </div>
 
                                     <div className="border-t pt-5">
                                         <h3 className="mb-3 text-sm font-semibold">

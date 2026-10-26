@@ -42,7 +42,7 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import { ScheduleDetailDrawer } from '@/components/schedule-detail-drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -764,7 +764,7 @@ export default function KaprodiSemproSidangPage() {
                     if (!open) setSelected(null);
                 }}
             />
-            <ScheduleDetailModal
+            <ScheduleDetailDrawer
                 open={selectedEvent !== null}
                 onOpenChange={(open) => {
                     if (!open) setSelectedEvent(null);

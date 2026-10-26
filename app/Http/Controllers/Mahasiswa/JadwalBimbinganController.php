@@ -150,7 +150,6 @@ class JadwalBimbinganController extends Controller
             'upcomingMeetings' => $upcomingMeetings,
             'historyMeetings' => $historyMeetings,
             'archivedProject' => $archive->studentHasArchivedProject($student),
-            'archivedSessionNotes' => $sessionNotes->archivedFor($student),
         ]);
     }
 

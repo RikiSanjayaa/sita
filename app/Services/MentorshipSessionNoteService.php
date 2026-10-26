@@ -119,6 +119,7 @@ class MentorshipSessionNoteService
             'student' => $schedule->student?->name ?? 'Mahasiswa',
             'studentUserId' => (int) $schedule->student_user_id,
             'lecturerUserId' => (int) $schedule->lecturer_user_id,
+            'createdByUserId' => (int) $schedule->created_by_user_id,
             'sessionNotes' => [
                 'entries' => $this->entries($schedule),
                 'updateUrl' => null,
@@ -138,7 +139,11 @@ class MentorshipSessionNoteService
         }
         if ($project->isArchived()) {
             return collect($project->archive_summary['mentorship_session_notes'] ?? [])
-                ->filter(fn (array $row): bool => $monitor || $student || ($lecturer && (int) $row['lecturerUserId'] === (int) $viewer->id))
+                ->filter(fn (array $row): bool => (int) $row['studentUserId'] === (int) $project->student_user_id
+                    && ($monitor || $student || ($lecturer && (int) $row['lecturerUserId'] === (int) $viewer->id))
+                    && (! $student || $monitor
+                        || (isset($row['createdByUserId']) && (int) $row['createdByUserId'] !== (int) $row['lecturerUserId'])
+                        || ! app(SecretSidangExaminers::class)->isSecret((int) $viewer->id, (int) $row['lecturerUserId'])))
                 ->map(function (array $row): array {
                     $row['sessionNotes']['updateUrl'] = null;
                     $row['sessionNotes']['readOnlyReason'] = 'Catatan sesi sudah diarsipkan dan hanya dapat dibaca.';
@@ -155,25 +160,6 @@ class MentorshipSessionNoteService
             ->with(['student', 'lecturer'])->orderByDesc('scheduled_for')->orderByDesc('id')->get()
             ->filter(fn (MentorshipSchedule $schedule): bool => $monitor || $this->canView($schedule, $viewer))
             ->map(fn (MentorshipSchedule $schedule): array => $this->snapshot($schedule))->values()->all();
-    }
-
-    /** @return list<array<string, mixed>> */
-    public function archivedFor(User $viewer): array
-    {
-        if (! $viewer->hasRole('mahasiswa') && ! $viewer->hasRole('dosen')) {
-            return [];
-        }
-
-        return ThesisProject::query()->whereNotNull('archived_at')
-            ->where(function (Builder $query) use ($viewer): void {
-                $query->where('student_user_id', $viewer->id)
-                    ->orWhereHas('supervisorAssignments', fn (Builder $query) => $query->where('lecturer_user_id', $viewer->id))
-                    ->orWhereHas('defenses.examiners', fn (Builder $query) => $query->where('lecturer_user_id', $viewer->id));
-            })
-            ->get()->flatMap(fn (ThesisProject $project): array => $this->forProject($project, $viewer))
-            ->filter(fn (array $row): bool => ($viewer->hasRole('mahasiswa') && (int) $row['studentUserId'] === (int) $viewer->id)
-                || ($viewer->hasRole('dosen') && (int) $row['lecturerUserId'] === (int) $viewer->id))
-            ->values()->all();
     }
 
     private function projectForSchedule(MentorshipSchedule $schedule): ?ThesisProject

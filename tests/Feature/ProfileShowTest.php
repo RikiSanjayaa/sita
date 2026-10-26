@@ -30,7 +30,9 @@ test('authenticated user can view mahasiswa profile page', function () {
 
     expect($page['component'])->toBe('profile/show')
         ->and(data_get($page, 'props.profile.name'))->toBe($student->name)
-        ->and(data_get($page, 'props.profile.roleLabel'))->toBe('Mahasiswa');
+        ->and(data_get($page, 'props.profile.roleLabel'))->toBe('Mahasiswa')
+        ->and($page['props'])->not->toHaveKey('monitoringSessionNotes')
+        ->and($page['props'])->not->toHaveKey('monitoringLecturers');
 });
 
 test('mahasiswa profile separates sempro and sidang examiners', function () {

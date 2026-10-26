@@ -150,7 +150,6 @@ class JadwalBimbinganController extends Controller
             'historySchedules' => $historySchedules,
             'supervisedStudents' => $this->mentorshipScheduleService->supervisedStudents($lecturer),
             'workspaceEvents' => $this->dosenScheduleWorkspaceService->workspaceEvents($lecturer),
-            'archivedSessionNotes' => $sessionNotes->archivedFor($lecturer),
         ]);
     }
 

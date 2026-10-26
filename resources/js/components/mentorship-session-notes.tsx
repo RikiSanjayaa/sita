@@ -1,11 +1,11 @@
 import { Form, usePage } from '@inertiajs/react';
 import { useId } from 'react';
 
-import { DataSection } from '@/components/patterns/data-section';
-import { StatusBadge } from '@/components/patterns/status-badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 
 export type MentorshipSessionNotesData = {
@@ -43,15 +43,6 @@ function formatNoteDate(value: string): string {
     })} WITA`;
 }
 
-const scheduleStatusLabels: Record<string, string> = {
-    pending: 'Menunggu Konfirmasi',
-    approved: 'Terjadwal',
-    rescheduled: 'Dijadwalkan Ulang',
-    completed: 'Selesai',
-    rejected: 'Ditolak',
-    cancelled: 'Dibatalkan',
-};
-
 export function MentorshipSessionNotes({
     sessionId,
     notes,
@@ -61,6 +52,7 @@ export function MentorshipSessionNotes({
 }) {
     const { auth } = usePage<SharedData>().props;
     const id = useId();
+    const getInitials = useInitials();
     const headingId = `${id}-heading`;
     const fieldId = `${id}-body`;
     const errorId = `${id}-error`;
@@ -72,9 +64,9 @@ export function MentorshipSessionNotes({
         <section
             aria-labelledby={headingId}
             data-session-notes={sessionId}
-            className="min-w-0 space-y-4"
+            className="min-w-0 space-y-5"
         >
-            <h3 id={headingId} className="text-sm font-semibold">
+            <h3 id={headingId} className="text-base font-semibold">
                 Catatan sesi bimbingan
             </h3>
             {notes.entries.length > 0 ? (
@@ -82,27 +74,38 @@ export function MentorshipSessionNotes({
                     {notes.entries.map((entry) => (
                         <article
                             key={entry.authorId}
-                            className="min-w-0 space-y-2 py-3 first:pt-0 last:pb-0"
+                            className="min-w-0 space-y-4 py-5 first:pt-0 last:pb-0"
                         >
-                            <div className="space-y-1 [overflow-wrap:anywhere]">
-                                <p className="text-sm font-medium">
-                                    {entry.authorName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {entry.authorRole}
-                                </p>
-                                {entry.updatedAt && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Diperbarui{' '}
-                                        <time dateTime={entry.updatedAt}>
+                            <header className="flex items-start gap-3">
+                                <Avatar className="size-9 shrink-0">
+                                    <AvatarFallback className="bg-primary-muted text-xs font-semibold text-primary-muted-foreground">
+                                        {getInitials(entry.authorName)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1 space-y-1 [overflow-wrap:anywhere]">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                        <h4 className="text-sm font-semibold">
+                                            {entry.authorName}
+                                        </h4>
+                                        <span className="text-xs text-muted-foreground">
+                                            {entry.authorRole}
+                                        </span>
+                                    </div>
+                                    {entry.updatedAt && (
+                                        <time
+                                            dateTime={entry.updatedAt}
+                                            className="block text-xs text-muted-foreground tabular-nums"
+                                        >
                                             {formatNoteDate(entry.updatedAt)}
                                         </time>
-                                    </p>
-                                )}
+                                    )}
+                                </div>
+                            </header>
+                            <div className="rounded-lg bg-muted/50 px-4 py-3">
+                                <p className="max-w-prose text-sm leading-7 [overflow-wrap:anywhere] whitespace-pre-wrap">
+                                    {entry.body}
+                                </p>
                             </div>
-                            <p className="text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
-                                {entry.body}
-                            </p>
                         </article>
                     ))}
                 </div>
@@ -167,53 +170,5 @@ export function MentorshipSessionNotes({
                 </p>
             ) : null}
         </section>
-    );
-}
-
-export function ArchivedMentorshipSessionNotes({
-    sessions,
-}: {
-    sessions: MentorshipSessionNotesContext[];
-}) {
-    if (sessions.length === 0) return null;
-
-    return (
-        <DataSection
-            title="Arsip catatan sesi bimbingan"
-            description="Catatan sesi terdahulu tetap dapat dibaca, tetapi tidak dapat diubah."
-        >
-            <div className="divide-y rounded-xl border">
-                {sessions.map((session) => (
-                    <article
-                        key={session.id}
-                        data-archived-session={session.id}
-                        className="min-w-0 space-y-4 p-4 md:p-6"
-                    >
-                        <div className="space-y-2 [overflow-wrap:anywhere]">
-                            <h3 className="font-medium">{session.topic}</h3>
-                            <StatusBadge
-                                domain="schedule"
-                                status={session.status}
-                            >
-                                {scheduleStatusLabels[session.status] ??
-                                    session.status}
-                            </StatusBadge>
-                            <p className="text-sm text-muted-foreground">
-                                {session.student} · {session.lecturer}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {session.scheduledAt
-                                    ? formatNoteDate(session.scheduledAt)
-                                    : 'Waktu sesi tidak tercatat'}
-                            </p>
-                        </div>
-                        <MentorshipSessionNotes
-                            sessionId={session.id}
-                            notes={{ ...session.sessionNotes, updateUrl: null }}
-                        />
-                    </article>
-                ))}
-            </div>
-        </DataSection>
     );
 }

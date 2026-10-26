@@ -14,22 +14,22 @@ import {
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 
 export type ScheduleDetail = {
     id: number | string;
     topic: string;
     person: string;
     personRole: 'lecturer' | 'student';
-    start: string;
-    end: string;
-    location: string;
+    start: string | null;
+    end: string | null;
+    location: string | null;
     status:
         | 'scheduled'
         | 'pending'
@@ -43,7 +43,7 @@ export type ScheduleDetail = {
     requestedBy?: string;
 };
 
-type ScheduleDetailModalProps = {
+type ScheduleDetailDrawerProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     schedule: ScheduleDetail | null;
@@ -66,23 +66,24 @@ const statusConfig: Record<
 };
 
 function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString('id-ID', {
+    return `${new Date(dateStr).toLocaleString('id-ID', {
+        timeZone: 'Asia/Makassar',
         day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-    });
+    })} WITA`;
 }
 
-export function ScheduleDetailModal({
+export function ScheduleDetailDrawer({
     open,
     onOpenChange,
     schedule,
     onReschedule,
     onCancel,
     currentUserRole,
-}: ScheduleDetailModalProps) {
+}: ScheduleDetailDrawerProps) {
     if (!schedule) return null;
 
     const config = statusConfig[schedule.status];
@@ -96,18 +97,20 @@ export function ScheduleDetailModal({
         schedule.status !== 'cancelled';
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="min-w-0 pr-6 leading-snug [overflow-wrap:anywhere]">
+        <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetContent className="w-full gap-0 overflow-hidden sm:max-w-2xl [&>button]:flex [&>button]:size-9 [&>button]:items-center [&>button]:justify-center max-md:[&>button]:size-11">
+                <SheetHeader className="shrink-0 border-b px-6 py-6 pr-16">
+                    <SheetTitle className="min-w-0 text-xl leading-snug [overflow-wrap:anywhere]">
                         {schedule.topic}
-                    </DialogTitle>
-                    <DialogDescription className="sr-only">
-                        Detail jadwal
-                    </DialogDescription>
-                </DialogHeader>
+                    </SheetTitle>
+                    <SheetDescription>
+                        {schedule.sessionNotes
+                            ? 'Jadwal dan hasil pembahasan bimbingan.'
+                            : 'Informasi jadwal.'}
+                    </SheetDescription>
+                </SheetHeader>
 
-                <div className="space-y-4">
+                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
                     <div className="flex items-center gap-2">
                         <StatusBadge
                             domain="schedule"
@@ -119,9 +122,12 @@ export function ScheduleDetailModal({
                         </StatusBadge>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="grid gap-4 sm:grid-cols-2">
                         <div className="flex items-start gap-3">
-                            <User className="mt-0.5 size-4 text-muted-foreground" />
+                            <User
+                                aria-hidden="true"
+                                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                            />
                             <div className="min-w-0 [overflow-wrap:anywhere]">
                                 <p className="text-sm font-medium">
                                     {schedule.person}
@@ -134,27 +140,37 @@ export function ScheduleDetailModal({
                             </div>
                         </div>
 
-                        <div className="flex items-start gap-3">
-                            <Calendar className="mt-0.5 size-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-sm">
-                                    {formatDate(schedule.start)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    sampai {formatDate(schedule.end)}
+                        {schedule.start && (
+                            <div className="flex items-start gap-3">
+                                <Calendar
+                                    aria-hidden="true"
+                                    className="mt-0.5 size-4 text-muted-foreground"
+                                />
+                                <div>
+                                    <p className="text-sm tabular-nums">
+                                        {formatDate(schedule.start)}
+                                    </p>
+                                    {schedule.end && (
+                                        <p className="text-xs text-muted-foreground">
+                                            sampai {formatDate(schedule.end)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        {schedule.location && (
+                            <div className="flex items-start gap-3">
+                                <MapPin
+                                    aria-hidden="true"
+                                    className="mt-0.5 size-4 text-muted-foreground"
+                                />
+                                <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
+                                    {schedule.location}
                                 </p>
                             </div>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                            <MapPin className="mt-0.5 size-4 text-muted-foreground" />
-                            <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
-                                {schedule.location}
-                            </p>
-                        </div>
-
+                        )}
                         {schedule.notes && (
-                            <div className="border-t pt-3">
+                            <div className="space-y-1 border-t pt-4 sm:col-span-2">
                                 <p className="text-xs font-medium text-muted-foreground">
                                     Catatan penjadwalan
                                 </p>
@@ -166,7 +182,7 @@ export function ScheduleDetailModal({
                     </div>
 
                     {schedule.sessionNotes && (
-                        <div className="min-w-0 border-t pt-4">
+                        <div className="min-w-0 border-t pt-6">
                             <MentorshipSessionNotes
                                 sessionId={Number(schedule.id)}
                                 notes={schedule.sessionNotes}
@@ -176,7 +192,7 @@ export function ScheduleDetailModal({
                 </div>
 
                 {canModify && (
-                    <DialogFooter className="gap-2 sm:gap-0">
+                    <SheetFooter className="shrink-0 border-t px-6 py-4 sm:flex-row sm:justify-end">
                         <Button
                             type="button"
                             variant="outline"
@@ -211,9 +227,9 @@ export function ScheduleDetailModal({
                                 Batalkan
                             </Button>
                         )}
-                    </DialogFooter>
+                    </SheetFooter>
                 )}
-            </DialogContent>
-        </Dialog>
+            </SheetContent>
+        </Sheet>
     );
 }

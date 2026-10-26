@@ -486,7 +486,6 @@ class ThesisArchiveService
             'completed_mentorship' => $completed,
             'schedules_by_status' => $schedules->countBy('status')->sortKeys()->all(),
             'mentorship_session_notes' => $schedules
-                ->filter(fn (MentorshipSchedule $schedule): bool => $schedule->student_session_note !== null || $schedule->lecturer_session_note !== null)
                 ->map(fn (MentorshipSchedule $schedule): array => app(MentorshipSessionNoteService::class)->snapshot($schedule))
                 ->values()->all(),
             'documents_uploaded' => $mentorshipDocuments
