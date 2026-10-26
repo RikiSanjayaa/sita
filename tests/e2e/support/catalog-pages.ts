@@ -63,6 +63,42 @@ async function openNotesSheet(page: Page): Promise<void> {
     await expect(page.getByRole('dialog')).toBeVisible();
 }
 
+async function openDocumentDetail(page: Page): Promise<void> {
+    await page
+        .getByRole('button', { name: /^Lihat dokumen/ })
+        .first()
+        .click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+}
+
+async function openDocumentRevision(
+    page: Page,
+    expanded: boolean,
+): Promise<void> {
+    const row = page
+        .getByRole('row')
+        .filter({ hasText: 'Perlu Review' })
+        .first();
+    await row.getByRole('button', { name: /^Lihat dokumen/ }).click();
+    await page
+        .getByRole('button', { name: 'Kirim catatan revisi', exact: true })
+        .click();
+    const dialog = page.getByRole('dialog', {
+        name: 'Kirim Catatan Revisi',
+        exact: true,
+    });
+    await dialog
+        .getByLabel('Catatan Revisi')
+        .fill(
+            '1. Jelaskan metode penelitian dan alasan pemilihan data.\n2. Tambahkan pembahasan hasil serta perbandingan dengan penelitian sebelumnya.\n3. Periksa kembali tabel, rujukan, dan kesimpulan.',
+        );
+    if (expanded) {
+        await dialog
+            .getByRole('button', { name: 'Perluas kolom catatan' })
+            .click();
+    }
+}
+
 export const catalogPages: readonly CatalogPage[] = [
     // Public and auth screens
     { role: 'public', name: 'beranda', path: '/', heading: /Akses cepat/ },
@@ -265,6 +301,40 @@ export const catalogPages: readonly CatalogPage[] = [
         path: '/dosen/dokumen-revisi',
         heading: 'Daftar Dokumen',
     },
+    {
+        role: 'dosen',
+        name: 'dokumen-revisi-sheet',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: openDocumentDetail,
+    },
+    {
+        role: 'dosen',
+        name: 'dokumen-revisi-dialog',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: (page) => openDocumentRevision(page, false),
+    },
+    {
+        role: 'dosen',
+        name: 'dokumen-revisi-dialog-expanded',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: (page) => openDocumentRevision(page, true),
+    },
+    {
+        role: 'dosen',
+        name: 'seminar-proposal-sheet',
+        path: '/dosen/seminar-proposal',
+        heading: 'Daftar ujian',
+        prepare: async (page) => {
+            await page
+                .getByRole('button', { name: /^Lihat detail/ })
+                .first()
+                .click();
+            await expect(page.getByRole('dialog')).toBeVisible();
+        },
+    },
     { role: 'dosen', name: 'pesan', path: '/dosen/pesan', heading: 'Pesan' },
     {
         role: 'dosen',
@@ -310,6 +380,13 @@ export const catalogPages: readonly CatalogPage[] = [
         name: 'dokumen',
         path: '/kaprodi/dokumen',
         heading: 'Daftar Dokumen',
+    },
+    {
+        role: 'kaprodi',
+        name: 'dokumen-sheet',
+        path: '/kaprodi/dokumen',
+        heading: 'Daftar Dokumen',
+        prepare: openDocumentDetail,
     },
     {
         role: 'kaprodi',

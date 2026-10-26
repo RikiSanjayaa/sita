@@ -9,6 +9,7 @@
             <h2 id="admin-agenda-heading">Agenda ujian {{ $this::DAYS_AHEAD }} hari ke depan</h2>
             <p>Jadwal dalam WITA.</p>
         </header>
+        <div class="sita-agenda-scroll" role="region" aria-label="Daftar agenda ujian" tabindex="0">
 
         @if ($exams->isEmpty())
             <div class="sita-agenda-empty">
@@ -45,5 +46,6 @@
                 </div>
             @endforeach
         @endif
+        </div>
     </section>
 </x-filament-widgets::widget>

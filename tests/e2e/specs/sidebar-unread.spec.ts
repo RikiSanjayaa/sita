@@ -55,6 +55,84 @@ async function openNotificationsPanel(page: Page): Promise<void> {
 }
 
 test.describe('Sidebar unread indicator on Pesan', () => {
+    test('read acknowledgement updates the badge before a delayed count refresh completes', async ({
+        browser,
+    }) => {
+        const fixture = createSidebarUnreadFixture();
+        const { student } = fixture.accounts;
+        const sessions: SidebarUnreadSession[] = [];
+        let releaseCounts!: () => void;
+        let countCaptured!: () => void;
+        const countGate = new Promise<void>((resolve) => {
+            releaseCounts = resolve;
+        });
+        const captured = new Promise<void>((resolve) => {
+            countCaptured = resolve;
+        });
+
+        try {
+            seedIncomingMessages(
+                fixture,
+                'studentLecturer',
+                'lecturer',
+                2,
+                'Dua pesan untuk dibaca',
+            );
+            seedIncomingMessage(
+                fixture,
+                'studentKaprodi',
+                'kaprodi',
+                'Pesan thread lain tetap belum dibaca',
+            );
+            const session = await openSession(browser, student);
+            sessions.push(session);
+            await expectPesanUnread(pesanLink(session.page, student), 3);
+            await session.page.route('**/chat/unread', async (route) => {
+                const response = await route.fetch();
+                countCaptured();
+                await countGate;
+                await route.fulfill({ response });
+            });
+            await session.page.route('**/pesan/*/read', async (route) => {
+                await captured;
+                await route.continue();
+            });
+            const thread = fixture.threads.studentLecturer;
+            const saved = session.page.waitForResponse(
+                (response) =>
+                    response.request().method() === 'POST' &&
+                    readRequestPattern(thread.id).test(response.url()),
+            );
+            await session.page.goto(`${student.pesanPath}?thread=${thread.id}`);
+            expect((await saved).ok()).toBe(true);
+            expect(await fetchUnreadCount(session.page)).toEqual({
+                unreadMessageCount: 1,
+            });
+            // The read succeeded, but every count GET is still held. The other thread must remain unread.
+            await expectPesanUnread(pesanLink(session.page, student), 1);
+            const delivered = session.page.waitForResponse('**/chat/unread');
+            releaseCounts();
+            await delivered;
+            await expectPesanUnread(pesanLink(session.page, student), 1);
+
+            const otherThread = fixture.threads.studentKaprodi;
+            const otherSaved = session.page.waitForResponse(
+                (response) =>
+                    response.request().method() === 'POST' &&
+                    readRequestPattern(otherThread.id).test(response.url()),
+            );
+            await session.page.goto(
+                `${student.pesanPath}?thread=${otherThread.id}`,
+            );
+            expect((await otherSaved).ok()).toBe(true);
+            await expectPesanRead(pesanLink(session.page, student));
+        } finally {
+            releaseCounts();
+            await closeAll(sessions);
+            fixture.cleanup();
+        }
+    });
+
     test('a message from the UI raises the Pesan count outside Pesan in realtime, survives navigation and reload, and clears only after the thread is read', async ({
         browser,
     }) => {

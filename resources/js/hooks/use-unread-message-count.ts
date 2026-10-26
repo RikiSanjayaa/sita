@@ -1,10 +1,11 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
+import { type ChatReadSnapshot } from '@/components/chat/types';
 import { unread } from '@/routes/chat';
 import { type SharedData } from '@/types';
 
-/** The server owns unread state; events only invalidate the current account's snapshot. */
+/** Read acknowledgements update immediately; other events refresh the server snapshot. */
 export function useUnreadMessageCount(): number {
     const { props, url } = usePage<SharedData>();
     const { auth, unreadMessageCount } = props;
@@ -27,6 +28,7 @@ export function useUnreadMessageCount(): number {
         const controller = new AbortController();
         let pending = false;
         let dirty = false;
+        let readRevision = 0;
 
         async function refresh(): Promise<void> {
             if (pending) {
@@ -37,6 +39,7 @@ export function useUnreadMessageCount(): number {
             pending = true;
             do {
                 dirty = false;
+                const revision = readRevision;
                 try {
                     const response = await fetch(unread().url, {
                         headers: { Accept: 'application/json' },
@@ -48,7 +51,10 @@ export function useUnreadMessageCount(): number {
                     }
                     const data: { unreadMessageCount: number } =
                         await response.json();
-                    if (!controller.signal.aborted) {
+                    if (
+                        !controller.signal.aborted &&
+                        revision === readRevision
+                    ) {
                         setSnapshot({
                             scope,
                             source: props,
@@ -68,6 +74,25 @@ export function useUnreadMessageCount(): number {
         }
 
         const invalidate = () => void refresh();
+        const onRead = (event: Event) => {
+            const data = (event as CustomEvent<ChatReadSnapshot>).detail;
+            if (!data) {
+                invalidate();
+                return;
+            }
+            if (
+                data.userId !== auth.user.id ||
+                data.activeRole !== auth.activeRole
+            ) {
+                return;
+            }
+            readRevision++;
+            setSnapshot({
+                scope,
+                source: props,
+                value: data.unreadMessageCount,
+            });
+        };
         const onVisible = () => {
             if (document.visibilityState === 'visible') {
                 invalidate();
@@ -79,7 +104,7 @@ export function useUnreadMessageCount(): number {
         channel?.listen('.chat.unread.updated', invalidate);
         channel?.subscribed(invalidate);
         window.addEventListener('focus', invalidate);
-        window.addEventListener('chat:read', invalidate);
+        window.addEventListener('chat:read', onRead);
         document.addEventListener('visibilitychange', onVisible);
         invalidate();
 
@@ -88,10 +113,10 @@ export function useUnreadMessageCount(): number {
             channel?.stopListening('.chat.unread.updated', invalidate);
             echo?.leave(channelName);
             window.removeEventListener('focus', invalidate);
-            window.removeEventListener('chat:read', invalidate);
+            window.removeEventListener('chat:read', onRead);
             document.removeEventListener('visibilitychange', onVisible);
         };
-    }, [auth.user?.id, enabled, props, scope, url]);
+    }, [auth.user?.id, auth.activeRole, enabled, props, scope, url]);
 
     if (!enabled) {
         return 0;

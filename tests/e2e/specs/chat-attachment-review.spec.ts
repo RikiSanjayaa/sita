@@ -83,7 +83,13 @@ test.describe('Chat attachment review visibility', () => {
 
             await expect(reviewRow).toBeVisible();
             await reviewRow
-                .getByRole('button', { name: 'Kirim Catatan Revisi' })
+                .getByRole('button', { name: /^Lihat dokumen/ })
+                .click();
+            await secondLecturerPage
+                .getByRole('button', {
+                    name: 'Kirim catatan revisi',
+                    exact: true,
+                })
                 .click();
 
             const revisionDialog = secondLecturerPage.getByRole('dialog', {
@@ -100,6 +106,7 @@ test.describe('Chat attachment review visibility', () => {
 
             await expect(reviewRow).toContainText('Perlu Revisi');
             await expect(reviewRow).toContainText(revisionNotes);
+            await secondLecturerPage.keyboard.press('Escape');
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
             await mahasiswaPage

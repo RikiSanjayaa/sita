@@ -111,6 +111,32 @@ it('turns on for an incoming message and off only after the receipt is saved', f
     expect(unreadCount($this, $lecturer))->toBe(0);
 });
 
+it('acknowledges a read with exact remaining thread and sidebar counts', function (string $role): void {
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    $reader = $role === 'mahasiswa' ? $student : $lecturer;
+    $sender = $role === 'mahasiswa' ? $lecturer : $student;
+    $seen = unreadMessage($thread, $sender);
+    unreadMessage($thread, $sender);
+    unreadMessage($thread, $reader);
+    unreadMessage($thread, $sender, 'document_event');
+
+    $private = MentorshipChatThread::factory()->create(['student_user_id' => $student->id, 'type' => 'private', 'private_key' => $student->id.':'.$lecturer->id]);
+    foreach ([$student, $lecturer] as $participant) {
+        MentorshipChatThreadParticipant::query()->create(['thread_id' => $private->id, 'user_id' => $participant->id, 'role' => $participant->is($student) ? 'student' : 'lecturer']);
+    }
+    unreadMessage($private, $sender);
+
+    unreadRead($this, $reader, $role.'.pesan.read', $thread, $seen->id)
+        ->assertOk()
+        ->assertJsonPath('threadUnreadCount', 1)
+        ->assertJsonPath('unreadMessageCount', 2);
+
+    unreadRead($this, $reader, $role.'.pesan.read', $thread)
+        ->assertOk()
+        ->assertJsonPath('threadUnreadCount', 0)
+        ->assertJsonPath('unreadMessageCount', 1);
+})->with(['mahasiswa', 'dosen']);
+
 it('stays on until every thread with unread messages is read', function (): void {
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $bimbingan] = unreadBimbingan();
     $other = User::factory()->asDosen()->create();

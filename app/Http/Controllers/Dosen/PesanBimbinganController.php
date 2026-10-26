@@ -203,7 +203,10 @@ class PesanBimbinganController extends Controller
         $data = $request->validate(['last_message_id' => ['required', 'integer']]);
         $chatUnread->markRead($lecturer, $thread, (int) $data['last_message_id']);
 
-        return response()->json(['ok' => true]);
+        $activeRole = $lecturer->resolveActiveRole($request->session()->get('active_role'));
+
+        return response()->json($chatUnread->readSnapshot($lecturer, $activeRole, $thread))
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): RedirectResponse

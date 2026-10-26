@@ -43,6 +43,31 @@ class ChatUnreadService
     }
 
     /**
+     * One database snapshot for both counters after an authorized read.
+     *
+     * @return array{userId: int, activeRole: ?string, threadId: int, threadUnreadCount: int, unreadMessageCount: int}
+     */
+    public function readSnapshot(User $user, ?string $activeRole, MentorshipChatThread $thread): array
+    {
+        $threads = $this->visibleThreads($user, $activeRole);
+        $counts = $threads === null ? collect() : MentorshipChatMessage::query()
+            ->whereIn('mentorship_chat_messages.mentorship_chat_thread_id', $threads->select('mentorship_chat_threads.id'))
+            ->unreadFor($user->id)
+            ->select('mentorship_chat_messages.mentorship_chat_thread_id')
+            ->selectRaw('COUNT(*) as unread_count')
+            ->groupBy('mentorship_chat_messages.mentorship_chat_thread_id')
+            ->pluck('unread_count', 'mentorship_chat_messages.mentorship_chat_thread_id');
+
+        return [
+            'userId' => $user->id,
+            'activeRole' => $activeRole,
+            'threadId' => $thread->id,
+            'threadUnreadCount' => (int) $counts->get($thread->id, 0),
+            'unreadMessageCount' => (int) $counts->sum(),
+        ];
+    }
+
+    /**
      * Saves the receipt up to the newest message the reader actually saw (id watermark plus timestamp).
      * Never moves backwards, so a stale tab showing an older window cannot un-read newer messages.
      */

@@ -222,7 +222,7 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 - **Mist** (`#f1f5f9`, dark `#151c23`): muted and secondary surface (pill and table-header fills).
 - **Slate Text** (`#5a6a80`, dark `#9fb0bd`): `text-muted-foreground`, secondary copy and labels.
 - **Hairline** (`#e2e8f0`, dark `#202a35`): borders and dividers.
-- **Input stroke** (`#828d9c`, dark `#5e6771`): `--input`, the border of inputs, selects, checkboxes and outline buttons; at least 3:1 on page and card surfaces.
+- **Input stroke** (`#828d9c`, dark `#5e6771`): `--input`, retained for checkboxes and other compact selection controls at least 3:1 on page and card surfaces. Text fields, textareas, selects and outline buttons use the theme's `--border` hairline following product review #148; this intentionally relaxes their former 3:1 idle-outline contract. Focus and error borders stay distinct.
 - **Highlight Blue** (`#e0ecff`, dark `#17202a`) with text `#1e3a5f` (dark `#c2d0da`): hover and focus fill for ghost buttons, menu items and outline hover (`accent`).
 
 ### Status roles
@@ -276,7 +276,7 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 **Contrast contract** (every scheme, light and dark; `tests/Unit/ThemeContrastTest.php` computes WCAG ratios from the CSS):
 
 - Text, at least 4.5:1: `foreground` on `background`, `card` and `muted`; `muted-foreground` on `background`, `card`, `muted` and `sidebar`; `primary` on `background` and `card`; `primary-foreground` on `primary`; `primary-muted-foreground` on `primary-muted`; `accent-foreground` on `accent`; `card-foreground`, `popover-foreground` and `secondary-foreground` on their surfaces; the sidebar pairs (`sidebar-foreground`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-accent-foreground`).
-- Controls, at least 3:1: `ring` on `background` and `card`, `input` on `background` and `card` (so the border of an input, select, checkbox or outline button is visible), `sidebar-ring` on `sidebar`. `border` stays a decorative hairline and is not held to 3:1.
+- Selection controls and focus, at least 3:1: `ring` on `background` and `card`, `input` on `background` and `card`, `sidebar-ring` on `sidebar`. Following #148, text-field/select/outline-button idle borders use the theme's `border` hairline and are not held to 3:1. This is an appearance tradeoff, not a claim that hairline outlines meet the former control-boundary contrast target. Text, focus and error contrast are unchanged.
 - Hue: a non-default scheme's `primary` and `primary-muted-foreground` stay at least 40 degrees of OKLCH hue from every status hue, or have chroma under 0.02.
 
 **Roles.** `primary`/`primary-foreground` is the solid fill and `text-primary` on page surfaces; `primary-muted`/`primary-muted-foreground` is the tint pair. In dark mode `primary` is a light shade with a dark foreground, as in the Light Primary In Dark Rule.
@@ -316,6 +316,8 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 A sidebar shell for the portals and a centered content column. The sidebar is 16rem wide (18rem as a mobile sheet, 3rem collapsed to icons) and its open state is stored in the `sidebar_state` cookie. The sticky app header is 4rem high with a bottom border. Page content sits in a `max-w-7xl` (80rem) column with `gap-4` between blocks; the settings layout uses the same column with `px-4 md:px-6` gutters and a `max-w-xl` compact variant. Auth screens use a narrow card (`max-w-md` or `max-w-sm`).
 
 Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Every role is designed for a laptop first. Below `md` a page only has to stay readable and unbroken (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed); portal pages show the dismissible `DesktopNotice` there (width read on the client, dismissal kept in `sessionStorage`).
+
+From `xl`, a dashboard agenda beside the action queue is size-contained to the action section's actual height. Its heading stays outside the independently scrollable, keyboard-focusable agenda body. Below `xl`, it returns to normal document flow without clipping. The same rule applies to mahasiswa, dosen, kaprodi and the Filament admin dashboard (#148).
 
 Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns. They are a read-and-look-up surface, not a landing page: `PublicLayout` (`resources/js/components/public/`) gives a header with the page nav, a `PageHeader` h1 with description, and a footer; the page content sits directly on the page background in a `max-w-6xl` column with no outer card.
 
@@ -367,7 +369,7 @@ Primitives live in `resources/js/components/ui/` (shadcn style: Radix, `cva`, `c
 
 ### Inputs / Fields
 
-- **Style:** 1px `--input` border, transparent fill, 6px radius, 36px high, `px-3`, `shadow-xs`; `text-base` on mobile and `text-sm` from `md`.
+- **Style:** 1px `--border` hairline, transparent fill, 6px radius, 36px high, `px-3`, `shadow-xs`; `text-base` on mobile and `text-sm` from `md`. Checkboxes retain `--input`.
 - **Focus:** border becomes `--ring` plus a 3px ring at 50%.
 - **Error / Disabled:** `aria-invalid` shows a destructive border and ring; disabled is 50% opacity.
 
@@ -642,7 +644,7 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - Every dosen page opens with `PageHeader` (h1 plus a one-line description) because the shell renders no heading. Blocks below are `DataSection` (h2) or `SectionCard`.
 - Lists (Mahasiswa Dosen, Sempro / Sinopsis & Sidang, Jadwal Bimbingan, Dokumen & Revisi) are `DataSection` > `DataToolbar` > `FilterPills` > one `DataTableContainer` with `stackedTable`. Two filter groups next to each other carry a visible label ("Jenis", "Status") and a divider from `md`.
 - Pagination and filters are client-side over the full prop set; the dosen controllers do not paginate on the server.
-- Row actions: one primary action (Chat, Buka, Kelola, Tanggapi) plus an "Aksi lainnya" menu where more than two remain. Icon-only actions have a tooltip and `aria-label`; on phones they show their label at 44px.
+- Row actions: detail/view/manage disclosures use a compact `Eye` icon with a specific per-row tooltip and `aria-label`, 36px on desktop and 44px on phones. Preserve meaningful actions such as Chat and Tanggapi. Keep at most two icons or use an "Aksi lainnya" menu. Dokumen & Revisi puts review/approve controls inside its detail drawer; saved revision notes remain fully readable there, and the revision editor resizes vertically with an explicit expand/collapse control that preserves its draft.
 - Jadwal Bimbingan pending requests are one divided list; the decision form opens on demand ("Tanggapi"), so nothing is hidden at rest and nothing sits in a card inside a card.
 - Pesan keeps the shared chat shell; the page only owns the group filter (`FilterPills`) and thread badge tones.
 

@@ -254,7 +254,7 @@ export default function DosenDashboardPage() {
     const agendaSection = (
         <section
             aria-label="Hari ini & 7 hari ke depan"
-            className="grid min-w-0 content-start gap-5 self-start"
+            className="grid min-w-0 content-start gap-5 self-start xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)] xl:self-stretch xl:[contain:size]"
         >
             <PageHeader
                 level={2}
@@ -262,7 +262,12 @@ export default function DosenDashboardPage() {
                 description="Bimbingan dan ujian yang sudah terjadwal."
             />
             {agenda.length > 0 ? (
-                <div className="grid gap-6">
+                <div
+                    role="region"
+                    aria-label="Daftar agenda mendatang"
+                    tabIndex={0}
+                    className="grid gap-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring xl:min-h-0 xl:overflow-y-auto xl:overscroll-y-contain xl:pr-2 xl:pl-1"
+                >
                     {agenda.map((day) => (
                         <section
                             key={day.label}

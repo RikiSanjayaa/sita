@@ -243,6 +243,13 @@
         .sita-action-card-featured { grid-column: 1 / -1; }
     }
 
+    @media (min-width: 80rem) {
+        .sita-admin-agenda { contain: size; align-self: stretch; min-height: 0; }
+        .sita-admin-agenda > section { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+        .sita-admin-agenda .sita-agenda-scroll { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding-inline: 0.25rem; padding-bottom: 0.25rem; }
+    }
+    .sita-agenda-scroll:focus-visible { outline: 2px solid var(--sita-primary); outline-offset: 2px; }
+
     @media (max-width: 47.999rem) {
         .sita-admin-stat.fi-wi-stats-overview-stat { padding: 1rem; }
         .sita-admin-stat .fi-wi-stats-overview-stat-value { font-size: 1.5rem; }

@@ -209,7 +209,7 @@ export function RevisionVerifyForm({
                                     rows={2}
                                     maxLength={2000}
                                     value={verdict.comment}
-                                    className="resize-none"
+                                    className="min-h-24 resize-y"
                                     onChange={(e) =>
                                         update(item.id, {
                                             comment: e.target.value,

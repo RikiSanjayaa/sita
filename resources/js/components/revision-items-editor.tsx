@@ -152,7 +152,7 @@ export function RevisionItemsEditor({
                                     maxLength={2000}
                                     value={item.description}
                                     placeholder="Apa yang perlu diperbaiki..."
-                                    className="resize-none"
+                                    className="min-h-24 resize-y"
                                     onChange={(e) =>
                                         update(item.key, {
                                             description: e.target.value,

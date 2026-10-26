@@ -4,6 +4,7 @@ import {
     CalendarPlus,
     CheckCircle2,
     Inbox,
+    Eye,
     MapPin,
     Repeat,
     XCircle,
@@ -16,6 +17,7 @@ import {
     DosenScheduleCreateDialog,
     type SupervisedStudent,
 } from '@/components/dosen-schedule-create-dialog';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     DataSection,
     DataToolbar,
@@ -1314,17 +1316,13 @@ export default function DosenJadwalBimbinganPage() {
                                                             />
                                                         </td>
                                                         <td
-                                                            className={cn(
-                                                                stackedTable.tdActions,
-                                                                'max-md:order-4 max-md:mt-2 max-md:basis-full',
-                                                            )}
+                                                            className={
+                                                                stackedTable.tdActions
+                                                            }
                                                         >
-                                                            <div className="flex items-center justify-end gap-1 max-md:justify-start">
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="max-md:h-11"
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <RowIconButton
+                                                                    label={`Lihat jadwal bimbingan ${item.mahasiswa}`}
                                                                     onClick={() => {
                                                                         setSelectedUpcoming(
                                                                             item,
@@ -1334,15 +1332,8 @@ export default function DosenJadwalBimbinganPage() {
                                                                         );
                                                                     }}
                                                                 >
-                                                                    Kelola
-                                                                    <span className="sr-only">
-                                                                        {' '}
-                                                                        jadwal{' '}
-                                                                        {
-                                                                            item.mahasiswa
-                                                                        }
-                                                                    </span>
-                                                                </Button>
+                                                                    <Eye className="size-4" />
+                                                                </RowIconButton>
                                                             </div>
                                                         </td>
                                                     </tr>

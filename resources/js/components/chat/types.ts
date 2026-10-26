@@ -6,6 +6,14 @@ export type ChatOwnReview = {
     status: string;
 };
 
+export type ChatReadSnapshot = {
+    userId: number;
+    activeRole: string | null;
+    threadId: number;
+    threadUnreadCount: number;
+    unreadMessageCount: number;
+};
+
 export type ChatMessage = {
     id: number;
     senderUserId: number | null;

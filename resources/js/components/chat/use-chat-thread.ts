@@ -3,6 +3,7 @@ import {
     useEffect,
     useEffectEvent,
     useMemo,
+    useRef,
     useState,
     type Dispatch,
     type SetStateAction,
@@ -13,6 +14,7 @@ import {
     type ChatAttachmentKind,
     type ChatMessage,
     type ChatThread,
+    type ChatReadSnapshot,
 } from './types';
 import {
     mergeMessages,
@@ -119,6 +121,9 @@ export function useChatThread<T extends ChatThread>({
     const [clientError, setClientError] = useState<string | null>(null);
     const [inputKey, setInputKey] = useState(0);
     const [pendingSend, setPendingSend] = useState<PendingSend | null>(null);
+    const latestReadRequest = useRef(0);
+    const readRequests = useRef(new Map<number, number>());
+    const receivedMessageIds = useRef(new Set<number>());
 
     const form = useForm<{
         message: string;
@@ -163,6 +168,11 @@ export function useChatThread<T extends ChatThread>({
     // realtime rows stay in messagesByThread and are deduplicated against it.
     useEffect(() => {
         setThreadItems(sortThreads(initialThreads));
+        for (const thread of initialThreads) {
+            for (const message of thread.messages) {
+                receivedMessageIds.current.add(message.id);
+            }
+        }
     }, [initialThreads]);
 
     const visibleThreads = useMemo(
@@ -219,6 +229,8 @@ export function useChatThread<T extends ChatThread>({
             document
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute('content') ?? '';
+        const requestId = ++latestReadRequest.current;
+        readRequests.current.set(threadId, requestId);
 
         const response = await fetch(readUrl(threadId), {
             method: 'POST',
@@ -232,14 +244,27 @@ export function useChatThread<T extends ChatThread>({
             body: JSON.stringify({ last_message_id: lastMessageId }),
         });
         if (response.ok) {
-            setThreadItems((current) =>
-                current.map((thread) =>
-                    thread.id === threadId && 'unread' in thread
-                        ? ({ ...thread, unread: 0 } as T & WithUnread)
-                        : thread,
-                ),
+            const data: ChatReadSnapshot = await response.json();
+            if (readRequests.current.get(threadId) === requestId) {
+                setThreadItems((current) =>
+                    current.map((thread) =>
+                        thread.id === threadId && 'unread' in thread
+                            ? ({
+                                  ...thread,
+                                  unread: data.threadUnreadCount,
+                              } as T & WithUnread)
+                            : thread,
+                    ),
+                );
+            }
+            // A late acknowledgement must not replace a newer read's total.
+            window.dispatchEvent(
+                requestId === latestReadRequest.current
+                    ? new CustomEvent<ChatReadSnapshot>('chat:read', {
+                          detail: data,
+                      })
+                    : new Event('chat:read'),
             );
-            window.dispatchEvent(new Event('chat:read'));
         }
     }
 
@@ -279,6 +304,10 @@ export function useChatThread<T extends ChatThread>({
             return channel.listen(
                 '.chat.message.created',
                 (event: { threadId: number; message: ChatMessage }) => {
+                    if (receivedMessageIds.current.has(event.message.id)) {
+                        return;
+                    }
+                    receivedMessageIds.current.add(event.message.id);
                     setMessagesByThread((current) => {
                         const currentThread = initialThreads.find(
                             (thread) => thread.id === event.threadId,
@@ -308,6 +337,7 @@ export function useChatThread<T extends ChatThread>({
                     }
 
                     const isIncomingMessage =
+                        event.message.type !== 'document_event' &&
                         event.message.senderUserId !== null &&
                         event.message.senderUserId !== userId;
 

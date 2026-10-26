@@ -249,7 +249,7 @@ export default function DashboardPage() {
         <section
             id="agenda-mendatang"
             aria-label="Agenda mendatang"
-            className="grid min-w-0 scroll-mt-24 content-start gap-4 self-start"
+            className="grid min-w-0 scroll-mt-24 content-start gap-4 self-start xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)] xl:self-stretch xl:[contain:size]"
         >
             <PageHeader
                 level={2}
@@ -257,41 +257,48 @@ export default function DashboardPage() {
                 description={`Bimbingan, ${terms.proposalExamShort}, dan ${terms.finalExam} terdekat.`}
             />
             {upcomingActivities.length > 0 ? (
-                <ul className="divide-y border-l border-primary/25 pl-4">
-                    {upcomingActivities.map((activity) => (
-                        <li key={activity.id} className="relative">
-                            <span
-                                aria-hidden="true"
-                                className="absolute top-5 -left-5 size-2 rounded-full border border-primary bg-card"
-                            />
-                            <Link
-                                href={activity.href}
-                                className={cn(
-                                    'group grid min-h-11 gap-2 rounded-md px-2 py-4 transition-colors hover:bg-accent/50',
-                                    listRowFocus,
-                                )}
-                            >
-                                <span className="text-sm font-semibold text-primary tabular-nums">
-                                    {activity.date ?? '-'}
-                                </span>
-                                <span className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                                    <span className="font-medium">
-                                        {activity.badge}
+                <div
+                    role="region"
+                    aria-label="Daftar agenda mendatang"
+                    tabIndex={0}
+                    className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring xl:min-h-0 xl:overflow-y-auto xl:overscroll-y-contain xl:pr-2 xl:pl-1"
+                >
+                    <ul className="divide-y border-l border-primary/25 pl-4">
+                        {upcomingActivities.map((activity) => (
+                            <li key={activity.id} className="relative">
+                                <span
+                                    aria-hidden="true"
+                                    className="absolute top-5 -left-5 size-2 rounded-full border border-primary bg-card"
+                                />
+                                <Link
+                                    href={activity.href}
+                                    className={cn(
+                                        'group grid min-h-11 gap-2 rounded-md px-2 py-4 transition-colors hover:bg-accent/50',
+                                        listRowFocus,
+                                    )}
+                                >
+                                    <span className="text-sm font-semibold text-primary tabular-nums">
+                                        {activity.date ?? '-'}
                                     </span>
-                                    <span className="text-muted-foreground">
-                                        {activity.status}
+                                    <span className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <span className="font-medium">
+                                            {activity.badge}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                            {activity.status}
+                                        </span>
                                     </span>
-                                </span>
-                                <span className="text-sm font-medium text-pretty group-hover:underline">
-                                    {activity.title}
-                                </span>
-                                <span className="text-xs leading-relaxed text-pretty text-muted-foreground">
-                                    {activity.subtitle}
-                                </span>
-                            </Link>
-                        </li>
-                    ))}
-                </ul>
+                                    <span className="text-sm font-medium text-pretty group-hover:underline">
+                                        {activity.title}
+                                    </span>
+                                    <span className="text-xs leading-relaxed text-pretty text-muted-foreground">
+                                        {activity.subtitle}
+                                    </span>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             ) : (
                 <EmptyState
                     icon={CalendarClock}

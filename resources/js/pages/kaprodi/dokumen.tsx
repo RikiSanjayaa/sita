@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Download, FileText, UserRound } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Download, Eye, FileText, UserRound } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
@@ -133,6 +133,7 @@ export default function KaprodiDokumenPage() {
     const pageState = useUrlState('page', 1);
     const [selectedDocument, setSelectedDocument] =
         useState<DocumentQueueItem | null>(null);
+    const detailTrigger = useRef<HTMLButtonElement | null>(null);
 
     const filteredDocuments = useMemo(() => {
         const lower = search.toLowerCase();
@@ -284,9 +285,13 @@ export default function KaprodiDokumenPage() {
                                                 stackedTable.tr,
                                                 'cursor-pointer align-top transition-colors hover:bg-muted/30',
                                             )}
-                                            onClick={() =>
-                                                setSelectedDocument(doc)
-                                            }
+                                            onClick={(event) => {
+                                                detailTrigger.current =
+                                                    event.currentTarget.querySelector<HTMLButtonElement>(
+                                                        '[data-document-detail]',
+                                                    );
+                                                setSelectedDocument(doc);
+                                            }}
                                         >
                                             <td
                                                 className={stackedTable.tdPlain}
@@ -390,16 +395,17 @@ export default function KaprodiDokumenPage() {
                                                         </RowIconButton>
                                                     ) : null}
                                                     <RowIconButton
-                                                        asChild
-                                                        label="Buka profil mahasiswa"
+                                                        data-document-detail
+                                                        label={`Lihat dokumen ${doc.title} - ${doc.mahasiswa}`}
+                                                        onClick={(event) => {
+                                                            detailTrigger.current =
+                                                                event.currentTarget;
+                                                            setSelectedDocument(
+                                                                doc,
+                                                            );
+                                                        }}
                                                     >
-                                                        <Link
-                                                            href={
-                                                                doc.profileUrl
-                                                            }
-                                                        >
-                                                            <UserRound className="size-4" />
-                                                        </Link>
+                                                        <Eye className="size-4" />
                                                     </RowIconButton>
                                                 </div>
                                             </td>
@@ -437,6 +443,10 @@ export default function KaprodiDokumenPage() {
                 <SheetContent
                     side="right"
                     className="w-full gap-0 p-0 sm:max-w-xl"
+                    onCloseAutoFocus={(event) => {
+                        event.preventDefault();
+                        detailTrigger.current?.focus();
+                    }}
                 >
                     {selectedDocument ? (
                         <>
@@ -446,10 +456,10 @@ export default function KaprodiDokumenPage() {
                                         <FileText className="size-5" />
                                     </div>
                                     <div className="min-w-0">
-                                        <SheetTitle className="line-clamp-2 text-base">
+                                        <SheetTitle className="text-base break-words">
                                             {selectedDocument.title}
                                         </SheetTitle>
-                                        <SheetDescription className="mt-1">
+                                        <SheetDescription className="mt-1 break-words">
                                             {selectedDocument.mahasiswa} -{' '}
                                             {selectedDocument.file ?? 'Dokumen'}
                                         </SheetDescription>
@@ -457,7 +467,7 @@ export default function KaprodiDokumenPage() {
                                 </div>
                             </SheetHeader>
 
-                            <ScrollArea className="h-[calc(100dvh-5.5rem)]">
+                            <ScrollArea className="min-h-0 flex-1">
                                 <div className="space-y-5 px-6 py-5">
                                     <div className="rounded-lg border bg-background">
                                         <dl className="grid gap-4 p-4 sm:grid-cols-2">
@@ -585,7 +595,7 @@ export default function KaprodiDokumenPage() {
                                                     ) : null}
 
                                                     <div className="mt-3 rounded-md bg-muted/40 p-3">
-                                                        <p className="text-xs leading-relaxed text-muted-foreground">
+                                                        <p className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">
                                                             {review.revisionNotes ??
                                                                 'Belum ada catatan review.'}
                                                         </p>
