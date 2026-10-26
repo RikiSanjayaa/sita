@@ -157,6 +157,22 @@ Sebelum aktivasi produksi, isi bukti perangkat nyata pada [issue implementasi #1
 
 [Uji perangkat lokal](https://github.com/RikiSanjayaa/sita/pull/145#issuecomment-6399684839) membuktikan banner Firefox headed pada Linux saat jendela tidak fokus, tab SiTA ditutup, serta setelah profil penerima dibuka kembali. [Uji ulang audio](https://github.com/RikiSanjayaa/sita/pull/145#issuecomment-6405191291) dikonfirmasi terdengar oleh pengguna. Ini bukan bukti reboot OS, offline/online, Safari/iOS, atau pengiriman Chromium setelah koreksi host alternatif. Matriks produksi #144 tetap terbuka; jangan menyamakan merge kode yang default mati dengan persetujuan aktivasi produksi.
 
+## Berkas pada detail ujian dosen
+
+Detail Sempro/Sinopsis dan Sidang pada portal dosen menampilkan naskah dan lampiran yang dipilih mahasiswa untuk attempt tersebut. Versi unggahan terbaru tidak otomatis mengganti pilihan. Jenis, nama berkas, versi dan tanggal unggah ditampilkan bersama aksi Buka dan Unduh; tanpa pilihan, detail menyatakan belum ada berkas ujian.
+
+Unduhan memakai snapshot `ThesisDocument`, bukan file workspace yang mungkin sudah berubah. Penguji hanya memperoleh akses melalui penugasan pada attempt yang sesuai; hak pembimbing, admin dan kaprodi tetap mengikuti cakupan masing-masing. Anotasi penguji yang belum diterbitkan tidak termasuk berkas ujian. Identitas penguji tambahan Sidang tetap dirahasiakan dari mahasiswa sampai ujian selesai.
+
+Tombol chat membuka grup ujian yang sudah tersedia dan dapat diakses dosen. Jika tidak ada, tombol membuka chat pribadi mahasiswa atau pemilih kontak dengan mahasiswa tersebut sudah dipilih. Membuka detail tidak membuat grup atau chat baru.
+
+Nama berkas membuka halaman detail snapshot yang dapat direload dan kembali ke attempt ujian yang sama. Jika dosen memiliki salinan review dari versi sumber tersebut, halaman menyediakan tautan ke review bimbingan miliknya. Persetujuan dokumen bimbingan tetap terpisah dari keputusan ujian; tidak ada tautan ke reviewer lain atau penggantian diam-diam ke versi terbaru.
+
+## Detail dan review dokumen bimbingan
+
+Daftar dokumen mahasiswa, dosen dan kaprodi, notifikasi, serta aksi Tinjau pada lampiran chat menuju halaman detail ber-URL tetap sesuai portal dan versi. Halaman menampilkan metadata, seluruh catatan tiap dosen dan riwayat versi. Akses tetap diperiksa server; kaprodi memerlukan capability lihat dokumen dalam prodinya, sedangkan buka/unduh memerlukan capability unduh terpisah.
+
+Dosen penerima mengisi Catatan dosen langsung pada halaman. Minta revisi wajib disertai catatan; Setujui boleh tanpa catatan atau menyimpan masukan persetujuan. Setiap dosen mengubah salinannya sendiri. Navigasi keluar dari draft yang belum disimpan meminta konfirmasi; membatalkannya mempertahankan isi. Versi lama, penugasan berakhir, mahasiswa tidak aktif, masa aktif habis dan data selesai/arsip hanya dapat dibaca.
+
 ## Indikator pesan belum dibaca
 
 Menu Pesan pada portal mahasiswa, dosen, dan kaprodi menampilkan jumlah pesan dari orang lain yang belum dibaca dalam percakapan yang dapat diakses, bukan jumlah percakapan. Badge merah memakai warna yang sama dengan lonceng: tepat setelah label pada sidebar/drawer, atau menempel ikon saat sidebar diciutkan. Nilai di atas 99 ditampilkan sebagai `99+`; label aksesibel tetap menyebut jumlah lengkap. Nilai nol tidak menampilkan badge. Pesan sendiri dan event dokumen sistem tidak dihitung. Membuka daftar percakapan saja tidak mengurangi jumlah; receipt disimpan untuk pesan terakhir yang benar-benar tampil pada percakapan aktif, saat tab terlihat. Lonceng menghitung notifikasi global, termasuk pengumuman dan aktivitas akademik, bukan hanya chat. Membaca chat tidak menandai notifikasi lonceng sebagai dibaca, dan sebaliknya.

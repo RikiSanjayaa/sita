@@ -123,10 +123,21 @@ function DosenPesanBimbinganContent({
     privateRecipients,
     auth,
 }: PesanBimbinganContentProps) {
+    const requestedRecipientId =
+        typeof window === 'undefined'
+            ? null
+            : new URLSearchParams(window.location.search).get('recipient');
+    const initialRecipientId = privateRecipients.some(
+        (recipient) => String(recipient.id) === requestedRecipientId,
+    )
+        ? (requestedRecipientId ?? '')
+        : '';
     const isMobile = useIsMobile();
 
     const [mobileView, setMobileView] = useState<MobileView>(() =>
-        resolveInitialMobileView(initialThreads),
+        initialRecipientId !== ''
+            ? 'threads'
+            : resolveInitialMobileView(initialThreads),
     );
     const [search, setSearch] = useUrlState('search', '');
     const [threadMode, setThreadMode] = useUrlState<ThreadMode>(
@@ -141,7 +152,10 @@ function DosenPesanBimbinganContent({
         useUrlState<GroupThreadFilter>('filter', 'semua');
     const [isGroupFilterOpen, setIsGroupFilterOpen] = useState(false);
 
-    const privateThread = usePrivateThread('/dosen/pesan/private');
+    const privateThread = usePrivateThread(
+        '/dosen/pesan/private',
+        initialRecipientId,
+    );
 
     const selectVisible = useCallback(
         (threads: ThreadItem[]) =>

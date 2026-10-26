@@ -76,7 +76,7 @@ test('historical theses never duplicate a current student or leak through non-ad
         ->and(array_keys($props['projectNotes']))->not->toContain($old->id, (string) $old->id);
 
     $service = app(KaprodiPortalService::class);
-    foreach ([$service->dashboard($program, $kaprodi->kaprodiAssignment), $service->exams($program), $service->documents($program), $service->archives($program), $service->studentDetail($program, $student)] as $payload) {
+    foreach ([$service->dashboard($program, $kaprodi->kaprodiAssignment), $service->exams($program), $service->documents($program, $kaprodi), $service->archives($program), $service->studentDetail($program, $student)] as $payload) {
         expect(json_encode($payload))->not->toContain('Historical private title', 'Historical private room', 'Historical follow-up room');
     }
 

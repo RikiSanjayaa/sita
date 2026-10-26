@@ -211,21 +211,23 @@ class KaprodiPortalService
     /**
      * @return array<string, mixed>
      */
-    public function documents(ProgramStudi $programStudi): array
+    public function documents(ProgramStudi $programStudi, User $viewer): array
     {
+        $canDownload = app(DocumentAccessService::class)->kaprodiCan($viewer, $programStudi->id, KaprodiAssignment::CAPABILITY_DOWNLOAD_DOCUMENTS);
         $workspaceDocuments = MentorshipDocument::query()
             ->whereHas('student.mahasiswaProfile', fn($query) => $query->where('program_studi_id', $programStudi->id))
             ->with(['student.mahasiswaProfile', 'lecturer'])
             ->latest('created_at')
             ->get()
             ->groupBy(fn(MentorshipDocument $document): string => $this->workspaceDocumentGroupKey($document))
-            ->map(function (Collection $documents, string $key): array {
+            ->map(function (Collection $documents, string $key) use ($canDownload): array {
                 /** @var MentorshipDocument $document */
                 $document = $documents->sortByDesc('created_at')->first();
                 $counts = $this->documentReviewCounts($documents->pluck('status'));
 
                 return [
                     'id' => 'workspace-'.md5($key),
+                    'detailUrl' => DocumentDetailService::workspaceUrl($document, 'kaprodi'),
                     'source' => 'Workspace',
                     'mahasiswa' => $document->student?->name ?? '-',
                     'nim' => $document->student?->mahasiswaProfile?->nim,
@@ -238,9 +240,9 @@ class KaprodiPortalService
                     'pendingCount' => $counts['pending'],
                     'revisionCount' => $counts['revision'],
                     'approvedCount' => $counts['approved'],
-                    'fileUrl' => $document->storage_path === null
+                    'fileUrl' => ! $canDownload ? null : ($document->storage_path === null
                         ? $document->file_url
-                        : route('files.documents.download', ['document' => $document->id]),
+                        : route('files.documents.download', ['document' => $document->id, 'portal' => 'kaprodi'])),
                     'profileUrl' => route('users.profile.show', ['user' => $document->student_user_id]),
                     'reviews' => $documents
                         ->sortBy(fn(MentorshipDocument $review): string => $review->lecturer?->name ?? '')
@@ -263,11 +265,12 @@ class KaprodiPortalService
             ->with(['project.student', 'defense'])
             ->latest('uploaded_at')
             ->get()
-            ->map(function (ThesisDocument $document): array {
+            ->map(function (ThesisDocument $document) use ($canDownload): array {
                 $counts = $this->documentReviewCounts(collect([$document->status]));
 
                 return [
                     'id' => 'thesis-'.$document->id,
+                    'detailUrl' => route('kaprodi.dokumen.thesis.show', ['document' => $document->id]),
                     'source' => 'Tugas Akhir',
                     'mahasiswa' => $document->project?->student?->name ?? '-',
                     'nim' => $document->project?->student?->mahasiswaProfile?->nim,
@@ -280,7 +283,7 @@ class KaprodiPortalService
                     'pendingCount' => $counts['pending'],
                     'revisionCount' => $counts['revision'],
                     'approvedCount' => $counts['approved'],
-                    'fileUrl' => route('files.thesis-documents.download', ['document' => $document->id]),
+                    'fileUrl' => $canDownload ? route('files.thesis-documents.download', ['document' => $document->id, 'portal' => 'kaprodi']) : null,
                     'profileUrl' => route('users.profile.show', ['user' => $document->project?->student_user_id]),
                     'reviews' => [
                         [
@@ -925,7 +928,7 @@ class KaprodiPortalService
     {
         return implode('|', [
             $document->student_user_id,
-            $document->document_group ?: $document->category ?: $document->title,
+            $document->document_group ?? 'legacy-'.$document->id,
             $document->version_number ?: 1,
             $document->file_name ?: $document->title,
         ]);

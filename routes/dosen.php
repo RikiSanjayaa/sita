@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DocumentDetailController;
 use App\Http\Controllers\Dosen\DashboardController;
 use App\Http\Controllers\Dosen\DokumenRevisiController;
 use App\Http\Controllers\Dosen\JadwalBimbinganController;
@@ -36,6 +37,8 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
         ->name('jadwal-bimbingan.recurring.decision');
 
     Route::get('dokumen-revisi', [DokumenRevisiController::class, 'index'])->name('dokumen-revisi');
+    Route::get('dokumen-revisi/{document}', [DocumentDetailController::class, 'workspace'])->name('dokumen-revisi.show');
+    Route::get('berkas-ujian/{document}', [DocumentDetailController::class, 'thesis'])->name('berkas-ujian.show');
     Route::post('dokumen-revisi/{document}/review', [DokumenRevisiController::class, 'review'])
         ->name('dokumen-revisi.review');
 

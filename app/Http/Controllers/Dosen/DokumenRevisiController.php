@@ -6,9 +6,9 @@ use App\Events\ChatMessageCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dosen\ReviewMentorshipDocumentRequest;
 use App\Models\MentorshipChatMessage;
-use App\Models\MentorshipChatThread;
 use App\Models\MentorshipDocument;
 use App\Models\User;
+use App\Services\DocumentDetailService;
 use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
@@ -46,6 +46,7 @@ class DokumenRevisiController extends Controller
             ->map(function (MentorshipDocument $document): array {
                 return [
                     'id' => $document->id,
+                    'detailUrl' => DocumentDetailService::workspaceUrl($document, 'dosen'),
                     'mahasiswa' => $document->student?->name ?? '-',
                     'nim' => $document->student?->mahasiswaProfile?->nim ?? '-',
                     'title' => $document->title,
@@ -107,24 +108,21 @@ class DokumenRevisiController extends Controller
             $this->realtimeNotificationService->notifyUser($document->student, 'statusTugasAkhir', [
                 'title' => 'Status dokumen bimbingan diperbarui',
                 'description' => $description,
-                'url' => '/mahasiswa/upload-dokumen',
+                'url' => DocumentDetailService::workspaceUrl($document, 'mahasiswa'),
                 'icon' => 'file-text',
                 'createdAt' => now()->toIso8601String(),
             ]);
         }
 
         $originMessage = MentorshipChatMessage::query()
+            ->with('thread')
             ->where('message_type', 'document_event')
-            ->whereIn('related_document_id', MentorshipDocument::query()
-                ->where('student_user_id', $document->student_user_id)
-                ->where('document_group', $document->document_group)
-                ->select('id'))
-            ->orderBy('id')
-            ->first();
+            ->where('sender_user_id', $document->student_user_id)
+            ->whereIn('related_document_id', app(DocumentDetailService::class)->copies($document)
+                ->where('version_number', $document->version_number)->select('id'))
+            ->orderBy('id')->first();
 
-        $thread = $originMessage === null
-            ? null
-            : MentorshipChatThread::query()->find($originMessage->mentorship_chat_thread_id);
+        $thread = $originMessage?->thread;
 
         if ($thread === null) {
             return;
@@ -157,6 +155,7 @@ class DokumenRevisiController extends Controller
             'attachmentKind' => null,
             'attachmentSizeKb' => null,
             'previewUrl' => null,
+            'ownReview' => null,
         ]);
     }
 

@@ -24,6 +24,6 @@ class DokumenController extends Controller
         abort_unless($programStudi instanceof ProgramStudi, 403);
         abort_unless($assignment instanceof KaprodiAssignment && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_VIEW_DOCUMENTS), 403);
 
-        return Inertia::render('kaprodi/dokumen', $this->kaprodiPortalService->documents($programStudi));
+        return Inertia::render('kaprodi/dokumen', $this->kaprodiPortalService->documents($programStudi, $request->user()));
     }
 }

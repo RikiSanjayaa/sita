@@ -1,6 +1,6 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { Download, FileText, UserRound } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Download, Eye, FileText } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
@@ -12,21 +12,12 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import { cn } from '@/lib/utils';
@@ -67,6 +58,7 @@ type DocumentQueueItem = {
     approvedCount: number;
     fileUrl: string | null;
     profileUrl: string;
+    detailUrl: string;
     reviews: DocumentReviewItem[];
 };
 
@@ -131,8 +123,6 @@ export default function KaprodiDokumenPage() {
         'semua',
     );
     const pageState = useUrlState('page', 1);
-    const [selectedDocument, setSelectedDocument] =
-        useState<DocumentQueueItem | null>(null);
 
     const filteredDocuments = useMemo(() => {
         const lower = search.toLowerCase();
@@ -285,7 +275,7 @@ export default function KaprodiDokumenPage() {
                                                 'cursor-pointer align-top transition-colors hover:bg-muted/30',
                                             )}
                                             onClick={() =>
-                                                setSelectedDocument(doc)
+                                                router.visit(doc.detailUrl)
                                             }
                                         >
                                             <td
@@ -311,19 +301,16 @@ export default function KaprodiDokumenPage() {
                                                     'md:max-w-xs',
                                                 )}
                                             >
-                                                <button
-                                                    type="button"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        setSelectedDocument(
-                                                            doc,
-                                                        );
-                                                    }}
+                                                <Link
+                                                    href={doc.detailUrl}
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
                                                     title={doc.title}
                                                     className="line-clamp-2 rounded-sm text-left font-medium hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                                                 >
                                                     {doc.title}
-                                                </button>
+                                                </Link>
                                                 <p
                                                     className="truncate text-xs text-muted-foreground"
                                                     title={`${doc.source}${doc.file ? ` · ${doc.file}` : ''}`}
@@ -374,6 +361,19 @@ export default function KaprodiDokumenPage() {
                                                         event.stopPropagation()
                                                     }
                                                 >
+                                                    <RowIconButton
+                                                        asChild
+                                                        label={`Detail dokumen ${doc.title}`}
+                                                    >
+                                                        <Link
+                                                            href={doc.detailUrl}
+                                                        >
+                                                            <Eye
+                                                                aria-hidden="true"
+                                                                className="size-4"
+                                                            />
+                                                        </Link>
+                                                    </RowIconButton>
                                                     {canDownloadDocuments ? (
                                                         <RowIconButton
                                                             label="Unduh dokumen"
@@ -389,18 +389,6 @@ export default function KaprodiDokumenPage() {
                                                             <Download className="size-4" />
                                                         </RowIconButton>
                                                     ) : null}
-                                                    <RowIconButton
-                                                        asChild
-                                                        label="Buka profil mahasiswa"
-                                                    >
-                                                        <Link
-                                                            href={
-                                                                doc.profileUrl
-                                                            }
-                                                        >
-                                                            <UserRound className="size-4" />
-                                                        </Link>
-                                                    </RowIconButton>
                                                 </div>
                                             </td>
                                         </tr>
@@ -425,181 +413,6 @@ export default function KaprodiDokumenPage() {
                     )}
                 </DataSection>
             </div>
-
-            <Sheet
-                open={selectedDocument !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setSelectedDocument(null);
-                    }
-                }}
-            >
-                <SheetContent
-                    side="right"
-                    className="w-full gap-0 p-0 sm:max-w-xl"
-                >
-                    {selectedDocument ? (
-                        <>
-                            <SheetHeader className="border-b bg-muted/20 px-6 py-4">
-                                <div className="flex items-start gap-3 pr-8">
-                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary-muted-foreground">
-                                        <FileText className="size-5" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <SheetTitle className="line-clamp-2 text-base">
-                                            {selectedDocument.title}
-                                        </SheetTitle>
-                                        <SheetDescription className="mt-1">
-                                            {selectedDocument.mahasiswa} -{' '}
-                                            {selectedDocument.file ?? 'Dokumen'}
-                                        </SheetDescription>
-                                    </div>
-                                </div>
-                            </SheetHeader>
-
-                            <ScrollArea className="h-[calc(100dvh-5.5rem)]">
-                                <div className="space-y-5 px-6 py-5">
-                                    <div className="rounded-lg border bg-background">
-                                        <dl className="grid gap-4 p-4 sm:grid-cols-2">
-                                            <div>
-                                                <dt className="text-xs font-medium text-muted-foreground">
-                                                    Sumber
-                                                </dt>
-                                                <dd className="mt-1 text-sm font-medium">
-                                                    {selectedDocument.source}
-                                                </dd>
-                                            </div>
-                                            <div>
-                                                <dt className="text-xs font-medium text-muted-foreground">
-                                                    Upload
-                                                </dt>
-                                                <dd className="mt-1 text-sm font-medium">
-                                                    {
-                                                        selectedDocument.uploadedAt
-                                                    }
-                                                </dd>
-                                            </div>
-                                            <div>
-                                                <dt className="text-xs font-medium text-muted-foreground">
-                                                    Status
-                                                </dt>
-                                                <dd className="mt-1">
-                                                    <DocumentStatusBadge
-                                                        status={
-                                                            selectedDocument.status
-                                                        }
-                                                    />
-                                                </dd>
-                                            </div>
-                                            <div>
-                                                <dt className="text-xs font-medium text-muted-foreground">
-                                                    Review
-                                                </dt>
-                                                <dd className="mt-1 text-sm font-medium tabular-nums">
-                                                    {
-                                                        selectedDocument.reviewCount
-                                                    }{' '}
-                                                    dosen
-                                                </dd>
-                                            </div>
-                                        </dl>
-
-                                        <div className="flex flex-wrap gap-2 border-t px-4 py-3">
-                                            {canDownloadDocuments &&
-                                            selectedDocument.fileUrl ? (
-                                                <Button
-                                                    size="sm"
-                                                    className="max-md:h-11"
-                                                    onClick={() =>
-                                                        openDocument(
-                                                            selectedDocument.fileUrl,
-                                                        )
-                                                    }
-                                                >
-                                                    <Download className="size-4" />
-                                                    Unduh Dokumen
-                                                </Button>
-                                            ) : null}
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="outline"
-                                                className="max-md:h-11"
-                                            >
-                                                <Link
-                                                    href={
-                                                        selectedDocument.profileUrl
-                                                    }
-                                                >
-                                                    <UserRound className="size-4" />
-                                                    Buka Profil Mahasiswa
-                                                </Link>
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-sm font-semibold">
-                                            Detail Review Dosen
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Catatan dan status dari tiap dosen
-                                            reviewer untuk dokumen ini.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        {selectedDocument.reviews.map(
-                                            (review) => (
-                                                <article
-                                                    key={review.id}
-                                                    className="rounded-lg border bg-background p-4"
-                                                >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-semibold">
-                                                                {
-                                                                    review.reviewer
-                                                                }
-                                                            </p>
-                                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                                Diupload:{' '}
-                                                                {
-                                                                    review.uploadedAt
-                                                                }
-                                                            </p>
-                                                        </div>
-                                                        <DocumentStatusBadge
-                                                            status={
-                                                                review.status
-                                                            }
-                                                            className="shrink-0"
-                                                        />
-                                                    </div>
-
-                                                    {review.reviewedAt ? (
-                                                        <p className="mt-3 text-xs text-muted-foreground">
-                                                            Direview:{' '}
-                                                            {review.reviewedAt}
-                                                        </p>
-                                                    ) : null}
-
-                                                    <div className="mt-3 rounded-md bg-muted/40 p-3">
-                                                        <p className="text-xs leading-relaxed text-muted-foreground">
-                                                            {review.revisionNotes ??
-                                                                'Belum ada catatan review.'}
-                                                        </p>
-                                                    </div>
-                                                </article>
-                                            ),
-                                        )}
-                                    </div>
-                                </div>
-                            </ScrollArea>
-                        </>
-                    ) : null}
-                </SheetContent>
-            </Sheet>
         </KaprodiLayout>
     );
 }

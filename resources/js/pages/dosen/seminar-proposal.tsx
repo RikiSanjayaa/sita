@@ -1,9 +1,12 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     ChevronRight,
     Clock,
+    Download,
+    ExternalLink,
     FileWarning,
+    MessageSquare,
     Send,
     XCircle,
 } from 'lucide-react';
@@ -89,6 +92,19 @@ type MyRevisionItem = {
     priorityLabel: string | null;
 };
 
+type DefenseDocument = {
+    id: number;
+    kind: string;
+    kindLabel: string;
+    title: string;
+    fileName: string;
+    version: number;
+    uploadedAt: string | null;
+    viewUrl: string;
+    downloadUrl: string;
+    detailUrl: string;
+};
+
 type DefenseItem = {
     defenseId: number;
     projectId: number | null;
@@ -119,6 +135,9 @@ type DefenseItem = {
     otherExaminers: OtherExaminer[];
     revisionLog: DefenseRevisionLogData;
     verifiableRevisionIds: number[];
+    documents: DefenseDocument[];
+    chatUrl: string;
+    chatLabel: string;
 };
 
 type PageProps = {
@@ -471,6 +490,12 @@ function DefenseDetailSheet({
 
     if (!item) return null;
 
+    const returnQuery = new URLSearchParams(
+        typeof window === 'undefined' ? '' : window.location.search,
+    );
+    returnQuery.set('defense', String(item.defenseId));
+    const returnTo = `/dosen/seminar-proposal?${returnQuery.toString()}`;
+
     const canDecide =
         item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
     const averageScore = calculateAverageAcademicScore([
@@ -538,6 +563,109 @@ function DefenseDetailSheet({
                                 },
                             ]}
                         />
+
+                        <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="max-md:h-11"
+                        >
+                            <Link href={item.chatUrl}>
+                                <MessageSquare
+                                    aria-hidden="true"
+                                    className="size-4"
+                                />
+                                {item.chatLabel}
+                            </Link>
+                        </Button>
+
+                        <section aria-labelledby="exam-documents-heading">
+                            <h3
+                                id="exam-documents-heading"
+                                className="mb-2 text-base font-semibold"
+                            >
+                                Berkas ujian
+                            </h3>
+                            {item.documents.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Belum ada berkas ujian.
+                                </p>
+                            ) : (
+                                <ul className="divide-y border-y text-sm">
+                                    {item.documents.map((document) => (
+                                        <li
+                                            key={document.id}
+                                            className="flex flex-col gap-2 py-3"
+                                        >
+                                            <div className="min-w-0 space-y-1">
+                                                <p className="font-medium [overflow-wrap:anywhere]">
+                                                    {document.kindLabel}
+                                                </p>
+                                                <Link
+                                                    href={`${document.detailUrl}?returnTo=${encodeURIComponent(returnTo)}`}
+                                                    aria-label={`Detail ${document.fileName}`}
+                                                    className="block [overflow-wrap:anywhere] underline-offset-4 hover:underline"
+                                                >
+                                                    {document.fileName}
+                                                </Link>
+                                                {document.title !==
+                                                    document.kindLabel && (
+                                                    <p className="[overflow-wrap:anywhere] text-muted-foreground">
+                                                        {document.title}
+                                                    </p>
+                                                )}
+                                                <p className="text-xs text-muted-foreground">
+                                                    Versi {document.version}
+                                                    {' · '}
+                                                    Diunggah{' '}
+                                                    {document.uploadedAt ?? '-'}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="max-md:h-11"
+                                                >
+                                                    <a
+                                                        href={document.viewUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        aria-label={`Buka ${document.fileName}`}
+                                                    >
+                                                        <ExternalLink
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                        Buka
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="max-md:h-11"
+                                                >
+                                                    <a
+                                                        href={
+                                                            document.downloadUrl
+                                                        }
+                                                        aria-label={`Unduh ${document.fileName}`}
+                                                    >
+                                                        <Download
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                        Unduh
+                                                    </a>
+                                                </Button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
 
                         <section>
                             <h3 className="mb-2 text-base font-semibold">
@@ -721,8 +849,9 @@ export default function DosenSeminarProposalPage() {
         'calendar',
         'ujian',
     );
-    const [selectedItem, setSelectedItem] = useState<DefenseItem | null>(null);
-    const [sheetOpen, setSheetOpen] = useState(false);
+    const [selectedDefenseId, setSelectedDefenseId] = useUrlState('defense', 0);
+    const selectedItem =
+        defenses.find((item) => item.defenseId === selectedDefenseId) ?? null;
     const pageState = useUrlState('page', 1);
 
     const [selectedEvent, setSelectedEvent] = useState<{
@@ -806,8 +935,7 @@ export default function DosenSeminarProposalPage() {
     );
 
     function openItem(item: DefenseItem) {
-        setSelectedItem(item);
-        setSheetOpen(true);
+        setSelectedDefenseId(item.defenseId);
     }
 
     function handleEventClick(event: BimbinganEvent) {
@@ -1120,8 +1248,10 @@ export default function DosenSeminarProposalPage() {
 
             <DefenseDetailSheet
                 item={selectedItem}
-                open={sheetOpen}
-                onOpenChange={setSheetOpen}
+                open={selectedItem !== null}
+                onOpenChange={(open) => {
+                    if (!open) setSelectedDefenseId(0);
+                }}
             />
 
             <ScheduleDetailModal
