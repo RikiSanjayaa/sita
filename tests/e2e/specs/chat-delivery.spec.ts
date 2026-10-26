@@ -113,7 +113,7 @@ for (const order of ['echo-first', 'http-first'] as const) {
     });
 }
 
-for (const attention of ['unfocused', 'hidden'] as const) {
+for (const attention of ['unfocused', 'hidden', 'reopened'] as const) {
     test(`${attention} chat stays unread until attention returns, without reading another thread`, async ({
         browser,
     }) => {
@@ -128,13 +128,19 @@ for (const attention of ['unfocused', 'hidden'] as const) {
                 'Jangan baca thread lain',
             );
             await recipient.page.addInitScript((attention) => {
+                const returned =
+                    sessionStorage.getItem('chat154-attention-returned') ===
+                    'true';
                 Object.defineProperty(document, 'hasFocus', {
                     configurable: true,
-                    value: () => attention === 'hidden',
+                    value: () => returned || attention === 'hidden',
                 });
                 Object.defineProperty(document, 'visibilityState', {
                     configurable: true,
-                    get: () => (attention === 'hidden' ? 'hidden' : 'visible'),
+                    get: () =>
+                        attention === 'hidden' && !returned
+                            ? 'hidden'
+                            : 'visible',
                 });
             }, attention);
             await openPrivateThread(
@@ -176,17 +182,27 @@ for (const attention of ['unfocused', 'hidden'] as const) {
                 unreadMessageCount: 2,
             });
             expect(reads).toBe(0);
-            await recipient.page.evaluate(() => {
-                Object.defineProperty(document, 'hasFocus', {
-                    configurable: true,
-                    value: () => true,
+            if (attention === 'reopened') {
+                await recipient.page.evaluate(() =>
+                    sessionStorage.setItem(
+                        'chat154-attention-returned',
+                        'true',
+                    ),
+                );
+                await recipient.page.reload();
+            } else {
+                await recipient.page.evaluate(() => {
+                    Object.defineProperty(document, 'hasFocus', {
+                        configurable: true,
+                        value: () => true,
+                    });
+                    Object.defineProperty(document, 'visibilityState', {
+                        configurable: true,
+                        get: () => 'visible',
+                    });
+                    window.dispatchEvent(new Event('focus'));
                 });
-                Object.defineProperty(document, 'visibilityState', {
-                    configurable: true,
-                    get: () => 'visible',
-                });
-                window.dispatchEvent(new Event('focus'));
-            });
+            }
             await expect
                 .poll(() => fetchUnreadCount(recipient.page))
                 .toEqual({ unreadMessageCount: 1 });

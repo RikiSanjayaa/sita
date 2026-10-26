@@ -197,7 +197,8 @@ function isThreadNotificationOpen(url: string | null): boolean {
 }
 
 function HeaderNotifications() {
-    const { auth, notifications = [] } = usePage<SharedData>().props;
+    const { props, url } = usePage<SharedData>();
+    const { auth, notifications = [] } = props;
 
     const [sessionNotifications, setSessionNotifications] = useState<
         HeaderNotification[]
@@ -261,6 +262,9 @@ function HeaderNotifications() {
             }
         }
     });
+    useEffect(() => {
+        readFocusedThreadNotifications();
+    }, [url, notifications]);
     useEffect(() => {
         window.addEventListener('focus', readFocusedThreadNotifications);
         document.addEventListener(
