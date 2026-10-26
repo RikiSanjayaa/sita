@@ -65,6 +65,9 @@ async function openNotesSheet(page: Page): Promise<void> {
 
 async function openDocumentDetail(page: Page): Promise<void> {
     await page
+        .getByRole('row')
+        .filter({ hasText: 'Perlu Revisi' })
+        .first()
         .getByRole('button', { name: /^Lihat dokumen/ })
         .first()
         .click();

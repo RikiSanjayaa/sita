@@ -33,6 +33,14 @@ test.describe('admin dashboard and thesis project detail', () => {
         await page.goto('/admin');
 
         await page
+            .getByRole('link', { name: /^Lihat aktivitas / })
+            .first()
+            .click();
+        await expect(page).toHaveURL(/\/admin\/thesis-projects\/\d+/);
+        await expect(page.getByRole('tab', { name: 'Ujian' })).toBeVisible();
+        await page.goto('/admin');
+
+        await page
             .locator('.sita-action-queue-row')
             .filter({ hasText: 'Masa aktif bimbingan habis' })
             .getByRole('link', { name: /Perpanjang/ })
