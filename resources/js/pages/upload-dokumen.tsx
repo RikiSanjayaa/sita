@@ -14,6 +14,7 @@ import {
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { ArchivedMentorshipNotice } from '@/components/archived-mentorship-notice';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     DataSection,
     DataSelect,
@@ -898,21 +899,16 @@ export default function UploadDokumenPage() {
                                                 }
                                             >
                                                 <div className="flex items-center justify-end gap-1 max-md:justify-start">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8 max-md:h-11 max-md:px-4"
+                                                    <RowIconButton
+                                                        label={`Detail dokumen ${row.title}`}
                                                         onClick={() =>
                                                             setDetailDocument(
                                                                 row,
                                                             )
                                                         }
-                                                        aria-label={`Detail dokumen ${row.title}`}
                                                     >
                                                         <Eye className="size-4" />
-                                                        Detail
-                                                    </Button>
+                                                    </RowIconButton>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button

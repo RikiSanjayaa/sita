@@ -124,13 +124,22 @@ test.describe('Chat attachment review visibility', () => {
             await expect(studentRow).not.toContainText(revisionNotes);
             await expect(studentRow).not.toContainText(/\bv\d+\b/);
 
-            await studentRow.getByRole('button', { name: /^Detail/ }).click();
+            await mahasiswaPage.setViewportSize({ width: 390, height: 844 });
+            const detailAction = studentRow.getByRole('button', {
+                name: /^Detail/,
+            });
+            const target = await detailAction.boundingBox();
+            expect(target!.width).toBeGreaterThanOrEqual(44);
+            expect(target!.height).toBeGreaterThanOrEqual(44);
+            await detailAction.focus();
+            await mahasiswaPage.keyboard.press('Enter');
             const detailDrawer = mahasiswaPage.getByRole('dialog');
             await expect(detailDrawer).toContainText(revisionNotes);
             await expect(detailDrawer).toContainText('Perlu Revisi');
             await expect(detailDrawer).not.toContainText(/\bv\d+\b/);
             await mahasiswaPage.keyboard.press('Escape');
             await expect(detailDrawer).toBeHidden();
+            await mahasiswaPage.setViewportSize({ width: 1280, height: 900 });
 
             await openMahasiswaBimbinganThread(mahasiswaPage);
             await expect(

@@ -177,6 +177,13 @@ export const catalogPages: readonly CatalogPage[] = [
     },
     {
         role: 'mahasiswa',
+        name: 'upload-dokumen-sheet',
+        path: '/mahasiswa/upload-dokumen',
+        heading: 'Dokumen yang Diupload',
+        prepare: (page) => openDialog(page, /^Detail dokumen /),
+    },
+    {
+        role: 'mahasiswa',
         name: 'pesan',
         path: '/mahasiswa/pesan',
         heading: 'Pesan',

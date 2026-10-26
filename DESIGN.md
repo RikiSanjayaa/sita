@@ -664,6 +664,7 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - **Settings:** `SettingsLayout` renders the page `h1` ("Pengaturan akun") and a section nav with the `primary-muted` active pair; settings pages start at `h2`. Notification and appearance switches carry a `label`/`id` pair.
 - **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
 - **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
+- **Document details:** Upload Dokumen uses the same ghost eye-only `RowIconButton` as lecturer/head-of-programme document lists, with a document-specific tooltip and accessible name, 36px desktop and 44px phones. Keep download/delete as separate meaningful actions and preserve the existing detail sheet.
 
 #### Mahasiswa dashboard (#134, #137)
 
