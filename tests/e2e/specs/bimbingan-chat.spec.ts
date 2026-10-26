@@ -44,11 +44,8 @@ async function uploadThesisDocument(
     await expect(uploadedRow).toContainText('Menunggu Review');
 }
 
-async function waitForThreadSubscription(
-    page: Page,
-    requireResubscribe = false,
-): Promise<void> {
-    await page.waitForFunction((requireResubscribe) => {
+async function waitForThreadSubscription(page: Page): Promise<void> {
+    await page.waitForFunction(() => {
         const threadId = new URLSearchParams(window.location.search).get(
             'thread',
         );
@@ -57,32 +54,7 @@ async function waitForThreadSubscription(
                   `private-mentorship.thread.${threadId}`,
               )
             : undefined;
-        const windowWithPreviousChannel = window as Window & {
-            __previousThreadChannel?: unknown;
-        };
-
-        return (
-            channel?.subscribed === true &&
-            (!requireResubscribe ||
-                channel !== windowWithPreviousChannel.__previousThreadChannel)
-        );
-    }, requireResubscribe);
-}
-
-async function captureThreadChannel(page: Page): Promise<void> {
-    await page.evaluate(() => {
-        const threadId = new URLSearchParams(window.location.search).get(
-            'thread',
-        );
-        const windowWithPreviousChannel = window as Window & {
-            __previousThreadChannel?: unknown;
-        };
-
-        windowWithPreviousChannel.__previousThreadChannel = threadId
-            ? window.Echo.connector.pusher.channel(
-                  `private-mentorship.thread.${threadId}`,
-              )
-            : undefined;
+        return channel?.subscribed === true;
     });
 }
 
@@ -92,30 +64,18 @@ async function sendChatMessage(
     message: string,
 ): Promise<void> {
     const messageInput = page.getByPlaceholder('Tulis pesan...');
-    const pageUrl = new URL(page.url());
-    await captureThreadChannel(page);
     const submitRequest = page.waitForResponse(
         (response) =>
             response.request().method() === 'POST' &&
             urlPattern.test(response.url()),
     );
-    const inertiaFollowUp = page.waitForResponse((response) => {
-        const responseUrl = new URL(response.url());
-
-        return (
-            response.request().method() === 'GET' &&
-            response.status() === 200 &&
-            responseUrl.pathname === pageUrl.pathname
-        );
-    });
 
     await messageInput.fill(message);
     await messageInput.press('Enter');
-    await submitRequest;
-    await inertiaFollowUp;
+    expect((await submitRequest).status()).toBe(201);
     await expect(messageInput).toHaveValue('');
     await expect(page.getByText(message).last()).toBeVisible();
-    await waitForThreadSubscription(page, true);
+    await waitForThreadSubscription(page);
 }
 
 async function sendChatAttachment(
@@ -124,7 +84,6 @@ async function sendChatAttachment(
     filePath: string,
     caption: string | null,
 ): Promise<void> {
-    await captureThreadChannel(page);
     const submitRequest = page.waitForResponse(
         (response) =>
             response.request().method() === 'POST' &&
@@ -141,11 +100,11 @@ async function sendChatAttachment(
     }
 
     await page.getByRole('button', { name: 'Kirim pesan' }).click();
-    await submitRequest;
+    expect((await submitRequest).status()).toBe(201);
     await expect(
         page.getByRole('button', { name: 'Hapus lampiran' }),
     ).toHaveCount(0);
-    await waitForThreadSubscription(page, true);
+    await waitForThreadSubscription(page);
 }
 
 async function openMahasiswaBimbinganThread(page: Page): Promise<void> {

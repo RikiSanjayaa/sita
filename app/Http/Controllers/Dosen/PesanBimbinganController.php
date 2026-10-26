@@ -24,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -209,7 +210,7 @@ class PesanBimbinganController extends Controller
             ->header('Cache-Control', 'no-store, private');
     }
 
-    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): RedirectResponse
+    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): JsonResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
@@ -218,7 +219,7 @@ class PesanBimbinganController extends Controller
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
         if ($this->completedChatThreads->isCompleted($thread)) {
-            return back()->withErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+            throw ValidationException::withMessages(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
         }
 
         $data = $request->validated();
@@ -273,13 +274,20 @@ class PesanBimbinganController extends Controller
             ]));
         }
 
+        $payloads = [];
         foreach ($messagesToSend as $message) {
-            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
+            $payload = [...$this->payloadBuilder->build($message), 'clientMessageId' => $data['client_message_id']];
+            $payloads[] = $payload;
+            $this->broadcastChatMessage($thread->id, $payload);
 
             $this->notifyThreadMembers($thread, $lecturer, $message->message_type);
         }
 
-        return back();
+        return response()->json([
+            'threadId' => $thread->id,
+            'clientMessageId' => $data['client_message_id'],
+            'messages' => $payloads,
+        ], 201);
     }
 
     private function canAccessThread(User $lecturer, MentorshipChatThread $thread): bool

@@ -192,19 +192,11 @@ test('mahasiswa chat attachment creates document event and appears as versioned 
         'type' => 'pembimbing',
     ]);
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => 'Lampiran pertama',
-            'attachment' => UploadedFile::fake()->create('lampiran-v1.pdf', 250, 'application/pdf'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Lampiran pertama', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('lampiran-v1.pdf', 250, 'application/pdf')])
+        ->assertCreated();
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => 'Lampiran kedua',
-            'attachment' => UploadedFile::fake()->create('lampiran-v2.pdf', 300, 'application/pdf'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Lampiran kedua', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('lampiran-v2.pdf', 300, 'application/pdf')])
+        ->assertCreated();
 
     $this->assertDatabaseHas('mentorship_documents', [
         'student_user_id' => $student->id,
@@ -1805,12 +1797,8 @@ test('mahasiswa chat attachment is mirrored into active sempro thread', function
         'role' => 'examiner',
     ]);
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$pembimbingThread->id}/messages", [
-            'message' => 'Proposal terbaru untuk sempro',
-            'attachment' => UploadedFile::fake()->create('proposal-chat-sempro.pdf', 350, 'application/pdf'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$pembimbingThread->id}/messages", ['message' => 'Proposal terbaru untuk sempro', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('proposal-chat-sempro.pdf', 350, 'application/pdf')])
+        ->assertCreated();
 
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'mentorship_chat_thread_id' => $pembimbingThread->id,
@@ -2003,12 +1991,8 @@ test('chat attachment reviewed by second lecturer shows review to mahasiswa on u
         'type' => 'pembimbing',
     ]);
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => 'Lampiran bab 2',
-            'attachment' => UploadedFile::fake()->create('bab-2.pdf', 250, 'application/pdf'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Lampiran bab 2', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('bab-2.pdf', 250, 'application/pdf')])
+        ->assertCreated();
 
     $reviewCopy = MentorshipDocument::query()
         ->where('category', 'lampiran-chat')
@@ -2070,12 +2054,8 @@ test('chat attachment without a message is titled with its file name', function 
         'type' => 'pembimbing',
     ]);
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => '',
-            'attachment' => UploadedFile::fake()->create('bab-3.pdf', 250, 'application/pdf'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => '', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('bab-3.pdf', 250, 'application/pdf')])
+        ->assertCreated();
 
     expect(MentorshipDocument::query()->where('category', 'lampiran-chat')->value('title'))
         ->toBe('bab-3.pdf');

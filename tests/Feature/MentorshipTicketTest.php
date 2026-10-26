@@ -83,9 +83,7 @@ test('bimbingan entry points respect mentorship ticket validity', function (stri
             'category' => 'draft-tugas-akhir',
             'document' => UploadedFile::fake()->create('draft-bab3.pdf', 600, 'application/pdf'),
         ]),
-        'pesan mahasiswa' => $this->actingAs($student)->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => 'Mohon bimbingan.',
-        ]),
+        'pesan mahasiswa' => $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Mohon bimbingan.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()]),
         'jadwal dosen' => $this->actingAs($lecturer)->post('/dosen/jadwal-bimbingan', [
             'student_user_id' => $student->id,
             'topic' => 'Review Bab 4',
@@ -97,10 +95,18 @@ test('bimbingan entry points respect mentorship ticket validity', function (stri
     };
 
     if ($blocked) {
-        $response->assertSessionHasErrors('ticket');
+        if ($entry === 'pesan mahasiswa') {
+            $response->assertUnprocessable()->assertJsonValidationErrors('ticket');
+        } else {
+            $response->assertSessionHasErrors('ticket');
+        }
         $this->assertDatabaseCount($table, 0);
     } else {
-        $response->assertSessionDoesntHaveErrors('ticket');
+        if ($entry === 'pesan mahasiswa') {
+            $response->assertCreated();
+        } else {
+            $response->assertSessionDoesntHaveErrors('ticket');
+        }
         expect(DB::table($table)->count())->toBeGreaterThan(0);
     }
 })->with('bimbingan entry points')->with('mentorship ticket validity');

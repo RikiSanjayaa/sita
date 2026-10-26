@@ -641,11 +641,8 @@ test('dosen can review document and send message to own thread', function () {
         ])
         ->assertForbidden();
 
-    $this->actingAs($dosen)
-        ->post(route('dosen.pesan.messages.store', $ownThread), [
-            'message' => 'Mohon cek revisi bab 3.',
-        ])
-        ->assertRedirect();
+    $this->actingAs($dosen)->postJson(route('dosen.pesan.messages.store', $ownThread), ['message' => 'Mohon cek revisi bab 3.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
+        ->assertCreated();
 
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'mentorship_chat_thread_id' => $ownThread->id,
@@ -653,10 +650,7 @@ test('dosen can review document and send message to own thread', function () {
         'message' => 'Mohon cek revisi bab 3.',
     ]);
 
-    $this->actingAs($dosen)
-        ->post(route('dosen.pesan.messages.store', $otherThread), [
-            'message' => 'Tidak boleh kirim.',
-        ])
+    $this->actingAs($dosen)->postJson(route('dosen.pesan.messages.store', $otherThread), ['message' => 'Tidak boleh kirim.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
         ->assertForbidden();
 });
 

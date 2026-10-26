@@ -4,6 +4,8 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\User;
+use App\Services\PrivateChatService;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('allows mahasiswa to start a private chat with another mahasiswa', function (): void {
@@ -69,11 +71,8 @@ it('allows dosen to use private chat with another dosen', function (): void {
 
     expect($thread->student_user_id)->toBeNull();
 
-    $this->actingAs($recipient)
-        ->post(route('dosen.pesan.messages.store', $thread), [
-            'message' => 'Halo sesama dosen.',
-        ])
-        ->assertRedirect();
+    $this->actingAs($recipient)->postJson(route('dosen.pesan.messages.store', $thread), ['message' => 'Halo sesama dosen.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
+        ->assertCreated();
 
     expect(MentorshipChatMessage::query()
         ->where('mentorship_chat_thread_id', $thread->id)
@@ -93,9 +92,29 @@ it('prevents non participants from posting to a private chat', function (): void
 
     $thread = MentorshipChatThread::query()->where('type', 'private')->firstOrFail();
 
-    $this->actingAs($outsider)
-        ->post(route('dosen.pesan.messages.store', $thread), [
-            'message' => 'Saya seharusnya tidak bisa masuk.',
-        ])
+    $this->actingAs($outsider)->postJson(route('dosen.pesan.messages.store', $thread), ['message' => 'Saya seharusnya tidak bisa masuk.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
         ->assertForbidden();
+});
+
+it('keeps recipient query growth bounded while preserving eligible candidates', function (): void {
+    $viewer = User::factory()->asMahasiswa()->create();
+    $lecturers = User::factory()->count(3)->asDosen()->create();
+    $measure = function () use ($viewer): array {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        try {
+            $recipients = app(PrivateChatService::class)->recipientOptionsFor($viewer);
+
+            return ['queries' => count(DB::getQueryLog()), 'recipients' => $recipients];
+        } finally {
+            DB::disableQueryLog();
+        }
+    };
+    $small = $measure();
+    $students = User::factory()->count(8)->asMahasiswa()->create();
+    $large = $measure();
+
+    expect(array_column($small['recipients'], 'id'))->toEqualCanonicalizing($lecturers->modelKeys())
+        ->and(array_column($large['recipients'], 'id'))->toEqualCanonicalizing([...$lecturers->modelKeys(), ...$students->modelKeys()])
+        ->and($large['queries'] - $small['queries'])->toBeLessThanOrEqual(2);
 });

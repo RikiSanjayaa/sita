@@ -191,7 +191,8 @@ function isThreadNotificationOpen(url: string | null): boolean {
     return (
         currentUrl.pathname === targetUrl.pathname &&
         currentUrl.searchParams.get('thread') === targetThreadId &&
-        document.visibilityState === 'visible'
+        document.visibilityState === 'visible' &&
+        document.hasFocus()
     );
 }
 
@@ -222,6 +223,59 @@ function HeaderNotifications() {
         [notificationItems],
     );
 
+    const readOpenNotification = async (
+        notification: HeaderNotification,
+    ): Promise<void> => {
+        const response = await fetch(
+            `/settings/notifications/${notification.id}/read`,
+            {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({}),
+            },
+        );
+        if (response.ok) {
+            setNotificationOverrides((current) => ({
+                ...current,
+                [notification.id]: {
+                    ...current[notification.id],
+                    unread: false,
+                },
+            }));
+            dismissNotification(notification.id);
+        }
+    };
+    const readFocusedThreadNotifications = useEffectEvent(() => {
+        for (const notification of notificationItems) {
+            if (
+                notification.unread &&
+                isThreadNotificationOpen(notification.url ?? null)
+            ) {
+                void readOpenNotification(notification).catch(console.error);
+            }
+        }
+    });
+    useEffect(() => {
+        window.addEventListener('focus', readFocusedThreadNotifications);
+        document.addEventListener(
+            'visibilitychange',
+            readFocusedThreadNotifications,
+        );
+        return () => {
+            window.removeEventListener('focus', readFocusedThreadNotifications);
+            document.removeEventListener(
+                'visibilitychange',
+                readFocusedThreadNotifications,
+            );
+        };
+    }, []);
+
     const receiveNotification = useEffectEvent(
         (payload: IncomingNotification) => {
             const nextNotification = mapIncomingNotification(payload);
@@ -231,23 +285,11 @@ function HeaderNotifications() {
 
             if (isThreadCurrentlyOpen) {
                 setSessionNotifications((current) =>
-                    upsertNotification(current, {
-                        ...nextNotification,
-                        unread: false,
-                    }),
+                    upsertNotification(current, nextNotification),
                 );
-
-                fetch(`/settings/notifications/${nextNotification.id}/read`, {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({}),
-                }).catch(console.error);
+                void readOpenNotification(nextNotification).catch(
+                    console.error,
+                );
                 return;
             }
 

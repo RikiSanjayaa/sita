@@ -16,6 +16,8 @@ export type ChatReadSnapshot = {
 
 export type ChatMessage = {
     id: number;
+    /** Transient send correlation, shared by HTTP acknowledgement and Echo. */
+    clientMessageId?: string;
     senderUserId: number | null;
     author: string;
     authorAvatar: string | null;
@@ -39,6 +41,12 @@ export type ChatMessage = {
     /** For document_event rows: the student's upload announcement or a lecturer's review/status event. */
     documentEventKind?: 'upload' | 'review' | null;
     ownReview?: ChatOwnReview | null;
+};
+
+export type ChatSendAcknowledgement = {
+    threadId: number;
+    clientMessageId: string;
+    messages: ChatMessage[];
 };
 
 /** Fields every chat thread must carry, regardless of the portal. */

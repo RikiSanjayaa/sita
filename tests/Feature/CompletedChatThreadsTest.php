@@ -78,14 +78,14 @@ it('rejects a lecturer message in a completed thread and accepts one in an activ
     $before = MentorshipChatMessage::query()->where('mentorship_chat_thread_id', $doneThread->id)->count();
 
     $this->actingAs($lecturer)
-        ->post("/dosen/pesan/{$doneThread->id}/messages", ['message' => 'Selamat ya'])
-        ->assertSessionHasErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+        ->postJson("/dosen/pesan/{$doneThread->id}/messages", ['message' => 'Selamat ya', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
+        ->assertUnprocessable()->assertJsonValidationErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
 
     expect(MentorshipChatMessage::query()->where('mentorship_chat_thread_id', $doneThread->id)->count())->toBe($before);
 
     $this->actingAs($lecturer)
-        ->post("/dosen/pesan/{$busyThread->id}/messages", ['message' => 'Lanjutkan bab 3'])
-        ->assertSessionHasNoErrors();
+        ->postJson("/dosen/pesan/{$busyThread->id}/messages", ['message' => 'Lanjutkan bab 3', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
+        ->assertCreated();
 
     expect(MentorshipChatMessage::query()->where('mentorship_chat_thread_id', $busyThread->id)->where('message', 'Lanjutkan bab 3')->exists())->toBeTrue();
 });
@@ -96,12 +96,12 @@ it('rejects a student message in a completed thread and accepts one in an active
     ['student' => $student, 'thread' => $thread] = graceStudent($lecturer, $admin, $completed);
     $before = MentorshipChatMessage::query()->where('mentorship_chat_thread_id', $thread->id)->count();
 
-    $response = $this->actingAs($student)->post("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Terima kasih Pak']);
+    $response = $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Terima kasih Pak', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()]);
 
     if ($accepted) {
-        $response->assertSessionHasNoErrors();
+        $response->assertCreated();
     } else {
-        $response->assertSessionHasErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+        $response->assertUnprocessable()->assertJsonValidationErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
     }
 
     expect(MentorshipChatMessage::query()->where('mentorship_chat_thread_id', $thread->id)->count())->toBe($before + ($accepted ? 1 : 0));

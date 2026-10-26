@@ -20,6 +20,7 @@ class StoreChatMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'client_message_id' => ['required', 'uuid'],
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
             'attachment' => [
                 'nullable',

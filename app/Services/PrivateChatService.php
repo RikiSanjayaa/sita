@@ -85,7 +85,15 @@ class PrivateChatService
     public function recipientOptionsFor(User $user): array
     {
         return User::query()
-            ->with(['roles', 'mahasiswaProfile.programStudi', 'dosenProfile.programStudi'])
+            ->with([
+                'roles',
+                'adminProfile.programStudi',
+                'dosenProfile.programStudi',
+                'expertiseFields',
+                'activeDosenProgramStudiAssignments.programStudi',
+                'kaprodiAssignment.programStudi',
+                'mahasiswaProfile.programStudi',
+            ])
             ->whereKeyNot($user->id)
             ->whereHas('roles', fn($query) => $query->whereIn('name', [
                 AppRole::Mahasiswa->value,
