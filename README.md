@@ -2,26 +2,32 @@
 
 SiTA (Sistem Informasi Tugas Akhir) Universitas Bumigora mencatat perjalanan tugas akhir mahasiswa dari pengajuan judul sampai lulus: bimbingan, dokumen, seminar proposal, sidang, dan revisi. Mahasiswa, dosen, kaprodi, dan admin bekerja di satu aplikasi dengan chat dan notifikasi real-time.
 
-| Portal publik                                                       | Dashboard mahasiswa                                              |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| ![Portal publik](docs/screenshots/publik-beranda.png)               | ![Dashboard mahasiswa](docs/screenshots/mahasiswa-dashboard.png) |
-| **Chat bimbingan, sempro, dan sidang**                              | **Dashboard dosen**                                              |
-| ![Chat](docs/screenshots/mahasiswa-pesan.png)                       | ![Dashboard dosen](docs/screenshots/dosen-dashboard.png)         |
-| **Pemantauan mahasiswa oleh kaprodi**                               | **Panel admin**                                                  |
-| ![Daftar mahasiswa kaprodi](docs/screenshots/kaprodi-mahasiswa.png) | ![Panel admin](docs/screenshots/admin-dashboard.png)             |
+| Portal publik                                                                                                                                                      | Dashboard mahasiswa                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Portal publik](https://raw.githubusercontent.com/RikiSanjayaa/sita/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/public/beranda-1280-light.png)               | ![Dashboard mahasiswa](https://raw.githubusercontent.com/RikiSanjayaa/sita/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/mahasiswa/dashboard-1280-light.png) |
+| **Chat bimbingan, sempro, dan sidang**                                                                                                                             | **Dashboard dosen**                                                                                                                                             |
+| ![Chat](https://raw.githubusercontent.com/RikiSanjayaa/sita/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/mahasiswa/pesan-1280-light.png)                       | ![Dashboard dosen](https://raw.githubusercontent.com/RikiSanjayaa/sita/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/dosen/dashboard-1280-light.png)         |
+| **Pemantauan mahasiswa oleh kaprodi**                                                                                                                              | **Panel admin**                                                                                                                                                 |
+| ![Daftar mahasiswa kaprodi](https://raw.githubusercontent.com/RikiSanjayaa/sita/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/kaprodi/mahasiswa-1280-light.png) | ![Panel admin](https://raw.githubusercontent.com/RikiSanjayaa/sita/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/admin/dashboard-1280-light.png)             |
 
-Tangkapan layar memakai data contoh dari seeder.
+Tangkapan layar memakai data contoh dari seeder. Galeri di atas berasal dari katalog CI untuk revisi aplikasi [`fbd8aad`](https://github.com/RikiSanjayaa/sita/commit/fbd8aad28b53a94b512aa1e3883e010368d177c1); tautan gambar dipatok ke commit aset agar tidak berubah diam-diam. [Katalog lengkap](https://github.com/RikiSanjayaa/sita/blob/3959e6e8bc4448e2784e3b59ab1f252e41a502bf/catalog/README.md) memuat halaman dan state lain pada 1280px dan 390px, terang dan gelap.
 
 ## Fitur
 
-| Peran     | Yang bisa dilakukan                                                                                                                                        |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Mahasiswa | Mengajukan judul dan naskah proposal, mengajukan jadwal bimbingan, mengunggah dokumen, chat dengan pembimbing/penguji, memantau sempro, sidang, dan revisi |
-| Dosen     | Mengelola permintaan bimbingan, me-review dokumen, menilai ujian, memverifikasi revisi                                                                     |
-| Kaprodi   | Memantau mahasiswa prodi, menetapkan pembimbing, menjadwalkan sempro dan sidang, mengatur kuota dosen                                                      |
-| Admin     | Mengelola pengguna (termasuk import Excel), prodi, data tugas akhir, pengumuman, dan audit sistem lewat panel Filament                                     |
+| Peran     | Yang bisa dilakukan                                                                                                                                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mahasiswa | Mengajukan judul dan usulan pembimbing, mengatur bimbingan, mengunggah dokumen, chat, menjawab butir revisi per putaran, serta memantau progres dan riwayat ujian                      |
+| Dosen     | Menjadwalkan bimbingan, me-review dokumen, menilai ujian, mencatat butir revisi dan naskah beranotasi, memverifikasi perbaikan, serta memberi catatan mahasiswa/internal               |
+| Kaprodi   | Memantau progres dan aktivitas mahasiswa prodi, menetapkan pembimbing, menjadwalkan Sempro/Sinopsis dan Sidang Akhir, serta mengatur kuota dosen                                       |
+| Admin     | Mengelola pengguna dan import Excel, mengimpor tugas akhir berjalan, mengoreksi data akademik, memperpanjang masa aktif bimbingan, serta mengelola pengumuman dan audit lewat Filament |
 
 Halaman publik (`/jadwal`, `/topik`, `/pembimbing`, `/mahasiswa-aktif`) bisa dibuka tanpa login.
+
+Dashboard setiap peran mendahulukan tindakan berikutnya. Progres mahasiswa, jumlah bimbingan, aktivitas terakhir, riwayat revisi/ujian ulang, dan masa aktif bimbingan memakai data yang sama di portal terkait. Tampilan menyediakan skema warna aksesibel, mode terang/gelap, tabel ringkas di ponsel, dan kalender yang dapat diciutkan. Portal dioptimalkan untuk desktop; layar ponsel tetap dapat dipakai dengan pemberitahuan batasnya.
+
+Chat mendukung lampiran, tinjauan dokumen, dan badge jumlah pesan belum dibaca yang terpisah dari lonceng notifikasi global. Web Push/PWA tersedia sebagai fitur opt-in yang **default mati**; [persiapan dan batas perangkat](#notifikasi-web-push-dan-pwa) wajib dibaca sebelum aktivasi. Penguji tambahan Sidang Akhir tetap dirahasiakan dari mahasiswa sampai ujian selesai.
+
+Berita acara format fakultas ([#17](https://github.com/RikiSanjayaa/sita/issues/17)), export rekap Excel ([#23](https://github.com/RikiSanjayaa/sita/issues/23)), dan panduan lengkap semua peran ([#25](https://github.com/RikiSanjayaa/sita/issues/25)) belum termasuk. Panduan mahasiswa per prodi yang sudah ada tetap tersedia.
 
 ## Teknologi
 
@@ -58,9 +64,11 @@ docker compose -f docker-compose.yml -f docker-compose.deploy.yml exec app php a
 
 Masuk ke `/admin` dengan akun tersebut untuk membuat prodi, dosen, dan mahasiswa (atau import dari Excel).
 
-Aplikasi berjalan di `http://localhost:8088`. Secara default dipakai image `main` (build terbaru); untuk versi rilis tertentu set `APP_IMAGE=ghcr.io/rikisanjayaa/sita-app:1.0.0` dan `WEB_IMAGE=ghcr.io/rikisanjayaa/sita-web:1.0.0` (atau tag `latest`). Matikan dengan `docker compose -f docker-compose.yml -f docker-compose.deploy.yml down` (tambah `-v` untuk menghapus data).
+Aplikasi berjalan di `http://localhost:8088`. Secara default dipakai image `main` (build terbaru); untuk versi rilis tertentu set `APP_IMAGE=ghcr.io/rikisanjayaa/sita-app:1.0.1` dan `WEB_IMAGE=ghcr.io/rikisanjayaa/sita-web:1.0.1` (atau tag `latest`). Matikan dengan `docker compose -f docker-compose.yml -f docker-compose.deploy.yml down` (tambah `-v` untuk menghapus data).
 
-> Image GHCR dibangun untuk server produksi berbasis HTTPS, sehingga chat real-time tidak tersambung saat dicoba di `http://localhost`. Halaman tetap berfungsi; pesan baru muncul setelah halaman dimuat ulang. Untuk real-time di lokal, build image sendiri (lihat di bawah). Perbaikannya dilacak di [#42](https://github.com/RikiSanjayaa/sita/issues/42).
+Tag `1.0.1` di atas hanya contoh cara mematok versi; rilis lama itu belum memuat seluruh fitur dan screenshot pada README ini. Petunjuk Reverb runtime berikut berlaku untuk image `main` setelah [#116](https://github.com/RikiSanjayaa/sita/pull/116) dan rilis yang memasukkan perubahan tersebut.
+
+> Chat real-time memakai konfigurasi Reverb saat runtime, termasuk pada image GHCR. Untuk mencoba lewat HTTP lokal, gunakan `REVERB_HOST=localhost`, `REVERB_PORT=8089`, dan `REVERB_SCHEME=http` di `.env` server; browser dan port WebSocket harus dapat saling menjangkau. Tidak perlu build ulang asset untuk mengganti host/key Reverb. Konfigurasi yang belum diisi dapat menyebabkan chat tidak memperbarui secara langsung.
 
 ### Build image sendiri
 
@@ -100,6 +108,52 @@ Tersedia setelah seeding; semua memakai password `password`.
 | Dosen                  | `dosen@sita.test`     |
 | Kaprodi                | `kaprodi@sita.test`   |
 | Admin (panel `/admin`) | `admin@sita.test`     |
+
+## Notifikasi Web Push dan PWA
+
+Web Push menjangkau perangkat yang sudah didaftarkan, tanpa tab SiTA harus tetap terbuka. Riwayat notifikasi dalam aplikasi dan pembaruan Reverb tetap berjalan. Email notifikasi dan WhatsApp tidak termasuk; email autentikasi tidak berubah.
+
+Di **Pengaturan Akun > Notifikasi**, sakelar akun mengatur pengiriman ke semua perangkat. **Aktifkan di perangkat ini** meminta izin dan mendaftarkan langganan perangkat secara terpisah. Izin browser saja bukan langganan aktif. Setiap perangkat harus dihubungkan sendiri; **Matikan di perangkat ini** tidak mematikan perangkat lain. Logout mencabut langganan yang didaftarkan oleh sesi itu. Berganti akun tidak memindahkan langganan akun sebelumnya. Jika browser mengganti endpoint atau sesi berakhir, hubungkan ulang secara eksplisit.
+
+| Perangkat terhubung (1280px, terang)                                                                                                                                           | Perangkat terhubung (390px, gelap)                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Pengaturan Web Push desktop](https://raw.githubusercontent.com/RikiSanjayaa/sita/1f02da393575546754abc8a5c371cbed4a73d0f4/issue-144-web-push/web-push-active-1280-light.png) | ![Pengaturan Web Push ponsel](https://raw.githubusercontent.com/RikiSanjayaa/sita/1f02da393575546754abc8a5c371cbed4a73d0f4/issue-144-web-push/web-push-active-390-dark.png) |
+
+Screenshot pengaturan memakai subscription native dan data seed pada implementasi [`17dc832`](https://github.com/RikiSanjayaa/sita/commit/17dc832daedc7ff2092954d0e24eb886bca17c9f). [Seluruh state dan varian](https://github.com/RikiSanjayaa/sita/tree/1f02da393575546754abc8a5c371cbed4a73d0f4/issue-144-web-push) tersedia untuk review; screenshot UI tidak membuktikan notifikasi OS tampil pada semua platform.
+
+### Mengaktifkan di server
+
+Default `WEB_PUSH_ENABLED=false`. Gunakan HTTPS pada origin utama (instalasi subpath belum didukung oleh scope service worker `/`). Jalankan migrasi dan buat kunci VAPID **sekali**:
+
+```bash
+php artisan migrate --force
+php artisan webpush:vapid --show
+```
+
+Simpan `VAPID_PUBLIC_KEY` dan `VAPID_PRIVATE_KEY` yang dihasilkan pada konfigurasi rahasia deployment; jangan commit atau mengganti pasangan kunci pada setiap deploy. Isi `VAPID_SUBJECT` dengan kontak pengelola seperti `mailto:admin@domain-kampus.ac.id`, lalu set `WEB_PUSH_ENABLED=true`. Kunci privat tidak pernah dikirim ke browser. Untuk Docker, jalankan perintah Artisan melalui service `app` dan simpan nilai pada `.env` server yang diterima semua service, bukan hanya di dalam container sementara. Untuk aaPanel gunakan PHP CLI site yang sama dengan aplikasi.
+
+```bash
+php artisan config:cache
+php artisan queue:restart
+php artisan queue:work database --queue=default --tries=1
+```
+
+Worker database harus tetap dijalankan oleh pengelola proses; service `queue` bawaan Docker sudah memakai koneksi database dari template. Bila `QUEUE_CONNECTION` aplikasi diganti ke Redis atau koneksi lain, jalankan worker database tambahan untuk Web Push. Push selalu asynchronous pada koneksi database, sekalipun kanal lain memakai `sync`. `CACHE_STORE` produksi harus persisten dan dibagi semua worker (bawaan `database`), bukan `array`, agar penggabungan chat lintas request bekerja. Periksa `php artisan queue:failed` bila ada kegagalan; riwayat notifikasi dalam SiTA tetap tersedia.
+
+Kirim kategori akademik langsung; chat digabung per penerima dan percakapan dalam jendela 60 detik. Worker memeriksa ulang preferensi, status baca, dan langganan sebelum mengirim. Payload layar kunci selalu generik, tanpa nama, isi chat, judul tugas akhir, atau identitas penguji. Pesan provider memiliki TTL 15 menit untuk chat dan 1 jam untuk akademik sejak dikirim ke provider; antrean yang sudah lebih tua dari batas kategori itu dibuang. TTL bukan bukti pesan tampil atau dibaca. Endpoint kedaluwarsa (404/410) dibersihkan channel. Endpoint baru dibatasi pada provider HTTPS Google FCM (`fcm.googleapis.com` dan host alternatif `jmt17.google.com`, keduanya harus cocok persis), Mozilla dan Apple; provider lain ditolak, bukan dipanggil sebagai URL bebas.
+
+Manifest mendukung pemasangan PWA dan service worker menerima push serta membuka tujuan same-origin. Tidak ada cache halaman privat atau dukungan membuka aplikasi offline. Worker menjadi satu-satunya sumber notifikasi OS; saat jendela SiTA fokus, umpan balik tetap melalui notifikasi dalam aplikasi.
+
+### Batas perangkat dan pemeriksaan sebelum produksi
+
+- Chrome/Firefox desktop memerlukan browser atau penerima background yang aktif. Tab ditutup tidak sama dengan browser benar-benar berhenti; PWA tidak menjamin autostart saat boot.
+- Safari macOS memiliki integrasi push sistem. Di iPhone/iPad, tambahkan SiTA ke Layar Utama dan buka dari ikon tersebut sebelum mengaktifkan izin (iOS/iPadOS 16.4 atau lebih baru).
+- Perangkat mati/offline tidak menerima saat itu. Pengiriman saat online lagi bergantung pada TTL dan kebijakan provider. Penolakan izin diubah melalui pengaturan situs browser, bukan dengan meminta izin berulang-ulang dari aplikasi.
+- Logout/opt-out menghentikan pengiriman berikutnya, tetapi pesan yang sudah diterima provider tidak dapat ditarik kembali. Worker memeriksa pemilik lokal sebelum menampilkan atau membuka pesan; tidak ada konten sensitif pada layar kunci.
+
+Sebelum aktivasi produksi, isi bukti perangkat nyata pada [issue implementasi #144](https://github.com/RikiSanjayaa/sita/issues/144): OS/versi browser, izin dan langganan, waktu kirim/TTL, hasil tab ditutup dan browser background, browser berhenti, restart sebelum/sesudah browser dibuka, offline lalu online, serta iOS Home Screen. Test server, emulasi push, dan respons sukses provider tidak menggantikan bukti tampilan notifikasi OS. Batas platform dan sumber riset ada di [#28](https://github.com/RikiSanjayaa/sita/issues/28).
+
+[Uji perangkat lokal](https://github.com/RikiSanjayaa/sita/pull/145#issuecomment-6399684839) membuktikan banner Firefox headed pada Linux saat jendela tidak fokus, tab SiTA ditutup, serta setelah profil penerima dibuka kembali. [Uji ulang audio](https://github.com/RikiSanjayaa/sita/pull/145#issuecomment-6405191291) dikonfirmasi terdengar oleh pengguna. Ini bukan bukti reboot OS, offline/online, Safari/iOS, atau pengiriman Chromium setelah koreksi host alternatif. Matriks produksi #144 tetap terbuka; jangan menyamakan merge kode yang default mati dengan persetujuan aktivasi produksi.
 
 ## Indikator pesan belum dibaca
 

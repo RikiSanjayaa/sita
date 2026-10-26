@@ -5,6 +5,7 @@ use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\PhoneConfirmationController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\PushSubscriptionController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -57,4 +58,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::delete('settings/notifications/{notificationId}', [NotificationSettingsController::class, 'deleteReadNotification'])
         ->name('settings.notifications.delete-one');
+
+    Route::middleware('throttle:120,1,push-status')->group(function () {
+        Route::get('settings/push-subscriptions', [PushSubscriptionController::class, 'index'])
+            ->name('settings.push-subscriptions.index');
+
+        Route::post('settings/push-subscriptions/status', [PushSubscriptionController::class, 'status'])
+            ->name('settings.push-subscriptions.status');
+
+        Route::post('settings/push-subscriptions', [PushSubscriptionController::class, 'store'])
+            ->middleware('throttle:30,1,push-enrollment')
+            ->name('settings.push-subscriptions.store');
+
+        Route::delete('settings/push-subscriptions', [PushSubscriptionController::class, 'destroy'])
+            ->middleware('throttle:30,1,push-enrollment')
+            ->name('settings.push-subscriptions.destroy');
+    });
 });

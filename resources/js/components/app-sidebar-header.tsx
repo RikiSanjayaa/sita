@@ -21,11 +21,7 @@ import {
 } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import {
-    firstUrlInText,
-    LinkifiedText,
-    normalizeUrl,
-} from '@/components/linkified-text';
+import { LinkifiedText, normalizeUrl } from '@/components/linkified-text';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -200,11 +196,7 @@ function isThreadNotificationOpen(url: string | null): boolean {
 }
 
 function HeaderNotifications() {
-    const {
-        auth,
-        notifications = [],
-        notificationSettings,
-    } = usePage<SharedData>().props;
+    const { auth, notifications = [] } = usePage<SharedData>().props;
 
     const [sessionNotifications, setSessionNotifications] = useState<
         HeaderNotification[]
@@ -308,31 +300,6 @@ function HeaderNotifications() {
                     },
                 },
             );
-
-            if (
-                notificationSettings?.browserNotifications &&
-                'Notification' in window &&
-                window.Notification.permission === 'granted'
-            ) {
-                const nativeNotification = new window.Notification(
-                    nextNotification.title,
-                    {
-                        body: nextNotification.description,
-                    },
-                );
-
-                nativeNotification.onclick = () => {
-                    window.focus();
-
-                    const targetUrl =
-                        nextNotification.url ??
-                        firstUrlInText(nextNotification.description);
-
-                    if (targetUrl) {
-                        visitNotificationUrl(targetUrl);
-                    }
-                };
-            }
         },
     );
 
