@@ -273,9 +273,12 @@ test('populated dashboard shows real counts, one primary preview and compact sec
                 ),
             )
             .not.toBe(idleBackground);
-        const hoverBackground = await studentRow.evaluate(
-            (element) => getComputedStyle(element).backgroundColor,
-        );
+        const hoverBackground = await studentRow.evaluate(async (element) => {
+            await Promise.all(
+                element.getAnimations().map((animation) => animation.finished),
+            );
+            return getComputedStyle(element).backgroundColor;
+        });
         await attention.hover();
         await expect
             .poll(() =>
@@ -284,7 +287,13 @@ test('populated dashboard shows real counts, one primary preview and compact sec
                 ),
             )
             .toBe(hoverBackground);
+        await page.mouse.move(0, 0);
         await studentLink.focus();
+        await studentRow.evaluate((element) =>
+            Promise.all(
+                element.getAnimations().map((animation) => animation.finished),
+            ),
+        );
         await expect
             .poll(() =>
                 studentRow.evaluate(
