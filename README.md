@@ -84,6 +84,8 @@ Konfigurasi Reverb untuk browser dibaca saat runtime dari `REVERB_APP_KEY`, `REV
 
 Image PHP dipatok ke 8.4.27 atau rilis lebih baru pada cabang 8.4 untuk perbaikan CVE-2026-109618 dan CVE-2026-109619. Build memeriksa versi PHP pada stage asset dan runtime; `scripts/deploy-via-compose.sh` juga menolak image lama sebelum menjalankan init. Setelah pembaruan image, buat ulang `app`, `queue`, `scheduler`, dan `reverb`; restart container lama saja tidak mengganti PHP. Pada aaPanel, perbarui PHP-FPM site dan PHP CLI ke versi yang sudah diperbaiki, lalu restart seluruh worker terkait. Tag `main`/`latest` dan waktu build bukan bukti versi PHP; periksa binary yang benar-benar melayani aplikasi.
 
+Lockfile juga memuat patch keamanan `league/commonmark` 2.10.4, `symfony/http-foundation` 7.4.21, dan `symfony/yaml` 7.4.21. Untuk deployment dari source, jalankan `composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader` memakai `composer.lock` yang ikut revisi tersebut; jangan menjalankan update dependency bebas di produksi. Untuk Docker, tarik image rilis yang sudah dibangun ulang dan buat ulang service aplikasi beserta worker. Audit lockfile dengan `composer audit --locked` sebelum rilis berikutnya; audit bersih tidak menggantikan pengujian aplikasi.
+
 Jika tag Docker resmi belum tersedia, build akan gagal daripada memakai PHP lama. Build dari source resmi yang checksum-nya telah diverifikasi dapat memakai `--build-arg PHP_ASSETS_IMAGE=<image-cli-lokal>` dan `--build-arg PHP_RUNTIME_IMAGE=<image-fpm-lokal>`; kedua stage tetap wajib memenuhi pemeriksaan versi di atas.
 
 ## Menjalankan untuk pengembangan
