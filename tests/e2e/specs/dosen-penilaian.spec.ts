@@ -426,10 +426,9 @@ test('exam detail opens the existing group, or private student chat when no grou
     try {
         const page = await context.newPage();
         await openDefenseSheet(page, sempro.studentName, 'Sempro / Sinopsis');
-        const group = page.getByRole('link', {
-            name: 'Buka chat grup ujian',
-            exact: true,
-        });
+        const group = page
+            .getByRole('dialog')
+            .locator('a[href*="/dosen/pesan?thread="]');
         const href = await group.getAttribute('href');
         const threadId = new URL(href!, 'http://sita.test').searchParams.get(
             'thread',
@@ -475,11 +474,22 @@ test('exam detail opens the existing group, or private student chat when no grou
                 'Sempro / Sinopsis',
             );
             await page
-                .getByRole('button', {
-                    name: 'Chat pribadi mahasiswa',
-                    exact: true,
-                })
+                .getByRole('dialog')
+                .locator('a[href*="/dosen/pesan?mode=private"]')
                 .click();
+            await expect(page).toHaveURL(
+                (url) =>
+                    url.pathname === '/dosen/pesan' &&
+                    url.searchParams.get('mode') === 'private',
+            );
+            if (new URL(page.url()).searchParams.has('recipient')) {
+                await page
+                    .getByRole('button', {
+                        name: 'Mulai chat pribadi',
+                        exact: true,
+                    })
+                    .click();
+            }
             await expect(page).toHaveURL(
                 (url) =>
                     url.pathname === '/dosen/pesan' &&

@@ -110,13 +110,35 @@ for (const dashboard of dashboards) {
                 await expect(actions).toBeVisible();
                 await expect(agenda).toBeVisible();
                 await expect(list).toBeVisible();
-                const actionBox = (await actions.boundingBox())!;
-                const agendaBox = (await agenda.boundingBox())!;
-                const metrics = await list.evaluate((element) => ({
-                    height: element.clientHeight,
-                    content: element.scrollHeight,
-                    overflow: getComputedStyle(element).overflowY,
-                }));
+                await page.evaluate(() => document.fonts.ready);
+                const { actionBox, agendaBox, metrics } = await page.evaluate(
+                    ({ actions, agenda, list }) => {
+                        const actionRect = document
+                            .querySelector(actions)!
+                            .getBoundingClientRect();
+                        const agendaRect = document
+                            .querySelector(agenda)!
+                            .getBoundingClientRect();
+                        const element = document.querySelector(list)!;
+
+                        return {
+                            actionBox: {
+                                y: actionRect.y,
+                                height: actionRect.height,
+                            },
+                            agendaBox: {
+                                y: agendaRect.y,
+                                height: agendaRect.height,
+                            },
+                            metrics: {
+                                height: element.clientHeight,
+                                content: element.scrollHeight,
+                                overflow: getComputedStyle(element).overflowY,
+                            },
+                        };
+                    },
+                    dashboard,
+                );
                 if (width === 1280) {
                     expect(
                         Math.abs(actionBox.y - agendaBox.y),
