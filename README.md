@@ -27,6 +27,8 @@ Dashboard setiap peran mendahulukan tindakan berikutnya. Progres mahasiswa, juml
 
 Chat mendukung lampiran, tinjauan dokumen, dan badge jumlah pesan belum dibaca yang terpisah dari lonceng notifikasi global. Web Push/PWA tersedia sebagai fitur opt-in yang **default mati**; [persiapan dan batas perangkat](#notifikasi-web-push-dan-pwa) wajib dibaca sebelum aktivasi. Penguji tambahan Sidang Akhir tetap dirahasiakan dari mahasiswa sampai ujian selesai.
 
+Catatan hasil bimbingan tersedia pada detail setiap sesi. Mahasiswa dan dosen peserta menyimpan kontribusi masing-masing tanpa menimpa catatan pihak lain; nama penulis, peran dan waktu pembaruan ikut ditampilkan. Catatan hasil terpisah dari catatan penjadwalan. Admin membaca lewat tab Catatan pada detail tugas akhir sesuai cakupan administrasinya; kaprodi membaca pada profil mahasiswa dalam prodinya. Dosen lain dan mahasiswa lain tidak mendapat isi catatan. Sesi yang ditolak/dibatalkan, tugas akhir tidak aktif, penugasan berakhir, masa aktif bimbingan habis dan data arsip hanya dapat dibaca. Arsip menyimpan salinan catatan sebelum jadwal aktif dibersihkan.
+
 Berita acara format fakultas ([#17](https://github.com/RikiSanjayaa/sita/issues/17)), export rekap Excel ([#23](https://github.com/RikiSanjayaa/sita/issues/23)), dan panduan lengkap semua peran ([#25](https://github.com/RikiSanjayaa/sita/issues/25)) belum termasuk. Panduan mahasiswa per prodi yang sudah ada tetap tersedia.
 
 ## Teknologi

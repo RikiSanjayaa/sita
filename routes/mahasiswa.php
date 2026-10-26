@@ -9,6 +9,7 @@ use App\Http\Controllers\Mahasiswa\PesanController;
 use App\Http\Controllers\Mahasiswa\ThesisRevisionResponseController;
 use App\Http\Controllers\Mahasiswa\TugasAkhirController;
 use App\Http\Controllers\Mahasiswa\UploadDokumenController;
+use App\Http\Controllers\MentorshipSessionNoteController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->name('mahasiswa.')->group(function () {
@@ -25,6 +26,7 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
 
     Route::get('jadwal-bimbingan', [JadwalBimbinganController::class, 'index'])->name('jadwal-bimbingan');
     Route::post('jadwal-bimbingan', [JadwalBimbinganController::class, 'store'])->name('jadwal-bimbingan.store');
+    Route::patch('jadwal-bimbingan/{schedule}/notes', MentorshipSessionNoteController::class)->name('jadwal-bimbingan.notes');
 
     Route::redirect('jadwal-bimbingan/ajukan', '/mahasiswa/jadwal-bimbingan?open=ajukan')
         ->name('jadwal-bimbingan.create');

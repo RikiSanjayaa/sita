@@ -1,6 +1,8 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { MessageSquareText } from 'lucide-react';
 
+import { type MentorshipSessionNotesContext } from '@/components/mentorship-session-notes';
+import { MonitoringSessionNotes } from '@/components/profile/monitoring-session-notes';
 import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
 import { StudentProgressPeek } from '@/components/profile/student-progress-peek';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +22,7 @@ type ProfileShowProps = {
     canEditProfile: boolean;
     canStartPrivateChat: boolean;
     privateChatEndpoint: string | null;
+    monitoringSessionNotes?: MentorshipSessionNotesContext[];
 };
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -40,6 +43,7 @@ export default function ProfileShowPage() {
         canStartPrivateChat,
         privateChatEndpoint,
         profile,
+        monitoringSessionNotes,
     } = usePage<SharedData & ProfileShowProps>().props;
     const getInitials = useInitials();
     const privateChatForm = useForm<{ recipient_id: number }>({
@@ -165,6 +169,9 @@ export default function ProfileShowPage() {
                 </div>
 
                 <ProfileDetailsSections profile={profile} />
+                {monitoringSessionNotes !== undefined ? (
+                    <MonitoringSessionNotes sessions={monitoringSessionNotes} />
+                ) : null}
             </div>
         </AppLayout>
     );

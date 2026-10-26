@@ -17,6 +17,11 @@ import { ArchivedMentorshipNotice } from '@/components/archived-mentorship-notic
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
 import {
+    ArchivedMentorshipSessionNotes,
+    type MentorshipSessionNotesContext,
+    type MentorshipSessionNotesData,
+} from '@/components/mentorship-session-notes';
+import {
     DataSection,
     DataToolbar,
     dataTh,
@@ -26,7 +31,10 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import {
+    ScheduleDetailModal,
+    type ScheduleDetail,
+} from '@/components/schedule-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,6 +85,7 @@ type UpcomingMeeting = {
     status: ScheduleStatus;
     lecturerNote: string | null;
     createdByLecturer: boolean;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type HistoryMeeting = {
@@ -89,6 +98,7 @@ type HistoryMeeting = {
     status: ScheduleStatus;
     lecturerNote: string | null;
     createdByLecturer: boolean;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type JadwalPageProps = {
@@ -102,6 +112,7 @@ type JadwalPageProps = {
     upcomingMeetings: UpcomingMeeting[];
     historyMeetings: HistoryMeeting[];
     archivedProject: boolean;
+    archivedSessionNotes: MentorshipSessionNotesContext[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -277,17 +288,24 @@ export default function JadwalBimbinganPage() {
         });
     }
 
-    const [selectedEvent, setSelectedEvent] = useState<{
-        id: number;
-        topic: string;
-        person: string;
-        personRole: 'lecturer' | 'student';
-        start: string;
-        end: string;
-        location: string;
-        status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-        notes?: string | null;
-    } | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<ScheduleDetail | null>(
+        null,
+    );
+    const selectedMeeting = [
+        ...page.props.upcomingMeetings,
+        ...page.props.historyMeetings,
+    ].find((meeting) => meeting.id === selectedEvent?.id);
+    const selectedDetail = selectedEvent
+        ? {
+              ...selectedEvent,
+              notes: selectedMeeting?.lecturerNote ?? selectedEvent.notes,
+              sessionNotes:
+                  selectedMeeting?.sessionNotes ??
+                  page.props.archivedSessionNotes.find(
+                      (session) => session.id === selectedEvent.id,
+                  )?.sessionNotes,
+          }
+        : null;
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -354,29 +372,32 @@ export default function JadwalBimbinganPage() {
         }),
     ];
 
-    function handleEventClick(event: BimbinganEvent) {
-        const fullMeeting = [
-            ...page.props.upcomingMeetings,
-            ...page.props.historyMeetings,
-        ].find((m) => m.id === event.id);
-        if (!fullMeeting) return;
+    function openMeeting(meeting: UpcomingMeeting | HistoryMeeting) {
+        const start =
+            meeting.scheduledAt ||
+            ('requestedAt' in meeting ? meeting.requestedAt : '');
+        const end = new Date(new Date(start).getTime() + 60 * 60 * 1000);
         setSelectedEvent({
-            id: fullMeeting.id,
-            topic: fullMeeting.topic,
-            person: fullMeeting.lecturer,
+            id: meeting.id,
+            topic: meeting.topic,
+            person: meeting.lecturer,
             personRole: 'lecturer',
-            start: event.start,
-            end: event.end,
-            location: fullMeeting.location,
-            status: fullMeeting.status as
-                | 'pending'
-                | 'approved'
-                | 'rejected'
-                | 'completed'
-                | 'cancelled',
-            notes: fullMeeting.lecturerNote,
+            start,
+            end: Number.isNaN(end.getTime()) ? start : end.toISOString(),
+            location: meeting.location,
+            status: meeting.status,
+            notes: meeting.lecturerNote,
+            sessionNotes: meeting.sessionNotes,
         });
         setIsDetailModalOpen(true);
+    }
+
+    function handleEventClick(event: BimbinganEvent) {
+        const meeting = [
+            ...page.props.upcomingMeetings,
+            ...page.props.historyMeetings,
+        ].find((item) => item.id === Number(event.id));
+        if (meeting) openMeeting(meeting);
     }
 
     const selectTrigger = 'max-md:h-11';
@@ -840,6 +861,19 @@ export default function JadwalBimbinganPage() {
                                                             >
                                                                 {meeting.topic}
                                                             </p>
+                                                            <Button
+                                                                type="button"
+                                                                variant="link"
+                                                                className="h-auto p-0 max-md:min-h-11"
+                                                                aria-label={`Detail sesi ${meeting.topic}`}
+                                                                onClick={() =>
+                                                                    openMeeting(
+                                                                        meeting,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Detail sesi
+                                                            </Button>
                                                             {meeting.createdByLecturer && (
                                                                 <div className="mt-1">
                                                                     <CreatedByLecturerBadge />
@@ -1067,6 +1101,19 @@ export default function JadwalBimbinganPage() {
                                                             >
                                                                 {row.topic}
                                                             </p>
+                                                            <Button
+                                                                type="button"
+                                                                variant="link"
+                                                                className="h-auto p-0 max-md:min-h-11"
+                                                                aria-label={`Detail sesi ${row.topic}`}
+                                                                onClick={() =>
+                                                                    openMeeting(
+                                                                        row,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Detail sesi
+                                                            </Button>
                                                             {row.createdByLecturer && (
                                                                 <div className="mt-1">
                                                                     <CreatedByLecturerBadge />
@@ -1155,12 +1202,15 @@ export default function JadwalBimbinganPage() {
                         </DataSection>
                     </>
                 )}
+                <ArchivedMentorshipSessionNotes
+                    sessions={page.props.archivedSessionNotes}
+                />
             </div>
 
             <ScheduleDetailModal
                 open={isDetailModalOpen}
                 onOpenChange={setIsDetailModalOpen}
-                schedule={selectedEvent}
+                schedule={selectedDetail}
                 currentUserRole="mahasiswa"
             />
         </AppLayout>

@@ -17,6 +17,12 @@ import {
     type SupervisedStudent,
 } from '@/components/dosen-schedule-create-dialog';
 import {
+    ArchivedMentorshipSessionNotes,
+    MentorshipSessionNotes,
+    type MentorshipSessionNotesContext,
+    type MentorshipSessionNotesData,
+} from '@/components/mentorship-session-notes';
+import {
     DataSection,
     DataToolbar,
     dataTh,
@@ -27,7 +33,10 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import {
+    ScheduleDetailModal,
+    type ScheduleDetail,
+} from '@/components/schedule-detail-modal';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -70,6 +79,7 @@ type PendingRequest = {
     recurringGroupId: string | null;
     recurringIndex: number | null;
     recurringCount: number | null;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type UpcomingSchedule = {
@@ -83,6 +93,7 @@ type UpcomingSchedule = {
     status: string;
     lecturerNote: string | null;
     isOverdue: boolean;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type HistorySchedule = {
@@ -95,6 +106,7 @@ type HistorySchedule = {
     location: string;
     status: string;
     lecturerNote: string | null;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type JadwalBimbinganProps = {
@@ -103,6 +115,7 @@ type JadwalBimbinganProps = {
     historySchedules: HistorySchedule[];
     supervisedStudents: SupervisedStudent[];
     workspaceEvents: BimbinganEvent[];
+    archivedSessionNotes: MentorshipSessionNotesContext[];
 };
 
 type DecisionFormState = {
@@ -188,6 +201,7 @@ export default function DosenJadwalBimbinganPage() {
         historySchedules,
         supervisedStudents,
         workspaceEvents,
+        archivedSessionNotes,
         auth,
         academicTerminology: n,
     } = usePage<SharedData & JadwalBimbinganProps>().props;
@@ -215,8 +229,12 @@ export default function DosenJadwalBimbinganPage() {
     const [openRequestKey, setOpenRequestKey] = useState<string | null>(null);
 
     // Sheet state for upcoming schedule actions
-    const [selectedUpcoming, setSelectedUpcoming] =
+    const [selectedUpcomingSnapshot, setSelectedUpcoming] =
         useState<UpcomingSchedule | null>(null);
+    const selectedUpcoming =
+        upcomingSchedules.find(
+            (schedule) => schedule.id === selectedUpcomingSnapshot?.id,
+        ) ?? null;
     const [upcomingSheetOpen, setUpcomingSheetOpen] = useState(false);
 
     const form = useForm({
@@ -244,17 +262,26 @@ export default function DosenJadwalBimbinganPage() {
         Record<string, { lecturer_note?: string }>
     >({});
 
-    const [selectedEvent, setSelectedEvent] = useState<{
-        id: number;
-        topic: string;
-        person: string;
-        personRole: 'lecturer' | 'student';
-        start: string;
-        end: string;
-        location: string;
-        status: ScheduleModalStatus;
-        notes?: string | null;
-    } | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<ScheduleDetail | null>(
+        null,
+    );
+    const selectedSchedule = [...upcomingSchedules, ...historySchedules].find(
+        (schedule) => schedule.id === selectedEvent?.id,
+    );
+    const selectedDetail = selectedEvent
+        ? {
+              ...selectedEvent,
+              notes: selectedSchedule?.lecturerNote ?? selectedEvent.notes,
+              sessionNotes:
+                  selectedSchedule?.sessionNotes ??
+                  pendingRequests.find(
+                      (request) => request.id === selectedEvent.id,
+                  )?.sessionNotes ??
+                  archivedSessionNotes.find(
+                      (session) => session.id === selectedEvent.id,
+                  )?.sessionNotes,
+          }
+        : null;
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     useEffect(() => {
@@ -577,6 +604,7 @@ export default function DosenJadwalBimbinganPage() {
                 location: fullSchedule.location,
                 status: fullSchedule.status.toLowerCase() as ScheduleModalStatus,
                 notes: fullSchedule.lecturerNote,
+                sessionNotes: fullSchedule.sessionNotes,
             });
         } else {
             setSelectedEvent({
@@ -589,8 +617,32 @@ export default function DosenJadwalBimbinganPage() {
                 location: event.location,
                 status: scheduleStatus,
                 notes: null,
+                sessionNotes: pendingRequests.find(
+                    (request) => request.id === scheduleId,
+                )?.sessionNotes,
             });
         }
+        setIsDetailModalOpen(true);
+    }
+
+    function openHistorySchedule(schedule: HistorySchedule) {
+        const start =
+            schedule.date === schedule.time
+                ? schedule.date
+                : `${schedule.date}T${schedule.time}`;
+        const end = new Date(new Date(start).getTime() + 60 * 60 * 1000);
+        setSelectedEvent({
+            id: schedule.id,
+            topic: schedule.topic,
+            person: schedule.mahasiswa,
+            personRole: 'student',
+            start,
+            end: Number.isNaN(end.getTime()) ? start : end.toISOString(),
+            location: schedule.location,
+            status: schedule.status.toLowerCase() as ScheduleModalStatus,
+            notes: schedule.lecturerNote,
+            sessionNotes: schedule.sessionNotes,
+        });
         setIsDetailModalOpen(true);
     }
 
@@ -1424,6 +1476,11 @@ export default function DosenJadwalBimbinganPage() {
                                         <th className={dataTh}>Waktu</th>
                                         <th className={dataTh}>Lokasi</th>
                                         <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody
@@ -1496,6 +1553,26 @@ export default function DosenJadwalBimbinganPage() {
                                                     status={item.status}
                                                 />
                                             </td>
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="max-md:h-11"
+                                                    aria-label={`Detail sesi ${item.topic}`}
+                                                    onClick={() =>
+                                                        openHistorySchedule(
+                                                            item,
+                                                        )
+                                                    }
+                                                >
+                                                    Detail sesi
+                                                </Button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1517,12 +1594,15 @@ export default function DosenJadwalBimbinganPage() {
                         />
                     )}
                 </section>
+                <ArchivedMentorshipSessionNotes
+                    sessions={archivedSessionNotes}
+                />
             </div>
 
             <ScheduleDetailModal
                 open={isDetailModalOpen}
                 onOpenChange={setIsDetailModalOpen}
-                schedule={selectedEvent}
+                schedule={selectedDetail}
                 currentUserRole="dosen"
             />
 
@@ -1537,15 +1617,15 @@ export default function DosenJadwalBimbinganPage() {
                                 status={selectedUpcoming?.status ?? 'approved'}
                             />
                         </div>
-                        <SheetTitle className="text-lg leading-snug">
+                        <SheetTitle className="text-lg leading-snug [overflow-wrap:anywhere]">
                             {selectedUpcoming?.mahasiswa}
                         </SheetTitle>
-                        <SheetDescription className="line-clamp-2">
+                        <SheetDescription className="[overflow-wrap:anywhere]">
                             {selectedUpcoming?.topic}
                         </SheetDescription>
                     </SheetHeader>
 
-                    <ScrollArea className="h-[calc(100vh-8rem)]">
+                    <ScrollArea className="min-h-0 flex-1">
                         <div className="space-y-5 px-6 py-5">
                             {selectedUpcoming && (
                                 <>
@@ -1567,7 +1647,7 @@ export default function DosenJadwalBimbinganPage() {
                                                 aria-hidden="true"
                                                 className="size-4 shrink-0 text-muted-foreground"
                                             />
-                                            <span>
+                                            <span className="min-w-0 [overflow-wrap:anywhere]">
                                                 {selectedUpcoming.location}
                                             </span>
                                         </div>
@@ -1579,13 +1659,22 @@ export default function DosenJadwalBimbinganPage() {
                                     </div>
 
                                     {selectedUpcoming.lecturerNote && (
-                                        <p className="text-sm text-pretty text-muted-foreground">
+                                        <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-muted-foreground">
                                             <span className="font-medium text-foreground">
-                                                Catatan:{' '}
+                                                Catatan penjadwalan:{' '}
                                             </span>
                                             {selectedUpcoming.lecturerNote}
                                         </p>
                                     )}
+
+                                    <div className="min-w-0 border-t pt-5">
+                                        <MentorshipSessionNotes
+                                            sessionId={selectedUpcoming.id}
+                                            notes={
+                                                selectedUpcoming.sessionNotes
+                                            }
+                                        />
+                                    </div>
 
                                     <div className="border-t pt-5">
                                         <h3 className="mb-3 text-sm font-semibold">

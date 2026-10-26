@@ -395,4 +395,40 @@
     .dark .sita-revision-log a {
         color: var(--primary-400);
     }
+
+    .sita-session-notes,
+    .sita-session-note-context,
+    .sita-session-note-entry {
+        display: grid;
+        min-width: 0;
+        gap: 0.75rem;
+        overflow-wrap: anywhere;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .sita-session-notes { gap: 1.5rem; }
+    .sita-session-note-context + .sita-session-note-context,
+    .sita-session-note-entry {
+        border-top: 1px solid var(--gray-200);
+        padding-top: 1rem;
+    }
+
+    .dark .sita-session-note-context + .sita-session-note-context,
+    .dark .sita-session-note-entry { border-color: var(--gray-800); }
+    .sita-session-note-context h3 { font-size: 1rem; font-weight: 600; }
+    .sita-session-note-entry h4 { font-weight: 600; }
+    .sita-session-note-state { display: flex; flex-wrap: wrap; }
+    .sita-session-note-facts { display: grid; gap: 0.75rem; }
+    .sita-session-note-facts dt,
+    .sita-session-note-meta { color: var(--gray-600); font-size: 0.75rem; }
+    .dark .sita-session-note-facts dt,
+    .dark .sita-session-note-meta { color: var(--gray-300); }
+    .sita-session-note-facts time { font-variant-numeric: tabular-nums; }
+    .sita-session-note-body { max-width: 75ch; white-space: pre-wrap; }
+
+    @media (min-width: 640px) {
+        .sita-session-note-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .sita-session-note-facts > :last-child { grid-column: 1 / -1; }
+    }
 </style>

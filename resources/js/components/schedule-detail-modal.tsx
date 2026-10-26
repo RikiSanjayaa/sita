@@ -7,6 +7,10 @@ import {
     XCircle,
 } from 'lucide-react';
 
+import {
+    MentorshipSessionNotes,
+    type MentorshipSessionNotesData,
+} from '@/components/mentorship-session-notes';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +22,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 
-type ScheduleDetail = {
+export type ScheduleDetail = {
     id: number | string;
     topic: string;
     person: string;
@@ -35,6 +39,7 @@ type ScheduleDetail = {
         | 'completed'
         | 'cancelled';
     notes?: string | null;
+    sessionNotes?: MentorshipSessionNotesData;
     requestedBy?: string;
 };
 
@@ -92,10 +97,10 @@ export function ScheduleDetailModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <span className="truncate">{schedule.topic}</span>
+                    <DialogTitle className="min-w-0 pr-6 leading-snug [overflow-wrap:anywhere]">
+                        {schedule.topic}
                     </DialogTitle>
                     <DialogDescription className="sr-only">
                         Detail jadwal
@@ -117,7 +122,7 @@ export function ScheduleDetailModal({
                     <div className="space-y-3">
                         <div className="flex items-start gap-3">
                             <User className="mt-0.5 size-4 text-muted-foreground" />
-                            <div>
+                            <div className="min-w-0 [overflow-wrap:anywhere]">
                                 <p className="text-sm font-medium">
                                     {schedule.person}
                                 </p>
@@ -143,18 +148,31 @@ export function ScheduleDetailModal({
 
                         <div className="flex items-start gap-3">
                             <MapPin className="mt-0.5 size-4 text-muted-foreground" />
-                            <p className="text-sm">{schedule.location}</p>
+                            <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
+                                {schedule.location}
+                            </p>
                         </div>
 
                         {schedule.notes && (
                             <div className="border-t pt-3">
                                 <p className="text-xs font-medium text-muted-foreground">
-                                    Catatan
+                                    Catatan penjadwalan
                                 </p>
-                                <p className="mt-1 text-sm">{schedule.notes}</p>
+                                <p className="mt-1 text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
+                                    {schedule.notes}
+                                </p>
                             </div>
                         )}
                     </div>
+
+                    {schedule.sessionNotes && (
+                        <div className="min-w-0 border-t pt-4">
+                            <MentorshipSessionNotes
+                                sessionId={Number(schedule.id)}
+                                notes={schedule.sessionNotes}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {canModify && (

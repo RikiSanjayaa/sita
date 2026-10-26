@@ -8,6 +8,7 @@ use App\Http\Controllers\Dosen\MahasiswaBimbinganController;
 use App\Http\Controllers\Dosen\PesanBimbinganController;
 use App\Http\Controllers\Dosen\SeminarProposalController;
 use App\Http\Controllers\Dosen\ThesisProjectNoteController;
+use App\Http\Controllers\MentorshipSessionNoteController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,7 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
 
     Route::get('jadwal-bimbingan', [JadwalBimbinganController::class, 'index'])->name('jadwal-bimbingan');
     Route::post('jadwal-bimbingan', [JadwalBimbinganController::class, 'store'])->name('jadwal-bimbingan.store');
+    Route::patch('jadwal-bimbingan/{schedule}/notes', MentorshipSessionNoteController::class)->name('jadwal-bimbingan.notes');
     Route::post('jadwal-bimbingan/{schedule}/decision', [JadwalBimbinganController::class, 'decide'])
         ->name('jadwal-bimbingan.decision');
     Route::post('jadwal-bimbingan/recurring/{groupId}/decision', [JadwalBimbinganController::class, 'decideRecurringGroup'])
