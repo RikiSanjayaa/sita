@@ -27,6 +27,9 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | Page | 1280 light | 1280 dark | 390 light | 390 dark |
 | --- | --- | --- | --- | --- |
 | `dashboard` | [png](dosen/dashboard-1280-light.png) | [png](dosen/dashboard-1280-dark.png) | [png](dosen/dashboard-390-light.png) | [png](dosen/dashboard-390-dark.png) |
+| `dokumen-detail` | [png](dosen/dokumen-detail-1280-light.png) | [png](dosen/dokumen-detail-1280-dark.png) | [png](dosen/dokumen-detail-390-light.png) | [png](dosen/dokumen-detail-390-dark.png) |
+| `dokumen-detail-draft` | [png](dosen/dokumen-detail-draft-1280-light.png) | [png](dosen/dokumen-detail-draft-1280-dark.png) | [png](dosen/dokumen-detail-draft-390-light.png) | [png](dosen/dokumen-detail-draft-390-dark.png) |
+| `dokumen-detail-revision-required` | [png](dosen/dokumen-detail-revision-required-1280-light.png) | [png](dosen/dokumen-detail-revision-required-1280-dark.png) | [png](dosen/dokumen-detail-revision-required-390-light.png) | [png](dosen/dokumen-detail-revision-required-390-dark.png) |
 | `dokumen-revisi` | [png](dosen/dokumen-revisi-1280-light.png) | [png](dosen/dokumen-revisi-1280-dark.png) | [png](dosen/dokumen-revisi-390-light.png) | [png](dosen/dokumen-revisi-390-dark.png) |
 | `jadwal-bimbingan` | [png](dosen/jadwal-bimbingan-1280-light.png) | [png](dosen/jadwal-bimbingan-1280-dark.png) | [png](dosen/jadwal-bimbingan-390-light.png) | [png](dosen/jadwal-bimbingan-390-dark.png) |
 | `mahasiswa-bimbingan` | [png](dosen/mahasiswa-bimbingan-1280-light.png) | [png](dosen/mahasiswa-bimbingan-1280-dark.png) | [png](dosen/mahasiswa-bimbingan-390-light.png) | [png](dosen/mahasiswa-bimbingan-390-dark.png) |
@@ -41,6 +44,8 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | --- | --- | --- | --- | --- |
 | `dashboard` | [png](kaprodi/dashboard-1280-light.png) | [png](kaprodi/dashboard-1280-dark.png) | [png](kaprodi/dashboard-390-light.png) | [png](kaprodi/dashboard-390-dark.png) |
 | `dokumen` | [png](kaprodi/dokumen-1280-light.png) | [png](kaprodi/dokumen-1280-dark.png) | [png](kaprodi/dokumen-390-light.png) | [png](kaprodi/dokumen-390-dark.png) |
+| `dokumen-detail-thesis` | [png](kaprodi/dokumen-detail-thesis-1280-light.png) | [png](kaprodi/dokumen-detail-thesis-1280-dark.png) | [png](kaprodi/dokumen-detail-thesis-390-light.png) | [png](kaprodi/dokumen-detail-thesis-390-dark.png) |
+| `dokumen-detail-workspace` | [png](kaprodi/dokumen-detail-workspace-1280-light.png) | [png](kaprodi/dokumen-detail-workspace-1280-dark.png) | [png](kaprodi/dokumen-detail-workspace-390-light.png) | [png](kaprodi/dokumen-detail-workspace-390-dark.png) |
 | `dosen-prodi` | [png](kaprodi/dosen-prodi-1280-light.png) | [png](kaprodi/dosen-prodi-1280-dark.png) | [png](kaprodi/dosen-prodi-390-light.png) | [png](kaprodi/dosen-prodi-390-dark.png) |
 | `mahasiswa` | [png](kaprodi/mahasiswa-1280-light.png) | [png](kaprodi/mahasiswa-1280-dark.png) | [png](kaprodi/mahasiswa-390-light.png) | [png](kaprodi/mahasiswa-390-dark.png) |
 | `profil-mahasiswa` | [png](kaprodi/profil-mahasiswa-1280-light.png) | [png](kaprodi/profil-mahasiswa-1280-dark.png) | [png](kaprodi/profil-mahasiswa-390-light.png) | [png](kaprodi/profil-mahasiswa-390-dark.png) |
@@ -55,6 +60,7 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | `dashboard-completed` | [png](mahasiswa/dashboard-completed-1280-light.png) | [png](mahasiswa/dashboard-completed-1280-dark.png) | [png](mahasiswa/dashboard-completed-390-light.png) | [png](mahasiswa/dashboard-completed-390-dark.png) |
 | `dashboard-not-started` | [png](mahasiswa/dashboard-not-started-1280-light.png) | [png](mahasiswa/dashboard-not-started-1280-dark.png) | [png](mahasiswa/dashboard-not-started-390-light.png) | [png](mahasiswa/dashboard-not-started-390-dark.png) |
 | `dashboard-pending` | [png](mahasiswa/dashboard-pending-1280-light.png) | [png](mahasiswa/dashboard-pending-1280-dark.png) | [png](mahasiswa/dashboard-pending-390-light.png) | [png](mahasiswa/dashboard-pending-390-dark.png) |
+| `dokumen-detail` | [png](mahasiswa/dokumen-detail-1280-light.png) | [png](mahasiswa/dokumen-detail-1280-dark.png) | [png](mahasiswa/dokumen-detail-390-light.png) | [png](mahasiswa/dokumen-detail-390-dark.png) |
 | `jadwal-bimbingan` | [png](mahasiswa/jadwal-bimbingan-1280-light.png) | [png](mahasiswa/jadwal-bimbingan-1280-dark.png) | [png](mahasiswa/jadwal-bimbingan-390-light.png) | [png](mahasiswa/jadwal-bimbingan-390-dark.png) |
 | `jadwal-bimbingan-dialog-ajukan` | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-1280-light.png) | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-1280-dark.png) | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-390-light.png) | [png](mahasiswa/jadwal-bimbingan-dialog-ajukan-390-dark.png) |
 | `jadwal-bimbingan-kosong` | [png](mahasiswa/jadwal-bimbingan-kosong-1280-light.png) | [png](mahasiswa/jadwal-bimbingan-kosong-1280-dark.png) | [png](mahasiswa/jadwal-bimbingan-kosong-390-light.png) | [png](mahasiswa/jadwal-bimbingan-kosong-390-dark.png) |
