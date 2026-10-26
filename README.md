@@ -66,6 +66,8 @@ Masuk ke `/admin` dengan akun tersebut untuk membuat prodi, dosen, dan mahasiswa
 
 Aplikasi berjalan di `http://localhost:8088`. Secara default dipakai image `main` (build terbaru); untuk versi rilis tertentu set `APP_IMAGE=ghcr.io/rikisanjayaa/sita-app:1.0.1` dan `WEB_IMAGE=ghcr.io/rikisanjayaa/sita-web:1.0.1` (atau tag `latest`). Matikan dengan `docker compose -f docker-compose.yml -f docker-compose.deploy.yml down` (tambah `-v` untuk menghapus data).
 
+Tag `1.0.1` di atas hanya contoh cara mematok versi; rilis lama itu belum memuat seluruh fitur dan screenshot pada README ini. Petunjuk Reverb runtime berikut berlaku untuk image `main` setelah [#116](https://github.com/RikiSanjayaa/sita/pull/116) dan rilis yang memasukkan perubahan tersebut.
+
 > Chat real-time memakai konfigurasi Reverb saat runtime, termasuk pada image GHCR. Untuk mencoba lewat HTTP lokal, gunakan `REVERB_HOST=localhost`, `REVERB_PORT=8089`, dan `REVERB_SCHEME=http` di `.env` server; browser dan port WebSocket harus dapat saling menjangkau. Tidak perlu build ulang asset untuk mengganti host/key Reverb. Konfigurasi yang belum diisi dapat menyebabkan chat tidak memperbarui secara langsung.
 
 ### Build image sendiri
