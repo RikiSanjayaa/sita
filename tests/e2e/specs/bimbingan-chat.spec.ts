@@ -4,6 +4,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { seedPlaywrightScenarios } from '../support/db';
 import {
+    openDocumentDetail,
+    submitDocumentReview,
+} from '../support/document-detail';
+import {
     authStatePath,
     thesisFixtures,
     thesisScenarios,
@@ -462,87 +466,16 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(initialReviewRow).toBeVisible();
             await expect(initialReviewRow).toContainText('Perlu Review');
-            await initialReviewRow
-                .getByRole('button', { name: /^Lihat dokumen/ })
-                .click();
-            await dosenPage
-                .getByRole('button', {
-                    name: 'Kirim catatan revisi',
-                    exact: true,
-                })
-                .click();
-
-            const revisionDialog = dosenPage.getByRole('dialog', {
-                name: 'Kirim Catatan Revisi',
-            });
-
-            await expect(revisionDialog).toBeVisible();
-            await revisionDialog
-                .getByRole('textbox', { name: 'Catatan Revisi' })
-                .fill(revisionNotes);
-            const noteField = revisionDialog.getByRole('textbox', {
-                name: 'Catatan Revisi',
-            });
-            const compactHeight = (await noteField.boundingBox())!.height;
-            await revisionDialog
-                .getByRole('button', { name: 'Perluas kolom catatan' })
-                .click();
-            expect((await noteField.boundingBox())!.height).toBeGreaterThan(
-                compactHeight,
+            await openDocumentDetail(
+                dosenPage,
+                initialReviewRow,
+                '/dosen/dokumen-revisi',
             );
-            await expect(noteField).toHaveValue(revisionNotes);
-            await revisionDialog
-                .getByRole('button', { name: 'Ciutkan kolom catatan' })
-                .click();
-            await expect(noteField).toHaveValue(revisionNotes);
-            await dosenPage
-                .getByRole('button', { name: 'Kirim Catatan' })
-                .click();
-
-            await expect(initialReviewRow).toContainText('Perlu Revisi');
-            await expect(initialReviewRow).toContainText(revisionNotes);
-            await expect(
-                dosenPage.getByRole('dialog', { name: initialTitle }),
-            ).toContainText('Akhir catatan revisi panjang yang wajib terbaca.');
-            await dosenPage.keyboard.press('Escape');
-            const detailButton = initialReviewRow.getByRole('button', {
-                name: /^Lihat dokumen/,
-            });
-            await detailButton.click();
-            await expect(
-                dosenPage
-                    .getByRole('dialog', { name: initialTitle })
-                    .getByText(revisionNotes, { exact: true }),
-            ).toBeVisible();
-            await dosenPage.keyboard.press('Escape');
-            await expect(detailButton).toBeFocused();
-
-            const kaprodiPage = await kaprodiContext.newPage();
-            await kaprodiPage.goto('/kaprodi/dokumen');
-            await kaprodiPage
-                .getByPlaceholder('Cari mahasiswa, NIM, file, atau dosen...')
-                .fill(initialTitle);
-            const kaprodiRow = kaprodiPage
-                .getByRole('row')
-                .filter({ hasText: initialTitle })
-                .first();
-            const kaprodiDetail = kaprodiRow.getByRole('button', {
-                name: /^Lihat dokumen/,
-            });
-            await kaprodiDetail.click();
-            await expect(
-                kaprodiPage
-                    .getByRole('dialog')
-                    .getByText(revisionNotes, { exact: true }),
-            ).toBeVisible();
-            await expect(
-                kaprodiPage.getByRole('button', {
-                    name: 'Kirim catatan revisi',
-                    exact: true,
-                }),
-            ).toHaveCount(0);
-            await kaprodiPage.keyboard.press('Escape');
-            await expect(kaprodiDetail).toBeFocused();
+            await submitDocumentReview(
+                dosenPage,
+                'needs_revision',
+                revisionNotes,
+            );
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
             await mahasiswaPage
@@ -556,14 +489,14 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(initialStudentRow).toBeVisible();
             await expect(initialStudentRow).toContainText('Perlu Revisi');
-            await expect(initialStudentRow).toContainText(/ — v\d+/);
-            await initialStudentRow
-                .getByRole('button', { name: /^Detail/ })
-                .click();
-            await expect(mahasiswaPage.getByRole('dialog')).toContainText(
-                revisionNotes,
+            await openDocumentDetail(
+                mahasiswaPage,
+                initialStudentRow,
+                '/mahasiswa/upload-dokumen',
             );
-            await mahasiswaPage.keyboard.press('Escape');
+            await expect(
+                mahasiswaPage.getByText(revisionNotes, { exact: true }),
+            ).toBeVisible();
 
             await uploadThesisDocument(
                 mahasiswaPage,
@@ -598,14 +531,16 @@ test.describe('Bimbingan and chat integration', () => {
 
             await expect(revisedReviewRow).toBeVisible();
             await expect(revisedReviewRow).toContainText('Perlu Review');
-            await revisedReviewRow
-                .getByRole('button', { name: /^Lihat dokumen/ })
-                .click();
-            await dosenPage
-                .getByRole('button', { name: 'Setujui dokumen', exact: true })
-                .click();
-
-            await expect(revisedReviewRow).toContainText('Disetujui');
+            await openDocumentDetail(
+                dosenPage,
+                revisedReviewRow,
+                '/dosen/dokumen-revisi',
+            );
+            await submitDocumentReview(
+                dosenPage,
+                'approved',
+                'Interpretasi hasil sudah jelas.',
+            );
 
             await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
             await mahasiswaPage
@@ -618,17 +553,23 @@ test.describe('Bimbingan and chat integration', () => {
                 .first();
 
             await expect(revisedStudentApprovedRow).toBeVisible();
-            // Only one of the two supervisors approved: aggregated status is
-            // partial, and the drawer shows the per-lecturer approval.
+            // Only one supervisor approved; detail preserves each review.
             await expect(revisedStudentApprovedRow).toContainText(
                 'Sebagian direview',
             );
-            await revisedStudentApprovedRow
-                .getByRole('button', { name: /^Detail/ })
-                .click();
-            await expect(mahasiswaPage.getByRole('dialog')).toContainText(
-                'Disetujui',
+            await openDocumentDetail(
+                mahasiswaPage,
+                revisedStudentApprovedRow,
+                '/mahasiswa/upload-dokumen',
             );
+            await expect(
+                mahasiswaPage.getByText('Disetujui', { exact: true }).first(),
+            ).toBeVisible();
+            await expect(
+                mahasiswaPage.getByText('Interpretasi hasil sudah jelas.', {
+                    exact: true,
+                }),
+            ).toBeVisible();
         } finally {
             await mahasiswaContext.close();
             await dosenContext.close();

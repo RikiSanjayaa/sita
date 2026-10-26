@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DocumentDetailController;
 use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
 use App\Http\Controllers\Mahasiswa\LecturerSearchController;
@@ -34,6 +35,8 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
 
     Route::redirect('upload-dokumen/unggah', '/mahasiswa/upload-dokumen?open=unggah')
         ->name('upload-dokumen.create');
+
+    Route::get('upload-dokumen/{document}', [DocumentDetailController::class, 'workspace'])->name('upload-dokumen.show');
 
     Route::get('pesan', [PesanController::class, 'index'])->name('pesan');
     Route::post('pesan/private', [PesanController::class, 'storePrivateThread'])->name('pesan.private.store');

@@ -63,43 +63,21 @@ async function openNotesSheet(page: Page): Promise<void> {
     await expect(page.getByRole('dialog')).toBeVisible();
 }
 
-async function openDocumentDetail(page: Page): Promise<void> {
-    await page
-        .getByRole('row')
-        .filter({ hasText: 'Perlu Revisi' })
-        .first()
-        .getByRole('button', { name: /^Lihat dokumen/ })
-        .first()
-        .click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-}
-
-async function openDocumentRevision(
-    page: Page,
-    expanded: boolean,
-): Promise<void> {
-    const row = page
-        .getByRole('row')
-        .filter({ hasText: 'Perlu Review' })
-        .first();
-    await row.getByRole('button', { name: /^Lihat dokumen/ }).click();
-    await page
-        .getByRole('button', { name: 'Kirim catatan revisi', exact: true })
-        .click();
-    const dialog = page.getByRole('dialog', {
-        name: 'Kirim Catatan Revisi',
-        exact: true,
-    });
-    await dialog
-        .getByLabel('Catatan Revisi')
-        .fill(
-            '1. Jelaskan metode penelitian dan alasan pemilihan data.\n2. Tambahkan pembahasan hasil serta perbandingan dengan penelitian sebelumnya.\n3. Periksa kembali tabel, rujukan, dan kesimpulan.',
-        );
-    if (expanded) {
-        await dialog
-            .getByRole('button', { name: 'Perluas kolom catatan' })
-            .click();
+async function openDocumentPage(page: Page, prefix: string): Promise<void> {
+    if (prefix === '/dosen/dokumen-revisi') {
+        await page
+            .getByPlaceholder(/Cari mahasiswa.*file/i)
+            .fill('Mahasiswa SiTA');
     }
+    const scope =
+        prefix === '/dosen/dokumen-revisi'
+            ? page.locator('tr').filter({ hasText: 'Mahasiswa SiTA' })
+            : page.locator('main');
+    await scope.locator(`a[href*="${prefix}/"]`).first().click();
+    await expect(page).toHaveURL(new RegExp(`${prefix}/\\d+$`));
+    await expect(
+        page.getByRole('heading', { name: 'Detail dokumen', exact: true }),
+    ).toBeVisible();
 }
 
 export const catalogPages: readonly CatalogPage[] = [
@@ -177,10 +155,10 @@ export const catalogPages: readonly CatalogPage[] = [
     },
     {
         role: 'mahasiswa',
-        name: 'upload-dokumen-sheet',
+        name: 'dokumen-detail',
         path: '/mahasiswa/upload-dokumen',
         heading: 'Dokumen yang Diupload',
-        prepare: (page) => openDialog(page, /^Detail dokumen /),
+        prepare: (page) => openDocumentPage(page, '/mahasiswa/upload-dokumen'),
     },
     {
         role: 'mahasiswa',
@@ -379,36 +357,59 @@ export const catalogPages: readonly CatalogPage[] = [
     },
     {
         role: 'dosen',
-        name: 'dokumen-revisi-sheet',
+        name: 'dokumen-detail',
         path: '/dosen/dokumen-revisi',
         heading: 'Daftar Dokumen',
-        prepare: openDocumentDetail,
+        prepare: (page) => openDocumentPage(page, '/dosen/dokumen-revisi'),
     },
     {
         role: 'dosen',
-        name: 'dokumen-revisi-dialog',
+        name: 'dokumen-detail-draft',
         path: '/dosen/dokumen-revisi',
         heading: 'Daftar Dokumen',
-        prepare: (page) => openDocumentRevision(page, false),
-    },
-    {
-        role: 'dosen',
-        name: 'dokumen-revisi-dialog-expanded',
-        path: '/dosen/dokumen-revisi',
-        heading: 'Daftar Dokumen',
-        prepare: (page) => openDocumentRevision(page, true),
-    },
-    {
-        role: 'dosen',
-        name: 'seminar-proposal-sheet',
-        path: '/dosen/seminar-proposal',
-        heading: 'Daftar ujian',
         prepare: async (page) => {
+            await openDocumentPage(page, '/dosen/dokumen-revisi');
             await page
-                .getByRole('button', { name: /^Lihat detail/ })
-                .first()
+                .getByRole('textbox', { name: 'Catatan dosen' })
+                .fill(
+                    'Perjelas sumber data dan metode pengambilan sampel sebelum revisi berikutnya.',
+                );
+        },
+    },
+    {
+        role: 'dosen',
+        name: 'dokumen-detail-revision-required',
+        path: '/dosen/dokumen-revisi',
+        heading: 'Daftar Dokumen',
+        prepare: async (page) => {
+            await openDocumentPage(page, '/dosen/dokumen-revisi');
+            // The pinned server clock expires XSRF-TOKEN before the browser's
+            // real clock. Send the session's real meta token, as login does.
+            const csrfToken = await page
+                .locator('meta[name="csrf-token"]')
+                .getAttribute('content');
+            expect(csrfToken).toBeTruthy();
+            await page.route(
+                '**/dosen/dokumen-revisi/*/review',
+                async (route) => {
+                    await route.continue({
+                        headers: {
+                            ...route.request().headers(),
+                            'X-CSRF-TOKEN': csrfToken!,
+                        },
+                    });
+                },
+            );
+            await page.getByRole('textbox', { name: 'Catatan dosen' }).fill('');
+            await page
+                .getByRole('button', { name: 'Minta revisi', exact: true })
                 .click();
-            await expect(page.getByRole('dialog')).toBeVisible();
+            await expect(
+                page.getByText(
+                    'Catatan revisi wajib diisi saat meminta revisi.',
+                    { exact: true },
+                ),
+            ).toBeVisible();
         },
     },
     { role: 'dosen', name: 'pesan', path: '/dosen/pesan', heading: 'Pesan' },
@@ -459,10 +460,17 @@ export const catalogPages: readonly CatalogPage[] = [
     },
     {
         role: 'kaprodi',
-        name: 'dokumen-sheet',
+        name: 'dokumen-detail-workspace',
         path: '/kaprodi/dokumen',
         heading: 'Daftar Dokumen',
-        prepare: openDocumentDetail,
+        prepare: (page) => openDocumentPage(page, '/kaprodi/dokumen/workspace'),
+    },
+    {
+        role: 'kaprodi',
+        name: 'dokumen-detail-thesis',
+        path: '/kaprodi/dokumen',
+        heading: 'Daftar Dokumen',
+        prepare: (page) => openDocumentPage(page, '/kaprodi/dokumen/thesis'),
     },
     {
         role: 'kaprodi',

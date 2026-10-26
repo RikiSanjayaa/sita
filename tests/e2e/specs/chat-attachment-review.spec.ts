@@ -1,299 +1,234 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+    openDocumentDetail,
+    seedDocumentDetailScenario,
+    submitDocumentReview,
+} from '../support/document-detail';
 import {
     authStatePath,
     thesisFixtures,
     thesisScenarios,
 } from '../support/thesis-fixtures';
 
-const attachmentName = path.basename(thesisFixtures.thesisDocumentUploadPath);
+const student = thesisScenarios.twoSupervisors;
+const attachmentName = 'chat-review-exact-copy.pdf';
+const attachmentTitle = 'Lampiran chat untuk dua pembimbing';
 
-async function openMahasiswaBimbinganThread(page: Page): Promise<void> {
-    await page.goto('/mahasiswa/pesan');
-
-    const bimbinganThreadButton = page
+async function openThread(page: Page, lecturer = false): Promise<void> {
+    await page.goto(lecturer ? '/dosen/pesan-bimbingan' : '/mahasiswa/pesan');
+    await page
         .locator('button')
         .filter({ hasText: 'Bimbingan' })
-        .first();
-
-    await expect(bimbinganThreadButton).toBeVisible();
-    await bimbinganThreadButton.click();
+        .first()
+        .click();
+    if (lecturer) {
+        await page
+            .locator('button')
+            .filter({ hasText: student.studentName })
+            .first()
+            .click();
+    }
     await expect(page.getByPlaceholder('Tulis pesan...')).toBeEnabled();
 }
 
-test.describe('Chat attachment review visibility', () => {
-    test.describe.configure({ mode: 'serial' });
-    test('chat attachment reviewed by second lecturer shows status to mahasiswa', async ({
+async function sendAttachment(page: Page, name: string): Promise<void> {
+    await openThread(page);
+    await page.locator('input[type="file"]').setInputFiles({
+        name,
+        mimeType: 'application/pdf',
+        buffer: fs.readFileSync(
+            path.join(process.cwd(), thesisFixtures.thesisDocumentUploadPath),
+        ),
+    });
+    await page.getByLabel('Nama dokumen').fill(attachmentTitle);
+    await Promise.all([
+        page.waitForResponse(
+            (response) =>
+                response.request().method() === 'POST' &&
+                response.url().includes('/mahasiswa/pesan/'),
+        ),
+        page.getByPlaceholder('Tulis pesan...').press('Enter'),
+    ]);
+}
+
+test.describe('Chat attachment stable document reviews', () => {
+    test.beforeEach(() => seedDocumentDetailScenario());
+
+    test('second reviewer follows the exact chat copy, not another reviewer or newer attachment', async ({
         browser,
     }) => {
-        const revisionNotes = `Perbaiki sitasi pada bab pembuka ${Date.now()}`;
-
-        const mahasiswaContext = await browser.newContext({
-            storageState: authStatePath(
-                thesisScenarios.activeResearch.studentKey,
-            ),
+        const studentContext = await browser.newContext({
+            storageState: authStatePath(student.studentKey),
         });
-        const secondLecturerContext = await browser.newContext({
-            storageState: authStatePath('dosen5'),
+        const reviewerContext = await browser.newContext({
+            storageState: authStatePath('dosen2'),
         });
-
+        const otherReviewerContext = await browser.newContext({
+            storageState: authStatePath('dosen1'),
+        });
         try {
-            const mahasiswaPage = await mahasiswaContext.newPage();
-
-            await openMahasiswaBimbinganThread(mahasiswaPage);
-
-            const attachmentInput = mahasiswaPage.locator('input[type="file"]');
-            await attachmentInput.setInputFiles(
-                path.join(
-                    process.cwd(),
-                    thesisFixtures.thesisDocumentUploadPath,
-                ),
+            const studentPage = await studentContext.newPage();
+            await sendAttachment(studentPage, attachmentName);
+            await sendAttachment(studentPage, 'chat-review-newer-copy.pdf');
+            const reviewerPage = await reviewerContext.newPage();
+            await openThread(reviewerPage, true);
+            const reviewLink = reviewerPage.getByRole('link', {
+                name: `Tinjau ${attachmentName}`,
+                exact: true,
+            });
+            const reviewUrl = await reviewLink.getAttribute('href');
+            expect(new URL(reviewUrl!, reviewerPage.url()).pathname).toMatch(
+                /^\/dosen\/dokumen-revisi\/\d+$/,
             );
+            await reviewLink.click();
+            await expect(reviewerPage).toHaveURL(new RegExp(`${reviewUrl}$`));
             await expect(
-                mahasiswaPage.getByLabel('Nama dokumen'),
-            ).toBeVisible();
-            await expect(
-                mahasiswaPage.getByText(attachmentName).first(),
-            ).toBeVisible();
-
-            const messageInput =
-                mahasiswaPage.getByPlaceholder('Tulis pesan...');
-            const submitRequest = mahasiswaPage.waitForResponse(
-                (response) =>
-                    response.request().method() === 'POST' &&
-                    response.url().includes('/mahasiswa/pesan/'),
-            );
-            await messageInput.press('Enter');
-            await submitRequest;
-
-            const secondLecturerPage = await secondLecturerContext.newPage();
-
-            await secondLecturerPage.goto('/dosen/dokumen-revisi');
-            await secondLecturerPage
-                .getByPlaceholder(/Cari mahasiswa.*file/i)
-                .fill(attachmentName);
-
-            const reviewRow = secondLecturerPage
-                .locator('tr')
-                .filter({ hasText: thesisScenarios.activeResearch.studentName })
-                .filter({ hasText: attachmentName })
-                .first();
-
-            await expect(reviewRow).toBeVisible();
-            await reviewRow
-                .getByRole('button', { name: /^Lihat dokumen/ })
-                .click();
-            await secondLecturerPage
-                .getByRole('button', {
-                    name: 'Kirim catatan revisi',
+                reviewerPage.getByRole('heading', {
+                    name: 'Detail dokumen',
                     exact: true,
-                })
-                .click();
-
-            const revisionDialog = secondLecturerPage.getByRole('dialog', {
-                name: 'Kirim Catatan Revisi',
-            });
-
-            await expect(revisionDialog).toBeVisible();
-            await revisionDialog
-                .getByRole('textbox', { name: 'Catatan Revisi' })
-                .fill(revisionNotes);
-            await secondLecturerPage
-                .getByRole('button', { name: 'Kirim Catatan' })
-                .click();
-
-            await expect(reviewRow).toContainText('Perlu Revisi');
-            await expect(reviewRow).toContainText(revisionNotes);
-            await secondLecturerPage.keyboard.press('Escape');
-
-            await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
-            await mahasiswaPage
-                .getByPlaceholder('Cari judul atau file...')
-                .fill(attachmentName);
-
-            const studentRow = mahasiswaPage
-                .locator('tr')
-                .filter({ hasText: attachmentName })
-                .first();
-
-            await expect(studentRow).toBeVisible();
-            await expect(studentRow).toContainText('Perlu Revisi');
-            await expect(studentRow).toContainText('2 review');
-            await expect(studentRow).not.toContainText(revisionNotes);
-            await expect(studentRow).not.toContainText(/\bv\d+\b/);
-
-            await mahasiswaPage.setViewportSize({ width: 390, height: 844 });
-            const detailAction = studentRow.getByRole('button', {
-                name: /^Detail/,
-            });
-            const target = await detailAction.boundingBox();
-            expect(target!.width).toBeGreaterThanOrEqual(44);
-            expect(target!.height).toBeGreaterThanOrEqual(44);
-            await detailAction.focus();
-            await mahasiswaPage.keyboard.press('Enter');
-            const detailDrawer = mahasiswaPage.getByRole('dialog');
-            await expect(detailDrawer).toContainText(revisionNotes);
-            await expect(detailDrawer).toContainText('Perlu Revisi');
-            await expect(detailDrawer).not.toContainText(/\bv\d+\b/);
-            await mahasiswaPage.keyboard.press('Escape');
-            await expect(detailDrawer).toBeHidden();
-            await mahasiswaPage.setViewportSize({ width: 1280, height: 900 });
-
-            await openMahasiswaBimbinganThread(mahasiswaPage);
+                }),
+            ).toBeVisible();
             await expect(
-                mahasiswaPage
+                reviewerPage.getByText(attachmentName, { exact: true }).first(),
+            ).toBeVisible();
+            await submitDocumentReview(
+                reviewerPage,
+                'needs_revision',
+                'Tambahkan sumber untuk lampiran pertama.',
+            );
+            await reviewerPage.reload();
+            await expect(
+                reviewerPage.getByRole('textbox', { name: 'Catatan dosen' }),
+            ).toHaveValue('Tambahkan sumber untuk lampiran pertama.');
+
+            // A reviewer ID is not a shared upload ID. Another authorized
+            // supervisor still cannot open or submit this reviewer's copy.
+            const denied = await otherReviewerContext.request.get(reviewUrl!);
+            expect([403, 404]).toContain(denied.status());
+
+            await openThread(reviewerPage, true);
+            await expect(
+                reviewerPage
                     .getByText(/menandai lampiran .* perlu revisi/i)
                     .first(),
             ).toBeVisible();
+            await expect(
+                reviewerPage.getByRole('link', {
+                    name: `Tinjau ${attachmentName}`,
+                    exact: true,
+                }),
+            ).toHaveCount(0);
+            await expect(
+                reviewerPage.getByRole('link', {
+                    name: 'Tinjau chat-review-newer-copy.pdf',
+                    exact: true,
+                }),
+            ).toBeVisible();
+
+            await studentPage.goto('/mahasiswa/upload-dokumen');
+            await studentPage
+                .getByPlaceholder('Cari judul atau file...')
+                .fill(attachmentName);
+            const row = studentPage
+                .locator('tr')
+                .filter({ hasText: attachmentName })
+                .first();
+            await expect(row).toContainText('Perlu Revisi');
+            await expect(row).toContainText('2 review');
+            await openDocumentDetail(
+                studentPage,
+                row,
+                '/mahasiswa/upload-dokumen',
+            );
+            await expect(
+                studentPage.getByText(
+                    'Tambahkan sumber untuk lampiran pertama.',
+                    { exact: true },
+                ),
+            ).toBeVisible();
+            await expect(
+                studentPage.getByRole('button', {
+                    name: 'Minta revisi',
+                    exact: true,
+                }),
+            ).toHaveCount(0);
+            await expect(
+                studentPage.getByRole('heading', {
+                    name: 'Riwayat versi',
+                    exact: true,
+                }),
+            ).toBeVisible();
         } finally {
-            await mahasiswaContext.close();
-            await secondLecturerContext.close();
+            await studentContext.close();
+            await reviewerContext.close();
+            await otherReviewerContext.close();
         }
     });
 
-    test('second lecturer reviews a chat upload from the notification card', async ({
+    test('second reviewer opens a chat upload from the document list and student can reload the detail', async ({
         browser,
     }) => {
-        const revisionNotes = `Tambahkan daftar pustaka ${Date.now()}`;
-
-        const mahasiswaContext = await browser.newContext({
-            storageState: authStatePath(
-                thesisScenarios.activeResearch.studentKey,
-            ),
+        const studentContext = await browser.newContext({
+            storageState: authStatePath(student.studentKey),
         });
-        const secondLecturerContext = await browser.newContext({
-            storageState: authStatePath('dosen5'),
+        const reviewerContext = await browser.newContext({
+            storageState: authStatePath('dosen2'),
         });
-
         try {
-            const mahasiswaPage = await mahasiswaContext.newPage();
-
-            await openMahasiswaBimbinganThread(mahasiswaPage);
-
-            await mahasiswaPage
-                .locator('input[type="file"]')
-                .setInputFiles(
-                    path.join(
-                        process.cwd(),
-                        thesisFixtures.thesisDocumentUploadPath,
-                    ),
-                );
-            await expect(
-                mahasiswaPage.getByLabel('Nama dokumen'),
-            ).toBeVisible();
-
-            const messageInput =
-                mahasiswaPage.getByPlaceholder('Tulis pesan...');
-            const submitRequest = mahasiswaPage.waitForResponse(
-                (response) =>
-                    response.request().method() === 'POST' &&
-                    response.url().includes('/mahasiswa/pesan/'),
-            );
-            await messageInput.press('Enter');
-            await submitRequest;
-
-            const secondLecturerPage = await secondLecturerContext.newPage();
-
-            await secondLecturerPage.goto('/dosen/pesan-bimbingan');
-            await secondLecturerPage
-                .locator('button')
-                .filter({ hasText: 'Bimbingan' })
-                .first()
-                .click();
-            await secondLecturerPage
-                .locator('button')
-                .filter({ hasText: thesisScenarios.activeResearch.studentName })
-                .first()
-                .click();
-
-            // Icon-only action beside the download icon; hover names it.
-            const lastTinjau = secondLecturerPage
-                .getByRole('button', { name: `Tinjau ${attachmentName}` })
-                .last();
-            await lastTinjau.scrollIntoViewIfNeeded();
-            await lastTinjau.hover();
-            await expect(
-                secondLecturerPage.getByRole('tooltip', {
-                    name: 'Tinjau dokumen',
-                }),
-            ).toBeVisible();
-            const tinjauButtons = secondLecturerPage.getByRole('button', {
-                name: `Tinjau ${attachmentName}`,
-            });
-            const tinjauCountBeforeReview = await tinjauButtons.count();
-            await secondLecturerPage
-                .getByRole('button', { name: `Tinjau ${attachmentName}` })
-                .last()
-                .click();
-
-            const revisionDialog = secondLecturerPage.getByRole('dialog', {
-                name: 'Kirim Catatan Revisi',
-            });
-
-            await expect(revisionDialog).toBeVisible();
-            await revisionDialog
-                .getByRole('textbox', { name: 'Catatan Revisi' })
-                .fill(revisionNotes);
-            await revisionDialog
-                .getByRole('button', { name: 'Kirim Catatan' })
-                .click();
-
-            await expect(revisionDialog).toBeHidden();
-            await expect(
-                secondLecturerPage
-                    .getByText(/menandai lampiran .* perlu revisi/i)
-                    .first(),
-            ).toBeVisible();
-
-            // The lecturer's own review event never offers "Tinjau", and the
-            // reviewed upload stops offering it (older uploads keep theirs).
-            const ownReviewBubble = secondLecturerPage
-                .getByText(/menandai lampiran .* perlu revisi/i)
-                .last()
-                .locator(
-                    'xpath=ancestor::div[contains(@class,"rounded-2xl")][1]',
-                );
-            await expect(ownReviewBubble).toBeVisible();
-            await expect(
-                ownReviewBubble.getByRole('button', { name: /^Tinjau/ }),
-            ).toHaveCount(0);
-            await expect(tinjauButtons).toHaveCount(
-                tinjauCountBeforeReview - 1,
-            );
-            await expect(ownReviewBubble).toContainText('Hasil Review Dokumen');
-            await expect(ownReviewBubble).not.toContainText(
-                'Dokumen Baru Diunggah',
-            );
-
-            // The reviewed upload card now shows this lecturer's own status.
-            const uploadBubble = secondLecturerPage
-                .locator('div.rounded-2xl')
-                .filter({ hasText: 'Dokumen Baru Diunggah' })
+            const studentPage = await studentContext.newPage();
+            await sendAttachment(studentPage, attachmentName);
+            const reviewerPage = await reviewerContext.newPage();
+            await reviewerPage.goto('/dosen/dokumen-revisi');
+            await reviewerPage
+                .getByPlaceholder(/Cari mahasiswa.*file/i)
+                .fill(attachmentName);
+            const row = reviewerPage
+                .locator('tr')
+                .filter({ hasText: student.studentName })
                 .filter({ hasText: attachmentName })
-                .last();
-            await expect(uploadBubble).toContainText('Perlu Revisi');
-            await expect(uploadBubble).not.toContainText('Menunggu Review');
-
-            await mahasiswaPage.goto('/mahasiswa/upload-dokumen');
-            await mahasiswaPage
+                .first();
+            await openDocumentDetail(
+                reviewerPage,
+                row,
+                '/dosen/dokumen-revisi',
+            );
+            await submitDocumentReview(
+                reviewerPage,
+                'needs_revision',
+                'Perbaiki sitasi pada bab pembuka.',
+            );
+            await studentPage.goto('/mahasiswa/upload-dokumen');
+            await studentPage
                 .getByPlaceholder('Cari judul atau file...')
                 .fill(attachmentName);
-
-            const studentRow = mahasiswaPage
+            const studentRow = studentPage
                 .locator('tr')
                 .filter({ hasText: attachmentName })
                 .first();
-
             await expect(studentRow).toContainText('Perlu Revisi');
-            await studentRow.getByRole('button', { name: /^Detail/ }).click();
-            await expect(mahasiswaPage.getByRole('dialog')).toContainText(
-                revisionNotes,
+            const url = await openDocumentDetail(
+                studentPage,
+                studentRow,
+                '/mahasiswa/upload-dokumen',
+            );
+            await studentPage.reload();
+            await expect(studentPage).toHaveURL(new RegExp(`${url}$`));
+            await expect(
+                studentPage.getByText('Perbaiki sitasi pada bab pembuka.', {
+                    exact: true,
+                }),
+            ).toBeVisible();
+            await studentPage.goBack();
+            await expect(studentPage).toHaveURL(
+                /\/mahasiswa\/upload-dokumen(?:\?.*)?$/,
             );
         } finally {
-            await mahasiswaContext.close();
-            await secondLecturerContext.close();
+            await studentContext.close();
+            await reviewerContext.close();
         }
     });
 });

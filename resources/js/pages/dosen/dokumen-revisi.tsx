@@ -1,6 +1,6 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Download, Eye, FileText, XCircle } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Download, Eye, FileText } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
@@ -12,30 +12,12 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
-import { Textarea } from '@/components/ui/textarea';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
@@ -56,6 +38,7 @@ type DocumentQueueItem = {
     status: 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
     revisionNotes: string | null;
     fileUrl: string | null;
+    detailUrl: string;
 };
 
 type DokumenRevisiProps = {
@@ -81,51 +64,6 @@ export default function DosenDokumenRevisiPage() {
         'semua',
     );
     const pageState = useUrlState('page', 1);
-    const [revisiDocDialog, setRevisiDocDialog] =
-        useState<DocumentQueueItem | null>(null);
-    const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(
-        null,
-    );
-    const selectedDocument = documentQueue.find(
-        (doc) => doc.id === selectedDocumentId,
-    );
-    const detailTrigger = useRef<HTMLButtonElement | null>(null);
-    const [expandedRevision, setExpandedRevision] = useState(false);
-
-    const form = useForm({
-        status: 'needs_revision' as 'needs_revision' | 'approved',
-        revision_notes: '',
-    });
-
-    function submitApprove(documentId: number) {
-        form.transform((data) => ({
-            ...data,
-            status: 'approved',
-            revision_notes: null,
-        }));
-        form.post(`/dosen/dokumen-revisi/${documentId}/review`, {
-            preserveScroll: true,
-        });
-    }
-
-    function submitRevisi(e: React.FormEvent) {
-        e.preventDefault();
-        if (!revisiDocDialog) return;
-
-        form.transform((data) => ({
-            ...data,
-            status: 'needs_revision',
-            revision_notes: data.revision_notes || null,
-        }));
-
-        form.post(`/dosen/dokumen-revisi/${revisiDocDialog.id}/review`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setRevisiDocDialog(null);
-                form.reset();
-            },
-        });
-    }
 
     const filteredDocuments = useMemo(() => {
         const lower = search.toLowerCase();
@@ -300,12 +238,13 @@ export default function DosenDokumenRevisiPage() {
                                                         <FileText className="size-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p
-                                                            className="font-medium break-words max-md:line-clamp-2 md:max-w-56"
+                                                        <Link
+                                                            href={doc.detailUrl}
+                                                            className="block font-medium break-words hover:text-primary max-md:line-clamp-2 md:max-w-56"
                                                             title={doc.title}
                                                         >
                                                             {doc.title}
-                                                        </p>
+                                                        </Link>
                                                         <p
                                                             className="text-xs break-all text-muted-foreground max-md:line-clamp-1 md:max-w-56"
                                                             title={doc.file}
@@ -373,16 +312,17 @@ export default function DosenDokumenRevisiPage() {
                                             >
                                                 <div className="flex items-center justify-end gap-1">
                                                     <RowIconButton
-                                                        label={`Lihat dokumen ${doc.title} - ${doc.mahasiswa}`}
-                                                        onClick={(event) => {
-                                                            detailTrigger.current =
-                                                                event.currentTarget;
-                                                            setSelectedDocumentId(
-                                                                doc.id,
-                                                            );
-                                                        }}
+                                                        asChild
+                                                        label={`Detail dokumen ${doc.title}`}
                                                     >
-                                                        <Eye className="size-4" />
+                                                        <Link
+                                                            href={doc.detailUrl}
+                                                        >
+                                                            <Eye
+                                                                aria-hidden="true"
+                                                                className="size-4"
+                                                            />
+                                                        </Link>
                                                     </RowIconButton>
                                                     <RowIconButton
                                                         label={`Unduh dokumen ${doc.title}`}
@@ -423,227 +363,6 @@ export default function DosenDokumenRevisiPage() {
                     )}
                 </DataSection>
             </div>
-
-            <Sheet
-                open={selectedDocument !== undefined}
-                onOpenChange={(open) => !open && setSelectedDocumentId(null)}
-            >
-                <SheetContent
-                    className="w-full gap-0 p-0 sm:max-w-xl"
-                    onCloseAutoFocus={(event) => {
-                        event.preventDefault();
-                        detailTrigger.current?.focus();
-                    }}
-                >
-                    {selectedDocument && (
-                        <>
-                            <SheetHeader className="border-b px-6 py-4 pr-12">
-                                <SheetTitle className="break-words">
-                                    {selectedDocument.title}
-                                </SheetTitle>
-                                <SheetDescription className="break-words">
-                                    {selectedDocument.mahasiswa} -{' '}
-                                    {selectedDocument.nim}
-                                </SheetDescription>
-                            </SheetHeader>
-                            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-5">
-                                <dl className="grid gap-4 text-sm">
-                                    <div>
-                                        <dt className="text-muted-foreground">
-                                            File
-                                        </dt>
-                                        <dd className="break-all">
-                                            {selectedDocument.file}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-muted-foreground">
-                                            Diupload
-                                        </dt>
-                                        <dd>{selectedDocument.uploadedAt}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="mb-1 text-muted-foreground">
-                                            Status
-                                        </dt>
-                                        <dd>
-                                            <StatusBadge
-                                                domain="document"
-                                                status={
-                                                    documentStatusKey[
-                                                        selectedDocument.status
-                                                    ]
-                                                }
-                                            >
-                                                {selectedDocument.status}
-                                            </StatusBadge>
-                                        </dd>
-                                    </div>
-                                </dl>
-                                <section aria-label="Catatan revisi">
-                                    <h3 className="mb-2 text-sm font-semibold">
-                                        Catatan revisi yang dikirim
-                                    </h3>
-                                    <p className="text-sm leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">
-                                        {selectedDocument.revisionNotes ??
-                                            'Belum ada catatan revisi.'}
-                                    </p>
-                                </section>
-                                <div className="flex flex-wrap gap-2 border-t pt-4">
-                                    {selectedDocument.fileUrl && (
-                                        <Button
-                                            variant="outline"
-                                            asChild
-                                            className="max-md:min-h-11"
-                                        >
-                                            <a
-                                                href={selectedDocument.fileUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                <Download />
-                                                Unduh dokumen
-                                            </a>
-                                        </Button>
-                                    )}
-                                    {selectedDocument.status ===
-                                        'Perlu Review' && (
-                                        <>
-                                            <Button
-                                                variant="outline"
-                                                className="max-md:min-h-11"
-                                                disabled={form.processing}
-                                                onClick={() => {
-                                                    form.reset();
-                                                    form.clearErrors();
-                                                    setExpandedRevision(false);
-                                                    setRevisiDocDialog(
-                                                        selectedDocument,
-                                                    );
-                                                }}
-                                            >
-                                                <XCircle />
-                                                Kirim catatan revisi
-                                            </Button>
-                                            <Button
-                                                className="max-md:min-h-11"
-                                                disabled={form.processing}
-                                                onClick={() =>
-                                                    submitApprove(
-                                                        selectedDocument.id,
-                                                    )
-                                                }
-                                            >
-                                                <CheckCircle2 />
-                                                Setujui dokumen
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </SheetContent>
-            </Sheet>
-
-            <Dialog
-                open={revisiDocDialog !== null}
-                onOpenChange={(open) => !open && setRevisiDocDialog(null)}
-            >
-                <DialogContent
-                    className={cn(
-                        'max-h-[90dvh] overflow-y-auto',
-                        expandedRevision ? 'sm:max-w-3xl' : 'sm:max-w-xl',
-                    )}
-                >
-                    <DialogHeader>
-                        <DialogTitle>Kirim Catatan Revisi</DialogTitle>
-                        <DialogDescription>
-                            Tulis detail revisi yang perlu diperbaiki oleh
-                            mahasiswa untuk dokumen{' '}
-                            <span className="font-medium text-foreground">
-                                {revisiDocDialog?.file}
-                            </span>
-                            .
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form
-                        onSubmit={submitRevisi}
-                        className="flex flex-col gap-4 py-2"
-                    >
-                        <div className="grid gap-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <Label htmlFor="revision_notes">
-                                    Catatan Revisi
-                                </Label>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    aria-expanded={expandedRevision}
-                                    aria-controls="revision_notes"
-                                    onClick={() =>
-                                        setExpandedRevision(
-                                            (expanded) => !expanded,
-                                        )
-                                    }
-                                >
-                                    {expandedRevision
-                                        ? 'Ciutkan kolom catatan'
-                                        : 'Perluas kolom catatan'}
-                                </Button>
-                            </div>
-                            <Textarea
-                                id="revision_notes"
-                                value={form.data.revision_notes}
-                                onChange={(e) =>
-                                    form.setData(
-                                        'revision_notes',
-                                        e.target.value,
-                                    )
-                                }
-                                placeholder="Tuliskan masukan atau rincian perbaikan di sini..."
-                                className={cn(
-                                    'min-h-40 resize-y',
-                                    expandedRevision && 'min-h-[45dvh]',
-                                )}
-                                required
-                                aria-invalid={Boolean(
-                                    form.errors.revision_notes,
-                                )}
-                            />
-                            {form.errors.revision_notes && (
-                                <p className="text-sm font-medium text-destructive">
-                                    {form.errors.revision_notes}
-                                </p>
-                            )}
-                        </div>
-
-                        <DialogFooter className="pt-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setRevisiDocDialog(null)}
-                                disabled={form.processing}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={
-                                    form.processing ||
-                                    !form.data.revision_notes?.trim()
-                                }
-                            >
-                                {form.processing
-                                    ? 'Menyimpan...'
-                                    : 'Kirim Catatan'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
         </DosenLayout>
     );
 }

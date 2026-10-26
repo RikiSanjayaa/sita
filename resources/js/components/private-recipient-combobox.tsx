@@ -181,6 +181,8 @@ export function PrivateRecipientCombobox({
             <Button
                 type="button"
                 size="icon"
+                aria-label="Mulai chat pribadi"
+                className="shrink-0 max-md:size-11"
                 onClick={onSubmit}
                 disabled={disabled || value === ''}
             >

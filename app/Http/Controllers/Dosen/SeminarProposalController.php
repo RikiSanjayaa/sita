@@ -47,14 +47,21 @@ class SeminarProposalController extends Controller
             ->filter(fn(ThesisDefenseExaminer $examiner): bool => in_array($examiner->defense?->type, ['sempro', 'sidang'], true))
             ->values();
 
-        $chatThreadIds = MentorshipChatThread::query()
-            ->whereIn('context_id', $examinerRecords->pluck('defense_id')->unique())
+        $examThreads = MentorshipChatThread::query()
             ->whereIn('type', ['sempro', 'sidang'])
+            ->whereIn('context_id', $examinerRecords->pluck('defense_id'))
             ->whereHas('participants', fn ($query) => $query->where('user_id', $lecturer->id)->where('role', 'examiner'))
-            ->get(['id', 'type', 'context_id', 'student_user_id'])
-            ->keyBy(fn (MentorshipChatThread $thread): string => $thread->type.':'.$thread->context_id.':'.$thread->student_user_id);
+            ->orderByDesc('id')
+            ->get();
+        $privateThreads = MentorshipChatThread::query()
+            ->ofType('private')
+            ->whereHas('participants', fn ($query) => $query->where('user_id', $lecturer->id))
+            ->whereHas('participants', fn ($query) => $query->whereIn('user_id', $examinerRecords->pluck('defense.project.student_user_id')))
+            ->with('participants')
+            ->orderByDesc('id')
+            ->get();
 
-        $defenses = $examinerRecords->map(function (ThesisDefenseExaminer $examiner) use ($lecturer, $chatThreadIds): array {
+        $defenses = $examinerRecords->map(function (ThesisDefenseExaminer $examiner) use ($lecturer, $examThreads, $privateThreads): array {
             $defense = $examiner->defense;
             $project = $defense?->project;
             $student = $project?->student;
@@ -62,7 +69,6 @@ class SeminarProposalController extends Controller
             $terminology = $project === null
                 ? AcademicTerminology::neutral()
                 : AcademicTerminology::forProject($project);
-            $chatThread = $defense === null ? null : $chatThreadIds->get($defense->type.':'.$defense->id.':'.$student?->id);
 
             $otherExaminers = $defense?->examiners
                 ?->filter(fn(ThesisDefenseExaminer $item) => $item->lecturer_user_id !== $lecturer->id)
@@ -82,6 +88,11 @@ class SeminarProposalController extends Controller
                     && ThesisRevisionPayload::currentRoundStatus($revision) === ThesisRevisionRound::STATUS_AWAITING_REVIEW)
                 ->pluck('id')->values()->all() ?? [];
 
+            $examThread = $examThreads->first(fn (MentorshipChatThread $thread): bool => $thread->type === $defense->type
+                && (int) $thread->context_id === (int) $defense->id
+                && (int) $thread->student_user_id === (int) $student?->id);
+            $privateThread = $privateThreads->first(fn (MentorshipChatThread $thread): bool => $thread->participants->contains('user_id', $student?->id));
+
             return [
                 'defenseId' => $defense?->id,
                 'projectId' => $project?->id,
@@ -94,8 +105,6 @@ class SeminarProposalController extends Controller
                 'attemptNo' => $defense?->attempt_no,
                 'studentName' => $student?->name ?? '-',
                 'studentNim' => $student?->mahasiswaProfile?->nim ?? '-',
-                'studentUserId' => $student?->id,
-                'chatUrl' => $chatThread === null ? null : route('dosen.pesan', ['thread' => $chatThread->id]),
                 'titleId' => $title?->title_id ?? '-',
                 'titleEn' => $title?->title_en ?? '-',
                 'defenseStatus' => $defense?->status,
@@ -104,6 +113,33 @@ class SeminarProposalController extends Controller
                 'scheduledAt' => $defense?->scheduled_for?->toIso8601String(),
                 'location' => $defense?->location ?? '-',
                 'mode' => $defense?->mode ?? '-',
+                'documents' => $defense->documents
+                    ->where('project_id', $defense->project_id)
+                    ->whereNull('revision_id')
+                    ->whereIn('kind', [$defense->type === 'sidang' ? 'final_manuscript' : 'proposal', 'supporting_document'])
+                    ->sortBy(fn (ThesisDocument $document): array => [$document->kind === 'supporting_document' ? 1 : 0, $document->id])
+                    ->map(fn (ThesisDocument $document): array => [
+                        'id' => $document->id,
+                        'detailUrl' => route('dosen.berkas-ujian.show', ['document' => $document->id]),
+                        'kind' => $document->kind,
+                        'kindLabel' => match ($document->kind) {
+                            'proposal' => $terminology['proposalDocument'],
+                            'final_manuscript' => 'Naskah Akhir',
+                            'supporting_document' => 'Lampiran',
+                        },
+                        'title' => $document->title,
+                        'fileName' => $document->file_name,
+                        'version' => $document->sourceWorkspaceDocument?->version_number ?? $document->version_no,
+                        'uploadedAt' => WitaDateTime::formatOrNull($document->sourceWorkspaceDocument?->created_at ?? $document->uploaded_at),
+                        'viewUrl' => route('files.thesis-documents.download', ['document' => $document->id, 'inline' => 1]),
+                        'downloadUrl' => route('files.thesis-documents.download', ['document' => $document->id]),
+                    ])
+                    ->values()
+                    ->all(),
+                'chatUrl' => $examThread !== null
+                    ? '/dosen/pesan?thread='.$examThread->id
+                    : '/dosen/pesan?mode=private&'.($privateThread !== null ? 'thread='.$privateThread->id : 'recipient='.$student?->id),
+                'chatLabel' => $examThread !== null ? 'Chat grup ujian' : 'Chat pribadi mahasiswa',
                 'myExaminerId' => $examiner->id,
                 'myRole' => $examiner->role,
                 'myOrder' => $examiner->order_no,

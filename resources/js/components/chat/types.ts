@@ -4,6 +4,7 @@ export type ChatAttachmentKind = 'image' | 'document';
 export type ChatOwnReview = {
     id: number;
     status: string;
+    detailUrl: string;
 };
 
 export type ChatReadSnapshot = {

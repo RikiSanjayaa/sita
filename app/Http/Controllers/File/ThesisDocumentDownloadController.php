@@ -3,11 +3,8 @@
 namespace App\Http\Controllers\File;
 
 use App\Http\Controllers\Controller;
-use App\Models\KaprodiAssignment;
-use App\Models\ThesisDefenseExaminer;
 use App\Models\ThesisDocument;
-use App\Models\ThesisProject;
-use App\Models\User;
+use App\Services\DocumentAccessService;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,34 +17,10 @@ class ThesisDocumentDownloadController extends Controller
         $user = $request->user();
         abort_if($user === null, 401);
 
-        $document->loadMissing('project');
-        $project = $document->project;
-        abort_if($project === null, 404);
+        $portal = $request->query('portal') === 'kaprodi' ? 'kaprodi' : null;
+        abort_unless(app(DocumentAccessService::class)->thesis($user, $document, $portal), 403);
 
-        if ($user->hasRole('super_admin')) {
-            // Super admin may access any thesis document.
-        } elseif ($user->hasRole('admin')) {
-            $prodiId = $user->adminProgramStudiId();
-
-            abort_unless($prodiId === null || $project->program_studi_id === $prodiId, 403);
-        } elseif ($user->hasRole('mahasiswa')) {
-            abort_unless($project->student_user_id === $user->id, 403);
-        } elseif ($user->hasRole('dosen')) {
-            $isSupervisor = $project->supervisorAssignments()
-                ->where('lecturer_user_id', $user->id)
-                ->exists();
-
-            $isExaminer = ThesisDefenseExaminer::query()
-                ->where('lecturer_user_id', $user->id)
-                ->whereHas('defense', static fn($query) => $query->where('project_id', $project->id))
-                ->exists();
-
-            abort_unless($isSupervisor || $isExaminer || $this->canDownloadAsKaprodi($user, $project), 403);
-        } elseif ($user->hasRole('kaprodi')) {
-            abort_unless($this->canDownloadAsKaprodi($user, $project), 403);
-        } else {
-            abort(403);
-        }
+        abort_if($document->storage_disk === null || $document->storage_path === null, 404);
 
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk($document->storage_disk);
@@ -69,18 +42,5 @@ class ThesisDocumentDownloadController extends Controller
             $document->storage_path,
             $document->file_name,
         );
-    }
-
-    private function canDownloadAsKaprodi(User $user, ThesisProject $project): bool
-    {
-        if (! $user->hasRole('kaprodi')) {
-            return false;
-        }
-
-        $assignment = $user->kaprodiAssignment;
-
-        return $assignment instanceof KaprodiAssignment
-            && $assignment->hasCapability(KaprodiAssignment::CAPABILITY_DOWNLOAD_DOCUMENTS)
-            && $project->program_studi_id === $user->kaprodiProgramStudiId();
     }
 }

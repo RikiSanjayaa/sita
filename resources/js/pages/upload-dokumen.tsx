@@ -1,4 +1,4 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
@@ -11,7 +11,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ArchivedMentorshipNotice } from '@/components/archived-mentorship-notice';
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
@@ -49,13 +49,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
 import {
     Tooltip,
@@ -95,6 +88,7 @@ type UploadedDokumenRow = {
     status: DokumenStatus;
     reviews: UploadedDokumenReview[];
     downloadUrl: string;
+    detailUrl: string;
     canDelete: boolean;
     deleteBlockedReason?: string | null;
 };
@@ -142,32 +136,10 @@ function DokumenStatusBadge({ status }: { status: DokumenStatus }) {
     );
 }
 
-const REVIEW_STATUS_LABELS: Record<string, string> = {
-    approved: 'Disetujui',
-    needs_revision: 'Perlu Revisi',
-};
-
 type StatusFilter = 'semua' | DokumenStatus;
 const PAGE_SIZE = 15;
 
 const fieldError = 'text-sm text-destructive';
-
-function DetailItem({
-    label,
-    children,
-}: {
-    label: string;
-    children: ReactNode;
-}) {
-    return (
-        <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-                {label}
-            </dt>
-            <dd className="mt-1 text-sm font-medium">{children}</dd>
-        </div>
-    );
-}
 
 export default function UploadDokumenPage() {
     const page = usePage<SharedData & UploadDokumenProps>();
@@ -188,8 +160,6 @@ export default function UploadDokumenPage() {
     );
     const pageState = useUrlState('page', 1);
     const [documentPendingDelete, setDocumentPendingDelete] =
-        useState<UploadedDokumenRow | null>(null);
-    const [detailDocument, setDetailDocument] =
         useState<UploadedDokumenRow | null>(null);
 
     const form = useForm<{
@@ -561,145 +531,6 @@ export default function UploadDokumenPage() {
                 </DialogContent>
             </Dialog>
 
-            <Sheet
-                open={detailDocument !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setDetailDocument(null);
-                    }
-                }}
-            >
-                <SheetContent
-                    side="right"
-                    className="w-full gap-0 p-0 sm:max-w-xl"
-                    data-testid="dokumen-detail-drawer"
-                >
-                    {detailDocument ? (
-                        <>
-                            <SheetHeader className="border-b px-6 py-4">
-                                <div className="flex items-start gap-3 pr-8">
-                                    <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-muted text-primary-muted-foreground">
-                                        <FileText
-                                            aria-hidden="true"
-                                            className="size-5"
-                                        />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <SheetTitle className="line-clamp-2 text-base break-words">
-                                            {detailDocument.title}
-                                        </SheetTitle>
-                                        <SheetDescription className="mt-1 break-all">
-                                            {detailDocument.fileName}
-                                            {detailDocument.version
-                                                ? ` — ${detailDocument.version}`
-                                                : ''}
-                                        </SheetDescription>
-                                    </div>
-                                </div>
-                            </SheetHeader>
-
-                            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-                                <dl className="grid gap-4 sm:grid-cols-2">
-                                    <DetailItem label="Kategori">
-                                        {detailDocument.category}
-                                    </DetailItem>
-                                    <DetailItem label="Status">
-                                        <DokumenStatusBadge
-                                            status={detailDocument.status}
-                                        />
-                                    </DetailItem>
-                                    <DetailItem label="Tanggal Upload">
-                                        {detailDocument.uploadedAt}
-                                    </DetailItem>
-                                    <DetailItem label="Ukuran">
-                                        {detailDocument.size}
-                                    </DetailItem>
-                                </dl>
-
-                                <section className="space-y-3 border-t pt-5">
-                                    <h3 className="text-sm font-semibold">
-                                        Review Dosen
-                                    </h3>
-                                    {detailDocument.reviews.length > 0 ? (
-                                        <ul className="divide-y">
-                                            {detailDocument.reviews.map(
-                                                (review, index) => (
-                                                    <li
-                                                        key={`${review.lecturerName}-${index}`}
-                                                        className="space-y-2 py-3 first:pt-0 last:pb-0"
-                                                    >
-                                                        <div className="flex flex-wrap items-start justify-between gap-2">
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-medium break-words">
-                                                                    {
-                                                                        review.lecturerName
-                                                                    }
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {
-                                                                        review.role
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                            <StatusBadge
-                                                                domain="document"
-                                                                status={
-                                                                    review.status
-                                                                }
-                                                                className="whitespace-nowrap"
-                                                            >
-                                                                {REVIEW_STATUS_LABELS[
-                                                                    review
-                                                                        .status
-                                                                ] ??
-                                                                    'Menunggu Review'}
-                                                            </StatusBadge>
-                                                        </div>
-                                                        {review.notes ? (
-                                                            <p className="text-sm break-words whitespace-pre-wrap">
-                                                                {review.notes}
-                                                            </p>
-                                                        ) : (
-                                                            <p className="text-xs text-muted-foreground italic">
-                                                                Tidak ada
-                                                                catatan.
-                                                            </p>
-                                                        )}
-                                                        {review.reviewedAt ? (
-                                                            <p className="text-xs text-muted-foreground">
-                                                                Direview{' '}
-                                                                {
-                                                                    review.reviewedAt
-                                                                }
-                                                            </p>
-                                                        ) : null}
-                                                    </li>
-                                                ),
-                                            )}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            Belum ada review dari dosen.
-                                        </p>
-                                    )}
-                                </section>
-
-                                <Button
-                                    asChild
-                                    variant="outline"
-                                    className="max-md:h-11"
-                                >
-                                    <a href={detailDocument.downloadUrl}>
-                                        <Download className="size-4" />
-                                        Unduh Dokumen
-                                    </a>
-                                </Button>
-                            </div>
-                        </>
-                    ) : null}
-                </SheetContent>
-            </Sheet>
-
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
                 <PageHeader
                     title="Upload Dokumen"
@@ -821,7 +652,7 @@ export default function UploadDokumenPage() {
                                         <tr
                                             key={`${row.id}-${row.version ?? 'lampiran'}`}
                                             onClick={() =>
-                                                setDetailDocument(row)
+                                                router.visit(row.detailUrl)
                                             }
                                             className={cn(
                                                 stackedTable.tr,
@@ -900,14 +731,17 @@ export default function UploadDokumenPage() {
                                             >
                                                 <div className="flex items-center justify-end gap-1 max-md:justify-start">
                                                     <RowIconButton
+                                                        asChild
                                                         label={`Detail dokumen ${row.title}`}
-                                                        onClick={() =>
-                                                            setDetailDocument(
-                                                                row,
-                                                            )
-                                                        }
                                                     >
-                                                        <Eye className="size-4" />
+                                                        <Link
+                                                            href={row.detailUrl}
+                                                        >
+                                                            <Eye
+                                                                aria-hidden="true"
+                                                                className="size-4"
+                                                            />
+                                                        </Link>
                                                     </RowIconButton>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>

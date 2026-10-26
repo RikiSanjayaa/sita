@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
+import { openDocumentDetail } from '../support/document-detail';
 import {
     authStatePath,
     thesisFixtures,
@@ -66,6 +67,25 @@ test.describe('Upload dokumen page', () => {
             const download = await downloadPromise;
 
             expect(await download.failure()).toBeNull();
+
+            const detailUrl = await openDocumentDetail(
+                page,
+                documentRow,
+                '/mahasiswa/upload-dokumen',
+            );
+            await expect(
+                page.getByText(title, { exact: true }).first(),
+            ).toBeVisible();
+            await expect(
+                page.getByRole('textbox', { name: 'Catatan dosen' }),
+            ).toHaveCount(0);
+            await page.reload();
+            await expect(page).toHaveURL(new RegExp(`${detailUrl}$`));
+            await page.goBack();
+            await expect(page).toHaveURL(
+                /\/mahasiswa\/upload-dokumen(?:\?.*)?$/,
+            );
+            await page.getByPlaceholder('Cari judul atau file...').fill(title);
 
             await page
                 .getByRole('button', { name: `Hapus dokumen ${title}` })

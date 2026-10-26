@@ -41,7 +41,7 @@ class DosenThesisWorkspaceService
                 'defense.project.student.mahasiswaProfile',
                 'defense.project.latestTitle',
                 ...array_map(fn (string $relation): string => 'defense.'.$relation, DefenseRevisionLog::RELATIONS),
-                'defense.documents',
+                'defense.documents.sourceWorkspaceDocument',
             ])
             ->where('lecturer_user_id', $lecturer->id)
             ->orderByDesc('id')

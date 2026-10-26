@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DocumentDetailController;
 use App\Http\Controllers\Kaprodi\DashboardController;
 use App\Http\Controllers\Kaprodi\DokumenController;
 use App\Http\Controllers\Kaprodi\DosenTerlibatController;
@@ -21,6 +22,8 @@ Route::middleware(['auth', 'verified', 'role:kaprodi'])->prefix('kaprodi')->name
     Route::post('projects/{project}/sempro', [ProjectWorkflowController::class, 'scheduleSempro'])->name('projects.sempro');
     Route::post('projects/{project}/sidang', [ProjectWorkflowController::class, 'scheduleSidang'])->name('projects.sidang');
     Route::get('dokumen', DokumenController::class)->name('dokumen');
+    Route::get('dokumen/workspace/{document}', [DocumentDetailController::class, 'workspace'])->name('dokumen.workspace.show');
+    Route::get('dokumen/thesis/{document}', [DocumentDetailController::class, 'thesis'])->name('dokumen.thesis.show');
     Route::redirect('dosen-terlibat', '/kaprodi/dosen-prodi')->name('dosen-terlibat.redirect');
     Route::get('dosen-prodi', DosenTerlibatController::class)->name('dosen-prodi');
     Route::patch('dosen-prodi/{lecturer}/quota', LecturerQuotaController::class)->name('dosen-prodi.quota');

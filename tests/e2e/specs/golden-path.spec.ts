@@ -16,6 +16,10 @@ import {
     toDateTimeLocalString,
 } from '../support/dates';
 import {
+    openDocumentDetail,
+    submitDocumentReview,
+} from '../support/document-detail';
+import {
     attachStageScreenshot,
     goldenPathStudent,
     newGoldenStudentContext,
@@ -522,23 +526,19 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 ]);
 
                 await openDosenGroupThread(pageOf.ahmad, student, 'Sempro');
-                const reviewButton = pageOf.ahmad
-                    .getByRole('button', { name: `Tinjau ${attachmentName}` })
+                const reviewLink = pageOf.ahmad
+                    .getByRole('link', { name: `Tinjau ${attachmentName}` })
                     .last();
-                await reviewButton.scrollIntoViewIfNeeded();
-                await reviewButton.click();
-
-                const reviewDialog = pageOf.ahmad.getByRole('dialog', {
-                    name: 'Kirim Catatan Revisi',
-                });
-                await expect(reviewDialog).toBeVisible();
-                await reviewDialog
-                    .getByRole('textbox', { name: 'Catatan Revisi' })
-                    .fill(revisionNote);
-                await reviewDialog
-                    .getByRole('button', { name: 'Kirim Catatan' })
-                    .click();
-                await expect(reviewDialog).toBeHidden();
+                await reviewLink.scrollIntoViewIfNeeded();
+                await reviewLink.click();
+                await expect(pageOf.ahmad).toHaveURL(
+                    /\/dosen\/dokumen-revisi\/\d+$/,
+                );
+                await submitDocumentReview(
+                    pageOf.ahmad,
+                    'needs_revision',
+                    revisionNote,
+                );
 
                 // Demo case #10: the mahasiswa sees the review result.
                 await studentPage.goto('/mahasiswa/upload-dokumen');
@@ -550,18 +550,19 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     .filter({ hasText: attachmentName })
                     .first();
                 await expect(documentRow).toContainText('Perlu Revisi');
-                await documentRow
-                    .getByRole('button', { name: /^Detail/ })
-                    .click();
-                await expect(studentPage.getByRole('dialog')).toContainText(
-                    revisionNote,
+                await openDocumentDetail(
+                    studentPage,
+                    documentRow,
+                    '/mahasiswa/upload-dokumen',
                 );
+                await expect(
+                    studentPage.getByText(revisionNote, { exact: true }),
+                ).toBeVisible();
                 await attachStageScreenshot(
                     testInfo,
                     studentPage,
                     '4-mahasiswa-hasil-review-lampiran',
                 );
-                await studentPage.keyboard.press('Escape');
             });
 
             await test.step('5. Both examiners grade the sempro, one asks for revisions', async () => {

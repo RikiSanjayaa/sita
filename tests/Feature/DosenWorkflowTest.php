@@ -1073,7 +1073,7 @@ test('sidang project completes only after all requesting lecturers resolve their
         ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi Sidang selesai');
 });
 
-it('links an exam to its authorized group or leaves private chat creation to an explicit action', function (string $threadCase) {
+it('links only an authorized matching exam group and otherwise offers the student private chat', function (string $threadCase) {
     $lecturer = createDosenUser();
     $student = createMahasiswaUser('CHAT-DETAIL-'.$threadCase);
     $project = createThesisProjectForStudent($student);
@@ -1107,7 +1107,9 @@ it('links an exam to its authorized group or leaves private chat creation to an 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('defenses', 1)
-            ->where('defenses.0.studentUserId', $student->id)
-            ->where('defenses.0.chatUrl', $threadCase === 'member' ? route('dosen.pesan', ['thread' => $thread->id]) : null));
+            ->where('defenses.0.chatUrl', fn (string $url): bool => parse_url($url, PHP_URL_PATH) === '/dosen/pesan'
+                && parse_url($url, PHP_URL_QUERY) === ($threadCase === 'member'
+                    ? 'thread='.$thread->id
+                    : 'mode=private&recipient='.$student->id)));
     expect(MentorshipChatThread::query()->count())->toBe($threadCount);
 })->with(['member', 'missing', 'not-member', 'wrong-type']);

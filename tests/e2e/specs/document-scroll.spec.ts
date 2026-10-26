@@ -118,3 +118,58 @@ test.describe('chat stays a single screen (#126)', () => {
         });
     }
 });
+
+test.describe('stable document pages use document scrolling (#152)', () => {
+    for (const width of widths) {
+        test(`${width}px student document detail has no nested editor scroller`, async ({
+            browser,
+        }) => {
+            const context = await browser.newContext({
+                viewport: { width, height: 800 },
+                storageState: authStatePath('mahasiswa'),
+            });
+            try {
+                const page = await context.newPage();
+                await page.goto('/mahasiswa/upload-dokumen');
+                await page
+                    .locator('a[href*="/mahasiswa/upload-dokumen/"]')
+                    .first()
+                    .click();
+                await expect(page).toHaveURL(
+                    /\/mahasiswa\/upload-dokumen\/\d+$/,
+                );
+                await expect(
+                    page.getByRole('heading', {
+                        name: 'Detail dokumen',
+                        exact: true,
+                    }),
+                ).toBeVisible();
+                await expect(page.getByRole('dialog')).toHaveCount(0);
+                const data = await metrics(page);
+                expect(data.mainOverflowY).toBe('visible');
+                expect(data.mainScrollHeight).toBeLessThanOrEqual(
+                    data.mainClientHeight,
+                );
+                expect(
+                    await page.evaluate(
+                        () => document.documentElement.scrollWidth,
+                    ),
+                ).toBeLessThanOrEqual(width);
+                await page
+                    .getByRole('heading', {
+                        name: 'Riwayat versi',
+                        exact: true,
+                    })
+                    .scrollIntoViewIfNeeded();
+                await expect(
+                    page.getByRole('heading', {
+                        name: 'Riwayat versi',
+                        exact: true,
+                    }),
+                ).toBeInViewport();
+            } finally {
+                await context.close();
+            }
+        });
+    }
+});

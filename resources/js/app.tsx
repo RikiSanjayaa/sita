@@ -37,6 +37,18 @@ const appName = (() => {
     }
 })();
 
+// Register before Inertia so a page can cancel Back before its history handler runs.
+window.addEventListener(
+    'popstate',
+    (event) => {
+        const before = new Event('sita:before-popstate', { cancelable: true });
+        if (!window.dispatchEvent(before)) {
+            event.stopImmediatePropagation();
+        }
+    },
+    true,
+);
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>

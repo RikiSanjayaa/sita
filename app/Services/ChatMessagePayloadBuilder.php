@@ -23,7 +23,7 @@ class ChatMessagePayloadBuilder
      * The viewer's own copy of a document event, looked up in $ownReviews (see ownReviewsFor()).
      * Broadcasts are shared by all thread members and pass no map, so they carry null.
      *
-     * @param  array<string, array{id: int, status: string}>  $ownReviews
+     * @param  array<string, array{id: int, status: string, detailUrl: string}>  $ownReviews
      * @return array<string, mixed>
      */
     public function build(MentorshipChatMessage $message, array $ownReviews = []): array
@@ -83,7 +83,7 @@ class ChatMessagePayloadBuilder
      * Keyed by {@see copyKey()} so each message resolves its own copy without another query.
      *
      * @param  Collection<int, MentorshipDocument>  $documents
-     * @return array<string, array{id: int, status: string}>
+     * @return array<string, array{id: int, status: string, detailUrl: string}>
      */
     public function ownReviewsFor(User $viewer, Collection $documents): array
     {
@@ -94,10 +94,12 @@ class ChatMessagePayloadBuilder
         return MentorshipDocument::query()
             ->where('lecturer_user_id', $viewer->id)
             ->whereIn('student_user_id', $documents->pluck('student_user_id')->unique()->values()->all())
-            ->whereIn('document_group', $documents->pluck('document_group')->unique()->values()->all())
+            ->where(fn ($query) => $query
+                ->whereIn('document_group', $documents->pluck('document_group')->filter()->unique()->values()->all())
+                ->orWhereIn('id', $documents->whereNull('document_group')->pluck('id')->all()))
             ->get()
             ->mapWithKeys(fn (MentorshipDocument $copy): array => [
-                self::copyKey($copy) => ['id' => $copy->id, 'status' => $copy->status],
+                self::copyKey($copy) => ['id' => $copy->id, 'status' => $copy->status, 'detailUrl' => DocumentDetailService::workspaceUrl($copy, 'dosen')],
             ])
             ->all();
     }
@@ -117,8 +119,8 @@ class ChatMessagePayloadBuilder
     }
 
     /**
-     * @param  array<string, array{id: int, status: string}>  $ownReviews
-     * @return array{id: int, status: string}|null
+     * @param  array<string, array{id: int, status: string, detailUrl: string}>  $ownReviews
+     * @return array{id: int, status: string, detailUrl: string}|null
      */
     private function ownReview(MentorshipChatMessage $message, array $ownReviews): ?array
     {
@@ -142,7 +144,7 @@ class ChatMessagePayloadBuilder
      */
     private static function copyKey(MentorshipDocument $document): string
     {
-        return $document->student_user_id.'|'.$document->document_group.'|'.$document->version_number;
+        return $document->student_user_id.'|'.($document->document_group ?? 'legacy-'.$document->id).'|'.$document->version_number;
     }
 
     /**

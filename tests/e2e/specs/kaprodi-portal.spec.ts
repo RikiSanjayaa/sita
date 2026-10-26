@@ -14,7 +14,7 @@ const withoutSupervisors = thesisScenarios.passedWithoutSupervisors;
 const supervised = thesisScenarios.twoSupervisors;
 
 function studentRow(page: Page, studentName: string) {
-    // Some tables (kaprodi/dokumen) give their rows role="button", so select the tr element.
+    // Scope repeated student names to the corresponding table row.
     return page.locator('tr').filter({ hasText: studentName }).first();
 }
 
@@ -334,7 +334,7 @@ test.describe('Kaprodi portal', () => {
         ).toBeVisible();
     });
 
-    test('dokumen page lists student documents and opens the detail sheet', async ({
+    test('dokumen page lists student documents and opens a read-only detail page', async ({
         page,
     }) => {
         await page.goto('/kaprodi/dokumen');
@@ -346,9 +346,21 @@ test.describe('Kaprodi portal', () => {
         const row = studentRow(page, supervised.studentName);
         await expect(row).toContainText('Proposal Skripsi');
 
-        await row.click();
+        await row.locator('a[href*="/kaprodi/dokumen/"]').first().click();
+        await expect(page).toHaveURL(
+            /\/kaprodi\/dokumen\/(workspace|thesis)\/\d+$/,
+        );
         await expect(
-            page.getByRole('dialog').getByText('Proposal Skripsi').first(),
+            page.getByRole('heading', { name: 'Detail dokumen', exact: true }),
         ).toBeVisible();
+        await expect(
+            page.getByText('Proposal Skripsi', { exact: true }).first(),
+        ).toBeVisible();
+        await expect(
+            page.getByRole('textbox', { name: 'Catatan dosen' }),
+        ).toHaveCount(0);
+        await expect(
+            page.getByRole('button', { name: 'Setujui', exact: true }),
+        ).toHaveCount(0);
     });
 });
