@@ -67,6 +67,7 @@ type DokumenStatus =
     | 'Sebagian direview'
     | 'Disetujui'
     | 'Perlu Revisi'
+    | 'Revisi selesai'
     | 'Tersimpan';
 
 type UploadedDokumenReview = {
@@ -118,6 +119,7 @@ const DOKUMEN_STATUS_STYLE: Record<
     'Menunggu Review': { statusKey: 'draft', icon: Clock },
     'Sebagian direview': { statusKey: 'submitted', icon: Clock },
     'Perlu Revisi': { statusKey: 'needs_revision', icon: CircleAlert },
+    'Revisi selesai': { statusKey: 'revision_completed', icon: CheckCircle2 },
     Disetujui: { statusKey: 'approved', icon: CheckCircle2 },
 };
 
@@ -278,6 +280,7 @@ export default function UploadDokumenPage() {
             label: 'Perlu Revisi',
             count: statusCounts.revisi,
         },
+        { value: 'Revisi selesai', label: 'Revisi selesai' },
         { value: 'Disetujui', label: 'Disetujui' },
     ];
 

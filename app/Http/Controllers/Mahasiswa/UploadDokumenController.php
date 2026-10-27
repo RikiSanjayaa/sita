@@ -91,7 +91,7 @@ class UploadDokumenController extends Controller
                             'lecturerName' => $secretExaminers->labelFor($student->id, (int) $version->lecturer_user_id)
                                 ?? $version->lecturer?->name ?? '-',
                             'role' => $reviewerRoles[(int) $version->lecturer_user_id] ?? 'Dosen',
-                            'status' => $version->status,
+                            'status' => \App\Services\DocumentRevisionService::displayStatus($version),
                             'notes' => $version->revision_notes,
                             'reviewedAt' => WitaDateTime::formatOrNull($version->reviewed_at),
                         ])

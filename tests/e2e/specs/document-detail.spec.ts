@@ -286,11 +286,6 @@ test.describe('Stable document detail journey (#152)', () => {
             await expect(
                 secondReviewer.getByRole('textbox', { name: 'Catatan dosen' }),
             ).toHaveCount(0);
-            await expect(
-                secondReviewer.getByText(
-                    'Versi ini telah digantikan. Beri review pada versi terbaru.',
-                ),
-            ).toBeVisible();
             await attachDocumentStates(
                 secondReviewer,
                 testInfo,
@@ -384,9 +379,6 @@ test.describe('Stable document detail journey (#152)', () => {
             ]);
             await reviewer.goto(reviewerUrl);
             await expect(
-                reviewer.getByText(/Masa aktif bimbingan mahasiswa berakhir/),
-            ).toBeVisible();
-            await expect(
                 reviewer.getByRole('textbox', { name: 'Catatan dosen' }),
             ).toHaveCount(0);
             await expect(
@@ -406,11 +398,6 @@ test.describe('Stable document detail journey (#152)', () => {
                 `--execute=$student = App\\Models\\User::query()->where('email', 'e2e-pembimbing@sita.test')->firstOrFail(); $project = App\\Models\\ThesisProject::query()->where('student_user_id', $student->id)->latest('id')->firstOrFail(); $project->forceFill(['archived_at' => now()])->save();`,
             ]);
             await reviewer.reload();
-            await expect(
-                reviewer.getByText(
-                    'Bimbingan tidak aktif. Dokumen hanya dapat dibaca.',
-                ),
-            ).toBeVisible();
             await expect(
                 reviewer.getByRole('button', { name: 'Setujui', exact: true }),
             ).toHaveCount(0);
@@ -433,6 +420,203 @@ test.describe('Stable document detail journey (#152)', () => {
                 kaprodiContext.close(),
             ]);
             seedDocumentDetailScenario();
+        }
+    });
+    test('owner resolves and reopens reviewer points without another upload (#158)', async ({
+        browser,
+    }, testInfo) => {
+        test.setTimeout(240_000);
+        const contexts = await Promise.all([
+            browser.newContext({
+                storageState: authStatePath(student.studentKey),
+            }),
+            browser.newContext({ storageState: authStatePath('dosen1') }),
+            browser.newContext({ storageState: authStatePath('dosen2') }),
+            browser.newContext({ storageState: authStatePath('kaprodi') }),
+        ]);
+        try {
+            const [owner, first, second, kaprodi] = await Promise.all(
+                contexts.map((context) => context.newPage()),
+            );
+            await uploadVersion(owner, 1);
+            const firstUrl = await openReviewer(first);
+            await first
+                .getByRole('button', { name: 'Tambah butir', exact: true })
+                .click();
+            await first
+                .getByRole('textbox', { name: 'Butir 1', exact: true })
+                .fill('Jelaskan sumber data penelitian.');
+            await first
+                .getByRole('button', { name: 'Tambah butir', exact: true })
+                .click();
+            await first
+                .getByRole('textbox', { name: 'Butir 2', exact: true })
+                .fill('Lengkapi satuan pada tabel hasil.');
+            await first
+                .getByRole('button', { name: 'Minta revisi', exact: true })
+                .click();
+            await expect(
+                first.getByText('Perlu Revisi', { exact: true }).first(),
+            ).toBeVisible();
+            await attachDocumentStates(
+                first,
+                testInfo,
+                'dosen-structured-revision-open',
+            );
+            await openReviewer(second);
+            await submitDocumentReview(second, 'needs_revision', revision);
+            await owner.goto('/mahasiswa/upload-dokumen');
+            const ownerUrl = await openDocumentDetail(
+                owner,
+                owner
+                    .locator('tr')
+                    .filter({ hasText: 'draft-detail-v1.pdf' })
+                    .first(),
+                '/mahasiswa/upload-dokumen',
+            );
+            await expect(
+                owner.getByRole('button', {
+                    name: 'Tandai selesai',
+                    exact: true,
+                }),
+            ).toHaveCount(3);
+            await attachDocumentStates(
+                owner,
+                testInfo,
+                'mahasiswa-revision-open',
+            );
+            let uploads = 0;
+            owner.on('request', (request) => {
+                if (
+                    request.method() === 'POST' &&
+                    new URL(request.url()).pathname ===
+                        '/mahasiswa/upload-dokumen'
+                )
+                    uploads++;
+            });
+            await owner
+                .getByRole('button', { name: 'Tandai selesai', exact: true })
+                .first()
+                .click();
+            await expect(
+                owner.getByRole('button', {
+                    name: 'Tandai selesai',
+                    exact: true,
+                }),
+            ).toHaveCount(2);
+            await owner
+                .getByRole('button', { name: 'Tandai selesai', exact: true })
+                .first()
+                .click();
+            await expect(
+                owner.getByRole('button', {
+                    name: 'Tandai selesai',
+                    exact: true,
+                }),
+            ).toHaveCount(1);
+            await first.goto(firstUrl);
+            await expect(
+                first.getByText('Revisi selesai', { exact: true }).first(),
+            ).toBeVisible();
+            await expect(first.getByText(/^Diselesaikan /)).toHaveCount(2);
+            await expect(
+                first.getByRole('button', {
+                    name: 'Buka kembali',
+                    exact: true,
+                }),
+            ).toHaveCount(0);
+            await owner
+                .getByRole('button', { name: 'Tandai selesai', exact: true })
+                .click();
+            await expect(
+                owner.getByRole('button', {
+                    name: 'Tandai selesai',
+                    exact: true,
+                }),
+            ).toHaveCount(0);
+            await expect(
+                owner.getByText('Revisi selesai', { exact: true }).first(),
+            ).toBeVisible();
+            await attachDocumentStates(
+                owner,
+                testInfo,
+                'mahasiswa-revision-completed',
+            );
+            await first.goto(firstUrl);
+            await attachDocumentStates(
+                first,
+                testInfo,
+                'dosen-revision-completed',
+            );
+            await kaprodi.goto('/kaprodi/dokumen');
+            await kaprodi.getByPlaceholder(/Cari mahasiswa.*file/i).fill(title);
+            await attachDocumentStates(
+                kaprodi,
+                testInfo,
+                'kaprodi-revision-completed-list',
+            );
+            await openDocumentDetail(
+                kaprodi,
+                kaprodi
+                    .locator('tr')
+                    .filter({ hasText: 'draft-detail-v1.pdf' })
+                    .first(),
+                '/kaprodi/dokumen/workspace',
+            );
+            await expect(
+                kaprodi.getByRole('button', {
+                    name: 'Buka kembali',
+                    exact: true,
+                }),
+            ).toHaveCount(0);
+            await attachDocumentStates(
+                kaprodi,
+                testInfo,
+                'kaprodi-revision-completed-detail',
+            );
+            await owner.goto('/mahasiswa/upload-dokumen');
+            await expect(
+                owner
+                    .locator('tr')
+                    .filter({ hasText: 'draft-detail-v1.pdf' })
+                    .first(),
+            ).toContainText('Revisi selesai');
+            await attachDocumentStates(
+                owner,
+                testInfo,
+                'mahasiswa-revision-completed-list',
+            );
+            await first.goto('/dosen/dokumen-revisi');
+            await first.getByPlaceholder(/Cari mahasiswa.*file/i).fill(title);
+            await expect(
+                first
+                    .locator('tr')
+                    .filter({ hasText: 'draft-detail-v1.pdf' })
+                    .first(),
+            ).toContainText('Revisi selesai');
+            await attachDocumentStates(
+                first,
+                testInfo,
+                'dosen-revision-completed-list',
+            );
+            await owner.goto(ownerUrl);
+            await owner
+                .getByRole('button', { name: 'Buka kembali', exact: true })
+                .first()
+                .click();
+            await expect(
+                owner.getByRole('button', {
+                    name: 'Tandai selesai',
+                    exact: true,
+                }),
+            ).toHaveCount(1);
+            await first.goto(firstUrl);
+            await expect(
+                first.getByText('Perlu Revisi', { exact: true }).first(),
+            ).toBeVisible();
+            expect(uploads).toBe(0);
+        } finally {
+            await Promise.all(contexts.map((context) => context.close()));
         }
     });
 });

@@ -56,6 +56,7 @@ type DocumentQueueItem = {
     pendingCount: number;
     revisionCount: number;
     approvedCount: number;
+    completedRevisionCount: number;
     fileUrl: string | null;
     profileUrl: string;
     detailUrl: string;
@@ -67,12 +68,18 @@ type DokumenProps = {
     documentQueue: DocumentQueueItem[];
 };
 
-type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
+type StatusFilter =
+    | 'semua'
+    | 'Perlu Review'
+    | 'Perlu Revisi'
+    | 'Revisi selesai'
+    | 'Disetujui';
 
 /** The backend sends localized status labels; the badge tone needs the key. */
 const documentStatusKeys: Record<string, string> = {
     'Perlu Review': 'submitted',
     'Perlu Revisi': 'needs_revision',
+    'Revisi selesai': 'revision_completed',
     Disetujui: 'approved',
     Aktif: 'active',
 };
@@ -105,6 +112,9 @@ function reviewSummary(doc: DocumentQueueItem): string {
     return [
         doc.pendingCount > 0 ? `${doc.pendingCount} menunggu` : null,
         doc.revisionCount > 0 ? `${doc.revisionCount} revisi` : null,
+        doc.completedRevisionCount > 0
+            ? `${doc.completedRevisionCount} revisi selesai`
+            : null,
         doc.approvedCount > 0 ? `${doc.approvedCount} disetujui` : null,
     ]
         .filter((part): part is string => part !== null)
@@ -217,6 +227,10 @@ export default function KaprodiDokumenPage() {
                                     label: 'Perlu Revisi',
                                     value: 'Perlu Revisi',
                                     count: statusCounts.revisi,
+                                },
+                                {
+                                    label: 'Revisi selesai',
+                                    value: 'Revisi selesai',
                                 },
                                 {
                                     label: 'Disetujui',

@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
         ->name('upload-dokumen.create');
 
     Route::get('upload-dokumen/{document}', [DocumentDetailController::class, 'workspace'])->name('upload-dokumen.show');
+    Route::patch('upload-dokumen/{document}/revisions/{revision}', [DocumentDetailController::class, 'resolve'])->whereUuid('revision')->name('upload-dokumen.revisions.update');
 
     Route::get('pesan', [PesanController::class, 'index'])->name('pesan');
     Route::post('pesan/private', [PesanController::class, 'storePrivateThread'])->name('pesan.private.store');
