@@ -286,7 +286,9 @@ async function completeBimbingan(page: Page, topic: string): Promise<void> {
         await calendarToggle.click();
     }
     await page.getByRole('button', { name: 'Daftar', exact: true }).click();
-    await bimbinganRow(page, topic).click();
+    await bimbinganRow(page, topic)
+        .getByRole('button', { name: /^Kelola jadwal / })
+        .click();
     await page.getByRole('button', { name: 'Tandai Selesai' }).click();
     await expect(
         page.getByRole('button', { name: 'Tandai Selesai' }),

@@ -18,6 +18,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 - Retry scheduling waits for the time picker to display the entered value before submitting the admin form; no fixed sleep or additional retry masks delayed widget updates.
 - Katalog validasi review dokumen mengirim token CSRF sesi dari meta halaman lewat header pada request review saja. Clock server katalog membuat cookie `XSRF-TOKEN` kedaluwarsa terhadap clock browser sebenarnya; tanpa header, redirect sesi dapat disangka respons validasi. Capture tetap menekan tombol UI dan memeriksa pesan validasi server.
 - Pemeriksaan batas drawer berkas ujian menunggu posisi akhir animasi sebelum mengukur viewport; ukuran drawer yang benar-benar melampaui layar tetap menggagalkan pemeriksaan.
+- Pengelolaan jadwal dosen dibuka lewat tombol `Kelola jadwal <mahasiswa>` pada baris sesi, bukan klik baris atau ikon mata. `student-activity`, `jadwal-bimbingan`, dan `golden-path` memakai aksi ini sebelum menyelesaikan/membatalkan sesi; ikon mata hanya membaca detail (#150/#156).
 
 ## Mahasiswa
 
