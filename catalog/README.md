@@ -18,21 +18,27 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | `system-audit-logs` | [png](admin/system-audit-logs-1280-light.png) | [png](admin/system-audit-logs-1280-dark.png) | [png](admin/system-audit-logs-390-light.png) | [png](admin/system-audit-logs-390-dark.png) |
 | `thesis-project-events` | [png](admin/thesis-project-events-1280-light.png) | [png](admin/thesis-project-events-1280-dark.png) | [png](admin/thesis-project-events-390-light.png) | [png](admin/thesis-project-events-390-dark.png) |
 | `thesis-projects` | [png](admin/thesis-projects-1280-light.png) | [png](admin/thesis-projects-1280-dark.png) | [png](admin/thesis-projects-390-light.png) | [png](admin/thesis-projects-390-dark.png) |
+| `thesis-projects-catatan` | [png](admin/thesis-projects-catatan-1280-light.png) | [png](admin/thesis-projects-catatan-1280-dark.png) | [png](admin/thesis-projects-catatan-390-light.png) | [png](admin/thesis-projects-catatan-390-dark.png) |
+| `thesis-projects-catatan-expanded` | [png](admin/thesis-projects-catatan-expanded-1280-light.png) | [png](admin/thesis-projects-catatan-expanded-1280-dark.png) | [png](admin/thesis-projects-catatan-expanded-390-light.png) | [png](admin/thesis-projects-catatan-expanded-390-dark.png) |
 | `thesis-projects-detail` | [png](admin/thesis-projects-detail-1280-light.png) | [png](admin/thesis-projects-detail-1280-dark.png) | [png](admin/thesis-projects-detail-390-light.png) | [png](admin/thesis-projects-detail-390-dark.png) |
+| `thesis-projects-dokumen` | [png](admin/thesis-projects-dokumen-1280-light.png) | [png](admin/thesis-projects-dokumen-1280-dark.png) | [png](admin/thesis-projects-dokumen-390-light.png) | [png](admin/thesis-projects-dokumen-390-dark.png) |
 | `users` | [png](admin/users-1280-light.png) | [png](admin/users-1280-dark.png) | [png](admin/users-390-light.png) | [png](admin/users-390-dark.png) |
 | `users-create` | [png](admin/users-create-1280-light.png) | [png](admin/users-create-1280-dark.png) | [png](admin/users-create-390-light.png) | [png](admin/users-create-390-dark.png) |
+| `users-detail` | [png](admin/users-detail-1280-light.png) | [png](admin/users-detail-1280-dark.png) | [png](admin/users-detail-390-light.png) | [png](admin/users-detail-390-dark.png) |
 
 ## dosen
 
 | Page | 1280 light | 1280 dark | 390 light | 390 dark |
 | --- | --- | --- | --- | --- |
 | `dashboard` | [png](dosen/dashboard-1280-light.png) | [png](dosen/dashboard-1280-dark.png) | [png](dosen/dashboard-390-light.png) | [png](dosen/dashboard-390-dark.png) |
+| `dashboard-hover` | [png](dosen/dashboard-hover-1280-light.png) | [png](dosen/dashboard-hover-1280-dark.png) | [png](dosen/dashboard-hover-390-light.png) | [png](dosen/dashboard-hover-390-dark.png) |
 | `dokumen-detail` | [png](dosen/dokumen-detail-1280-light.png) | [png](dosen/dokumen-detail-1280-dark.png) | [png](dosen/dokumen-detail-390-light.png) | [png](dosen/dokumen-detail-390-dark.png) |
 | `dokumen-detail-draft` | [png](dosen/dokumen-detail-draft-1280-light.png) | [png](dosen/dokumen-detail-draft-1280-dark.png) | [png](dosen/dokumen-detail-draft-390-light.png) | [png](dosen/dokumen-detail-draft-390-dark.png) |
 | `dokumen-detail-revision-required` | [png](dosen/dokumen-detail-revision-required-1280-light.png) | [png](dosen/dokumen-detail-revision-required-1280-dark.png) | [png](dosen/dokumen-detail-revision-required-390-light.png) | [png](dosen/dokumen-detail-revision-required-390-dark.png) |
 | `dokumen-revisi` | [png](dosen/dokumen-revisi-1280-light.png) | [png](dosen/dokumen-revisi-1280-dark.png) | [png](dosen/dokumen-revisi-390-light.png) | [png](dosen/dokumen-revisi-390-dark.png) |
 | `jadwal-bimbingan` | [png](dosen/jadwal-bimbingan-1280-light.png) | [png](dosen/jadwal-bimbingan-1280-dark.png) | [png](dosen/jadwal-bimbingan-390-light.png) | [png](dosen/jadwal-bimbingan-390-dark.png) |
 | `mahasiswa-bimbingan` | [png](dosen/mahasiswa-bimbingan-1280-light.png) | [png](dosen/mahasiswa-bimbingan-1280-dark.png) | [png](dosen/mahasiswa-bimbingan-390-light.png) | [png](dosen/mahasiswa-bimbingan-390-dark.png) |
+| `mahasiswa-bimbingan-menu` | [png](dosen/mahasiswa-bimbingan-menu-1280-light.png) | [png](dosen/mahasiswa-bimbingan-menu-1280-dark.png) | [png](dosen/mahasiswa-bimbingan-menu-390-light.png) | [png](dosen/mahasiswa-bimbingan-menu-390-dark.png) |
 | `mahasiswa-bimbingan-sheet-catatan` | [png](dosen/mahasiswa-bimbingan-sheet-catatan-1280-light.png) | [png](dosen/mahasiswa-bimbingan-sheet-catatan-1280-dark.png) | [png](dosen/mahasiswa-bimbingan-sheet-catatan-390-light.png) | [png](dosen/mahasiswa-bimbingan-sheet-catatan-390-dark.png) |
 | `pesan` | [png](dosen/pesan-1280-light.png) | [png](dosen/pesan-1280-dark.png) | [png](dosen/pesan-390-light.png) | [png](dosen/pesan-390-dark.png) |
 | `progres-mahasiswa` | [png](dosen/progres-mahasiswa-1280-light.png) | [png](dosen/progres-mahasiswa-1280-dark.png) | [png](dosen/progres-mahasiswa-390-light.png) | [png](dosen/progres-mahasiswa-390-dark.png) |
@@ -73,6 +79,7 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | `pesan` | [png](mahasiswa/pesan-1280-light.png) | [png](mahasiswa/pesan-1280-dark.png) | [png](mahasiswa/pesan-390-light.png) | [png](mahasiswa/pesan-390-dark.png) |
 | `pesan-kosong` | [png](mahasiswa/pesan-kosong-1280-light.png) | [png](mahasiswa/pesan-kosong-1280-dark.png) | [png](mahasiswa/pesan-kosong-390-light.png) | [png](mahasiswa/pesan-kosong-390-dark.png) |
 | `profil` | [png](mahasiswa/profil-1280-light.png) | [png](mahasiswa/profil-1280-dark.png) | [png](mahasiswa/profil-390-light.png) | [png](mahasiswa/profil-390-dark.png) |
+| `profil-email-disalin` | [png](mahasiswa/profil-email-disalin-1280-light.png) | [png](mahasiswa/profil-email-disalin-1280-dark.png) | [png](mahasiswa/profil-email-disalin-390-light.png) | [png](mahasiswa/profil-email-disalin-390-dark.png) |
 | `progres-mahasiswa` | [png](mahasiswa/progres-mahasiswa-1280-light.png) | [png](mahasiswa/progres-mahasiswa-1280-dark.png) | [png](mahasiswa/progres-mahasiswa-390-light.png) | [png](mahasiswa/progres-mahasiswa-390-dark.png) |
 | `tugas-akhir` | [png](mahasiswa/tugas-akhir-1280-light.png) | [png](mahasiswa/tugas-akhir-1280-dark.png) | [png](mahasiswa/tugas-akhir-390-light.png) | [png](mahasiswa/tugas-akhir-390-dark.png) |
 | `upload-dokumen` | [png](mahasiswa/upload-dokumen-1280-light.png) | [png](mahasiswa/upload-dokumen-1280-dark.png) | [png](mahasiswa/upload-dokumen-390-light.png) | [png](mahasiswa/upload-dokumen-390-dark.png) |
@@ -83,6 +90,7 @@ Each page is captured at 1280 and 390 px wide, light and dark, full page.
 | Page | 1280 light | 1280 dark | 390 light | 390 dark |
 | --- | --- | --- | --- | --- |
 | `beranda` | [png](public/beranda-1280-light.png) | [png](public/beranda-1280-dark.png) | [png](public/beranda-390-light.png) | [png](public/beranda-390-dark.png) |
+| `beranda-dialog-tampilan` | [png](public/beranda-dialog-tampilan-1280-light.png) | [png](public/beranda-dialog-tampilan-1280-dark.png) | [png](public/beranda-dialog-tampilan-390-light.png) | [png](public/beranda-dialog-tampilan-390-dark.png) |
 | `jadwal` | [png](public/jadwal-1280-light.png) | [png](public/jadwal-1280-dark.png) | [png](public/jadwal-390-light.png) | [png](public/jadwal-390-dark.png) |
 | `login` | [png](public/login-1280-light.png) | [png](public/login-1280-dark.png) | [png](public/login-390-light.png) | [png](public/login-390-dark.png) |
 | `login-admin` | [png](public/login-admin-1280-light.png) | [png](public/login-admin-1280-dark.png) | [png](public/login-admin-390-light.png) | [png](public/login-admin-390-dark.png) |
