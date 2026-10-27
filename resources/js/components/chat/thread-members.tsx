@@ -54,7 +54,7 @@ export function ThreadMembers({
                         <button
                             type="button"
                             aria-label={`Lihat ${members.length} anggota percakapan`}
-                            className="pointer-events-auto flex min-h-11 shrink-0 items-center -space-x-3 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            className="pointer-events-auto flex min-h-11 min-w-11 shrink-0 items-center -space-x-2 rounded-full px-1.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                             onPointerEnter={(event) => {
                                 if (event.pointerType === 'touch') return;
                                 openedByHover.current = true;
@@ -76,33 +76,27 @@ export function ThreadMembers({
                             }}
                         >
                             {visible.map((member) => (
-                                <span
+                                <Avatar
                                     key={member.id}
-                                    className="flex size-11 items-center justify-center"
+                                    className="size-8 border-2 border-card"
                                 >
-                                    <Avatar className="size-8 border-2 border-card">
-                                        <AvatarImage
-                                            src={member.avatar ?? undefined}
-                                            alt=""
-                                        />
-                                        <AvatarFallback className="bg-primary-muted text-sm font-medium text-primary-muted-foreground">
-                                            {getInitials(member.name)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </span>
+                                    <AvatarImage
+                                        src={member.avatar ?? undefined}
+                                        alt=""
+                                    />
+                                    <AvatarFallback className="bg-primary-muted text-xs font-medium text-primary-muted-foreground">
+                                        {getInitials(member.name)}
+                                    </AvatarFallback>
+                                </Avatar>
                             ))}
                             {remaining > 0 && (
-                                <span className="flex size-11 items-center justify-center">
-                                    <span className="relative flex size-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-semibold text-foreground">
-                                        +{remaining}
-                                    </span>
+                                <span className="relative flex size-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-semibold text-foreground">
+                                    +{remaining}
                                 </span>
                             )}
                             {visible.length === 0 && (
-                                <span className="flex size-11 items-center justify-center">
-                                    <span className="flex size-8 items-center justify-center rounded-full bg-card text-muted-foreground">
-                                        <Users aria-hidden className="size-4" />
-                                    </span>
+                                <span className="flex size-8 items-center justify-center rounded-full bg-card text-muted-foreground">
+                                    <Users aria-hidden className="size-4" />
                                 </span>
                             )}
                         </button>

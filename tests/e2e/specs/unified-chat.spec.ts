@@ -267,6 +267,14 @@ for (const role of ['dosen', 'mahasiswa'] as const) {
                     exact: true,
                 });
                 await expect(trigger).toContainText('+1');
+                const avatars = trigger.locator('[data-slot="avatar"]');
+                await expect(avatars).toHaveCount(2);
+                const firstAvatar = await avatars.nth(0).boundingBox();
+                const secondAvatar = await avatars.nth(1).boundingBox();
+                expect(secondAvatar!.x).toBeGreaterThan(firstAvatar!.x);
+                expect(secondAvatar!.x).toBeLessThan(
+                    firstAvatar!.x + firstAvatar!.width,
+                );
                 if (width === 1280) {
                     await trigger.hover();
                 } else {
