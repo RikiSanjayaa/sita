@@ -158,6 +158,7 @@ export interface User {
     name: string;
     email: string;
     phone_number?: string | null;
+    phone_public?: boolean;
     avatar?: string;
     roles?: AppRole[];
     last_active_role?: AppRole | null;

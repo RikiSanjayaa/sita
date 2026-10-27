@@ -30,6 +30,7 @@ class User extends Authenticatable implements FilamentUser
         'name',
         'email',
         'phone_number',
+        'phone_public',
         'phone_number_confirmed_at',
         'password',
         'avatar_path',
@@ -61,6 +62,8 @@ class User extends Authenticatable implements FilamentUser
      * @var list<string>
      */
     protected $hidden = [
+        'phone_number',
+        'phone_number_confirmed_at',
         'password',
         'avatar_path',
         'two_factor_secret',
@@ -78,6 +81,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'phone_number_confirmed_at' => 'datetime',
+            'phone_public' => 'bool',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'browser_notifications_enabled' => 'bool',

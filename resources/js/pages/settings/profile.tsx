@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { WhatsAppIcon } from '@/components/whatsapp-icon';
 import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
@@ -26,6 +27,7 @@ type ProfileFormData = {
     name: string;
     email: string;
     phone_number: string;
+    phone_public: boolean;
     avatar: File | null;
     _method?: 'patch';
 };
@@ -48,6 +50,7 @@ export default function ProfilePage() {
             typeof auth.user.phone_number === 'string'
                 ? auth.user.phone_number
                 : '',
+        phone_public: auth.user.phone_public ?? false,
         avatar: null,
     });
 
@@ -263,6 +266,28 @@ export default function ProfilePage() {
                                 <InputError
                                     message={form.errors.phone_number}
                                     className="text-xs"
+                                />
+                            </div>
+
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="grid gap-1">
+                                    <Label htmlFor="phone_public">
+                                        Tampilkan nomor HP kepada pengguna lain
+                                    </Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Admin, kaprodi, serta pembimbing dan
+                                        penguji yang terkait tetap dapat melihat
+                                        nomor Anda. Mahasiswa bimbingan atau
+                                        ujian juga dapat melihat nomor dosen
+                                        terkait.
+                                    </p>
+                                </div>
+                                <Switch
+                                    id="phone_public"
+                                    checked={form.data.phone_public}
+                                    onCheckedChange={(checked) =>
+                                        form.setData('phone_public', checked)
+                                    }
                                 />
                             </div>
 
