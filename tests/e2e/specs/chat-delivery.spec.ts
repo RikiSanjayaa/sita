@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
+import { attachDocumentStates } from '../support/document-detail';
 import {
     bellCount,
     createSidebarUnreadFixture,
@@ -12,7 +13,6 @@ import {
     seedIncomingMessages,
 } from '../support/sidebar-unread';
 import { thesisFixtures } from '../support/thesis-fixtures';
-import { attachDocumentStates } from '../support/document-detail';
 
 for (const order of ['echo-first', 'http-first'] as const) {
     test(`chat reconciles ${order} with identical messages and no page refresh`, async ({
