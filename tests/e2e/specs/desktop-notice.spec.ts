@@ -2,9 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { authStatePath } from '../support/thesis-fixtures';
 
-// Phones get a dismissible notice on portal pages; desktop, public pages,
-// login and the Filament panel do not. Each test uses a fresh context, so
-// sessionStorage starts empty.
+// Phones get a dismissible notice on portal pages except chat. Desktop, public
+// pages, login and Filament do not show it. Fresh contexts start with empty
+// sessionStorage.
 const notice = (page: Page) =>
     page.getByText('Tampilan SiTA paling nyaman di laptop atau komputer.');
 
@@ -41,6 +41,60 @@ test.describe('Desktop notice on small screens', () => {
             await expect(notice(page)).toBeVisible();
         });
     });
+
+    for (const [account, role] of [
+        ['mahasiswa', 'mahasiswa'],
+        ['dosen1', 'dosen'],
+    ] as const) {
+        test.describe(`${role} chat at 390px`, () => {
+            test.use({
+                storageState: authStatePath(account),
+                viewport: { width: 390, height: 844 },
+            });
+
+            test('omits the notice on chat without dismissing it on other pages', async ({
+                page,
+            }) => {
+                await page.goto(`/${role}/dashboard`);
+                await expect(notice(page)).toBeVisible();
+                await page
+                    .getByRole('button', { name: 'Toggle Sidebar' })
+                    .first()
+                    .click();
+                await page.getByRole('link', { name: /^Pesan/ }).click();
+                await expect(page).toHaveURL(
+                    new RegExp(`/${role}/pesan(?:\\?|$)`),
+                );
+                await expect(
+                    page.getByRole('heading', {
+                        name: 'Pesan',
+                        level: 2,
+                        exact: true,
+                    }),
+                ).toBeVisible();
+                await expect(notice(page)).toHaveCount(0);
+
+                await page
+                    .getByRole('button', { name: 'Toggle Sidebar' })
+                    .first()
+                    .click();
+                await page
+                    .getByRole('link', { name: 'Dashboard', exact: true })
+                    .click();
+                await expect(notice(page)).toBeVisible();
+
+                await page.goto(`/${role}/pesan`);
+                await expect(
+                    page.getByRole('heading', {
+                        name: 'Pesan',
+                        level: 2,
+                        exact: true,
+                    }),
+                ).toBeVisible();
+                await expect(notice(page)).toHaveCount(0);
+            });
+        });
+    }
 
     test.describe('portal at 1280px', () => {
         test.use({

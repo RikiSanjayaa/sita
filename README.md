@@ -185,6 +185,8 @@ Grup bimbingan/ujian dan chat pribadi muncul dalam satu daftar dengan pencarian 
 
 Desktop menampilkan daftar dan percakapan berdampingan tanpa divider atau gutter. Thread aktif memakai card netral beradius kecil; panel chat lebih gelap pada tema gelap, dengan profil dan nama di tengah header overlay yang memudar ke riwayat. Bubble dari pengirim dan menit yang sama dirapatkan. Pesan masuk hanya menggulir otomatis bila pengguna sudah berada di bawah; saat membaca riwayat, tombol Pesan terbaru mengembalikan ke bawah. Pencarian pesan tetap berada di atas riwayat tanpa menutupi hasil. Pada ponsel hanya daftar atau percakapan yang tampil; tombol kembali membuka daftar. Pengiriman, lampiran, receipt, unread dan batas akses tetap memakai alur yang sama.
 
+Peringatan "Tampilan SiTA paling nyaman di laptop atau komputer" tidak ditampilkan di halaman Pesan mahasiswa/dosen, termasuk lewat tautan langsung dan navigasi dalam aplikasi. Chat memakai tinggi layar penuh tanpa ruang bekas peringatan; kunjungan ke chat tidak menutup peringatan pada halaman lain.
+
 Pada Mahasiswa Dosen, dropdown Chat memuat chat grup, pribadi dan WhatsApp bila kontak tersedia; WhatsApp tidak lagi berada pada Aksi lainnya. Jumlah tampil sebagai `x bimbingan` dalam informasi mahasiswa, tanpa kolom berulang atau perubahan aturan minimum. Perbarui profil menandai nomor HP dengan badge WhatsApp, tanpa tautan chat ke nomor sendiri; edit, konfirmasi dan salin nomor tetap tersedia.
 
 ## Indikator pesan belum dibaca

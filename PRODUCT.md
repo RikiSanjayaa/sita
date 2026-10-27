@@ -52,7 +52,7 @@ The thesis lifecycle of one faculty in one place: the same record drives the stu
 
 - Next step first: every screen answers "where does this thesis stand and what happens next".
 - One record, many views: the same data reads consistently across roles; a status means the same thing everywhere.
-- Desktop first for every role. Mobile stays supported but is not optimised: content must be readable and nothing may break (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed). Portal pages below `md` show a dismissible notice that SiTA is most comfortable on a laptop.
+- Desktop first for every role. Mobile stays supported but is not optimised: content must be readable and nothing may break (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed). Portal pages below `md` show a dismissible notice that SiTA is most comfortable on a laptop, except chat pages: never show the notice or reserve space for it on Pesan, including direct links and Inertia navigation. Other pages keep their existing notice and per-session dismissal.
 - Document, do not coordinate: build only the workflow the faculty asked for; leave scheduling chatter to WhatsApp.
 
 ## Accessibility & Inclusion
