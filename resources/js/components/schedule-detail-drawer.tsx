@@ -6,6 +6,7 @@ import {
     User,
     XCircle,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import {
     MentorshipSessionNotes,
@@ -50,6 +51,7 @@ type ScheduleDetailDrawerProps = {
     onReschedule?: () => void;
     onCancel?: () => void;
     currentUserRole?: 'mahasiswa' | 'dosen';
+    controls?: ReactNode;
 };
 
 const statusConfig: Record<
@@ -83,6 +85,7 @@ export function ScheduleDetailDrawer({
     onReschedule,
     onCancel,
     currentUserRole,
+    controls,
 }: ScheduleDetailDrawerProps) {
     if (!schedule) return null;
 
@@ -180,6 +183,7 @@ export function ScheduleDetailDrawer({
                             </div>
                         )}
                     </div>
+                    {controls}
 
                     {schedule.sessionNotes && (
                         <div className="min-w-0 border-t pt-6">

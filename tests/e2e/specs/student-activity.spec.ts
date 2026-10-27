@@ -104,7 +104,7 @@ test('student chat and lecturer-completed mentorship advance latest activity bey
             .getByRole('row')
             .filter({ hasText: topic })
             .first()
-            .getByRole('button', { name: /^Kelola jadwal / })
+            .getByRole('button', { name: /^Detail sesi / })
             .click();
         await Promise.all([
             lecturerPage.waitForResponse(
@@ -115,11 +115,11 @@ test('student chat and lecturer-completed mentorship advance latest activity bey
                     ),
             ),
             lecturerPage
-                .getByRole('button', { name: 'Tandai Selesai' })
+                .getByRole('button', { name: 'Tandai selesai' })
                 .click(),
         ]);
         await expect(
-            lecturerPage.getByRole('button', { name: 'Tandai Selesai' }),
+            lecturerPage.getByRole('button', { name: 'Tandai selesai' }),
         ).toHaveCount(0);
         await lecturerPage.goto('/dosen/mahasiswa-bimbingan');
         await expect(latest).not.toHaveText(oldDocumentActivity);

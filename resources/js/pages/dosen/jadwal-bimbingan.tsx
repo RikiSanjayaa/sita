@@ -5,7 +5,6 @@ import {
     CheckCircle2,
     Eye,
     Inbox,
-    MapPin,
     Repeat,
     XCircle,
 } from 'lucide-react';
@@ -27,6 +26,7 @@ import {
 } from '@/components/patterns/data-section';
 import { EmptyState } from '@/components/patterns/empty-state';
 import { FilterPills } from '@/components/patterns/filter-pills';
+import { InteractiveTableRow } from '@/components/patterns/interactive-table-row';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
@@ -43,14 +43,6 @@ import {
 } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
@@ -223,15 +215,6 @@ export default function DosenJadwalBimbinganPage() {
     );
     const [openRequestKey, setOpenRequestKey] = useState<string | null>(null);
 
-    // Sheet state for upcoming schedule actions
-    const [selectedUpcomingSnapshot, setSelectedUpcoming] =
-        useState<UpcomingSchedule | null>(null);
-    const selectedUpcoming =
-        upcomingSchedules.find(
-            (schedule) => schedule.id === selectedUpcomingSnapshot?.id,
-        ) ?? null;
-    const [upcomingSheetOpen, setUpcomingSheetOpen] = useState(false);
-
     const form = useForm({
         decision: 'approve' as
             | 'approve'
@@ -266,6 +249,9 @@ export default function DosenJadwalBimbinganPage() {
     const selectedDetail = selectedEvent
         ? {
               ...selectedEvent,
+              status: selectedSchedule
+                  ? (selectedSchedule.status.toLowerCase() as ScheduleDetailStatus)
+                  : selectedEvent.status,
               notes: selectedSchedule?.lecturerNote ?? selectedEvent.notes,
               sessionNotes:
                   selectedSchedule?.sessionNotes ??
@@ -1289,8 +1275,13 @@ export default function DosenJadwalBimbinganPage() {
                                         >
                                             {upcomingPagination.paginated.map(
                                                 (item) => (
-                                                    <tr
+                                                    <InteractiveTableRow
                                                         key={`${item.id}-${item.mahasiswa}`}
+                                                        onOpen={() =>
+                                                            openScheduleDetail(
+                                                                item,
+                                                            )
+                                                        }
                                                         className={cn(
                                                             stackedTable.tr,
                                                             'align-top',
@@ -1369,32 +1360,9 @@ export default function DosenJadwalBimbinganPage() {
                                                                         className="size-4"
                                                                     />
                                                                 </RowIconButton>
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="max-md:h-11"
-                                                                    onClick={() => {
-                                                                        setSelectedUpcoming(
-                                                                            item,
-                                                                        );
-                                                                        setUpcomingSheetOpen(
-                                                                            true,
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    Kelola
-                                                                    <span className="sr-only">
-                                                                        {' '}
-                                                                        jadwal{' '}
-                                                                        {
-                                                                            item.mahasiswa
-                                                                        }
-                                                                    </span>
-                                                                </Button>
                                                             </div>
                                                         </td>
-                                                    </tr>
+                                                    </InteractiveTableRow>
                                                 ),
                                             )}
                                         </tbody>
@@ -1487,8 +1455,11 @@ export default function DosenJadwalBimbinganPage() {
                                     )}
                                 >
                                     {historyPagination.paginated.map((item) => (
-                                        <tr
+                                        <InteractiveTableRow
                                             key={`${item.id}-${item.status}`}
+                                            onOpen={() =>
+                                                openScheduleDetail(item)
+                                            }
                                             className={cn(
                                                 stackedTable.tr,
                                                 'align-top',
@@ -1571,7 +1542,7 @@ export default function DosenJadwalBimbinganPage() {
                                                     </RowIconButton>
                                                 </div>
                                             </td>
-                                        </tr>
+                                        </InteractiveTableRow>
                                     ))}
                                 </tbody>
                             </table>
@@ -1599,113 +1570,65 @@ export default function DosenJadwalBimbinganPage() {
                 onOpenChange={setIsDetailDrawerOpen}
                 schedule={selectedDetail}
                 currentUserRole="dosen"
+                controls={
+                    selectedSchedule &&
+                    upcomingSchedules.some(
+                        (item) => item.id === selectedSchedule.id,
+                    ) ? (
+                        <section
+                            aria-label="Tindakan sesi"
+                            className="space-y-3 border-t pt-6"
+                        >
+                            <h3 className="text-base font-semibold">
+                                Tindakan sesi
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    disabled={form.processing}
+                                    className="max-md:min-h-11"
+                                    onClick={() =>
+                                        closeSchedule(
+                                            selectedSchedule.id,
+                                            'complete',
+                                            selectedSchedule.location,
+                                        )
+                                    }
+                                >
+                                    <CheckCircle2
+                                        aria-hidden
+                                        className="size-4"
+                                    />
+                                    Tandai selesai
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    disabled={form.processing}
+                                    className="text-destructive hover:text-destructive max-md:min-h-11"
+                                    onClick={() =>
+                                        closeSchedule(
+                                            selectedSchedule.id,
+                                            'cancel',
+                                            selectedSchedule.location,
+                                        )
+                                    }
+                                >
+                                    <XCircle aria-hidden className="size-4" />
+                                    Batalkan jadwal
+                                </Button>
+                            </div>
+                            {form.errors.decision && (
+                                <p
+                                    role="alert"
+                                    className="text-sm text-destructive"
+                                >
+                                    {form.errors.decision}
+                                </p>
+                            )}
+                        </section>
+                    ) : null
+                }
             />
 
-            <Sheet open={upcomingSheetOpen} onOpenChange={setUpcomingSheetOpen}>
-                <SheetContent
-                    side="right"
-                    className="w-full gap-0 p-0 sm:max-w-md"
-                >
-                    <SheetHeader className="border-b px-6 py-4">
-                        <div className="flex items-center gap-2 pr-6">
-                            <ScheduleStatusBadge
-                                status={selectedUpcoming?.status ?? 'approved'}
-                            />
-                        </div>
-                        <SheetTitle className="text-lg leading-snug [overflow-wrap:anywhere]">
-                            {selectedUpcoming?.mahasiswa}
-                        </SheetTitle>
-                        <SheetDescription className="[overflow-wrap:anywhere]">
-                            {selectedUpcoming?.topic}
-                        </SheetDescription>
-                    </SheetHeader>
-
-                    <ScrollArea className="min-h-0 flex-1">
-                        <div className="space-y-5 px-6 py-5">
-                            {selectedUpcoming && (
-                                <>
-                                    <div className="grid gap-2 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <CalendarClock
-                                                aria-hidden="true"
-                                                className="size-4 shrink-0 text-muted-foreground"
-                                            />
-                                            <span>
-                                                {formatDateTime(
-                                                    selectedUpcoming.date,
-                                                    selectedUpcoming.time,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <MapPin
-                                                aria-hidden="true"
-                                                className="size-4 shrink-0 text-muted-foreground"
-                                            />
-                                            <span className="min-w-0 [overflow-wrap:anywhere]">
-                                                {selectedUpcoming.location}
-                                            </span>
-                                        </div>
-                                        <p className="text-muted-foreground">
-                                            {relationLabel(
-                                                selectedUpcoming.relationType,
-                                            )}
-                                        </p>
-                                    </div>
-
-                                    {selectedUpcoming.lecturerNote && (
-                                        <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-muted-foreground">
-                                            <span className="font-medium text-foreground">
-                                                Catatan penjadwalan:{' '}
-                                            </span>
-                                            {selectedUpcoming.lecturerNote}
-                                        </p>
-                                    )}
-
-                                    <div className="border-t pt-5">
-                                        <h3 className="mb-3 text-sm font-semibold">
-                                            Tindakan
-                                        </h3>
-                                        <div className="flex flex-col gap-2">
-                                            <Button
-                                                className="w-full max-md:h-11"
-                                                disabled={form.processing}
-                                                onClick={() => {
-                                                    closeSchedule(
-                                                        selectedUpcoming.id,
-                                                        'complete',
-                                                        selectedUpcoming.location,
-                                                    );
-                                                    setUpcomingSheetOpen(false);
-                                                }}
-                                            >
-                                                <CheckCircle2 className="size-4" />
-                                                Tandai Selesai
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="w-full text-destructive hover:text-destructive max-md:h-11"
-                                                disabled={form.processing}
-                                                onClick={() => {
-                                                    closeSchedule(
-                                                        selectedUpcoming.id,
-                                                        'cancel',
-                                                        selectedUpcoming.location,
-                                                    );
-                                                    setUpcomingSheetOpen(false);
-                                                }}
-                                            >
-                                                <XCircle className="size-4" />
-                                                Batalkan Jadwal
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </SheetContent>
-            </Sheet>
             <DosenScheduleCreateDialog
                 open={isCreateOpen}
                 onOpenChange={setIsCreateOpen}
