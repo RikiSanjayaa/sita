@@ -418,8 +418,13 @@
 .chat-header {
     background: linear-gradient(
         to bottom,
-        color-mix(in srgb, var(--chat-surface) 98%, transparent),
-        color-mix(in srgb, var(--chat-surface) 90%, transparent) 65%,
+        var(--chat-surface),
+        color-mix(in srgb, var(--chat-surface) 96%, transparent) 15%,
+        color-mix(in srgb, var(--chat-surface) 84%, transparent) 30%,
+        color-mix(in srgb, var(--chat-surface) 64%, transparent) 45%,
+        color-mix(in srgb, var(--chat-surface) 40%, transparent) 60%,
+        color-mix(in srgb, var(--chat-surface) 17%, transparent) 75%,
+        color-mix(in srgb, var(--chat-surface) 3.5%, transparent) 90%,
         transparent
     );
 }

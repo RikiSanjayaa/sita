@@ -73,8 +73,7 @@ export function ChatPanel({
                         >
                             <ArrowLeft className="size-5" />
                         </Button>
-                        <div className="pointer-events-auto mx-auto flex w-fit max-w-[calc(100%-6rem)] items-center gap-2 rounded-full bg-card pr-3 text-left text-card-foreground">
-                            <ThreadMembers key={thread.id} thread={thread} />
+                        <ThreadMembers key={thread.id} thread={thread}>
                             <div className="flex min-h-11 max-w-full min-w-0 flex-col items-start justify-center py-1">
                                 <CardTitle
                                     className="max-w-full min-w-0 truncate text-sm leading-5"
@@ -102,7 +101,7 @@ export function ChatPanel({
                                 {privateTarget?.email ??
                                     thread.members.join(', ')}
                             </CardDescription>
-                        </div>
+                        </ThreadMembers>
                         <Button
                             type="button"
                             variant="ghost"

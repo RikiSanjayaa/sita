@@ -50,6 +50,15 @@ test('one list searches group and private chats, preserves deep links and mobile
             .filter({ hasText: student.studentName });
         await expect(group).toHaveCount(1);
         await expect(privateChat).toHaveCount(1);
+        const groupTitleBounds = await group
+            .getByText(student.studentName, { exact: true })
+            .boundingBox();
+        const privateTitleBounds = await privateChat
+            .getByText(student.studentName, { exact: true })
+            .boundingBox();
+        expect(
+            Math.abs(groupTitleBounds!.x - privateTitleBounds!.x),
+        ).toBeLessThanOrEqual(1);
         await attachDocumentStates(page, testInfo, 'dosen-unified-search');
         await page.setViewportSize({ width: 1280, height: 844 });
         const groupId = await group.getAttribute('data-thread-id');
@@ -86,6 +95,15 @@ test('one list searches group and private chats, preserves deep links and mobile
         await expect(list).toBeVisible();
         await expect(group).toBeVisible();
         await expect(privateChat).toBeVisible();
+        const mobileGroupTitleBounds = await group
+            .getByText(student.studentName, { exact: true })
+            .boundingBox();
+        const mobilePrivateTitleBounds = await privateChat
+            .getByText(student.studentName, { exact: true })
+            .boundingBox();
+        expect(
+            Math.abs(mobileGroupTitleBounds!.x - mobilePrivateTitleBounds!.x),
+        ).toBeLessThanOrEqual(1);
         const persistedSearch = list.getByRole('textbox', {
             name: 'Cari percakapan',
             exact: true,
@@ -259,6 +277,19 @@ for (const role of ['dosen', 'mahasiswa'] as const) {
                     exact: true,
                 });
                 await expect(members).toBeVisible();
+                await expect
+                    .poll(async () => {
+                        const pillBounds = await trigger
+                            .locator('..')
+                            .boundingBox();
+                        const memberBounds = await members.boundingBox();
+                        return Math.abs(
+                            pillBounds!.x +
+                                pillBounds!.width / 2 -
+                                (memberBounds!.x + memberBounds!.width / 2),
+                        );
+                    })
+                    .toBeLessThanOrEqual(1);
                 for (const name of [
                     student.studentName,
                     ...student.supervisorNames,
