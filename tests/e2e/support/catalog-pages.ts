@@ -85,6 +85,13 @@ export const catalogPages: readonly CatalogPage[] = [
     { role: 'public', name: 'beranda', path: '/', heading: /Akses cepat/ },
     {
         role: 'public',
+        name: 'beranda-dialog-tampilan',
+        path: '/',
+        heading: /Akses cepat/,
+        prepare: (page) => openDialog(page, /^Buka pengaturan tampilan$/),
+    },
+    {
+        role: 'public',
         name: 'jadwal',
         path: '/jadwal',
         heading: 'Jadwal Akan Datang',
@@ -179,6 +186,21 @@ export const catalogPages: readonly CatalogPage[] = [
     },
     {
         role: 'mahasiswa',
+        name: 'profil-email-disalin',
+        path: '/profil/10',
+        heading: /Mahasiswa SiTA/,
+        prepare: async (page) => {
+            await page
+                .getByRole('button', { name: 'Salin Email', exact: true })
+                .click();
+            await expect(
+                page.getByRole('status').filter({ hasText: 'Email disalin' }),
+            ).toHaveText('Email disalin');
+            await page.evaluate(() => window.scrollTo(0, 0));
+        },
+    },
+    {
+        role: 'mahasiswa',
         name: 'pengaturan-profil',
         path: '/settings/profile',
         heading: 'Perbarui profil',
@@ -267,6 +289,27 @@ export const catalogPages: readonly CatalogPage[] = [
     },
     {
         role: 'dosen',
+        name: 'dashboard-hover',
+        path: '/dosen/dashboard',
+        heading: 'Perlu tindakan',
+        prepare: async (page) => {
+            await page.setViewportSize({
+                width: page.viewportSize()!.width,
+                height: await page.evaluate(
+                    () => document.documentElement.scrollHeight,
+                ),
+            });
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await page
+                .getByRole('region', { name: 'Progres mahasiswa' })
+                .getByRole('link')
+                .filter({ hasText: 'Tiara Masa Aktif Habis' })
+                .first()
+                .hover();
+        },
+    },
+    {
+        role: 'dosen',
         name: 'seminar-proposal',
         path: '/dosen/seminar-proposal',
         heading: 'Daftar ujian',
@@ -276,6 +319,29 @@ export const catalogPages: readonly CatalogPage[] = [
         name: 'mahasiswa-bimbingan',
         path: '/dosen/mahasiswa-bimbingan',
         heading: 'Mahasiswa Aktif',
+    },
+    {
+        role: 'dosen',
+        name: 'mahasiswa-bimbingan-menu',
+        path: '/dosen/mahasiswa-bimbingan',
+        heading: 'Mahasiswa Aktif',
+        prepare: async (page) => {
+            await page.setViewportSize({
+                width: page.viewportSize()!.width,
+                height: await page.evaluate(
+                    () => document.documentElement.scrollHeight,
+                ),
+            });
+            await page
+                .getByRole('row')
+                .filter({ hasText: 'Mahasiswa SiTA' })
+                .first()
+                .getByRole('button', { name: 'Aksi lainnya', exact: true })
+                .click();
+            await expect(
+                page.getByRole('menuitem', { name: 'WhatsApp', exact: true }),
+            ).toBeVisible();
+        },
     },
     {
         role: 'dosen',
@@ -429,6 +495,12 @@ export const catalogPages: readonly CatalogPage[] = [
     { role: 'admin', name: 'users', path: '/admin/users', heading: 'Users' },
     {
         role: 'admin',
+        name: 'users-detail',
+        path: '/admin/users/10',
+        heading: 'User Account',
+    },
+    {
+        role: 'admin',
         name: 'users-create',
         path: '/admin/users/create',
         heading: 'Create User',
@@ -444,6 +516,48 @@ export const catalogPages: readonly CatalogPage[] = [
         name: 'thesis-projects-detail',
         path: '/admin/thesis-projects/1',
         heading: 'Status dan Langkah Berikutnya',
+    },
+    {
+        role: 'admin',
+        name: 'thesis-projects-dokumen',
+        path: '/admin/thesis-projects/1',
+        heading: 'Status dan Langkah Berikutnya',
+        prepare: async (page) => {
+            await page
+                .getByRole('tab', { name: 'Dokumen', exact: true })
+                .click();
+        },
+    },
+    {
+        role: 'admin',
+        name: 'thesis-projects-catatan',
+        path: '/admin/thesis-projects/1',
+        heading: 'Status dan Langkah Berikutnya',
+        prepare: async (page) => {
+            await page
+                .getByRole('tab', { name: 'Catatan', exact: true })
+                .click();
+        },
+    },
+    {
+        role: 'admin',
+        name: 'thesis-projects-catatan-expanded',
+        path: '/admin/thesis-projects/1',
+        heading: 'Status dan Langkah Berikutnya',
+        prepare: async (page) => {
+            await page
+                .getByRole('tab', { name: 'Catatan', exact: true })
+                .click();
+            await page
+                .locator('details.sita-expandable-note:visible')
+                .first()
+                .locator('summary')
+                .click();
+            await expect(
+                page.getByRole('region', { name: 'Catatan lengkap' }).first(),
+            ).toBeVisible();
+            await page.evaluate(() => window.scrollTo(0, 0));
+        },
     },
     {
         role: 'admin',

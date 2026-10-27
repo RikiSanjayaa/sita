@@ -28,8 +28,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -206,12 +208,15 @@ class PesanController extends Controller
         abort_unless($unread->canSeeThread($student, 'mahasiswa', $thread), 403);
 
         $data = $request->validate(['last_message_id' => ['required', 'integer']]);
-        $unread->markRead($student, $thread, (int) $data['last_message_id']);
+        $readNotificationIds = $unread->markRead($student, $thread, (int) $data['last_message_id']);
 
-        return response()->json(['ok' => true]);
+        $activeRole = $student->resolveActiveRole($request->session()->get('active_role'));
+
+        return response()->json($unread->readSnapshot($student, $activeRole, $thread, $readNotificationIds))
+            ->header('Cache-Control', 'no-store, private');
     }
 
-    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread, MentorshipTicketService $tickets): RedirectResponse
+    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread, MentorshipTicketService $tickets): JsonResponse
     {
         $student = $request->user();
         abort_if($student === null, 401);
@@ -226,13 +231,13 @@ class PesanController extends Controller
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
         if ($this->completedChatThreads->isCompleted($thread)) {
-            return back()->withErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+            throw ValidationException::withMessages(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
         }
 
         $suspension = $tickets->suspensionMessageForStudent($student->id);
 
         if ($suspension !== null) {
-            return back()->withErrors(['ticket' => $suspension]);
+            throw ValidationException::withMessages(['ticket' => $suspension]);
         }
 
         $data = $request->validated();
@@ -242,7 +247,7 @@ class PesanController extends Controller
         $documentName = trim((string) ($data['document_name'] ?? ''));
 
         if ($attachment !== null && str_starts_with((string) $attachment->getMimeType(), 'image/')) {
-            return $this->storeImageMessage($thread, $student, $attachment, $trimmedMessage);
+            return $this->storeImageMessage($thread, $student, $attachment, $trimmedMessage, $data['client_message_id']);
         }
 
         if ($thread->type === 'private') {
@@ -294,13 +299,7 @@ class PesanController extends Controller
                 return $createdMessages;
             });
 
-            foreach ($messages as $message) {
-                $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
-            }
-
-            $this->notifyThreadMembers($student, $thread);
-
-            return back();
+            return $this->acknowledgeMessages($thread, $student, $messages, $data['client_message_id']);
         }
 
         $terms = AcademicTerminology::forStudent($student);
@@ -452,20 +451,10 @@ class PesanController extends Controller
         /** @var Collection<int, MentorshipChatMessage> $mirroredMessages */
         $mirroredMessages = $result['mirrored'];
 
-        foreach ($messages as $message) {
-            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
-        }
-
-        foreach ($mirroredMessages as $mirroredMessage) {
-            $this->broadcastChatMessage($mirroredMessage->mentorship_chat_thread_id, $this->payloadBuilder->build($mirroredMessage));
-        }
-
-        $this->notifyThreadMembers($student, $thread);
-
-        return back();
+        return $this->acknowledgeMessages($thread, $student, $messages, $data['client_message_id'], $mirroredMessages);
     }
 
-    private function storeImageMessage(MentorshipChatThread $thread, User $student, UploadedFile $attachment, string $caption): RedirectResponse
+    private function storeImageMessage(MentorshipChatThread $thread, User $student, UploadedFile $attachment, string $caption, string $clientMessageId): JsonResponse
     {
         $messages = DB::transaction(function () use ($attachment, $caption, $student, $thread) {
             $storedPath = $attachment->store(sprintf('chat/mahasiswa/%d/thread/%d', $student->id, $thread->id), 'public');
@@ -496,13 +485,34 @@ class PesanController extends Controller
             return $createdMessages;
         });
 
+        return $this->acknowledgeMessages($thread, $student, $messages, $clientMessageId);
+    }
+
+    /**
+     * @param  SupportCollection<int, MentorshipChatMessage>  $messages
+     * @param  SupportCollection<int, MentorshipChatMessage>|null  $mirroredMessages
+     */
+    private function acknowledgeMessages(MentorshipChatThread $thread, User $student, SupportCollection $messages, string $clientMessageId, ?SupportCollection $mirroredMessages = null): JsonResponse
+    {
+        $payloads = [];
         foreach ($messages as $message) {
-            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
+            $payload = [...$this->payloadBuilder->build($message), 'clientMessageId' => $clientMessageId];
+            $payloads[] = $payload;
+            $this->broadcastChatMessage($thread->id, $payload);
         }
+        foreach ($mirroredMessages ?? [] as $message) {
+            $this->broadcastChatMessage($message->mentorship_chat_thread_id, [
+                ...$this->payloadBuilder->build($message),
+                'clientMessageId' => $clientMessageId,
+            ]);
+        }
+        $this->notifyThreadMembers($student, $thread, $messages->last()->id);
 
-        $this->notifyThreadMembers($student, $thread);
-
-        return back();
+        return response()->json([
+            'threadId' => $thread->id,
+            'clientMessageId' => $clientMessageId,
+            'messages' => $payloads,
+        ], 201);
     }
 
     /**
@@ -577,10 +587,10 @@ class PesanController extends Controller
             ]);
     }
 
-    private function notifyThreadMembers(User $student, MentorshipChatThread $thread): void
+    private function notifyThreadMembers(User $student, MentorshipChatThread $thread, int $messageId): void
     {
         if ($thread->type === 'pembimbing') {
-            $this->notifyLecturers($student, $thread->id);
+            $this->notifyLecturers($student, $thread->id, $messageId);
         } elseif ($thread->type === 'private') {
             $participants = MentorshipChatThreadParticipant::query()
                 ->where('thread_id', $thread->id)
@@ -596,6 +606,8 @@ class PesanController extends Controller
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
                     'title' => 'Pesan pribadi baru',
                     'description' => sprintf('%s mengirim pesan pribadi.', $student->name),
+                    'chatThreadId' => $thread->id,
+                    'chatMessageId' => $messageId,
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
                         : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
@@ -630,7 +642,9 @@ class PesanController extends Controller
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
                     'title' => $examTerm.' baru',
                     'description' => sprintf('%s mengirim pesan di thread %s.', $student->name, $examTerm),
-                    'url' => '/dosen/pesan',
+                    'url' => sprintf('/dosen/pesan?thread=%d', $thread->id),
+                    'chatThreadId' => $thread->id,
+                    'chatMessageId' => $messageId,
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);
@@ -638,7 +652,7 @@ class PesanController extends Controller
         }
     }
 
-    private function notifyLecturers(User $student, int $threadId): void
+    private function notifyLecturers(User $student, int $threadId, int $messageId): void
     {
         $lecturers = ThesisSupervisorAssignment::query()
             ->whereHas('project', fn($query) => $query
@@ -656,6 +670,8 @@ class PesanController extends Controller
                 'title' => 'Pesan bimbingan baru',
                 'description' => sprintf('%s mengirim pesan baru.', $student->name),
                 'url' => sprintf('/dosen/pesan?thread=%d', $threadId),
+                'chatThreadId' => $threadId,
+                'chatMessageId' => $messageId,
                 'icon' => 'message-square',
                 'createdAt' => now()->toIso8601String(),
             ]);

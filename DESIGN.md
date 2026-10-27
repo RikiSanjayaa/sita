@@ -222,7 +222,7 @@ A cool slate neutral ramp, one saturated blue for action and selection, and four
 - **Mist** (`#f1f5f9`, dark `#151c23`): muted and secondary surface (pill and table-header fills).
 - **Slate Text** (`#5a6a80`, dark `#9fb0bd`): `text-muted-foreground`, secondary copy and labels.
 - **Hairline** (`#e2e8f0`, dark `#202a35`): borders and dividers.
-- **Input stroke** (`#828d9c`, dark `#5e6771`): `--input`, the border of inputs, selects, checkboxes and outline buttons; at least 3:1 on page and card surfaces.
+- **Input stroke** (`#828d9c`, dark `#5e6771`): `--input`, retained for checkboxes and other compact selection controls at least 3:1 on page and card surfaces. Text fields, textareas, selects and outline buttons use the theme's `--border` hairline following product review #148; this intentionally relaxes their former 3:1 idle-outline contract. Focus and error borders stay distinct.
 - **Highlight Blue** (`#e0ecff`, dark `#17202a`) with text `#1e3a5f` (dark `#c2d0da`): hover and focus fill for ghost buttons, menu items and outline hover (`accent`).
 
 ### Status roles
@@ -276,7 +276,7 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 **Contrast contract** (every scheme, light and dark; `tests/Unit/ThemeContrastTest.php` computes WCAG ratios from the CSS):
 
 - Text, at least 4.5:1: `foreground` on `background`, `card` and `muted`; `muted-foreground` on `background`, `card`, `muted` and `sidebar`; `primary` on `background` and `card`; `primary-foreground` on `primary`; `primary-muted-foreground` on `primary-muted`; `accent-foreground` on `accent`; `card-foreground`, `popover-foreground` and `secondary-foreground` on their surfaces; the sidebar pairs (`sidebar-foreground`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-accent-foreground`).
-- Controls, at least 3:1: `ring` on `background` and `card`, `input` on `background` and `card` (so the border of an input, select, checkbox or outline button is visible), `sidebar-ring` on `sidebar`. `border` stays a decorative hairline and is not held to 3:1.
+- Selection controls and focus, at least 3:1: `ring` on `background` and `card`, `input` on `background` and `card`, `sidebar-ring` on `sidebar`. Following #148, text-field/select/outline-button idle borders use the theme's `border` hairline and are not held to 3:1. This is an appearance tradeoff, not a claim that hairline outlines meet the former control-boundary contrast target. Text, focus and error contrast are unchanged.
 - Hue: a non-default scheme's `primary` and `primary-muted-foreground` stay at least 40 degrees of OKLCH hue from every status hue, or have chroma under 0.02.
 
 **Roles.** `primary`/`primary-foreground` is the solid fill and `text-primary` on page surfaces; `primary-muted`/`primary-muted-foreground` is the tint pair. In dark mode `primary` is a light shade with a dark foreground, as in the Light Primary In Dark Rule.
@@ -288,6 +288,8 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 3. Run `php artisan test --compact tests/Unit/ThemeContrastTest.php tests/Feature/ThemeSchemeCookieTest.php`, then `tests/e2e/specs/theme-scheme.spec.ts` and an axe color-contrast pass on the key pages in light and dark. The new scheme must add no violation compared with UBG Blue in the same mode.
 
 **Swatches.** A swatch element carries its own `data-theme` (and `dark` for the dark half) and reads `var(--background)`, `var(--primary)` and the like. It cannot use `bg-primary`, because `@theme` resolves `--color-primary` once at the root.
+
+The public appearance dialog reserves 4px of horizontal and bottom clearance inside its desktop scroll container so selected and keyboard-focus rings on theme choices are not clipped. Keep the shared ThemePicker and authenticated settings styling unchanged.
 
 **Filament decision.** The admin panel stays on UBG Blue in every scheme. It does not load the React stylesheet or read `data-theme`, and its palettes are fixed in `SEMANTIC_COLORS`. The picker therefore does not change `/admin`.
 
@@ -316,6 +318,8 @@ The product owner selected Zaitun as the replacement for Rose. Its near-neutral 
 A sidebar shell for the portals and a centered content column. The sidebar is 16rem wide (18rem as a mobile sheet, 3rem collapsed to icons) and its open state is stored in the `sidebar_state` cookie. The sticky app header is 4rem high with a bottom border. Page content sits in a `max-w-7xl` (80rem) column with `gap-4` between blocks; the settings layout uses the same column with `px-4 md:px-6` gutters and a `max-w-xl` compact variant. Auth screens use a narrow card (`max-w-md` or `max-w-sm`).
 
 Spacing follows the Tailwind 4px base. Observed rhythm: `gap-2` (8px) between inline controls, `gap-4` (16px) between blocks, `gap-6` (24px) for page sections, and 24px padding inside cards. Headers and actions stack on narrow screens (`flex-col` to `sm:flex-row`). Breakpoints are the Tailwind defaults (sm 640, md 768, lg 1024, xl 1280, 2xl 1536). Every role is designed for a laptop first. Below `md` a page only has to stay readable and unbroken (no horizontal overflow, no text cut off without a way to the full text, buttons can be pressed); portal pages show the dismissible `DesktopNotice` there (width read on the client, dismissal kept in `sessionStorage`).
+
+From `xl`, a dashboard agenda beside the action queue is size-contained to the action section's actual height. Its heading stays outside the independently scrollable, keyboard-focusable agenda body. Below `xl`, it returns to normal document flow without clipping. The same rule applies to mahasiswa, dosen, kaprodi and the Filament admin dashboard (#148).
 
 Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns. They are a read-and-look-up surface, not a landing page: `PublicLayout` (`resources/js/components/public/`) gives a header with the page nav, a `PageHeader` h1 with description, and a footer; the page content sits directly on the page background in a `max-w-6xl` column with no outer card.
 
@@ -367,7 +371,7 @@ Primitives live in `resources/js/components/ui/` (shadcn style: Radix, `cva`, `c
 
 ### Inputs / Fields
 
-- **Style:** 1px `--input` border, transparent fill, 6px radius, 36px high, `px-3`, `shadow-xs`; `text-base` on mobile and `text-sm` from `md`.
+- **Style:** 1px `--border` hairline, transparent fill, 6px radius, 36px high, `px-3`, `shadow-xs`; `text-base` on mobile and `text-sm` from `md`. Checkboxes retain `--input`.
 - **Focus:** border becomes `--ring` plus a 3px ring at 50%.
 - **Error / Disabled:** `aria-invalid` shows a destructive border and ring; disabled is 50% opacity.
 
@@ -653,6 +657,7 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - Latest product-owner direction replaces the proposed solid Cobalt focus card with the landing-page treatment. Every action keeps a neutral surface; the first item spans two columns with a larger title/count, explanation, at most one affected name for context and a conventional primary CTA. Supporting cards show only the icon, title, count and action, with no student-name preview or repeated explanation. Only the leading action runs a bounded one-name query; secondary payload entries have empty previews. Server priority, filtered destinations and all aggregate counts remain unchanged. No new palette, font, imagery or dependencies.
 - Below `md`, the action queue comes before the 2x2 summary and agenda. DOM and keyboard order follow that reading order via the existing mobile media-query hook. Dashboard action, summary and agenda links have at least 44px targets.
 - The agenda and student-progress headings sit directly on the page, without a SectionCard frame. The agenda is a divided timeline with prominent blue time labels; the progress list is one bordered, divided surface with the shared row content and attention ordering. Empty action queues retain "Semua beres" on a quiet primary-muted surface; empty agendas have a flat calendar state.
+- Constrained agenda scroll regions pack date groups at the start, rather than stretching sparse date/event tracks into the available height. Student-progress hover and focus-within fill the entire divided row, including its attention footer.
 
 ### Portal: mahasiswa and shared shell (#83)
 
@@ -662,6 +667,9 @@ Overhaul of the dosen portal (#84) applies the #82 list treatment without changi
 - **Settings:** `SettingsLayout` renders the page `h1` ("Pengaturan akun") and a section nav with the `primary-muted` active pair; settings pages start at `h2`. Notification and appearance switches carry a `label`/`id` pair.
 - **Chat:** thread rows use a `primary-muted` fill for the active thread (no left stripe), 12px minimum text, type badges in the `primary-muted` or `warning-muted` pair, and a plain fade for new messages (no overshoot). Controls are 44px below `md`.
 - **Shell:** header controls, sidebar items and notification actions are 44px below `md`. The notification sheet is a divided list with unread rows tinted `primary-muted`.
+- **Document details:** Upload Dokumen uses the same ghost eye-only `RowIconButton` as lecturer/head-of-programme document lists, with a document-specific tooltip and accessible name, 36px desktop and 44px phones. Keep download/delete as separate meaningful actions and preserve the existing detail sheet.
+- **Contact actions:** WhatsApp uses the shared actual WhatsApp mark. Standalone buttons and buttons beside a primary action use the green `success` foreground/background pair; row-menu items use green `success` text/icons on the normal menu surface, including keyboard focus. Internal chat retains its own icon and normal theme treatment. Visible nonempty email, phone and NIM values have compact, named copy controls with truthful success/failure feedback; unavailable values have no copy action.
+- **Admin notes:** table cells show a two-line excerpt for long review, lecturer and activity notes. A native keyboard-operable disclosure opens the complete escaped, multiline text in place; closing returns to the compact row. Short or absent notes do not require an extra click. Read-only views and visibility rules remain unchanged. Filament contact/identity entries use its built-in copyable behavior.
 
 #### Mahasiswa dashboard (#134, #137)
 

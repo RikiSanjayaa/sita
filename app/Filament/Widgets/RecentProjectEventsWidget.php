@@ -45,9 +45,11 @@ class RecentProjectEventsWidget extends TableWidget
             ])
             ->recordActions([
                 Action::make('openProject')
-                    ->label('Buka')
+                    ->label(fn (ThesisProjectEvent $record): string => 'Lihat aktivitas '.$record->label.' - '.($record->project?->student?->name ?? '-'))
                     ->url(fn(ThesisProjectEvent $record): string => ThesisProjectResource::getUrl('view', ['record' => $record->project]))
-                    ->icon('heroicon-m-arrow-top-right-on-square'),
+                    ->icon('heroicon-m-eye')
+                    ->iconButton()
+                    ->tooltip(fn (Action $action): string => $action->getLabel()),
             ]);
     }
 

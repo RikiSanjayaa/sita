@@ -24,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -201,12 +202,15 @@ class PesanBimbinganController extends Controller
         abort_unless($this->canAccessThread($lecturer, $thread), 403);
 
         $data = $request->validate(['last_message_id' => ['required', 'integer']]);
-        $chatUnread->markRead($lecturer, $thread, (int) $data['last_message_id']);
+        $readNotificationIds = $chatUnread->markRead($lecturer, $thread, (int) $data['last_message_id']);
 
-        return response()->json(['ok' => true]);
+        $activeRole = $lecturer->resolveActiveRole($request->session()->get('active_role'));
+
+        return response()->json($chatUnread->readSnapshot($lecturer, $activeRole, $thread, $readNotificationIds))
+            ->header('Cache-Control', 'no-store, private');
     }
 
-    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): RedirectResponse
+    public function storeMessage(StoreChatMessageRequest $request, MentorshipChatThread $thread): JsonResponse
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
@@ -215,7 +219,7 @@ class PesanBimbinganController extends Controller
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
         if ($this->completedChatThreads->isCompleted($thread)) {
-            return back()->withErrors(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
+            throw ValidationException::withMessages(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
         }
 
         $data = $request->validated();
@@ -270,13 +274,20 @@ class PesanBimbinganController extends Controller
             ]));
         }
 
+        $payloads = [];
         foreach ($messagesToSend as $message) {
-            $this->broadcastChatMessage($thread->id, $this->payloadBuilder->build($message));
+            $payload = [...$this->payloadBuilder->build($message), 'clientMessageId' => $data['client_message_id']];
+            $payloads[] = $payload;
+            $this->broadcastChatMessage($thread->id, $payload);
 
-            $this->notifyThreadMembers($thread, $lecturer, $message->message_type);
+            $this->notifyThreadMembers($thread, $lecturer, $message);
         }
 
-        return back();
+        return response()->json([
+            'threadId' => $thread->id,
+            'clientMessageId' => $data['client_message_id'],
+            'messages' => $payloads,
+        ], 201);
     }
 
     private function canAccessThread(User $lecturer, MentorshipChatThread $thread): bool
@@ -342,7 +353,7 @@ class PesanBimbinganController extends Controller
             || $defense->project?->state !== 'active';
     }
 
-    private function notifyThreadMembers(MentorshipChatThread $thread, User $lecturer, string $messageType): void
+    private function notifyThreadMembers(MentorshipChatThread $thread, User $lecturer, MentorshipChatMessage $message): void
     {
         if ($thread->type === 'private') {
             $participants = MentorshipChatThreadParticipant::query()
@@ -359,6 +370,8 @@ class PesanBimbinganController extends Controller
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
                     'title' => 'Pesan pribadi baru',
                     'description' => sprintf('%s mengirim pesan pribadi.', $lecturer->name),
+                    'chatThreadId' => $thread->id,
+                    'chatMessageId' => $message->id,
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
                         : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
@@ -376,19 +389,21 @@ class PesanBimbinganController extends Controller
             return;
         }
 
-        $preferenceKey = $messageType === 'revision_suggestion'
+        $preferenceKey = $message->message_type === 'revision_suggestion'
             ? 'feedbackDokumen'
             : 'pesanBaru';
 
-        $title = $messageType === 'revision_suggestion'
+        $title = $message->message_type === 'revision_suggestion'
             ? 'Feedback dokumen baru'
             : 'Pesan bimbingan baru';
 
         $this->realtimeNotificationService->notifyUser($student, $preferenceKey, [
             'title' => $title,
             'description' => sprintf('%s mengirim pembaruan bimbingan.', $lecturer->name),
-            'url' => '/mahasiswa/pesan',
-            'icon' => $messageType === 'revision_suggestion' ? 'file-text' : 'message-square',
+            'url' => sprintf('/mahasiswa/pesan?thread=%d', $thread->id),
+            'chatThreadId' => $thread->id,
+            'chatMessageId' => $message->id,
+            'icon' => $message->message_type === 'revision_suggestion' ? 'file-text' : 'message-square',
             'createdAt' => now()->toIso8601String(),
         ]);
     }

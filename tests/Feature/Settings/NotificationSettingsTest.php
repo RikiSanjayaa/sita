@@ -48,6 +48,27 @@ test('user can update notification settings', function () {
     ]);
 });
 
+it('acknowledges account activation as JSON only after saving and keeps category choices', function (): void {
+    $user = User::factory()->create(['browser_notifications_enabled' => false]);
+    $settings = [
+        'browserNotifications' => true,
+        'pesanBaru' => false,
+        'statusTugasAkhir' => true,
+        'jadwalBimbingan' => false,
+        'feedbackDokumen' => true,
+        'reminderDeadline' => false,
+        'pengumumanSistem' => true,
+        'konfirmasiBimbingan' => false,
+    ];
+    $this->actingAs($user)->patchJson(route('settings.notifications.update'), $settings)
+        ->assertOk()->assertExactJson(['ok' => true]);
+    expect($user->fresh()->browser_notifications_enabled)->toBeTrue()
+        ->and($user->fresh()->notification_preferences['pesanBaru'])->toBeFalse();
+    $this->actingAs($user)->patchJson(route('settings.notifications.update'), ['browserNotifications' => false])
+        ->assertUnprocessable();
+    expect($user->fresh()->browser_notifications_enabled)->toBeTrue();
+});
+
 test('user can mark notifications as read', function () {
     $user = User::factory()->create();
 

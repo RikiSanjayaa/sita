@@ -21,6 +21,7 @@ import {
 } from 'react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { type ChatReadSnapshot } from '@/components/chat/types';
 import { LinkifiedText, normalizeUrl } from '@/components/linkified-text';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -68,14 +69,6 @@ type NotificationOverride = {
     deleted?: boolean;
     unread?: boolean;
 };
-
-function csrfToken(): string {
-    return (
-        document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content') ?? ''
-    );
-}
 
 function visitNotificationUrl(url: string): void {
     const normalizedUrl = normalizeUrl(url);
@@ -175,26 +168,6 @@ function upsertNotification(
     return [nextNotification, ...withoutDuplicate].slice(0, 15);
 }
 
-function isThreadNotificationOpen(url: string | null): boolean {
-    if (typeof window === 'undefined' || url === null) {
-        return false;
-    }
-
-    const currentUrl = new URL(window.location.href);
-    const targetUrl = new URL(url, window.location.origin);
-    const targetThreadId = targetUrl.searchParams.get('thread');
-
-    if (targetThreadId === null) {
-        return false;
-    }
-
-    return (
-        currentUrl.pathname === targetUrl.pathname &&
-        currentUrl.searchParams.get('thread') === targetThreadId &&
-        document.visibilityState === 'visible'
-    );
-}
-
 function HeaderNotifications() {
     const { auth, notifications = [] } = usePage<SharedData>().props;
 
@@ -222,34 +195,56 @@ function HeaderNotifications() {
         [notificationItems],
     );
 
+    useEffect(() => {
+        const onRead = (event: Event) => {
+            const { userId, readNotificationIds } = (
+                event as CustomEvent<
+                    Pick<ChatReadSnapshot, 'userId' | 'readNotificationIds'>
+                >
+            ).detail;
+            if (userId !== auth.user.id || readNotificationIds.length === 0) {
+                return;
+            }
+            setNotificationOverrides((current) => {
+                const next = { ...current };
+                for (const id of readNotificationIds) {
+                    next[id] = { ...current[id], unread: false };
+                }
+                return next;
+            });
+            for (const id of readNotificationIds) {
+                dismissNotification(id);
+            }
+        };
+        window.addEventListener('chat:notifications-read', onRead);
+        return () =>
+            window.removeEventListener('chat:notifications-read', onRead);
+    }, [auth.user.id]);
+
     const receiveNotification = useEffectEvent(
         (payload: IncomingNotification) => {
             const nextNotification = mapIncomingNotification(payload);
-            const isThreadCurrentlyOpen = isThreadNotificationOpen(
-                nextNotification.url ?? null,
+            const data = (payload.data ?? payload) as Record<string, unknown>;
+            const target = new URL(
+                nextNotification.url ?? '/',
+                window.location.origin,
             );
-
-            if (isThreadCurrentlyOpen) {
-                setSessionNotifications((current) =>
-                    upsertNotification(current, {
-                        ...nextNotification,
-                        unread: false,
-                    }),
-                );
-
-                fetch(`/settings/notifications/${nextNotification.id}/read`, {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({}),
-                }).catch(console.error);
-                return;
-            }
+            const threadId = Number(target.searchParams.get('thread'));
+            const chatEvent = new CustomEvent<
+                Pick<ChatReadSnapshot, 'userId' | 'threadId'>
+            >('chat:notification', {
+                detail: { userId: auth.user.id, threadId },
+                cancelable: true,
+            });
+            const isVisibleChat =
+                data.preferenceKey === 'pesanBaru' &&
+                target.origin === window.location.origin &&
+                ['/mahasiswa/pesan', '/dosen/pesan'].includes(
+                    target.pathname,
+                ) &&
+                Number.isSafeInteger(threadId) &&
+                threadId > 0 &&
+                !window.dispatchEvent(chatEvent);
 
             setSessionNotifications((current) => {
                 const existing = current.find(
@@ -270,6 +265,10 @@ function HeaderNotifications() {
                         : nextNotification,
                 );
             });
+
+            if (isVisibleChat) {
+                return;
+            }
             const NotificationIcon =
                 notificationIconMap[nextNotification.icon] ?? Bell;
             showNotification(

@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { Download, Eye, FileText } from 'lucide-react';
 import { useMemo } from 'react';
 
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     DataSection,
     DataToolbar,
@@ -11,18 +12,12 @@ import {
 import { FilterPills } from '@/components/patterns/filter-pills';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
     DataTableEmptyState,
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useUrlState } from '@/hooks/use-url-state';
 import DosenLayout from '@/layouts/dosen-layout';
 import { cn } from '@/lib/utils';
@@ -59,13 +54,6 @@ const documentStatusKey: Record<DocumentQueueItem['status'], string> = {
     'Perlu Revisi': 'needs_revision',
     Disetujui: 'approved',
 };
-
-/**
- * Icon button on md and up (the tooltip names it); on phones the label shows
- * beside the icon because tooltips do not open on touch.
- */
-const actionButtonClassName =
-    'text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-auto max-md:gap-2 max-md:border max-md:px-3 md:size-8';
 
 export default function DosenDokumenRevisiPage() {
     const { documentQueue } = usePage<SharedData & DokumenRevisiProps>().props;
@@ -318,76 +306,39 @@ export default function DosenDokumenRevisiPage() {
                                             </td>
 
                                             <td
-                                                className={cn(
-                                                    stackedTable.tdActions,
-                                                    'max-md:order-4 max-md:mt-2 max-md:basis-full',
-                                                )}
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
                                             >
-                                                <div className="flex items-center justify-end gap-1 max-md:flex-wrap max-md:justify-start max-md:gap-2">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={
-                                                                    actionButtonClassName
-                                                                }
-                                                                disabled={
-                                                                    !doc.fileUrl
-                                                                }
-                                                                onClick={() => {
-                                                                    if (
-                                                                        doc.fileUrl
-                                                                    )
-                                                                        window.open(
-                                                                            doc.fileUrl,
-                                                                            '_blank',
-                                                                            'noopener,noreferrer',
-                                                                        );
-                                                                }}
-                                                            >
-                                                                <Download className="size-4" />
-                                                                <span className="md:sr-only">
-                                                                    Unduh
-                                                                    Dokumen
-                                                                </span>
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            Unduh Dokumen
-                                                        </TooltipContent>
-                                                    </Tooltip>
-
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                asChild
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={
-                                                                    actionButtonClassName
-                                                                }
-                                                            >
-                                                                <Link
-                                                                    href={
-                                                                        doc.detailUrl
-                                                                    }
-                                                                    aria-label={`Detail dokumen ${doc.title}`}
-                                                                >
-                                                                    <Eye
-                                                                        aria-hidden="true"
-                                                                        className="size-4"
-                                                                    />
-                                                                    <span className="md:sr-only">
-                                                                        Detail
-                                                                    </span>
-                                                                </Link>
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            Detail dokumen
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <RowIconButton
+                                                        asChild
+                                                        label={`Detail dokumen ${doc.title}`}
+                                                    >
+                                                        <Link
+                                                            href={doc.detailUrl}
+                                                        >
+                                                            <Eye
+                                                                aria-hidden="true"
+                                                                className="size-4"
+                                                            />
+                                                        </Link>
+                                                    </RowIconButton>
+                                                    <RowIconButton
+                                                        label={`Unduh dokumen ${doc.title}`}
+                                                        disabled={!doc.fileUrl}
+                                                        onClick={() => {
+                                                            if (doc.fileUrl) {
+                                                                window.open(
+                                                                    doc.fileUrl,
+                                                                    '_blank',
+                                                                    'noopener,noreferrer',
+                                                                );
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Download className="size-4" />
+                                                    </RowIconButton>
                                                 </div>
                                             </td>
                                         </tr>

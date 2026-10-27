@@ -35,10 +35,27 @@ export type PushStatus = {
 };
 
 export class PushError extends Error {
-    constructor(message: string) {
-        super(message);
+    constructor(
+        message: string,
+        readonly diagnostic?: string,
+    ) {
+        super(diagnostic ? `${message} (${diagnostic})` : message);
         this.name = 'PushError';
     }
+}
+
+function browserFailure(stage: string, error: unknown): string {
+    const name = error instanceof Error ? error.name : '';
+    const allowed = [
+        'AbortError',
+        'NotAllowedError',
+        'InvalidStateError',
+        'NotSupportedError',
+        'SecurityError',
+        'NetworkError',
+        'QuotaExceededError',
+    ];
+    return `${stage}: ${allowed.includes(name) ? name : 'UnknownError'}`;
 }
 
 type PushConfig = { enabled: boolean; publicKey: string | null };
@@ -102,6 +119,14 @@ async function api<T>(
     method: 'GET' | 'POST' | 'DELETE',
     body?: unknown,
 ): Promise<T> {
+    const stage =
+        method === 'GET'
+            ? 'configuration'
+            : url === PushSubscriptionController.status.url()
+              ? 'verification'
+              : method === 'POST'
+                ? 'registration'
+                : 'removal';
     let response: Response;
 
     try {
@@ -122,34 +147,46 @@ async function api<T>(
     } catch {
         throw new PushError(
             'Tidak bisa menghubungi server. Periksa koneksi lalu coba lagi.',
+            `${stage}: network`,
         );
     }
 
     if (response.status === 409) {
         throw new PushError(
             'Browser ini sudah terhubung ke akun lain. Perangkat tidak dipindahkan ke akun ini.',
+            `${stage}: HTTP 409`,
         );
     }
 
     if (response.status === 401 || response.status === 419) {
         throw new PushError(
             'Sesi berakhir. Muat ulang halaman lalu coba lagi.',
+            `${stage}: HTTP ${response.status}`,
         );
     }
 
     if (response.status === 429) {
         throw new PushError(
             'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.',
+            `${stage}: HTTP 429`,
         );
     }
 
     if (!response.ok) {
         throw new PushError(
             'Server menolak permintaan notifikasi. Coba lagi nanti.',
+            `${stage}: HTTP ${response.status}`,
         );
     }
 
-    return (await response.json()) as T;
+    try {
+        return (await response.json()) as T;
+    } catch {
+        throw new PushError(
+            'Respons server tidak bisa dibaca. Coba lagi.',
+            `${stage}: invalid-response`,
+        );
+    }
 }
 
 async function fetchConfig(): Promise<PushConfig> {
@@ -261,9 +298,10 @@ async function registerWorker(): Promise<ServiceWorkerRegistration> {
 
         // Resolves once a worker is active for the scope.
         return await navigator.serviceWorker.ready;
-    } catch {
+    } catch (error) {
         throw new PushError(
             'Service worker tidak bisa dipasang di browser ini.',
+            browserFailure('service-worker', error),
         );
     }
 }
@@ -377,13 +415,24 @@ export async function enablePush(userId: number | string): Promise<PushStatus> {
         throw new PushError('Browser ini belum bisa menerima notifikasi push.');
     }
 
-    const permission =
-        window.Notification.permission === 'default'
-            ? await window.Notification.requestPermission()
-            : window.Notification.permission;
+    let permission: NotificationPermission;
+    try {
+        permission =
+            window.Notification.permission === 'default'
+                ? await window.Notification.requestPermission()
+                : window.Notification.permission;
+    } catch (error) {
+        throw new PushError(
+            'Browser gagal meminta izin notifikasi. Coba lagi.',
+            browserFailure('permission', error),
+        );
+    }
 
     if (permission !== 'granted') {
-        return readPushStatus(userId);
+        throw new PushError(
+            'Izin notifikasi belum diberikan. Periksa izin situs di browser lalu coba lagi.',
+            `permission: ${permission}`,
+        );
     }
 
     const config = await fetchConfig();
@@ -418,9 +467,10 @@ export async function enablePush(userId: number | string): Promise<PushStatus> {
                 }),
                 created: true,
             };
-        } catch {
+        } catch (error) {
             throw new PushError(
                 'Browser gagal membuat langganan push. Coba lagi nanti.',
+                browserFailure('subscription', error),
             );
         }
     };
@@ -439,10 +489,11 @@ export async function enablePush(userId: number | string): Promise<PushStatus> {
 
         try {
             await writeOwner(userId);
-        } catch {
+        } catch (error) {
             await removeServerRow(subscription.endpoint).catch(() => {});
             throw new PushError(
                 'Penyimpanan browser menolak data perangkat. Notifikasi tidak diaktifkan.',
+                browserFailure('storage', error),
             );
         }
     } catch (error) {

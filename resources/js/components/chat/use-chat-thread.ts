@@ -3,6 +3,7 @@ import {
     useEffect,
     useEffectEvent,
     useMemo,
+    useRef,
     useState,
     type Dispatch,
     type SetStateAction,
@@ -10,9 +11,14 @@ import {
 
 import { isImageFile, validateChatAttachment } from './attachment';
 import {
+    chatValidationErrors,
+    isChatSendAcknowledgement,
+} from './send-response';
+import {
     type ChatAttachmentKind,
     type ChatMessage,
     type ChatThread,
+    type ChatReadSnapshot,
 } from './types';
 import {
     mergeMessages,
@@ -61,7 +67,7 @@ export type ChatComposerState = {
     /** Object URL for a staged image; null for documents. */
     previewUrl: string | null;
     processing: boolean;
-    /** Upload percentage, or null before Inertia reports one. */
+    /** Upload percentage, or null before the upload reports one. */
     progress: number | null;
     removeAttachment: () => void;
     send: () => void;
@@ -87,6 +93,13 @@ type ChatThreadState<T extends ChatThread> = {
 
 /** Message shown optimistically while an upload is in flight. */
 type PendingSend = { threadId: number; message: ChatMessage };
+
+type ActiveSend = {
+    id: string;
+    xhr: XMLHttpRequest;
+    acknowledged: boolean;
+    finish: () => void;
+};
 
 type WithUnread = { unread: number };
 
@@ -119,6 +132,14 @@ export function useChatThread<T extends ChatThread>({
     const [clientError, setClientError] = useState<string | null>(null);
     const [inputKey, setInputKey] = useState(0);
     const [pendingSend, setPendingSend] = useState<PendingSend | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [progress, setProgress] = useState<number | null>(null);
+    const activeSend = useRef<ActiveSend | null>(null);
+    const sentCorrelations = useRef(new Set<string>());
+    const messageVersion = useRef(0);
+    const latestReadRequest = useRef(0);
+    const readRequests = useRef(new Map<number, number>());
+    const receivedMessageIds = useRef(new Set<number>());
 
     const form = useForm<{
         message: string;
@@ -149,6 +170,15 @@ export function useChatThread<T extends ChatThread>({
         };
     }, [previewUrl]);
 
+    useEffect(
+        () => () => {
+            const request = activeSend.current;
+            activeSend.current = null;
+            request?.xhr.abort();
+        },
+        [],
+    );
+
     useEffect(() => {
         const url = pendingSend?.message.previewUrl ?? null;
 
@@ -163,6 +193,11 @@ export function useChatThread<T extends ChatThread>({
     // realtime rows stay in messagesByThread and are deduplicated against it.
     useEffect(() => {
         setThreadItems(sortThreads(initialThreads));
+        for (const thread of initialThreads) {
+            for (const message of thread.messages) {
+                receivedMessageIds.current.add(message.id);
+            }
+        }
     }, [initialThreads]);
 
     const visibleThreads = useMemo(
@@ -210,7 +245,8 @@ export function useChatThread<T extends ChatThread>({
         if (
             !readUrl ||
             !isChatVisible ||
-            document.visibilityState !== 'visible'
+            document.visibilityState !== 'visible' ||
+            !document.hasFocus()
         ) {
             return;
         }
@@ -219,6 +255,8 @@ export function useChatThread<T extends ChatThread>({
             document
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute('content') ?? '';
+        const requestId = ++latestReadRequest.current;
+        readRequests.current.set(threadId, requestId);
 
         const response = await fetch(readUrl(threadId), {
             method: 'POST',
@@ -232,14 +270,32 @@ export function useChatThread<T extends ChatThread>({
             body: JSON.stringify({ last_message_id: lastMessageId }),
         });
         if (response.ok) {
-            setThreadItems((current) =>
-                current.map((thread) =>
-                    thread.id === threadId && 'unread' in thread
-                        ? ({ ...thread, unread: 0 } as T & WithUnread)
-                        : thread,
-                ),
+            const data: ChatReadSnapshot = await response.json();
+            window.dispatchEvent(
+                new CustomEvent<
+                    Pick<ChatReadSnapshot, 'userId' | 'readNotificationIds'>
+                >('chat:notifications-read', { detail: data }),
             );
-            window.dispatchEvent(new Event('chat:read'));
+            if (readRequests.current.get(threadId) === requestId) {
+                setThreadItems((current) =>
+                    current.map((thread) =>
+                        thread.id === threadId && 'unread' in thread
+                            ? ({
+                                  ...thread,
+                                  unread: data.threadUnreadCount,
+                              } as T & WithUnread)
+                            : thread,
+                    ),
+                );
+            }
+            // A late acknowledgement must not replace a newer read's total.
+            window.dispatchEvent(
+                requestId === latestReadRequest.current
+                    ? new CustomEvent<ChatReadSnapshot>('chat:read', {
+                          detail: data,
+                      })
+                    : new Event('chat:read'),
+            );
         }
     }
 
@@ -255,12 +311,29 @@ export function useChatThread<T extends ChatThread>({
             );
         }
     });
+    const readNotifiedThread = useEffectEvent((event: Event) => {
+        const notification = (
+            event as CustomEvent<Pick<ChatReadSnapshot, 'userId' | 'threadId'>>
+        ).detail;
+        if (
+            notification.userId === userId &&
+            notification.threadId === activeThreadId &&
+            isChatVisible &&
+            document.visibilityState === 'visible' &&
+            document.hasFocus()
+        ) {
+            event.preventDefault();
+            readVisibleThread();
+        }
+    });
     useEffect(() => {
         readVisibleThread();
         window.addEventListener('focus', readVisibleThread);
+        window.addEventListener('chat:notification', readNotifiedThread);
         document.addEventListener('visibilitychange', readVisibleThread);
         return () => {
             window.removeEventListener('focus', readVisibleThread);
+            window.removeEventListener('chat:notification', readNotifiedThread);
             document.removeEventListener('visibilitychange', readVisibleThread);
         };
     }, [activeThreadId, latestVisibleMessageId, isChatVisible, initialThreads]);
@@ -279,6 +352,18 @@ export function useChatThread<T extends ChatThread>({
             return channel.listen(
                 '.chat.message.created',
                 (event: { threadId: number; message: ChatMessage }) => {
+                    const request = activeSend.current;
+                    if (
+                        request !== null &&
+                        event.message.clientMessageId === request.id
+                    ) {
+                        request.acknowledged = true;
+                        setPendingSend(null);
+                    }
+                    if (receivedMessageIds.current.has(event.message.id)) {
+                        return;
+                    }
+                    receivedMessageIds.current.add(event.message.id);
                     setMessagesByThread((current) => {
                         const currentThread = initialThreads.find(
                             (thread) => thread.id === event.threadId,
@@ -303,11 +388,17 @@ export function useChatThread<T extends ChatThread>({
                         };
                     });
 
-                    if (event.message.type === 'document_event') {
+                    if (
+                        event.message.type === 'document_event' &&
+                        !sentCorrelations.current.has(
+                            event.message.clientMessageId ?? '',
+                        )
+                    ) {
                         onDocumentEvent?.();
                     }
 
                     const isIncomingMessage =
+                        event.message.type !== 'document_event' &&
                         event.message.senderUserId !== null &&
                         event.message.senderUserId !== userId;
 
@@ -337,7 +428,8 @@ export function useChatThread<T extends ChatThread>({
                                 isIncomingMessage &&
                                 (activeThreadId !== event.threadId ||
                                     !isChatVisible ||
-                                    document.visibilityState !== 'visible')
+                                    document.visibilityState !== 'visible' ||
+                                    !document.hasFocus())
                                     ? withUnread.unread + 1
                                     : withUnread.unread;
                         }
@@ -365,15 +457,10 @@ export function useChatThread<T extends ChatThread>({
 
     const canSend = useMemo(
         () =>
-            !form.processing &&
+            !processing &&
             activeThreadId !== null &&
             (form.data.message.trim() !== '' || form.data.attachment !== null),
-        [
-            activeThreadId,
-            form.data.attachment,
-            form.data.message,
-            form.processing,
-        ],
+        [activeThreadId, form.data.attachment, form.data.message, processing],
     );
 
     function pickAttachment(file: File | null): void {
@@ -403,16 +490,30 @@ export function useChatThread<T extends ChatThread>({
     }
 
     function cancelSend(): void {
-        form.cancel();
-        setPendingSend(null);
+        const request = activeSend.current;
+        if (request?.acknowledged) {
+            request.finish();
+        } else {
+            activeSend.current = null;
+            setProcessing(false);
+            setProgress(null);
+            setPendingSend(null);
+        }
+        request?.xhr.abort();
     }
 
     function send(): void {
-        if (!canSend || activeThreadId === null) {
+        if (
+            !canSend ||
+            activeThreadId === null ||
+            activeSend.current !== null
+        ) {
             return;
         }
 
         const threadId = activeThreadId;
+        const clientMessageId = crypto.randomUUID();
+        const draftVersion = messageVersion.current;
 
         syncThreadSearchParam(threadId, clearParams);
         const trimmedMessage = form.data.message.trim();
@@ -437,6 +538,7 @@ export function useChatThread<T extends ChatThread>({
             threadId,
             message: {
                 id: -Date.now(),
+                clientMessageId,
                 senderUserId: userId ?? null,
                 author: '',
                 authorAvatar: null,
@@ -455,17 +557,26 @@ export function useChatThread<T extends ChatThread>({
             },
         });
 
-        form.transform((data) => ({
-            ...data,
-            message: trimmedMessage,
-            document_name: documentName,
-        }));
-
-        form.post(sendUrl(threadId), {
-            preserveScroll: true,
-            forceFormData: true,
-            onFinish: () => setPendingSend(null),
-            onSuccess: () => {
+        const xhr = new XMLHttpRequest();
+        const request: ActiveSend = {
+            id: clientMessageId,
+            xhr,
+            acknowledged: false,
+            finish: () => {
+                if (activeSend.current !== request) return;
+                form.setData((current) => ({
+                    ...current,
+                    message:
+                        messageVersion.current === draftVersion
+                            ? ''
+                            : current.message,
+                    attachment:
+                        current.attachment === file ? null : current.attachment,
+                    document_name:
+                        current.attachment === file
+                            ? ''
+                            : current.document_name,
+                }));
                 setThreadItems((current) =>
                     sortThreads(
                         current.map((thread) =>
@@ -484,13 +595,98 @@ export function useChatThread<T extends ChatThread>({
                         ),
                     ),
                 );
-                form.reset('message', 'attachment', 'document_name');
+                activeSend.current = null;
+                setPendingSend(null);
+                setProcessing(false);
+                setProgress(null);
                 setClientError(null);
                 setInputKey((current) => current + 1);
-
                 onSent?.();
             },
-        });
+        };
+        activeSend.current = request;
+        sentCorrelations.current.add(clientMessageId);
+        setProcessing(true);
+        setProgress(null);
+        form.clearErrors();
+
+        const fail = (errors: Record<string, string[]> = {}) => {
+            if (activeSend.current !== request) return;
+            // Echo is authoritative even if the HTTP connection subsequently fails.
+            if (request.acknowledged) {
+                request.finish();
+                return;
+            }
+            form.setError({
+                message:
+                    errors.message?.[0] ??
+                    errors.ticket?.[0] ??
+                    'Pesan belum terkirim. Periksa koneksi dan coba lagi.',
+                ...(errors.attachment
+                    ? { attachment: errors.attachment[0] }
+                    : {}),
+                ...(errors.document_name
+                    ? { document_name: errors.document_name[0] }
+                    : {}),
+            });
+            activeSend.current = null;
+            setPendingSend(null);
+            setProcessing(false);
+            setProgress(null);
+        };
+        xhr.open('POST', sendUrl(threadId));
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader(
+            'X-CSRF-TOKEN',
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '',
+        );
+        xhr.upload.onprogress = (event) => {
+            if (activeSend.current === request && event.lengthComputable) {
+                setProgress(Math.round((event.loaded / event.total) * 100));
+            }
+        };
+        xhr.onerror = () => fail();
+        xhr.onabort = () => fail();
+        xhr.onload = () => {
+            if (activeSend.current !== request) return;
+            try {
+                const acknowledgement: unknown = JSON.parse(xhr.responseText);
+                if (xhr.status !== 201) {
+                    fail(chatValidationErrors(acknowledgement));
+                    return;
+                }
+                if (
+                    !isChatSendAcknowledgement(acknowledgement) ||
+                    acknowledgement.clientMessageId !== clientMessageId ||
+                    acknowledgement.threadId !== threadId
+                ) {
+                    fail();
+                    return;
+                }
+                setMessagesByThread((current) => ({
+                    ...current,
+                    [threadId]: mergeMessages(
+                        current[threadId] ?? [],
+                        acknowledgement.messages,
+                    ).sort((left, right) => left.id - right.id),
+                }));
+                for (const message of acknowledgement.messages) {
+                    receivedMessageIds.current.add(message.id);
+                }
+                request.finish();
+            } catch {
+                fail();
+            }
+        };
+        const data = new FormData();
+        data.set('client_message_id', clientMessageId);
+        data.set('message', trimmedMessage);
+        data.set('document_name', documentName);
+        if (file !== null) data.set('attachment', file);
+        xhr.send(data);
     }
 
     return {
@@ -514,12 +710,15 @@ export function useChatThread<T extends ChatThread>({
             message: form.data.message,
             pickAttachment,
             previewUrl,
-            processing: form.processing,
-            progress: form.progress?.percentage ?? null,
+            processing,
+            progress,
             removeAttachment,
             send,
             setDocumentName: (value) => form.setData('document_name', value),
-            setMessage: (value) => form.setData('message', value),
+            setMessage: (value) => {
+                messageVersion.current += 1;
+                form.setData('message', value);
+            },
             showDocumentName,
         },
         messagesFor: (thread) =>

@@ -641,11 +641,8 @@ test('dosen can review document and send message to own thread', function () {
         ])
         ->assertForbidden();
 
-    $this->actingAs($dosen)
-        ->post(route('dosen.pesan.messages.store', $ownThread), [
-            'message' => 'Mohon cek revisi bab 3.',
-        ])
-        ->assertRedirect();
+    $this->actingAs($dosen)->postJson(route('dosen.pesan.messages.store', $ownThread), ['message' => 'Mohon cek revisi bab 3.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
+        ->assertCreated();
 
     $this->assertDatabaseHas('mentorship_chat_messages', [
         'mentorship_chat_thread_id' => $ownThread->id,
@@ -653,10 +650,7 @@ test('dosen can review document and send message to own thread', function () {
         'message' => 'Mohon cek revisi bab 3.',
     ]);
 
-    $this->actingAs($dosen)
-        ->post(route('dosen.pesan.messages.store', $otherThread), [
-            'message' => 'Tidak boleh kirim.',
-        ])
+    $this->actingAs($dosen)->postJson(route('dosen.pesan.messages.store', $otherThread), ['message' => 'Tidak boleh kirim.', 'client_message_id' => (string) \Illuminate\Support\Str::uuid()])
         ->assertForbidden();
 });
 
@@ -1078,3 +1072,44 @@ test('sidang project completes only after all requesting lecturers resolve their
     expect($adminNotifications)->toHaveCount(1)
         ->and($adminNotifications->first()?->toArray()['title'] ?? null)->toBe('Revisi Sidang selesai');
 });
+
+it('links only an authorized matching exam group and otherwise offers the student private chat', function (string $threadCase) {
+    $lecturer = createDosenUser();
+    $student = createMahasiswaUser('CHAT-DETAIL-'.$threadCase);
+    $project = createThesisProjectForStudent($student);
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'title_version_id' => $project->latestTitle->id,
+        'type' => 'sempro', 'attempt_no' => 1, 'status' => 'scheduled',
+        'result' => 'pending', 'scheduled_for' => now()->addDay(),
+    ]);
+    assignDefenseExaminer($defense, $lecturer, 'examiner', 1);
+
+    $thread = null;
+    if ($threadCase !== 'missing') {
+        $thread = MentorshipChatThread::query()->create([
+            'student_user_id' => $student->id,
+            'type' => $threadCase === 'wrong-type' ? 'sidang' : 'sempro',
+            'context_id' => $defense->id,
+            'label' => 'Grup ujian',
+        ]);
+        if ($threadCase !== 'not-member') {
+            MentorshipChatThreadParticipant::query()->create([
+                'thread_id' => $thread->id,
+                'user_id' => $lecturer->id,
+                'role' => 'examiner',
+            ]);
+        }
+    }
+
+    $threadCount = MentorshipChatThread::query()->count();
+    $this->actingAs($lecturer)->get(route('dosen.seminar-proposal'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('defenses', 1)
+            ->where('defenses.0.chatUrl', fn (string $url): bool => parse_url($url, PHP_URL_PATH) === '/dosen/pesan'
+                && parse_url($url, PHP_URL_QUERY) === ($threadCase === 'member'
+                    ? 'thread='.$thread->id
+                    : 'mode=private&recipient='.$student->id)));
+    expect(MentorshipChatThread::query()->count())->toBe($threadCount);
+})->with(['member', 'missing', 'not-member', 'wrong-type']);

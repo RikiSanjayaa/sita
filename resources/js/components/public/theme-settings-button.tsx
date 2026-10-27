@@ -38,7 +38,7 @@ export function ThemeSettingsButton() {
                         </div>
                     </DialogHeader>
 
-                    <div className="flex-1 overflow-y-auto px-5 py-5 sm:max-h-[70vh] sm:px-0 sm:py-0 sm:pt-4">
+                    <div className="flex-1 overflow-y-auto px-5 py-5 sm:max-h-[70vh] sm:px-1 sm:pt-4 sm:pb-1">
                         <ThemePicker headingLevel="h3" />
                     </div>
                 </div>

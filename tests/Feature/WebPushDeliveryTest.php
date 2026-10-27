@@ -189,12 +189,10 @@ test('chat bursts queue one delayed unique job per user and chat url', function 
 
     expect($user->notifications()->count())->toBe(4)
         ->and(queuedPushJobs())->toBe(2);
-
-    $delay = (int) DB::table('jobs')->min('available_at') - now()->getTimestamp();
-    expect($delay)->toBeGreaterThanOrEqual(59)->toBeLessThanOrEqual(61);
 });
 
-test('a chat burst delivered by the queue worker pushes once for the latest unread message', function () {
+test('a chat burst waits five seconds and pushes once for the latest unread message', function () {
+    $this->freezeTime();
     $transport = fakeWebPushTransport();
     $user = webPushUser();
 
@@ -205,7 +203,12 @@ test('a chat burst delivered by the queue worker pushes once for the latest unre
     $user->notifications()->update(['created_at' => now()]);
     $latest = $user->notifications()->orderByDesc('id')->first();
 
-    $this->travel(61)->seconds();
+    $this->travel(4)->seconds();
+    Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--stop-when-empty' => true]);
+    expect($transport->sent)->toBeEmpty()
+        ->and(queuedPushJobs())->toBe(1);
+
+    $this->travel(1)->seconds();
     Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--stop-when-empty' => true]);
 
     expect($transport->sent)->toHaveCount(1);
@@ -216,6 +219,36 @@ test('a chat burst delivered by the queue worker pushes once for the latest unre
         ->and(json_encode($push['payload']))->not->toContain('Budi');
     expect(queuedPushJobs())->toBe(0);
 });
+
+it('checks actual chat notification read state when the delayed worker runs', function (bool $read): void {
+    $transport = fakeWebPushTransport();
+    $sender = User::factory()->asMahasiswa()->create();
+    $recipient = User::factory()->asDosen()->create(['browser_notifications_enabled' => true]);
+    webPushSubscribe($recipient, 'chat-focus');
+    $thread = app(\App\Services\PrivateChatService::class)->findOrCreateThread($sender, $recipient);
+    $response = $this->actingAs($sender)->postJson(route('mahasiswa.pesan.messages.store', $thread), [
+        'message' => 'Isi chat pribadi tidak boleh masuk layar kunci',
+        'client_message_id' => (string) \Illuminate\Support\Str::uuid(),
+    ])->assertCreated();
+    $notification = $recipient->notifications()->sole();
+    expect(queuedPushJobs())->toBe(1);
+
+    if ($read) {
+        $this->actingAs($recipient)->postJson(route('dosen.pesan.read', $thread), [
+            'last_message_id' => $response->json('messages.0.id'),
+        ])->assertOk();
+        $this->postJson("/settings/notifications/{$notification->id}/read")->assertOk();
+    }
+
+    $this->travel(5)->seconds();
+    Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--stop-when-empty' => true]);
+    expect(queuedPushJobs())->toBe(0)
+        ->and($transport->sent)->toHaveCount($read ? 0 : 1);
+    if (! $read) {
+        expect($transport->sent[0]['payload']['body'])->toBe('Ada pembaruan di SITA. Buka aplikasi untuk melihatnya.')
+            ->and($transport->sent[0]['payload']['data']['notificationId'])->toBe($notification->id);
+    }
+})->with(['unfocused leaves unread' => false, 'focused reads before execution' => true]);
 
 test('execution skips read or deleted notifications and picks the latest remaining unread chat', function () {
     $transport = fakeWebPushTransport();

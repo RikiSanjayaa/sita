@@ -2,6 +2,7 @@ import { FileText, GraduationCap, type LucideIcon, Users } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import { type MentorshipSessionNotesContext } from '@/components/mentorship-session-notes';
+import { CopyFieldButton } from '@/components/profile/copy-field-button';
 import { MonitoringSessionNotes } from '@/components/profile/monitoring-session-notes';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
@@ -56,9 +57,19 @@ function FactGrid({
                         {item.label}
                     </dt>
                     <dd
-                        className={`mt-1 text-sm font-semibold text-foreground ${tabular ? 'tabular-nums' : ''}`}
+                        className={`mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground ${tabular ? 'tabular-nums' : ''}`}
                     >
-                        {item.value}
+                        <span className="min-w-0 break-words">
+                            {item.value}
+                        </span>
+                        {['NIM', 'Email', 'Nomor HP'].includes(item.label) &&
+                        String(item.value).trim() !== '' &&
+                        item.value !== '-' ? (
+                            <CopyFieldButton
+                                label={item.label}
+                                value={String(item.value)}
+                            />
+                        ) : null}
                     </dd>
                 </div>
             ))}

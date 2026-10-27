@@ -111,6 +111,93 @@ it('turns on for an incoming message and off only after the receipt is saved', f
     expect(unreadCount($this, $lecturer))->toBe(0);
 });
 
+it('acknowledges a read with exact remaining thread and sidebar counts', function (string $role): void {
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    $reader = $role === 'mahasiswa' ? $student : $lecturer;
+    $sender = $role === 'mahasiswa' ? $lecturer : $student;
+    $seen = unreadMessage($thread, $sender);
+    unreadMessage($thread, $sender);
+    unreadMessage($thread, $reader);
+    unreadMessage($thread, $sender, 'document_event');
+
+    $private = MentorshipChatThread::factory()->create(['student_user_id' => $student->id, 'type' => 'private', 'private_key' => $student->id.':'.$lecturer->id]);
+    foreach ([$student, $lecturer] as $participant) {
+        MentorshipChatThreadParticipant::query()->create(['thread_id' => $private->id, 'user_id' => $participant->id, 'role' => $participant->is($student) ? 'student' : 'lecturer']);
+    }
+    unreadMessage($private, $sender);
+
+    unreadRead($this, $reader, $role.'.pesan.read', $thread, $seen->id)
+        ->assertOk()
+        ->assertJsonPath('threadUnreadCount', 1)
+        ->assertJsonPath('unreadMessageCount', 2);
+
+    unreadRead($this, $reader, $role.'.pesan.read', $thread)
+        ->assertOk()
+        ->assertJsonPath('threadUnreadCount', 0)
+        ->assertJsonPath('unreadMessageCount', 1);
+})->with(['mahasiswa', 'dosen']);
+
+it('reads every correlated chat notice up to the displayed watermark without consuming other updates', function (string $role): void {
+    $this->travelTo(now()->startOfSecond());
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    $reader = $role === 'mahasiswa' ? $student : $lecturer;
+    $sender = $role === 'mahasiswa' ? $lecturer : $student;
+    $seen = unreadMessage($thread, $sender);
+    $later = unreadMessage($thread, $sender);
+    $notice = function (User $owner, array $overrides = []) use ($role, $thread, $seen) {
+        return $owner->notifications()->create([
+            'id' => (string) Str::uuid(),
+            'type' => RealtimeNotification::class,
+            'data' => array_replace([
+                'title' => 'Pesan baru',
+                'preferenceKey' => 'pesanBaru',
+                'url' => '/'.$role.'/pesan?thread='.$thread->id,
+                'chatThreadId' => $thread->id,
+                'chatMessageId' => $seen->id,
+            ], $overrides),
+        ]);
+    };
+    $expected = [];
+    for ($index = 0; $index < 18; $index++) {
+        $expected[] = $notice($reader)->id;
+    }
+    $newer = $notice($reader, ['chatMessageId' => $later->id]);
+    $otherThread = $notice($reader, ['chatThreadId' => $thread->id + 1000]);
+    $academic = $notice($reader, ['preferenceKey' => 'statusTugasAkhir']);
+    $otherAccount = $notice($sender);
+
+    $response = unreadRead($this, $reader, $role.'.pesan.read', $thread, $seen->id)
+        ->assertOk()->assertJsonPath('threadUnreadCount', 1);
+    expect($response->json('readNotificationIds'))->toEqualCanonicalizing($expected);
+    expect($reader->unreadNotifications()->pluck('id')->all())
+        ->toEqualCanonicalizing([$newer->id, $otherThread->id, $academic->id]);
+    expect($otherAccount->fresh()->read_at)->toBeNull();
+
+    unreadRead($this, $reader, $role.'.pesan.read', $thread, $later->id)
+        ->assertOk()->assertJsonPath('readNotificationIds', [$newer->id]);
+    unreadRead($this, $reader, $role.'.pesan.read', $thread, $seen->id)
+        ->assertOk()->assertJsonPath('readNotificationIds', []);
+    expect(MentorshipChatRead::query()->where('user_id', $reader->id)->where('mentorship_chat_thread_id', $thread->id)->value('last_read_message_id'))
+        ->toBe($later->id);
+})->with(['mahasiswa', 'dosen']);
+
+it('reads targeted legacy notices only when their ambiguous same-second message window is fully visible', function (): void {
+    $this->travelTo(now()->startOfSecond());
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    $seen = unreadMessage($thread, $lecturer);
+    $later = unreadMessage($thread, $lecturer);
+    $notices = collect(['/mahasiswa/pesan?thread='.$thread->id, '/mahasiswa/pesan'])->map(fn (string $url) => $student->notifications()->create([
+        'id' => (string) Str::uuid(),
+        'type' => RealtimeNotification::class,
+        'data' => ['preferenceKey' => 'pesanBaru', 'url' => $url],
+    ]));
+    unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $seen->id)
+        ->assertOk()->assertJsonPath('readNotificationIds', []);
+    unreadRead($this, $student, 'mahasiswa.pesan.read', $thread, $later->id)
+        ->assertOk()->assertJsonPath('readNotificationIds', [$notices[0]->id]);
+    expect($notices[1]->fresh()->read_at)->toBeNull();
+});
+
 it('stays on until every thread with unread messages is read', function (): void {
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $bimbingan] = unreadBimbingan();
     $other = User::factory()->asDosen()->create();

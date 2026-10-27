@@ -1,14 +1,16 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Camera, MessageCircle, Save } from 'lucide-react';
+import { Camera, Save } from 'lucide-react';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 
 import InputError from '@/components/input-error';
+import { CopyFieldButton } from '@/components/profile/copy-field-button';
 import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { WhatsAppIcon } from '@/components/whatsapp-icon';
 import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
@@ -170,15 +172,14 @@ export default function ProfilePage() {
                             {profile.whatsappUrl ? (
                                 <Button
                                     asChild
-                                    variant="secondary"
-                                    className="max-md:h-11"
+                                    className="bg-success text-success-foreground hover:bg-success/90 max-md:h-11"
                                 >
                                     <a
                                         href={profile.whatsappUrl}
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        <MessageCircle className="mr-2 size-4" />
+                                        <WhatsAppIcon className="mr-2 size-4" />
                                         Chat WhatsApp
                                     </a>
                                 </Button>
@@ -210,7 +211,15 @@ export default function ProfilePage() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    {form.data.email.trim() ? (
+                                        <CopyFieldButton
+                                            label="Email"
+                                            value={form.data.email}
+                                        />
+                                    ) : null}
+                                </div>
                                 <Input
                                     id="email"
                                     className="max-md:h-11"
@@ -232,7 +241,17 @@ export default function ProfilePage() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="phone_number">Nomor HP</Label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label htmlFor="phone_number">
+                                        Nomor HP
+                                    </Label>
+                                    {form.data.phone_number.trim() ? (
+                                        <CopyFieldButton
+                                            label="Nomor HP"
+                                            value={form.data.phone_number}
+                                        />
+                                    ) : null}
+                                </div>
                                 <Input
                                     id="phone_number"
                                     className="max-md:h-11"

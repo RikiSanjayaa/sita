@@ -10,12 +10,12 @@ import {
     catalogWidths,
     roleAccounts,
 } from '../support/catalog-pages';
-import { repositoryRoot } from '../support/db';
+import { repositoryRoot, runArtisan } from '../support/db';
 import { authStatePath } from '../support/thesis-fixtures';
 
 // Screenshot catalog (issue #127). Run with `npm run catalog`; the normal e2e
-// project ignores this file. Nothing here changes data, so pages can be
-// sharded and run in any order after the bootstrap setup.
+// project ignores this file. Review-state fixtures clone seeded demo documents;
+// no shared document is changed, and only those clones are removed afterward.
 const outputRoot = path.resolve(
     repositoryRoot,
     process.env.CATALOG_OUTPUT ?? 'catalog-output',
@@ -37,6 +37,58 @@ function shoot(page: Page): Promise<Buffer> {
         caret: 'hide',
     });
 }
+
+const reviewFixtureGroup = 'catalog-ux148-document-';
+
+test.beforeAll(() => {
+    runArtisan([
+        'tinker',
+        '--execute',
+        `
+        $student = App\\Models\\User::where('email', 'mahasiswa@sita.test')->firstOrFail();
+        $lecturer = App\\Models\\User::where('email', 'dosen@sita.test')->firstOrFail();
+        $source = App\\Models\\MentorshipDocument::where('student_user_id', $student->id)->where('lecturer_user_id', $lecturer->id)->firstOrFail();
+        foreach (['submitted', 'needs_revision'] as $status) {
+            $group = '${reviewFixtureGroup}'.$status;
+            if (App\\Models\\MentorshipDocument::where('document_group', $group)->exists()) { continue; }
+            $document = $source->replicate();
+            $document->forceFill([
+                'document_group' => $group, 'title' => 'Draft Metodologi Demo '.$status,
+                'status' => $status, 'uploaded_by_user_id' => $student->id,
+                'uploaded_by_role' => 'mahasiswa',
+                'revision_notes' => $status === 'needs_revision' ? implode("\\n", array_map(fn ($n) => $n.'. Perjelas metode, sumber data, dan interpretasi hasil penelitian.', range(1, 12))) : null,
+                'reviewed_at' => $status === 'needs_revision' ? now() : null,
+            ])->save();
+        }
+        $project = App\\Models\\ThesisProject::where('student_user_id', $student->id)->current()->firstOrFail();
+        foreach (['internal', 'student'] as $visibility) {
+            App\\Models\\ThesisProjectNote::firstOrCreate([
+                'project_id' => $project->id, 'author_user_id' => $lecturer->id,
+                'visibility' => $visibility,
+                'body' => 'Katalog UX148 '.$visibility.': '.str_repeat('Jelaskan metode, pembahasan hasil, dan langkah berikutnya. ', 12),
+            ]);
+        }
+        foreach ([9, 10] as $hour) {
+            App\\Models\\MentorshipSchedule::factory()->create([
+                'student_user_id' => $student->id, 'lecturer_user_id' => $lecturer->id,
+                'status' => 'approved', 'topic' => 'Katalog UX148 agenda '.$hour,
+                'requested_for' => now()->addDay()->setTime($hour, 0),
+                'scheduled_for' => now()->addDay()->setTime($hour, 0),
+            ]);
+        }
+    `,
+    ]);
+});
+
+test.afterAll(() => {
+    runArtisan([
+        'tinker',
+        '--execute',
+        `App\\Models\\MentorshipDocument::where('document_group', 'like', '${reviewFixtureGroup}%')->delete();
+         App\\Models\\ThesisProjectNote::where('body', 'like', 'Katalog UX148 %')->delete();
+         App\\Models\\MentorshipSchedule::where('topic', 'like', 'Katalog UX148 agenda %')->delete();`,
+    ]);
+});
 
 const names = new Set<string>();
 
@@ -64,6 +116,7 @@ for (const entry of catalogPages) {
                         : { cookies: [], origins: [] },
                     viewport: { width, height },
                     deviceScaleFactor: 1,
+                    permissions: ['clipboard-read', 'clipboard-write'],
                     colorScheme: theme,
                     reducedMotion: 'reduce',
                     locale: 'id-ID',

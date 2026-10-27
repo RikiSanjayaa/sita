@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import {
     Bell,
     CalendarClock,
@@ -101,6 +101,7 @@ export default function NotificationSettingsPanel() {
     const [isDeviceBusy, setIsDeviceBusy] = useState(false);
     const [deviceError, setDeviceError] = useState<string | null>(null);
     const statusRequest = useRef(0);
+    const deviceAction = useRef(false);
 
     const [settings, setSettings] = useState<NotificationSettings>(() => ({
         browserNotifications:
@@ -114,26 +115,51 @@ export default function NotificationSettingsPanel() {
         konfirmasiBimbingan: notificationSettings?.konfirmasiBimbingan ?? true,
     }));
 
-    const setAndPersistSettings = (nextSettings: NotificationSettings) => {
-        const previous = settings;
-
-        setSettings(nextSettings);
+    const setAndPersistSettings = async (
+        nextSettings: NotificationSettings,
+    ): Promise<void> => {
         setIsSaving(true);
-
-        router.patch(
-            NotificationSettingsController.update.url(),
-            { ...nextSettings },
-            {
-                preserveScroll: true,
-                onError: () => setSettings(previous),
-                onFinish: () => setIsSaving(false),
-            },
-        );
+        try {
+            let response: Response;
+            try {
+                response = await fetch(
+                    NotificationSettingsController.update.url(),
+                    {
+                        method: 'PATCH',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN':
+                                document
+                                    .querySelector('meta[name="csrf-token"]')
+                                    ?.getAttribute('content') ?? '',
+                        },
+                        body: JSON.stringify(nextSettings),
+                    },
+                );
+            } catch {
+                throw new PushError(
+                    'Pengiriman akun belum tersimpan. Periksa koneksi lalu coba lagi.',
+                    'account-settings: network',
+                );
+            }
+            if (!response.ok) {
+                throw new PushError(
+                    'Pengiriman akun belum tersimpan. Coba lagi.',
+                    `account-settings: HTTP ${response.status}`,
+                );
+            }
+            setSettings(nextSettings);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Read-only refresh: the latest request wins, so a slow answer cannot
     // overwrite a newer state.
     const refreshDeviceStatus = async () => {
+        if (deviceAction.current) return;
         const request = ++statusRequest.current;
         const next = await readPushStatus(userId);
 
@@ -166,6 +192,8 @@ export default function NotificationSettingsPanel() {
         action: typeof enablePush | typeof disablePush,
         successMessage: string,
     ) => {
+        if (deviceAction.current) return;
+        deviceAction.current = true;
         ++statusRequest.current;
 
         setIsDeviceBusy(true);
@@ -173,12 +201,30 @@ export default function NotificationSettingsPanel() {
 
         try {
             const next = await action(userId);
+            if (
+                action === enablePush &&
+                next.state === 'active' &&
+                !settings.browserNotifications
+            ) {
+                await setAndPersistSettings({
+                    ...settings,
+                    browserNotifications: true,
+                });
+            }
 
             ++statusRequest.current;
             setDeviceStatus(next);
 
-            if (next.state === 'active' || action === disablePush) {
+            if (
+                (action === enablePush && next.state === 'active') ||
+                (action === disablePush && next.state === 'inactive')
+            ) {
                 toast.success(successMessage);
+            } else {
+                setDeviceError(
+                    next.message ??
+                        'Aktivasi belum dapat dipastikan. Coba lagi.',
+                );
             }
         } catch (error) {
             setDeviceError(
@@ -186,8 +232,11 @@ export default function NotificationSettingsPanel() {
                     ? error.message
                     : 'Terjadi kesalahan. Coba lagi.',
             );
-            void refreshDeviceStatus();
+            const next = await readPushStatus(userId);
+            ++statusRequest.current;
+            setDeviceStatus(next);
         } finally {
+            deviceAction.current = false;
             setIsDeviceBusy(false);
         }
     };
@@ -250,7 +299,10 @@ export default function NotificationSettingsPanel() {
         [items, settings],
     );
 
-    const canEnableDevice = deviceStatus.state === 'inactive';
+    const canEnableDevice =
+        deviceStatus.state === 'inactive' ||
+        deviceStatus.state === 'error' ||
+        (deviceStatus.state === 'active' && !settings.browserNotifications);
     const isLoading = deviceStatus.state === 'loading';
 
     return (
@@ -274,7 +326,7 @@ export default function NotificationSettingsPanel() {
                             htmlFor="browser-notifications"
                             className="text-sm font-medium"
                         >
-                            Kirim notifikasi ke browser
+                            Kirim ke semua perangkat terhubung
                         </label>
                         <div className="mt-1 text-sm text-muted-foreground">
                             Jika dimatikan, tidak ada perangkat yang menerima
@@ -287,14 +339,20 @@ export default function NotificationSettingsPanel() {
                         id="browser-notifications"
                         checked={settings.browserNotifications}
                         onCheckedChange={(checked) =>
-                            setAndPersistSettings({
+                            void setAndPersistSettings({
                                 ...settings,
                                 browserNotifications: checked,
-                            })
+                            }).catch((error: unknown) =>
+                                toast.error(
+                                    error instanceof PushError
+                                        ? error.message
+                                        : 'Pengaturan belum tersimpan. Coba lagi.',
+                                ),
+                            )
                         }
-                        aria-label="Kirim notifikasi ke browser"
+                        aria-label="Kirim ke semua perangkat terhubung"
                         className="self-start sm:mt-1"
-                        disabled={isSaving}
+                        disabled={isSaving || isDeviceBusy}
                     />
                 </div>
 
@@ -316,7 +374,10 @@ export default function NotificationSettingsPanel() {
                         </div>
                         <Badge variant="outline" className="w-fit self-start">
                             {isLoading ? <Spinner className="size-3" /> : null}
-                            {stateLabels[deviceStatus.state]}
+                            {deviceStatus.state === 'active' &&
+                            !settings.browserNotifications
+                                ? 'Terhubung, pengiriman dijeda'
+                                : stateLabels[deviceStatus.state]}
                         </Badge>
                     </div>
 
@@ -330,23 +391,30 @@ export default function NotificationSettingsPanel() {
                         </Alert>
                     ) : null}
 
+                    {canEnableDevice ? (
+                        <p className="text-sm text-muted-foreground">
+                            Aktivasi menghubungkan perangkat ini dan menyalakan
+                            pengiriman akun ke semua perangkat yang sudah
+                            terhubung. Izin browser akan diminta jika
+                            diperlukan.
+                        </p>
+                    ) : null}
                     <div className="flex flex-wrap gap-2">
                         {canEnableDevice ? (
                             <Button
                                 type="button"
                                 size="sm"
+                                className="max-md:h-auto max-md:min-h-11 max-md:whitespace-normal"
                                 onClick={() =>
                                     void runDeviceAction(
                                         enablePush,
                                         'Notifikasi aktif di perangkat ini.',
                                     )
                                 }
-                                disabled={isDeviceBusy}
+                                disabled={isDeviceBusy || isSaving}
                             >
                                 {isDeviceBusy ? <Spinner /> : null}
-                                {deviceStatus.hasLocalSubscription
-                                    ? 'Hubungkan ulang perangkat ini'
-                                    : 'Aktifkan di perangkat ini'}
+                                Aktifkan notifikasi di perangkat ini
                             </Button>
                         ) : null}
 
@@ -355,13 +423,14 @@ export default function NotificationSettingsPanel() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                className="max-md:min-h-11"
                                 onClick={() =>
                                     void runDeviceAction(
                                         disablePush,
                                         'Notifikasi dimatikan di perangkat ini.',
                                     )
                                 }
-                                disabled={isDeviceBusy}
+                                disabled={isDeviceBusy || isSaving}
                             >
                                 {isDeviceBusy ? <Spinner /> : null}
                                 {deviceStatus.state === 'active'
@@ -370,18 +439,16 @@ export default function NotificationSettingsPanel() {
                             </Button>
                         ) : null}
 
-                        {deviceStatus.state === 'denied' ||
-                        deviceStatus.state === 'error' ? (
+                        {deviceStatus.state === 'denied' ? (
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                className="max-md:min-h-11"
                                 onClick={() => void refreshDeviceStatus()}
                                 disabled={isDeviceBusy}
                             >
-                                {deviceStatus.state === 'denied'
-                                    ? 'Periksa izin lagi'
-                                    : 'Coba lagi'}
+                                Periksa izin lagi
                             </Button>
                         ) : null}
                     </div>
@@ -439,16 +506,23 @@ export default function NotificationSettingsPanel() {
                                     id={`notification-${item.key}`}
                                     checked={checked}
                                     onCheckedChange={(next) =>
-                                        setAndPersistSettings({
+                                        void setAndPersistSettings({
                                             ...settings,
                                             [item.key]: next,
-                                        })
+                                        }).catch((error: unknown) =>
+                                            toast.error(
+                                                error instanceof PushError
+                                                    ? error.message
+                                                    : 'Pengaturan belum tersimpan. Coba lagi.',
+                                            ),
+                                        )
                                     }
                                     aria-label={`Aktifkan ${item.title}`}
                                     className="mt-1 shrink-0"
                                     disabled={
                                         !settings.browserNotifications ||
-                                        isSaving
+                                        isSaving ||
+                                        isDeviceBusy
                                     }
                                 />
                             </div>

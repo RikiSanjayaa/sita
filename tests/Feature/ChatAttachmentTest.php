@@ -36,16 +36,12 @@ test('chat attachment accepts only the allowed file types and size', function (s
 
     [, $student, , $thread] = createPembimbingChatThread();
 
-    $response = $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => '',
-            'attachment' => UploadedFile::fake()->create($name, $kilobytes, $mime),
-        ]);
+    $response = $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => '', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create($name, $kilobytes, $mime)]);
 
     if ($accepted) {
-        $response->assertRedirect()->assertSessionHasNoErrors();
+        $response->assertCreated();
     } else {
-        $response->assertSessionHasErrors('attachment');
+        $response->assertUnprocessable()->assertJsonValidationErrors('attachment');
     }
 })->with([
     'pdf' => ['bab-3.pdf', 'application/pdf', 250, true],
@@ -64,12 +60,8 @@ test('image attachment is stored as a chat attachment without creating a mentors
 
     [, $student, , $thread] = createPembimbingChatThread();
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => 'Ini foto bukti',
-            'attachment' => UploadedFile::fake()->create('foto-bukti.jpg', 120, 'image/jpeg'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Ini foto bukti', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('foto-bukti.jpg', 120, 'image/jpeg')])
+        ->assertCreated();
 
     expect(MentorshipDocument::query()->count())->toBe(0);
 
@@ -90,13 +82,9 @@ test('document title comes from the document name field and never from the capti
 
     [, $student, , $thread] = createPembimbingChatThread();
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => 'Mohon dicek revisi terbaru',
-            'attachment' => UploadedFile::fake()->create('bab-3-final.pdf', 250, 'application/pdf'),
-            'document_name' => $documentName,
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => 'Mohon dicek revisi terbaru', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('bab-3-final.pdf', 250, 'application/pdf'),
+        'document_name' => $documentName, ])
+        ->assertCreated();
 
     $title = MentorshipDocument::query()->where('category', 'lampiran-chat')->value('title');
 
@@ -113,19 +101,11 @@ test('chat attachment preview is limited to images and follows download authoriz
     [$admin, $student, $dosen, $thread] = createPembimbingChatThread();
     $otherStudent = createUserWithRole(AppRole::Mahasiswa->value);
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => '',
-            'attachment' => UploadedFile::fake()->create('foto.png', 120, 'image/png'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => '', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('foto.png', 120, 'image/png')])
+        ->assertCreated();
 
-    $this->actingAs($student)
-        ->post("/mahasiswa/pesan/{$thread->id}/messages", [
-            'message' => '',
-            'attachment' => UploadedFile::fake()->create('bab-3.pdf', 250, 'application/pdf'),
-        ])
-        ->assertRedirect();
+    $this->actingAs($student)->postJson("/mahasiswa/pesan/{$thread->id}/messages", ['message' => '', 'client_message_id' => (string) \Illuminate\Support\Str::uuid(), 'attachment' => UploadedFile::fake()->create('bab-3.pdf', 250, 'application/pdf')])
+        ->assertCreated();
 
     $imageMessage = MentorshipChatMessage::query()->where('attachment_mime', 'image/png')->firstOrFail();
     $documentMessage = MentorshipChatMessage::query()->where('attachment_mime', 'application/pdf')->firstOrFail();

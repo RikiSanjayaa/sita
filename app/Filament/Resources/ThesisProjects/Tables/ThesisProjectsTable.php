@@ -40,7 +40,11 @@ class ThesisProjectsTable
                     ->label('Mahasiswa')
                     ->searchable()
                     ->sortable()
-                    ->description(fn(?ThesisProject $record): string => $record?->student?->mahasiswaProfile?->nim ?? '-')
+                    ->toggleable(),
+                TextColumn::make('student.mahasiswaProfile.nim')
+                    ->label('NIM')
+                    ->copyable()
+                    ->searchable()
                     ->toggleable(),
                 TextColumn::make('student.email')
                     ->label('Email Mahasiswa')
@@ -49,6 +53,7 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('student.phone_number')
                     ->label('Nomor HP')
+                    ->copyable()
                     ->description(fn(?ThesisProject $record): ?string => match (true) {
                         blank($record?->student?->phone_number) => null,
                         $record->student->phone_number_confirmed_at === null => 'Belum dikonfirmasi',

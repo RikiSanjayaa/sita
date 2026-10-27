@@ -222,6 +222,21 @@ test('populated dashboard shows real counts, one primary preview and compact sec
             }
         }
         await expect(agenda.getByRole('link')).toHaveCount(2);
+        const firstDay = agenda.locator('section').first();
+        const firstHeading = (await firstDay
+            .getByRole('heading')
+            .boundingBox())!;
+        const firstEvent = (await firstDay
+            .getByRole('listitem')
+            .first()
+            .boundingBox())!;
+        expect(firstEvent.y - firstHeading.y).toBeLessThanOrEqual(48);
+        const days = agenda.locator('section');
+        const firstDayBox = (await days.first().boundingBox())!;
+        const secondDayBox = (await days.nth(1).boundingBox())!;
+        expect(
+            secondDayBox.y - (firstDayBox.y + firstDayBox.height),
+        ).toBeLessThanOrEqual(32);
         await expect(
             agenda.getByText('Bimbingan mendatang dashboard', { exact: true }),
         ).toBeVisible();
@@ -240,6 +255,52 @@ test('populated dashboard shows real counts, one primary preview and compact sec
                 .getByRole('link')
                 .filter({ hasText: /Mahasiswa Dashboard/ }),
         ).toHaveCount(4);
+        const studentLink = page
+            .getByRole('region', { name: 'Progres mahasiswa' })
+            .getByRole('link')
+            .filter({ hasText: /Mahasiswa Dashboard/ })
+            .first();
+        const studentRow = studentLink.locator('..');
+        const attention = studentRow.getByRole('list').first();
+        const idleBackground = await studentRow.evaluate(
+            (element) => getComputedStyle(element).backgroundColor,
+        );
+        await studentLink.hover();
+        await expect
+            .poll(() =>
+                studentRow.evaluate(
+                    (element) => getComputedStyle(element).backgroundColor,
+                ),
+            )
+            .not.toBe(idleBackground);
+        const hoverBackground = await studentRow.evaluate(async (element) => {
+            await Promise.all(
+                element.getAnimations().map((animation) => animation.finished),
+            );
+            return getComputedStyle(element).backgroundColor;
+        });
+        await attention.hover();
+        await expect
+            .poll(() =>
+                studentRow.evaluate(
+                    (element) => getComputedStyle(element).backgroundColor,
+                ),
+            )
+            .toBe(hoverBackground);
+        await page.mouse.move(0, 0);
+        await studentLink.focus();
+        await studentRow.evaluate((element) =>
+            Promise.all(
+                element.getAnimations().map((animation) => animation.finished),
+            ),
+        );
+        await expect
+            .poll(() =>
+                studentRow.evaluate(
+                    (element) => getComputedStyle(element).backgroundColor,
+                ),
+            )
+            .toBe(hoverBackground);
         await expect(page.getByText('Aksi cepat', { exact: true })).toHaveCount(
             0,
         );

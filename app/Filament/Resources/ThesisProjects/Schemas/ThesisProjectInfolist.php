@@ -42,8 +42,13 @@ class ThesisProjectInfolist
                             ->label('Email Mahasiswa')
                             ->copyable()
                             ->placeholder('-'),
+                        TextEntry::make('student.phone_number')
+                            ->label('Nomor HP')
+                            ->copyable()
+                            ->placeholder('Belum diisi'),
                         TextEntry::make('student.mahasiswaProfile.nim')
                             ->label('NIM')
+                            ->copyable()
                             ->placeholder('-'),
                         TextEntry::make('programStudi.name')
                             ->label('Program Studi')
@@ -271,7 +276,7 @@ class ThesisProjectInfolist
                     ->icon(fn(string $state): string => self::assignmentStatusIcon($state)),
                 TextEntry::make('started_at'),
                 TextEntry::make('ended_at'),
-                TextEntry::make('notes'),
+                ViewEntry::make('notes')->view('filament.infolists.expandable-note'),
             ])
             ->contained(false);
     }
@@ -448,7 +453,7 @@ class ThesisProjectInfolist
                     ->badge()
                     ->color(fn(string $state): string => self::mentorshipStatusColor($state))
                     ->icon(fn(string $state): string => self::mentorshipStatusIcon($state)),
-                TextEntry::make('review_notes')->placeholder('-'),
+                ViewEntry::make('review_notes')->view('filament.infolists.expandable-note'),
                 TextEntry::make('uploaded_at'),
                 TextEntry::make('file_name')->placeholder('-'),
                 TextEntry::make('stored_file_name')->placeholder('-'),
@@ -489,7 +494,7 @@ class ThesisProjectInfolist
             ])
             ->schema([
                 TextEntry::make('label'),
-                TextEntry::make('description'),
+                ViewEntry::make('description')->view('filament.infolists.expandable-note'),
                 TextEntry::make('actor'),
                 TextEntry::make('occurred_at'),
             ])
@@ -524,7 +529,7 @@ class ThesisProjectInfolist
                 TextEntry::make('visibility')
                     ->badge()
                     ->color(fn(string $state): string => $state === 'Internal dosen' ? 'warning' : 'success'),
-                TextEntry::make('body'),
+                ViewEntry::make('body')->view('filament.infolists.expandable-note'),
                 TextEntry::make('created_at'),
             ])
             ->contained(false);

@@ -1,7 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
-    ChevronRight,
+    Eye,
     Clock,
     Download,
     ExternalLink,
@@ -18,6 +18,7 @@ import {
     DefenseRevisionLog,
     type DefenseRevisionLogData,
 } from '@/components/defense-revision-log';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
 import {
     DataSection,
     DataToolbar,
@@ -388,7 +389,7 @@ function DecisionForm({
                         value={decisionNotes}
                         onChange={(e) => setDecisionNotes(e.target.value)}
                         placeholder="Catatan umum untuk mahasiswa..."
-                        className="resize-none"
+                        className="min-h-32 resize-y"
                     />
                 </div>
 
@@ -404,7 +405,7 @@ function DecisionForm({
                             value={revisionNotes}
                             onChange={(e) => setRevisionNotes(e.target.value)}
                             placeholder="Ringkasan revisi untuk mahasiswa..."
-                            className="resize-none"
+                            className="min-h-32 resize-y"
                         />
                     </div>
                 )}
@@ -1216,25 +1217,15 @@ export default function DosenSeminarProposalPage() {
                                                 }
                                             >
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="outline"
-                                                        aria-label={`Buka detail ${item.studentName}`}
-                                                        className="max-md:size-11 max-md:px-0"
+                                                    <RowIconButton
+                                                        label={`Lihat detail ${item.typeLabel} ${item.studentName}`}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             openItem(item);
                                                         }}
                                                     >
-                                                        <span className="max-md:sr-only">
-                                                            Buka
-                                                        </span>
-                                                        <ChevronRight
-                                                            aria-hidden="true"
-                                                            className="size-4"
-                                                        />
-                                                    </Button>
+                                                        <Eye className="size-4" />
+                                                    </RowIconButton>
                                                 </div>
                                             </td>
                                         </tr>
