@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
+import { attachDocumentStates } from '../support/document-detail';
 import {
     bellCount,
     createSidebarUnreadFixture,
@@ -9,6 +10,7 @@ import {
     openPrivateThread,
     openSession,
     seedIncomingMessage,
+    seedIncomingMessages,
 } from '../support/sidebar-unread';
 import { thesisFixtures } from '../support/thesis-fixtures';
 
@@ -254,8 +256,11 @@ for (const layout of ['desktop-switch', 'mobile-list'] as const) {
                 ).not.toBeVisible();
             }
             await recipient.page
-                .getByPlaceholder('Cari chat pribadi...')
-                .fill('');
+                .getByRole('button', {
+                    name: 'Tutup pencarian percakapan',
+                    exact: true,
+                })
+                .click();
             await openPrivateThread(
                 sender.page,
                 fixture,
@@ -398,3 +403,126 @@ for (const role of ['student', 'lecturer'] as const) {
         }
     });
 }
+
+test('reading chat history stays put on incoming messages and latest-message control returns to bottom', async ({
+    browser,
+}, info) => {
+    const fixture = createSidebarUnreadFixture();
+    seedIncomingMessages(
+        fixture,
+        'studentLecturer',
+        'lecturer',
+        40,
+        'Catatan pembimbing demo',
+    );
+    const reader = await openSession(browser, fixture.accounts.student);
+    const sender = await openSession(browser, fixture.accounts.lecturer);
+    try {
+        await openPrivateThread(
+            reader.page,
+            fixture,
+            'student',
+            'studentLecturer',
+            { expectRead: false },
+        );
+        await openPrivateThread(
+            sender.page,
+            fixture,
+            'lecturer',
+            'studentLecturer',
+            { expectRead: false },
+        );
+        const history = reader.page.getByRole('region', {
+            name: 'Riwayat pesan',
+        });
+        await expect
+            .poll(() =>
+                history.evaluate((element) =>
+                    Math.round(
+                        element.scrollHeight -
+                            element.scrollTop -
+                            element.clientHeight,
+                    ),
+                ),
+            )
+            .toBeLessThan(2);
+        await history.evaluate((element) => {
+            element.scrollTop = 0;
+        });
+        await expect(
+            reader.page.getByRole('button', {
+                name: 'Pesan terbaru',
+                exact: true,
+            }),
+        ).toBeVisible();
+        const before = await history.evaluate((element) => element.scrollTop);
+        const text = `Pesan masuk saat membaca riwayat ${fixture.token}`;
+        await sender.page.getByPlaceholder('Tulis pesan...').fill(text);
+        await sender.page.getByPlaceholder('Tulis pesan...').press('Enter');
+        await expect(history.getByText(text, { exact: true })).toHaveCount(1);
+        expect(await history.evaluate((element) => element.scrollTop)).toBe(
+            before,
+        );
+        await attachDocumentStates(
+            reader.page,
+            info,
+            'mahasiswa-compact-history',
+        );
+        await reader.page
+            .getByRole('button', { name: 'Pesan terbaru', exact: true })
+            .click();
+        await expect(history.getByText(text, { exact: true })).toBeInViewport();
+        await expect(
+            reader.page.getByRole('button', {
+                name: 'Pesan terbaru',
+                exact: true,
+            }),
+        ).toHaveCount(0);
+        await attachDocumentStates(
+            reader.page,
+            info,
+            'mahasiswa-compact-latest',
+        );
+        await attachDocumentStates(
+            sender.page,
+            info,
+            'dosen-compact-conversation',
+        );
+        await reader.page
+            .getByRole('button', {
+                name: 'Cari di percakapan ini',
+                exact: true,
+            })
+            .click();
+        const searchInput = reader.page.getByPlaceholder(
+            'Cari di percakapan ini...',
+        );
+        await searchInput.fill('Catatan pembimbing demo 12');
+        await expect(
+            reader.page.getByText('1 dari 1 hasil', { exact: true }),
+        ).toBeVisible();
+        const match = history.getByText('Catatan pembimbing demo 12', {
+            exact: true,
+        });
+        await expect(match).toBeInViewport();
+        await expect
+            .poll(async () => {
+                const resultBox = await match.boundingBox();
+                const inputBox = await searchInput.boundingBox();
+                return (
+                    resultBox !== null &&
+                    inputBox !== null &&
+                    resultBox.y >= inputBox.y + inputBox.height
+                );
+            })
+            .toBe(true);
+        await attachDocumentStates(
+            reader.page,
+            info,
+            'mahasiswa-overlay-search',
+        );
+    } finally {
+        await Promise.all([reader.close(), sender.close()]);
+        fixture.cleanup();
+    }
+});

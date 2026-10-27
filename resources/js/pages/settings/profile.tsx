@@ -169,22 +169,6 @@ export default function ProfilePage() {
                                 <p>Maksimal 2 MB.</p>
                             </div>
 
-                            {profile.whatsappUrl ? (
-                                <Button
-                                    asChild
-                                    className="bg-success text-success-foreground hover:bg-success/90 max-md:h-11"
-                                >
-                                    <a
-                                        href={profile.whatsappUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <WhatsAppIcon className="mr-2 size-4" />
-                                        Chat WhatsApp
-                                    </a>
-                                </Button>
-                            ) : null}
-
                             <InputError
                                 message={form.errors.avatar}
                                 className="text-center text-xs"
@@ -242,9 +226,20 @@ export default function ProfilePage() {
 
                             <div className="grid gap-2">
                                 <div className="flex items-center justify-between gap-2">
-                                    <Label htmlFor="phone_number">
-                                        Nomor HP
-                                    </Label>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Label htmlFor="phone_number">
+                                            Nomor HP
+                                        </Label>
+                                        {form.data.phone_number.trim() && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-xs font-medium text-success-muted-foreground">
+                                                <WhatsAppIcon
+                                                    aria-hidden
+                                                    className="size-3.5"
+                                                />
+                                                WhatsApp
+                                            </span>
+                                        )}
+                                    </div>
                                     {form.data.phone_number.trim() ? (
                                         <CopyFieldButton
                                             label="Nomor HP"

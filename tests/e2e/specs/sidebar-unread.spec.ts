@@ -394,13 +394,13 @@ test.describe('Sidebar unread indicator on Pesan', () => {
                 }
             });
 
-            // Visiting the Pesan list, even in the private mode, is not reading.
+            // Visiting the unified mobile list does not read a hidden panel.
             await page.goto(lecturer.pesanPath);
-            await page
-                .getByRole('button', { name: 'Pribadi', exact: true })
-                .click();
             await expect(
-                page.getByPlaceholder('Cari chat pribadi...'),
+                page.getByRole('button', {
+                    name: 'Cari percakapan',
+                    exact: true,
+                }),
             ).toBeVisible();
             await page.waitForTimeout(750);
             expect(receipts).toEqual([]);

@@ -138,7 +138,7 @@ class SeminarProposalController extends Controller
                     ->all(),
                 'chatUrl' => $examThread !== null
                     ? '/dosen/pesan?thread='.$examThread->id
-                    : '/dosen/pesan?mode=private&'.($privateThread !== null ? 'thread='.$privateThread->id : 'recipient='.$student?->id),
+                    : '/dosen/pesan?'.($privateThread !== null ? 'thread='.$privateThread->id : 'recipient='.$student?->id),
                 'chatLabel' => $examThread !== null ? 'Chat grup ujian' : 'Chat pribadi mahasiswa',
                 'myExaminerId' => $examiner->id,
                 'myRole' => $examiner->role,

@@ -2,7 +2,6 @@ import { Link } from '@inertiajs/react';
 import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { type ReactNode } from 'react';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,19 +11,12 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type UserProfileSummary } from '@/types';
 
 import { chatStyles } from './styles';
-import { type ChatThread, type ChatTone, type MobileView } from './types';
+import { ThreadAvatar } from './thread-avatar';
+import { type ChatThread, type MobileView } from './types';
 import { type MessageSearchState } from './use-message-search';
 
 type ChatPanelProps = {
@@ -32,7 +24,7 @@ type ChatPanelProps = {
     children: ReactNode;
     /** Title shown while no thread is selected. */
     emptyTitle: string;
-    /** Composer or a read-only notice; rendered under a separator. */
+    /** Composer or read-only notice beneath the history. */
     footer: ReactNode;
     isMobile: boolean;
     mobileView: MobileView;
@@ -45,21 +37,7 @@ type ChatPanelProps = {
     titleProfile: UserProfileSummary | null;
     /** Title of a group thread without a linked profile. */
     titleText: string;
-    tone: ChatTone;
 };
-
-function ProfileAvatar({ profile }: { profile: UserProfileSummary }) {
-    const getInitials = useInitials();
-
-    return (
-        <Avatar className="size-10 border-2 border-background bg-background shadow-xs">
-            <AvatarImage src={profile.avatar ?? undefined} alt={profile.name} />
-            <AvatarFallback className="bg-primary-muted text-xs text-primary-muted-foreground">
-                {getInitials(profile.name)}
-            </AvatarFallback>
-        </Avatar>
-    );
-}
 
 /** Chat column: thread header with in-thread search, body and footer slot. */
 export function ChatPanel({
@@ -74,144 +52,86 @@ export function ChatPanel({
     thread,
     titleProfile,
     titleText,
-    tone,
 }: ChatPanelProps) {
-    const isFlat = tone === 'flat';
-
+    const profile = privateTarget ?? titleProfile;
     return (
         <Card
             className={cn(
-                chatStyles.chatCard(tone, isMobile),
+                chatStyles.chatCard(isMobile),
                 mobileView === 'threads' && 'hidden lg:flex',
             )}
         >
-            <CardHeader className={chatStyles.chatHeader(tone, isMobile)}>
+            <CardHeader className={chatStyles.chatHeader(isMobile)}>
                 {thread ? (
                     <>
-                        <div className="flex min-w-0 items-center gap-4">
-                            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label="Kembali ke daftar percakapan"
-                                    className="-ml-2 shrink-0 max-md:size-11 lg:hidden"
-                                    onClick={onBack}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Kembali ke daftar percakapan"
+                            className="pointer-events-auto absolute top-3 left-2 shrink-0 max-md:size-11 lg:hidden"
+                            onClick={onBack}
+                        >
+                            <ArrowLeft className="size-5" />
+                        </Button>
+                        <div className="mx-auto flex max-w-[calc(100%-7rem)] flex-col items-center gap-1.5 text-center">
+                            {profile ? (
+                                <Link
+                                    href={profile.profileUrl}
+                                    className="pointer-events-auto rounded-full focus-visible:ring-2 focus-visible:ring-ring"
+                                    aria-label={`Profil ${profile.name}`}
                                 >
-                                    <ArrowLeft className="size-5" />
-                                </Button>
-
-                                {thread.threadType === 'private' &&
-                                privateTarget ? (
-                                    <Link
-                                        href={privateTarget.profileUrl}
-                                        className="hidden shrink-0 sm:block"
-                                    >
-                                        <ProfileAvatar
-                                            profile={privateTarget}
-                                        />
-                                    </Link>
-                                ) : thread.memberProfiles.length > 0 ? (
-                                    <TooltipProvider delayDuration={0}>
-                                        <div className="hidden shrink-0 items-center -space-x-3 sm:flex">
-                                            {thread.memberProfiles.map(
-                                                (member) => (
-                                                    <Tooltip key={member.id}>
-                                                        <TooltipTrigger asChild>
-                                                            <Link
-                                                                href={
-                                                                    member.profileUrl
-                                                                }
-                                                                className="relative z-0 transition-transform hover:z-10 hover:scale-110"
-                                                            >
-                                                                <ProfileAvatar
-                                                                    profile={
-                                                                        member
-                                                                    }
-                                                                />
-                                                            </Link>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent className="px-3 py-1.5 text-xs">
-                                                            <p className="font-semibold">
-                                                                {member.name}
-                                                            </p>
-                                                            {member.subtitle && (
-                                                                <p className="opacity-80">
-                                                                    {
-                                                                        member.subtitle
-                                                                    }
-                                                                </p>
-                                                            )}
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                ),
-                                            )}
-                                        </div>
-                                    </TooltipProvider>
-                                ) : null}
-
-                                <div className="min-w-0 flex-1 overflow-hidden">
-                                    <div className="flex min-w-0 items-center gap-2">
-                                        <CardTitle className="min-w-0 truncate">
-                                            {thread.threadType === 'private' &&
-                                            privateTarget ? (
-                                                <Link
-                                                    href={
-                                                        privateTarget.profileUrl
-                                                    }
-                                                    className="transition hover:text-primary"
-                                                >
-                                                    {privateTarget.name}
-                                                </Link>
-                                            ) : titleProfile ? (
-                                                <Link
-                                                    href={
-                                                        titleProfile.profileUrl
-                                                    }
-                                                    className="transition hover:text-primary"
-                                                >
-                                                    {titleProfile.name}
-                                                </Link>
-                                            ) : (
-                                                titleText
-                                            )}
-                                        </CardTitle>
-                                        <Badge
-                                            variant="soft"
-                                            className={cn(
-                                                'shrink-0 font-medium',
-                                                thread.threadType ===
-                                                    'pembimbing'
-                                                    ? 'bg-primary-muted text-primary-muted-foreground'
-                                                    : 'bg-warning-muted text-warning-muted-foreground',
-                                            )}
+                                    <ThreadAvatar thread={thread} header />
+                                </Link>
+                            ) : (
+                                <ThreadAvatar thread={thread} header />
+                            )}
+                            <div className="pointer-events-auto flex max-w-full items-center justify-center gap-2">
+                                <CardTitle
+                                    className="min-w-0 truncate text-sm leading-5"
+                                    title={profile?.name ?? titleText}
+                                >
+                                    {profile ? (
+                                        <Link
+                                            href={profile.profileUrl}
+                                            className="hover:text-primary"
                                         >
-                                            {thread.threadLabel}
-                                        </Badge>
-                                    </div>
-                                    <CardDescription className="truncate">
-                                        {thread.threadType === 'private' &&
-                                        privateTarget
-                                            ? privateTarget.email
-                                            : thread.members.join(', ')}
-                                    </CardDescription>
-                                </div>
-                            </div>
-
-                            <div className="flex shrink-0 items-center gap-1">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label="Cari di percakapan ini"
-                                    className="size-9 text-muted-foreground hover:text-foreground max-md:size-11"
-                                    onClick={search.toggle}
+                                            {profile.name}
+                                        </Link>
+                                    ) : (
+                                        titleText
+                                    )}
+                                </CardTitle>
+                                <Badge
+                                    variant="soft"
+                                    className={cn(
+                                        'shrink-0 font-medium',
+                                        thread.threadType === 'pembimbing'
+                                            ? 'bg-primary-muted text-primary-muted-foreground'
+                                            : 'bg-muted text-muted-foreground',
+                                    )}
                                 >
-                                    <Search className="size-4" />
-                                </Button>
+                                    {thread.threadLabel}
+                                </Badge>
                             </div>
+                            <CardDescription className="sr-only">
+                                {privateTarget?.email ??
+                                    thread.members.join(', ')}
+                            </CardDescription>
                         </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Cari di percakapan ini"
+                            aria-expanded={search.isOpen}
+                            className="pointer-events-auto absolute top-3 right-2 size-9 text-muted-foreground hover:text-foreground max-md:size-11"
+                            onClick={search.toggle}
+                        >
+                            <Search className="size-4" />
+                        </Button>
                         {search.isOpen ? (
-                            <div className="mt-3 space-y-2">
+                            <div className="pointer-events-auto mt-3 space-y-2 rounded-lg bg-[var(--chat-surface)]">
                                 <div className="flex items-center gap-2">
                                     <Input
                                         value={search.query}
@@ -257,7 +177,7 @@ export function ChatPanel({
                         ) : null}
                     </>
                 ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="pointer-events-auto flex items-center gap-2">
                         <Button
                             type="button"
                             variant="ghost"
@@ -272,11 +192,8 @@ export function ChatPanel({
                     </div>
                 )}
             </CardHeader>
-            {isFlat ? <Separator /> : null}
 
             {children}
-
-            <Separator />
 
             {footer}
         </Card>

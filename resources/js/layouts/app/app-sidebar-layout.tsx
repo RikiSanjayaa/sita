@@ -21,7 +21,11 @@ export default function AppSidebarLayout({
     subtitle?: ReactNode;
     role?: AppRole | null;
 }>) {
-    const { phonePrompt } = usePage<SharedData>().props;
+    const page = usePage<SharedData>();
+    const { phonePrompt } = page.props;
+    const isChatPage =
+        page.component === 'pesan' ||
+        page.component === 'dosen/pesan-bimbingan';
 
     return (
         <AppShell variant="sidebar">
@@ -32,7 +36,7 @@ export default function AppSidebarLayout({
                     title={title}
                     subtitle={subtitle}
                 />
-                <DesktopNotice />
+                {!isChatPage && <DesktopNotice />}
                 {children}
             </AppContent>
             {phonePrompt && <PhonePromptDialog prompt={phonePrompt} />}

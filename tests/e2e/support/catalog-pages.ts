@@ -336,7 +336,7 @@ export const catalogPages: readonly CatalogPage[] = [
                 .getByRole('row')
                 .filter({ hasText: 'Mahasiswa SiTA' })
                 .first()
-                .getByRole('button', { name: 'Aksi lainnya', exact: true })
+                .getByRole('button', { name: 'Chat', exact: true })
                 .click();
             await expect(
                 page.getByRole('menuitem', { name: 'WhatsApp', exact: true }),

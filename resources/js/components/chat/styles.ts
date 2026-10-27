@@ -1,40 +1,22 @@
 import { cn } from '@/lib/utils';
 
-import { type ChatTone } from './types';
-
-const raisedPanelClass =
-    'overflow-hidden border-border/70 !gap-0 !p-0 shadow-sm';
-const flatPanelClass = '!gap-0 overflow-hidden !p-0';
-const mobilePanelClass = 'rounded-none border-0 shadow-none';
-
-/** Class names for the list/chat cards and their headers, per tone. */
+/** Shared workspace, conversation and list surfaces. */
 export const chatStyles = {
-    chatCard: (tone: ChatTone, isMobile: boolean): string =>
+    chatCard: (isMobile: boolean): string =>
         cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden !p-0 lg:h-full',
-            isMobile ? mobilePanelClass : tone === 'raised' && raisedPanelClass,
+            'relative my-2 mr-2 ml-0 flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden rounded-xl border-0 bg-[var(--chat-surface)] !p-0 shadow-none',
+            isMobile && 'm-0 rounded-none',
         ),
-    chatHeader: (tone: ChatTone, isMobile: boolean): string =>
+    chatHeader: (isMobile: boolean): string =>
         cn(
-            tone === 'raised'
-                ? 'shrink-0 border-b bg-muted/20 px-6 py-4'
-                : 'shrink-0 bg-muted/20 p-6 pb-4',
-            isMobile && 'px-4 py-4',
+            'pointer-events-none absolute inset-x-0 top-0 z-10 !block bg-linear-to-b from-[var(--chat-surface)] from-60% to-transparent px-3 pt-3 pb-8',
+            isMobile && 'px-2',
         ),
-    listCard: (tone: ChatTone, isMobile: boolean): string =>
+    listCard: (isMobile: boolean): string =>
         cn(
-            'flex min-h-0 min-w-0 flex-col lg:h-full lg:w-[340px] lg:shrink-0',
-            tone === 'raised'
-                ? isMobile
-                    ? mobilePanelClass
-                    : raisedPanelClass
-                : cn(flatPanelClass, isMobile && mobilePanelClass),
+            'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-none border-0 bg-card !p-0 shadow-none lg:h-full',
+            isMobile && 'w-full',
         ),
-    listHeader: (tone: ChatTone, isMobile: boolean): string =>
-        cn(
-            tone === 'raised'
-                ? 'shrink-0 border-b bg-muted/20 px-6 py-4'
-                : 'shrink-0 space-y-3 bg-muted/20 p-6 pb-4',
-            isMobile && 'px-4 py-4',
-        ),
+    listHeader: (isMobile: boolean): string =>
+        cn('shrink-0 space-y-3 bg-card px-4 py-3', isMobile && 'py-4'),
 };

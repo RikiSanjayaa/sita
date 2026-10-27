@@ -1,9 +1,16 @@
-import { Users } from 'lucide-react';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { ArrowDown, Users } from 'lucide-react';
+import {
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 
 import { ChatBubble } from '@/components/chat-bubble';
+import { Button } from '@/components/ui/button';
 import { CardContent } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 import { ChatEmptyState } from './empty-state';
@@ -11,20 +18,32 @@ import { type ChatMessage, type ChatTone } from './types';
 import { type MessageSearchState } from './use-message-search';
 
 type MessageListProps = {
-    isMobile: boolean;
     messages: ChatMessage[];
-    /** Rendered above the messages (e.g. a status alert). */
     notice?: ReactNode;
     search: MessageSearchState;
-    /** Whether a thread is selected; otherwise the empty state shows. */
     threadId: number | null;
     tone: ChatTone;
     userId?: number | null;
 };
 
-/** Scrollable message body that follows new messages and search matches. */
+function sameGroup(
+    a: ChatMessage | undefined,
+    b: ChatMessage | undefined,
+): boolean {
+    return (
+        a !== undefined &&
+        b !== undefined &&
+        a.senderUserId !== null &&
+        a.senderUserId === b.senderUserId &&
+        a.time === b.time &&
+        a.type === b.type &&
+        a.type !== 'document_event' &&
+        a.type !== 'revision_suggestion'
+    );
+}
+
+/** Incoming messages never pull someone away from the history they are reading. */
 export function MessageList({
-    isMobile,
     messages,
     notice,
     search,
@@ -32,13 +51,18 @@ export function MessageList({
     tone,
     userId,
 }: MessageListProps) {
-    const endRef = useRef<HTMLDivElement | null>(null);
-    const messageCount = messages.length;
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const pinnedRef = useRef(true);
+    const previousRef = useRef<{
+        threadId: number | null;
+        messageId: number | undefined;
+    }>({ threadId: null, messageId: undefined });
+    const [atBottom, setAtBottom] = useState(true);
+    const latestMessage = messages.at(-1);
 
-    /** Newest review status per document; later rows win over earlier ones. */
     const reviewStatusByDocument = useMemo(() => {
         const statuses = new Map<number, string>();
-
         for (const message of messages) {
             if (
                 message.relatedDocumentId !== null &&
@@ -47,37 +71,82 @@ export function MessageList({
                 statuses.set(message.relatedDocumentId, message.reviewStatus);
             }
         }
-
         return statuses;
     }, [messages]);
 
-    useEffect(() => {
-        if (messageCount < 1 || threadId === null) {
-            return;
+    useLayoutEffect(() => {
+        const viewport = viewportRef.current;
+        const previous = previousRef.current;
+        const threadChanged = previous.threadId !== threadId;
+        const sentMessage =
+            previous.messageId !== latestMessage?.id &&
+            latestMessage?.senderUserId === userId;
+        if (viewport && (threadChanged || pinnedRef.current || sentMessage)) {
+            viewport.scrollTop = viewport.scrollHeight;
+            pinnedRef.current = true;
         }
+        previousRef.current = { threadId, messageId: latestMessage?.id };
+    }, [
+        latestMessage?.id,
+        latestMessage?.senderUserId,
+        messages,
+        threadId,
+        userId,
+    ]);
 
-        endRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messageCount, threadId]);
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        const content = contentRef.current;
+        if (!viewport || !content) return;
+        // Images, attachment previews and viewport changes can alter the bottom
+        // without a new message. Only follow those changes while already pinned.
+        const observer = new ResizeObserver(() => {
+            if (pinnedRef.current) viewport.scrollTop = viewport.scrollHeight;
+        });
+        observer.observe(viewport);
+        observer.observe(content);
+        return () => observer.disconnect();
+    }, [threadId]);
 
     return (
-        <CardContent className="relative flex-1 overflow-hidden p-0">
-            <ScrollArea className="h-full w-full">
-                <div
-                    className={cn(
-                        'flex min-h-full flex-col',
-                        isMobile ? 'px-4 py-3' : 'p-4',
-                    )}
-                >
+        <CardContent
+            className={cn(
+                'relative min-h-0 flex-1 overflow-hidden p-0',
+                search.isOpen ? 'pt-48' : 'pt-24',
+            )}
+        >
+            <div
+                ref={viewportRef}
+                role="region"
+                aria-label="Riwayat pesan"
+                tabIndex={0}
+                className="h-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-4"
+                onScroll={(event) => {
+                    const viewport = event.currentTarget;
+                    const pinned =
+                        viewport.scrollHeight -
+                            viewport.scrollTop -
+                            viewport.clientHeight <
+                        48;
+                    pinnedRef.current = pinned;
+                    setAtBottom(pinned);
+                }}
+            >
+                <div ref={contentRef}>
                     {threadId !== null && notice}
-
                     {threadId !== null ? (
-                        <div className="grid">
-                            {messages.map((message) => {
+                        <div className="flex flex-col pb-1">
+                            {messages.map((message, index) => {
                                 const messageId = String(message.id);
-
+                                const grouped = sameGroup(
+                                    messages[index - 1],
+                                    message,
+                                );
                                 return (
                                     <div
                                         key={message.id}
+                                        data-message-id={message.id}
+                                        data-message-grouped={grouped}
                                         ref={(element) => {
                                             search.messageRefs.current[
                                                 messageId
@@ -86,6 +155,13 @@ export function MessageList({
                                     >
                                         <ChatBubble
                                             message={message}
+                                            grouped={grouped}
+                                            showTime={
+                                                !sameGroup(
+                                                    message,
+                                                    messages[index + 1],
+                                                )
+                                            }
                                             reviewStatus={
                                                 message.relatedDocumentId ===
                                                 null
@@ -110,7 +186,6 @@ export function MessageList({
                                     </div>
                                 );
                             })}
-                            <div ref={endRef} className="h-1" />
                         </div>
                     ) : (
                         <ChatEmptyState
@@ -122,7 +197,31 @@ export function MessageList({
                         />
                     )}
                 </div>
-            </ScrollArea>
+            </div>
+            {threadId !== null && !atBottom && (
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="absolute right-3 bottom-3 gap-2 rounded-full border shadow-md max-md:min-h-11"
+                    onClick={() => {
+                        const viewport = viewportRef.current;
+                        if (!viewport) return;
+                        pinnedRef.current = true;
+                        viewport.scrollTo({
+                            top: viewport.scrollHeight,
+                            behavior: window.matchMedia(
+                                '(prefers-reduced-motion: reduce)',
+                            ).matches
+                                ? 'instant'
+                                : 'smooth',
+                        });
+                    }}
+                >
+                    <ArrowDown aria-hidden className="size-4" />
+                    Pesan terbaru
+                </Button>
+            )}
         </CardContent>
     );
 }

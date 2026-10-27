@@ -190,7 +190,7 @@ class PesanBimbinganController extends Controller
         $recipient = User::query()->findOrFail($data['recipient_id']);
         $thread = $this->privateChatService->findOrCreateThread($lecturer, $recipient);
 
-        return redirect()->route('dosen.pesan', ['thread' => $thread->id, 'mode' => 'private']);
+        return redirect()->route('dosen.pesan', ['thread' => $thread->id]);
     }
 
     public function markAsRead(Request $request, MentorshipChatThread $thread, ChatUnreadService $chatUnread): JsonResponse
@@ -374,7 +374,7 @@ class PesanBimbinganController extends Controller
                     'chatMessageId' => $message->id,
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
-                        : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
+                        : sprintf('/dosen/pesan?thread=%d', $thread->id),
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);

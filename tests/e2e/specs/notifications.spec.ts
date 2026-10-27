@@ -19,7 +19,10 @@ async function openDosenBimbinganThread(
 ): Promise<void> {
     await page.goto('/dosen/pesan-bimbingan');
     await page.waitForURL(/\/dosen\/pesan(\?|$)/);
-    await page.getByPlaceholder('Cari grup...').fill(studentName);
+    await page
+        .getByRole('button', { name: 'Cari percakapan', exact: true })
+        .click();
+    await page.getByPlaceholder('Cari percakapan...').fill(studentName);
 
     const threadButton = page
         .locator('button')

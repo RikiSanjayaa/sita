@@ -328,7 +328,11 @@ test.describe('Kaprodi portal', () => {
         const row = studentRow(page, 'Dr. Fajar Nugraha');
         await row.getByRole('button', { name: 'Chat dengan dosen' }).click();
 
-        await expect(page).toHaveURL(/\/dosen\/pesan\?.*mode=private/);
+        await expect(page).toHaveURL(
+            (url) =>
+                url.pathname === '/dosen/pesan' &&
+                /^\d+$/.test(url.searchParams.get('thread') ?? ''),
+        );
         await expect(
             page.getByText('Bimbingan Saya', { exact: true }),
         ).toBeVisible();

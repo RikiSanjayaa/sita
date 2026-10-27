@@ -120,7 +120,7 @@ it('shows and serves the older workspace version explicitly selected through the
             'viewUrl' => route('files.thesis-documents.download', ['document' => $snapshot->id, 'inline' => 1]),
             'downloadUrl' => route('files.thesis-documents.download', $snapshot),
         ])
-        ->where('defenses.0.chatUrl', '/dosen/pesan?mode=private&recipient='.$student->id)
+        ->where('defenses.0.chatUrl', '/dosen/pesan?recipient='.$student->id)
         ->where('defenses.0.chatLabel', 'Chat pribadi mahasiswa'));
 
     $this->get(route('files.thesis-documents.download', $snapshot))
@@ -195,7 +195,7 @@ it('leaves missing selection empty and does not write documents files events or 
 
     $this->actingAs($examiner)->get('/dosen/seminar-proposal')->assertInertia(fn (Assert $page) => $page
         ->where('defenses.0.documents', [])
-        ->where('defenses.0.chatUrl', '/dosen/pesan?mode=private&recipient='.$student->id));
+        ->where('defenses.0.chatUrl', '/dosen/pesan?recipient='.$student->id));
     $this->get('/dosen/seminar-proposal')->assertOk();
 
     expect($writes)->toBe([])->and(Storage::disk('public')->allFiles())->toBe($files);
@@ -354,7 +354,7 @@ it('links only an existing visible exact-attempt exam chat or a private student 
     $participantCount = MentorshipChatThreadParticipant::query()->count();
     $isGroup = $visibility === 'visible';
     $expectedUrl = $isGroup ? '/dosen/pesan?thread='.$thread->id
-        : '/dosen/pesan?mode=private&'.($private !== null ? 'thread='.$private->id : 'recipient='.$student->id);
+        : '/dosen/pesan?'.($private !== null ? 'thread='.$private->id : 'recipient='.$student->id);
 
     $this->actingAs($examiner)->get('/dosen/seminar-proposal')->assertInertia(fn (Assert $page) => $page
         ->where('defenses.0.chatUrl', $expectedUrl)

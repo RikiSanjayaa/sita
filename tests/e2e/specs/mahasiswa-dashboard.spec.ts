@@ -267,7 +267,11 @@ for (const scenario of [
             await action(page, 'Buka Pesan').click();
             await expectDestination(page, '/mahasiswa/pesan');
             await expect(
-                page.getByRole('heading', { name: 'Pesan', exact: true }),
+                page.getByRole('heading', {
+                    name: 'Pesan',
+                    exact: true,
+                    level: 1,
+                }),
             ).toBeVisible();
         });
     });

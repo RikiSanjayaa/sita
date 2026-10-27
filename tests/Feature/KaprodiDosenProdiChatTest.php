@@ -29,7 +29,7 @@ it('opens a private chat with a lecturer from Dosen Prodi and keeps the kaprodi 
         ->where('type', 'private')
         ->firstOrFail();
 
-    $response->assertRedirect(route('dosen.pesan', ['thread' => $thread->id, 'mode' => 'private']));
+    $response->assertRedirect(route('dosen.pesan', ['thread' => $thread->id]));
 
     expect($kaprodi->refresh()->last_active_role)->toBe(AppRole::Kaprodi->value);
 });

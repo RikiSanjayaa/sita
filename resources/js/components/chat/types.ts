@@ -66,8 +66,6 @@ export type ChatThread = {
     isCompleted?: boolean;
 };
 
-export type ThreadMode = 'group' | 'private';
-
 export type MobileView = 'threads' | 'chat';
 
 /**
