@@ -53,6 +53,7 @@ class BadgeStyles
             'draft' => 'neutral',
             'submitted' => 'info',
             'needs_revision' => 'warning',
+            'revision_completed' => 'info',
             'approved' => 'success',
             'rejected' => 'danger',
             'active' => 'success',

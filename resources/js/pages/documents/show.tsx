@@ -10,12 +10,17 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
+import {
+    RevisionEditor,
+    RevisionList,
+    type DocumentRevisionItem,
+    type ReviewRevisionItem,
+} from '@/components/document-revision-items';
 import InputError from '@/components/input-error';
 import { KeyValueList } from '@/components/patterns/key-value-list';
 import { PageHeader } from '@/components/patterns/page-header';
 import { SectionCard } from '@/components/patterns/section-card';
 import { StatusBadge } from '@/components/patterns/status-badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,6 +50,7 @@ type DocumentDetail = {
         status: string;
         notes: string | null;
         reviewedAt: string | null;
+        revisionItems: DocumentRevisionItem[];
     }[];
     versions: {
         id: number;
@@ -58,8 +64,8 @@ type DocumentDetail = {
     canReview: boolean;
     reviewUrl: string | null;
     reviewNotes: string;
+    reviewItems: ReviewRevisionItem[];
     reviewDetailUrl: string | null;
-    readOnlyReason: string | null;
 };
 
 type DocumentPageProps = {
@@ -77,6 +83,7 @@ const reviewStatusLabels: Record<string, string> = {
     submitted: 'Perlu review',
     needs_revision: 'Perlu revisi',
     approved: 'Disetujui',
+    revision_completed: 'Revisi selesai',
 };
 
 const leaveMessage = 'Catatan dosen belum disimpan. Tinggalkan halaman ini?';
@@ -178,15 +185,6 @@ function DocumentBody({
                     </>
                 }
             />
-
-            {!review && document.readOnlyReason && (
-                <Alert>
-                    <AlertTitle>Hanya baca</AlertTitle>
-                    <AlertDescription className="whitespace-pre-wrap">
-                        {document.readOnlyReason}
-                    </AlertDescription>
-                </Alert>
-            )}
 
             <SectionCard
                 title="Informasi dokumen"
@@ -296,9 +294,9 @@ function DocumentBody({
                             id="review-notes-help"
                             className="text-sm text-muted-foreground"
                         >
-                            Catatan wajib untuk meminta revisi. Saat menyetujui,
-                            catatan bersifat opsional dan disimpan sebagai
-                            masukan persetujuan.
+                            Isi butir di bawah untuk meminta revisi per poin.
+                            Tanpa butir, catatan ini menjadi satu permintaan
+                            revisi. Saat menyetujui, catatan bersifat opsional.
                         </p>
                         <InputError
                             id="review-notes-error"
@@ -317,6 +315,11 @@ function DocumentBody({
                                   : null}
                         </p>
                     </div>
+                    <RevisionEditor
+                        initialItems={document.reviewItems}
+                        processing={review.processing}
+                        errors={review.errors}
+                    />
                 </SectionCard>
             )}
 
@@ -355,7 +358,12 @@ function DocumentBody({
                                             item.status}
                                     </StatusBadge>
                                 </div>
-                                {item.notes ? (
+                                {item.revisionItems.length > 0 && (
+                                    <RevisionList items={item.revisionItems} />
+                                )}
+                                {item.notes &&
+                                (item.status === 'approved' ||
+                                    item.revisionItems.length === 0) ? (
                                     <div className="space-y-1 text-sm">
                                         <p className="font-medium">
                                             {item.status === 'approved'
@@ -366,11 +374,11 @@ function DocumentBody({
                                             {item.notes}
                                         </p>
                                     </div>
-                                ) : (
+                                ) : item.revisionItems.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
                                         Belum ada catatan.
                                     </p>
-                                )}
+                                ) : null}
                             </li>
                         ))}
                     </ul>
@@ -503,7 +511,7 @@ export default function DocumentShowPage() {
             <Head title={`Detail dokumen - ${document.fileName}`} />
             {canReview ? (
                 <Form
-                    key={`${document.source}-${document.id}`}
+                    key={`${document.source}-${document.id}-${JSON.stringify(document.reviewItems)}`}
                     ref={formRef}
                     method="post"
                     action={document.reviewUrl!}

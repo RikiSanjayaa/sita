@@ -35,6 +35,7 @@ class DocumentDetailService
         return match ($status) {
             'approved' => 'Disetujui',
             'needs_revision' => 'Perlu Revisi',
+            'revision_completed' => 'Revisi selesai',
             'partially_reviewed' => 'Sebagian direview',
             'stored', 'active' => 'Tersimpan',
             default => 'Menunggu Review',
@@ -48,7 +49,8 @@ class DocumentDetailService
 
         return match (true) {
             $reviews->isEmpty() => 'stored',
-            $reviews->contains('status', 'needs_revision') => 'needs_revision',
+            $reviews->contains(fn (MentorshipDocument $copy): bool => DocumentRevisionService::displayStatus($copy) === 'needs_revision') => 'needs_revision',
+            $reviews->contains('status', 'needs_revision') => 'revision_completed',
             $reviews->every(fn (MentorshipDocument $copy): bool => $copy->status === 'approved') => 'approved',
             $reviews->contains('status', 'approved') => 'partially_reviewed',
             default => 'submitted',
@@ -92,7 +94,7 @@ class DocumentDetailService
         abort_unless($this->access->workspace($viewer, $document, $role), 403);
         $document->loadMissing(['student.mahasiswaProfile', 'lecturer']);
         $copies = $this->copies($document)->with('lecturer')->where('version_number', $document->version_number)->get();
-        $status = $role === 'dosen' ? $document->status : self::aggregateStatus($copies);
+        $status = $role === 'dosen' ? DocumentRevisionService::displayStatus($document) : self::aggregateStatus($copies);
         $reason = $role === 'dosen' ? $this->access->reviewReadOnlyReason($viewer, $document) : 'Dokumen ini hanya dapat dibaca.';
         $download = $this->access->workspace($viewer, $document, $role, true);
         $fileParameters = ['document' => $document->id] + ($role === 'kaprodi' ? ['portal' => 'kaprodi'] : []);
@@ -102,7 +104,7 @@ class DocumentDetailService
             ->latest('version_number')->orderBy('id')->get()->groupBy('version_number')
             ->map(function (Collection $copies) use ($role): array {
                 $copy = $copies->firstWhere('lecturer_user_id', null) ?? $copies->first();
-                $status = $role === 'dosen' ? $copy->status : self::aggregateStatus($copies);
+                $status = $role === 'dosen' ? DocumentRevisionService::displayStatus($copy) : self::aggregateStatus($copies);
 
                 return [
                     'id' => $copy->id, 'version' => $copy->category === 'lampiran-chat' ? null : $copy->version_number,
@@ -111,14 +113,22 @@ class DocumentDetailService
                 ];
             })->values()->all();
         $roles = $document->student === null ? [] : $this->reviewerRoles($document->student);
-        $reviews = $copies->whereNotNull('lecturer_user_id')->values()->map(function (MentorshipDocument $copy, int $index) use ($role, $roles): array {
+        $canResolve = $role === 'mahasiswa' && app(DocumentRevisionService::class)->canResolve($viewer, $document);
+        $reviews = $copies->whereNotNull('lecturer_user_id')->values()->map(function (MentorshipDocument $copy, int $index) use ($role, $roles, $canResolve): array {
             $secretLabel = $role === 'mahasiswa' ? $this->secretExaminers->labelFor((int) $copy->student_user_id, (int) $copy->lecturer_user_id) : null;
 
             return [
                 'id' => $role === 'mahasiswa' ? $index + 1 : $copy->id,
                 'reviewer' => $secretLabel ?? $copy->lecturer?->name ?? '-',
                 'role' => $secretLabel ?? $roles[$copy->lecturer_user_id] ?? 'Dosen',
-                'status' => $copy->status, 'notes' => $copy->revision_notes,
+                'status' => DocumentRevisionService::displayStatus($copy), 'notes' => $copy->revision_notes,
+                'revisionItems' => array_map(fn (array $item): array => [
+                    'id' => $item['id'], 'description' => $item['description'],
+                    'resolved' => $item['resolved_at'] !== null,
+                    'resolvedAt' => WitaDateTime::formatOrNull($item['resolved_at'] === null ? null : \Carbon\CarbonImmutable::parse($item['resolved_at'])),
+                    'resolveUrl' => $canResolve && $copy->status === 'needs_revision'
+                        ? route('mahasiswa.upload-dokumen.revisions.update', ['document' => $copy->id, 'revision' => $item['id']]) : null,
+                ], $copy->revision_items ?? []),
                 'reviewedAt' => WitaDateTime::formatOrNull($copy->reviewed_at),
             ];
         })->all();
@@ -137,7 +147,8 @@ class DocumentDetailService
                 'reviews' => $reviews, 'versions' => $versions, 'canReview' => $reason === null,
                 'reviewUrl' => $reason === null ? route('dosen.dokumen-revisi.review', ['document' => $document->id]) : null,
                 'reviewNotes' => $role === 'dosen' ? ($document->revision_notes ?? '') : '',
-                'readOnlyReason' => $reason, 'reviewDetailUrl' => null,
+                'reviewItems' => $role === 'dosen' ? ($document->revision_items ?? []) : [],
+                'reviewDetailUrl' => null,
             ],
             'navigation' => $this->navigation($viewer, $role, (int) $document->student_user_id, $document),
         ];
@@ -181,7 +192,7 @@ class DocumentDetailService
                     'status' => $document->status, 'statusLabel' => self::statusLabel($document->status), 'url' => $detailUrl,
                 ]],
                 'canReview' => false, 'reviewUrl' => null, 'reviewNotes' => '',
-                'readOnlyReason' => 'Berkas pendaftaran ujian adalah salinan tetap. Review dokumen bimbingan tidak mengubah keputusan ujian.',
+                'reviewItems' => [],
                 'reviewDetailUrl' => $reviewUrl,
             ],
             'navigation' => $this->navigation($viewer, $role, (int) $student?->id, null, $document->defense_id),

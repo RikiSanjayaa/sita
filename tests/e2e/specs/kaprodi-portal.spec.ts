@@ -347,7 +347,11 @@ test.describe('Kaprodi portal', () => {
         await page
             .getByPlaceholder('Cari mahasiswa, NIM, file, atau dosen...')
             .fill(supervised.studentName);
-        const row = studentRow(page, supervised.studentName);
+        const row = page
+            .locator('tr')
+            .filter({ hasText: supervised.studentName })
+            .filter({ hasText: 'Proposal Skripsi' })
+            .first();
         await expect(row).toContainText('Proposal Skripsi');
 
         await row.locator('a[href*="/kaprodi/dokumen/"]').first().click();

@@ -144,13 +144,13 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
                 .getByRole('button', { name: 'Daftar', exact: true })
                 .click();
             await historyRow(dosenPage, topic)
-                .getByRole('button', { name: /^Kelola jadwal / })
+                .getByRole('button', { name: /^Detail sesi / })
                 .click();
             await dosenPage
-                .getByRole('button', { name: 'Tandai Selesai' })
+                .getByRole('button', { name: 'Tandai selesai' })
                 .click();
             await expect(
-                dosenPage.getByRole('button', { name: 'Tandai Selesai' }),
+                dosenPage.getByRole('button', { name: 'Tandai selesai' }),
             ).toHaveCount(0);
 
             await mahasiswaPage.goto('/mahasiswa/jadwal-bimbingan');
@@ -219,14 +219,14 @@ test.describe('Jadwal bimbingan: mahasiswa request and dosen decisions', () => {
                 .getByRole('button', { name: 'Daftar', exact: true })
                 .click();
             await historyRow(secondSupervisorPage, topic)
-                .getByRole('button', { name: /^Kelola jadwal / })
+                .getByRole('button', { name: /^Detail sesi / })
                 .click();
             await secondSupervisorPage
-                .getByRole('button', { name: 'Batalkan Jadwal' })
+                .getByRole('button', { name: 'Batalkan jadwal' })
                 .click();
             await expect(
                 secondSupervisorPage.getByRole('button', {
-                    name: 'Batalkan Jadwal',
+                    name: 'Batalkan jadwal',
                 }),
             ).toHaveCount(0);
 

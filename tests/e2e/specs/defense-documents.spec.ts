@@ -361,11 +361,6 @@ async function expectSnapshotDetail(
         page.getByText(file.fileName, { exact: true }).first(),
     ).toBeVisible();
     await expect(
-        page.getByText(
-            'Versi ini telah digantikan. Beri review pada versi terbaru.',
-        ),
-    ).toBeVisible();
-    await expect(
         page.getByRole('textbox', { name: 'Catatan dosen' }),
     ).toHaveCount(0);
     await page.goBack();

@@ -26,6 +26,12 @@ class ReviewMentorshipDocumentRequest extends FormRequest
         if (is_string($this->input('revision_notes'))) {
             $this->merge(['revision_notes' => trim($this->input('revision_notes'))]);
         }
+        $items = $this->input('revision_items');
+        if (is_array($items)) {
+            $this->merge(['revision_items' => array_map(fn ($item) => is_array($item)
+                ? [...$item, 'description' => is_string($item['description'] ?? null) ? trim($item['description']) : ($item['description'] ?? null)]
+                : $item, $items)]);
+        }
     }
 
     /**
@@ -35,7 +41,10 @@ class ReviewMentorshipDocumentRequest extends FormRequest
     {
         return [
             'status' => ['required', 'in:needs_revision,approved'],
-            'revision_notes' => ['required_if:status,needs_revision', 'nullable', 'string'],
+            'revision_notes' => [$this->input('status') === 'needs_revision' && empty($this->input('revision_items')) ? 'required' : 'nullable', 'nullable', 'string'],
+            'revision_items' => ['nullable', 'array', 'max:50'],
+            'revision_items.*.id' => ['nullable', 'uuid', 'distinct'],
+            'revision_items.*.description' => ['required', 'string'],
         ];
     }
 
@@ -47,7 +56,9 @@ class ReviewMentorshipDocumentRequest extends FormRequest
         return [
             'status.required' => 'Status review wajib dipilih.',
             'status.in' => 'Status review tidak valid.',
-            'revision_notes.required_if' => 'Catatan revisi wajib diisi saat meminta revisi.',
+            'revision_notes.required' => 'Catatan revisi wajib diisi saat meminta revisi.',
+            'revision_items.max' => 'Maksimal 50 butir revisi.',
+            'revision_items.*.description.required' => 'Isi uraian butir revisi.',
         ];
     }
 }

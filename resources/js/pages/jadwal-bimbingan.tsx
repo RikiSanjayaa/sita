@@ -26,6 +26,7 @@ import {
     stackedTable,
 } from '@/components/patterns/data-section';
 import { FilterPills } from '@/components/patterns/filter-pills';
+import { InteractiveTableRow } from '@/components/patterns/interactive-table-row';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
@@ -839,8 +840,11 @@ export default function JadwalBimbinganPage() {
                                         >
                                             {upcomingPagination.paginated.map(
                                                 (meeting) => (
-                                                    <tr
+                                                    <InteractiveTableRow
                                                         key={meeting.id}
+                                                        onOpen={() =>
+                                                            openMeeting(meeting)
+                                                        }
                                                         className={cn(
                                                             stackedTable.tr,
                                                             'align-top',
@@ -995,7 +999,7 @@ export default function JadwalBimbinganPage() {
                                                                 </RowIconButton>
                                                             </div>
                                                         </td>
-                                                    </tr>
+                                                    </InteractiveTableRow>
                                                 ),
                                             )}
                                         </tbody>
@@ -1092,8 +1096,11 @@ export default function JadwalBimbinganPage() {
                                         >
                                             {historyPagination.paginated.map(
                                                 (row) => (
-                                                    <tr
+                                                    <InteractiveTableRow
                                                         key={row.id}
+                                                        onOpen={() =>
+                                                            openMeeting(row)
+                                                        }
                                                         className={cn(
                                                             stackedTable.tr,
                                                             'align-top',
@@ -1197,7 +1204,7 @@ export default function JadwalBimbinganPage() {
                                                                 </RowIconButton>
                                                             </div>
                                                         </td>
-                                                    </tr>
+                                                    </InteractiveTableRow>
                                                 ),
                                             )}
                                         </tbody>

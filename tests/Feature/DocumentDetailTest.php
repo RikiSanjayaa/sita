@@ -87,7 +87,7 @@ it('keeps inactive completed archived expired and ended assignments readable but
         'ended' => ThesisSupervisorAssignment::query()->where('project_id', $project->id)->where('lecturer_user_id', $first->id)->update(['status' => 'ended']),
     };
     $this->actingAs($first)->get(route('dosen.dokumen-revisi.show', $copy))->assertInertia(fn (Assert $page) => $page
-        ->where('document.canReview', false)->where('document.reviewUrl', null)->where('document.readOnlyReason', fn ($reason): bool => is_string($reason) && $reason !== ''));
+        ->where('document.canReview', false)->where('document.reviewUrl', null));
     $this->get(route('files.documents.download', $copy))->assertStreamedContent('exact upload bytes');
     $this->post(route('dosen.dokumen-revisi.review', $copy), ['status' => 'approved'])->assertForbidden();
     expect($copy->fresh()->status)->toBe('submitted');
@@ -297,3 +297,94 @@ it('preserves exam filters only for a local return URL for the same attempt', fu
             ->assertInertia(fn (Assert $page) => $page->where('navigation.listUrl', '/dosen/seminar-proposal?defense='.$defense->id));
     }
 });
+
+it('resolves each reviewer point without uploading or approving and permits an owner to reopen it', function (): void {
+    [$student, $first, $second, $project, $copy, $other] = documentDetailScenario();
+    $this->actingAs($first)->post(route('dosen.dokumen-revisi.review', $copy), [
+        'status' => 'needs_revision', 'revision_items' => [['description' => 'Jelaskan metode.'], ['description' => 'Perbaiki tabel.']],
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->actingAs($second)->post(route('dosen.dokumen-revisi.review', $other), [
+        'status' => 'needs_revision', 'revision_notes' => 'Catatan utuh dosen kedua.',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $points = $copy->fresh()->revision_items;
+    $url = route('mahasiswa.upload-dokumen.revisions.update', ['document' => $copy, 'revision' => $points[0]['id']]);
+    $before = MentorshipDocument::query()->count();
+    $this->actingAs(createUserWithRole('mahasiswa'))->patch($url, ['resolved' => true])->assertForbidden();
+    $this->actingAs($first)->patch($url, ['resolved' => true])->assertForbidden();
+    $this->actingAs($student)->patch($url, ['resolved' => true])->assertRedirect()->assertSessionHasNoErrors();
+    $timestamp = $copy->fresh()->revision_items[0]['resolved_at'];
+    expect($timestamp)->not->toBeNull();
+    $this->patch($url, ['resolved' => true])->assertRedirect();
+    expect($copy->fresh()->revision_items[0]['resolved_at'])->toBe($timestamp);
+    $this->patch(route('mahasiswa.upload-dokumen.revisions.update', ['document' => $copy, 'revision' => $points[1]['id']]), ['resolved' => true])->assertRedirect();
+    $this->get(route('mahasiswa.upload-dokumen.show', $copy))->assertInertia(fn (Assert $page) => $page
+        ->where('document.status', 'needs_revision')->where('document.reviews.0.status', 'revision_completed')
+        ->where('document.reviews.1.status', 'needs_revision')->where('document.reviews.0.revisionItems.0.resolved', true));
+    expect($copy->fresh()->status)->toBe('needs_revision')
+        ->and($other->fresh()->revision_items[0]['resolved_at'])->toBeNull()
+        ->and(MentorshipDocument::query()->count())->toBe($before);
+    $secondPoint = $other->fresh()->revision_items[0]['id'];
+    $this->patch(route('mahasiswa.upload-dokumen.revisions.update', ['document' => $other, 'revision' => $secondPoint]), ['resolved' => true])->assertRedirect();
+    $this->get(route('mahasiswa.upload-dokumen.show', $copy))->assertInertia(fn (Assert $page) => $page->where('document.status', 'revision_completed'));
+    $this->actingAs($first)->get(route('dosen.dokumen-revisi.show', $copy))->assertInertia(fn (Assert $page) => $page
+        ->where('document.status', 'revision_completed')->where('document.reviews.0.revisionItems.0.resolved', true)
+        ->where('document.reviews.0.revisionItems.0.resolveUrl', null));
+    $this->actingAs($student)->patch($url, ['resolved' => false])->assertRedirect();
+    $this->get(route('mahasiswa.upload-dokumen.show', $copy))->assertInertia(fn (Assert $page) => $page->where('document.status', 'needs_revision'));
+    $this->patch(route('mahasiswa.upload-dokumen.revisions.update', ['document' => $copy, 'revision' => $secondPoint]), ['resolved' => true])->assertNotFound();
+});
+
+it('preserves completed unchanged points while changed and new points reopen and versions remain independent', function (): void {
+    [$student, $first, $second, $project, $copy, $other] = documentDetailScenario();
+    $service = app(\App\Services\DocumentRevisionService::class);
+    $service->review($copy, ['status' => 'needs_revision', 'revision_items' => [['description' => 'Metode.'], ['description' => 'Tabel.']]]);
+    $points = $copy->revision_items;
+    foreach ($points as $point) {
+        $service->resolve($student, $copy, $point['id'], true);
+    }
+    $saved = $copy->fresh()->revision_items;
+    $this->actingAs($first)->post(route('dosen.dokumen-revisi.review', $copy), [
+        'status' => 'needs_revision', 'revision_items' => [
+            ['id' => $points[0]['id'], 'description' => 'Metode.'],
+            ['id' => $points[1]['id'], 'description' => 'Tabel dan satuan.'],
+            ['description' => 'Daftar pustaka.'],
+        ],
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $current = $copy->fresh()->revision_items;
+    expect($current)->toHaveCount(3)
+        ->and($current[0]['resolved_at'])->toBe($saved[0]['resolved_at'])
+        ->and($current[1]['id'])->toBe($points[1]['id'])->and($current[1]['resolved_at'])->toBeNull()
+        ->and($current[2]['resolved_at'])->toBeNull();
+    $newer = $copy->replicate();
+    $newer->forceFill(['version_number' => 3, 'status' => 'submitted', 'revision_items' => null, 'revision_notes' => null])->save();
+    $service->resolve($student, $copy, $current[1]['id'], true);
+    expect($newer->fresh()->status)->toBe('submitted')->and($newer->fresh()->revision_items)->toBeNull()
+        ->and($other->fresh()->status)->toBe('submitted')->and($copy->fresh()->revision_items[0]['resolved_at'])->toBe($saved[0]['resolved_at']);
+    $this->post(route('dosen.dokumen-revisi.review', $copy), ['status' => 'approved'])->assertForbidden();
+});
+
+it('backfills a legacy revision note as one intact point without treating approval suggestions as requests', function (): void {
+    [$student, $first, $second, $project, $copy, $other] = documentDetailScenario();
+    $migration = require database_path('migrations/2026_10_27_142508_add_revision_items_to_mentorship_documents_table.php');
+    $migration->down();
+    $note = "  Paragraf pertama.\n\n".str_repeat('Butir dengan tanda baca; bukan pemisah. ', 400)."\nParagraf terakhir.  ";
+    \Illuminate\Support\Facades\DB::table('mentorship_documents')->where('id', $copy->id)->update(['status' => 'needs_revision', 'revision_notes' => $note]);
+    \Illuminate\Support\Facades\DB::table('mentorship_documents')->where('id', $other->id)->update(['status' => 'approved', 'revision_notes' => 'Saran opsional.']);
+    $migration->up();
+    $points = $copy->fresh()->revision_items;
+    expect($points)->toHaveCount(1)->and($points[0]['description'])->toBe($note)->and($other->fresh()->revision_items)->toBeNull();
+    $this->actingAs($student)->patch(route('mahasiswa.upload-dokumen.revisions.update', ['document' => $copy, 'revision' => $points[0]['id']]), ['resolved' => true])->assertRedirect();
+    expect($copy->fresh()->status)->toBe('needs_revision')->and($copy->fresh()->revision_notes)->toBe($note);
+});
+
+it('rejects owner resolution when their mentorship record is no longer active', function (string $state): void {
+    [$student, $first, $second, $project, $copy] = documentDetailScenario();
+    app(\App\Services\DocumentRevisionService::class)->review($copy, ['status' => 'needs_revision', 'revision_notes' => 'Tetap tersimpan.']);
+    match ($state) {
+        'inactive' => $student->mahasiswaProfile->update(['is_active' => false]),
+        'completed' => $project->update(['state' => 'completed', 'completed_at' => now()]),
+        'expired' => $project->update(['mentorship_valid_until' => now()->subDay()->toDateString()]),
+    };
+    $this->actingAs($student)->patch(route('mahasiswa.upload-dokumen.revisions.update', ['document' => $copy, 'revision' => $copy->revision_items[0]['id']]), ['resolved' => true])->assertForbidden();
+    expect($copy->fresh()->revision_items[0]['resolved_at'])->toBeNull();
+})->with(['inactive', 'completed', 'expired']);

@@ -9,6 +9,7 @@ use App\Models\MentorshipChatMessage;
 use App\Models\MentorshipDocument;
 use App\Models\User;
 use App\Services\DocumentDetailService;
+use App\Services\DocumentRevisionService;
 use App\Services\DosenBimbinganService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
@@ -52,9 +53,10 @@ class DokumenRevisiController extends Controller
                     'title' => $document->title,
                     'file' => $document->file_name,
                     'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
-                    'status' => match ($document->status) {
+                    'status' => match (DocumentRevisionService::displayStatus($document)) {
                         'approved' => 'Disetujui',
                         'needs_revision' => 'Perlu Revisi',
+                        'revision_completed' => 'Revisi selesai',
                         default => 'Perlu Review',
                     },
                     'revisionNotes' => $document->revision_notes,
@@ -77,11 +79,7 @@ class DokumenRevisiController extends Controller
 
         $data = $request->validated();
 
-        $document->forceFill([
-            'status' => $data['status'],
-            'revision_notes' => $data['revision_notes'] ?? null,
-            'reviewed_at' => now(),
-        ])->save();
+        app(DocumentRevisionService::class)->review($document, $data);
 
         $this->announceReview($document, $lecturer, $data['status']);
 

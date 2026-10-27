@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ResolveDocumentRevisionRequest;
 use App\Models\MentorshipDocument;
 use App\Models\ThesisDocument;
 use App\Services\DocumentDetailService;
+use App\Services\DocumentRevisionService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,6 +21,13 @@ class DocumentDetailController extends Controller
         $role = $request->routeIs('dosen.*') ? 'dosen' : ($request->routeIs('mahasiswa.*') ? 'mahasiswa' : 'kaprodi');
 
         return Inertia::render('documents/show', $this->documents->workspace($request->user(), $document, $role));
+    }
+
+    public function resolve(ResolveDocumentRevisionRequest $request, MentorshipDocument $document, string $revision, DocumentRevisionService $revisions): RedirectResponse
+    {
+        $revisions->resolve($request->user(), $document, $revision, $request->boolean('resolved'));
+
+        return back()->with('success', $request->boolean('resolved') ? 'Butir revisi ditandai selesai.' : 'Butir revisi dibuka kembali.');
     }
 
     public function thesis(Request $request, ThesisDocument $document): Response

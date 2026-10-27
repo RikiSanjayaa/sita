@@ -35,7 +35,7 @@ type DocumentQueueItem = {
     title: string;
     file: string;
     uploadedAt: string;
-    status: 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
+    status: 'Perlu Review' | 'Perlu Revisi' | 'Revisi selesai' | 'Disetujui';
     revisionNotes: string | null;
     fileUrl: string | null;
     detailUrl: string;
@@ -45,13 +45,14 @@ type DokumenRevisiProps = {
     documentQueue: DocumentQueueItem[];
 };
 
-type StatusFilter = 'semua' | 'Perlu Review' | 'Perlu Revisi' | 'Disetujui';
+type StatusFilter = 'semua' | DocumentQueueItem['status'];
 
 const PAGE_SIZE = 15;
 
 const documentStatusKey: Record<DocumentQueueItem['status'], string> = {
     'Perlu Review': 'submitted',
     'Perlu Revisi': 'needs_revision',
+    'Revisi selesai': 'revision_completed',
     Disetujui: 'approved',
 };
 
@@ -154,6 +155,10 @@ export default function DosenDokumenRevisiPage() {
                                     label: 'Perlu Revisi',
                                     value: 'Perlu Revisi',
                                     count: statusCounts.revisi,
+                                },
+                                {
+                                    label: 'Revisi selesai',
+                                    value: 'Revisi selesai',
                                 },
                                 {
                                     label: 'Disetujui',
