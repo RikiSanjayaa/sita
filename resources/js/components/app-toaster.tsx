@@ -52,9 +52,9 @@ export function AppToaster({
     return (
         <Toaster
             theme={resolvedAppearance}
-            position="top-right"
-            offset={{ top: 80, right: 24 }}
-            mobileOffset={{ top: 80, left: 16, right: 16 }}
+            position="top-center"
+            offset={{ top: 64, left: 16, right: 16 }}
+            mobileOffset={{ top: 64, left: 16, right: 16 }}
             closeButton
             richColors
             duration={4500}
@@ -63,13 +63,13 @@ export function AppToaster({
             toastOptions={{
                 closeButtonAriaLabel: 'Tutup notifikasi',
                 classNames: {
-                    toast: 'font-sans rounded-xl! shadow-lg! text-sm!',
+                    toast: 'font-sans rounded-xl! pr-14! shadow-lg! text-sm!',
                     title: 'font-semibold!',
                     description: 'text-inherit! opacity-90',
                     actionButton:
                         'bg-primary! text-primary-foreground! focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-md:min-h-11',
                     closeButton:
-                        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-md:size-8!',
+                        'top-1/2! right-2! left-auto! size-8! -translate-y-1/2! transform-none! border-0! bg-transparent! text-inherit! hover:bg-muted! focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-md:size-11!',
                 },
             }}
         />

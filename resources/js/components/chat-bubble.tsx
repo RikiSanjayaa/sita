@@ -62,7 +62,7 @@ export function ChatBubble({
             <div className="my-4 flex animate-in flex-col items-center gap-1.5 fade-in">
                 <div
                     className={cn(
-                        'flex w-full max-w-[min(100%,34rem)] flex-col gap-3 rounded-xl bg-muted px-3 py-3 min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between sm:px-4',
+                        'flex w-full max-w-[min(100%,34rem)] flex-col gap-3 rounded-xl bg-card px-3 py-3 min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between sm:px-4',
                         isActiveMatch && 'ring-2 ring-primary/40',
                     )}
                 >
@@ -99,40 +99,42 @@ export function ChatBubble({
         >
             <div
                 className={cn(
-                    'flex max-w-[calc(100%-1rem)] gap-2 sm:max-w-[85%]',
-                    isMe ? 'flex-row-reverse' : 'flex-row',
+                    'flex gap-2 sm:max-w-[85%]',
+                    // Outgoing bubbles reserve the same 44px avatar + 8px gap.
+                    isMe
+                        ? 'max-w-[calc(100%-3.25rem)] flex-row-reverse'
+                        : 'max-w-full flex-row',
                 )}
             >
                 {!isMe && (
-                    <div
-                        className={cn(
-                            'mt-1 w-7 shrink-0',
-                            grouped && 'invisible',
-                        )}
-                    >
-                        {message.authorProfileUrl ? (
-                            <Link href={message.authorProfileUrl}>
-                                <Avatar className="size-7">
+                    <div className="mt-1 w-11 shrink-0">
+                        {!grouped &&
+                            (message.authorProfileUrl ? (
+                                <Link href={message.authorProfileUrl}>
+                                    <Avatar className="size-11">
+                                        <AvatarImage
+                                            src={
+                                                message.authorAvatar ??
+                                                undefined
+                                            }
+                                            alt={message.author}
+                                        />
+                                        <AvatarFallback className="bg-primary-muted text-sm font-medium text-primary-muted-foreground">
+                                            {getInitials(message.author)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Link>
+                            ) : (
+                                <Avatar className="size-11">
                                     <AvatarImage
                                         src={message.authorAvatar ?? undefined}
                                         alt={message.author}
                                     />
-                                    <AvatarFallback>
+                                    <AvatarFallback className="bg-primary-muted text-sm font-medium text-primary-muted-foreground">
                                         {getInitials(message.author)}
                                     </AvatarFallback>
                                 </Avatar>
-                            </Link>
-                        ) : (
-                            <Avatar className="size-7">
-                                <AvatarImage
-                                    src={message.authorAvatar ?? undefined}
-                                    alt={message.author}
-                                />
-                                <AvatarFallback>
-                                    {getInitials(message.author)}
-                                </AvatarFallback>
-                            </Avatar>
-                        )}
+                            ))}
                     </div>
                 )}
 
@@ -156,16 +158,38 @@ export function ChatBubble({
 
                     <div
                         className={cn(
-                            'rounded-2xl px-3 py-2 text-sm leading-snug',
+                            'relative rounded-2xl px-3 py-2 text-sm leading-snug',
                             isMe
-                                ? 'rounded-br-sm bg-primary text-primary-foreground'
-                                : 'rounded-tl-sm bg-muted text-foreground',
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-card text-card-foreground',
+                            !grouped &&
+                                (isMe ? 'rounded-tr-none' : 'rounded-tl-none'),
                             isActiveMatch &&
                                 (isMe
                                     ? 'ring-2 ring-primary-foreground/35'
                                     : 'ring-2 ring-primary/40'),
                         )}
                     >
+                        {!grouped && (
+                            <svg
+                                aria-hidden="true"
+                                viewBox="0 0 12 12"
+                                className={cn(
+                                    'pointer-events-none absolute top-0 size-3',
+                                    isMe
+                                        ? '-right-2 fill-primary'
+                                        : '-left-2 fill-card',
+                                )}
+                            >
+                                <path
+                                    d={
+                                        isMe
+                                            ? 'M0 0H12L0 12Z'
+                                            : 'M12 0H0L12 12Z'
+                                    }
+                                />
+                            </svg>
+                        )}
                         {thumbnailUrl !== null && (
                             <button
                                 type="button"

@@ -406,13 +406,27 @@
     --sidebar-ring: #b6b9ae;
 }
 
-/* Chat keeps the current scheme, with a deeper conversation surface in dark mode. */
+/* A quiet conversation plane contrasts with card-colored messages and controls. */
 .chat-workspace {
-    --chat-surface: var(--background);
+    --chat-surface: var(--muted);
 }
 
 .dark .chat-workspace {
-    --chat-surface: color-mix(in srgb, var(--background) 50%, #000000);
+    --chat-surface: var(--background);
+}
+
+.chat-header {
+    background: linear-gradient(
+        to bottom,
+        var(--chat-surface),
+        color-mix(in srgb, var(--chat-surface) 96%, transparent) 15%,
+        color-mix(in srgb, var(--chat-surface) 84%, transparent) 30%,
+        color-mix(in srgb, var(--chat-surface) 64%, transparent) 45%,
+        color-mix(in srgb, var(--chat-surface) 40%, transparent) 60%,
+        color-mix(in srgb, var(--chat-surface) 17%, transparent) 75%,
+        color-mix(in srgb, var(--chat-surface) 3.5%, transparent) 90%,
+        transparent
+    );
 }
 
 @layer base {

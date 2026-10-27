@@ -74,7 +74,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                     variant="ghost"
                     size="icon"
                     aria-label="Lampirkan file"
-                    className="shrink-0 rounded-full bg-muted max-md:size-11"
+                    className="shrink-0 rounded-full bg-card max-md:size-11"
                     onClick={() => fileRef.current?.click()}
                     disabled={!canAttach}
                 >
@@ -86,7 +86,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                         composer.setMessage(event.target.value)
                     }
                     placeholder="Tulis pesan..."
-                    className="min-w-0 rounded-full border-transparent bg-muted shadow-none max-md:h-11"
+                    className="min-w-0 rounded-full border-transparent bg-card shadow-none max-md:h-11 dark:bg-card"
                     disabled={disabled}
                     onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -109,7 +109,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                     size="icon"
                     onClick={composer.send}
                     disabled={!composer.canSend}
-                    className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
+                    className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-card disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
                 >
                     <ArrowUp className="size-4" />
                 </Button>

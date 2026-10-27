@@ -11,7 +11,7 @@ interface StickyFilterBarProps {
 /**
  * Keep the complete toolbar together, without covering phone-sized lists.
  * PublicLayout's desktop header is a 48px logo + 32px padding + 1px border;
- * portal headers are 64px, or 48px with the icon-only sidebar.
+ * portal headers are 48px in both sidebar states.
  */
 export function StickyFilterBar({
     children,
@@ -23,9 +23,7 @@ export function StickyFilterBar({
             data-slot="sticky-filter-bar"
             className={cn(
                 'space-y-3 bg-background py-3 md:sticky md:z-20',
-                layout === 'public'
-                    ? 'md:top-[calc(5rem+1px)]'
-                    : 'md:top-16 md:group-has-data-[collapsible=icon]/sidebar-wrapper:top-12',
+                layout === 'public' ? 'md:top-[calc(5rem+1px)]' : 'md:top-12',
                 className,
             )}
         >

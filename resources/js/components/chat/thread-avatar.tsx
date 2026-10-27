@@ -12,11 +12,9 @@ import { type ChatThread } from './types';
 export function ThreadAvatar({
     thread,
     className,
-    header = false,
 }: {
     thread: ChatThread;
     className?: string;
-    header?: boolean;
 }) {
     const { auth } = usePage<SharedData>().props;
     const members = thread.memberProfiles.filter(
@@ -29,20 +27,10 @@ export function ThreadAvatar({
     return (
         <span
             aria-hidden="true"
-            className={cn(
-                'relative block shrink-0',
-                visible.length > 1
-                    ? header
-                        ? 'h-12 w-18'
-                        : 'h-11 w-14'
-                    : header
-                      ? 'size-12'
-                      : 'size-11',
-                className,
-            )}
+            className={cn('relative block h-11 w-14 shrink-0', className)}
         >
             {visible.length === 0 ? (
-                <span className="flex size-full items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <span className="absolute top-0 left-1/2 flex size-11 -translate-x-1/2 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <Icon className="size-5" />
                 </span>
             ) : (
@@ -52,10 +40,8 @@ export function ThreadAvatar({
                         className={cn(
                             'absolute border-2 border-card',
                             visible.length === 1
-                                ? 'inset-0 size-full'
-                                : header
-                                  ? 'size-10'
-                                  : 'size-8',
+                                ? 'inset-y-0 left-1/2 size-11 -translate-x-1/2'
+                                : 'size-8',
                             visible.length > 1 && index === 0 && 'top-0 left-0',
                             visible.length > 1 &&
                                 index === 1 &&

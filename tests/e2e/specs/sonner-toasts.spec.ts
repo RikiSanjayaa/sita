@@ -108,11 +108,35 @@ test.describe('Sonner feedback', () => {
                     await expect(
                         page.getByText('Tersimpan', { exact: true }),
                     ).toHaveCount(0);
-                    const bounds = await toast.boundingBox();
-                    expect(bounds!.x).toBeGreaterThanOrEqual(0);
-                    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
-                        mode === 'light' ? 390 : 1280,
-                    );
+                    const close = toast.getByRole('button', {
+                        name: 'Tutup notifikasi',
+                    });
+                    await expect
+                        .poll(async () => {
+                            const bounds = await toast.boundingBox();
+                            const header = await page
+                                .locator('header')
+                                .first()
+                                .boundingBox();
+                            const closeBounds = await close.boundingBox();
+                            if (!bounds || !header || !closeBounds)
+                                return false;
+                            return (
+                                bounds.x >= 0 &&
+                                bounds.x + bounds.width <=
+                                    page.viewportSize()!.width &&
+                                bounds.y >= header.y + header.height &&
+                                closeBounds.x >= bounds.x &&
+                                closeBounds.y >= bounds.y &&
+                                closeBounds.x + closeBounds.width <=
+                                    bounds.x + bounds.width &&
+                                closeBounds.y + closeBounds.height <=
+                                    bounds.y + bounds.height
+                            );
+                        })
+                        .toBe(true);
+                    await close.click();
+                    await expect(toast).not.toBeVisible();
                 } finally {
                     await context.close();
                 }

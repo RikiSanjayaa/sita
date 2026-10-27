@@ -287,18 +287,15 @@ test.describe('every searchable table keeps its complete controls together (#94)
                             .locator('header.sticky, header.md\\:sticky')
                             .first();
                         if (width >= 768) {
-                            await expect
-                                .poll(async () => {
-                                    const barBox = await bar.boundingBox();
-                                    const headerBox =
-                                        await header.boundingBox();
-                                    return Math.abs(
-                                        (barBox?.y ?? -1000) -
-                                            ((headerBox?.y ?? 0) +
-                                                (headerBox?.height ?? 0)),
-                                    );
-                                })
-                                .toBeLessThanOrEqual(2);
+                            const headerGap = async () => {
+                                const barBox = await bar.boundingBox();
+                                const headerBox = await header.boundingBox();
+                                if (!barBox || !headerBox) return Infinity;
+                                return Math.abs(
+                                    barBox.y - headerBox.y - headerBox.height,
+                                );
+                            };
+                            await expect.poll(headerGap).toBeLessThanOrEqual(2);
                             await expect(
                                 bar.getByRole('searchbox'),
                             ).toBeInViewport();
@@ -306,7 +303,7 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                 // The width change reflows the table and can move the
                                 // scroll position, so scroll into the rows again after
                                 // each toggle before asserting the sticky offset.
-                                for (const expectedTop of [48, 64]) {
+                                for (let toggle = 0; toggle < 2; toggle++) {
                                     await page
                                         .locator(
                                             '[data-slot="sidebar-trigger"]',
@@ -315,11 +312,8 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                     await page.waitForTimeout(400);
                                     await scrollIntoRows(page, bar);
                                     await expect
-                                        .poll(
-                                            async () =>
-                                                (await bar.boundingBox())?.y,
-                                        )
-                                        .toBe(expectedTop);
+                                        .poll(headerGap)
+                                        .toBeLessThanOrEqual(2);
                                 }
                             }
                         } else {

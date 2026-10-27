@@ -15,6 +15,7 @@ export function Breadcrumbs({
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
+    const current = breadcrumbs.at(-1);
     return (
         <Breadcrumb>
             <BreadcrumbList>
@@ -24,31 +25,16 @@ export function Breadcrumbs({
                     </BreadcrumbLink>
                 </BreadcrumbItem>
 
-                {breadcrumbs.map((breadcrumb, index) => {
-                    const isLast = index === breadcrumbs.length - 1;
-
-                    return [
-                        <BreadcrumbSeparator
-                            key={`${breadcrumb.href}-separator`}
-                        />,
-                        <BreadcrumbItem key={breadcrumb.href}>
-                            {isLast ? (
-                                <BreadcrumbPage className="block max-w-[18rem] truncate xl:max-w-none">
-                                    {breadcrumb.title}
-                                </BreadcrumbPage>
-                            ) : (
-                                <BreadcrumbLink asChild>
-                                    <Link
-                                        href={breadcrumb.href}
-                                        className="block max-w-[14rem] truncate xl:max-w-none"
-                                    >
-                                        {breadcrumb.title}
-                                    </Link>
-                                </BreadcrumbLink>
-                            )}
-                        </BreadcrumbItem>,
-                    ];
-                })}
+                {current && (
+                    <>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbPage className="block max-w-[18rem] truncate xl:max-w-none">
+                                {current.title}
+                            </BreadcrumbPage>
+                        </BreadcrumbItem>
+                    </>
+                )}
             </BreadcrumbList>
         </Breadcrumb>
     );

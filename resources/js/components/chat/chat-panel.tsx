@@ -2,7 +2,6 @@ import { Link } from '@inertiajs/react';
 import { ArrowLeft, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { type ReactNode } from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -15,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { type UserProfileSummary } from '@/types';
 
 import { chatStyles } from './styles';
-import { ThreadAvatar } from './thread-avatar';
+import { ThreadMembers } from './thread-members';
 import { type ChatThread, type MobileView } from './types';
 import { type MessageSearchState } from './use-message-search';
 
@@ -69,26 +68,15 @@ export function ChatPanel({
                             variant="ghost"
                             size="icon"
                             aria-label="Kembali ke daftar percakapan"
-                            className="pointer-events-auto absolute top-3 left-2 shrink-0 max-md:size-11 lg:hidden"
+                            className="pointer-events-auto absolute top-2 left-2 shrink-0 max-md:size-11 lg:hidden"
                             onClick={onBack}
                         >
                             <ArrowLeft className="size-5" />
                         </Button>
-                        <div className="mx-auto flex max-w-[calc(100%-7rem)] flex-col items-center gap-1.5 text-center">
-                            {profile ? (
-                                <Link
-                                    href={profile.profileUrl}
-                                    className="pointer-events-auto rounded-full focus-visible:ring-2 focus-visible:ring-ring"
-                                    aria-label={`Profil ${profile.name}`}
-                                >
-                                    <ThreadAvatar thread={thread} header />
-                                </Link>
-                            ) : (
-                                <ThreadAvatar thread={thread} header />
-                            )}
-                            <div className="pointer-events-auto flex max-w-full items-center justify-center gap-2">
+                        <ThreadMembers key={thread.id} thread={thread}>
+                            <div className="flex min-h-11 max-w-full min-w-0 flex-col items-start justify-center py-1">
                                 <CardTitle
-                                    className="min-w-0 truncate text-sm leading-5"
+                                    className="max-w-full min-w-0 truncate text-sm leading-5"
                                     title={profile?.name ?? titleText}
                                 >
                                     {profile ? (
@@ -102,30 +90,25 @@ export function ChatPanel({
                                         titleText
                                     )}
                                 </CardTitle>
-                                <Badge
-                                    variant="soft"
-                                    className={cn(
-                                        'shrink-0 font-medium',
-                                        thread.threadType === 'pembimbing'
-                                            ? 'bg-primary-muted text-primary-muted-foreground'
-                                            : 'bg-muted text-muted-foreground',
-                                    )}
-                                >
-                                    {thread.threadLabel}
-                                </Badge>
+                                {thread.threadLabel !==
+                                    (profile?.name ?? titleText) && (
+                                    <span className="max-w-full truncate text-xs leading-4 text-muted-foreground">
+                                        {thread.threadLabel}
+                                    </span>
+                                )}
                             </div>
                             <CardDescription className="sr-only">
                                 {privateTarget?.email ??
                                     thread.members.join(', ')}
                             </CardDescription>
-                        </div>
+                        </ThreadMembers>
                         <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             aria-label="Cari di percakapan ini"
                             aria-expanded={search.isOpen}
-                            className="pointer-events-auto absolute top-3 right-2 size-9 text-muted-foreground hover:text-foreground max-md:size-11"
+                            className="pointer-events-auto absolute top-2 right-2 size-9 text-muted-foreground hover:text-foreground max-md:size-11"
                             onClick={search.toggle}
                         >
                             <Search className="size-4" />
@@ -141,7 +124,7 @@ export function ChatPanel({
                                             )
                                         }
                                         placeholder="Cari di percakapan ini..."
-                                        className="h-9 flex-1 max-md:h-11"
+                                        className="h-9 flex-1 bg-card max-md:h-11 dark:bg-card"
                                     />
                                     <Button
                                         type="button"

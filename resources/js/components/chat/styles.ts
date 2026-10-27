@@ -9,7 +9,7 @@ export const chatStyles = {
         ),
     chatHeader: (isMobile: boolean): string =>
         cn(
-            'pointer-events-none absolute inset-x-0 top-0 z-10 !block bg-linear-to-b from-[var(--chat-surface)] from-60% to-transparent px-3 pt-3 pb-8',
+            'chat-header pointer-events-none absolute inset-x-0 top-0 z-10 !block px-3 py-2',
             isMobile && 'px-2',
         ),
     listCard: (isMobile: boolean): string =>
