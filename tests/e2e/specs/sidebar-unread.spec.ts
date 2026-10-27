@@ -397,7 +397,10 @@ test.describe('Sidebar unread indicator on Pesan', () => {
             // Visiting the unified mobile list does not read a hidden panel.
             await page.goto(lecturer.pesanPath);
             await expect(
-                page.getByPlaceholder('Cari percakapan...'),
+                page.getByRole('button', {
+                    name: 'Cari percakapan',
+                    exact: true,
+                }),
             ).toBeVisible();
             await page.waitForTimeout(750);
             expect(receipts).toEqual([]);

@@ -130,6 +130,9 @@ async function openDosenBimbinganThread(
 ): Promise<void> {
     await page.goto('/dosen/pesan-bimbingan');
     await page
+        .getByRole('button', { name: 'Cari percakapan', exact: true })
+        .click();
+    await page
         .getByRole('textbox', { name: 'Cari percakapan', exact: true })
         .fill(studentName);
 

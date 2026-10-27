@@ -19,6 +19,9 @@ interface ChatBubbleProps {
     isMe: boolean;
     searchTerm?: string;
     isActiveMatch?: boolean;
+    /** Same sender and displayed minute as the preceding ordinary message. */
+    grouped?: boolean;
+    showTime?: boolean;
     /** Latest review status of the bubble's document; falls back to the row's own. */
     reviewStatus?: string | null;
 }
@@ -43,6 +46,8 @@ export function ChatBubble({
     reviewStatus = null,
     searchTerm = '',
     isActiveMatch = false,
+    grouped = false,
+    showTime = true,
 }: ChatBubbleProps) {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const isPending = message.type === 'pending';
@@ -87,21 +92,27 @@ export function ChatBubble({
     return (
         <div
             className={cn(
-                'my-2 flex w-full animate-in fade-in',
+                'flex w-full animate-in fade-in motion-reduce:animate-none',
                 isMe ? 'justify-end' : 'justify-start',
+                grouped ? 'mt-0.5' : 'mt-3',
             )}
         >
             <div
                 className={cn(
-                    'flex max-w-[calc(100%-2.75rem)] gap-3 sm:max-w-[75%]',
+                    'flex max-w-[calc(100%-1rem)] gap-2 sm:max-w-[85%]',
                     isMe ? 'flex-row-reverse' : 'flex-row',
                 )}
             >
                 {!isMe && (
-                    <div className="mt-1 shrink-0">
+                    <div
+                        className={cn(
+                            'mt-1 w-7 shrink-0',
+                            grouped && 'invisible',
+                        )}
+                    >
                         {message.authorProfileUrl ? (
                             <Link href={message.authorProfileUrl}>
-                                <Avatar className="size-8">
+                                <Avatar className="size-7">
                                     <AvatarImage
                                         src={message.authorAvatar ?? undefined}
                                         alt={message.author}
@@ -112,7 +123,7 @@ export function ChatBubble({
                                 </Avatar>
                             </Link>
                         ) : (
-                            <Avatar className="size-8">
+                            <Avatar className="size-7">
                                 <AvatarImage
                                     src={message.authorAvatar ?? undefined}
                                     alt={message.author}
@@ -126,7 +137,7 @@ export function ChatBubble({
                 )}
 
                 <div className="flex min-w-0 flex-col gap-1">
-                    {!isMe && (
+                    {!isMe && !grouped && (
                         <div className="pl-1 text-xs text-muted-foreground">
                             {message.authorProfileUrl ? (
                                 <Link
@@ -145,7 +156,7 @@ export function ChatBubble({
 
                     <div
                         className={cn(
-                            'rounded-2xl px-4 py-3 text-[15px] leading-relaxed',
+                            'rounded-2xl px-3 py-2 text-sm leading-snug',
                             isMe
                                 ? 'rounded-br-sm bg-primary text-primary-foreground'
                                 : 'rounded-tl-sm bg-muted text-foreground',
@@ -229,15 +240,18 @@ export function ChatBubble({
                                 )}
                             </div>
                         )}
-                    </div>
-
-                    <div
-                        className={cn(
-                            'mt-0.5 text-xs text-muted-foreground',
-                            isMe ? 'pr-1 text-right' : 'pl-1 text-left',
+                        {showTime && (
+                            <div
+                                className={cn(
+                                    'mt-1 text-right text-xs tabular-nums',
+                                    isMe
+                                        ? 'text-primary-foreground'
+                                        : 'text-muted-foreground',
+                                )}
+                            >
+                                {message.time}
+                            </div>
                         )}
-                    >
-                        {message.time}
                     </div>
                 </div>
             </div>

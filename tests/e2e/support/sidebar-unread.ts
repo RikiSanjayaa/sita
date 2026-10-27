@@ -621,6 +621,9 @@ export async function openPrivateThread(
 
     try {
         await page.goto(viewer.pesanPath);
+        await page
+            .getByRole('button', { name: 'Cari percakapan', exact: true })
+            .click();
         await page.getByPlaceholder('Cari percakapan...').fill(partner.name);
 
         const row = page.locator(`[data-thread-id="${thread.id}"]`);

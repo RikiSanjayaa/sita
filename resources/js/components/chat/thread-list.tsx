@@ -5,16 +5,14 @@ import {
     Search,
     SlidersHorizontal,
     UserPlus,
-    UserRound,
-    Users,
+    X,
 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useId, useRef, useState } from 'react';
 
 import {
     PrivateRecipientCombobox,
     type PrivateRecipientOption,
 } from '@/components/private-recipient-combobox';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,6 +21,7 @@ import { cn } from '@/lib/utils';
 
 import { ChatEmptyState } from './empty-state';
 import { chatStyles } from './styles';
+import { ThreadAvatar } from './thread-avatar';
 import {
     type ChatMessage,
     type ChatThread,
@@ -33,7 +32,6 @@ import { type PrivateThreadState } from './use-private-thread';
 
 type ThreadListProps<T extends ChatThread> = {
     activeThreadId: number | null;
-    badgeClassName: (thread: T) => string;
     emptyState: { title: string; description: string };
     groupExtra?: ReactNode;
     groupFilterToggle?: () => void;
@@ -54,7 +52,6 @@ type ThreadListProps<T extends ChatThread> = {
 
 export function ThreadList<T extends ChatThread>({
     activeThreadId,
-    badgeClassName,
     emptyState,
     groupExtra,
     groupFilterToggle,
@@ -75,6 +72,16 @@ export function ThreadList<T extends ChatThread>({
     const completedThreads = threads.filter((thread) => thread.isCompleted);
     const activeThreads = threads.filter((thread) => !thread.isCompleted);
     const [completedOpen, setCompletedOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const searchId = useId();
+    const searchToggleRef = useRef<HTMLButtonElement>(null);
+    const showSearch = searchOpen || search.trim() !== '';
+
+    function closeSearch() {
+        onSearchChange('');
+        setSearchOpen(false);
+        searchToggleRef.current?.focus();
+    }
     const showCompleted =
         completedOpen ||
         search.trim() !== '' ||
@@ -83,52 +90,43 @@ export function ThreadList<T extends ChatThread>({
     function renderRow(thread: T) {
         const latestMessage = messagesFor(thread).at(-1);
         const isPrivate = thread.threadType === 'private';
-        const IdentityIcon = isPrivate ? UserRound : Users;
         return (
             <button
                 key={thread.id}
                 type="button"
                 data-thread-id={thread.id}
+                title={threadTitle(thread)}
                 aria-current={activeThreadId === thread.id ? 'true' : undefined}
                 className={cn(
-                    'flex w-full shrink-0 items-start gap-3 border-b px-4 py-4 text-left transition-colors last:border-b-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset',
+                    'flex min-h-17 w-full shrink-0 items-center gap-3 border-b px-4 py-2.5 text-left transition-colors last:border-b-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset',
                     activeThreadId === thread.id
                         ? 'bg-primary-muted'
                         : 'hover:bg-muted/50',
                 )}
                 onClick={() => onSelect(thread.id)}
             >
-                <span
-                    className={cn(
-                        'flex size-10 shrink-0 items-center justify-center rounded-full',
-                        isPrivate
-                            ? 'bg-muted text-muted-foreground'
-                            : 'bg-primary-muted text-primary-muted-foreground',
-                    )}
-                >
-                    <IdentityIcon aria-hidden className="size-5" />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <span className="flex items-start justify-between gap-2">
+                <ThreadAvatar thread={thread} />
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="flex items-center justify-between gap-2">
                         <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                             {threadTitle(thread)}
                         </span>
                         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                            {thread.lastTime}
+                            {thread.lastTime.replace(/ yang lalu$/, '')}
                         </span>
                     </span>
                     <span className="flex items-center justify-between gap-2">
-                        <Badge
-                            variant="soft"
-                            className={cn(
-                                'px-2 py-0.5 text-xs font-medium',
-                                badgeClassName(thread),
-                            )}
-                        >
-                            {isPrivate
-                                ? 'Pribadi'
-                                : `Grup ${thread.threadLabel}`}
-                        </Badge>
+                        <span className="min-w-0 truncate text-sm text-muted-foreground">
+                            <span className="text-xs font-medium">
+                                {isPrivate
+                                    ? 'Pribadi'
+                                    : `Grup ${thread.threadLabel}`}
+                                {' · '}
+                            </span>
+                            {latestMessage?.message ||
+                                latestMessage?.documentName ||
+                                thread.preview}
+                        </span>
                         {hasUnread?.(thread) && (
                             <span className="size-2 shrink-0 rounded-full bg-primary">
                                 <span className="sr-only">
@@ -136,11 +134,6 @@ export function ThreadList<T extends ChatThread>({
                                 </span>
                             </span>
                         )}
-                    </span>
-                    <span className="line-clamp-2 text-sm text-pretty text-muted-foreground">
-                        {latestMessage?.message ||
-                            latestMessage?.documentName ||
-                            thread.preview}
                     </span>
                 </span>
             </button>
@@ -159,25 +152,66 @@ export function ThreadList<T extends ChatThread>({
             <header className={chatStyles.listHeader(tone, isMobile)}>
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold">{title}</h2>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Chat baru"
-                        aria-expanded={privateThread.isOpen}
-                        className="size-9 shrink-0 max-md:size-11"
-                        onClick={privateThread.toggle}
-                    >
-                        <UserPlus aria-hidden className="size-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            ref={searchToggleRef}
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={
+                                showSearch
+                                    ? 'Tutup pencarian percakapan'
+                                    : 'Cari percakapan'
+                            }
+                            aria-expanded={showSearch}
+                            aria-controls={searchId}
+                            className="size-9 shrink-0 max-md:size-11"
+                            onClick={() =>
+                                showSearch ? closeSearch() : setSearchOpen(true)
+                            }
+                        >
+                            {showSearch ? (
+                                <X aria-hidden className="size-4" />
+                            ) : (
+                                <Search aria-hidden className="size-4" />
+                            )}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Chat baru"
+                            aria-expanded={privateThread.isOpen}
+                            className="size-9 shrink-0 max-md:size-11"
+                            onClick={privateThread.toggle}
+                        >
+                            <UserPlus aria-hidden className="size-4" />
+                        </Button>
+                        {groupFilterToggle && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Filter percakapan"
+                                className="size-9 shrink-0 max-md:size-11"
+                                onClick={groupFilterToggle}
+                            >
+                                <SlidersHorizontal
+                                    aria-hidden
+                                    className="size-4"
+                                />
+                            </Button>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative min-w-0 flex-1">
+                {showSearch && (
+                    <div id={searchId} className="relative">
                         <Search
                             aria-hidden
                             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         />
                         <Input
+                            autoFocus
                             value={search}
                             onChange={(event) =>
                                 onSearchChange(event.target.value)
@@ -185,21 +219,15 @@ export function ThreadList<T extends ChatThread>({
                             className="pl-9 max-md:h-11"
                             placeholder="Cari percakapan..."
                             aria-label="Cari percakapan"
+                            onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    closeSearch();
+                                }
+                            }}
                         />
                     </div>
-                    {groupFilterToggle && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Filter percakapan"
-                            className="size-9 shrink-0 max-md:size-11"
-                            onClick={groupFilterToggle}
-                        >
-                            <SlidersHorizontal aria-hidden className="size-4" />
-                        </Button>
-                    )}
-                </div>
+                )}
                 {groupExtra}
                 {privateThread.isOpen && (
                     <PrivateRecipientCombobox

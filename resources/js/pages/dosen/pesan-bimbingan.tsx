@@ -85,16 +85,6 @@ function getVisibleThreads(
     });
 }
 
-function threadBadgeClassName(thread: ThreadItem): string {
-    if (thread.threadType === 'pembimbing') {
-        return 'bg-primary-muted text-primary-muted-foreground hover:bg-primary-muted/70';
-    }
-
-    return thread.threadType === 'private'
-        ? 'bg-success-muted text-success-muted-foreground hover:bg-success-muted/70'
-        : 'bg-muted text-muted-foreground hover:bg-muted/80';
-}
-
 export default function DosenPesanBimbinganPage() {
     const {
         threads: initialThreads,
@@ -219,7 +209,6 @@ function DosenPesanBimbinganContent({
             <MentorshipChatFrame isMobile={isMobile}>
                 <ThreadList
                     activeThreadId={activeThread?.id ?? null}
-                    badgeClassName={threadBadgeClassName}
                     emptyState={{
                         title: 'Belum ada percakapan',
                         description:
@@ -288,10 +277,9 @@ function DosenPesanBimbinganContent({
                     thread={activeThread}
                     titleProfile={activeThread?.studentProfile ?? null}
                     titleText={activeThread?.student ?? ''}
-                    tone="flat"
                 >
                     <MessageList
-                        isMobile={isMobile}
+                        key={activeThread?.id ?? 'empty'}
                         messages={chat.activeMessages}
                         search={messageSearch}
                         threadId={activeThread?.id ?? null}

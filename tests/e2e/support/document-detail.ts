@@ -78,7 +78,6 @@ export async function attachDocumentStates(
                 await page.setViewportSize({ width, height: 844 });
                 await page.emulateMedia({
                     colorScheme: theme,
-                    reducedMotion: 'reduce',
                 });
                 await page.evaluate((appearance) => {
                     localStorage.setItem('appearance', appearance);
@@ -89,13 +88,32 @@ export async function attachDocumentStates(
                 }, theme);
                 await page.evaluate(() => document.fonts.ready);
                 await page.evaluate(() => window.scrollTo(0, 0));
+                await page.evaluate(async () => {
+                    await Promise.all(
+                        document
+                            .getAnimations()
+                            .filter(
+                                (animation) =>
+                                    animation.playState === 'running' &&
+                                    animation.effect?.getTiming().iterations !==
+                                        Infinity,
+                            )
+                            .map((animation) =>
+                                animation.finished.catch(() => {}),
+                            ),
+                    );
+                    await new Promise<void>((resolve) =>
+                        requestAnimationFrame(() =>
+                            requestAnimationFrame(() => resolve()),
+                        ),
+                    );
+                });
                 const screenshotPath = testInfo.outputPath(
                     `${name}-${width}-${theme}.png`,
                 );
                 await page.screenshot({
                     path: screenshotPath,
-                    fullPage: true,
-                    animations: 'disabled',
+                    fullPage: (await page.getByRole('dialog').count()) === 0,
                     caret: 'hide',
                 });
                 await testInfo.attach(`${name}-${width}-${theme}`, {

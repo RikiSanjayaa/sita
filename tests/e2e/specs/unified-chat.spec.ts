@@ -27,6 +27,15 @@ test('one list searches group and private chats, preserves deep links and mobile
         const list = page.getByRole('complementary', {
             name: 'Daftar percakapan',
         });
+        await expect(
+            list.getByRole('textbox', { name: 'Cari percakapan', exact: true }),
+        ).toHaveCount(0);
+        await list
+            .getByRole('button', { name: 'Cari percakapan', exact: true })
+            .click();
+        await expect(
+            list.getByRole('textbox', { name: 'Cari percakapan', exact: true }),
+        ).toBeFocused();
         await list
             .getByRole('textbox', { name: 'Cari percakapan', exact: true })
             .fill(student.studentName);
@@ -76,6 +85,19 @@ test('one list searches group and private chats, preserves deep links and mobile
         await expect(list).toBeVisible();
         await expect(group).toBeVisible();
         await expect(privateChat).toBeVisible();
+        const persistedSearch = list.getByRole('textbox', {
+            name: 'Cari percakapan',
+            exact: true,
+        });
+        await expect(persistedSearch).toHaveValue(student.studentName);
+        await persistedSearch.press('Escape');
+        await expect(persistedSearch).toHaveCount(0);
+        await expect(
+            list.getByRole('button', { name: 'Cari percakapan', exact: true }),
+        ).toBeFocused();
+        await list
+            .getByRole('button', { name: 'Cari percakapan', exact: true })
+            .click();
         await list
             .getByRole('textbox', { name: 'Cari percakapan', exact: true })
             .fill('tidak-ada-percakapan-159');

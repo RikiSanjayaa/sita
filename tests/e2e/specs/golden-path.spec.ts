@@ -221,6 +221,9 @@ async function openDosenGroupThread(
 ): Promise<void> {
     await page.goto('/dosen/pesan');
 
+    await page
+        .getByRole('button', { name: 'Cari percakapan', exact: true })
+        .click();
     const searchInput = page.getByPlaceholder('Cari percakapan...');
     await searchInput.fill(studentName);
     await page

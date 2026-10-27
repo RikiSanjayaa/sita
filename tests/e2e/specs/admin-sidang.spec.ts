@@ -118,6 +118,9 @@ async function openThreadList(
     await page.goto('/dosen/pesan-bimbingan');
     await redirect;
 
+    await page
+        .getByRole('button', { name: 'Cari percakapan', exact: true })
+        .click();
     const searchInput = page.getByPlaceholder('Cari percakapan...');
     await searchInput.fill(studentName);
     await page

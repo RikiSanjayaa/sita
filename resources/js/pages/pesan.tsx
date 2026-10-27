@@ -46,12 +46,6 @@ type PesanPageContentProps = Pick<SharedData, 'auth'> & {
     privateRecipients: PrivateRecipientOption[];
 };
 
-function threadBadgeClassName(thread: ThreadItem): string {
-    return thread.threadType === 'pembimbing'
-        ? 'bg-primary-muted text-primary-muted-foreground'
-        : 'bg-warning-muted text-warning-muted-foreground';
-}
-
 export default function PesanPage() {
     const {
         threads: initialThreads,
@@ -135,7 +129,6 @@ function PesanPageContent({
             <MentorshipChatFrame isMobile={isMobile}>
                 <ThreadList
                     activeThreadId={activeThread?.id ?? null}
-                    badgeClassName={threadBadgeClassName}
                     emptyState={{
                         title: 'Belum ada percakapan',
                         description:
@@ -185,10 +178,9 @@ function PesanPageContent({
                     thread={activeThread}
                     titleProfile={null}
                     titleText={activeThread?.name ?? ''}
-                    tone="raised"
                 >
                     <MessageList
-                        isMobile={isMobile}
+                        key={activeThread?.id ?? 'empty'}
                         messages={chat.activeMessages}
                         notice={
                             !hasDosbing &&

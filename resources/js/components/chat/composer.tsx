@@ -1,4 +1,4 @@
-import { Paperclip, Send } from 'lucide-react';
+import { ArrowUp, Plus } from 'lucide-react';
 import { type DragEvent, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -53,8 +53,8 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             className={cn(
-                'shrink-0 flex-col items-stretch gap-3 pt-4 transition-colors',
-                isMobile ? 'px-4 pb-4' : 'p-6',
+                'shrink-0 flex-col items-stretch gap-2 px-3 py-2.5 transition-colors',
+                isMobile && 'px-2',
                 isDragging && 'bg-primary/5 ring-2 ring-primary/40 ring-inset',
             )}
         >
@@ -71,14 +71,14 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
             <div className="flex items-center gap-2">
                 <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
                     aria-label="Lampirkan file"
-                    className="max-md:size-11"
+                    className="shrink-0 rounded-full bg-muted max-md:size-11"
                     onClick={() => fileRef.current?.click()}
                     disabled={!canAttach}
                 >
-                    <Paperclip className="size-4" />
+                    <Plus className="size-4" />
                 </Button>
                 <Input
                     value={composer.message}
@@ -86,7 +86,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                         composer.setMessage(event.target.value)
                     }
                     placeholder="Tulis pesan..."
-                    className="max-md:h-11"
+                    className="min-w-0 rounded-full border-transparent bg-muted shadow-none max-md:h-11"
                     disabled={disabled}
                     onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -106,11 +106,12 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                 <Button
                     type="button"
                     aria-label="Kirim pesan"
+                    size="icon"
                     onClick={composer.send}
                     disabled={!composer.canSend}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
+                    className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
                 >
-                    <Send className="size-4" />
+                    <ArrowUp className="size-4" />
                 </Button>
             </div>
             {(composer.attachment !== null || composer.errors.attachment) && (
