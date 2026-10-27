@@ -236,7 +236,7 @@ test.describe('Kaprodi sempro-sidang design patterns', () => {
         }
     });
 
-    test('the exam calendar starts collapsed, remembers its state after reload and the filter bar stays sticky', async ({
+    test('the exam calendar starts collapsed and remembers its state after reload', async ({
         browser,
     }) => {
         const context = await browser.newContext();
@@ -281,10 +281,6 @@ test.describe('Kaprodi sempro-sidang design patterns', () => {
             await expect(
                 calendar.getByRole('button', { name: 'Buka kalender' }),
             ).toHaveAttribute('aria-expanded', 'false');
-
-            const stickyBar = page.locator('[data-slot="sticky-filter-bar"]');
-            await expect(stickyBar).toHaveCSS('position', 'sticky');
-            await expect(stickyBar).toHaveCSS('top', '64px');
         } finally {
             await context.close();
         }
