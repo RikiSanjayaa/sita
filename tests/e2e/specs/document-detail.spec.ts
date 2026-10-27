@@ -617,6 +617,7 @@ test.describe('Stable document detail journey (#152)', () => {
             expect(uploads).toBe(0);
         } finally {
             await Promise.all(contexts.map((context) => context.close()));
+            seedDocumentDetailScenario();
         }
     });
 });
