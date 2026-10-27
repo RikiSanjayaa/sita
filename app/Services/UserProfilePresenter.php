@@ -47,13 +47,14 @@ class UserProfilePresenter
         $expertiseFields = $roleKey === AppRole::Dosen->value
             ? $user->expertiseFields->pluck('name')->sort()->values()->all()
             : [];
+        $phoneNumber = app(PhoneVisibility::class)->canView($user, auth()->user()) ? $user->phone_number : null;
 
         return [
             'id' => $user->getKey(),
             'name' => $user->name,
             'email' => $user->email,
-            'phoneNumber' => $user->phone_number,
-            'whatsappUrl' => $this->whatsappUrl($user->phone_number),
+            'phoneNumber' => $phoneNumber,
+            'whatsappUrl' => $this->whatsappUrl($phoneNumber),
             'avatar' => $user->avatar,
             'profileUrl' => route('users.profile.show', ['user' => $user->getKey()]),
             'roleKey' => $roleKey,
@@ -215,7 +216,7 @@ class UserProfilePresenter
                 ['label' => 'Angkatan', 'value' => (string) ($user->mahasiswaProfile?->angkatan ?? '-')],
                 ['label' => 'Status', 'value' => $user->mahasiswaProfile?->is_active ? 'Aktif' : 'Nonaktif'],
                 ['label' => 'Email', 'value' => $user->email],
-                ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
+                ['label' => 'Nomor HP', 'value' => $summary['phoneNumber'] ?? '-'],
             ],
             'stats' => [
                 ['label' => 'Status '.$terminology['finalWork'], 'value' => $this->projectStatusLabel($project, $terminology)],
@@ -413,7 +414,7 @@ class UserProfilePresenter
                 ['label' => 'Kuota Bimbingan', 'value' => (string) $quota],
                 ['label' => 'Status', 'value' => $user->dosenProfile?->is_active ? 'Aktif' : 'Nonaktif'],
                 ['label' => 'Email', 'value' => $user->email],
-                ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
+                ['label' => 'Nomor HP', 'value' => $summary['phoneNumber'] ?? '-'],
             ],
             'stats' => [
                 ['label' => 'Mahasiswa Bimbingan Aktif', 'value' => (string) $supervisedProjects->count()],
@@ -458,7 +459,7 @@ class UserProfilePresenter
             'meta' => [
                 ['label' => 'Nama', 'value' => $user->name],
                 ['label' => 'Email', 'value' => $user->email],
-                ['label' => 'Nomor HP', 'value' => $user->phone_number ?? '-'],
+                ['label' => 'Nomor HP', 'value' => $summary['phoneNumber'] ?? '-'],
                 ['label' => 'Peran', 'value' => $this->roleLabel($roleKey)],
             ],
             'stats' => [],

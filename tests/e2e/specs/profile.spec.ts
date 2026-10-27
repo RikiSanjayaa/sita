@@ -77,6 +77,53 @@ function resetProfileForUser(): void {
 }
 
 test.describe('Profile settings', () => {
+    test('phone visibility can be changed and persists', async ({
+        browser,
+    }) => {
+        resetProfileForUser();
+        const context = await browser.newContext({
+            storageState: authStatePath('farhan'),
+        });
+        const viewer = await browser.newContext({
+            storageState: authStatePath('akbar'),
+        });
+        try {
+            const page = await context.newPage();
+            const otherPage = await viewer.newPage();
+            const profileUrl = `/profil/${userIdByEmail('farhan@sita.test')}`;
+            await page.goto('/settings/profile');
+            const toggle = page.getByRole('switch', {
+                name: 'Tampilkan nomor HP kepada pengguna lain',
+            });
+            await toggle.uncheck();
+            await page
+                .getByRole('button', { name: 'Simpan perubahan' })
+                .click();
+            await page.reload();
+            await expect(toggle).not.toBeChecked();
+            await otherPage.goto(profileUrl);
+            await expect(otherPage.getByText('081200000001')).not.toBeVisible();
+            await toggle.check();
+            await page
+                .getByRole('button', { name: 'Simpan perubahan' })
+                .click();
+            await page.reload();
+            await expect(toggle).toBeChecked();
+            await otherPage.reload();
+            await expect(
+                otherPage.getByText('081200000001').first(),
+            ).toBeVisible();
+        } finally {
+            runArtisan([
+                'tinker',
+                '--execute=App\\Models\\User::where("email", "farhan@sita.test")->update(["phone_public" => false]);',
+            ]);
+            await viewer.close();
+            await context.close();
+            resetProfileForUser();
+        }
+    });
+
     test('user can update profile fields and see them persisted after reload', async ({
         browser,
     }) => {

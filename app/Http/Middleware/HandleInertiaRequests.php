@@ -62,6 +62,8 @@ class HandleInertiaRequests extends Middleware
             $request->session()->put('active_role', $activeRole);
 
             $userPayload = $user->toArray();
+            $userPayload['phone_number'] = $user->phone_number;
+            $userPayload['phone_number_confirmed_at'] = $user->phone_number_confirmed_at;
             $userPayload['roles'] = $user->roleNames();
 
             $notificationSettings = [
