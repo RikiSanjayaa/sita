@@ -1,8 +1,8 @@
 import { FileText, GraduationCap, type LucideIcon, Users } from 'lucide-react';
 import { type ReactNode } from 'react';
 
-import { CopyFieldButton } from '@/components/profile/copy-field-button';
 import { type MentorshipSessionNotesContext } from '@/components/mentorship-session-notes';
+import { CopyFieldButton } from '@/components/profile/copy-field-button';
 import { MonitoringSessionNotes } from '@/components/profile/monitoring-session-notes';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';

@@ -5,7 +5,6 @@ import {
     CheckCircle2,
     Eye,
     Inbox,
-    Eye,
     MapPin,
     Repeat,
     XCircle,
