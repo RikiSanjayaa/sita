@@ -113,6 +113,27 @@ test.describe('Sonner feedback', () => {
                     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
                         mode === 'light' ? 390 : 1280,
                     );
+                    const header = await page
+                        .locator('header')
+                        .first()
+                        .boundingBox();
+                    expect(bounds!.y).toBeGreaterThanOrEqual(
+                        header!.y + header!.height,
+                    );
+                    const close = toast.getByRole('button', {
+                        name: 'Tutup notifikasi',
+                    });
+                    const closeBounds = await close.boundingBox();
+                    expect(closeBounds!.x).toBeGreaterThanOrEqual(bounds!.x);
+                    expect(closeBounds!.y).toBeGreaterThanOrEqual(bounds!.y);
+                    expect(
+                        closeBounds!.x + closeBounds!.width,
+                    ).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+                    expect(
+                        closeBounds!.y + closeBounds!.height,
+                    ).toBeLessThanOrEqual(bounds!.y + bounds!.height);
+                    await close.click();
+                    await expect(toast).not.toBeVisible();
                 } finally {
                     await context.close();
                 }

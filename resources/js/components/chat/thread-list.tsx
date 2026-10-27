@@ -98,9 +98,10 @@ export function ThreadList<T extends ChatThread>({
                 title={threadTitle(thread)}
                 aria-current={activeThreadId === thread.id ? 'true' : undefined}
                 className={cn(
-                    'mx-2 flex min-h-17 shrink-0 items-center gap-3 rounded-sm border border-transparent px-2 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset',
+                    'relative mx-2 flex min-h-17 shrink-0 items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-border first:before:hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset [&[aria-current]+button]:before:hidden',
+                    isPrivate ? 'before:left-16' : 'before:left-19',
                     activeThreadId === thread.id
-                        ? 'border-border bg-muted'
+                        ? 'bg-muted before:hidden'
                         : 'hover:bg-muted/50',
                 )}
                 onClick={() => onSelect(thread.id)}

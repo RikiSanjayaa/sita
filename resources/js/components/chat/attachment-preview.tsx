@@ -54,7 +54,7 @@ export function AttachmentPreview({
     const percentage = progress ?? 0;
 
     return (
-        <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-3">
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3">
             <div className="flex items-center gap-3">
                 <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-primary">
                     {previewUrl !== null ? (

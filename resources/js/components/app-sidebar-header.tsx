@@ -501,7 +501,7 @@ function HeaderNotifications() {
                     >
                         <Bell className="size-4" />
                         {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-none font-medium text-destructive-foreground">
+                            <span className="absolute top-0 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-none font-medium text-destructive-foreground">
                                 {unreadCount}
                             </span>
                         )}
@@ -685,7 +685,7 @@ export function AppSidebarHeader({
     const mobileTitle = title ?? breadcrumbs[breadcrumbs.length - 1]?.title;
 
     return (
-        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header className="sticky top-0 z-50 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2">
                 <SidebarTrigger className="-ml-1 size-9 max-md:size-11" />
                 <div className="flex min-w-0 flex-1 items-center gap-3">
