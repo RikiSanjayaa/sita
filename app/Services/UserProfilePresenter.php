@@ -47,7 +47,7 @@ class UserProfilePresenter
         $expertiseFields = $roleKey === AppRole::Dosen->value
             ? $user->expertiseFields->pluck('name')->sort()->values()->all()
             : [];
-        $phoneNumber = app(PhoneVisibility::class)->canView($user, auth()->user()) ? $user->phone_number : null;
+        $phoneNumber = app(PhoneVisibility::class)->canViewForRequest($user, auth()->user()) ? $user->phone_number : null;
 
         return [
             'id' => $user->getKey(),
