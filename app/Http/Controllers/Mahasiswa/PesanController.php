@@ -610,7 +610,7 @@ class PesanController extends Controller
                     'chatMessageId' => $messageId,
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
-                        : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
+                        : sprintf('/dosen/pesan?thread=%d', $thread->id),
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);

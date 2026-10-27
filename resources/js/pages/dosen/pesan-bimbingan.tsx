@@ -5,11 +5,7 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { Composer } from '@/components/chat/composer';
 import { MessageList } from '@/components/chat/message-list';
 import { ThreadList } from '@/components/chat/thread-list';
-import {
-    type ChatThread,
-    type MobileView,
-    type ThreadMode,
-} from '@/components/chat/types';
+import { type ChatThread, type MobileView } from '@/components/chat/types';
 import { useChatThread } from '@/components/chat/use-chat-thread';
 import { useMessageSearch } from '@/components/chat/use-message-search';
 import { usePrivateThread } from '@/components/chat/use-private-thread';
@@ -73,20 +69,18 @@ type PesanBimbinganContentProps = Pick<SharedData, 'auth'> & {
 function getVisibleThreads(
     threads: ThreadItem[],
     search: string,
-    mode: ThreadMode,
     groupFilter: GroupThreadFilter,
 ): ThreadItem[] {
     return activeFirst(sortThreads(threads)).filter((thread) => {
         const matchesFilter =
-            mode === 'private'
-                ? thread.threadType === 'private'
-                : thread.threadType !== 'private' &&
-                  (groupFilter === 'semua' ||
-                      thread.threadType === groupFilter);
+            groupFilter === 'semua' || thread.threadType === groupFilter;
 
         return (
             matchesFilter &&
-            thread.student.toLowerCase().includes(search.trim().toLowerCase())
+            [thread.student, thread.threadLabel, ...thread.members]
+                .join(' ')
+                .toLowerCase()
+                .includes(search.trim().toLowerCase())
         );
     });
 }
@@ -140,14 +134,6 @@ function DosenPesanBimbinganContent({
             : resolveInitialMobileView(initialThreads),
     );
     const [search, setSearch] = useUrlState('search', '');
-    const [threadMode, setThreadMode] = useUrlState<ThreadMode>(
-        'mode',
-        typeof window !== 'undefined' &&
-            new URLSearchParams(window.location.search).get('filter') ===
-                'private'
-            ? 'private'
-            : 'group',
-    );
     const [groupThreadFilter, setGroupThreadFilter] =
         useUrlState<GroupThreadFilter>('filter', 'semua');
     const [isGroupFilterOpen, setIsGroupFilterOpen] = useState(false);
@@ -159,8 +145,8 @@ function DosenPesanBimbinganContent({
 
     const selectVisible = useCallback(
         (threads: ThreadItem[]) =>
-            getVisibleThreads(threads, search, threadMode, groupThreadFilter),
-        [groupThreadFilter, search, threadMode],
+            getVisibleThreads(threads, search, groupThreadFilter),
+        [groupThreadFilter, search],
     );
 
     const chat = useChatThread<ThreadItem>({
@@ -210,33 +196,14 @@ function DosenPesanBimbinganContent({
     function handleSearchChange(nextSearch: string) {
         setSearch(nextSearch);
         reconcileActiveThread(
-            getVisibleThreads(
-                chat.threadItems,
-                nextSearch,
-                threadMode,
-                groupThreadFilter,
-            ),
-        );
-    }
-
-    function changeThreadMode(nextMode: ThreadMode) {
-        setThreadMode(nextMode);
-        setIsGroupFilterOpen(false);
-        privateThread.close();
-        reconcileActiveThread(
-            getVisibleThreads(
-                chat.threadItems,
-                search,
-                nextMode,
-                groupThreadFilter,
-            ),
+            getVisibleThreads(chat.threadItems, nextSearch, groupThreadFilter),
         );
     }
 
     function handleGroupThreadFilterChange(nextFilter: GroupThreadFilter) {
         setGroupThreadFilter(nextFilter);
         reconcileActiveThread(
-            getVisibleThreads(chat.threadItems, search, threadMode, nextFilter),
+            getVisibleThreads(chat.threadItems, search, nextFilter),
         );
     }
 
@@ -253,19 +220,11 @@ function DosenPesanBimbinganContent({
                 <ThreadList
                     activeThreadId={activeThread?.id ?? null}
                     badgeClassName={threadBadgeClassName}
-                    emptyState={
-                        threadMode === 'private'
-                            ? {
-                                  title: 'Belum ada chat pribadi',
-                                  description:
-                                      'Mulai dari tombol tambah kontak.',
-                              }
-                            : {
-                                  title: 'Tidak ada grup yang sesuai',
-                                  description:
-                                      'Cek pencarian atau filter grup.',
-                              }
-                    }
+                    emptyState={{
+                        title: 'Belum ada percakapan',
+                        description:
+                            'Mulai chat pribadi atau buka grup bimbingan yang tersedia.',
+                    }}
                     groupExtra={
                         isGroupFilterOpen ? (
                             <FilterPills
@@ -284,8 +243,6 @@ function DosenPesanBimbinganContent({
                     isMobile={isMobile}
                     messagesFor={chat.messagesFor}
                     mobileView={mobileView}
-                    mode={threadMode}
-                    onModeChange={changeThreadMode}
                     onSearchChange={handleSearchChange}
                     onSelect={selectThread}
                     privateRecipients={privateRecipients}
@@ -293,12 +250,12 @@ function DosenPesanBimbinganContent({
                     search={search}
                     threadTitle={(thread) => thread.student}
                     threads={chat.visibleThreads}
-                    title="Ruang Chat"
+                    title="Pesan"
                     tone="flat"
                 />
 
                 <ChatPanel
-                    emptyTitle="Pilih Grup Bimbingan"
+                    emptyTitle="Pilih percakapan"
                     footer={
                         activeThread?.isCompleted ? (
                             <div className="shrink-0 p-4 text-center">

@@ -6,11 +6,7 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { Composer } from '@/components/chat/composer';
 import { MessageList } from '@/components/chat/message-list';
 import { ThreadList } from '@/components/chat/thread-list';
-import {
-    type ChatThread,
-    type MobileView,
-    type ThreadMode,
-} from '@/components/chat/types';
+import { type ChatThread, type MobileView } from '@/components/chat/types';
 import { useChatThread } from '@/components/chat/use-chat-thread';
 import { useMessageSearch } from '@/components/chat/use-message-search';
 import { usePrivateThread } from '@/components/chat/use-private-thread';
@@ -56,18 +52,6 @@ function threadBadgeClassName(thread: ThreadItem): string {
         : 'bg-warning-muted text-warning-muted-foreground';
 }
 
-function initialThreadMode(threads: ThreadItem[]): ThreadMode {
-    const queryThread =
-        typeof window === 'undefined'
-            ? null
-            : Number(new URLSearchParams(window.location.search).get('thread'));
-
-    return threads.find((thread) => thread.id === queryThread)?.threadType ===
-        'private'
-        ? 'private'
-        : 'group';
-}
-
 export default function PesanPage() {
     const {
         threads: initialThreads,
@@ -100,9 +84,6 @@ function PesanPageContent({
     const [mobileView, setMobileView] = useState<MobileView>(() =>
         resolveInitialMobileView(initialThreads),
     );
-    const [threadMode, setThreadMode] = useState<ThreadMode>(() =>
-        initialThreadMode(initialThreads),
-    );
     const [threadListSearch, setThreadListSearch] = useState('');
 
     const privateThread = usePrivateThread('/mahasiswa/pesan/private');
@@ -110,19 +91,14 @@ function PesanPageContent({
     const selectVisible = useCallback(
         (threads: ThreadItem[]) =>
             activeFirst(
-                threads
-                    .filter((thread) =>
-                        threadMode === 'private'
-                            ? thread.threadType === 'private'
-                            : thread.threadType !== 'private',
-                    )
-                    .filter((thread) =>
-                        thread.name
-                            .toLowerCase()
-                            .includes(threadListSearch.trim().toLowerCase()),
-                    ),
+                threads.filter((thread) =>
+                    [thread.name, thread.threadLabel, ...thread.members]
+                        .join(' ')
+                        .toLowerCase()
+                        .includes(threadListSearch.trim().toLowerCase()),
+                ),
             ),
-        [threadListSearch, threadMode],
+        [threadListSearch],
     );
 
     const chat = useChatThread<ThreadItem>({
@@ -150,20 +126,6 @@ function PesanPageContent({
         setMobileView('chat');
     }
 
-    function changeThreadMode(nextMode: ThreadMode) {
-        const nextThread = chat.threadItems.find((thread) =>
-            nextMode === 'private'
-                ? thread.threadType === 'private'
-                : thread.threadType !== 'private',
-        );
-
-        setThreadMode(nextMode);
-        privateThread.close();
-        chat.setActiveThreadId(nextThread?.id ?? null);
-        syncThreadSearchParam(nextThread?.id ?? null);
-        setMobileView('threads');
-    }
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pesan" />
@@ -177,15 +139,11 @@ function PesanPageContent({
                     emptyState={{
                         title: 'Belum ada percakapan',
                         description:
-                            threadMode === 'private'
-                                ? 'Mulai dari tombol tambah kontak.'
-                                : 'Grup akan tampil setelah dosen pembimbing atau penguji ditetapkan.',
+                            'Mulai chat pribadi atau buka grup bimbingan yang tersedia.',
                     }}
                     isMobile={isMobile}
                     messagesFor={chat.messagesFor}
                     mobileView={mobileView}
-                    mode={threadMode}
-                    onModeChange={changeThreadMode}
                     onSearchChange={setThreadListSearch}
                     onSelect={selectThread}
                     privateRecipients={privateRecipients}

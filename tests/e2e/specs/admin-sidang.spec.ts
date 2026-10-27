@@ -118,10 +118,11 @@ async function openThreadList(
     await page.goto('/dosen/pesan-bimbingan');
     await redirect;
 
-    await page.getByRole('button', { name: 'Grup', exact: true }).click();
-    const searchInput = page.getByPlaceholder('Cari grup...');
+    const searchInput = page.getByPlaceholder('Cari percakapan...');
     await searchInput.fill(studentName);
-    await searchInput.locator('..').locator('..').getByRole('button').click();
+    await page
+        .getByRole('button', { name: 'Filter percakapan', exact: true })
+        .click();
     await page.getByRole('radio', { name: filterLabel, exact: true }).click();
 
     return page

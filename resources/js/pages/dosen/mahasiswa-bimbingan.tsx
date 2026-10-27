@@ -302,8 +302,8 @@ function StudentTable({
                         className={cn(
                             stackedTable.table,
                             showActions
-                                ? 'md:min-w-[940px]'
-                                : 'md:min-w-[820px]',
+                                ? 'md:min-w-[800px]'
+                                : 'md:min-w-[680px]',
                         )}
                     >
                         <thead className={stackedTable.thead}>
@@ -311,7 +311,6 @@ function StudentTable({
                                 <th className={dataTh}>Mahasiswa</th>
                                 <th className={dataTh}>Peran</th>
                                 <th className={dataTh}>Tahap</th>
-                                <th className={dataTh}>Bimbingan</th>
                                 <th className={dataTh}>Aktivitas Terbaru</th>
                                 {showActions && (
                                     <th className={dataTh}>
@@ -368,12 +367,25 @@ function StudentTable({
                                                             domain="ticket"
                                                             status="open"
                                                         >
-                                                            {reason.label}
+                                                            {reason.key ===
+                                                            'minimum'
+                                                                ? `${row.mentorshipCompleted} bimbingan`
+                                                                : reason.label}
                                                         </StatusBadge>
                                                     </li>
                                                 ))}
                                             </ul>
                                         ) : null}
+                                        {row.mentorshipCompleted !== null &&
+                                            !row.attention.some(
+                                                (reason) =>
+                                                    reason.key === 'minimum',
+                                            ) && (
+                                                <p className="mt-2 text-xs text-muted-foreground tabular-nums">
+                                                    {row.mentorshipCompleted}{' '}
+                                                    bimbingan
+                                                </p>
+                                            )}
                                     </td>
 
                                     <td
@@ -415,23 +427,6 @@ function StudentTable({
                                     </td>
 
                                     <td
-                                        data-label="Bimbingan"
-                                        data-label-hidden
-                                        className={cn(
-                                            stackedTable.td,
-                                            'tabular-nums',
-                                        )}
-                                    >
-                                        {row.mentorshipCompleted === null ? (
-                                            <span className="text-muted-foreground">
-                                                -
-                                            </span>
-                                        ) : (
-                                            `${row.mentorshipCompleted} bimbingan`
-                                        )}
-                                    </td>
-
-                                    <td
                                         data-label="Aktivitas Terbaru"
                                         className={cn(
                                             stackedTable.td,
@@ -455,7 +450,8 @@ function StudentTable({
                                                                 row.studentUserId ===
                                                                     null &&
                                                                 row.chatUrl ===
-                                                                    null
+                                                                    null &&
+                                                                !row.whatsappUrl
                                                             }
                                                         >
                                                             <MessageSquareText className="size-4" />
@@ -507,6 +503,23 @@ function StudentTable({
                                                             <MessageSquareText className="size-4" />
                                                             Chat pribadi
                                                         </DropdownMenuItem>
+                                                        {row.whatsappUrl && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                                className="text-success focus:text-success"
+                                                            >
+                                                                <a
+                                                                    href={
+                                                                        row.whatsappUrl
+                                                                    }
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                >
+                                                                    <WhatsAppIcon className="size-4 text-success" />
+                                                                    WhatsApp
+                                                                </a>
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                                 <DropdownMenu>
@@ -586,23 +599,6 @@ function StudentTable({
                                                                 Ujian
                                                             </Link>
                                                         </DropdownMenuItem>
-                                                        {row.whatsappUrl && (
-                                                            <DropdownMenuItem
-                                                                asChild
-                                                                className="text-success focus:text-success"
-                                                            >
-                                                                <a
-                                                                    href={
-                                                                        row.whatsappUrl
-                                                                    }
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                >
-                                                                    <WhatsAppIcon className="size-4 text-success" />
-                                                                    WhatsApp
-                                                                </a>
-                                                            </DropdownMenuItem>
-                                                        )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>

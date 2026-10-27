@@ -475,12 +475,19 @@ test('exam detail opens the existing group, or private student chat when no grou
             );
             await page
                 .getByRole('dialog')
-                .locator('a[href*="/dosen/pesan?mode=private"]')
+                .getByRole('link', {
+                    name: 'Chat pribadi mahasiswa',
+                    exact: true,
+                })
                 .click();
             await expect(page).toHaveURL(
                 (url) =>
                     url.pathname === '/dosen/pesan' &&
-                    url.searchParams.get('mode') === 'private',
+                    /^\d+$/.test(
+                        url.searchParams.get('recipient') ??
+                            url.searchParams.get('thread') ??
+                            '',
+                    ),
             );
             if (new URL(page.url()).searchParams.has('recipient')) {
                 await page
@@ -493,7 +500,6 @@ test('exam detail opens the existing group, or private student chat when no grou
             await expect(page).toHaveURL(
                 (url) =>
                     url.pathname === '/dosen/pesan' &&
-                    url.searchParams.get('mode') === 'private' &&
                     /^\d+$/.test(url.searchParams.get('thread') ?? ''),
             );
             await expect(

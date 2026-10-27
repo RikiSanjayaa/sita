@@ -1110,6 +1110,6 @@ it('links only an authorized matching exam group and otherwise offers the studen
             ->where('defenses.0.chatUrl', fn (string $url): bool => parse_url($url, PHP_URL_PATH) === '/dosen/pesan'
                 && parse_url($url, PHP_URL_QUERY) === ($threadCase === 'member'
                     ? 'thread='.$thread->id
-                    : 'mode=private&recipient='.$student->id)));
+                    : 'recipient='.$student->id)));
     expect(MentorshipChatThread::query()->count())->toBe($threadCount);
 })->with(['member', 'missing', 'not-member', 'wrong-type']);

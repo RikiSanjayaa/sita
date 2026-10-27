@@ -582,8 +582,8 @@ export function readRequestPattern(threadId: number): RegExp {
 }
 
 /**
- * Opens a private thread the way a user does: Pesan, "Pribadi", search the
- * partner by name, click the row. Returns once the thread composer is usable.
+ * Opens a private thread through the unified list: search the partner, then
+ * choose the intended conversation even when a group has the same name.
  * With `expectRead` it also waits for the successful receipt request that
  * marks the thread read.
  */
@@ -621,15 +621,9 @@ export async function openPrivateThread(
 
     try {
         await page.goto(viewer.pesanPath);
-        await page
-            .getByRole('button', { name: 'Pribadi', exact: true })
-            .click();
-        await page.getByPlaceholder('Cari chat pribadi...').fill(partner.name);
+        await page.getByPlaceholder('Cari percakapan...').fill(partner.name);
 
-        const row = page
-            .locator('button')
-            .filter({ hasText: partner.name })
-            .first();
+        const row = page.locator(`[data-thread-id="${thread.id}"]`);
         await expect(row).toBeVisible();
         await row.click();
         await expect(page.getByPlaceholder('Tulis pesan...')).toBeEnabled();

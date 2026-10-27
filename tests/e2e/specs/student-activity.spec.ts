@@ -69,9 +69,7 @@ test('student chat and lecturer-completed mentorship advance latest activity bey
         const oldDocumentActivity = (await latest.innerText()).trim();
         const recentActivity = /detik|menit/;
         await expect(latest).not.toContainText(recentActivity);
-        await expect(row.locator('[data-label="Bimbingan"]')).toHaveText(
-            '0 bimbingan',
-        );
+        await expect(row.locator('td').first()).toContainText('0 bimbingan');
 
         await studentPage.goto(`/mahasiswa/pesan?thread=${threadId}`);
         const message = `Perkembangan naskah ${token}`;
@@ -125,9 +123,7 @@ test('student chat and lecturer-completed mentorship advance latest activity bey
         await expect(latest).not.toHaveText(oldDocumentActivity);
         await expect(latest).not.toHaveText(agedChatActivity);
         await expect(latest).toContainText(recentActivity);
-        await expect(row.locator('[data-label="Bimbingan"]')).toHaveText(
-            '1 bimbingan',
-        );
+        await expect(row.locator('td').first()).toContainText('1 bimbingan');
 
         // Keep the completed session newer than the group chat, but old enough
         // that a private student message must visibly advance activity again.
@@ -212,9 +208,7 @@ test('student chat and lecturer-completed mentorship advance latest activity bey
         await expect(latest).not.toHaveText(oldDocumentActivity);
         await expect(latest).not.toHaveText(completedSessionActivity);
         await expect(latest).toContainText(recentActivity);
-        await expect(row.locator('[data-label="Bimbingan"]')).toHaveText(
-            '1 bimbingan',
-        );
+        await expect(row.locator('td').first()).toContainText('1 bimbingan');
     } finally {
         await studentContext.close();
         await lecturerContext.close();

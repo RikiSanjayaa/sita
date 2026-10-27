@@ -275,7 +275,6 @@ async function expectChatContext(
         ).toBeVisible();
         return;
     }
-    expect(destination.searchParams.get('mode')).toBe('private');
     expect(destination.searchParams.get('recipient')).toMatch(/^\d+$/);
     await link.click();
     await expect(page).toHaveURL(destination.href);
@@ -310,7 +309,6 @@ async function expectChatContext(
         (await existing.getAttribute('href'))!,
         page.url(),
     );
-    expect(existingDestination.searchParams.get('mode')).toBe('private');
     expect(existingDestination.searchParams.get('thread')).toMatch(/^\d+$/);
     expect(existingDestination.searchParams.has('recipient')).toBe(false);
     await existing.click();

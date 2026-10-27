@@ -254,7 +254,7 @@ for (const layout of ['desktop-switch', 'mobile-list'] as const) {
                 ).not.toBeVisible();
             }
             await recipient.page
-                .getByPlaceholder('Cari chat pribadi...')
+                .getByPlaceholder('Cari percakapan...')
                 .fill('');
             await openPrivateThread(
                 sender.page,

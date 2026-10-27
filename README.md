@@ -179,6 +179,14 @@ Daftar dokumen mahasiswa, dosen dan kaprodi, notifikasi, serta aksi Tinjau pada 
 
 Dosen penerima mengisi Catatan dosen langsung pada halaman. Minta revisi wajib disertai catatan; Setujui boleh tanpa catatan atau menyimpan masukan persetujuan. Setiap dosen mengubah salinannya sendiri. Navigasi keluar dari draft yang belum disimpan meminta konfirmasi; membatalkannya mempertahankan isi. Versi lama, penugasan berakhir, mahasiswa tidak aktif, masa aktif habis dan data selesai/arsip hanya dapat dibaca.
 
+## Workspace percakapan
+
+Grup bimbingan/ujian dan chat pribadi muncul dalam satu daftar dengan pencarian bersama. Ikon grup/pribadi, label konteks akademik dan peserta membedakan percakapan; urutan mengikuti aktivitas terakhir, dengan ID sebagai pembeda saat waktunya sama. Percakapan tugas akhir selesai tetap berada dalam bagian Selesai yang hanya dapat dibaca. Parameter `thread` membuka percakapan yang dituju tanpa perlu memilih tab jenis chat.
+
+Desktop menampilkan daftar dan percakapan dalam satu workspace ber-divider. Pada ponsel hanya daftar atau percakapan yang tampil; tombol kembali membuka daftar. Pengiriman, lampiran, receipt, unread dan batas akses tetap memakai alur yang sama.
+
+Pada Mahasiswa Dosen, dropdown Chat memuat chat grup, pribadi dan WhatsApp bila kontak tersedia; WhatsApp tidak lagi berada pada Aksi lainnya. Jumlah tampil sebagai `x bimbingan` dalam informasi mahasiswa, tanpa kolom berulang atau perubahan aturan minimum. Perbarui profil menandai nomor HP dengan badge WhatsApp, tanpa tautan chat ke nomor sendiri; edit, konfirmasi dan salin nomor tetap tersedia.
+
 ## Indikator pesan belum dibaca
 
 Menu Pesan pada portal mahasiswa, dosen, dan kaprodi menampilkan jumlah pesan dari orang lain yang belum dibaca dalam percakapan yang dapat diakses, bukan jumlah percakapan. Badge merah memakai warna yang sama dengan lonceng: tepat setelah label pada sidebar/drawer, atau menempel ikon saat sidebar diciutkan. Nilai di atas 99 ditampilkan sebagai `99+`; label aksesibel tetap menyebut jumlah lengkap. Nilai nol tidak menampilkan badge. Pesan sendiri dan event dokumen sistem tidak dihitung. Membuka daftar percakapan saja tidak mengurangi jumlah; receipt disimpan untuk pesan terakhir yang benar-benar tampil pada percakapan aktif, saat tab terlihat dan jendela fokus. Jendela yang terlihat tetapi tidak fokus tidak memajukan receipt atau membaca notifikasi chat secara otomatis. Saat fokus kembali, hanya notifikasi untuk percakapan yang sedang terbuka ditandai dibaca; notifikasi percakapan lain dan kategori akademik tetap terpisah. Lonceng menghitung notifikasi global, bukan hanya chat.
