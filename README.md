@@ -177,7 +177,11 @@ Nama berkas membuka halaman detail snapshot yang dapat direload dan kembali ke a
 
 Daftar dokumen mahasiswa, dosen dan kaprodi, notifikasi, serta aksi Tinjau pada lampiran chat menuju halaman detail ber-URL tetap sesuai portal dan versi. Halaman menampilkan metadata, seluruh catatan tiap dosen dan riwayat versi. Akses tetap diperiksa server; kaprodi memerlukan capability lihat dokumen dalam prodinya, sedangkan buka/unduh memerlukan capability unduh terpisah.
 
-Dosen penerima mengisi Catatan dosen langsung pada halaman. Minta revisi wajib disertai catatan; Setujui boleh tanpa catatan atau menyimpan masukan persetujuan. Setiap dosen mengubah salinannya sendiri. Navigasi keluar dari draft yang belum disimpan meminta konfirmasi; membatalkannya mempertahankan isi. Versi lama, penugasan berakhir, mahasiswa tidak aktif, masa aktif habis dan data selesai/arsip hanya dapat dibaca.
+Dosen penerima mengisi catatan atau butir revisi langsung pada halaman. Minta revisi wajib disertai catatan atau butir; Setujui boleh tanpa catatan atau menyimpan masukan persetujuan. Setiap dosen mengubah salinannya sendiri. Navigasi keluar dari draft yang belum disimpan meminta konfirmasi; membatalkannya mempertahankan isi. Dosen tidak dapat mengubah review versi lama atau penugasan berakhir; mahasiswa tidak aktif, masa aktif habis dan data selesai/arsip tidak dapat menyelesaikan butir.
+
+Mahasiswa pemilik dapat menandai setiap butir revisi dosen selesai dan membukanya kembali bila keliru. Unggah pembaruan berkas tetap tanggung jawab mahasiswa, bukan syarat penyelesaian butir. Dosen melihat status dan waktu penyelesaian setiap butir; tidak ada langkah persetujuan tambahan. `Revisi selesai` berarti seluruh permintaan revisi pada versi tersebut selesai, bukan dokumen `approved` atau bukti berkas pengganti telah diunggah. Butir baru atau uraian yang diubah kembali terbuka; butir yang tidak berubah mempertahankan penyelesaiannya. Review dosen lain dan versi lain tidak ikut berubah. Hak review dosen dan pembacaan kaprodi tetap mengikuti scope sebelumnya; kartu Hanya baca dihapus tanpa melonggarkan akses.
+
+Migrasi `add_revision_items_to_mentorship_documents_table` menyimpan butir pada tiap salinan review. Catatan revisi lama menjadi satu butir utuh, termasuk baris dan tanda bacanya; masukan persetujuan tidak menjadi permintaan revisi. Jalankan migrasi sebelum memakai fitur ini. Rollback migrasi menghapus data penyelesaian per butir; simpan backup sebelum rollback. Ini terpisah dari revisi ujian `ThesisRevisionItem`.
 
 ## Indikator pesan belum dibaca
 

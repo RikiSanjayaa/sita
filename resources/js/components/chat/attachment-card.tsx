@@ -17,6 +17,7 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
     draft: 'Draf',
     submitted: 'Menunggu Review',
     needs_revision: 'Perlu Revisi',
+    revision_completed: 'Revisi selesai',
     approved: 'Disetujui',
     rejected: 'Ditolak',
 };

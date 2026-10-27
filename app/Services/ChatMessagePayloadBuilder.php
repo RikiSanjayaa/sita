@@ -58,7 +58,7 @@ class ChatMessagePayloadBuilder
                 ? route('files.chat-attachments.preview', ['message' => $message->id])
                 : null,
             'relatedDocumentId' => $message->related_document_id,
-            'reviewStatus' => $message->relatedDocument?->status,
+            'reviewStatus' => $message->relatedDocument === null ? null : DocumentRevisionService::displayStatus($message->relatedDocument),
             'documentEventKind' => $this->documentEventKind($message),
             'ownReview' => $this->ownReview($message, $ownReviews),
         ];
@@ -99,7 +99,7 @@ class ChatMessagePayloadBuilder
                 ->orWhereIn('id', $documents->whereNull('document_group')->pluck('id')->all()))
             ->get()
             ->mapWithKeys(fn (MentorshipDocument $copy): array => [
-                self::copyKey($copy) => ['id' => $copy->id, 'status' => $copy->status, 'detailUrl' => DocumentDetailService::workspaceUrl($copy, 'dosen')],
+                self::copyKey($copy) => ['id' => $copy->id, 'status' => DocumentRevisionService::displayStatus($copy), 'detailUrl' => DocumentDetailService::workspaceUrl($copy, 'dosen')],
             ])
             ->all();
     }

@@ -32,6 +32,7 @@ class MentorshipDocument extends Model
         'file_size_kb',
         'status',
         'revision_notes',
+        'revision_items',
         'reviewed_at',
         'uploaded_by_user_id',
         'uploaded_by_role',
@@ -44,6 +45,7 @@ class MentorshipDocument extends Model
     {
         return [
             'reviewed_at' => 'datetime',
+            'revision_items' => 'array',
             'version_number' => 'integer',
         ];
     }

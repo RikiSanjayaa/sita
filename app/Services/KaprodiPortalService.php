@@ -223,7 +223,7 @@ class KaprodiPortalService
             ->map(function (Collection $documents, string $key) use ($canDownload): array {
                 /** @var MentorshipDocument $document */
                 $document = $documents->sortByDesc('created_at')->first();
-                $counts = $this->documentReviewCounts($documents->pluck('status'));
+                $counts = $this->documentReviewCounts($documents->map(fn (MentorshipDocument $copy): string => DocumentRevisionService::displayStatus($copy)));
 
                 return [
                     'id' => 'workspace-'.md5($key),
@@ -235,11 +235,12 @@ class KaprodiPortalService
                     'file' => $document->file_name,
                     'uploadedAt' => WitaDateTime::format($document->created_at, withLabel: false),
                     'uploadedSort' => $document->created_at?->getTimestamp() ?? 0,
-                    'status' => $this->aggregateDocumentStatus($documents->pluck('status')),
+                    'status' => $this->aggregateDocumentStatus($documents->map(fn (MentorshipDocument $copy): string => DocumentRevisionService::displayStatus($copy))),
                     'reviewCount' => $documents->count(),
                     'pendingCount' => $counts['pending'],
                     'revisionCount' => $counts['revision'],
                     'approvedCount' => $counts['approved'],
+                    'completedRevisionCount' => $counts['completed'],
                     'fileUrl' => ! $canDownload ? null : ($document->storage_path === null
                         ? $document->file_url
                         : route('files.documents.download', ['document' => $document->id, 'portal' => 'kaprodi'])),
@@ -249,7 +250,7 @@ class KaprodiPortalService
                         ->map(fn(MentorshipDocument $review): array => [
                             'id' => $review->id,
                             'reviewer' => $review->lecturer?->name ?? 'Belum diarahkan',
-                            'status' => $this->statusLabel($review->status),
+                            'status' => $this->statusLabel(DocumentRevisionService::displayStatus($review)),
                             'revisionNotes' => $review->revision_notes,
                             'uploadedAt' => WitaDateTime::format($review->created_at, withLabel: false),
                             'reviewedAt' => WitaDateTime::formatOrNull($review->reviewed_at),
@@ -283,6 +284,7 @@ class KaprodiPortalService
                     'pendingCount' => $counts['pending'],
                     'revisionCount' => $counts['revision'],
                     'approvedCount' => $counts['approved'],
+                    'completedRevisionCount' => $counts['completed'],
                     'fileUrl' => $canDownload ? route('files.thesis-documents.download', ['document' => $document->id, 'portal' => 'kaprodi']) : null,
                     'profileUrl' => route('users.profile.show', ['user' => $document->project?->student_user_id]),
                     'reviews' => [
@@ -890,6 +892,7 @@ class KaprodiPortalService
             'fail' => 'Tidak Lulus',
             'approved' => 'Disetujui',
             'needs_revision' => 'Perlu Revisi',
+            'revision_completed' => 'Revisi selesai',
             'open' => 'Terbuka',
             'submitted' => 'Dikirim',
             'resolved' => 'Selesai',
@@ -939,6 +942,9 @@ class KaprodiPortalService
         if ($statuses->contains('needs_revision')) {
             return 'Perlu Revisi';
         }
+        if ($statuses->contains('revision_completed')) {
+            return 'Revisi selesai';
+        }
 
         if ($statuses->contains(fn(?string $status): bool => $status !== 'approved')) {
             return 'Perlu Review';
@@ -948,14 +954,15 @@ class KaprodiPortalService
     }
 
     /**
-     * @return array{pending: int, revision: int, approved: int}
+     * @return array{pending: int, revision: int, approved: int, completed: int}
      */
     private function documentReviewCounts(Collection $statuses): array
     {
         return [
-            'pending' => $statuses->filter(fn(?string $status): bool => ! in_array($status, ['approved', 'needs_revision'], true))->count(),
+            'pending' => $statuses->filter(fn(?string $status): bool => ! in_array($status, ['approved', 'needs_revision', 'revision_completed'], true))->count(),
             'revision' => $statuses->filter(fn(?string $status): bool => $status === 'needs_revision')->count(),
             'approved' => $statuses->filter(fn(?string $status): bool => $status === 'approved')->count(),
+            'completed' => $statuses->filter(fn(?string $status): bool => $status === 'revision_completed')->count(),
         ];
     }
 
