@@ -406,6 +406,15 @@
     --sidebar-ring: #b6b9ae;
 }
 
+/* Chat keeps the current scheme, with a deeper conversation surface in dark mode. */
+.chat-workspace {
+    --chat-surface: var(--background);
+}
+
+.dark .chat-workspace {
+    --chat-surface: color-mix(in srgb, var(--background) 50%, #000000);
+}
+
 @layer base {
     html {
         scrollbar-width: thin;

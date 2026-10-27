@@ -1,27 +1,22 @@
 import { cn } from '@/lib/utils';
 
-import { type ChatTone } from './types';
-
-/** Class names for the list/chat cards and their headers, per tone. */
+/** Shared workspace, conversation and list surfaces. */
 export const chatStyles = {
     chatCard: (isMobile: boolean): string =>
         cn(
-            'm-3 flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden rounded-2xl border !p-0 shadow-none',
-            'bg-card',
-            isMobile && 'm-2',
+            'relative my-2 mr-2 ml-0 flex min-h-0 min-w-0 flex-1 flex-col !gap-0 overflow-hidden rounded-xl border-0 bg-[var(--chat-surface)] !p-0 shadow-none',
+            isMobile && 'm-0 rounded-none',
         ),
     chatHeader: (isMobile: boolean): string =>
-        cn('shrink-0 border-b bg-card px-3 py-2.5', isMobile && 'px-2'),
-    listCard: (tone: ChatTone, isMobile: boolean): string =>
         cn(
-            'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-none border-0 !p-0 shadow-none lg:h-full lg:border-r',
-            tone === 'raised' ? 'bg-card' : 'bg-background',
+            'pointer-events-none absolute inset-x-0 top-0 z-10 !block bg-linear-to-b from-[var(--chat-surface)] from-60% to-transparent px-3 pt-3 pb-8',
+            isMobile && 'px-2',
+        ),
+    listCard: (isMobile: boolean): string =>
+        cn(
+            'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-none border-0 bg-card !p-0 shadow-none lg:h-full',
             isMobile && 'w-full',
         ),
-    listHeader: (tone: ChatTone, isMobile: boolean): string =>
-        cn(
-            'shrink-0 space-y-3 border-b px-4 py-3',
-            tone === 'raised' ? 'bg-muted/20' : 'bg-muted/30',
-            isMobile && 'py-4',
-        ),
+    listHeader: (isMobile: boolean): string =>
+        cn('shrink-0 space-y-3 bg-card px-4 py-3', isMobile && 'py-4'),
 };

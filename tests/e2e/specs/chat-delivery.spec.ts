@@ -488,6 +488,39 @@ test('reading chat history stays put on incoming messages and latest-message con
             info,
             'dosen-compact-conversation',
         );
+        await reader.page
+            .getByRole('button', {
+                name: 'Cari di percakapan ini',
+                exact: true,
+            })
+            .click();
+        const searchInput = reader.page.getByPlaceholder(
+            'Cari di percakapan ini...',
+        );
+        await searchInput.fill('Catatan pembimbing demo 12');
+        await expect(
+            reader.page.getByText('1 dari 1 hasil', { exact: true }),
+        ).toBeVisible();
+        const match = history.getByText('Catatan pembimbing demo 12', {
+            exact: true,
+        });
+        await expect(match).toBeInViewport();
+        await expect
+            .poll(async () => {
+                const resultBox = await match.boundingBox();
+                const inputBox = await searchInput.boundingBox();
+                return (
+                    resultBox !== null &&
+                    inputBox !== null &&
+                    resultBox.y >= inputBox.y + inputBox.height
+                );
+            })
+            .toBe(true);
+        await attachDocumentStates(
+            reader.page,
+            info,
+            'mahasiswa-overlay-search',
+        );
     } finally {
         await Promise.all([reader.close(), sender.close()]);
         fixture.cleanup();

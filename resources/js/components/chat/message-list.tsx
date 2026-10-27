@@ -11,6 +11,7 @@ import {
 import { ChatBubble } from '@/components/chat-bubble';
 import { Button } from '@/components/ui/button';
 import { CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 import { ChatEmptyState } from './empty-state';
 import { type ChatMessage, type ChatTone } from './types';
@@ -108,7 +109,12 @@ export function MessageList({
     }, [threadId]);
 
     return (
-        <CardContent className="relative min-h-0 flex-1 overflow-hidden p-0">
+        <CardContent
+            className={cn(
+                'relative min-h-0 flex-1 overflow-hidden p-0',
+                search.isOpen ? 'pt-48' : 'pt-24',
+            )}
+        >
             <div
                 ref={viewportRef}
                 role="region"

@@ -98,9 +98,9 @@ export function ThreadList<T extends ChatThread>({
                 title={threadTitle(thread)}
                 aria-current={activeThreadId === thread.id ? 'true' : undefined}
                 className={cn(
-                    'flex min-h-17 w-full shrink-0 items-center gap-3 border-b px-4 py-2.5 text-left transition-colors last:border-b-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset',
+                    'mx-2 flex min-h-17 shrink-0 items-center gap-3 rounded-sm border border-transparent px-2 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset',
                     activeThreadId === thread.id
-                        ? 'bg-primary-muted'
+                        ? 'border-border bg-muted'
                         : 'hover:bg-muted/50',
                 )}
                 onClick={() => onSelect(thread.id)}
@@ -144,12 +144,12 @@ export function ThreadList<T extends ChatThread>({
         <aside
             aria-label="Daftar percakapan"
             className={cn(
-                chatStyles.listCard(tone, isMobile),
+                chatStyles.listCard(isMobile),
                 mobileView === 'chat' && 'hidden lg:flex',
                 mobileView === 'threads' && 'flex-1 lg:flex-initial',
             )}
         >
-            <header className={chatStyles.listHeader(tone, isMobile)}>
+            <header className={chatStyles.listHeader(isMobile)}>
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold">{title}</h2>
                     <div className="flex items-center gap-1">

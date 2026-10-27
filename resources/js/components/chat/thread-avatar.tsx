@@ -12,22 +12,34 @@ import { type ChatThread } from './types';
 export function ThreadAvatar({
     thread,
     className,
+    header = false,
 }: {
     thread: ChatThread;
     className?: string;
+    header?: boolean;
 }) {
     const { auth } = usePage<SharedData>().props;
     const members = thread.memberProfiles.filter(
         (member) => member.id !== auth.user.id,
     );
     const isPrivate = thread.threadType === 'private';
-    const visible = members.slice(0, isPrivate ? 1 : 3);
+    const visible = members.slice(0, isPrivate ? 1 : 2);
     const Icon = isPrivate ? UserRound : Users;
 
     return (
         <span
             aria-hidden="true"
-            className={cn('relative block size-11 shrink-0', className)}
+            className={cn(
+                'relative block shrink-0',
+                visible.length > 1
+                    ? header
+                        ? 'h-12 w-18'
+                        : 'h-11 w-14'
+                    : header
+                      ? 'size-12'
+                      : 'size-11',
+                className,
+            )}
         >
             {visible.length === 0 ? (
                 <span className="flex size-full items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -41,24 +53,18 @@ export function ThreadAvatar({
                             'absolute border-2 border-card',
                             visible.length === 1
                                 ? 'inset-0 size-full'
-                                : visible.length === 2
-                                  ? 'size-6'
-                                  : 'size-5',
+                                : header
+                                  ? 'size-10'
+                                  : 'size-8',
                             visible.length > 1 && index === 0 && 'top-0 left-0',
                             visible.length > 1 &&
                                 index === 1 &&
                                 'right-0 bottom-0',
-                            visible.length === 3 &&
-                                index === 1 &&
-                                'top-0 right-0 bottom-auto',
-                            visible.length === 3 &&
-                                index === 2 &&
-                                'bottom-0 left-3',
                         )}
                     >
                         <AvatarImage src={member.avatar ?? undefined} alt="" />
                         <AvatarFallback className="bg-primary-muted text-xs font-medium text-primary-muted-foreground">
-                            {getInitials(member.name)}
+                            <span>{getInitials(member.name)}</span>
                         </AvatarFallback>
                     </Avatar>
                 ))
