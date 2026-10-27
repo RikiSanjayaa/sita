@@ -12,6 +12,8 @@ use App\Models\ThesisProjectNote;
 use App\Models\ThesisProjectTitle;
 use App\Models\ThesisRevision;
 use App\Models\ThesisSupervisorAssignment;
+use App\Models\User;
+use App\Services\MentorshipSessionNoteService;
 use App\Support\AcademicTerminology;
 use App\Support\DefenseRevisionLog;
 use App\Support\Filament\BadgeStyles;
@@ -180,6 +182,11 @@ class ThesisProjectInfolist
                                     ->description('Catatan pembimbing dan penguji. Hanya dapat dibaca di sini.')
                                     ->schema([
                                         self::projectNotesEntry(),
+                                    ]),
+                                Section::make('Catatan sesi bimbingan')
+                                    ->description('Catatan mahasiswa dan dosen per sesi. Hanya dapat dibaca di sini.')
+                                    ->schema([
+                                        self::sessionNotesEntry(),
                                     ]),
                             ]),
                     ]),
@@ -526,6 +533,24 @@ class ThesisProjectInfolist
                 TextEntry::make('created_at'),
             ])
             ->contained(false);
+    }
+
+    private static function sessionNotesEntry(): ViewEntry
+    {
+        return ViewEntry::make('mentorship_session_notes')
+            ->label('Catatan sesi bimbingan')
+            ->hiddenLabel()
+            ->default([])
+            ->state(function (ThesisProject $record): array {
+                $viewer = auth()->user();
+
+                if (! $viewer instanceof User) {
+                    return [];
+                }
+
+                return app(MentorshipSessionNoteService::class)->forProject($record, $viewer);
+            })
+            ->view('filament.infolists.mentorship-session-notes');
     }
 
     private static function nextAdminStepLabel(ThesisProject $record): string

@@ -3,6 +3,7 @@ import {
     Calendar,
     CheckCircle2,
     Clock,
+    Eye,
     Inbox,
     MapPin,
     Plus,
@@ -16,6 +17,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArchivedMentorshipNotice } from '@/components/archived-mentorship-notice';
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
+import { RowIconButton } from '@/components/kaprodi/row-icon-button';
+import { type MentorshipSessionNotesData } from '@/components/mentorship-session-notes';
 import {
     DataSection,
     DataToolbar,
@@ -26,7 +29,10 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import {
+    ScheduleDetailDrawer,
+    type ScheduleDetail,
+} from '@/components/schedule-detail-drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,6 +83,7 @@ type UpcomingMeeting = {
     status: ScheduleStatus;
     lecturerNote: string | null;
     createdByLecturer: boolean;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type HistoryMeeting = {
@@ -89,6 +96,7 @@ type HistoryMeeting = {
     status: ScheduleStatus;
     lecturerNote: string | null;
     createdByLecturer: boolean;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type JadwalPageProps = {
@@ -277,19 +285,22 @@ export default function JadwalBimbinganPage() {
         });
     }
 
-    const [selectedEvent, setSelectedEvent] = useState<{
-        id: number;
-        topic: string;
-        person: string;
-        personRole: 'lecturer' | 'student';
-        start: string;
-        end: string;
-        location: string;
-        status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-        notes?: string | null;
-    } | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<ScheduleDetail | null>(
+        null,
+    );
+    const selectedMeeting = [
+        ...page.props.upcomingMeetings,
+        ...page.props.historyMeetings,
+    ].find((meeting) => meeting.id === selectedEvent?.id);
+    const selectedDetail = selectedEvent
+        ? {
+              ...selectedEvent,
+              notes: selectedMeeting?.lecturerNote ?? selectedEvent.notes,
+              sessionNotes: selectedMeeting?.sessionNotes,
+          }
+        : null;
 
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
 
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return '-';
@@ -354,29 +365,32 @@ export default function JadwalBimbinganPage() {
         }),
     ];
 
+    function openMeeting(meeting: UpcomingMeeting | HistoryMeeting) {
+        const start =
+            meeting.scheduledAt ||
+            ('requestedAt' in meeting ? meeting.requestedAt : '');
+        const end = new Date(new Date(start).getTime() + 60 * 60 * 1000);
+        setSelectedEvent({
+            id: meeting.id,
+            topic: meeting.topic,
+            person: meeting.lecturer,
+            personRole: 'lecturer',
+            start,
+            end: Number.isNaN(end.getTime()) ? start : end.toISOString(),
+            location: meeting.location,
+            status: meeting.status,
+            notes: meeting.lecturerNote,
+            sessionNotes: meeting.sessionNotes,
+        });
+        setIsDetailDrawerOpen(true);
+    }
+
     function handleEventClick(event: BimbinganEvent) {
-        const fullMeeting = [
+        const meeting = [
             ...page.props.upcomingMeetings,
             ...page.props.historyMeetings,
-        ].find((m) => m.id === event.id);
-        if (!fullMeeting) return;
-        setSelectedEvent({
-            id: fullMeeting.id,
-            topic: fullMeeting.topic,
-            person: fullMeeting.lecturer,
-            personRole: 'lecturer',
-            start: event.start,
-            end: event.end,
-            location: fullMeeting.location,
-            status: fullMeeting.status as
-                | 'pending'
-                | 'approved'
-                | 'rejected'
-                | 'completed'
-                | 'cancelled',
-            notes: fullMeeting.lecturerNote,
-        });
-        setIsDetailModalOpen(true);
+        ].find((item) => item.id === Number(event.id));
+        if (meeting) openMeeting(meeting);
     }
 
     const selectTrigger = 'max-md:h-11';
@@ -810,6 +824,11 @@ export default function JadwalBimbinganPage() {
                                                 <th className={dataTh}>
                                                     Catatan Dosen
                                                 </th>
+                                                <th className={dataTh}>
+                                                    <span className="sr-only">
+                                                        Aksi
+                                                    </span>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody
@@ -955,6 +974,27 @@ export default function JadwalBimbinganPage() {
                                                                 </span>
                                                             )}
                                                         </td>
+                                                        <td
+                                                            className={
+                                                                stackedTable.tdActions
+                                                            }
+                                                        >
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <RowIconButton
+                                                                    label={`Detail sesi ${meeting.topic}`}
+                                                                    onClick={() =>
+                                                                        openMeeting(
+                                                                            meeting,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Eye
+                                                                        aria-hidden="true"
+                                                                        className="size-4"
+                                                                    />
+                                                                </RowIconButton>
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 ),
                                             )}
@@ -1036,6 +1076,11 @@ export default function JadwalBimbinganPage() {
                                                 </th>
                                                 <th className={dataTh}>
                                                     Status
+                                                </th>
+                                                <th className={dataTh}>
+                                                    <span className="sr-only">
+                                                        Aksi
+                                                    </span>
                                                 </th>
                                             </tr>
                                         </thead>
@@ -1131,6 +1176,27 @@ export default function JadwalBimbinganPage() {
                                                                 }
                                                             />
                                                         </td>
+                                                        <td
+                                                            className={
+                                                                stackedTable.tdActions
+                                                            }
+                                                        >
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <RowIconButton
+                                                                    label={`Detail sesi ${row.topic}`}
+                                                                    onClick={() =>
+                                                                        openMeeting(
+                                                                            row,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Eye
+                                                                        aria-hidden="true"
+                                                                        className="size-4"
+                                                                    />
+                                                                </RowIconButton>
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 ),
                                             )}
@@ -1157,10 +1223,10 @@ export default function JadwalBimbinganPage() {
                 )}
             </div>
 
-            <ScheduleDetailModal
-                open={isDetailModalOpen}
-                onOpenChange={setIsDetailModalOpen}
-                schedule={selectedEvent}
+            <ScheduleDetailDrawer
+                open={isDetailDrawerOpen}
+                onOpenChange={setIsDetailDrawerOpen}
+                schedule={selectedDetail}
                 currentUserRole="mahasiswa"
             />
         </AppLayout>

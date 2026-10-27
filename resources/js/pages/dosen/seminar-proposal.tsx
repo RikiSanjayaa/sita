@@ -38,7 +38,7 @@ import {
     type DraftItem,
     RevisionItemsEditor,
 } from '@/components/revision-items-editor';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import { ScheduleDetailDrawer } from '@/components/schedule-detail-drawer';
 import {
     type ProjectNotes,
     ThesisNotesPanel,
@@ -873,7 +873,7 @@ export default function DosenSeminarProposalPage() {
             | 'cancelled';
         notes?: string | null;
     } | null>(null);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
 
     const filteredDefenses = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -957,7 +957,7 @@ export default function DosenSeminarProposalPage() {
             status: event.status,
             notes: null,
         });
-        setIsDetailModalOpen(true);
+        setIsDetailDrawerOpen(true);
     }
 
     const workspaceFilterTabs: { label: string; value: WorkspaceFilter }[] = [
@@ -1245,9 +1245,9 @@ export default function DosenSeminarProposalPage() {
                 }}
             />
 
-            <ScheduleDetailModal
-                open={isDetailModalOpen}
-                onOpenChange={setIsDetailModalOpen}
+            <ScheduleDetailDrawer
+                open={isDetailDrawerOpen}
+                onOpenChange={setIsDetailDrawerOpen}
                 schedule={selectedEvent}
                 currentUserRole="dosen"
             />

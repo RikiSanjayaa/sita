@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\DosenBimbinganService;
 use App\Services\DosenScheduleWorkspaceService;
 use App\Services\MentorshipScheduleService;
+use App\Services\MentorshipSessionNoteService;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +34,7 @@ class JadwalBimbinganController extends Controller
     {
         $lecturer = $request->user();
         abort_if($lecturer === null, 401);
+        $sessionNotes = app(MentorshipSessionNoteService::class);
 
         $activeStudentIds = $this->dosenBimbinganService->activeStudentIds($lecturer);
 
@@ -55,16 +57,17 @@ class JadwalBimbinganController extends Controller
             ->all();
 
         $schedules = MentorshipSchedule::query()
-            ->with('student')
+            ->with(['student.mahasiswaProfile', 'lecturer'])
             ->where('lecturer_user_id', $lecturer->id)
-            ->whereIn('student_user_id', $allStudentIds)
+            ->where(fn ($query) => $query->whereIn('student_user_id', $allStudentIds)
+                ->orWhereIn('status', ['completed', 'rejected', 'cancelled']))
             ->latest('updated_at')
             ->get();
 
         $pendingRequests = $schedules
             ->where('status', 'pending')
             ->take(50)
-            ->map(function (MentorshipSchedule $item) use ($activeStudentIds): array {
+            ->map(function (MentorshipSchedule $item) use ($activeStudentIds, $sessionNotes, $lecturer): array {
                 $relationType = in_array($item->student_user_id, $activeStudentIds, true)
                     ? 'pembimbing'
                     : 'penguji';
@@ -83,6 +86,7 @@ class JadwalBimbinganController extends Controller
                     'recurringGroupId' => $item->recurring_group_id,
                     'recurringIndex' => $item->recurring_index,
                     'recurringCount' => $item->recurring_count,
+                    'sessionNotes' => $sessionNotes->present($item, $lecturer),
                 ];
             })
             ->values()
@@ -92,7 +96,7 @@ class JadwalBimbinganController extends Controller
             ->whereIn('status', ['approved', 'rescheduled'])
             ->sortBy('scheduled_for')
             ->take(50)
-            ->map(function (MentorshipSchedule $item) use ($activeStudentIds): array {
+            ->map(function (MentorshipSchedule $item) use ($activeStudentIds, $sessionNotes, $lecturer): array {
                 $relationType = in_array($item->student_user_id, $activeStudentIds, true)
                     ? 'pembimbing'
                     : 'penguji';
@@ -108,6 +112,7 @@ class JadwalBimbinganController extends Controller
                     'status' => $item->status,
                     'lecturerNote' => $item->lecturer_note,
                     'isOverdue' => $item->scheduled_for?->isPast() ?? false,
+                    'sessionNotes' => $sessionNotes->present($item, $lecturer),
                 ];
             })
             ->values()
@@ -116,7 +121,7 @@ class JadwalBimbinganController extends Controller
         $historySchedules = $schedules
             ->whereIn('status', ['rejected', 'completed', 'cancelled'])
             ->take(50)
-            ->map(function (MentorshipSchedule $item) use ($activeStudentIds): array {
+            ->map(function (MentorshipSchedule $item) use ($activeStudentIds, $sessionNotes, $lecturer): array {
                 $relationType = in_array($item->student_user_id, $activeStudentIds, true)
                     ? 'pembimbing'
                     : 'penguji';
@@ -133,6 +138,7 @@ class JadwalBimbinganController extends Controller
                     'location' => $item->location ?? '-',
                     'status' => $item->status,
                     'lecturerNote' => $item->lecturer_note,
+                    'sessionNotes' => $sessionNotes->present($item, $lecturer),
                 ];
             })
             ->values()

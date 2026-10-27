@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { MessageSquareText } from 'lucide-react';
 
+import { type MentorshipSessionNotesContext } from '@/components/mentorship-session-notes';
 import { ProfileDetailsSections } from '@/components/profile/profile-details-sections';
 import { StudentProgressPeek } from '@/components/profile/student-progress-peek';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +15,7 @@ import {
     type BreadcrumbItem,
     type SharedData,
     type UserProfileDetail,
+    type UserProfileSummary,
 } from '@/types';
 
 type ProfileShowProps = {
@@ -21,6 +23,8 @@ type ProfileShowProps = {
     canEditProfile: boolean;
     canStartPrivateChat: boolean;
     privateChatEndpoint: string | null;
+    monitoringSessionNotes?: MentorshipSessionNotesContext[];
+    monitoringLecturers?: UserProfileSummary[];
 };
 
 export default function ProfileShowPage() {
@@ -30,6 +34,8 @@ export default function ProfileShowPage() {
         canStartPrivateChat,
         privateChatEndpoint,
         profile,
+        monitoringSessionNotes,
+        monitoringLecturers,
     } = usePage<SharedData & ProfileShowProps>().props;
     const getInitials = useInitials();
     const privateChatForm = useForm<{ recipient_id: number }>({
@@ -154,7 +160,11 @@ export default function ProfileShowPage() {
                     </div>
                 </div>
 
-                <ProfileDetailsSections profile={profile} />
+                <ProfileDetailsSections
+                    profile={profile}
+                    monitoringSessionNotes={monitoringSessionNotes}
+                    monitoringLecturers={monitoringLecturers}
+                />
             </div>
         </AppLayout>
     );

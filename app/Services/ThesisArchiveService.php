@@ -123,7 +123,8 @@ class ThesisArchiveService
         $schedules = MentorshipSchedule::query()
             ->where('student_user_id', $studentId)
             ->tap(fn ($query) => $this->applyWindow($query, 'created_at', $from, $to))
-            ->get(['id', 'status']);
+            ->with(['student', 'lecturer'])
+            ->get();
         $mentorshipDocuments = MentorshipDocument::query()
             ->where('student_user_id', $studentId)
             ->tap(fn ($query) => $this->applyWindow($query, 'created_at', $from, $to))
@@ -274,7 +275,7 @@ class ThesisArchiveService
      *
      * @return array{0: ?CarbonImmutable, 1: ?CarbonImmutable}
      */
-    private function window(ThesisProject $project): array
+    public function window(ThesisProject $project): array
     {
         $others = ThesisProject::query()
             ->where('student_user_id', $project->student_user_id)
@@ -484,6 +485,9 @@ class ThesisArchiveService
             'version' => 1,
             'completed_mentorship' => $completed,
             'schedules_by_status' => $schedules->countBy('status')->sortKeys()->all(),
+            'mentorship_session_notes' => $schedules
+                ->map(fn (MentorshipSchedule $schedule): array => app(MentorshipSessionNoteService::class)->snapshot($schedule))
+                ->values()->all(),
             'documents_uploaded' => $mentorshipDocuments
                 ->unique(static fn (MentorshipDocument $document): string => $document->storage_path ?? 'id:'.$document->getKey())
                 ->count(),

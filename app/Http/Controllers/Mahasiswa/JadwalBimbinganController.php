@@ -9,6 +9,7 @@ use App\Models\MentorshipSchedule;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
 use App\Services\MentorshipScheduleService;
+use App\Services\MentorshipSessionNoteService;
 use App\Services\MentorshipTicketService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SecretSidangExaminers;
@@ -31,11 +32,12 @@ class JadwalBimbinganController extends Controller
     {
         $student = $request->user();
         abort_if($student === null, 401);
+        $sessionNotes = app(MentorshipSessionNoteService::class);
 
         $secretExaminers = app(SecretSidangExaminers::class);
 
         $schedules = MentorshipSchedule::query()
-            ->with('lecturer')
+            ->with(['lecturer', 'student.mahasiswaProfile'])
             ->where('student_user_id', $student->id)
             ->latest('created_at')
             ->get()
@@ -96,7 +98,7 @@ class JadwalBimbinganController extends Controller
         $upcomingMeetings = $schedules
             ->whereIn('status', ['pending', 'approved', 'rescheduled'])
             ->sortBy(fn (MentorshipSchedule $schedule) => $schedule->scheduled_for ?? $schedule->requested_for)
-            ->map(function (MentorshipSchedule $schedule) use ($advisorLecturerIds): array {
+            ->map(function (MentorshipSchedule $schedule) use ($advisorLecturerIds, $sessionNotes, $student): array {
                 $relationType = in_array($schedule->lecturer_user_id, $advisorLecturerIds, true)
                     ? 'pembimbing'
                     : 'penguji';
@@ -112,6 +114,7 @@ class JadwalBimbinganController extends Controller
                     'status' => $schedule->status,
                     'lecturerNote' => $schedule->lecturer_note,
                     'createdByLecturer' => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id,
+                    'sessionNotes' => $sessionNotes->present($schedule, $student),
                 ];
             })
             ->values()
@@ -119,7 +122,7 @@ class JadwalBimbinganController extends Controller
 
         $historyMeetings = $schedules
             ->whereIn('status', ['rejected', 'completed', 'cancelled'])
-            ->map(function (MentorshipSchedule $schedule) use ($advisorLecturerIds): array {
+            ->map(function (MentorshipSchedule $schedule) use ($advisorLecturerIds, $sessionNotes, $student): array {
                 $relationType = in_array($schedule->lecturer_user_id, $advisorLecturerIds, true)
                     ? 'pembimbing'
                     : 'penguji';
@@ -135,6 +138,7 @@ class JadwalBimbinganController extends Controller
                     'status' => $schedule->status,
                     'lecturerNote' => $schedule->lecturer_note,
                     'createdByLecturer' => (int) $schedule->created_by_user_id === (int) $schedule->lecturer_user_id,
+                    'sessionNotes' => $sessionNotes->present($schedule, $student),
                 ];
             })
             ->values()

@@ -3,6 +3,7 @@ import {
     CalendarClock,
     CalendarPlus,
     CheckCircle2,
+    Eye,
     Inbox,
     Eye,
     MapPin,
@@ -18,6 +19,7 @@ import {
     type SupervisedStudent,
 } from '@/components/dosen-schedule-create-dialog';
 import { RowIconButton } from '@/components/kaprodi/row-icon-button';
+import { type MentorshipSessionNotesData } from '@/components/mentorship-session-notes';
 import {
     DataSection,
     DataToolbar,
@@ -29,7 +31,10 @@ import { FilterPills } from '@/components/patterns/filter-pills';
 import { PageHeader } from '@/components/patterns/page-header';
 import { StatusBadge } from '@/components/patterns/status-badge';
 import { StickyFilterBar } from '@/components/patterns/sticky-filter-bar';
-import { ScheduleDetailModal } from '@/components/schedule-detail-modal';
+import {
+    ScheduleDetailDrawer,
+    type ScheduleDetail,
+} from '@/components/schedule-detail-drawer';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -72,6 +77,7 @@ type PendingRequest = {
     recurringGroupId: string | null;
     recurringIndex: number | null;
     recurringCount: number | null;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type UpcomingSchedule = {
@@ -85,6 +91,7 @@ type UpcomingSchedule = {
     status: string;
     lecturerNote: string | null;
     isOverdue: boolean;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type HistorySchedule = {
@@ -97,6 +104,7 @@ type HistorySchedule = {
     location: string;
     status: string;
     lecturerNote: string | null;
+    sessionNotes: MentorshipSessionNotesData;
 };
 
 type JadwalBimbinganProps = {
@@ -118,7 +126,7 @@ type DecisionFormErrors = {
     lecturer_note?: string;
 };
 
-type ScheduleModalStatus =
+type ScheduleDetailStatus =
     | 'scheduled'
     | 'pending'
     | 'approved'
@@ -217,8 +225,12 @@ export default function DosenJadwalBimbinganPage() {
     const [openRequestKey, setOpenRequestKey] = useState<string | null>(null);
 
     // Sheet state for upcoming schedule actions
-    const [selectedUpcoming, setSelectedUpcoming] =
+    const [selectedUpcomingSnapshot, setSelectedUpcoming] =
         useState<UpcomingSchedule | null>(null);
+    const selectedUpcoming =
+        upcomingSchedules.find(
+            (schedule) => schedule.id === selectedUpcomingSnapshot?.id,
+        ) ?? null;
     const [upcomingSheetOpen, setUpcomingSheetOpen] = useState(false);
 
     const form = useForm({
@@ -246,18 +258,24 @@ export default function DosenJadwalBimbinganPage() {
         Record<string, { lecturer_note?: string }>
     >({});
 
-    const [selectedEvent, setSelectedEvent] = useState<{
-        id: number;
-        topic: string;
-        person: string;
-        personRole: 'lecturer' | 'student';
-        start: string;
-        end: string;
-        location: string;
-        status: ScheduleModalStatus;
-        notes?: string | null;
-    } | null>(null);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<ScheduleDetail | null>(
+        null,
+    );
+    const selectedSchedule = [...upcomingSchedules, ...historySchedules].find(
+        (schedule) => schedule.id === selectedEvent?.id,
+    );
+    const selectedDetail = selectedEvent
+        ? {
+              ...selectedEvent,
+              notes: selectedSchedule?.lecturerNote ?? selectedEvent.notes,
+              sessionNotes:
+                  selectedSchedule?.sessionNotes ??
+                  pendingRequests.find(
+                      (request) => request.id === selectedEvent.id,
+                  )?.sessionNotes,
+          }
+        : null;
+    const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
 
     useEffect(() => {
         const userId = auth.user?.id;
@@ -566,7 +584,7 @@ export default function DosenJadwalBimbinganPage() {
         );
         const scheduleStatus = (
             event.status === 'scheduled' ? 'approved' : event.status
-        ) as ScheduleModalStatus;
+        ) as ScheduleDetailStatus;
 
         if (fullSchedule) {
             setSelectedEvent({
@@ -577,8 +595,9 @@ export default function DosenJadwalBimbinganPage() {
                 start: event.start,
                 end: event.end,
                 location: fullSchedule.location,
-                status: fullSchedule.status.toLowerCase() as ScheduleModalStatus,
+                status: fullSchedule.status.toLowerCase() as ScheduleDetailStatus,
                 notes: fullSchedule.lecturerNote,
+                sessionNotes: fullSchedule.sessionNotes,
             });
         } else {
             setSelectedEvent({
@@ -591,9 +610,33 @@ export default function DosenJadwalBimbinganPage() {
                 location: event.location,
                 status: scheduleStatus,
                 notes: null,
+                sessionNotes: pendingRequests.find(
+                    (request) => request.id === scheduleId,
+                )?.sessionNotes,
             });
         }
-        setIsDetailModalOpen(true);
+        setIsDetailDrawerOpen(true);
+    }
+
+    function openScheduleDetail(schedule: UpcomingSchedule | HistorySchedule) {
+        const start =
+            schedule.date === schedule.time
+                ? schedule.date
+                : `${schedule.date}T${schedule.time}`;
+        const end = new Date(new Date(start).getTime() + 60 * 60 * 1000);
+        setSelectedEvent({
+            id: schedule.id,
+            topic: schedule.topic,
+            person: schedule.mahasiswa,
+            personRole: 'student',
+            start,
+            end: Number.isNaN(end.getTime()) ? start : end.toISOString(),
+            location: schedule.location,
+            status: schedule.status.toLowerCase() as ScheduleDetailStatus,
+            notes: schedule.lecturerNote,
+            sessionNotes: schedule.sessionNotes,
+        });
+        setIsDetailDrawerOpen(true);
     }
 
     const workspaceFilterOptions: { label: string; value: WorkspaceFilter }[] =
@@ -1251,16 +1294,8 @@ export default function DosenJadwalBimbinganPage() {
                                                         key={`${item.id}-${item.mahasiswa}`}
                                                         className={cn(
                                                             stackedTable.tr,
-                                                            'cursor-pointer align-top transition-colors hover:bg-muted/40',
+                                                            'align-top',
                                                         )}
-                                                        onClick={() => {
-                                                            setSelectedUpcoming(
-                                                                item,
-                                                            );
-                                                            setUpcomingSheetOpen(
-                                                                true,
-                                                            );
-                                                        }}
                                                     >
                                                         <td
                                                             className={
@@ -1316,13 +1351,30 @@ export default function DosenJadwalBimbinganPage() {
                                                             />
                                                         </td>
                                                         <td
-                                                            className={
-                                                                stackedTable.tdActions
-                                                            }
+                                                            className={cn(
+                                                                stackedTable.tdActions,
+                                                                'max-md:order-4 max-md:mt-2 max-md:basis-full',
+                                                            )}
                                                         >
-                                                            <div className="flex items-center justify-end gap-1">
+                                                            <div className="flex items-center justify-end gap-1 max-md:justify-start">
                                                                 <RowIconButton
-                                                                    label={`Lihat jadwal bimbingan ${item.mahasiswa}`}
+                                                                    label={`Detail sesi ${item.topic}`}
+                                                                    onClick={() =>
+                                                                        openScheduleDetail(
+                                                                            item,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Eye
+                                                                        aria-hidden="true"
+                                                                        className="size-4"
+                                                                    />
+                                                                </RowIconButton>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="max-md:h-11"
                                                                     onClick={() => {
                                                                         setSelectedUpcoming(
                                                                             item,
@@ -1332,8 +1384,15 @@ export default function DosenJadwalBimbinganPage() {
                                                                         );
                                                                     }}
                                                                 >
-                                                                    <Eye className="size-4" />
-                                                                </RowIconButton>
+                                                                    Kelola
+                                                                    <span className="sr-only">
+                                                                        {' '}
+                                                                        jadwal{' '}
+                                                                        {
+                                                                            item.mahasiswa
+                                                                        }
+                                                                    </span>
+                                                                </Button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -1415,6 +1474,11 @@ export default function DosenJadwalBimbinganPage() {
                                         <th className={dataTh}>Waktu</th>
                                         <th className={dataTh}>Lokasi</th>
                                         <th className={dataTh}>Status</th>
+                                        <th className={dataTh}>
+                                            <span className="sr-only">
+                                                Aksi
+                                            </span>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody
@@ -1487,6 +1551,27 @@ export default function DosenJadwalBimbinganPage() {
                                                     status={item.status}
                                                 />
                                             </td>
+                                            <td
+                                                className={
+                                                    stackedTable.tdActions
+                                                }
+                                            >
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <RowIconButton
+                                                        label={`Detail sesi ${item.topic}`}
+                                                        onClick={() =>
+                                                            openScheduleDetail(
+                                                                item,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye
+                                                            aria-hidden="true"
+                                                            className="size-4"
+                                                        />
+                                                    </RowIconButton>
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1510,10 +1595,10 @@ export default function DosenJadwalBimbinganPage() {
                 </section>
             </div>
 
-            <ScheduleDetailModal
-                open={isDetailModalOpen}
-                onOpenChange={setIsDetailModalOpen}
-                schedule={selectedEvent}
+            <ScheduleDetailDrawer
+                open={isDetailDrawerOpen}
+                onOpenChange={setIsDetailDrawerOpen}
+                schedule={selectedDetail}
                 currentUserRole="dosen"
             />
 
@@ -1528,15 +1613,15 @@ export default function DosenJadwalBimbinganPage() {
                                 status={selectedUpcoming?.status ?? 'approved'}
                             />
                         </div>
-                        <SheetTitle className="text-lg leading-snug">
+                        <SheetTitle className="text-lg leading-snug [overflow-wrap:anywhere]">
                             {selectedUpcoming?.mahasiswa}
                         </SheetTitle>
-                        <SheetDescription className="line-clamp-2">
+                        <SheetDescription className="[overflow-wrap:anywhere]">
                             {selectedUpcoming?.topic}
                         </SheetDescription>
                     </SheetHeader>
 
-                    <ScrollArea className="h-[calc(100vh-8rem)]">
+                    <ScrollArea className="min-h-0 flex-1">
                         <div className="space-y-5 px-6 py-5">
                             {selectedUpcoming && (
                                 <>
@@ -1558,7 +1643,7 @@ export default function DosenJadwalBimbinganPage() {
                                                 aria-hidden="true"
                                                 className="size-4 shrink-0 text-muted-foreground"
                                             />
-                                            <span>
+                                            <span className="min-w-0 [overflow-wrap:anywhere]">
                                                 {selectedUpcoming.location}
                                             </span>
                                         </div>
@@ -1570,9 +1655,9 @@ export default function DosenJadwalBimbinganPage() {
                                     </div>
 
                                     {selectedUpcoming.lecturerNote && (
-                                        <p className="text-sm text-pretty text-muted-foreground">
+                                        <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-muted-foreground">
                                             <span className="font-medium text-foreground">
-                                                Catatan:{' '}
+                                                Catatan penjadwalan:{' '}
                                             </span>
                                             {selectedUpcoming.lecturerNote}
                                         </p>

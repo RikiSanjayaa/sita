@@ -104,6 +104,7 @@ test('student chat and lecturer-completed mentorship advance latest activity bey
             .getByRole('row')
             .filter({ hasText: topic })
             .first()
+            .getByRole('button', { name: /^Kelola jadwal / })
             .click();
         await Promise.all([
             lecturerPage.waitForResponse(

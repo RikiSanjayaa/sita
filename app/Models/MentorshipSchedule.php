@@ -41,6 +41,8 @@ class MentorshipSchedule extends Model
         return [
             'requested_for' => 'datetime',
             'scheduled_for' => 'datetime',
+            'student_session_noted_at' => 'datetime',
+            'lecturer_session_noted_at' => 'datetime',
             'is_recurring' => 'boolean',
         ];
     }

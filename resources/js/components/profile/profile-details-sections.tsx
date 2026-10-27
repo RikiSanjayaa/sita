@@ -2,6 +2,8 @@ import { FileText, GraduationCap, type LucideIcon, Users } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import { CopyFieldButton } from '@/components/profile/copy-field-button';
+import { type MentorshipSessionNotesContext } from '@/components/mentorship-session-notes';
+import { MonitoringSessionNotes } from '@/components/profile/monitoring-session-notes';
 import { PersonCardLink } from '@/components/profile/person-card-link';
 import { neutralAcademicTerminology } from '@/lib/academic-terminology';
 import { type UserProfileDetail, type UserProfileSummary } from '@/types';
@@ -80,15 +82,17 @@ function PeopleList({
     people,
     label,
     showCount = false,
+    sessionsByLecturer,
 }: {
     people: UserProfileSummary[];
     label?: (person: UserProfileSummary, index: number) => string;
     showCount?: boolean;
+    sessionsByLecturer?: Map<number, MentorshipSessionNotesContext[]>;
 }) {
     return (
         <ul className="divide-y border-y">
-            {people.map((person, index) => (
-                <li key={`${person.id}-${index}`}>
+            {people.map((person, index) => {
+                const personLink = (
                     <PersonCardLink
                         variant="row"
                         person={person}
@@ -99,8 +103,25 @@ function PeopleList({
                         progress={person.progress}
                         className="px-4 md:px-6"
                     />
-                </li>
-            ))}
+                );
+                const sessions = sessionsByLecturer?.get(person.id);
+
+                return (
+                    <li key={`${person.id}-${index}`}>
+                        {sessions !== undefined ? (
+                            <MonitoringSessionNotes
+                                lecturerId={person.id}
+                                lecturerName={person.name}
+                                sessions={sessions}
+                            >
+                                {personLink}
+                            </MonitoringSessionNotes>
+                        ) : (
+                            personLink
+                        )}
+                    </li>
+                );
+            })}
         </ul>
     );
 }
@@ -137,13 +158,63 @@ function EmptyLine({ children }: { children: ReactNode }) {
 
 export function ProfileDetailsSections({
     profile,
+    monitoringSessionNotes,
+    monitoringLecturers = [],
 }: {
     profile: UserProfileDetail;
+    monitoringSessionNotes?: MentorshipSessionNotesContext[];
+    monitoringLecturers?: UserProfileSummary[];
 }) {
     const finalWork =
         profile.academicTerminology?.finalWork ??
         neutralAcademicTerminology.finalWork;
     const examinerGroups = profile.thesis?.examinerGroups ?? [];
+    const currentLecturerIds = new Set([
+        ...(profile.thesis?.advisors ?? []).map((person) => person.id),
+        ...(profile.thesis?.examiners ?? []).map((person) => person.id),
+        ...examinerGroups.flatMap((group) =>
+            group.users.map((person) => person.id),
+        ),
+    ]);
+    const advisors = [
+        ...(profile.thesis?.advisors ?? []),
+        ...monitoringLecturers.filter(
+            (person) => !currentLecturerIds.has(person.id),
+        ),
+    ];
+    const sessionLocations = new Map<number, string>();
+    const locateSessions = (people: UserProfileSummary[], location: string) => {
+        for (const person of people) {
+            if (!sessionLocations.has(person.id))
+                sessionLocations.set(person.id, location);
+        }
+    };
+    locateSessions(advisors, 'advisors');
+    if (examinerGroups.length > 0) {
+        examinerGroups.forEach((group, index) =>
+            locateSessions(group.users, `examiner-${index}`),
+        );
+    } else {
+        locateSessions(profile.thesis?.examiners ?? [], 'examiners');
+    }
+    const sessionsByLecturer = new Map<
+        number,
+        MentorshipSessionNotesContext[]
+    >();
+    for (const session of monitoringSessionNotes ?? []) {
+        const sessions = sessionsByLecturer.get(session.lecturerUserId) ?? [];
+        sessions.push(session);
+        sessionsByLecturer.set(session.lecturerUserId, sessions);
+    }
+    const sessionsForList = (location: string) => {
+        if (monitoringSessionNotes === undefined) return undefined;
+
+        return new Map(
+            [...sessionLocations]
+                .filter(([, rowLocation]) => rowLocation === location)
+                .map(([id]) => [id, sessionsByLecturer.get(id) ?? []]),
+        );
+    };
 
     return (
         <div className="space-y-6">
@@ -191,11 +262,17 @@ export function ProfileDetailsSections({
                     </div>
 
                     <PeopleBlock title="Dosen pembimbing" icon={GraduationCap}>
-                        {profile.thesis.advisors.length > 0 ? (
+                        {advisors.length > 0 ? (
                             <PeopleList
-                                people={profile.thesis.advisors}
-                                label={(_, index) => `Pembimbing ${index + 1}`}
+                                people={advisors}
+                                label={(_, index) =>
+                                    index <
+                                    (profile.thesis?.advisors.length ?? 0)
+                                        ? `Pembimbing ${index + 1}`
+                                        : 'Riwayat sesi bimbingan'
+                                }
                                 showCount
+                                sessionsByLecturer={sessionsForList('advisors')}
                             />
                         ) : (
                             <EmptyLine>Belum ada pembimbing aktif.</EmptyLine>
@@ -205,7 +282,7 @@ export function ProfileDetailsSections({
                     <PeopleBlock title="Dosen penguji" icon={Users}>
                         {examinerGroups.length > 0 ? (
                             <div className="space-y-4">
-                                {examinerGroups.map((group) => (
+                                {examinerGroups.map((group, groupIndex) => (
                                     <div key={group.title}>
                                         <p className="px-4 pb-2 text-xs font-medium text-muted-foreground md:px-6">
                                             {group.title}
@@ -217,6 +294,9 @@ export function ProfileDetailsSections({
                                                     label={(_, index) =>
                                                         `${group.title} ${index + 1}`
                                                     }
+                                                    sessionsByLecturer={sessionsForList(
+                                                        `examiner-${groupIndex}`,
+                                                    )}
                                                 />
                                                 {group.note ? (
                                                     <EmptyLine>
@@ -236,6 +316,9 @@ export function ProfileDetailsSections({
                             <PeopleList
                                 people={profile.thesis.examiners}
                                 label={(_, index) => `Penguji ${index + 1}`}
+                                sessionsByLecturer={sessionsForList(
+                                    'examiners',
+                                )}
                             />
                         ) : (
                             <EmptyLine>Belum ada penguji aktif.</EmptyLine>
