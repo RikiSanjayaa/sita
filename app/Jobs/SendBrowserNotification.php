@@ -31,7 +31,7 @@ class SendBrowserNotification implements ShouldBeUniqueUntilProcessing, ShouldQu
 
     public const CHAT_PREFERENCE_KEY = 'pesanBaru';
 
-    public const CHAT_DELAY_SECONDS = 60;
+    public const CHAT_DELAY_SECONDS = 5;
 
     public const CHAT_TTL = 900;
 

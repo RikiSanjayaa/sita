@@ -215,6 +215,100 @@ for (const attention of ['unfocused', 'hidden', 'reopened'] as const) {
     });
 }
 
+for (const layout of ['desktop-switch', 'mobile-list'] as const) {
+    test(`${layout} reads notifications only when the actual chat panel is opened`, async ({
+        browser,
+    }) => {
+        const fixture = createSidebarUnreadFixture();
+        const recipient = await openSession(browser, fixture.accounts.lecturer);
+        const sender = await openSession(browser, fixture.accounts.student);
+        try {
+            await recipient.page.setViewportSize({
+                width: layout === 'mobile-list' ? 390 : 1280,
+                height: 900,
+            });
+            await recipient.page.addInitScript(() => {
+                Object.defineProperty(document, 'hasFocus', {
+                    configurable: true,
+                    value: () => true,
+                });
+            });
+            await openPrivateThread(
+                recipient.page,
+                fixture,
+                'lecturer',
+                layout === 'mobile-list'
+                    ? 'studentLecturer'
+                    : 'otherStudentLecturer',
+                { expectRead: false },
+            );
+            if (layout === 'mobile-list') {
+                await recipient.page
+                    .getByRole('button', {
+                        name: 'Kembali ke daftar percakapan',
+                        exact: true,
+                    })
+                    .click();
+                await expect(
+                    recipient.page.getByPlaceholder('Tulis pesan...'),
+                ).not.toBeVisible();
+            }
+            await recipient.page
+                .getByPlaceholder('Cari chat pribadi...')
+                .fill('');
+            await openPrivateThread(
+                sender.page,
+                fixture,
+                'student',
+                'studentLecturer',
+                { expectRead: false },
+            );
+            const text = `Pilih percakapan ${fixture.token}`;
+            await sender.page.getByPlaceholder('Tulis pesan...').fill(text);
+            await sender.page.getByPlaceholder('Tulis pesan...').press('Enter');
+            await expect.poll(() => bellCount(recipient.page)).toBe(1);
+            await recipient.page.evaluate(() =>
+                window.dispatchEvent(new Event('focus')),
+            );
+            // Acknowledging the list or another panel must not consume this message.
+            expect(await fetchUnreadCount(recipient.page)).toEqual({
+                unreadMessageCount: 1,
+            });
+            expect(await bellCount(recipient.page)).toBe(1);
+            let navigations = 0;
+            recipient.page.on('request', (request) => {
+                if (
+                    request.method() === 'GET' &&
+                    new URL(request.url()).pathname === '/dosen/pesan'
+                )
+                    navigations++;
+            });
+            await recipient.page
+                .locator('button')
+                .filter({ hasText: fixture.accounts.student.name })
+                .first()
+                .click();
+            await expect(
+                recipient.page.getByPlaceholder('Tulis pesan...'),
+            ).toBeVisible();
+            await expect(
+                recipient.page
+                    .locator('div.whitespace-pre-wrap')
+                    .filter({ hasText: text }),
+            ).toBeVisible();
+            await expect
+                .poll(() => fetchUnreadCount(recipient.page))
+                .toEqual({ unreadMessageCount: 0 });
+            await expect.poll(() => bellCount(recipient.page)).toBe(0);
+            expect(navigations).toBe(0);
+        } finally {
+            await sender.close();
+            await recipient.close();
+            fixture.cleanup();
+        }
+    });
+}
+
 for (const role of ['student', 'lecturer'] as const) {
     test(`${role} retains a failed attachment draft and retries without a false success`, async ({
         browser,

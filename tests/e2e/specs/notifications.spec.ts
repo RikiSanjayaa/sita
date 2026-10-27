@@ -162,7 +162,7 @@ test.describe('Notifications', () => {
 
             await expect(
                 studentPage.getByRole('switch', {
-                    name: 'Kirim notifikasi ke browser',
+                    name: 'Kirim ke semua perangkat terhubung',
                 }),
             ).toHaveAttribute('data-state', 'checked');
             await expect(

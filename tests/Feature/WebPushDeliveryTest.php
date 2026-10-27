@@ -189,12 +189,10 @@ test('chat bursts queue one delayed unique job per user and chat url', function 
 
     expect($user->notifications()->count())->toBe(4)
         ->and(queuedPushJobs())->toBe(2);
-
-    $delay = (int) DB::table('jobs')->min('available_at') - now()->getTimestamp();
-    expect($delay)->toBeGreaterThanOrEqual(59)->toBeLessThanOrEqual(61);
 });
 
-test('a chat burst delivered by the queue worker pushes once for the latest unread message', function () {
+test('a chat burst waits five seconds and pushes once for the latest unread message', function () {
+    $this->freezeTime();
     $transport = fakeWebPushTransport();
     $user = webPushUser();
 
@@ -205,7 +203,12 @@ test('a chat burst delivered by the queue worker pushes once for the latest unre
     $user->notifications()->update(['created_at' => now()]);
     $latest = $user->notifications()->orderByDesc('id')->first();
 
-    $this->travel(61)->seconds();
+    $this->travel(4)->seconds();
+    Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--stop-when-empty' => true]);
+    expect($transport->sent)->toBeEmpty()
+        ->and(queuedPushJobs())->toBe(1);
+
+    $this->travel(1)->seconds();
     Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--stop-when-empty' => true]);
 
     expect($transport->sent)->toHaveCount(1);
@@ -228,8 +231,7 @@ it('checks actual chat notification read state when the delayed worker runs', fu
         'client_message_id' => (string) \Illuminate\Support\Str::uuid(),
     ])->assertCreated();
     $notification = $recipient->notifications()->sole();
-    expect(queuedPushJobs())->toBe(1)
-        ->and((int) DB::table('jobs')->value('available_at'))->toBe(now()->timestamp + 60);
+    expect(queuedPushJobs())->toBe(1);
 
     if ($read) {
         $this->actingAs($recipient)->postJson(route('dosen.pesan.read', $thread), [
@@ -238,7 +240,7 @@ it('checks actual chat notification read state when the delayed worker runs', fu
         $this->postJson("/settings/notifications/{$notification->id}/read")->assertOk();
     }
 
-    $this->travel(61)->seconds();
+    $this->travel(5)->seconds();
     Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--stop-when-empty' => true]);
     expect(queuedPushJobs())->toBe(0)
         ->and($transport->sent)->toHaveCount($read ? 0 : 1);

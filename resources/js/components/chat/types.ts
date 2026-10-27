@@ -13,6 +13,7 @@ export type ChatReadSnapshot = {
     threadId: number;
     threadUnreadCount: number;
     unreadMessageCount: number;
+    readNotificationIds: string[];
 };
 
 export type ChatMessage = {

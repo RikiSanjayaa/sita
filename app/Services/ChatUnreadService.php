@@ -9,6 +9,7 @@ use App\Models\MentorshipChatThread;
 use App\Models\MentorshipChatThreadParticipant;
 use App\Models\ThesisSupervisorAssignment;
 use App\Models\User;
+use App\Notifications\RealtimeNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -45,9 +46,10 @@ class ChatUnreadService
     /**
      * One database snapshot for both counters after an authorized read.
      *
-     * @return array{userId: int, activeRole: ?string, threadId: int, threadUnreadCount: int, unreadMessageCount: int}
+     * @param  list<string>  $readNotificationIds
+     * @return array{userId: int, activeRole: ?string, threadId: int, threadUnreadCount: int, unreadMessageCount: int, readNotificationIds: list<string>}
      */
-    public function readSnapshot(User $user, ?string $activeRole, MentorshipChatThread $thread): array
+    public function readSnapshot(User $user, ?string $activeRole, MentorshipChatThread $thread, array $readNotificationIds): array
     {
         $threads = $this->visibleThreads($user, $activeRole);
         $counts = $threads === null ? collect() : MentorshipChatMessage::query()
@@ -64,14 +66,17 @@ class ChatUnreadService
             'threadId' => $thread->id,
             'threadUnreadCount' => (int) $counts->get($thread->id, 0),
             'unreadMessageCount' => (int) $counts->sum(),
+            'readNotificationIds' => $readNotificationIds,
         ];
     }
 
     /**
      * Saves the receipt up to the newest message the reader actually saw (id watermark plus timestamp).
      * Never moves backwards, so a stale tab showing an older window cannot un-read newer messages.
+     *
+     * @return list<string>
      */
-    public function markRead(User $user, MentorshipChatThread $thread, int $lastMessageId): void
+    public function markRead(User $user, MentorshipChatThread $thread, int $lastMessageId): array
     {
         $message = MentorshipChatMessage::query()
             ->whereKey($lastMessageId)
@@ -82,7 +87,7 @@ class ChatUnreadService
 
         for ($attempt = 0; ; $attempt++) {
             try {
-                DB::transaction(function () use ($user, $thread, $message): void {
+                return DB::transaction(function () use ($user, $thread, $message): array {
                     $receipt = MentorshipChatRead::query()
                         ->where('mentorship_chat_thread_id', $thread->id)
                         ->where('user_id', $user->id)
@@ -99,9 +104,9 @@ class ChatUnreadService
                     }
 
                     $receipt->save();
-                });
 
-                return;
+                    return $this->readThreadNotifications($user, $thread, $message);
+                });
             } catch (UniqueConstraintViolationException $exception) {
                 // A concurrent first receipt won the race; retry once against the row it created.
                 if ($attempt >= 1) {
@@ -109,6 +114,49 @@ class ChatUnreadService
                 }
             }
         }
+    }
+
+    /** @return list<string> */
+    private function readThreadNotifications(User $user, MentorshipChatThread $thread, MentorshipChatMessage $message): array
+    {
+        $notifications = $user->unreadNotifications()
+            ->where('type', RealtimeNotification::class)
+            ->where('data->preferenceKey', 'pesanBaru')
+            ->get(['id', 'data', 'created_at']);
+        $hasNewerMessages = $thread->messages()->where('id', '>', $message->id)->exists();
+        $ids = [];
+
+        foreach ($notifications as $notification) {
+            $data = $notification->data;
+            if (isset($data['chatThreadId'], $data['chatMessageId'])) {
+                if ((int) $data['chatThreadId'] === $thread->id
+                    && (int) $data['chatMessageId'] > 0
+                    && (int) $data['chatMessageId'] <= $message->id) {
+                    $ids[] = (string) $notification->id;
+                }
+
+                continue;
+            }
+
+            // Old notices have only a URL. Never infer a thread from an untargeted URL,
+            // or assign a same-second legacy notice to an older message window.
+            $url = is_string($data['url'] ?? null) ? $data['url'] : '';
+            $path = parse_url($url, PHP_URL_PATH);
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            if (in_array($path, ['/mahasiswa/pesan', '/dosen/pesan'], true)
+                && (string) ($query['thread'] ?? '') === (string) $thread->id
+                && $notification->created_at !== null
+                && ($notification->created_at->lessThan($message->created_at)
+                    || (! $hasNewerMessages && $notification->created_at->lessThanOrEqualTo($message->created_at)))) {
+                $ids[] = (string) $notification->id;
+            }
+        }
+
+        if ($ids !== []) {
+            $user->unreadNotifications()->whereIn('id', $ids)->update(['read_at' => now()]);
+        }
+
+        return $ids;
     }
 
     /**

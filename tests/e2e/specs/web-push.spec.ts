@@ -3,6 +3,10 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
 import { runArtisan } from '../support/db';
+import {
+    createSidebarUnreadFixture,
+    openSession,
+} from '../support/sidebar-unread';
 import { authStatePath } from '../support/thesis-fixtures';
 
 // Emulate the browser permission/provider boundary. Service worker, IndexedDB,
@@ -55,6 +59,13 @@ async function virtualPushDevice(
                     : null;
             };
             PushManager.prototype.subscribe = async function (options) {
+                if (sessionStorage.getItem('fail-subscription') === 'yes') {
+                    sessionStorage.removeItem('fail-subscription');
+                    throw new DOMException(
+                        'Do not expose https://secret-endpoint.test or token',
+                        'AbortError',
+                    );
+                }
                 const sequence =
                     Number(localStorage.getItem(sequenceKey) ?? '0') + 1;
                 localStorage.setItem(sequenceKey, String(sequence));
@@ -105,7 +116,7 @@ test.describe('Web Push device settings', () => {
             await openDeviceSettings(page);
             await page
                 .getByRole('button', {
-                    name: 'Aktifkan di perangkat ini',
+                    name: 'Aktifkan notifikasi di perangkat ini',
                     exact: true,
                 })
                 .click();
@@ -131,7 +142,7 @@ test.describe('Web Push device settings', () => {
                 .click();
             await expect(
                 page.getByRole('button', {
-                    name: 'Aktifkan di perangkat ini',
+                    name: 'Aktifkan notifikasi di perangkat ini',
                     exact: true,
                 }),
             ).toBeVisible();
@@ -170,7 +181,7 @@ test.describe('Web Push device settings', () => {
             await openDeviceSettings(page);
             await page
                 .getByRole('button', {
-                    name: 'Aktifkan di perangkat ini',
+                    name: 'Aktifkan notifikasi di perangkat ini',
                     exact: true,
                 })
                 .click();
@@ -206,7 +217,7 @@ test.describe('Web Push device settings', () => {
             ).toHaveCount(0);
             await page
                 .getByRole('button', {
-                    name: 'Aktifkan di perangkat ini',
+                    name: 'Aktifkan notifikasi di perangkat ini',
                     exact: true,
                 })
                 .click();
@@ -248,7 +259,7 @@ test.describe('Web Push device settings', () => {
             );
             await page
                 .getByRole('button', {
-                    name: 'Aktifkan di perangkat ini',
+                    name: 'Aktifkan notifikasi di perangkat ini',
                     exact: true,
                 })
                 .click();
@@ -265,7 +276,7 @@ test.describe('Web Push device settings', () => {
             await page.unroute('**/settings/push-subscriptions');
             await page
                 .getByRole('button', {
-                    name: 'Aktifkan di perangkat ini',
+                    name: 'Aktifkan notifikasi di perangkat ini',
                     exact: true,
                 })
                 .click();
@@ -280,4 +291,105 @@ test.describe('Web Push device settings', () => {
             await context.close();
         }
     });
+
+    for (const failure of ['subscription', 'account-save'] as const) {
+        test(`activation from account off recovers ${failure} without reload and reports paused sending truthfully`, async ({
+            browser,
+        }) => {
+            const fixture = createSidebarUnreadFixture();
+            const session = await openSession(
+                browser,
+                fixture.accounts.student,
+            );
+            await virtualPushDevice(session.context, `retry-${failure}`);
+            let documentLoads = 0;
+            try {
+                const page = session.page;
+                await openDeviceSettings(page);
+                const sending = page.getByRole('switch', {
+                    name: 'Kirim ke semua perangkat terhubung',
+                    exact: true,
+                });
+                if (await sending.isChecked()) await sending.click();
+                await expect(sending).not.toBeChecked();
+                if (failure === 'subscription') {
+                    await page.evaluate(() =>
+                        sessionStorage.setItem('fail-subscription', 'yes'),
+                    );
+                } else {
+                    await page.route(
+                        '**/settings/notifications',
+                        async (route) => {
+                            if (route.request().method() === 'PATCH')
+                                await route.fulfill({
+                                    status: 503,
+                                    json: { message: 'Unavailable' },
+                                });
+                            else await route.continue();
+                        },
+                    );
+                }
+                page.on('request', (request) => {
+                    if (
+                        request.isNavigationRequest() &&
+                        request.frame() === page.mainFrame()
+                    )
+                        documentLoads++;
+                });
+                const activate = page.getByRole('button', {
+                    name: 'Aktifkan notifikasi di perangkat ini',
+                    exact: true,
+                });
+                await activate.click();
+                await expect(page.getByRole('alert')).toContainText(
+                    failure === 'subscription'
+                        ? 'subscription: AbortError'
+                        : 'account-settings: HTTP 503',
+                );
+                await expect(page.getByRole('alert')).not.toContainText(
+                    'secret-endpoint',
+                );
+                await expect(sending).not.toBeChecked();
+                await expect(
+                    page
+                        .locator('[data-sonner-toast]')
+                        .filter({
+                            hasText: 'Notifikasi aktif di perangkat ini.',
+                        }),
+                ).toHaveCount(0);
+                if (failure === 'account-save') {
+                    await expect(
+                        page.getByText('Terhubung, pengiriman dijeda', {
+                            exact: true,
+                        }),
+                    ).toBeVisible();
+                    await page.unroute('**/settings/notifications');
+                }
+                await expect(activate).toBeEnabled();
+                await activate.click();
+                await expect(sending).toBeChecked();
+                await expect(
+                    page.getByRole('button', {
+                        name: 'Matikan di perangkat ini',
+                        exact: true,
+                    }),
+                ).toBeVisible();
+                await expect(page.getByRole('alert')).toHaveCount(0);
+                await expect(page.locator('[data-sonner-toast]')).toContainText(
+                    'Notifikasi aktif di perangkat ini.',
+                );
+                await sending.click();
+                await expect(
+                    page.getByText('Terhubung, pengiriman dijeda', {
+                        exact: true,
+                    }),
+                ).toBeVisible();
+                await expect(activate).toBeVisible();
+                expect(documentLoads).toBe(0);
+            } finally {
+                await session.close();
+                fixture.cleanup();
+            }
+        });
+    }
 });

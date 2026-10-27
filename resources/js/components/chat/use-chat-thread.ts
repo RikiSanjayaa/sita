@@ -271,6 +271,11 @@ export function useChatThread<T extends ChatThread>({
         });
         if (response.ok) {
             const data: ChatReadSnapshot = await response.json();
+            window.dispatchEvent(
+                new CustomEvent<
+                    Pick<ChatReadSnapshot, 'userId' | 'readNotificationIds'>
+                >('chat:notifications-read', { detail: data }),
+            );
             if (readRequests.current.get(threadId) === requestId) {
                 setThreadItems((current) =>
                     current.map((thread) =>
@@ -306,12 +311,29 @@ export function useChatThread<T extends ChatThread>({
             );
         }
     });
+    const readNotifiedThread = useEffectEvent((event: Event) => {
+        const notification = (
+            event as CustomEvent<Pick<ChatReadSnapshot, 'userId' | 'threadId'>>
+        ).detail;
+        if (
+            notification.userId === userId &&
+            notification.threadId === activeThreadId &&
+            isChatVisible &&
+            document.visibilityState === 'visible' &&
+            document.hasFocus()
+        ) {
+            event.preventDefault();
+            readVisibleThread();
+        }
+    });
     useEffect(() => {
         readVisibleThread();
         window.addEventListener('focus', readVisibleThread);
+        window.addEventListener('chat:notification', readNotifiedThread);
         document.addEventListener('visibilitychange', readVisibleThread);
         return () => {
             window.removeEventListener('focus', readVisibleThread);
+            window.removeEventListener('chat:notification', readNotifiedThread);
             document.removeEventListener('visibilitychange', readVisibleThread);
         };
     }, [activeThreadId, latestVisibleMessageId, isChatVisible, initialThreads]);

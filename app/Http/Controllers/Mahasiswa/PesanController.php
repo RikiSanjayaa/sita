@@ -208,11 +208,11 @@ class PesanController extends Controller
         abort_unless($unread->canSeeThread($student, 'mahasiswa', $thread), 403);
 
         $data = $request->validate(['last_message_id' => ['required', 'integer']]);
-        $unread->markRead($student, $thread, (int) $data['last_message_id']);
+        $readNotificationIds = $unread->markRead($student, $thread, (int) $data['last_message_id']);
 
         $activeRole = $student->resolveActiveRole($request->session()->get('active_role'));
 
-        return response()->json($unread->readSnapshot($student, $activeRole, $thread))
+        return response()->json($unread->readSnapshot($student, $activeRole, $thread, $readNotificationIds))
             ->header('Cache-Control', 'no-store, private');
     }
 
@@ -506,7 +506,7 @@ class PesanController extends Controller
                 'clientMessageId' => $clientMessageId,
             ]);
         }
-        $this->notifyThreadMembers($student, $thread);
+        $this->notifyThreadMembers($student, $thread, $messages->last()->id);
 
         return response()->json([
             'threadId' => $thread->id,
@@ -587,10 +587,10 @@ class PesanController extends Controller
             ]);
     }
 
-    private function notifyThreadMembers(User $student, MentorshipChatThread $thread): void
+    private function notifyThreadMembers(User $student, MentorshipChatThread $thread, int $messageId): void
     {
         if ($thread->type === 'pembimbing') {
-            $this->notifyLecturers($student, $thread->id);
+            $this->notifyLecturers($student, $thread->id, $messageId);
         } elseif ($thread->type === 'private') {
             $participants = MentorshipChatThreadParticipant::query()
                 ->where('thread_id', $thread->id)
@@ -606,6 +606,8 @@ class PesanController extends Controller
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
                     'title' => 'Pesan pribadi baru',
                     'description' => sprintf('%s mengirim pesan pribadi.', $student->name),
+                    'chatThreadId' => $thread->id,
+                    'chatMessageId' => $messageId,
                     'url' => $participant->user->hasRole('mahasiswa')
                         ? sprintf('/mahasiswa/pesan?thread=%d', $thread->id)
                         : sprintf('/dosen/pesan?thread=%d&mode=private', $thread->id),
@@ -640,7 +642,9 @@ class PesanController extends Controller
                 $this->realtimeNotificationService->notifyUser($participant->user, 'pesanBaru', [
                     'title' => $examTerm.' baru',
                     'description' => sprintf('%s mengirim pesan di thread %s.', $student->name, $examTerm),
-                    'url' => '/dosen/pesan',
+                    'url' => sprintf('/dosen/pesan?thread=%d', $thread->id),
+                    'chatThreadId' => $thread->id,
+                    'chatMessageId' => $messageId,
                     'icon' => 'message-square',
                     'createdAt' => now()->toIso8601String(),
                 ]);
@@ -648,7 +652,7 @@ class PesanController extends Controller
         }
     }
 
-    private function notifyLecturers(User $student, int $threadId): void
+    private function notifyLecturers(User $student, int $threadId, int $messageId): void
     {
         $lecturers = ThesisSupervisorAssignment::query()
             ->whereHas('project', fn($query) => $query
@@ -666,6 +670,8 @@ class PesanController extends Controller
                 'title' => 'Pesan bimbingan baru',
                 'description' => sprintf('%s mengirim pesan baru.', $student->name),
                 'url' => sprintf('/dosen/pesan?thread=%d', $threadId),
+                'chatThreadId' => $threadId,
+                'chatMessageId' => $messageId,
                 'icon' => 'message-square',
                 'createdAt' => now()->toIso8601String(),
             ]);

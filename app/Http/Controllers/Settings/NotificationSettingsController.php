@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class NotificationSettingsController extends Controller
 {
-    public function update(NotificationSettingsUpdateRequest $request): RedirectResponse
+    public function update(NotificationSettingsUpdateRequest $request): JsonResponse|RedirectResponse
     {
         $user = $request->user();
         abort_if($user === null, 401);
@@ -29,6 +29,10 @@ class NotificationSettingsController extends Controller
                 'konfirmasiBimbingan' => $validated['konfirmasiBimbingan'],
             ],
         ])->save();
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
 
         return back()->with('success', 'Pengaturan notifikasi berhasil diperbarui.');
     }
