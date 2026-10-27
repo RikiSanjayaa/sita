@@ -130,7 +130,7 @@ async function openDosenBimbinganThread(
 ): Promise<void> {
     await page.goto('/dosen/pesan-bimbingan');
     await page
-        .getByPlaceholder(/Cari (mahasiswa|grup)\.\.\./)
+        .getByRole('textbox', { name: 'Cari percakapan', exact: true })
         .fill(studentName);
 
     const threadButton = page

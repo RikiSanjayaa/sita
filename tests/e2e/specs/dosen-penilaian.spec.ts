@@ -443,7 +443,7 @@ test('exam detail opens the existing group, or private student chat when no grou
             new RegExp(`/dosen/pesan\\?thread=${threadId}`),
         );
         await expect(
-            page.getByRole('heading', { name: 'Pesan', exact: true }),
+            page.getByRole('heading', { name: 'Pesan', exact: true, level: 1 }),
         ).toBeVisible();
         await expect(
             page
@@ -503,7 +503,11 @@ test('exam detail opens the existing group, or private student chat when no grou
                     /^\d+$/.test(url.searchParams.get('thread') ?? ''),
             );
             await expect(
-                page.getByRole('heading', { name: 'Pesan', exact: true }),
+                page.getByRole('heading', {
+                    name: 'Pesan',
+                    exact: true,
+                    level: 1,
+                }),
             ).toBeVisible();
             await expect(
                 page
