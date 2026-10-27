@@ -19,6 +19,7 @@ Status tersebut berlaku untuk alur yang disebut pada barisnya, bukan seluruh cab
 - Katalog validasi review dokumen mengirim token CSRF sesi dari meta halaman lewat header pada request review saja. Clock server katalog membuat cookie `XSRF-TOKEN` kedaluwarsa terhadap clock browser sebenarnya; tanpa header, redirect sesi dapat disangka respons validasi. Capture tetap menekan tombol UI dan memeriksa pesan validasi server.
 - Pemeriksaan batas drawer berkas ujian menunggu posisi akhir animasi sebelum mengukur viewport; ukuran drawer yang benar-benar melampaui layar tetap menggagalkan pemeriksaan.
 - Pengelolaan jadwal dosen berada pada drawer detail sesi yang sama dengan catatan hasil bimbingan. Ikon mata, klik baris dan Enter/Space membuka drawer; kontrol selesai/batal hanya muncul pada sesi mendatang yang dapat dikelola. `student-activity`, `jadwal-bimbingan`, dan `golden-path` memakai drawer ini (#157). Reproduksi macet Firefox fisik masih membutuhkan rekaman; loop natural-motion lokal bukan bukti GPU perangkat pengguna.
+- Bukti screenshot drawer menunggu seluruh animasi finite dan memeriksa tepi panel pada viewport, lalu menangkap viewport saja saat dialog terbuka. Capture di tengah slide dan full-page yang memperpanjang latar di bawah overlay bukan bukti drawer macet.
 
 ## Mahasiswa
 
