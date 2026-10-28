@@ -1,21 +1,26 @@
-import { SlidersHorizontal } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SlidersHorizontal, X } from 'lucide-react';
+import {
+    useCallback,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 
 import {
     MobileFilterContext,
-    type FilterScope,
+    type FilterField,
     type FilterValues,
 } from '@/components/patterns/mobile-filter-scope';
 import { Button } from '@/components/ui/button';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
@@ -27,11 +32,12 @@ interface StickyFilterBarProps {
     onApplyFilters?: (values: FilterValues) => void;
 }
 
-/**
- * Keep the complete toolbar together, without covering phone-sized lists.
- * PublicLayout's desktop header is a 48px logo + 32px padding + 1px border;
- * portal headers are 48px in both sidebar states.
- */
+function fieldTitle(label: string): string {
+    const title = label.replace(/^Filter\s+/i, '');
+    return title.charAt(0).toUpperCase() + title.slice(1);
+}
+
+/** Desktop stays sticky; phone filters expand inline without hiding the results. */
 export function StickyFilterBar({
     children,
     className,
@@ -40,66 +46,83 @@ export function StickyFilterBar({
     onApplyFilters,
 }: StickyFilterBarProps) {
     const mobile = useIsMobile();
-    const fields = useRef(
-        new Map<string, Parameters<FilterScope['register']>[1]>(),
-    );
-    const [active, setActive] = useState(0);
+    const panelId = useId();
+    const trigger = useRef<HTMLButtonElement>(null);
+    const [fields, setFields] = useState(new Map<string, FilterField>());
+    const [chosen, setChosen] = useState(new Set<string>());
     const [open, setOpen] = useState(false);
-    const [draft, setDraft] = useState<FilterValues | null>(null);
     const [searchTarget, setSearchTarget] = useState<HTMLDivElement | null>(
         null,
     );
-    const register = useCallback<FilterScope['register']>((label, field) => {
-        fields.current.set(label, field);
-        setActive(
-            [...fields.current.values()].filter(
-                (entry) => entry.value !== entry.resetValue,
-            ).length,
-        );
-        return () => {
-            fields.current.delete(label);
-            setActive(
-                [...fields.current.values()].filter(
-                    (entry) => entry.value !== entry.resetValue,
-                ).length,
-            );
-        };
+    const register = useCallback((label: string, field: FilterField) => {
+        setFields((current) => {
+            const previous = current.get(label);
+            if (
+                previous?.value === field.value &&
+                previous.resetValue === field.resetValue &&
+                previous.options === field.options &&
+                previous.commit === field.commit
+            )
+                return current;
+            const next = new Map(current);
+            next.set(label, field);
+            return next;
+        });
     }, []);
-    const change = useCallback(
-        (label: string, value: string) =>
-            setDraft((current) => ({ ...current, [label]: value })),
-        [],
-    );
+    const unregister = useCallback((label: string) => {
+        setFields((current) => {
+            if (!current.has(label)) return current;
+            const next = new Map(current);
+            next.delete(label);
+            return next;
+        });
+    }, []);
     const scope = useMemo(
-        () => ({ searchTarget, draft, register, change }),
-        [searchTarget, draft, register, change],
+        () => ({ searchTarget, register, unregister }),
+        [searchTarget, register, unregister],
     );
-    function toggle(next: boolean): void {
-        setDraft(
-            next
-                ? Object.fromEntries(
-                      [...fields.current].map(([label, field]) => [
-                          label,
-                          field.value,
-                      ]),
-                  )
-                : null,
-        );
-        setOpen(next);
+    const active = [...fields.values()].filter(
+        (field) => field.value !== field.resetValue,
+    ).length;
+    const progressive = fields.size > 2;
+    const available = [...fields].filter(
+        ([label, field]) =>
+            !chosen.has(label) && field.value === field.resetValue,
+    );
+    function change(label: string, value: string): void {
+        const field = fields.get(label);
+        if (!field || value === field.value) return;
+        if (onApplyFilters) {
+            onApplyFilters(
+                Object.fromEntries(
+                    [...fields].map(([key, entry]) => [
+                        key,
+                        key === label ? value : entry.value,
+                    ]),
+                ),
+            );
+        } else field.commit(value);
     }
-    function apply(): void {
+    function remove(label: string): void {
+        const field = fields.get(label);
+        if (field) change(label, field.resetValue);
+        setChosen((current) => {
+            const next = new Set(current);
+            next.delete(label);
+            return next;
+        });
+    }
+    function reset(): void {
         const values = Object.fromEntries(
-            [...fields.current].map(([label, field]) => [
-                label,
-                draft?.[label] ?? field.value,
-            ]),
+            [...fields].map(([label, field]) => [label, field.resetValue]),
         );
         if (onApplyFilters) onApplyFilters(values);
         else
-            for (const [label, field] of fields.current) {
-                if (values[label] !== field.value) field.commit(values[label]);
+            for (const field of fields.values()) {
+                if (field.value !== field.resetValue)
+                    field.commit(field.resetValue);
             }
-        toggle(false);
+        setChosen(new Set());
     }
     if (mobile) {
         return (
@@ -107,87 +130,167 @@ export function StickyFilterBar({
                 <div
                     data-slot="sticky-filter-bar"
                     className={cn('space-y-2 bg-background py-2', className)}
+                    onKeyDown={(event) => {
+                        if (open && event.key === 'Escape') {
+                            event.stopPropagation();
+                            setOpen(false);
+                            trigger.current?.focus();
+                        }
+                    }}
                 >
                     {mobileTitle && (
                         <h2 className="text-lg font-semibold">{mobileTitle}</h2>
                     )}
-                    <Dialog open={open} onOpenChange={toggle}>
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <div ref={setSearchTarget} className="min-w-0 flex-1" />
+                        <Button
+                            ref={trigger}
+                            variant="outline"
+                            className="relative size-11 shrink-0 p-0"
+                            aria-label={
+                                active ? `Filter, ${active} aktif` : 'Filter'
+                            }
+                            aria-expanded={open}
+                            aria-controls={panelId}
+                            onClick={() => setOpen(!open)}
+                        >
+                            <SlidersHorizontal aria-hidden className="size-4" />
+                            {active > 0 && (
+                                <span
+                                    aria-hidden
+                                    className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
+                                />
+                            )}
+                        </Button>
+                    </div>
+                    <div hidden>{children}</div>
+                    {open && (
+                        <div
+                            id={panelId}
+                            role="region"
+                            aria-label="Pilihan filter"
+                            className="space-y-2"
+                        >
                             <div
-                                ref={setSearchTarget}
-                                className="min-w-0 flex-1"
-                            />
-                            <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className="h-11 shrink-0 gap-1.5 px-3"
-                                    aria-label={
-                                        active
-                                            ? `Filter, ${active} aktif`
-                                            : 'Filter'
+                                className={cn(
+                                    'grid gap-2',
+                                    !progressive && 'grid-cols-2',
+                                )}
+                            >
+                                {[...fields]
+                                    .filter(
+                                        ([label, field]) =>
+                                            !progressive ||
+                                            chosen.has(label) ||
+                                            field.value !== field.resetValue,
+                                    )
+                                    .map(([label, field]) => (
+                                        <div
+                                            key={label}
+                                            className="flex min-w-0 items-end gap-1"
+                                        >
+                                            <div className="grid min-w-0 flex-1 gap-1">
+                                                <span className="text-xs font-medium text-muted-foreground">
+                                                    {fieldTitle(label)}
+                                                </span>
+                                                <Select
+                                                    value={field.value}
+                                                    onValueChange={(value) =>
+                                                        change(label, value)
+                                                    }
+                                                >
+                                                    <SelectTrigger
+                                                        aria-label={label}
+                                                        className="h-11 w-full min-w-0 bg-card text-base"
+                                                    >
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {field.options.map(
+                                                            (option) => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        option.value
+                                                                    }
+                                                                    value={
+                                                                        option.value
+                                                                    }
+                                                                    disabled={
+                                                                        option.disabled
+                                                                    }
+                                                                    className="min-h-11"
+                                                                >
+                                                                    {
+                                                                        option.label
+                                                                    }
+                                                                    {option.count !==
+                                                                    undefined
+                                                                        ? ` (${option.count})`
+                                                                        : ''}
+                                                                </SelectItem>
+                                                            ),
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            {progressive && (
+                                                <Button
+                                                    variant="ghost"
+                                                    className="size-11 shrink-0 p-0"
+                                                    aria-label={`Hapus filter ${fieldTitle(label)}`}
+                                                    onClick={() =>
+                                                        remove(label)
+                                                    }
+                                                >
+                                                    <X
+                                                        aria-hidden
+                                                        className="size-4"
+                                                    />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))}
+                            </div>
+                            {progressive && available.length > 0 && (
+                                <Select
+                                    value=""
+                                    onValueChange={(label) =>
+                                        setChosen(
+                                            (current) =>
+                                                new Set([...current, label]),
+                                        )
                                     }
                                 >
-                                    <SlidersHorizontal
-                                        aria-hidden
-                                        className="size-4"
-                                    />
-                                    Filter
-                                    {active > 0 && (
-                                        <span className="text-xs tabular-nums">
-                                            ({active})
-                                        </span>
-                                    )}
+                                    <SelectTrigger
+                                        aria-label="Tambah filter"
+                                        className="h-11 w-full bg-card text-base"
+                                    >
+                                        <SelectValue placeholder="Filter berdasarkan..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {available.map(([label]) => (
+                                            <SelectItem
+                                                key={label}
+                                                value={label}
+                                                className="min-h-11"
+                                            >
+                                                {fieldTitle(label)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                            {(active > 0 || chosen.size > 0) && (
+                                <Button
+                                    variant="ghost"
+                                    className="min-h-11 px-2"
+                                    onClick={reset}
+                                >
+                                    Reset filter
                                 </Button>
-                            </DialogTrigger>
+                            )}
                         </div>
-                        {open ? (
-                            <DialogContent className="max-h-[85dvh] gap-3 overflow-y-auto p-4 [&_[data-desktop-filter-reset]]:hidden">
-                                <DialogHeader>
-                                    <DialogTitle>Filter</DialogTitle>
-                                    <DialogDescription>
-                                        Pilih filter, lalu terapkan untuk
-                                        memperbarui daftar.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-3">{children}</div>
-                                <DialogFooter className="flex-row flex-wrap justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        className="min-h-11"
-                                        onClick={() =>
-                                            setDraft(
-                                                Object.fromEntries(
-                                                    [...fields.current].map(
-                                                        ([label, field]) => [
-                                                            label,
-                                                            field.resetValue,
-                                                        ],
-                                                    ),
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        Reset
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="min-h-11"
-                                        onClick={() => toggle(false)}
-                                    >
-                                        Batal
-                                    </Button>
-                                    <Button
-                                        className="min-h-11"
-                                        onClick={apply}
-                                    >
-                                        Terapkan
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        ) : (
-                            <div hidden>{children}</div>
-                        )}
-                    </Dialog>
+                    )}
                 </div>
             </MobileFilterContext>
         );

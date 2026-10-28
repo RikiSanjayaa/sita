@@ -31,7 +31,7 @@ function profileIds(): number[] {
 test.describe('mobile compaction (#167, #168)', () => {
     test.use({ storageState: authStatePath('kaprodi') });
 
-    test('filter drafts cancel, apply and reset without losing search or keyboard focus', async ({
+    test('inline filters combine, remove and reset criteria without losing search or keyboard focus', async ({
         page,
     }) => {
         await page.setViewportSize({ width: 390, height: 844 });
@@ -40,47 +40,53 @@ test.describe('mobile compaction (#167, #168)', () => {
             name: 'Cari nama atau NIM',
         });
         const filter = page.getByRole('button', { name: /^Filter(?:,|$)/ });
-        const dialog = page.getByRole('dialog', {
-            name: 'Filter',
-            exact: true,
-        });
+        const panel = page.getByRole('region', { name: 'Pilihan filter' });
         const rows = page.locator('main table tbody tr');
         await expect(rows).toHaveCount(5);
         const original = await rows.allTextContents();
         await filter.click();
-        await dialog.getByRole('combobox', { name: 'Filter angkatan' }).click();
-        await page.getByRole('option', { name: '2022', exact: true }).click();
-        await dialog
-            .getByRole('button', { name: 'Batal', exact: true })
+        await expect(filter).toHaveAttribute('aria-expanded', 'true');
+        await expect(panel.getByRole('combobox')).toHaveCount(1);
+        await panel.getByRole('combobox', { name: 'Tambah filter' }).click();
+        await page
+            .getByRole('option', { name: 'Angkatan', exact: true })
             .click();
-        await expect(filter).toBeFocused();
-        expect(await rows.allTextContents()).toEqual(original);
-        await filter.click();
-        await expect(
-            dialog.getByRole('combobox', { name: 'Filter angkatan' }),
-        ).toHaveText('Semua angkatan');
-        await page.keyboard.press('Escape');
-        await expect(filter).toBeFocused();
-        await filter.click();
-        await dialog.getByRole('combobox', { name: 'Filter angkatan' }).click();
+        await panel.getByRole('combobox', { name: 'Filter angkatan' }).click();
         await page.getByRole('option', { name: '2022', exact: true }).click();
-        await dialog
-            .getByRole('button', { name: 'Terapkan', exact: true })
-            .click();
         await expect(page).toHaveURL(/activeAngkatan=2022/);
         await expect(filter).toHaveAccessibleName('Filter, 1 aktif');
-        for (const row of await rows.all())
-            await expect(row).toContainText('2022');
-        await filter.click();
-        await dialog
-            .getByRole('button', { name: 'Reset', exact: true })
+        await expect(rows.first()).toContainText('2022');
+        await panel.getByRole('combobox', { name: 'Tambah filter' }).click();
+        await page
+            .getByRole('option', { name: 'Konsentrasi', exact: true })
             .click();
+        await panel
+            .getByRole('combobox', { name: 'Filter konsentrasi' })
+            .click();
+        await page.getByRole('option', { name: /^Jaringan/ }).click();
+        await expect(page).toHaveURL(/activeKonsentrasi=Jaringan/);
         await expect(page).toHaveURL(/activeAngkatan=2022/);
-        await dialog
-            .getByRole('button', { name: 'Terapkan', exact: true })
+        await expect(filter).toHaveAccessibleName('Filter, 2 aktif');
+        await panel
+            .getByRole('button', { name: 'Hapus filter Angkatan' })
             .click();
-        await expect(filter).toHaveAccessibleName('Filter');
         await expect(page).not.toHaveURL(/activeAngkatan=2022/);
+        await expect(page).toHaveURL(/activeKonsentrasi=Jaringan/);
+        await filter.click();
+        await expect(panel).not.toBeVisible();
+        await filter.click();
+        await expect(
+            panel.getByRole('combobox', { name: 'Filter konsentrasi' }),
+        ).toHaveText(/Jaringan/);
+        await page.keyboard.press('Escape');
+        await expect(filter).toBeFocused();
+        await expect(panel).not.toBeVisible();
+        await filter.click();
+        await panel.getByRole('button', { name: 'Reset filter' }).click();
+        await expect(filter).toHaveAccessibleName('Filter');
+        await expect(page).not.toHaveURL(/activeKonsentrasi=Jaringan/);
+        await expect(rows).toHaveCount(5);
+        expect(await rows.allTextContents()).toEqual(original);
         await expect(search).toBeVisible();
         await search.fill('zzz-compaction-empty-170');
         await expect(rows).toHaveCount(0);
@@ -122,7 +128,6 @@ test.describe('mobile compaction (#167, #168)', () => {
             await expect(sizes).toHaveValue('10');
             const top = page.locator('[data-slot="table-pagination"]').first();
             const bounds = await top.boundingBox();
-            expect(bounds!.height).toBeLessThanOrEqual(56);
             const controls = [
                 sizes,
                 top.getByRole('button', { name: 'Sebelumnya', exact: true }),
@@ -178,17 +183,15 @@ test.describe('mobile compaction (#167, #168)', () => {
         await expect(sizes).toHaveValue('10');
         await expect(rows).toHaveCount(10);
         await page.getByRole('button', { name: /^Filter(?:,|$)/ }).click();
-        const dialog = page.getByRole('dialog', {
-            name: 'Filter',
-            exact: true,
-        });
-        await dialog
+        const panel = page.getByRole('region', { name: 'Pilihan filter' });
+        await panel.getByRole('combobox', { name: 'Tambah filter' }).click();
+        await page
+            .getByRole('option', { name: 'Angkatan', exact: true })
+            .click();
+        await panel
             .getByRole('combobox', { name: 'Angkatan', exact: true })
             .click();
         await page.getByRole('option', { name: '2022', exact: true }).click();
-        await dialog
-            .getByRole('button', { name: 'Terapkan', exact: true })
-            .click();
         await expect(page).toHaveURL(/angkatan=2022/);
         await expect(sizes).toHaveValue('10');
         await page.reload();

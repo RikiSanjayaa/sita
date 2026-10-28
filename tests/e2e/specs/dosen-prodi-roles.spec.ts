@@ -214,26 +214,36 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         name: 'Filter konsentrasi',
                     });
                     async function chooseConcentration(
-                        name: RegExp,
+                        label: string,
+                        count: number,
                     ): Promise<void> {
-                        if (width < 768)
-                            await page
-                                .getByRole('button', { name: /^Filter(?:,|$)/ })
-                                .click();
-                        await concentrations
-                            .getByRole('radio', { name })
-                            .click();
-                        if (width < 768)
-                            await page
-                                .getByRole('dialog', {
-                                    name: 'Filter',
-                                    exact: true,
-                                })
-                                .getByRole('button', {
-                                    name: 'Terapkan',
-                                    exact: true,
+                        if (width < 768) {
+                            const toggle = bar.getByRole('button', {
+                                name: /^Filter(?:,|$)/,
+                            });
+                            if (
+                                (await toggle.getAttribute('aria-expanded')) !==
+                                'true'
+                            )
+                                await toggle.click();
+                            await bar
+                                .getByRole('combobox', {
+                                    name: 'Filter konsentrasi',
                                 })
                                 .click();
+                            await page
+                                .getByRole('option', {
+                                    name: `${label} (${count})`,
+                                    exact: true,
+                                })
+                                .click();
+                        } else {
+                            await concentrations
+                                .getByRole('radio', {
+                                    name: new RegExp(`^${label}\\s*${count}$`),
+                                })
+                                .click();
+                        }
                     }
                     await main.hover({
                         position: { x: width === 390 ? 300 : 500, y: 600 },
@@ -277,7 +287,7 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         await search.scrollIntoViewIfNeeded();
                     }
 
-                    await chooseConcentration(/^Sistem\s*16$/);
+                    await chooseConcentration('Sistem', 16);
                     await search.fill('Dosen Peran 01');
                     await expect(rows).toHaveCount(1);
                     await expect(page).toHaveURL(/[?&]concentration=Sistem/);
@@ -288,23 +298,26 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         await page
                             .getByRole('button', { name: /^Filter(?:,|$)/ })
                             .click();
-                    await expect(
-                        concentrations.getByRole('radio', {
-                            name: /^Sistem\s*16$/,
-                        }),
-                    ).toBeChecked();
-                    if (width < 768)
-                        await page
-                            .getByRole('dialog', {
-                                name: 'Filter',
-                                exact: true,
-                            })
-                            .getByRole('button', { name: 'Batal', exact: true })
+                    if (width < 768) {
+                        await expect(
+                            bar.getByRole('combobox', {
+                                name: 'Filter konsentrasi',
+                            }),
+                        ).toHaveText(/Sistem/);
+                        await bar
+                            .getByRole('button', { name: /^Filter(?:,|$)/ })
                             .click();
+                    } else {
+                        await expect(
+                            concentrations.getByRole('radio', {
+                                name: /^Sistem\s*16$/,
+                            }),
+                        ).toBeChecked();
+                    }
                     await expect(rows).toHaveCount(1);
                     await section.getByLabel('Per halaman').selectOption('50');
                     await assertRolePair(rows.first(), 1, 2);
-                    await chooseConcentration(/^Jaringan\s*15$/);
+                    await chooseConcentration('Jaringan', 15);
                     await expect(
                         section.getByText('Tidak ada dosen ditemukan', {
                             exact: true,
@@ -312,7 +325,7 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                     ).toBeVisible();
                     await search.fill('');
                     await expect(rows).toHaveCount(15);
-                    await chooseConcentration(/^Semua\s*31$/);
+                    await chooseConcentration('Semua', 31);
                     await expect(rows).toHaveCount(31);
                     await rows.first().scrollIntoViewIfNeeded();
                     await expect

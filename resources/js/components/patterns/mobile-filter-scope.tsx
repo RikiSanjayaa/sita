@@ -8,53 +8,53 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
-type Field = {
+export type FilterOption = {
+    value: string;
+    label: string;
+    count?: number;
+    disabled?: boolean;
+};
+export type FilterField = {
     value: string;
     resetValue: string;
+    options: readonly FilterOption[];
     commit: (value: string) => void;
 };
 export type FilterValues = Record<string, string>;
 export type FilterScope = {
     searchTarget: HTMLElement | null;
-    draft: FilterValues | null;
-    register: (label: string, field: Field) => () => void;
-    change: (label: string, value: string) => void;
+    register: (label: string, field: FilterField) => void;
+    unregister: (label: string) => void;
 };
 export const MobileFilterContext = createContext<FilterScope | null>(null);
 
-/** Controls keep their normal callbacks; the mobile dialog commits them only on Apply. */
+/** Register mobile dropdowns while desktop controls keep their normal callbacks. */
 export function useFilterField<T extends string>(
     label: string,
     value: T,
     resetValue: T,
     onChange: (value: T) => void,
-): [T, (value: T) => void] {
+    options: readonly FilterOption[],
+): boolean {
     const scope = useContext(MobileFilterContext);
     const callback = useRef(onChange);
     useEffect(() => {
         callback.current = onChange;
     }, [onChange]);
     const register = scope?.register;
-    useEffect(
-        () =>
-            register?.(label, {
-                value,
-                resetValue,
-                commit: (next) => callback.current(next as T),
-            }),
-        [register, label, value, resetValue],
+    const unregister = scope?.unregister;
+    const commit = useCallback(
+        (next: string) => callback.current(next as T),
+        [],
     );
-    const change = useCallback(
-        (next: T) => {
-            if (scope) scope.change(label, next);
-            else callback.current(next);
-        },
-        [scope, label],
-    );
-    return [(scope?.draft?.[label] ?? value) as T, change];
+    useEffect(() => {
+        register?.(label, { value, resetValue, options, commit });
+    }, [register, label, value, resetValue, options, commit]);
+    useEffect(() => () => unregister?.(label), [unregister, label]);
+    return scope !== null;
 }
 
-/** Search stays in the toolbar while the other controls live inside the dialog. */
+/** Keep search beside the toggle even when the filter panel is collapsed. */
 export function FilterSearchSlot({ children }: { children: ReactNode }) {
     const scope = useContext(MobileFilterContext);
     return scope

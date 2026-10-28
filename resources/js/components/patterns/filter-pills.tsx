@@ -28,22 +28,24 @@ export function FilterPills<T extends string>({
     className,
     itemClassName,
 }: FilterPillsProps<T>) {
-    const [selected, change] = useFilterField(
+    const mobile = useFilterField(
         label,
         value,
         options[0]?.value ?? value,
         onValueChange,
+        options,
     );
+    if (mobile) return null;
     return (
         <ToggleGroup
             type="single"
-            value={selected}
+            value={value}
             aria-label={label}
             onValueChange={(next) => {
                 // Radix reports '' when the active item is pressed again;
                 // a filter must always keep one selection.
                 if (next !== '') {
-                    change(next as T);
+                    onValueChange(next as T);
                 }
             }}
             className={cn('flex-wrap gap-1', className)}

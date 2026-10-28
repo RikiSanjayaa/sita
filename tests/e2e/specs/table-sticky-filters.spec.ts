@@ -241,27 +241,25 @@ test.describe('every searchable table keeps its complete controls together (#94)
                         }
                         async function controls(): Promise<Locator> {
                             if (width >= 768) return bar;
-                            await bar
-                                .getByRole('button', { name: /^Filter(?:,|$)/ })
-                                .click();
-                            return page.getByRole('dialog', {
-                                name: 'Filter',
-                                exact: true,
+                            const toggle = bar.getByRole('button', {
+                                name: /^Filter(?:,|$)/,
                             });
-                        }
-                        async function applyFilters(): Promise<void> {
-                            if (width < 768) {
-                                await page
-                                    .getByRole('dialog', {
-                                        name: 'Filter',
-                                        exact: true,
-                                    })
-                                    .getByRole('button', {
-                                        name: 'Terapkan',
-                                        exact: true,
-                                    })
-                                    .click();
+                            if (
+                                (await toggle.getAttribute('aria-expanded')) !==
+                                'true'
+                            )
+                                await toggle.click();
+                            const panel = bar.getByRole('region', {
+                                name: 'Pilihan filter',
+                            });
+                            const add = panel.getByRole('combobox', {
+                                name: 'Tambah filter',
+                            });
+                            while (await add.count()) {
+                                await add.click();
+                                await page.getByRole('option').first().click();
                             }
+                            return panel;
                         }
                         // Select only our program on the public supervisor directory.
                         if (item.sharedToolbar) {
@@ -274,7 +272,6 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                     exact: true,
                                 })
                                 .click();
-                            await applyFilters();
                         }
                         const pageSize = section.getByRole('combobox', {
                             name: 'Per halaman',
@@ -410,7 +407,6 @@ test.describe('every searchable table keeps its complete controls together (#94)
                         const groupCount = await (await controls())
                             .getByRole('group')
                             .count();
-                        await applyFilters();
                         for (let index = 0; index < groupCount; index++) {
                             const choice = (await controls())
                                 .getByRole('group')
@@ -419,7 +415,6 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                 .nth(1);
                             await choice.click();
                             await expect(choice).toBeChecked();
-                            await applyFilters();
                             await expect(search).toHaveValue(prefix);
                             await (await controls())
                                 .getByRole('group')
@@ -427,17 +422,18 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                 .getByRole('radio')
                                 .first()
                                 .click();
-                            await applyFilters();
                         }
                         const selectCount = await (await controls())
                             .getByRole('combobox')
                             .count();
-                        await applyFilters();
                         for (let index = 0; index < selectCount; index++) {
-                            await (await controls())
+                            const select = (await controls())
                                 .getByRole('combobox')
-                                .nth(index)
-                                .click();
+                                .nth(index);
+                            const isProgram = /program studi/i.test(
+                                (await select.getAttribute('aria-label')) ?? '',
+                            );
+                            await select.click();
                             const option = item.sharedToolbar
                                 ? page.getByRole('option', {
                                       name: prefix,
@@ -445,8 +441,11 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                   })
                                 : page.getByRole('option').last();
                             await option.click();
-                            await applyFilters();
-                            if (item.role === 'guest' && !item.sharedToolbar) {
+                            if (
+                                item.role === 'guest' &&
+                                !item.sharedToolbar &&
+                                isProgram
+                            ) {
                                 await expect(page).toHaveURL(
                                     (url) =>
                                         url.searchParams.get('program') ===
@@ -460,8 +459,7 @@ test.describe('every searchable table keeps its complete controls together (#94)
                                     .nth(index)
                                     .click();
                                 await page.getByRole('option').first().click();
-                                await applyFilters();
-                                if (item.role === 'guest') {
+                                if (item.role === 'guest' && isProgram) {
                                     await expect(page).toHaveURL(
                                         (url) =>
                                             !url.searchParams.has('program'),

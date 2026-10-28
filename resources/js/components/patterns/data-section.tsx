@@ -181,14 +181,16 @@ export function DataSelect({
     options: ReadonlyArray<{ value: string; label: string }>;
     className?: string;
 }) {
-    const [selected, change] = useFilterField(
+    const mobile = useFilterField(
         label,
         value,
         options[0]?.value ?? 'semua',
         onValueChange,
+        options,
     );
+    if (mobile) return null;
     return (
-        <Select value={selected} onValueChange={change}>
+        <Select value={value} onValueChange={onValueChange}>
             <SelectTrigger
                 aria-label={label}
                 className={cn('h-11 w-full bg-card md:h-9 md:w-64', className)}

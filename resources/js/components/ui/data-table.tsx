@@ -312,11 +312,10 @@ export function DataTablePagination({
     return (
         <div data-slot="table-pagination" className="flex items-center justify-between gap-1 border-b px-2 py-1 md:gap-2 md:px-5 md:py-2.5">
             <div className="flex min-w-0 flex-1 items-center gap-1 md:flex-wrap md:gap-x-4 md:gap-y-2">
-                <p className="min-w-0 truncate text-xs text-muted-foreground tabular-nums" title={hasKnownTotal ? `Menampilkan ${rangeStart}-${rangeEnd} dari ${totalItems}${itemSuffix}` : `Menampilkan ${rangeStart}-${rangeEnd}${itemSuffix}`}>
-                    <span className="hidden md:inline">Menampilkan </span>
-                    {rangeStart}-{rangeEnd}
-                    {hasKnownTotal && <><span className="md:hidden"> / </span><span className="hidden md:inline"> dari </span>{totalItems}</>}
-                    <span className="hidden md:inline">{itemSuffix}</span>
+                <p className="min-w-0 text-xs text-muted-foreground tabular-nums [overflow-wrap:anywhere]">
+                    Menampilkan {rangeStart}-{rangeEnd}
+                    {hasKnownTotal && <> dari {totalItems}</>}
+                    {itemSuffix}
                 </p>
                 {canChangePageSize && (
                     <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground md:border-l md:pl-4">
