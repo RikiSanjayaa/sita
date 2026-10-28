@@ -87,7 +87,7 @@ async function loginWithPassword(
     await page.goto('/login');
     await expect(page).toHaveTitle(/Masuk/i);
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Kata sandi').fill(password);
+    await page.getByLabel('Kata sandi', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Masuk' }).click();
 }
 

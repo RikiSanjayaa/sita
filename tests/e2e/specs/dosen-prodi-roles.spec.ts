@@ -61,7 +61,7 @@ function createFixtures(): void {
 async function login(page: Page): Promise<void> {
     await page.goto('/login');
     await page.getByLabel('Email').fill(fixture.kaprodiEmail);
-    await page.getByLabel('Kata sandi').fill('password');
+    await page.getByLabel('Kata sandi', { exact: true }).fill('password');
     await page.getByRole('button', { name: 'Masuk', exact: true }).click();
     await expect(page).toHaveURL(/\/kaprodi/);
     await page.goto('/kaprodi/dosen-prodi');
