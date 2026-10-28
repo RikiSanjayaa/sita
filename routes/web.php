@@ -52,8 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'role:admin|super_admin'])->group(function () {
-    Route::get('admin/import-template.{format}', UserImportTemplateDownloadController::class)
-        ->whereIn('format', ['csv', 'xlsx'])
+    Route::get('admin/import-template/{kind}.xlsx', UserImportTemplateDownloadController::class)
         ->name('admin.users.import-template');
     Route::get('admin/thesis-import-template.xlsx', ThesisImportTemplateDownloadController::class)
         ->name('admin.thesis-projects.import-template');

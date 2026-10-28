@@ -131,6 +131,16 @@ Tersedia setelah seeding; semua memakai password `password`.
 | Kaprodi                | `kaprodi@sita.test`   |
 | Admin (panel `/admin`) | `admin@sita.test`     |
 
+## Import pengguna dari Excel
+
+Di panel admin, buka **Users > Unduh template Excel**, lalu pilih **Template Mahasiswa**, **Template Dosen** atau **Template Admin**. Setiap pilihan mengunduh file XLSX terpisah dengan kolom, satu contoh demo dan sheet Panduan sesuai peran. Ganti atau hapus baris contoh sebelum mengimpor; jangan ubah nama header. Format nomor HP, NIM dan NIK sebagai teks agar angka nol awal tetap ada.
+
+Buka **Import Excel**, unggah file, pilih Tipe Import dan Program Studi tujuan. Kolom `role` menentukan peran setiap baris; Tipe Import hanya dipakai bila nilai `role` kosong. File lama yang mencampur peran sah tetap didukung. Email yang sudah ada diperbarui, termasuk password dan peran; hasil import menampilkan jumlah berhasil dan kegagalan per baris.
+
+- Mahasiswa: isi NIM, angkatan, jenjang (`d3`, `s1`, `s2`) dan konsentrasi sesuai prodi tujuan. `kurikulum_obe` menerima `ya/tidak`, `1/0`, `true/false`; kosong berarti non-OBE.
+- Dosen: isi NIK dan konsentrasi untuk prodi dropdown, atau `penempatan_dosen` berformat `Slug Prodi:Konsentrasi|Slug Prodi 2:Konsentrasi 2`, misalnya `ilkom:Jaringan|ti:Umum`. Nama prodi juga diterima, tetapi gunakan slug bila nama yang sama dipakai beberapa jenjang. Penempatan pertama menjadi prodi utama. Bidang keilmuan harus tersedia dan aktif; beberapa nilai dipisahkan `|`. Sesuaikan contoh penempatan dan bidang dengan data master.
+- Admin: hanya kolom identitas akun; Program Studi diambil dari dialog import. Hanya super admin dapat mengimpor akun admin. Admin prodi tetap memakai cakupan prodinya.
+
 ## Notifikasi Web Push dan PWA
 
 Web Push menjangkau perangkat yang sudah didaftarkan, tanpa tab SiTA harus tetap terbuka. Riwayat notifikasi dalam aplikasi dan pembaruan Reverb tetap berjalan. Email notifikasi dan WhatsApp tidak termasuk; email autentikasi tidak berubah.
