@@ -68,6 +68,124 @@ async function openReviewer(page: Page): Promise<string> {
 test.describe('Stable document detail journey (#152)', () => {
     test.beforeEach(() => seedDocumentDetailScenario());
 
+    for (const width of [1280, 390]) {
+        test(`review decisions follow the completed notes and revision editor at ${width}px (#175)`, async ({
+            browser,
+        }, testInfo) => {
+            const studentContext = await browser.newContext({
+                storageState: authStatePath(student.studentKey),
+            });
+            const reviewerContext = await browser.newContext({
+                storageState: authStatePath('dosen2'),
+                viewport: { width, height: 844 },
+            });
+            try {
+                const studentPage = await studentContext.newPage();
+                await uploadVersion(studentPage, 1);
+                const reviewer = await reviewerContext.newPage();
+                await openReviewer(reviewer);
+                await reviewer
+                    .getByRole('textbox', {
+                        name: 'Catatan dosen',
+                        exact: true,
+                    })
+                    .fill(revision);
+                for (let index = 1; index <= 3; index += 1) {
+                    await reviewer
+                        .getByRole('button', {
+                            name: 'Tambah butir',
+                            exact: true,
+                        })
+                        .click();
+                    await reviewer
+                        .getByRole('textbox', {
+                            name: `Butir ${index}`,
+                            exact: true,
+                        })
+                        .fill(
+                            `Perbaikan ${index}: jelaskan dasar dan hasil pengujian.`,
+                        );
+                }
+                const lastItem = reviewer.getByRole('textbox', {
+                    name: 'Butir 3',
+                    exact: true,
+                });
+                await lastItem.focus();
+                await lastItem.press('Tab');
+                await expect(
+                    reviewer.getByRole('button', {
+                        name: 'Tambah butir',
+                        exact: true,
+                    }),
+                ).toBeFocused();
+                await reviewer.keyboard.press('Tab');
+                const decision = reviewer.getByRole('button', {
+                    name: 'Minta revisi',
+                    exact: true,
+                });
+                await expect(decision).toBeFocused();
+                expect(
+                    await decision.evaluate(
+                        (element) => element.getBoundingClientRect().top,
+                    ),
+                ).toBeGreaterThanOrEqual(48);
+                const editorBottom = await lastItem.evaluate(
+                    (element) =>
+                        element.getBoundingClientRect().bottom + scrollY,
+                );
+                const decisionTop = await decision.evaluate(
+                    (element) => element.getBoundingClientRect().top + scrollY,
+                );
+                expect(decisionTop).toBeGreaterThan(editorBottom);
+                await attachDocumentStates(
+                    reviewer,
+                    testInfo,
+                    `review-decisions-after-editor-${width}`,
+                );
+                await Promise.all([
+                    reviewer.waitForResponse(
+                        (response) =>
+                            response.request().method() === 'POST' &&
+                            /\/dosen\/dokumen-revisi\/\d+\/review$/.test(
+                                response.url(),
+                            ),
+                    ),
+                    decision.click(),
+                ]);
+                await expect(
+                    reviewer.getByRole('textbox', {
+                        name: 'Butir 3',
+                        exact: true,
+                    }),
+                ).toHaveValue(
+                    'Perbaikan 3: jelaskan dasar dan hasil pengujian.',
+                );
+                await studentPage.goto('/mahasiswa/upload-dokumen');
+                await studentPage.getByPlaceholder(/Cari/).fill(title);
+                await openDocumentDetail(
+                    studentPage,
+                    studentPage
+                        .locator('tr')
+                        .filter({ hasText: 'draft-detail-v1.pdf' })
+                        .first(),
+                    '/mahasiswa/upload-dokumen',
+                );
+                await expect(
+                    studentPage.getByText('Perlu revisi', { exact: true }),
+                ).toBeVisible();
+                await expect(
+                    studentPage.getByText(
+                        'Perbaikan 3: jelaskan dasar dan hasil pengujian.',
+                        { exact: true },
+                    ),
+                ).toBeVisible();
+            } finally {
+                await reviewerContext.close();
+                await studentContext.close();
+            }
+        });
+    }
+
     test('two reviewers save required revision notes and approval suggestions, preserving exact versions and drafts', async ({
         browser,
     }, testInfo) => {

@@ -25,7 +25,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/kaprodi/dashboard' },
-    { title: 'Dokumen', href: '/kaprodi/dokumen' },
+    { title: 'Dokumen Prodi', href: '/kaprodi/dokumen' },
 ];
 
 const PAGE_SIZE = 15;
@@ -189,15 +189,15 @@ export default function KaprodiDokumenPage() {
     return (
         <KaprodiLayout
             breadcrumbs={breadcrumbs}
-            title="Dokumen"
+            title="Dokumen Prodi"
             subtitle={`Monitoring dokumen mahasiswa ${programStudi.name}`}
         >
-            <Head title="Dokumen Kaprodi" />
+            <Head title="Dokumen Prodi" />
 
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
                 <DataSection
                     level={1}
-                    title="Daftar Dokumen"
+                    title="Dokumen Prodi"
                     description={`Monitoring dokumen mahasiswa ${programStudi.name}, termasuk status review dosen.`}
                 >
                     <StickyFilterBar>

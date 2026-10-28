@@ -1,4 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
+import { Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -18,6 +20,7 @@ interface LoginProps {
 }
 
 export default function Login({ status, canResetPassword }: LoginProps) {
+    const [passwordVisible, setPasswordVisible] = useState(false);
     return (
         <AuthLayout
             title="Selamat datang kembali"
@@ -64,22 +67,53 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     <TextLink
                                         href={request().url}
                                         className="ml-auto text-xs"
-                                        tabIndex={5}
+                                        tabIndex={6}
                                     >
                                         Lupa kata sandi?
                                     </TextLink>
                                 )}
                             </div>
-                            <Input
-                                id="password"
-                                type="password"
-                                name="password"
-                                required
-                                tabIndex={2}
-                                autoComplete="current-password"
-                                placeholder="Masukkan kata sandi"
-                                className="h-10"
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={passwordVisible ? 'text' : 'password'}
+                                    name="password"
+                                    required
+                                    tabIndex={2}
+                                    autoComplete="current-password"
+                                    placeholder="Masukkan kata sandi"
+                                    className="h-10 pr-12 max-md:h-11"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    tabIndex={3}
+                                    aria-label={
+                                        passwordVisible
+                                            ? 'Sembunyikan kata sandi'
+                                            : 'Tampilkan kata sandi'
+                                    }
+                                    aria-controls="password"
+                                    aria-pressed={passwordVisible}
+                                    className="absolute inset-y-0 right-0 size-10 text-muted-foreground max-md:size-11"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
+                                    onClick={() =>
+                                        setPasswordVisible((value) => !value)
+                                    }
+                                >
+                                    {passwordVisible ? (
+                                        <EyeOff
+                                            aria-hidden
+                                            className="size-4"
+                                        />
+                                    ) : (
+                                        <Eye aria-hidden className="size-4" />
+                                    )}
+                                </Button>
+                            </div>
                             <InputError message={errors.password} />
                         </div>
 
@@ -88,7 +122,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             <Checkbox
                                 id="remember"
                                 name="remember"
-                                tabIndex={3}
+                                tabIndex={4}
                             />
                             <Label
                                 htmlFor="remember"
@@ -102,7 +136,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <Button
                             type="submit"
                             className="mt-1 h-10 w-full"
-                            tabIndex={4}
+                            tabIndex={5}
                             disabled={processing}
                             data-test="login-button"
                         >

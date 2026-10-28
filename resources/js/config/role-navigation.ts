@@ -146,7 +146,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: ClipboardCheck,
             },
             {
-                title: 'Dokumen',
+                title: 'Dokumen Prodi',
                 href: '/kaprodi/dokumen',
                 icon: FileStack,
             },

@@ -447,3 +447,103 @@ for (const width of [320, 390]) {
         }
     });
 }
+
+for (const role of ['dosen', 'mahasiswa'] as const) {
+    for (const width of [1280, 390]) {
+        test(`${role} private members omit self without changing group members at ${width}px (#169)`, async ({
+            browser,
+        }) => {
+            const context = await browser.newContext({
+                storageState: authStatePath(
+                    role === 'dosen' ? 'dosen1' : student.studentKey,
+                ),
+                viewport: { width, height: 844 },
+            });
+            try {
+                const page = await context.newPage();
+                await page.goto(`/${role}/pesan`);
+                const list = page.getByRole('complementary', {
+                    name: 'Daftar percakapan',
+                });
+                const privateChat = list
+                    .locator('[data-thread-id]')
+                    .filter({ hasText: 'Pribadi' })
+                    .filter({
+                        hasText:
+                            role === 'dosen'
+                                ? student.studentName
+                                : student.supervisorNames[0],
+                    });
+                await privateChat.click();
+                await page.reload();
+                const trigger = page.getByRole('button', {
+                    name: 'Lihat 1 anggota percakapan',
+                    exact: true,
+                });
+                await trigger.focus();
+                await trigger.press('Enter');
+                const members = page.getByRole('dialog', {
+                    name: 'Anggota percakapan',
+                    exact: true,
+                });
+                await expect(members.getByRole('link')).toHaveCount(1);
+                const counterpart = members.getByRole('link').filter({
+                    hasText:
+                        role === 'dosen'
+                            ? student.studentName
+                            : student.supervisorNames[0],
+                });
+                const profileUrl = await counterpart.getAttribute('href');
+                await counterpart.click();
+                await expect(page).toHaveURL(
+                    new URL(profileUrl!, page.url()).href,
+                );
+                await page.goBack();
+                await expect(trigger).toBeVisible();
+                if (width === 390)
+                    await page
+                        .getByRole('button', {
+                            name: 'Kembali ke daftar percakapan',
+                            exact: true,
+                        })
+                        .click();
+                await list
+                    .locator('[data-thread-id]')
+                    .filter({ hasText: 'Grup Bimbingan' })
+                    .filter({
+                        hasText:
+                            role === 'dosen'
+                                ? student.studentName
+                                : 'Bimbingan',
+                    })
+                    .click();
+                await page
+                    .getByRole('button', {
+                        name: 'Lihat 3 anggota percakapan',
+                        exact: true,
+                    })
+                    .click();
+                await expect(members.getByRole('link')).toHaveCount(3);
+                await expect(
+                    members.getByRole('link').filter({ hasText: 'Anda' }),
+                ).toHaveCount(1);
+                await page.keyboard.press('Escape');
+                if (width === 390)
+                    await page
+                        .getByRole('button', {
+                            name: 'Kembali ke daftar percakapan',
+                            exact: true,
+                        })
+                        .click();
+                await privateChat.click();
+                await trigger.click();
+                await expect(members.getByRole('link')).toHaveCount(1);
+                await expect(
+                    members.getByRole('link').filter({ hasText: 'Anda' }),
+                ).toHaveCount(0);
+            } finally {
+                await context.close();
+            }
+        });
+    }
+}

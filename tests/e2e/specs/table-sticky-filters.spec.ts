@@ -102,7 +102,7 @@ const inventory: TableCase[] = [
     },
     {
         path: '/kaprodi/dokumen',
-        section: 'Daftar Dokumen',
+        section: 'Dokumen Prodi',
         role: 'head',
         pageHeading: true,
     },

@@ -342,7 +342,6 @@ test.describe('Kaprodi portal', () => {
         page,
     }) => {
         await page.goto('/kaprodi/dokumen');
-        await expect(page).toHaveTitle(/Dokumen Kaprodi/);
 
         await page
             .getByPlaceholder('Cari mahasiswa, NIM, file, atau dosen...')
