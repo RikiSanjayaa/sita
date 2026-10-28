@@ -72,6 +72,7 @@ async function submitDecision(
         await page.getByLabel(/^Catatan Revisi/).fill(revisionNotes);
     }
 
+    await page.getByRole('button', { name: 'Submit Keputusan' }).click();
     await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -80,7 +81,9 @@ async function submitDecision(
                     response.url(),
                 ),
         ),
-        page.getByRole('button', { name: 'Submit Keputusan' }).click(),
+        page
+            .getByRole('button', { name: 'Konfirmasi penilaian', exact: true })
+            .click(),
     ]);
 }
 
@@ -339,6 +342,7 @@ test.describe('Dosen penilaian ujian', () => {
                 .fill('Sinopsis jelas dan terukur.');
             await expect(submitButton).toBeEnabled();
 
+            await submitButton.click();
             await Promise.all([
                 examinerPage.waitForResponse(
                     (response) =>
@@ -347,7 +351,12 @@ test.describe('Dosen penilaian ujian', () => {
                             response.url(),
                         ),
                 ),
-                submitButton.click(),
+                examinerPage
+                    .getByRole('button', {
+                        name: 'Konfirmasi penilaian',
+                        exact: true,
+                    })
+                    .click(),
             ]);
 
             await studentPage.goto('/mahasiswa/tugas-akhir');

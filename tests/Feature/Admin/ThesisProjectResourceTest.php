@@ -1010,3 +1010,51 @@ test('empty tabs of the thesis project page explain themselves in Indonesian', f
         ->assertSee('Belum ada catatan dosen.')
         ->assertSee('Riwayat Aktivitas');
 });
+
+it('keeps final-result drafts uncommitted until confirmation and survives cancellation', function (string $type, string $actionName): void {
+    Notification::fake();
+    $prodi = ProgramStudi::factory()->create();
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $prodi->id]);
+    $student = User::factory()->asMahasiswa()->create();
+    MahasiswaProfile::factory()->create(['user_id' => $student->id, 'program_studi_id' => $prodi->id]);
+    $project = ThesisProject::query()->create([
+        'student_user_id' => $student->id,
+        'program_studi_id' => $prodi->id,
+        'phase' => $type,
+        'state' => 'active',
+        'started_at' => now(),
+    ]);
+    $defense = ThesisDefense::query()->create([
+        'project_id' => $project->id,
+        'type' => $type,
+        'status' => 'awaiting_finalization',
+        'result' => 'pending',
+        'attempt_no' => 2,
+    ]);
+    $this->actingAs($admin);
+
+    $page = Livewire::test(ViewThesisProject::class, ['record' => $project->getRouteKey()])
+        ->mountAction($actionName)
+        ->setActionData(['result' => 'fail', 'notes' => 'Attempt kedua perlu diulang.'])
+        ->callMountedAction();
+
+    expect($defense->fresh()->status)->toBe('awaiting_finalization')
+        ->and($project->events()->count())->toBe(0);
+    Notification::assertNothingSent();
+
+    $page->call('unmountAction', false)
+        ->assertActionDataSet(['result' => 'fail', 'notes' => 'Attempt kedua perlu diulang.'])
+        ->callMountedAction();
+    expect($defense->fresh()->status)->toBe('awaiting_finalization');
+
+    $page->callMountedAction()->assertHasNoActionErrors();
+    expect($defense->fresh()->status)->toBe('completed')
+        ->and($defense->fresh()->result)->toBe('fail')
+        ->and($defense->fresh()->notes)->toBe('Attempt kedua perlu diulang.')
+        ->and($project->fresh()->phase)->toBe($type)
+        ->and($project->fresh()->state)->toBe('active');
+})->with([
+    'Sempro' => ['sempro', 'finalize_sempro'],
+    'Sidang' => ['sidang', 'complete_sidang'],
+]);

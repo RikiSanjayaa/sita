@@ -10,7 +10,7 @@ import {
     Send,
     XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { type BimbinganEvent } from '@/components/bimbingan-calendar';
 import { CollapsibleCalendarSection } from '@/components/collapsible-calendar-section';
@@ -50,6 +50,14 @@ import {
     DataTablePagination,
     usePagination,
 } from '@/components/ui/data-table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -229,11 +237,21 @@ function DecisionForm({
     defenseId,
     defenseType,
     scoreRequired,
+    studentName,
+    studentNim,
+    typeLabel,
+    attemptNo,
+    canSubmit,
     onClose,
 }: {
     defenseId: number;
     defenseType: string;
     scoreRequired: boolean;
+    studentName: string;
+    studentNim: string;
+    typeLabel: string;
+    attemptNo: number;
+    canSubmit: boolean;
     onClose: () => void;
 }) {
     const [decision, setDecision] = useState<string>('');
@@ -243,9 +261,15 @@ function DecisionForm({
     const [revisionItems, setRevisionItems] = useState<DraftItem[]>([]);
     const [annotation, setAnnotation] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const requestPending = useRef(false);
     const { errors } = usePage<SharedData>().props;
-    const revisionErrors = Object.entries(errors ?? {})
-        .filter(([key]) => key.startsWith('revision_'))
+    const decisionErrors = Object.entries(errors ?? {})
+        .filter(
+            ([key]) =>
+                ['decision', 'score', 'decision_notes'].includes(key) ||
+                key.startsWith('revision_'),
+        )
         .map(([, message]) => String(message));
     const filledItems = revisionItems.filter(
         (item) => item.description.trim() !== '',
@@ -258,10 +282,12 @@ function DecisionForm({
     const notesRequired = scoreRequired && defenseType === 'sempro';
 
     function submit() {
+        if (requestPending.current || !canSubmit) return;
         if (!decision || (scoreRequired && !score)) return;
         if (notesRequired && decisionNotes.trim() === '') return;
         if (revisionNotesRequired && revisionNotes.trim() === '') return;
 
+        requestPending.current = true;
         setSubmitting(true);
         router.post(
             `/dosen/seminar-proposal/${defenseId}/decision`,
@@ -290,7 +316,11 @@ function DecisionForm({
             },
             {
                 forceFormData: annotation !== null,
-                onFinish: () => setSubmitting(false),
+                onFinish: () => {
+                    requestPending.current = false;
+                    setSubmitting(false);
+                },
+                onError: () => setConfirming(false),
                 onSuccess: () => onClose(),
             },
         );
@@ -440,9 +470,9 @@ function DecisionForm({
                     </>
                 )}
 
-                {revisionErrors.length > 0 && (
+                {decisionErrors.length > 0 && (
                     <ul role="alert" className="text-sm text-destructive">
-                        {revisionErrors.map((message) => (
+                        {decisionErrors.map((message) => (
                             <li key={message}>{message}</li>
                         ))}
                     </ul>
@@ -451,9 +481,10 @@ function DecisionForm({
 
             <div className="sticky bottom-0 -mx-6 mt-5 -mb-5 flex gap-2 border-t bg-background px-6 py-3">
                 <Button
-                    onClick={submit}
+                    onClick={() => setConfirming(true)}
                     disabled={
                         submitting ||
+                        !canSubmit ||
                         !decision ||
                         (scoreRequired && !score) ||
                         (notesRequired && decisionNotes.trim() === '') ||
@@ -467,11 +498,123 @@ function DecisionForm({
                 <Button
                     variant="ghost"
                     onClick={onClose}
+                    disabled={submitting}
                     className="max-md:h-11"
                 >
                     Batal
                 </Button>
             </div>
+            <Dialog
+                open={confirming}
+                onOpenChange={(open) => {
+                    if (!submitting) setConfirming(open);
+                }}
+            >
+                <DialogContent
+                    className="max-h-[85dvh] overflow-y-auto"
+                    showCloseButton={!submitting}
+                >
+                    <DialogHeader>
+                        <DialogTitle>
+                            Konfirmasi penilaian individual
+                        </DialogTitle>
+                        <DialogDescription>
+                            Periksa keputusan Anda sebelum disimpan. Ini bukan
+                            penetapan hasil akhir ujian.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <KeyValueList
+                        items={[
+                            {
+                                label: 'Mahasiswa',
+                                value: `${studentName} (${studentNim})`,
+                            },
+                            {
+                                label: 'Jenis / attempt ujian',
+                                value: `${typeLabel} #${attemptNo}`,
+                            },
+                            {
+                                label: 'Keputusan saya',
+                                value: getDecisionLabel(decision, defenseType),
+                            },
+                            ...(scoreRequired
+                                ? [{ label: 'Nilai', value: score }]
+                                : []),
+                            {
+                                label: 'Catatan keputusan',
+                                value: (
+                                    <span className="break-words whitespace-pre-wrap">
+                                        {decisionNotes.trim() || '-'}
+                                    </span>
+                                ),
+                            },
+                            ...(showRevisionNotes
+                                ? [
+                                      {
+                                          label: 'Catatan revisi',
+                                          value: (
+                                              <span className="break-words whitespace-pre-wrap">
+                                                  {revisionNotes.trim() || '-'}
+                                              </span>
+                                          ),
+                                      },
+                                  ]
+                                : []),
+                            ...(showRevisionNotes && annotation
+                                ? [
+                                      {
+                                          label: 'Naskah beranotasi',
+                                          value: annotation.name,
+                                      },
+                                  ]
+                                : []),
+                        ]}
+                    />
+                    {showRevisionNotes && filledItems.length > 0 && (
+                        <div className="space-y-2 text-sm">
+                            <p className="font-medium">Butir revisi</p>
+                            <ol className="list-decimal space-y-2 pl-5">
+                                {filledItems.map((item, index) => (
+                                    <li
+                                        key={index}
+                                        className="break-words whitespace-pre-wrap"
+                                    >
+                                        {item.location.trim() &&
+                                            `${item.location.trim()}: `}
+                                        {item.description.trim()}
+                                        {item.priority !== 'none' &&
+                                            ` (${item.priority === 'major' ? 'Mayor' : 'Minor'})`}
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                        Keputusan ini disimpan sebagai penilaian Anda. Hasil
+                        akhir tetap ditetapkan admin setelah seluruh panel
+                        mengirim keputusan.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            disabled={submitting}
+                            onClick={() => setConfirming(false)}
+                            className="max-md:h-11"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            disabled={submitting || !canSubmit}
+                            onClick={submit}
+                            className="max-md:h-11"
+                        >
+                            {submitting
+                                ? 'Menyimpan...'
+                                : 'Konfirmasi penilaian'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </section>
     );
 }
@@ -801,7 +944,7 @@ function DefenseDetailSheet({
                             />
                         </section>
 
-                        {canDecide &&
+                        {(canDecide || showDecisionForm) &&
                             (!showDecisionForm ? (
                                 <Button
                                     onClick={() => setShowDecisionForm(true)}
@@ -815,6 +958,11 @@ function DefenseDetailSheet({
                                     defenseId={item.defenseId}
                                     defenseType={item.type}
                                     scoreRequired={item.scoreRequired}
+                                    studentName={item.studentName}
+                                    studentNim={item.studentNim}
+                                    typeLabel={item.typeLabel}
+                                    attemptNo={item.attemptNo}
+                                    canSubmit={canDecide}
                                     onClose={handleClose}
                                 />
                             ))}

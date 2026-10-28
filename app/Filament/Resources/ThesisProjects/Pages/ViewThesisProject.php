@@ -18,6 +18,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Callout;
@@ -246,6 +247,9 @@ class ViewThesisProject extends ViewRecord
                 ->visible(fn(): bool => $record->state === 'active' && $this->latestSempro($record) !== null)
                 ->disabled(fn(): bool => $this->latestSempro($record)?->status !== 'awaiting_finalization')
                 ->tooltip(fn(): ?string => $this->finalizeSemproTooltip($record))
+                ->modalSubmitActionLabel('Tinjau hasil akhir')
+                ->before(fn(Action $action, array $arguments) => $this->confirmFinalResult($action, $arguments))
+                ->registerModalActions([$this->finalResultConfirmation($record, 'sempro')])
                 ->form([
                     Select::make('result')
                         ->label('Hasil')
@@ -264,7 +268,7 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record, $terms): void {
+                ->action(function (array $data, Action $action) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -291,7 +295,11 @@ class ViewThesisProject extends ViewRecord
                             ->title('Gagal mencatat hasil '.$terms['proposalExamShort'])
                             ->body($exception->getMessage())
                             ->danger()
+                            ->persistent()
                             ->send();
+
+                        $action->arguments([]);
+                        $action->halt();
                     }
                 }),
             Action::make('assign_supervisors')
@@ -493,6 +501,9 @@ class ViewThesisProject extends ViewRecord
                 ->visible(fn(): bool => $record->state === 'active' && $this->latestSidang($record) !== null)
                 ->disabled(fn(): bool => $this->latestSidang($record)?->status !== 'awaiting_finalization')
                 ->tooltip(fn(): ?string => $this->completeSidangTooltip($record))
+                ->modalSubmitActionLabel('Tinjau hasil akhir')
+                ->before(fn(Action $action, array $arguments) => $this->confirmFinalResult($action, $arguments))
+                ->registerModalActions([$this->finalResultConfirmation($record, 'sidang')])
                 ->form([
                     Select::make('result')
                         ->label('Hasil '.$terms['finalExam'])
@@ -515,7 +526,7 @@ class ViewThesisProject extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->action(function (array $data) use ($record, $terms): void {
+                ->action(function (array $data, Action $action) use ($record, $terms): void {
                     $userId = Auth::id();
 
                     if ($userId === null) {
@@ -543,7 +554,11 @@ class ViewThesisProject extends ViewRecord
                             ->title('Gagal memperbarui '.$terms['finalExamShort'])
                             ->body($exception->getMessage())
                             ->danger()
+                            ->persistent()
                             ->send();
+
+                        $action->arguments([]);
+                        $action->halt();
                     }
                 }),
         ];
@@ -579,6 +594,67 @@ class ViewThesisProject extends ViewRecord
                 ->color('gray')
                 ->button(),
         ];
+    }
+
+    private function confirmFinalResult(Action $action, array $arguments): void
+    {
+        if ($arguments['confirmed'] ?? false) {
+            return;
+        }
+
+        $this->mountAction('confirm_final_result');
+        $action->halt();
+    }
+
+    private function finalResultConfirmation(ThesisProject $project, string $type): Action
+    {
+        return Action::make('confirm_final_result')
+            ->modalHeading('Konfirmasi hasil akhir ujian')
+            ->modalDescription('Periksa hasil akhir sebelum disimpan. Ini bukan penilaian individual penguji.')
+            ->modalSubmitActionLabel('Konfirmasi hasil akhir')
+            ->modalCancelActionLabel('Batal')
+            ->closeModalByClickingAway(false)
+            ->schema(function () use ($project, $type): array {
+                $data = $this->getMountedActionSchema(0)?->getState() ?? [];
+                $terms = AcademicTerminology::forProject($project);
+                $defense = $type === 'sempro' ? $this->latestSempro($project) : $this->latestSidang($project);
+                $result = $data['result'];
+                $phase = $type === 'sempro' ? $terms['proposalPhase'] : $terms['finalExamPhase'];
+                $impact = match (true) {
+                    $result === 'fail' => 'Ujian selesai dengan hasil Tidak Lulus. Tahap tetap '.$phase.'; ujian ulang perlu dijadwalkan. Revisi aktif ujian ini ditutup.',
+                    $type === 'sempro' => 'Ujian selesai dan revisi dibuka sesuai catatan penguji. Tahap tetap '.$phase.' sampai revisi disetujui; belum berpindah ke '.$terms['researchPhase'].'.',
+                    $result === 'pass' => $terms['finalWork'].' dinyatakan selesai, penugasan pembimbing aktif diakhiri, dan revisi aktif ujian ini ditutup.',
+                    default => 'Ujian selesai dan revisi dibuka sesuai catatan penguji. Tahap tetap '.$phase.' dan '.$terms['finalWorkLower'].' masih aktif sampai revisi disetujui.',
+                };
+
+                return [
+                    TextEntry::make('student_summary')
+                        ->label('Mahasiswa')
+                        ->state($project->student?->name.' ('.($project->student?->mahasiswaProfile?->nim ?? '-').')'),
+                    Grid::make(['default' => 2])->schema([
+                        TextEntry::make('exam_summary')->label('Jenis ujian')
+                            ->state($type === 'sempro' ? $terms['proposalExam'] : $terms['finalExam']),
+                        TextEntry::make('attempt_summary')->label('Attempt')->state('#'.$defense?->attempt_no),
+                    ]),
+                    TextEntry::make('result_summary')->label('Hasil akhir')
+                        ->state($result === 'fail' ? 'Tidak Lulus' : ($type === 'sidang' && $result === 'pass_with_revision' ? 'Lulus dengan Syarat' : 'Lulus')),
+                    TextEntry::make('deadline_summary')->label('Batas revisi (WITA)')
+                        ->visible($result === 'pass_with_revision')
+                        ->state(filled($data['revision_due_at'] ?? null) ? \Carbon\Carbon::parse($data['revision_due_at'])->format('d/m/Y H:i') : '-'),
+                    TextEntry::make('revision_summary')->label('Catatan revisi')
+                        ->visible($type === 'sidang' && $result === 'pass_with_revision')
+                        ->state($data['revision_notes'] ?? '-'),
+                    TextEntry::make('notes_summary')->label('Catatan')->state($data['notes']),
+                    TextEntry::make('impact_summary')->label('Dampak hasil akhir')->state($impact),
+                    TextEntry::make('panel_summary')->label('Visibilitas penguji')
+                        ->visible($type === 'sidang')
+                        ->state('Penguji tambahan kini dapat dilihat mahasiswa dan masuk ke grup '.$terms['finalExamShort'].'.'),
+                ];
+            })
+            ->action(function (): void {
+                $this->unmountAction(cancelParentActions: false);
+                $this->callMountedAction(['confirmed' => true]);
+            });
     }
 
     /**
