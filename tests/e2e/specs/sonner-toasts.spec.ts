@@ -146,6 +146,111 @@ test.describe('Sonner feedback', () => {
         }
     }
 
+    for (const width of [1280, 390]) {
+        for (const mode of ['light', 'dark'] as const) {
+            for (const order of ['unread-auth', 'auth-unread'] as const) {
+                test(`save feedback survives ${order} before redirect at ${width}px ${mode}`, async ({
+                    browser,
+                }) => {
+                    const context = await browser.newContext({
+                        storageState: authStatePath('mahasiswa'),
+                        viewport: { width, height: 900 },
+                        colorScheme: mode,
+                    });
+                    await context.addInitScript((mode) => {
+                        localStorage.setItem('appearance', mode);
+                    }, mode);
+
+                    try {
+                        const page = await context.newPage();
+                        await page.goto('/settings/profile');
+                        const { props } = JSON.parse(
+                            (await page
+                                .locator('#app')
+                                .getAttribute('data-page'))!,
+                        );
+                        const csrf = await page
+                            .locator('meta[name="csrf-token"]')
+                            .getAttribute('content');
+                        let interrupted = false;
+
+                        await page.route(
+                            '**/settings/profile',
+                            async (route) => {
+                                if (
+                                    !['POST', 'PATCH'].includes(
+                                        route.request().method(),
+                                    )
+                                ) {
+                                    await route.continue();
+                                    return;
+                                }
+
+                                // Save really executes; hold its redirect while real background requests read the same session.
+                                const saved = await route.fetch({
+                                    maxRedirects: 0,
+                                });
+                                expect(saved.status()).toBe(303);
+                                for (const endpoint of order.split('-')) {
+                                    const response =
+                                        endpoint === 'unread'
+                                            ? await context.request.get(
+                                                  '/chat/unread',
+                                              )
+                                            : await context.request.post(
+                                                  '/broadcasting/auth',
+                                                  {
+                                                      form: {
+                                                          socket_id: '123.456',
+                                                          channel_name: `private-App.Models.User.${props.auth.user.id}`,
+                                                      },
+                                                      headers: {
+                                                          'X-CSRF-TOKEN': csrf!,
+                                                      },
+                                                  },
+                                              );
+                                    expect(response.status()).toBe(200);
+                                }
+                                interrupted = true;
+                                await route.fulfill({ response: saved });
+                            },
+                        );
+
+                        await page
+                            .getByRole('button', {
+                                name: 'Simpan perubahan',
+                                exact: true,
+                            })
+                            .click();
+                        const toast = page.locator(
+                            '[data-sonner-toast][data-type="success"]',
+                        );
+                        await expect(toast).toHaveCount(1);
+                        await expect(toast).toHaveText(
+                            /Profil berhasil diperbarui\./,
+                        );
+                        expect(interrupted).toBe(true);
+                        await toast
+                            .getByRole('button', { name: 'Tutup notifikasi' })
+                            .click();
+                        await page.reload();
+                        await expect(
+                            page.getByRole('button', {
+                                name: 'Simpan perubahan',
+                                exact: true,
+                            }),
+                        ).toBeVisible();
+                        await expect(
+                            page.locator('[data-sonner-toast]'),
+                        ).toHaveCount(0);
+                    } finally {
+                        await context.close();
+                    }
+                });
+            }
+        }
+    }
+
     test('realtime toast can close without reading and Buka marks it read before navigating', async ({
         browser,
     }) => {

@@ -213,6 +213,10 @@ Header percakapan menyatukan avatar anggota berwenang, nama dan jenis percakapan
 
 Shell portal memakai header ringkas. Tabel, kalender dan halaman detail tetap mengikuti alur scroll halaman; toast berada di bawah header, dengan tombol tutup yang tetap terjangkau pada ponsel.
 
+Feedback simpan memakai flash sesi sampai respons halaman berikutnya. `StartSessionWithoutBackgroundWrites` tetap memuat sesi untuk autentikasi, tetapi tidak menyimpan snapshot dari `GET /chat/unread` dan autentikasi broadcasting yang hanya membaca sesi. Keduanya tidak boleh menghabiskan flash atau menimpa perubahan dari request simpan yang berjalan bersamaan. Respons halaman tetap mengonsumsi flash sekali; notifikasi realtime dan status autentikasi tidak dialihkan ke jalur ini.
+
+Sesi baru atau ID sesi yang berubah, termasuk pemulihan login dari cookie Remember me, tetap disimpan. Panel Filament memakai middleware sesi yang sama dengan grup web agar request Livewire tidak menjalankan dua middleware sesi berbeda. Tidak ada migrasi atau perubahan driver sesi; rollback kode mengembalikan perilaku lama.
+
 Peringatan "Tampilan SiTA paling nyaman di laptop atau komputer" tidak ditampilkan di halaman Pesan mahasiswa/dosen, termasuk lewat tautan langsung dan navigasi dalam aplikasi. Chat memakai tinggi layar penuh tanpa ruang bekas peringatan; kunjungan ke chat tidak menutup peringatan pada halaman lain.
 
 Pada Mahasiswa Dosen, dropdown Chat memuat chat grup, pribadi dan WhatsApp bila kontak tersedia; WhatsApp tidak lagi berada pada Aksi lainnya. Jumlah tampil sebagai `x bimbingan` dalam informasi mahasiswa, tanpa kolom berulang atau perubahan aturan minimum. Perbarui profil menandai nomor HP dengan badge WhatsApp, tanpa tautan chat ke nomor sendiri; edit, konfirmasi dan salin nomor tetap tersedia.
