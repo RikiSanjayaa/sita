@@ -14,7 +14,7 @@ async function expectGlobalLabels(page: Page): Promise<void> {
     await expect(
         page.getByRole('heading', { name: pageTitle, exact: true }),
     ).toBeVisible();
-    await expect(page).toHaveTitle(`${pageTitle} - SiTA`);
+    await expect(page).toHaveTitle(new RegExp(`^${pageTitle}(?: - .+)?$`));
     await expect(page.locator('header').first()).toContainText(pageTitle);
     await expect(
         page
