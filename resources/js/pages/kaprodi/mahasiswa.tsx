@@ -75,6 +75,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useUrlState } from '@/hooks/use-url-state';
 import KaprodiLayout from '@/layouts/kaprodi-layout';
 import {
@@ -292,7 +293,9 @@ function StudentTable({
         'semua',
     );
     const [page, setPage] = useUrlState('activePage', 1);
-    const [pageSize, setPageSize] = useUrlState('activePageSize', PAGE_SIZE);
+    const mobile = useIsMobile();
+    const [pageSizeOverride, setPageSize] = useUrlState('activePageSize', 0);
+    const pageSize = pageSizeOverride || (mobile ? 5 : PAGE_SIZE);
     const [supervisorDialog, setSupervisorDialog] = useState<StudentRow | null>(
         null,
     );
@@ -560,6 +563,7 @@ function StudentTable({
                     {hasActiveFilter ? (
                         <Button
                             type="button"
+                            data-desktop-filter-reset
                             variant="ghost"
                             size="sm"
                             className="text-muted-foreground max-md:h-11"
@@ -675,7 +679,7 @@ function StudentTable({
                                             </p>
                                         ) : null}
                                     </td>
-                                    <td className={stackedTable.tdDetail}>
+                                    <td className={stackedTable.td}>
                                         {row.progressRisk ? (
                                             <ProgressRiskBadge
                                                 risk={row.progressRisk}

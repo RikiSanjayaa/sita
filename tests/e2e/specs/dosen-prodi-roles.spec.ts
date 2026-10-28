@@ -175,7 +175,7 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         exact: true,
                     });
                     const rows = section.locator('tbody tr');
-                    await expect(rows).toHaveCount(15);
+                    await expect(rows).toHaveCount(width < 768 ? 5 : 15);
                     await assertRolePair(
                         rows.filter({ hasText: fixture.lecturerName }),
                         1,
@@ -194,7 +194,9 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         .first()
                         .click();
                     await expect(page).toHaveURL(/[?&]page=2/);
-                    await expect(rows.first()).toContainText('Dosen Peran 16');
+                    await expect(rows.first()).toContainText(
+                        width < 768 ? 'Dosen Peran 06' : 'Dosen Peran 16',
+                    );
                     await section.getByLabel('Per halaman').selectOption('50');
                     // Kaprodi also holds the dosen role and belongs in the directory.
                     await expect(rows).toHaveCount(31);
@@ -208,9 +210,41 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         '[data-slot="sticky-filter-bar"]',
                     );
                     const search = bar.getByRole('searchbox');
-                    const concentrations = bar.getByRole('group', {
+                    const concentrations = page.getByRole('group', {
                         name: 'Filter konsentrasi',
                     });
+                    async function chooseConcentration(
+                        label: string,
+                        count: number,
+                    ): Promise<void> {
+                        if (width < 768) {
+                            const toggle = bar.getByRole('button', {
+                                name: /^(?:Filter|Tutup filter)(?:,|$)/,
+                            });
+                            if (
+                                (await toggle.getAttribute('aria-expanded')) !==
+                                'true'
+                            )
+                                await toggle.click();
+                            await bar
+                                .getByRole('combobox', {
+                                    name: 'Filter konsentrasi',
+                                })
+                                .click();
+                            await page
+                                .getByRole('option', {
+                                    name: `${label} (${count})`,
+                                    exact: true,
+                                })
+                                .click();
+                        } else {
+                            await concentrations
+                                .getByRole('radio', {
+                                    name: new RegExp(`^${label}\\s*${count}$`),
+                                })
+                                .click();
+                        }
+                    }
                     await main.hover({
                         position: { x: width === 390 ? 300 : 500, y: 600 },
                     });
@@ -253,26 +287,39 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                         await search.scrollIntoViewIfNeeded();
                     }
 
-                    await concentrations
-                        .getByRole('radio', { name: /^Sistem\s*16$/ })
-                        .click();
+                    await chooseConcentration('Sistem', 16);
                     await search.fill('Dosen Peran 01');
                     await expect(rows).toHaveCount(1);
                     await expect(page).toHaveURL(/[?&]concentration=Sistem/);
                     await expect(page).toHaveURL(/[?&]search=Dosen/);
                     await page.reload();
                     await expect(search).toHaveValue('Dosen Peran 01');
-                    await expect(
-                        concentrations.getByRole('radio', {
-                            name: /^Sistem\s*16$/,
-                        }),
-                    ).toBeChecked();
+                    if (width < 768)
+                        await page
+                            .getByRole('button', { name: /^Filter(?:,|$)/ })
+                            .click();
+                    if (width < 768) {
+                        await expect(
+                            bar.getByRole('combobox', {
+                                name: 'Filter konsentrasi',
+                            }),
+                        ).toHaveText(/Sistem/);
+                        await bar
+                            .getByRole('button', {
+                                name: /^Tutup filter(?:,|$)/,
+                            })
+                            .click();
+                    } else {
+                        await expect(
+                            concentrations.getByRole('radio', {
+                                name: /^Sistem\s*16$/,
+                            }),
+                        ).toBeChecked();
+                    }
                     await expect(rows).toHaveCount(1);
                     await section.getByLabel('Per halaman').selectOption('50');
                     await assertRolePair(rows.first(), 1, 2);
-                    await concentrations
-                        .getByRole('radio', { name: /^Jaringan\s*15$/ })
-                        .click();
+                    await chooseConcentration('Jaringan', 15);
                     await expect(
                         section.getByText('Tidak ada dosen ditemukan', {
                             exact: true,
@@ -280,9 +327,7 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                     ).toBeVisible();
                     await search.fill('');
                     await expect(rows).toHaveCount(15);
-                    await concentrations
-                        .getByRole('radio', { name: /^Semua\s*31$/ })
-                        .click();
+                    await chooseConcentration('Semua', 31);
                     await expect(rows).toHaveCount(31);
                     await rows.first().scrollIntoViewIfNeeded();
                     await expect

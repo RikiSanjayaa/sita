@@ -20,6 +20,7 @@ import {
     DataTableEmptyState,
     DataTablePagination,
 } from '@/components/ui/data-table';
+import { useResponsiveServerPagination } from '@/hooks/use-responsive-server-pagination';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
@@ -108,6 +109,14 @@ function PublicTopicsContent({
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
+    const selectPageSize = useResponsiveServerPagination([
+        {
+            key: 'per_page',
+            pageKey: 'page',
+            value: topicPagination.perPage,
+            desktop: 10,
+        },
+    ]);
     const [openRowId, setOpenRowId] = useState<number | null>(null);
     // True only while the latest action is a pointer/touch disclosure toggle.
     const [animateDetails, setAnimateDetails] = useState(false);
@@ -210,23 +219,9 @@ function PublicTopicsContent({
         );
     }
 
-    function changePageSize(pageSize: number) {
+    function changePageSize(pageSize: number): void {
         closeDetails();
-        router.get(
-            '/topik',
-            {
-                page: 1,
-                search: filters.search || undefined,
-                program: filters.program || undefined,
-                year: filters.year || undefined,
-                per_page: pageSize,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
+        selectPageSize('per_page', pageSize);
     }
 
     return (
@@ -237,7 +232,32 @@ function PublicTopicsContent({
             description={`Daftar topik karya akhir yang sudah menyelesaikan ${n.proposalExam.toLowerCase()} dan dapat ditelusuri berdasarkan program studi, judul, mahasiswa, atau kata kunci ringkasan.`}
         >
             <DataSection title="Daftar Topik">
-                <StickyFilterBar layout="public">
+                <StickyFilterBar
+                    layout="public"
+                    onApplyFilters={(values) => {
+                        closeDetails();
+                        router.get(
+                            '/topik',
+                            {
+                                search: search || undefined,
+                                program:
+                                    values['Program studi'] === 'semua'
+                                        ? undefined
+                                        : values['Program studi'],
+                                year:
+                                    values['Tahun topik'] === 'semua'
+                                        ? undefined
+                                        : values['Tahun topik'],
+                                per_page: topicPagination.perPage,
+                            },
+                            {
+                                preserveScroll: true,
+                                preserveState: true,
+                                replace: true,
+                            },
+                        );
+                    }}
+                >
                     <DataToolbar
                         search={search}
                         onSearchChange={(value) => {
@@ -462,8 +482,8 @@ function PublicTopicsContent({
                                                         </div>
                                                     </div>
 
-                                                    <dl className="space-y-4 text-sm">
-                                                        <div className="space-y-1">
+                                                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm md:block md:space-y-4">
+                                                        <div className="col-span-2 min-w-0 space-y-1 [overflow-wrap:anywhere]">
                                                             <dt className="text-xs font-medium text-muted-foreground">
                                                                 Pembimbing
                                                             </dt>

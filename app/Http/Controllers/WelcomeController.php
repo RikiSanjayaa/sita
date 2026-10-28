@@ -920,7 +920,7 @@ class WelcomeController extends Controller
     {
         $pageSize = (int) $request->integer($key, $fallback);
 
-        return in_array($pageSize, [10, 15, 25, 50, 100], true)
+        return in_array($pageSize, [5, 10, 15, 25, 50, 100], true)
             ? $pageSize
             : $fallback;
     }

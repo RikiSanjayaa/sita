@@ -3,6 +3,7 @@ import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     CheckCircle2,
+    ChevronDown,
     Download,
     ExternalLink,
     MessageSquare,
@@ -97,64 +98,87 @@ function DocumentBody({
 }) {
     return (
         <>
-            <nav
-                aria-label="Navigasi dokumen"
-                className="flex flex-wrap items-center gap-2"
-            >
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="max-md:min-h-11"
-                >
-                    <Link href={navigation.listUrl}>
-                        <ArrowLeft aria-hidden className="size-4" />
-                        {navigation.listLabel}
-                    </Link>
-                </Button>
-                {navigation.chatUrl && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="max-md:min-h-11"
-                    >
-                        <Link href={navigation.chatUrl}>
-                            <MessageSquare aria-hidden className="size-4" />
-                            {navigation.chatLabel ?? 'Buka chat'}
-                        </Link>
-                    </Button>
-                )}
-            </nav>
-
             <PageHeader
                 title="Detail dokumen"
+                className="flex-row items-start gap-2 lg:col-span-2 [&_h1]:text-xl md:[&_h1]:text-2xl"
                 description={
                     document.source === 'thesis'
-                        ? 'Berkas yang tercatat pada pengajuan ujian. Review dilakukan pada dokumen bimbingan terkait.'
-                        : 'Dokumen dan catatan review untuk versi ini.'
+                        ? 'Berkas pengajuan ujian. Review pada dokumen bimbingan terkait.'
+                        : undefined
                 }
                 actions={
-                    <>
+                    <nav
+                        aria-label="Navigasi dokumen"
+                        className="flex items-center gap-1"
+                    >
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="min-h-11 px-3 md:min-h-8"
+                        >
+                            <Link
+                                href={navigation.listUrl}
+                                aria-label={navigation.listLabel}
+                                title={navigation.listLabel}
+                            >
+                                <ArrowLeft aria-hidden className="size-4" />
+                                <span className="sr-only md:not-sr-only">
+                                    {navigation.listLabel}
+                                </span>
+                            </Link>
+                        </Button>
+                        {navigation.chatUrl && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                                className="min-h-11 px-3 md:min-h-8"
+                            >
+                                <Link
+                                    href={navigation.chatUrl}
+                                    aria-label={
+                                        navigation.chatLabel ?? 'Buka chat'
+                                    }
+                                    title={navigation.chatLabel ?? 'Buka chat'}
+                                >
+                                    <MessageSquare
+                                        aria-hidden
+                                        className="size-4"
+                                    />
+                                    <span className="sr-only md:not-sr-only">
+                                        {navigation.chatLabel ?? 'Buka chat'}
+                                    </span>
+                                </Link>
+                            </Button>
+                        )}
                         {document.downloadUrl && (
                             <Button
                                 variant="outline"
                                 size="sm"
                                 asChild
-                                className="max-md:min-h-11"
+                                className="min-h-11 px-3 md:min-h-8"
                             >
-                                <a href={document.downloadUrl}>
+                                <a
+                                    href={document.downloadUrl}
+                                    aria-label="Unduh"
+                                    title="Unduh"
+                                >
                                     <Download aria-hidden className="size-4" />
-                                    Unduh
+                                    <span className="sr-only md:not-sr-only">
+                                        Unduh
+                                    </span>
                                 </a>
                             </Button>
                         )}
-                    </>
+                    </nav>
                 }
             />
 
             <SectionCard
                 title="Informasi dokumen"
+                density="compact"
+                className="lg:col-span-2"
                 actions={
                     <StatusBadge domain="document" status={document.status}>
                         {document.statusLabel}
@@ -162,7 +186,7 @@ function DocumentBody({
                 }
             >
                 <KeyValueList
-                    layout="inline"
+                    layout="grid"
                     items={[
                         { label: 'Mahasiswa', value: document.studentName },
                         {
@@ -173,9 +197,14 @@ function DocumentBody({
                                 </span>
                             ),
                         },
-                        { label: 'Judul', value: document.title || '-' },
+                        {
+                            label: 'Judul',
+                            value: document.title || '-',
+                            fullWidth: true,
+                        },
                         {
                             label: 'Nama file',
+                            fullWidth: true,
                             value: (
                                 <span className="break-all">
                                     {document.fileName}
@@ -198,7 +227,7 @@ function DocumentBody({
                     ]}
                 />
                 {(document.viewUrl || document.reviewDetailUrl) && (
-                    <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
+                    <div className="mt-3 flex flex-wrap gap-2 border-t pt-2">
                         {document.viewUrl && (
                             <Button
                                 variant="outline"
@@ -240,54 +269,66 @@ function DocumentBody({
             </SectionCard>
 
             {review && (
-                <SectionCard title="Review Anda">
-                    <div className="grid gap-2">
-                        <Label htmlFor="revision-notes">Catatan dosen</Label>
-                        <Textarea
-                            id="revision-notes"
-                            name="revision_notes"
-                            defaultValue={document.reviewNotes}
-                            rows={6}
-                            readOnly={review.processing}
-                            aria-invalid={Boolean(review.errors.revision_notes)}
-                            aria-describedby={
-                                review.errors.revision_notes
-                                    ? 'review-notes-help review-notes-error'
-                                    : 'review-notes-help'
-                            }
-                            className="min-h-36 resize-y"
+                <SectionCard
+                    title="Review Anda"
+                    density="compact"
+                    className="lg:col-span-2"
+                >
+                    <div className="grid gap-3 md:grid-cols-2 md:items-start">
+                        <div className="grid gap-2">
+                            <Label htmlFor="revision-notes">
+                                Catatan dosen
+                            </Label>
+                            <Textarea
+                                id="revision-notes"
+                                name="revision_notes"
+                                defaultValue={document.reviewNotes}
+                                rows={3}
+                                readOnly={review.processing}
+                                aria-invalid={Boolean(
+                                    review.errors.revision_notes,
+                                )}
+                                aria-describedby={
+                                    review.errors.revision_notes
+                                        ? 'review-notes-help review-notes-error'
+                                        : 'review-notes-help'
+                                }
+                                className="min-h-20 resize-y"
+                            />
+                            <p
+                                id="review-notes-help"
+                                className="text-xs text-muted-foreground"
+                            >
+                                Isi butir di bawah untuk meminta revisi per
+                                poin. Tanpa butir, catatan ini menjadi satu
+                                permintaan revisi. Saat menyetujui, catatan
+                                bersifat opsional.
+                            </p>
+                            <InputError
+                                id="review-notes-error"
+                                message={review.errors.revision_notes}
+                            />
+                            <InputError message={review.errors.status} />
+                            {(review.processing || review.isDirty) && (
+                                <p
+                                    role="status"
+                                    aria-live="polite"
+                                    className="text-xs text-muted-foreground"
+                                >
+                                    {review.processing
+                                        ? 'Menyimpan review...'
+                                        : 'Catatan belum disimpan.'}
+                                </p>
+                            )}
+                        </div>
+                        <RevisionEditor
+                            initialItems={document.reviewItems}
+                            processing={review.processing}
+                            errors={review.errors}
+                            compact
                         />
-                        <p
-                            id="review-notes-help"
-                            className="text-sm text-muted-foreground"
-                        >
-                            Isi butir di bawah untuk meminta revisi per poin.
-                            Tanpa butir, catatan ini menjadi satu permintaan
-                            revisi. Saat menyetujui, catatan bersifat opsional.
-                        </p>
-                        <InputError
-                            id="review-notes-error"
-                            message={review.errors.revision_notes}
-                        />
-                        <InputError message={review.errors.status} />
-                        <p
-                            role="status"
-                            aria-live="polite"
-                            className="text-sm text-muted-foreground"
-                        >
-                            {review.processing
-                                ? 'Menyimpan review...'
-                                : review.isDirty
-                                  ? 'Catatan belum disimpan.'
-                                  : null}
-                        </p>
                     </div>
-                    <RevisionEditor
-                        initialItems={document.reviewItems}
-                        processing={review.processing}
-                        errors={review.errors}
-                    />
-                    <div className="mt-5 flex flex-wrap justify-end gap-2 border-t pt-4">
+                    <div className="mt-3 flex flex-wrap justify-end gap-2 border-t pt-2">
                         <Button
                             type="submit"
                             name="status"
@@ -317,7 +358,8 @@ function DocumentBody({
 
             <SectionCard
                 title="Review dokumen"
-                description="Status dan catatan dosen untuk versi dokumen ini."
+                density="compact"
+                className="min-w-0"
             >
                 {document.reviews.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -328,7 +370,7 @@ function DocumentBody({
                         {document.reviews.map((item) => (
                             <li
                                 key={item.id}
-                                className="space-y-3 py-4 first:pt-0 last:pb-0"
+                                className="space-y-2 py-2 first:pt-0 last:pb-0"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div className="min-w-0 space-y-1">
@@ -351,7 +393,10 @@ function DocumentBody({
                                     </StatusBadge>
                                 </div>
                                 {item.revisionItems.length > 0 && (
-                                    <RevisionList items={item.revisionItems} />
+                                    <RevisionList
+                                        items={item.revisionItems}
+                                        compact
+                                    />
                                 )}
                                 {item.notes &&
                                 (item.status === 'approved' ||
@@ -379,7 +424,8 @@ function DocumentBody({
 
             <SectionCard
                 title="Riwayat versi"
-                description="Buka versi lain untuk melihat dokumen dan review pada versi tersebut."
+                density="compact"
+                className="min-w-0"
             >
                 {document.versions.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -388,37 +434,80 @@ function DocumentBody({
                 ) : (
                     <ul className="divide-y">
                         {document.versions.map((item) => (
-                            <li
-                                key={item.id}
-                                className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
-                            >
-                                <div className="min-w-0 space-y-1">
-                                    <Link
-                                        href={item.url}
-                                        aria-current={
-                                            item.id === document.id
-                                                ? 'page'
-                                                : undefined
-                                        }
-                                        className="inline-block min-h-11 py-2 text-sm font-medium break-all text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-h-0 sm:py-0"
+                            <li key={item.id}>
+                                <details className="group">
+                                    <summary
+                                        aria-label={`Detail versi ${item.version ?? item.fileName}`}
+                                        className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
                                     >
-                                        {item.version === null
-                                            ? item.fileName
-                                            : `Versi ${item.version}: ${item.fileName}`}
-                                    </Link>
-                                    <p className="text-xs text-muted-foreground">
-                                        {item.uploadedAt ?? '-'}
-                                        {item.id === document.id
-                                            ? ' · Versi yang sedang dibuka'
-                                            : ''}
-                                    </p>
-                                </div>
-                                <StatusBadge
-                                    domain="document"
-                                    status={item.status}
-                                >
-                                    {item.statusLabel}
-                                </StatusBadge>
+                                        <Link
+                                            href={item.url}
+                                            aria-current={
+                                                item.id === document.id
+                                                    ? 'page'
+                                                    : undefined
+                                            }
+                                            title={item.fileName}
+                                            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm text-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                        >
+                                            {item.version !== null && (
+                                                <span className="shrink-0 text-xs font-medium tabular-nums">
+                                                    <span className="sr-only">
+                                                        Versi{' '}
+                                                    </span>
+                                                    v{item.version}
+                                                </span>
+                                            )}
+                                            {item.id === document.id && (
+                                                <CheckCircle2
+                                                    aria-label="Sedang dibuka"
+                                                    className="size-3.5 shrink-0"
+                                                />
+                                            )}
+                                            <span className="truncate">
+                                                {item.fileName}
+                                            </span>
+                                        </Link>
+                                        <StatusBadge
+                                            domain="document"
+                                            status={item.status}
+                                            className="shrink-0"
+                                        >
+                                            {item.statusLabel}
+                                        </StatusBadge>
+                                        <ChevronDown
+                                            aria-hidden
+                                            className="size-4 shrink-0 text-muted-foreground group-open:rotate-180"
+                                        />
+                                    </summary>
+                                    <KeyValueList
+                                        layout="grid"
+                                        className="border-t py-2"
+                                        items={[
+                                            {
+                                                label: 'Nama file',
+                                                value: item.fileName,
+                                                fullWidth: true,
+                                            },
+                                            {
+                                                label: 'Diunggah',
+                                                value: item.uploadedAt ?? '-',
+                                            },
+                                            {
+                                                label: 'Versi',
+                                                value: item.version ?? '-',
+                                            },
+                                            ...(item.id === document.id
+                                                ? [
+                                                      {
+                                                          label: 'Pilihan',
+                                                          value: 'Sedang dibuka',
+                                                      },
+                                                  ]
+                                                : []),
+                                        ]}
+                                    />
+                                </details>
                             </li>
                         ))}
                     </ul>
@@ -496,7 +585,7 @@ export default function DocumentShowPage() {
         { title: 'Detail dokumen', href: page.url },
     ];
     const contentClassName =
-        'mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 lg:py-8';
+        'mx-auto grid w-full min-w-0 max-w-7xl content-start gap-3 px-4 py-3 md:px-6 lg:grid-cols-2 lg:items-start';
 
     return (
         <Layout breadcrumbs={breadcrumbs} title="Detail dokumen">

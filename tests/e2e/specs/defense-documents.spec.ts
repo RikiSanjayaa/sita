@@ -20,6 +20,7 @@ import {
 } from '../support/defense-documents';
 import { attachDocumentStates } from '../support/document-detail';
 import { openRecoveryDefense } from '../support/recovery';
+import { authStatePath } from '../support/thesis-fixtures';
 
 const examLabel = {
     sempro: 'Sempro / Sinopsis',
@@ -353,6 +354,44 @@ async function expectSnapshotDetail(
         info,
         `${type}-snapshot-detail-${file.category}`,
     );
+    const kaprodiContext = await page
+        .context()
+        .browser()!
+        .newContext({ storageState: authStatePath('kaprodi') });
+    try {
+        const kaprodi = await kaprodiContext.newPage();
+        const snapshotId = new URL(detailUrl!, attemptUrl).pathname
+            .split('/')
+            .at(-1)!;
+        await kaprodi.goto(
+            new URL(`/kaprodi/dokumen/thesis/${snapshotId}`, attemptUrl).href,
+        );
+        await expect(
+            kaprodi.getByRole('heading', {
+                name: 'Detail dokumen',
+                exact: true,
+            }),
+        ).toBeVisible();
+        await expect(
+            kaprodi.getByRole('region', {
+                name: 'Informasi dokumen',
+                exact: true,
+            }),
+        ).toContainText(file.fileName);
+        await expect(
+            kaprodi.getByRole('textbox', { name: 'Catatan dosen' }),
+        ).toHaveCount(0);
+        await expect(
+            kaprodi.getByRole('button', { name: 'Setujui', exact: true }),
+        ).toHaveCount(0);
+        await attachDocumentStates(
+            kaprodi,
+            info,
+            `${type}-snapshot-kaprodi-${file.category}`,
+        );
+    } finally {
+        await kaprodiContext.close();
+    }
     const workspaceLink = page.locator('a[href*="/dosen/dokumen-revisi/"]');
     await expect(workspaceLink).toHaveCount(1);
     await workspaceLink.click();

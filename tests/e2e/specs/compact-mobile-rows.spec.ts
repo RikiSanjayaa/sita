@@ -6,7 +6,7 @@ import { authStatePath } from '../support/thesis-fixtures';
 // on the first line, secondary values on a meta line), not one block per cell.
 
 test.describe('compact mobile table rows (#129)', () => {
-    test('390px kaprodi mahasiswa rows stay short and keep their info', async ({
+    test('390px kaprodi rows pair short facts without clipping long progress', async ({
         browser,
     }) => {
         const context = await browser.newContext({
@@ -19,14 +19,15 @@ test.describe('compact mobile table rows (#129)', () => {
         const rows = page.locator('main table tbody tr');
         await expect(rows.first()).toBeVisible();
 
-        const heights = await rows.evaluateAll((nodes) =>
-            nodes.map((node) => node.getBoundingClientRect().height),
-        );
-        expect(heights.length).toBeGreaterThan(0);
-
-        for (const height of heights) {
-            expect(height).toBeLessThanOrEqual(320);
+        for (const row of await rows.all()) {
+            const cohort = await row.locator('td').nth(1).boundingBox();
+            const risk = await row.locator('td').nth(3).boundingBox();
+            expect(Math.abs(cohort!.y - risk!.y)).toBeLessThan(2);
+            expect(risk!.x).toBeGreaterThan(cohort!.x);
         }
+        expect(
+            await page.evaluate(() => document.documentElement.scrollWidth),
+        ).toBeLessThanOrEqual(390);
 
         // Identity and the row-actions menu share the first line.
         const first = rows.first();

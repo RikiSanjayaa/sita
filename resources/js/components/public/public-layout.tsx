@@ -104,7 +104,7 @@ export function PublicLayout({
 
                     <nav
                         aria-label="Navigasi utama"
-                        className="mx-auto flex w-full max-w-6xl flex-wrap gap-2 px-4 pb-3 md:hidden"
+                        className="mx-auto flex w-full max-w-6xl items-center justify-between gap-1 px-4 pb-1 md:hidden"
                     >
                         {navItems.map((item) => (
                             <Link
@@ -114,10 +114,10 @@ export function PublicLayout({
                                     active === item.id ? 'page' : undefined
                                 }
                                 className={cn(
-                                    'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                                    'inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium whitespace-nowrap underline-offset-8 transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                                     active === item.id
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
+                                        ? 'text-primary underline decoration-2'
+                                        : 'text-muted-foreground hover:text-foreground',
                                 )}
                             >
                                 {item.label}

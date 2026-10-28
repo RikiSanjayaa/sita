@@ -1,3 +1,4 @@
+import { useFilterField } from '@/components/patterns/mobile-filter-scope';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,14 @@ export function FilterPills<T extends string>({
     className,
     itemClassName,
 }: FilterPillsProps<T>) {
+    const mobile = useFilterField(
+        label,
+        value,
+        options[0]?.value ?? value,
+        onValueChange,
+        options,
+    );
+    if (mobile) return null;
     return (
         <ToggleGroup
             type="single"
@@ -47,7 +56,7 @@ export function FilterPills<T extends string>({
                     value={option.value}
                     disabled={option.disabled}
                     className={cn(
-                        'group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                        'group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground max-md:min-h-11',
                         itemClassName,
                     )}
                 >

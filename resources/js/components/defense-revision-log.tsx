@@ -189,7 +189,7 @@ export function DefenseRevisionLog({
                                                 {round.statusLabel}
                                             </StatusBadge>
                                         </div>
-                                        <dl className="grid gap-1 text-xs text-muted-foreground">
+                                        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs [overflow-wrap:anywhere] text-muted-foreground sm:grid-cols-1">
                                             {round.openedAt && (
                                                 <div>
                                                     <dt className="inline">

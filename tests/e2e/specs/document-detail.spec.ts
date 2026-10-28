@@ -24,7 +24,11 @@ const uploadBytes = fs.readFileSync(
     path.join(process.cwd(), thesisFixtures.thesisDocumentUploadPath),
 );
 
-async function uploadVersion(page: Page, version: number): Promise<void> {
+async function uploadVersion(
+    page: Page,
+    version: number,
+    fileName = `draft-detail-v${version}.pdf`,
+): Promise<void> {
     await page.goto('/mahasiswa/upload-dokumen?open=unggah');
     const dialog = page.getByRole('dialog', { name: 'Upload Dokumen' });
     await expect(dialog).toBeVisible();
@@ -34,7 +38,7 @@ async function uploadVersion(page: Page, version: number): Promise<void> {
         .getByRole('option', { name: 'Draft Skripsi', exact: true })
         .click();
     await dialog.getByLabel('File Dokumen').setInputFiles({
-        name: `draft-detail-v${version}.pdf`,
+        name: fileName,
         mimeType: 'application/pdf',
         buffer: Buffer.concat([
             uploadBytes,
@@ -44,10 +48,7 @@ async function uploadVersion(page: Page, version: number): Promise<void> {
     await dialog.getByRole('button', { name: 'Upload', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(
-        page
-            .locator('tr')
-            .filter({ hasText: `draft-detail-v${version}.pdf` })
-            .first(),
+        page.locator('tr').filter({ hasText: fileName }).first(),
     ).toBeVisible();
 }
 
@@ -185,6 +186,179 @@ test.describe('Stable document detail journey (#152)', () => {
             }
         });
     }
+
+    test('compact version history preserves exact versions and long filenames across portals (#170)', async ({
+        browser,
+    }, testInfo) => {
+        test.setTimeout(180_000);
+        const contexts = await Promise.all(
+            [student.studentKey, 'dosen2', 'kaprodi'].map((key) =>
+                browser.newContext({
+                    storageState: authStatePath(
+                        key as Parameters<typeof authStatePath>[0],
+                    ),
+                }),
+            ),
+        );
+        const longName = `${'naskah-metode-penelitian-'.repeat(5)}v4.pdf`;
+        try {
+            const owner = await contexts[0].newPage();
+            await uploadVersion(owner, 1);
+            const firstUrl = await openDocumentDetail(
+                owner,
+                owner
+                    .locator('tr')
+                    .filter({ hasText: 'draft-detail-v1.pdf' })
+                    .first(),
+                '/mahasiswa/upload-dokumen',
+            );
+            const firstHistory = owner.getByRole('region', {
+                name: 'Riwayat versi',
+                exact: true,
+            });
+            await expect(firstHistory.getByRole('link')).toHaveCount(1);
+            await expect(
+                firstHistory.locator('[aria-current="page"]'),
+            ).toHaveAttribute('href', firstUrl);
+
+            for (const version of [2, 3, 4]) {
+                await uploadVersion(
+                    owner,
+                    version,
+                    version === 4 ? longName : undefined,
+                );
+            }
+            const latestUrl = await openDocumentDetail(
+                owner,
+                owner.locator('tr').filter({ hasText: longName }).first(),
+                '/mahasiswa/upload-dokumen',
+            );
+            const surfaces = [
+                { page: owner, role: 'mahasiswa', url: latestUrl },
+                { page: await contexts[1].newPage(), role: 'dosen', url: '' },
+                { page: await contexts[2].newPage(), role: 'kaprodi', url: '' },
+            ];
+            for (const surface of surfaces) {
+                if (surface.role !== 'mahasiswa') {
+                    const prefix =
+                        surface.role === 'dosen'
+                            ? '/dosen/dokumen-revisi'
+                            : '/kaprodi/dokumen/workspace';
+                    await surface.page.goto(
+                        surface.role === 'dosen' ? prefix : '/kaprodi/dokumen',
+                    );
+                    surface.url = await openDocumentDetail(
+                        surface.page,
+                        surface.page
+                            .locator('tr')
+                            .filter({ hasText: longName })
+                            .first(),
+                        prefix,
+                    );
+                }
+                const history = surface.page.getByRole('region', {
+                    name: 'Riwayat versi',
+                    exact: true,
+                });
+                await expect(history.getByRole('link')).toHaveCount(4);
+                await expect(
+                    history.locator('[aria-current="page"]'),
+                ).toHaveAttribute('href', surface.url);
+                await expect(history).toContainText(longName);
+                await attachDocumentStates(
+                    surface.page,
+                    testInfo,
+                    `${surface.role}-compact-history`,
+                );
+                for (const width of [1280, 390, 320]) {
+                    await surface.page.setViewportSize({ width, height: 844 });
+                    for (const name of [
+                        'draft-detail-v1.pdf',
+                        'draft-detail-v2.pdf',
+                        'draft-detail-v3.pdf',
+                        longName,
+                    ]) {
+                        const row = history
+                            .getByRole('listitem')
+                            .filter({ hasText: name });
+                        const box = await row.boundingBox();
+                        expect(
+                            box?.height,
+                            `${surface.role} ${width}px ${name}: compact row`,
+                        ).toBeLessThanOrEqual(46);
+                    }
+                    expect(
+                        await surface.page.evaluate(
+                            () => document.documentElement.scrollWidth,
+                        ),
+                    ).toBeLessThanOrEqual(width);
+                    const info = surface.page.getByRole('region', {
+                        name: 'Informasi dokumen',
+                        exact: true,
+                    });
+                    const studentField = await info
+                        .locator('dl > div')
+                        .filter({
+                            has: surface.page.locator('dt', {
+                                hasText: /^Mahasiswa$/,
+                            }),
+                        })
+                        .boundingBox();
+                    const nimField = await info
+                        .locator('dl > div')
+                        .filter({
+                            has: surface.page.locator('dt', {
+                                hasText: /^NIM$/,
+                            }),
+                        })
+                        .boundingBox();
+                    expect(
+                        Math.abs(studentField!.y - nimField!.y),
+                    ).toBeLessThan(2);
+                    expect(nimField!.x).toBeGreaterThan(studentField!.x);
+                    const details = history
+                        .locator('details')
+                        .filter({ hasText: longName });
+                    await details.locator('summary').press('Enter');
+                    await expect(
+                        details.locator('dd').filter({ hasText: longName }),
+                    ).toBeVisible();
+                    await expect(details).toContainText('Diunggah');
+                    await details.locator('summary').press('Enter');
+                }
+                const old = history
+                    .getByRole('link')
+                    .filter({ hasText: 'draft-detail-v1.pdf' });
+                const oldUrl = await old.getAttribute('href');
+                await old.click();
+                await expect(surface.page).toHaveURL(new RegExp(`${oldUrl}$`));
+                await expect(
+                    surface.page
+                        .getByRole('region', {
+                            name: 'Riwayat versi',
+                            exact: true,
+                        })
+                        .locator('[aria-current="page"]'),
+                ).toHaveAttribute('href', oldUrl!);
+                await surface.page.reload();
+                await expect(surface.page).toHaveURL(new RegExp(`${oldUrl}$`));
+                await expect(
+                    surface.page
+                        .getByRole('region', {
+                            name: 'Riwayat versi',
+                            exact: true,
+                        })
+                        .locator('[aria-current="page"]'),
+                ).toHaveAttribute('href', oldUrl!);
+                await surface.page.goBack();
+                await expect(surface.page).toHaveURL(
+                    new RegExp(`${surface.url}$`),
+                );
+            }
+        } finally {
+            await Promise.all(contexts.map((context) => context.close()));
+        }
+    });
 
     test('two reviewers save required revision notes and approval suggestions, preserving exact versions and drafts', async ({
         browser,

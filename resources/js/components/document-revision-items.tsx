@@ -26,10 +26,12 @@ export function RevisionEditor({
     initialItems,
     processing,
     errors,
+    compact = false,
 }: {
     initialItems: ReviewRevisionItem[];
     processing: boolean;
     errors: Record<string, string>;
+    compact?: boolean;
 }) {
     const [items, setItems] = useState(() =>
         initialItems.map((item) => ({ ...item, key: item.id })),
@@ -44,24 +46,45 @@ export function RevisionEditor({
     return (
         <fieldset
             disabled={processing}
-            className="mt-5 grid gap-4 border-t pt-5"
+            className={
+                compact ? 'grid min-w-0 gap-2' : 'mt-5 grid gap-4 border-t pt-5'
+            }
         >
             <legend className="float-left w-full text-sm font-medium">
                 Butir revisi
             </legend>
-            <p className="text-sm text-muted-foreground">
+            <p
+                className={
+                    compact
+                        ? 'text-xs text-pretty text-muted-foreground'
+                        : 'text-sm text-muted-foreground'
+                }
+            >
                 Mahasiswa dapat menandai setiap butir selesai tanpa wajib
                 mengunggah ulang. Penyelesaian bukan persetujuan dokumen.
                 Perubahan uraian membuka kembali butir tersebut.
             </p>
             {items.map((item, index) => (
-                <div key={item.key} className="grid gap-2">
+                <div
+                    key={item.key}
+                    className={
+                        compact
+                            ? 'grid grid-cols-[minmax(0,1fr)_auto] gap-x-1 gap-y-1'
+                            : 'grid gap-2'
+                    }
+                >
                     <input
                         type="hidden"
                         name={`revision_items[${index}][id]`}
                         value={item.id}
                     />
-                    <div className="flex items-center justify-between gap-3">
+                    <div
+                        className={
+                            compact
+                                ? 'contents'
+                                : 'flex items-center justify-between gap-3'
+                        }
+                    >
                         <Label htmlFor={`revision-item-${item.key}`}>
                             Butir {index + 1}
                         </Label>
@@ -69,7 +92,11 @@ export function RevisionEditor({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="max-md:size-11"
+                            className={
+                                compact
+                                    ? 'col-start-2 row-start-2 self-start max-md:size-11'
+                                    : 'max-md:size-11'
+                            }
                             aria-label={`Hapus butir ${index + 1}`}
                             onClick={(event) => {
                                 const form = event.currentTarget.form;
@@ -100,7 +127,12 @@ export function RevisionEditor({
                                 ),
                             )
                         }
-                        rows={3}
+                        rows={compact ? 2 : 3}
+                        className={
+                            compact
+                                ? 'col-start-1 row-start-2 min-h-16'
+                                : undefined
+                        }
                         aria-invalid={Boolean(
                             errors[`revision_items.${index}.description`],
                         )}
@@ -136,13 +168,23 @@ export function RevisionEditor({
     );
 }
 
-export function RevisionList({ items }: { items: DocumentRevisionItem[] }) {
+export function RevisionList({
+    items,
+    compact = false,
+}: {
+    items: DocumentRevisionItem[];
+    compact?: boolean;
+}) {
     return (
-        <ol className="grid gap-4">
+        <ol className={compact ? 'grid gap-2' : 'grid gap-4'}>
             {items.map((item, index) => (
                 <li
                     key={item.id}
-                    className="grid gap-2 border-t pt-4 first:border-0 first:pt-0"
+                    className={
+                        compact
+                            ? 'grid gap-1 border-t pt-2 first:border-0 first:pt-0'
+                            : 'grid gap-2 border-t pt-4 first:border-0 first:pt-0'
+                    }
                 >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-sm font-medium">

@@ -1,6 +1,10 @@
 import { Search } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 
+import {
+    FilterSearchSlot,
+    useFilterField,
+} from '@/components/patterns/mobile-filter-scope';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -22,11 +26,9 @@ export const dataTh =
  *
  * 1. Main line (`tdPlain`, `tdAside`, `tdActions`): identity at the left,
  *    status badge and actions at the right.
- * 2. Meta line (`td`): short secondary values flow inline, separated by a dot.
- *    The dot hangs in the gap after a cell, so cells may hold block content.
- *    A cell with `data-label` prefixes its value with that label; add
- *    `data-label-hidden` to keep the attribute (tests select cells by it) without
- *    the prefix when the value is clear on its own.
+ * 2. Metadata (`td`): short secondary values share two equal columns.
+ *    `data-label` places a label directly above its value; use
+ *    `data-label-hidden` when the value is already clear on its own.
  * 3. Detail (`tdDetail`): long text (title, advisors, status description) on
  *    its own line. Clamp it to two lines on phones (`max-md:line-clamp-2`)
  *    and keep the full value in a `title` attribute and on the detail page.
@@ -37,7 +39,7 @@ export const stackedTable = {
     table: 'w-full text-sm max-md:block',
     thead: 'max-md:sr-only',
     tbody: 'max-md:block max-md:divide-y',
-    tr: "max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:px-4 max-md:py-3 max-md:before:order-2 max-md:before:h-0 max-md:before:basis-full max-md:before:content-['']",
+    tr: "max-md:flex max-md:flex-wrap max-md:items-start max-md:gap-x-3 max-md:gap-y-1 max-md:px-3 max-md:py-2 max-md:before:order-2 max-md:before:h-0 max-md:before:basis-full max-md:before:content-['']",
     /** Identity cell (name and NIM): fills the main line. */
     tdPlain:
         'px-4 py-3 max-md:order-1 max-md:min-w-0 max-md:flex-1 max-md:basis-0 max-md:p-0',
@@ -52,8 +54,8 @@ export const stackedTable = {
      */
     tdActions:
         'w-px px-4 py-3 whitespace-nowrap max-md:order-1 max-md:w-auto max-md:shrink-0 max-md:p-0',
-    /** Short secondary value on the inline meta line. */
-    td: "stacked-meta px-4 py-3 max-md:order-3 max-md:mt-1 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:relative max-md:has-[~.stacked-meta]:after:absolute max-md:has-[~.stacked-meta]:after:top-0 max-md:has-[~.stacked-meta]:after:-right-2 max-md:has-[~.stacked-meta]:after:content-['·'] max-md:[&[data-label]:not([data-label-hidden])]:before:mr-1 max-md:[&[data-label]:not([data-label-hidden])]:before:content-[attr(data-label)]",
+    /** Short secondary value in the two-column metadata grid. */
+    td: 'stacked-meta px-4 py-3 max-md:order-3 max-md:w-[calc(50%-0.375rem)] max-md:min-w-0 max-md:grow-0 max-md:shrink-0 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:whitespace-normal max-md:[overflow-wrap:anywhere] max-md:[&[data-label]:not([data-label-hidden])]:before:block max-md:[&[data-label]:not([data-label-hidden])]:before:font-medium max-md:[&[data-label]:not([data-label-hidden])]:before:content-[attr(data-label)]',
     /** Long text on its own line under the meta line; clamp it to two lines inside. */
     tdDetail:
         'px-4 py-3 max-md:order-4 max-md:mt-1 max-md:basis-full max-md:p-0',
@@ -138,20 +140,22 @@ export function DataToolbar({
 }) {
     return (
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
-                <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                    type="search"
-                    value={search}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                    placeholder={placeholder}
-                    aria-label={placeholder.replace(/\.{3}$/, '')}
-                    className="h-11 bg-card pl-9 md:h-9"
-                />
-            </div>
+            <FilterSearchSlot>
+                <div className="relative w-full md:max-w-sm">
+                    <Search
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                        type="search"
+                        value={search}
+                        onChange={(event) => onSearchChange(event.target.value)}
+                        placeholder={placeholder}
+                        aria-label={placeholder.replace(/\.{3}$/, '')}
+                        className="h-11 bg-card pl-9 md:h-9"
+                    />
+                </div>
+            </FilterSearchSlot>
             {children ? (
                 <div className="flex flex-wrap items-center gap-2">
                     {children}
@@ -177,6 +181,14 @@ export function DataSelect({
     options: ReadonlyArray<{ value: string; label: string }>;
     className?: string;
 }) {
+    const mobile = useFilterField(
+        label,
+        value,
+        options[0]?.value ?? 'semua',
+        onValueChange,
+        options,
+    );
+    if (mobile) return null;
     return (
         <Select value={value} onValueChange={onValueChange}>
             <SelectTrigger
@@ -187,7 +199,11 @@ export function DataSelect({
             </SelectTrigger>
             <SelectContent>
                 {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
+                    <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="min-h-11 md:min-h-0"
+                    >
                         {option.label}
                     </SelectItem>
                 ))}

@@ -73,7 +73,18 @@ async function openDocumentPage(page: Page, prefix: string): Promise<void> {
         prefix === '/dosen/dokumen-revisi'
             ? page.locator('tr').filter({ hasText: 'Mahasiswa SiTA' })
             : page.locator('main');
-    await scope.locator(`a[href*="${prefix}/"]`).first().click();
+    const detail = scope.locator(`a[href*="${prefix}/"]`).first();
+    while ((await detail.count()) === 0) {
+        const next = page
+            .getByRole('button', { name: 'Berikutnya', exact: true })
+            .first();
+        await expect(next).toBeEnabled();
+        const firstRow = page.locator('main tbody tr').first();
+        const previousRow = await firstRow.innerText();
+        await next.click();
+        await expect(firstRow).not.toHaveText(previousRow);
+    }
+    await detail.click();
     await expect(page).toHaveURL(new RegExp(`${prefix}/\\d+$`));
     await expect(
         page.getByRole('heading', { name: 'Detail dokumen', exact: true }),
