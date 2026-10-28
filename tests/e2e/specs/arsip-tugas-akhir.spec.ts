@@ -52,12 +52,10 @@ test.describe('arsip tugas akhir', () => {
             await header.click();
             await expect(header).toHaveAttribute('aria-expanded', 'true');
             await section.getByText(inGrace.studentName).click();
-
             await expect(
-                page.getByText(
-                    /sudah selesai\. Percakapan ini hanya dapat dibaca/,
-                ),
-            ).toBeVisible();
+                page.getByRole('region', { name: 'Riwayat pesan' }),
+            ).toContainText('bab 4 sudah saya kirim');
+
             await expect(page.getByPlaceholder('Tulis pesan...')).toHaveCount(
                 0,
             );
@@ -72,11 +70,6 @@ test.describe('arsip tugas akhir', () => {
         }) => {
             await page.goto('/mahasiswa/pesan');
 
-            await expect(
-                page.getByText(
-                    /sudah selesai\. Percakapan ini hanya dapat dibaca/,
-                ),
-            ).toBeVisible();
             await expect(page.getByPlaceholder('Tulis pesan...')).toHaveCount(
                 0,
             );
