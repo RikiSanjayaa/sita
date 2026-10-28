@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AppRole;
 use App\Http\Requests\StudentProgressIndexRequest;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
@@ -20,7 +21,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Progres Mahasiswa: the same student population as the kaprodi "Mahasiswa Prodi" page
+ * Progress Seluruh Mahasiswa: the same student population as the kaprodi "Mahasiswa Prodi" page
  * (see KaprodiPortalService::studentIndex()) across every program studi. Each student is shown
  * with the current thesis project (ThesisProject::current()); students without one are
  * "Belum ada tugas akhir". Newest stage progress first, see StudentProgressMoments.
@@ -47,9 +48,13 @@ class StudentProgressController extends Controller
             ->groupBy('phase_key')
             ->pluck('total', 'phase_key');
 
+        $studentUserId = $request->user()->hasRole(AppRole::Mahasiswa) ? $request->user()->id : null;
+
         $paginator = $this->filteredQuery($filters, includePhase: true)
             ->leftJoinSub($moments->latestPerProject(), 'progress_moments', 'progress_moments.project_id', '=', 'thesis_projects.id')
             ->select('mahasiswa_profiles.*', 'thesis_projects.id as current_project_id')
+            ->when($studentUserId !== null, fn (Builder $query): Builder => $query
+                ->orderByRaw('CASE WHEN mahasiswa_profiles.user_id = ? THEN 0 ELSE 1 END', [$studentUserId]))
             ->orderByRaw('CASE WHEN thesis_projects.id IS NULL THEN 1 ELSE 0 END')
             ->orderByDesc('progress_moments.moment')
             ->orderBy('users.name')
@@ -63,7 +68,7 @@ class StudentProgressController extends Controller
         $latestMoments = $moments->forProjects($projects->keys()->all(), $projects);
 
         $rows = $paginator->getCollection()
-            ->map(function (MahasiswaProfile $profile) use ($projects, $progress, $latestMoments): array {
+            ->map(function (MahasiswaProfile $profile) use ($projects, $progress, $latestMoments, $studentUserId): array {
                 $project = $projects[(int) $profile->getAttribute('current_project_id')] ?? null;
 
                 return $this->row(
@@ -71,6 +76,7 @@ class StudentProgressController extends Controller
                     $project,
                     $project instanceof ThesisProject ? $progress[$project->id] : null,
                     $project instanceof ThesisProject ? ($latestMoments[$project->id] ?? null) : null,
+                    $profile->user_id === $studentUserId,
                 );
             })
             ->values()
@@ -175,7 +181,7 @@ class StudentProgressController extends Controller
      * @param  array<string, mixed>|null  $moment
      * @return array<string, mixed>
      */
-    private function row(MahasiswaProfile $profile, ?ThesisProject $project, ?array $progress, ?array $moment): array
+    private function row(MahasiswaProfile $profile, ?ThesisProject $project, ?array $progress, ?array $moment, bool $isSelf): array
     {
         $student = $profile->user;
         $phaseKey = match (true) {
@@ -191,6 +197,7 @@ class StudentProgressController extends Controller
 
         return [
             'id' => $profile->user_id,
+            'isSelf' => $isSelf,
             'projectId' => $project?->id,
             'name' => $student?->name ?? '-',
             'nim' => $profile->nim,

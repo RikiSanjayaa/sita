@@ -504,3 +504,101 @@ it('never shows a non-public title or lecturer notes to another student', functi
         ->not->toContain('Judul Rahasia Belum Publik')
         ->not->toContain('Catatan Pembimbing Rahasia');
 });
+
+it('prioritizes the authenticated student before pagination without changing other rows or totals', function (bool $hasThesis): void {
+    $this->freezeTime();
+    $ownProject = $hasThesis ? progressPageProject(['name' => 'Zara Pemilik']) : null;
+    $viewer = $ownProject?->student ?? progressPageStudentWithoutThesis(['name' => 'Zara Pemilik']);
+    $ownProject?->forceFill(['started_at' => now()->subDays(200)])->save();
+
+    foreach (range(1, 11) as $number) {
+        $project = progressPageProject(['name' => sprintf('Mahasiswa %02d', $number)]);
+        $project->forceFill(['started_at' => now()->subDays(100 - intdiv($number, 2))])->save();
+    }
+    progressPageStudentWithoutThesis(['name' => 'Anna Tanpa TA']);
+    progressPageStudentWithoutThesis(['name' => 'Anna Tanpa TA']);
+
+    $fetchIds = function (User $user, int $pageNumber, int $size): array {
+        $response = $this->actingAs($user)->get('/progres-mahasiswa?per_page='.$size.'&page='.$pageNumber)->assertOk();
+        $ids = [];
+        $response->assertInertia(function (AssertableInertia $page) use (&$ids, $pageNumber, $size): void {
+            $page->where('pagination.total', 14)
+                ->where('pagination.perPage', $size)
+                ->where('pagination.currentPage', $pageNumber);
+            $ids = collect($page->toArray()['props']['rows'])->pluck('id')->all();
+        });
+
+        return $ids;
+    };
+
+    $baseline = $fetchIds(User::factory()->asAdmin()->create(), 1, 100);
+    expect(array_search($viewer->id, $baseline, true))->toBeGreaterThan(9);
+    $actual = [...$fetchIds($viewer, 1, 5), ...$fetchIds($viewer, 2, 5), ...$fetchIds($viewer, 3, 5)];
+    expect($actual)->toBe([$viewer->id, ...array_values(array_diff($baseline, [$viewer->id]))])
+        ->and(array_unique($actual))->toHaveCount(14);
+
+    $this->actingAs($viewer)->get('/progres-mahasiswa?per_page=5')->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('rows', 5)
+        ->where('rows.0.id', $viewer->id)
+        ->where('rows.0.isSelf', true)
+        ->where('rows.1.isSelf', false)
+        ->where('rows.0.projectId', $ownProject?->id));
+})->with(['older thesis' => true, 'no thesis' => false]);
+
+it('only prioritizes self within the matching search and filter population', function (string $filter, bool $matches): void {
+    $own = progressPageProject(['name' => 'Zara Cocok', 'angkatan' => 2022]);
+    $other = progressPageProject(['name' => 'Anna Cocok', 'prodi' => $own->programStudi, 'angkatan' => 2022]);
+    $outside = progressPageProject(['name' => 'Di Luar', 'phase' => 'sempro', 'angkatan' => 2023]);
+    $query = match ($filter) {
+        'search-match' => 'search=Cocok',
+        'search-exclude' => 'search=Anna',
+        'prodi-match' => 'prodi='.$own->program_studi_id,
+        'prodi-exclude' => 'prodi='.$outside->program_studi_id,
+        'angkatan-match' => 'angkatan=2022',
+        'angkatan-exclude' => 'angkatan=2023',
+        'phase-match' => 'phase=research',
+        'phase-exclude' => 'phase=sempro',
+    };
+
+    $this->actingAs($own->student)->get('/progres-mahasiswa?'.$query)->assertInertia(function (AssertableInertia $page) use ($own, $other, $outside, $matches, $filter): void {
+        $expected = $matches ? [$own->student_user_id, $other->student_user_id] : [$filter === 'search-exclude' ? $other->student_user_id : $outside->student_user_id];
+        $page->where('pagination.total', count($expected));
+        expect(collect($page->toArray()['props']['rows'])->pluck('id')->all())->toBe($expected);
+    });
+
+    $this->get('/progres-mahasiswa')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('rows.0.id', $own->student_user_id)
+        ->where('pagination.total', 3));
+})->with([
+    ['search-match', true], ['search-exclude', false],
+    ['prodi-match', true], ['prodi-exclude', false],
+    ['angkatan-match', true], ['angkatan-exclude', false],
+    ['phase-match', true], ['phase-exclude', false],
+]);
+
+it('does not insert a student without an eligible profile', function (string $kind): void {
+    $visible = progressPageProject(['name' => 'Tetap Terlihat']);
+    $viewer = match ($kind) {
+        'missing' => User::factory()->asMahasiswa()->create(),
+        'inactive' => progressPageStudentWithoutThesis(['active' => false]),
+        'inactive-thesis' => progressPageProject(['active' => false])->student,
+    };
+
+    $this->actingAs($viewer)->get('/progres-mahasiswa')->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('rows', 1)
+        ->where('rows.0.id', $visible->student_user_id)
+        ->where('rows.0.isSelf', false)
+        ->where('pagination.total', 1));
+})->with(['missing', 'inactive', 'inactive-thesis']);
+
+it('keeps non-student ordering even when the account has a student profile', function (string $role): void {
+    $newest = progressPageProject(['name' => 'Terbaru']);
+    $viewer = User::factory()->{$role}()->create();
+    MahasiswaProfile::factory()->create(['user_id' => $viewer->id, 'is_active' => true]);
+
+    $this->actingAs($viewer)->get('/progres-mahasiswa')->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('rows', 2)
+        ->where('rows.0.id', $newest->student_user_id)
+        ->where('rows.1.id', $viewer->id)
+        ->where('rows.1.isSelf', false));
+})->with(['asDosen', 'asKaprodi', 'asAdmin', 'asSuperAdmin']);

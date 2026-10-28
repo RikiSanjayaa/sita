@@ -428,6 +428,8 @@ Approved in #82 for the public list pages; tables and lists in the mahasiswa, do
 - **Read-only row actions:** an action whose only purpose is to read/open a record uses the `Eye` icon in `RowIconButton`, with a tooltip and specific `aria-label`. Do not render text buttons such as "Detail sesi", "Lihat" or "Buka" for these actions, including on phones. Keep the 36px desktop / 44px mobile hit target. Mutation and decision actions retain their verb labels.
 - **Detail on demand:** expanded detail is rendered only when open, never hidden at rest.
 
+Progress Seluruh Mahasiswa (`/progres-mahasiswa`, #179) uses that exact global title in navigation, breadcrumbs, heading and browser tab. Dashboard sections covering only a subset keep their own titles. The authenticated student's eligible row leads the filtered query before pagination, including students without a thesis; a soft primary Anda badge beside the identity stays visible at desktop and phone widths. Search/filter exclusions do not insert self outside the result. Other students retain latest-progress/name/profile-ID order, and non-student ordering stays unchanged.
+
 ### Portal: kaprodi
 
 Decided in #85, desktop-first and clean at 390px. The five kaprodi pages (dashboard, Mahasiswa Prodi, Sempro / Sinopsis & Sidang Akhir, Dokumen, Dosen Prodi) all start with `PageHeader` and compose lists from the data-list patterns above.

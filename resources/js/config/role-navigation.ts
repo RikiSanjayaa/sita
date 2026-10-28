@@ -33,6 +33,41 @@ type RoleNavigation = {
     settings: NavItem;
 };
 
+const adminNavigation: RoleNavigation = {
+    main: [
+        {
+            title: 'Dashboard',
+            href: '/admin',
+            icon: Gauge,
+        },
+        {
+            title: 'Progress Seluruh Mahasiswa',
+            href: '/progres-mahasiswa',
+            icon: ListChecks,
+        },
+        {
+            title: 'Users',
+            href: '/admin/users',
+            icon: UserCog,
+        },
+        {
+            title: n.proposalExamShort,
+            href: '/admin/sempros',
+            icon: ShieldCheck,
+        },
+        {
+            title: `Judul & ${n.proposalDocument}`,
+            href: '/admin/thesis-submissions',
+            icon: Users,
+        },
+    ],
+    settings: {
+        title: 'Pengaturan Akun',
+        href: '/settings',
+        icon: Settings,
+    },
+};
+
 export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
     mahasiswa: {
         main: [
@@ -42,7 +77,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Progres Mahasiswa',
+                title: 'Progress Seluruh Mahasiswa',
                 href: '/progres-mahasiswa',
                 icon: ListChecks,
             },
@@ -96,7 +131,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UsersRound,
             },
             {
-                title: 'Progres Mahasiswa',
+                title: 'Progress Seluruh Mahasiswa',
                 href: '/progres-mahasiswa',
                 icon: ListChecks,
             },
@@ -136,7 +171,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: UsersRound,
             },
             {
-                title: 'Progres Mahasiswa',
+                title: 'Progress Seluruh Mahasiswa',
                 href: '/progres-mahasiswa',
                 icon: ListChecks,
             },
@@ -194,40 +229,8 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
             icon: Settings,
         },
     },
-    admin: {
-        main: [
-            {
-                title: 'Dashboard',
-                href: '/admin',
-                icon: Gauge,
-            },
-            {
-                title: 'Progres Mahasiswa',
-                href: '/progres-mahasiswa',
-                icon: ListChecks,
-            },
-            {
-                title: 'Users',
-                href: '/admin/users',
-                icon: UserCog,
-            },
-            {
-                title: n.proposalExamShort,
-                href: '/admin/sempros',
-                icon: ShieldCheck,
-            },
-            {
-                title: `Judul & ${n.proposalDocument}`,
-                href: '/admin/thesis-submissions',
-                icon: Users,
-            },
-        ],
-        settings: {
-            title: 'Pengaturan Akun',
-            href: '/settings',
-            icon: Settings,
-        },
-    },
+    admin: adminNavigation,
+    super_admin: adminNavigation,
     penguji: {
         main: [
             {
@@ -236,7 +239,7 @@ export const roleNavigationConfig: Record<AppRole, RoleNavigation> = {
                 icon: LayoutGrid,
             },
             {
-                title: 'Progres Mahasiswa',
+                title: 'Progress Seluruh Mahasiswa',
                 href: '/progres-mahasiswa',
                 icon: ListChecks,
             },
