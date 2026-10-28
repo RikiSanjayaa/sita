@@ -429,6 +429,7 @@ Approved in #82 for the public list pages; tables and lists in the mahasiswa, do
 - **Detail on demand:** expanded detail is rendered only when open, never hidden at rest.
 
 Progress Seluruh Mahasiswa (`/progres-mahasiswa`, #179) uses that exact global title in navigation, breadcrumbs, heading and browser tab. Dashboard sections covering only a subset keep their own titles. The authenticated student's eligible row leads the filtered query before pagination, including students without a thesis; a soft primary Anda badge beside the identity stays visible at desktop and phone widths. Search/filter exclusions do not insert self outside the result. Other students retain latest-progress/name/profile-ID order, and non-student ordering stays unchanged.
+The Anda row also has a quiet `primary-muted/60` background across its full desktop/mobile entry, with `primary-muted` on hover. Ordinary rows keep their existing neutral hover; no status hue, extra border or stronger selection treatment is added.
 
 ### Portal: kaprodi
 

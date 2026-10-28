@@ -370,7 +370,10 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
         <tr
             className={cn(
                 stackedTable.tr,
-                'align-top transition-colors hover:bg-muted/30',
+                'align-top transition-colors',
+                row.isSelf
+                    ? 'bg-primary-muted/60 hover:bg-primary-muted'
+                    : 'hover:bg-muted/30',
             )}
         >
             <td className={stackedTable.tdPlain}>
