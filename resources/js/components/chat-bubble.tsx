@@ -66,6 +66,10 @@ export function ChatBubble({
     const isPending = message.type === 'pending';
     const thumbnailUrl =
         message.attachmentKind === 'image' ? message.previewUrl : null;
+    const compact = message.reply != null || thumbnailUrl !== null;
+    const quoteSurface = isMe
+        ? 'bg-foreground/10 dark:bg-primary-foreground/10'
+        : 'bg-background';
     if (
         (message.type === 'document_event' ||
             message.type === 'revision_suggestion') &&
@@ -171,98 +175,132 @@ export function ChatBubble({
 
                     <div
                         className={cn(
-                            'relative rounded-2xl px-3 py-2 text-sm leading-snug',
-                            isMe
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-card text-card-foreground',
-                            !grouped &&
-                                (isMe ? 'rounded-tr-none' : 'rounded-tl-none'),
-                            isActiveMatch &&
-                                (isMe
-                                    ? 'ring-2 ring-primary-foreground/35'
-                                    : 'ring-2 ring-primary/40'),
+                            'flex min-w-0 items-end gap-1',
+                            isMe && 'flex-row-reverse',
                         )}
                     >
-                        {!grouped && (
-                            <svg
-                                aria-hidden="true"
-                                viewBox="0 0 12 12"
-                                className={cn(
-                                    'pointer-events-none absolute top-0 size-3',
-                                    isMe
-                                        ? '-right-2 fill-primary'
-                                        : '-left-2 fill-card',
-                                )}
-                            >
-                                <path
-                                    d={
+                        <div
+                            className={cn(
+                                'relative min-w-0 rounded-2xl text-sm leading-snug',
+                                compact ? 'p-1' : 'p-2',
+                                isMe
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-card text-card-foreground',
+                                !grouped &&
+                                    (isMe
+                                        ? 'rounded-tr-none'
+                                        : 'rounded-tl-none'),
+                                isActiveMatch &&
+                                    (isMe
+                                        ? 'ring-2 ring-primary-foreground/35'
+                                        : 'ring-2 ring-primary/40'),
+                            )}
+                        >
+                            {!grouped && (
+                                <svg
+                                    aria-hidden="true"
+                                    viewBox="0 0 12 12"
+                                    className={cn(
+                                        'pointer-events-none absolute top-0 size-3',
                                         isMe
-                                            ? 'M0 0H12L0 12Z'
-                                            : 'M12 0H0L12 12Z'
-                                    }
-                                />
-                            </svg>
-                        )}
-                        {message.reply &&
-                            (message.reply.available ? (
+                                            ? '-right-2 fill-primary'
+                                            : '-left-2 fill-card',
+                                    )}
+                                >
+                                    <path
+                                        d={
+                                            isMe
+                                                ? 'M0 0H12L0 12Z'
+                                                : 'M12 0H0L12 12Z'
+                                        }
+                                    />
+                                </svg>
+                            )}
+                            {message.reply &&
+                                (message.reply.available ? (
+                                    <button
+                                        type="button"
+                                        aria-label="Lihat pesan asal"
+                                        onClick={() => {
+                                            if (message.reply?.available)
+                                                onJump?.(message.reply.id);
+                                        }}
+                                        className={cn(
+                                            'mb-1 block min-h-11 w-full rounded-xl px-2 py-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2',
+                                            quoteSurface,
+                                        )}
+                                    >
+                                        <span className="block font-semibold">
+                                            {message.reply.author}
+                                        </span>
+                                        {message.reply.documentName && (
+                                            <span className="block font-medium break-words">
+                                                {message.reply.documentName}
+                                            </span>
+                                        )}
+                                        <span className="line-clamp-2 break-words">
+                                            {message.reply.message}
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <p
+                                        className={cn(
+                                            'mb-1 rounded-xl p-2 text-xs',
+                                            quoteSurface,
+                                        )}
+                                    >
+                                        Pesan asal tidak tersedia
+                                    </p>
+                                ))}
+                            {thumbnailUrl !== null && (
                                 <button
                                     type="button"
-                                    aria-label="Lihat pesan asal"
-                                    onClick={() => {
-                                        if (message.reply?.available)
-                                            onJump?.(message.reply.id);
-                                    }}
-                                    className="mb-2 block min-h-11 w-full rounded-lg border border-current/30 px-2 py-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2"
+                                    onClick={() => setIsLightboxOpen(true)}
+                                    disabled={isPending}
+                                    aria-label={`Perbesar ${message.documentName ?? 'gambar'}`}
+                                    className="mb-1 block w-full overflow-hidden rounded-xl"
                                 >
-                                    <span className="block font-semibold">
-                                        {message.reply.author}
-                                    </span>
-                                    {message.reply.documentName && (
-                                        <span className="block font-medium break-words">
-                                            {message.reply.documentName}
-                                        </span>
-                                    )}
-                                    <span className="line-clamp-2 break-words">
-                                        {message.reply.message}
-                                    </span>
+                                    <img
+                                        src={thumbnailUrl}
+                                        alt={message.documentName ?? 'Gambar'}
+                                        loading="lazy"
+                                        className="block max-h-64 w-full object-contain"
+                                    />
                                 </button>
-                            ) : (
-                                <p className="mb-2 text-xs">
-                                    Pesan asal tidak tersedia
-                                </p>
-                            ))}
-                        {thumbnailUrl !== null && (
-                            <button
-                                type="button"
-                                onClick={() => setIsLightboxOpen(true)}
-                                disabled={isPending}
-                                aria-label={`Perbesar ${message.documentName ?? 'gambar'}`}
-                                className="mb-2 block overflow-hidden rounded-xl"
-                            >
-                                <img
-                                    src={thumbnailUrl}
-                                    alt={message.documentName ?? 'Gambar'}
-                                    loading="lazy"
-                                    className="block max-h-64 max-w-full object-cover"
+                            )}
+                            {message.documentName && thumbnailUrl === null && (
+                                <AttachmentCard
+                                    caption={documentCaption(message)}
+                                    href={message.documentUrl}
+                                    inverse={isMe}
+                                    name={message.documentName}
+                                    reviewStatus={
+                                        message.ownReview?.status ??
+                                        reviewStatus ??
+                                        message.reviewStatus
+                                    }
+                                    searchTerm={searchTerm}
+                                    sizeKb={message.attachmentSizeKb}
+                                    action={
+                                        message.ownReview?.status ===
+                                        'submitted' ? (
+                                            <DocumentReviewAction
+                                                className={attachmentIconActionClassName(
+                                                    isMe,
+                                                )}
+                                                document={message.ownReview}
+                                                documentName={
+                                                    message.documentName
+                                                }
+                                            />
+                                        ) : undefined
+                                    }
                                 />
-                            </button>
-                        )}
-                        {message.documentName && thumbnailUrl === null && (
-                            <AttachmentCard
-                                caption={documentCaption(message)}
-                                href={message.documentUrl}
-                                inverse={isMe}
-                                name={message.documentName}
-                                reviewStatus={
-                                    message.ownReview?.status ??
-                                    reviewStatus ??
-                                    message.reviewStatus
-                                }
-                                searchTerm={searchTerm}
-                                sizeKb={message.attachmentSizeKb}
-                                action={
-                                    message.ownReview?.status ===
-                                    'submitted' ? (
+                            )}
+                            {thumbnailUrl !== null &&
+                                message.documentName &&
+                                message.ownReview?.status === 'submitted' && (
+                                    <div className="mb-2 flex justify-end">
                                         <DocumentReviewAction
                                             className={attachmentIconActionClassName(
                                                 isMe,
@@ -270,92 +308,70 @@ export function ChatBubble({
                                             document={message.ownReview}
                                             documentName={message.documentName}
                                         />
-                                    ) : undefined
-                                }
-                            />
-                        )}
-                        {thumbnailUrl !== null &&
-                            message.documentName &&
-                            message.ownReview?.status === 'submitted' && (
-                                <div className="mb-2 flex justify-end">
-                                    <DocumentReviewAction
-                                        className={attachmentIconActionClassName(
-                                            isMe,
-                                        )}
-                                        document={message.ownReview}
-                                        documentName={message.documentName}
-                                    />
+                                    </div>
+                                )}
+                            {thumbnailUrl !== null && !isPending && (
+                                <ImageLightbox
+                                    downloadHref={message.documentUrl}
+                                    name={message.documentName ?? 'Gambar'}
+                                    onOpenChange={setIsLightboxOpen}
+                                    open={isLightboxOpen}
+                                    src={thumbnailUrl}
+                                />
+                            )}
+                            {message.message && (
+                                <div className="break-words whitespace-pre-wrap">
+                                    {highlightText(
+                                        message.message,
+                                        searchTerm,
+                                        isMe,
+                                    )}
                                 </div>
                             )}
-                        {thumbnailUrl !== null && !isPending && (
-                            <ImageLightbox
-                                downloadHref={message.documentUrl}
-                                name={message.documentName ?? 'Gambar'}
-                                onOpenChange={setIsLightboxOpen}
-                                open={isLightboxOpen}
-                                src={thumbnailUrl}
-                            />
-                        )}
-                        {message.message && (
-                            <div className="break-words whitespace-pre-wrap">
-                                {highlightText(
-                                    message.message,
-                                    searchTerm,
-                                    isMe,
-                                )}
-                            </div>
-                        )}
-                        {(showTime || onReply || onEdit) && (
-                            <div
-                                className={cn(
-                                    'mt-1 flex items-center justify-end gap-2 text-xs tabular-nums',
-                                    isMe
-                                        ? 'text-primary-foreground'
-                                        : 'text-muted-foreground',
-                                )}
-                            >
-                                {message.editedAt && <span>Diedit</span>}
-                                {showTime && <span>{message.time}</span>}
-                                {(onReply || onEdit) && !isPending && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label="Aksi pesan"
-                                                className={cn(
-                                                    'size-8 shrink-0 max-md:size-11',
-                                                    isMe &&
-                                                        'hover:bg-primary-foreground/10 hover:text-primary-foreground',
-                                                )}
-                                            >
-                                                <MoreHorizontal className="size-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align={isMe ? 'end' : 'start'}
-                                        >
-                                            {onReply && (
-                                                <DropdownMenuItem
-                                                    onSelect={onReply}
-                                                >
-                                                    <Reply className="size-4" />
-                                                    Balas
-                                                </DropdownMenuItem>
-                                            )}
-                                            {onEdit && (
-                                                <DropdownMenuItem
-                                                    onSelect={onEdit}
-                                                >
-                                                    <Pencil className="size-4" />
-                                                    Edit teks / caption
-                                                </DropdownMenuItem>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-                            </div>
+                            {(showTime || message.editedAt) && (
+                                <div
+                                    className={cn(
+                                        'mt-1 flex items-center justify-end gap-2 text-xs tabular-nums',
+                                        isMe
+                                            ? 'text-primary-foreground'
+                                            : 'text-muted-foreground',
+                                    )}
+                                >
+                                    {message.editedAt && <span>Diedit</span>}
+                                    {showTime && <span>{message.time}</span>}
+                                </div>
+                            )}
+                        </div>
+                        {(onReply || onEdit) && !isPending && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label="Aksi pesan"
+                                        className="size-8 shrink-0 text-muted-foreground max-md:size-11"
+                                    >
+                                        <MoreHorizontal className="size-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align={isMe ? 'end' : 'start'}
+                                >
+                                    {onReply && (
+                                        <DropdownMenuItem onSelect={onReply}>
+                                            <Reply className="size-4" />
+                                            Balas
+                                        </DropdownMenuItem>
+                                    )}
+                                    {onEdit && (
+                                        <DropdownMenuItem onSelect={onEdit}>
+                                            <Pencil className="size-4" />
+                                            Edit teks / caption
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         )}
                     </div>
                 </div>
