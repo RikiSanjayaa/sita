@@ -87,6 +87,8 @@ test.describe('Sonner feedback', () => {
                 try {
                     const page = await context.newPage();
                     await page.goto('/settings/profile');
+                    // Exercise save feedback after the initial unread/auth requests settle.
+                    await page.waitForLoadState('networkidle');
                     await expect(page.locator('html')).toHaveAttribute(
                         'data-theme',
                         scheme,
