@@ -8,6 +8,7 @@ use App\Models\ProgramStudi;
 use App\Models\User;
 use App\Services\UserExcelImportService;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -26,16 +27,26 @@ class ListUsers extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('downloadExcelTemplate')
-                ->label('Download Excel Template')
+            ActionGroup::make([
+                Action::make('downloadMahasiswaTemplate')
+                    ->label('Template Mahasiswa')
+                    ->url(route('admin.users.import-template', ['kind' => 'mahasiswa'])),
+                Action::make('downloadDosenTemplate')
+                    ->label('Template Dosen')
+                    ->url(route('admin.users.import-template', ['kind' => 'dosen'])),
+                Action::make('downloadAdminTemplate')
+                    ->label('Template Admin')
+                    ->url(route('admin.users.import-template', ['kind' => 'admin'])),
+            ])
+                ->label('Unduh template Excel')
                 ->icon('heroicon-m-arrow-down-tray')
-                ->url(route('admin.users.import-template', ['format' => 'xlsx'])),
+                ->button(),
             Action::make('importExcel')
                 ->label('Import Excel')
                 ->icon('heroicon-m-arrow-up-tray')
                 ->color('success')
                 ->modalHeading('Import user dari Excel')
-                ->modalDescription('Unggah file Excel dari template yang disediakan. Program Studi dipilih dari dropdown import, jadi tidak perlu ditulis di file.')
+                ->modalDescription('Unduh template Mahasiswa, Dosen atau Admin, lalu ganti baris contoh dengan data Anda. Pilih Program Studi tujuan di sini. File campuran dengan kolom role yang valid tetap didukung; akun admin hanya dapat diimpor super admin.')
                 ->schema([
                     FileUpload::make('file')
                         ->label('File Excel')

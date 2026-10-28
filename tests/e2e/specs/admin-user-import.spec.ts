@@ -1,11 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { authStatePath } from '../support/thesis-fixtures';
+import { playwrightStoragePath, runArtisan } from '../support/db';
+import { newFilamentContext } from '../support/filament-auth';
 
 function columnName(index: number): string {
     let current = index;
@@ -69,17 +69,25 @@ async function buildImportWorkbook(
     fileName: string,
     rows: string[][],
 ): Promise<string> {
-    const response = await page.request.get('/admin/import-template.xlsx');
+    const response = await page.request.get(
+        '/admin/import-template/mahasiswa.xlsx',
+    );
 
     expect(response.ok()).toBeTruthy();
 
     const tempDirectory = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'sita-user-import-'),
+        path.join(playwrightStoragePath, 'sita-user-import-'),
     );
     const workbookPath = path.join(tempDirectory, fileName);
-    const sheetXmlPath = path.join(tempDirectory, 'sheet1.xml');
-
     fs.writeFileSync(workbookPath, Buffer.from(await response.body()));
+    replaceWorkbookRows(workbookPath, rows);
+
+    return workbookPath;
+}
+
+function replaceWorkbookRows(workbookPath: string, rows: string[][]): void {
+    const sheetXmlPath = path.join(path.dirname(workbookPath), 'sheet1.xml');
+
     fs.writeFileSync(sheetXmlPath, buildSheetXml(rows));
 
     execFileSync(
@@ -94,8 +102,6 @@ async function buildImportWorkbook(
     );
 
     fs.unlinkSync(sheetXmlPath);
-
-    return workbookPath;
 }
 
 async function cleanupWorkbook(filePath: string): Promise<void> {
@@ -161,12 +167,104 @@ async function fillTableSearch(page: Page, query: string): Promise<void> {
 }
 
 test.describe('Admin user import', () => {
+    for (const kind of ['mahasiswa', 'dosen', 'admin'] as const) {
+        test(`downloads, fills and imports the ${kind} template through Users`, async ({
+            browser,
+        }) => {
+            const context = await newFilamentContext(browser, 'superadmin');
+            const page = await context.newPage();
+            const directory = fs.mkdtempSync(
+                path.join(playwrightStoragePath, 'role-round-trip-'),
+            );
+            const email = `e2e-template-${kind}@sita.test`;
+            try {
+                await page.goto('/admin/users');
+                await page
+                    .getByRole('button', { name: 'Unduh template Excel' })
+                    .click();
+                const downloadPromise = page.waitForEvent('download');
+                await page
+                    .getByRole('menuitem', {
+                        name: `Template ${kind[0].toUpperCase()}${kind.slice(1)}`,
+                        exact: true,
+                    })
+                    .click();
+                const download = await downloadPromise;
+                expect(download.suggestedFilename()).toBe(
+                    `user-import-${kind}.xlsx`,
+                );
+                const workbookPath = path.join(
+                    directory,
+                    download.suggestedFilename(),
+                );
+                await download.saveAs(workbookPath);
+                const rows: string[][] = JSON.parse(
+                    execFileSync(
+                        'php',
+                        [
+                            '-r',
+                            'require "vendor/autoload.php"; echo json_encode((new App\\Support\\SimpleXlsxReader)->rows($argv[1]));',
+                            workbookPath,
+                        ],
+                        { encoding: 'utf8' },
+                    ),
+                );
+                rows[1][rows[0].indexOf('nama')] = `E2E Template ${kind}`;
+                rows[1][rows[0].indexOf('email')] = email;
+                if (kind === 'mahasiswa') {
+                    rows[1][rows[0].indexOf('nim')] = '2210519991';
+                }
+                replaceWorkbookRows(workbookPath, rows);
+                await openImportModal(page);
+                await waitForUploadedWorkbook(page, workbookPath);
+                await selectFilamentOption(
+                    page,
+                    0,
+                    kind === 'mahasiswa' ? 'dosen' : 'mahasiswa',
+                );
+                await selectFilamentOption(page, 1, '1');
+                await page
+                    .getByRole('button', { name: 'Submit', exact: true })
+                    .click();
+                await expect(
+                    page
+                        .locator('.fi-modal-window')
+                        .filter({ hasText: 'Import user dari Excel' }),
+                ).not.toBeVisible();
+                await page
+                    .getByRole('button', {
+                        name: kind[0].toUpperCase() + kind.slice(1),
+                        exact: true,
+                    })
+                    .click();
+                await fillTableSearch(page, email);
+                const row = page.locator('tr').filter({ hasText: email });
+                await expect(row).toContainText(`E2E Template ${kind}`);
+                if (kind === 'mahasiswa') {
+                    await expect(row).toContainText('2210519991');
+                    await expect(
+                        row.getByText('OBE', { exact: true }),
+                    ).toBeVisible();
+                }
+                if (kind === 'dosen') {
+                    await expect(row).toContainText('7301010101990001');
+                }
+            } finally {
+                await context.close();
+                fs.rmSync(directory, { recursive: true, force: true });
+                runArtisan([
+                    'tinker',
+                    '--execute',
+                    `App\\Models\\User::where('email', '${email}')->first()?->delete();`,
+                ]);
+            }
+        });
+    }
+
     test('admin can import a valid mahasiswa workbook from the Filament modal', async ({
         browser,
     }) => {
-        const adminContext = await browser.newContext({
-            storageState: authStatePath('superadmin'),
-        });
+        const adminContext = await newFilamentContext(browser, 'superadmin');
         const workbookPath = await buildImportWorkbook(
             await adminContext.newPage(),
             'users-success.xlsx',
@@ -261,9 +359,7 @@ test.describe('Admin user import', () => {
     test('admin sees partial import failures while valid rows are still imported', async ({
         browser,
     }) => {
-        const adminContext = await browser.newContext({
-            storageState: authStatePath('superadmin'),
-        });
+        const adminContext = await newFilamentContext(browser, 'superadmin');
         const workbookPath = await buildImportWorkbook(
             await adminContext.newPage(),
             'users-partial.xlsx',
