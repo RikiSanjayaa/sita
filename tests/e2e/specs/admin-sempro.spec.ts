@@ -138,6 +138,9 @@ async function submitDefenseDecision(
     );
 
     await page.getByRole('button', { name: 'Submit Keputusan' }).click();
+    await page
+        .getByRole('button', { name: 'Konfirmasi penilaian', exact: true })
+        .click();
     await decisionRequest;
 
     const row = defenseRow(page, studentName, attemptLabel);

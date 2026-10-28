@@ -447,6 +447,8 @@ FullCalendar variables (borders, buttons, today highlight) are mapped to the tok
 
 ### Filament admin
 
+Konfirmasi ujian (#172) membedakan penilaian individual dari hasil akhir. Portal dosen memakai Dialog di atas drawer yang tetap terpasang agar Batal dan validasi server mempertahankan draft, butir dan file. Konfirmasi merangkum identitas, jenis/attempt, keputusan, skor hanya bila diwajibkan, catatan dan revisi yang benar-benar dikirim. Filament memakai modal konfirmasi bersarang setelah validasi form hasil akhir, dengan ringkasan data dan konsekuensi service. Batal kembali ke form, kegagalan simpan mempertahankan draft dan meminta konfirmasi lagi. Tombol mutasi nonaktif selama processing; tidak ada aktor persetujuan baru.
+
 - `App\Providers\Filament\AdminPanelProvider::SEMANTIC_COLORS` mirrors the color values from `resources/css/app.css`, because the panel does not load the React stylesheet. Keep those two palettes paired. Separately, the TypeScript domain-status mapping mirrors `App\Support\Filament\BadgeStyles::DOMAIN_TONES`.
 - The colour scheme picker (`data-theme`) does not reach the admin panel. Filament stays on UBG Blue; see Colour schemes.
 - Filament primary matches the React tokens: solid `#2563eb`/white in light, `#60a5fa`/`#0f172a` in dark, and `primary` badges use the primary-muted pair. Filament draws dark-mode text, links, active navigation, tabs and pagination from palette shade 400, so shade 400 is the dark `--primary`.

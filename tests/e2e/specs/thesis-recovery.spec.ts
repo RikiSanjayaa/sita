@@ -577,6 +577,9 @@ async function submitRecoveryDecision(
             .getByLabel(/naskah beranotasi/i)
             .setInputFiles(annotationUpload(revision.annotationName));
     }
+    await page
+        .getByRole('button', { name: 'Submit Keputusan', exact: true })
+        .click();
     await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -586,7 +589,7 @@ async function submitRecoveryDecision(
                 ),
         ),
         page
-            .getByRole('button', { name: 'Submit Keputusan', exact: true })
+            .getByRole('button', { name: 'Konfirmasi penilaian', exact: true })
             .click(),
     ]);
 }
@@ -625,7 +628,7 @@ test.describe('conditional Sidang recovery', () => {
         recovery,
         browser,
     }, testInfo) => {
-        test.setTimeout(180_000);
+        test.setTimeout(300_000);
         const { student, admin, lecturer } = recovery;
         const budi = await lecturer('dosen1');
         const ratna = await lecturer('dosen2');
@@ -717,7 +720,16 @@ test.describe('conditional Sidang recovery', () => {
                     .getByLabel('Catatan Sidang Skripsi')
                     .fill('Lulus bersyarat; selesaikan revisi penguji.');
                 await modal
-                    .getByRole('button', { name: 'Submit', exact: true })
+                    .getByRole('button', {
+                        name: 'Tinjau hasil akhir',
+                        exact: true,
+                    })
+                    .click();
+                await admin
+                    .getByRole('button', {
+                        name: 'Konfirmasi hasil akhir',
+                        exact: true,
+                    })
                     .click();
                 await expect(modal).toBeHidden();
                 await student.goto('/mahasiswa/tugas-akhir');
@@ -986,7 +998,7 @@ for (const type of ['sempro', 'sidang'] as const) {
         test(`${type} failure is finalized, rescheduled, and passed through admin UI while the failed attempt remains readable`, async ({
             recovery,
         }, testInfo) => {
-            test.setTimeout(180_000);
+            test.setTimeout(300_000);
             const { student, admin, lecturer } = recovery;
             const label = type === 'sempro' ? 'Sempro' : 'Sidang Skripsi';
             const list =
@@ -1039,7 +1051,16 @@ for (const type of ['sempro', 'sidang'] as const) {
                     })
                     .fill(failedReason);
                 await result
-                    .getByRole('button', { name: 'Submit', exact: true })
+                    .getByRole('button', {
+                        name: 'Tinjau hasil akhir',
+                        exact: true,
+                    })
+                    .click();
+                await admin
+                    .getByRole('button', {
+                        name: 'Konfirmasi hasil akhir',
+                        exact: true,
+                    })
                     .click();
                 await expect(result).toBeHidden();
                 await student.goto('/mahasiswa/tugas-akhir');
@@ -1157,7 +1178,16 @@ for (const type of ['sempro', 'sidang'] as const) {
                     })
                     .fill('Attempt ulang dinyatakan lulus.');
                 await modal
-                    .getByRole('button', { name: 'Submit', exact: true })
+                    .getByRole('button', {
+                        name: 'Tinjau hasil akhir',
+                        exact: true,
+                    })
+                    .click();
+                await admin
+                    .getByRole('button', {
+                        name: 'Konfirmasi hasil akhir',
+                        exact: true,
+                    })
                     .click();
                 await expect(modal).toBeHidden();
                 if (type === 'sempro') {

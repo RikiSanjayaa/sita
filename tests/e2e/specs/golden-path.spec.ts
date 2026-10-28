@@ -185,6 +185,7 @@ async function submitDecision(
             .fill(item.description);
     }
 
+    await page.getByRole('button', { name: 'Submit Keputusan' }).click();
     await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -193,7 +194,9 @@ async function submitDecision(
                     response.url(),
                 ),
         ),
-        page.getByRole('button', { name: 'Submit Keputusan' }).click(),
+        page
+            .getByRole('button', { name: 'Konfirmasi penilaian', exact: true })
+            .click(),
     ]);
 }
 
@@ -620,7 +623,15 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await modal
                     .locator('textarea')
                     .fill('Lulus dengan revisi rumusan masalah dan metrik.');
-                await modal.getByRole('button', { name: 'Submit' }).click();
+                await modal
+                    .getByRole('button', { name: 'Tinjau hasil akhir' })
+                    .click();
+                await adminPage
+                    .getByRole('button', {
+                        name: 'Konfirmasi hasil akhir',
+                        exact: true,
+                    })
+                    .click();
                 await expect(modal).toBeHidden();
 
                 await studentPage.goto('/mahasiswa/tugas-akhir');
@@ -964,7 +975,15 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     .locator('textarea')
                     .last()
                     .fill('Lulus sidang tanpa revisi.');
-                await modal.getByRole('button', { name: 'Submit' }).click();
+                await modal
+                    .getByRole('button', { name: 'Tinjau hasil akhir' })
+                    .click();
+                await adminPage
+                    .getByRole('button', {
+                        name: 'Konfirmasi hasil akhir',
+                        exact: true,
+                    })
+                    .click();
                 await expect(modal).toBeHidden();
 
                 await studentPage.goto('/mahasiswa/tugas-akhir');
