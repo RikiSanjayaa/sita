@@ -388,37 +388,41 @@ function DocumentBody({
                 ) : (
                     <ul className="divide-y">
                         {document.versions.map((item) => (
-                            <li
-                                key={item.id}
-                                className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
-                            >
-                                <div className="min-w-0 space-y-1">
-                                    <Link
-                                        href={item.url}
-                                        aria-current={
-                                            item.id === document.id
-                                                ? 'page'
-                                                : undefined
-                                        }
-                                        className="inline-block min-h-11 py-2 text-sm font-medium break-all text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-h-0 sm:py-0"
-                                    >
+                            <li key={item.id}>
+                                <Link
+                                    href={item.url}
+                                    aria-current={
+                                        item.id === document.id
+                                            ? 'page'
+                                            : undefined
+                                    }
+                                    className="group grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 py-2 text-sm transition-colors hover:bg-muted/50 focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                >
+                                    <span className="min-w-0 font-medium [overflow-wrap:anywhere]">
                                         {item.version === null
                                             ? item.fileName
-                                            : `Versi ${item.version}: ${item.fileName}`}
-                                    </Link>
-                                    <p className="text-xs text-muted-foreground">
-                                        {item.uploadedAt ?? '-'}
-                                        {item.id === document.id
-                                            ? ' · Versi yang sedang dibuka'
-                                            : ''}
-                                    </p>
-                                </div>
-                                <StatusBadge
-                                    domain="document"
-                                    status={item.status}
-                                >
-                                    {item.statusLabel}
-                                </StatusBadge>
+                                            : `Versi ${item.version}`}
+                                    </span>
+                                    <StatusBadge
+                                        domain="document"
+                                        status={item.status}
+                                    >
+                                        {item.statusLabel}
+                                    </StatusBadge>
+                                    {item.version !== null && (
+                                        <span className="col-span-2 min-w-0 [overflow-wrap:anywhere] text-primary underline-offset-4 group-hover:underline md:col-span-1">
+                                            {item.fileName}
+                                        </span>
+                                    )}
+                                    <span className="col-span-2 flex flex-wrap gap-x-2 text-xs text-muted-foreground md:col-span-1 md:col-start-2 md:row-start-2 md:justify-end">
+                                        <span>{item.uploadedAt ?? '-'}</span>
+                                        {item.id === document.id && (
+                                            <span className="font-medium text-primary">
+                                                Sedang dibuka
+                                            </span>
+                                        )}
+                                    </span>
+                                </Link>
                             </li>
                         ))}
                     </ul>
