@@ -219,7 +219,7 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                     ): Promise<void> {
                         if (width < 768) {
                             const toggle = bar.getByRole('button', {
-                                name: /^Filter(?:,|$)/,
+                                name: /^(?:Filter|Tutup filter)(?:,|$)/,
                             });
                             if (
                                 (await toggle.getAttribute('aria-expanded')) !==
@@ -305,7 +305,9 @@ test.describe('Dosen Prodi role pills and sticky filters', () => {
                             }),
                         ).toHaveText(/Sistem/);
                         await bar
-                            .getByRole('button', { name: /^Filter(?:,|$)/ })
+                            .getByRole('button', {
+                                name: /^Tutup filter(?:,|$)/,
+                            })
                             .click();
                     } else {
                         await expect(

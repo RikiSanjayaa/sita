@@ -147,14 +147,19 @@ export function StickyFilterBar({
                             ref={trigger}
                             variant="outline"
                             className="relative size-11 shrink-0 p-0"
-                            aria-label={
-                                active ? `Filter, ${active} aktif` : 'Filter'
-                            }
+                            aria-label={`${open ? 'Tutup filter' : 'Filter'}${active ? `, ${active} aktif` : ''}`}
                             aria-expanded={open}
                             aria-controls={panelId}
                             onClick={() => setOpen(!open)}
                         >
-                            <SlidersHorizontal aria-hidden className="size-4" />
+                            {open ? (
+                                <X aria-hidden className="size-4" />
+                            ) : (
+                                <SlidersHorizontal
+                                    aria-hidden
+                                    className="size-4"
+                                />
+                            )}
                             {active > 0 && (
                                 <span
                                     aria-hidden

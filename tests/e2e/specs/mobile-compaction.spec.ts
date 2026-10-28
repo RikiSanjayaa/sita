@@ -39,7 +39,9 @@ test.describe('mobile compaction (#167, #168)', () => {
         const search = page.getByRole('searchbox', {
             name: 'Cari nama atau NIM',
         });
-        const filter = page.getByRole('button', { name: /^Filter(?:,|$)/ });
+        const filter = page.getByRole('button', {
+            name: /^(?:Filter|Tutup filter)(?:,|$)/,
+        });
         const panel = page.getByRole('region', { name: 'Pilihan filter' });
         const rows = page.locator('main table tbody tr');
         await expect(rows).toHaveCount(5);
@@ -54,7 +56,7 @@ test.describe('mobile compaction (#167, #168)', () => {
         await panel.getByRole('combobox', { name: 'Filter angkatan' }).click();
         await page.getByRole('option', { name: '2022', exact: true }).click();
         await expect(page).toHaveURL(/activeAngkatan=2022/);
-        await expect(filter).toHaveAccessibleName('Filter, 1 aktif');
+        await expect(filter).toHaveAccessibleName('Tutup filter, 1 aktif');
         await expect(rows.first()).toContainText('2022');
         await panel.getByRole('combobox', { name: 'Tambah filter' }).click();
         await page
@@ -66,15 +68,17 @@ test.describe('mobile compaction (#167, #168)', () => {
         await page.getByRole('option', { name: /^Jaringan/ }).click();
         await expect(page).toHaveURL(/activeKonsentrasi=Jaringan/);
         await expect(page).toHaveURL(/activeAngkatan=2022/);
-        await expect(filter).toHaveAccessibleName('Filter, 2 aktif');
+        await expect(filter).toHaveAccessibleName('Tutup filter, 2 aktif');
         await panel
             .getByRole('button', { name: 'Hapus filter Angkatan' })
             .click();
         await expect(page).not.toHaveURL(/activeAngkatan=2022/);
         await expect(page).toHaveURL(/activeKonsentrasi=Jaringan/);
         await filter.click();
+        await expect(filter).toHaveAccessibleName('Filter, 1 aktif');
         await expect(panel).not.toBeVisible();
         await filter.click();
+        await expect(filter).toHaveAccessibleName('Tutup filter, 1 aktif');
         await expect(
             panel.getByRole('combobox', { name: 'Filter konsentrasi' }),
         ).toHaveText(/Jaringan/);
@@ -83,7 +87,7 @@ test.describe('mobile compaction (#167, #168)', () => {
         await expect(panel).not.toBeVisible();
         await filter.click();
         await panel.getByRole('button', { name: 'Reset filter' }).click();
-        await expect(filter).toHaveAccessibleName('Filter');
+        await expect(filter).toHaveAccessibleName('Tutup filter');
         await expect(page).not.toHaveURL(/activeKonsentrasi=Jaringan/);
         await expect(rows).toHaveCount(5);
         expect(await rows.allTextContents()).toEqual(original);

@@ -242,7 +242,7 @@ test.describe('every searchable table keeps its complete controls together (#94)
                         async function controls(): Promise<Locator> {
                             if (width >= 768) return bar;
                             const toggle = bar.getByRole('button', {
-                                name: /^Filter(?:,|$)/,
+                                name: /^(?:Filter|Tutup filter)(?:,|$)/,
                             });
                             if (
                                 (await toggle.getAttribute('aria-expanded')) !==
