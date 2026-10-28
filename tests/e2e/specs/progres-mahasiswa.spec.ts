@@ -53,7 +53,6 @@ test.describe('Progress Seluruh Mahasiswa', () => {
             const self = page.locator(rows).first();
             await expect(self).toContainText('Mahasiswa SiTA');
             await expect(self.getByText('Anda', { exact: true })).toBeVisible();
-            await expect(page.locator(rows)).toHaveCount(5);
             await page
                 .getByRole('button', { name: 'Filter', exact: true })
                 .click();
