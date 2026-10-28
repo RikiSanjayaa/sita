@@ -637,6 +637,22 @@ test('public topic and schedule pages support query filters and pagination props
     expect(data_get($followUpPage, 'props.followUpSchedules'))->toHaveCount(1)
         ->and(data_get($followUpPage, 'props.followUpPagination.currentPage'))->toBe(2)
         ->and(data_get($followUpPage, 'props.followUpPagination.previousPage'))->toBe(1);
+
+    foreach ([
+        ['/mahasiswa-aktif', 'per_page', 'page', 'activeStudents', 'studentPagination'],
+        ['/topik', 'per_page', 'page', 'semproTitles', 'topicPagination'],
+        ['/jadwal', 'upcoming_per_page', 'upcoming_page', 'upcomingSchedules', 'upcomingPagination'],
+        ['/jadwal', 'follow_up_per_page', 'follow_up_page', 'followUpSchedules', 'followUpPagination'],
+    ] as [$route, $sizeKey, $pageKey, $itemsKey, $paginationKey]) {
+        $first = $this->get($route.'?'.$sizeKey.'=5')->assertOk()->viewData('page')['props'];
+        $second = $this->get($route.'?'.$sizeKey.'=5&'.$pageKey.'=2')->assertOk()->viewData('page')['props'];
+
+        expect($first[$paginationKey]['perPage'])->toBe(5)
+            ->and($second[$paginationKey]['perPage'])->toBe(5)
+            ->and($second[$paginationKey]['currentPage'])->toBe(2)
+            ->and($first[$itemsKey])->toHaveCount(5)
+            ->and(collect($first[$itemsKey])->pluck('id')->intersect(collect($second[$itemsKey])->pluck('id')))->toBeEmpty();
+    }
 });
 
 test('public topics include completed theses even when sidang passed with revision first', function (): void {

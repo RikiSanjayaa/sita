@@ -15,6 +15,7 @@ interface SectionCardProps {
     children: ReactNode;
     className?: string;
     contentClassName?: string;
+    density?: 'default' | 'compact';
 }
 
 export function SectionCard({
@@ -24,6 +25,7 @@ export function SectionCard({
     children,
     className,
     contentClassName,
+    density = 'default',
 }: SectionCardProps) {
     const titleId = useId();
     const hasHeader = Boolean(title || description || actions);
@@ -32,10 +34,20 @@ export function SectionCard({
         <Card
             role={title ? 'region' : undefined}
             aria-labelledby={title ? titleId : undefined}
-            className={cn('gap-4 py-6', className)}
+            className={cn(
+                density === 'compact' ? 'gap-3 py-3' : 'gap-4 py-6',
+                className,
+            )}
         >
             {hasHeader && (
-                <CardHeader className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                <CardHeader
+                    className={cn(
+                        'flex items-start justify-between',
+                        density === 'compact'
+                            ? 'flex-row gap-2 px-4'
+                            : 'flex-col gap-4 sm:flex-row',
+                    )}
+                >
                     <div className="min-w-0 space-y-1.5">
                         {title && (
                             <h2
@@ -56,7 +68,12 @@ export function SectionCard({
                     )}
                 </CardHeader>
             )}
-            <CardContent className={cn('px-6', contentClassName)}>
+            <CardContent
+                className={cn(
+                    density === 'compact' ? 'px-4' : 'px-6',
+                    contentClassName,
+                )}
+            >
                 {children}
             </CardContent>
         </Card>

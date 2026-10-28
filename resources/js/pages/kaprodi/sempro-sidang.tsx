@@ -797,8 +797,11 @@ function ExamDetailSheet({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-xl">
-                <SheetHeader className="border-b bg-muted/20 px-6 py-4">
+            <SheetContent
+                side="right"
+                className="w-full gap-0 p-0 sm:max-w-xl max-md:[&>button]:size-11"
+            >
+                <SheetHeader className="border-b bg-muted/20 px-4 py-3 pr-16 sm:px-6 sm:py-4">
                     <div className="flex items-center gap-2 pr-6">
                         <Badge variant="outline">
                             {item.type} #{item.attempt}
@@ -816,11 +819,11 @@ function ExamDetailSheet({
                 </SheetHeader>
 
                 <ScrollArea className="h-[calc(100vh-8rem)]">
-                    <div className="space-y-5 px-6 py-5">
-                        <div className="grid gap-2 rounded-xl border bg-muted/20 p-4 text-sm">
+                    <div className="space-y-3 px-4 py-3 sm:space-y-5 sm:px-6 sm:py-5">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border bg-muted/20 p-3 text-sm sm:grid-cols-1 sm:p-4">
                             <Link
                                 href={item.studentProfileUrl}
-                                className="flex items-center gap-2 text-muted-foreground hover:text-primary"
+                                className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 [overflow-wrap:anywhere] text-muted-foreground hover:text-primary max-md:min-h-11 sm:col-span-1"
                             >
                                 <User className="size-3.5 shrink-0" />
                                 <span className="font-medium text-foreground">
@@ -830,11 +833,11 @@ function ExamDetailSheet({
                                     {item.nim ?? '-'}
                                 </span>
                             </Link>
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="flex min-w-0 items-start gap-2 [overflow-wrap:anywhere] text-muted-foreground">
                                 <CalendarClock className="size-3.5 shrink-0" />
                                 <span>{item.scheduledFor}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="flex min-w-0 items-start gap-2 [overflow-wrap:anywhere] text-muted-foreground">
                                 <MapPin className="size-3.5 shrink-0" />
                                 <span>{item.location ?? '-'}</span>
                             </div>
@@ -875,7 +878,7 @@ function ExamDetailSheet({
                             <p className="text-xs font-medium text-muted-foreground">
                                 Ringkasan Hasil
                             </p>
-                            <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                            <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:grid-cols-4 sm:gap-3">
                                 <MiniStat label="Hasil" value={item.result} />
                                 <MiniStat
                                     label="Nilai"

@@ -1,3 +1,4 @@
+import { useFilterField } from '@/components/patterns/mobile-filter-scope';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 
@@ -27,16 +28,22 @@ export function FilterPills<T extends string>({
     className,
     itemClassName,
 }: FilterPillsProps<T>) {
+    const [selected, change] = useFilterField(
+        label,
+        value,
+        options[0]?.value ?? value,
+        onValueChange,
+    );
     return (
         <ToggleGroup
             type="single"
-            value={value}
+            value={selected}
             aria-label={label}
             onValueChange={(next) => {
                 // Radix reports '' when the active item is pressed again;
                 // a filter must always keep one selection.
                 if (next !== '') {
-                    onValueChange(next as T);
+                    change(next as T);
                 }
             }}
             className={cn('flex-wrap gap-1', className)}
@@ -47,7 +54,7 @@ export function FilterPills<T extends string>({
                     value={option.value}
                     disabled={option.disabled}
                     className={cn(
-                        'group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                        'group h-7 gap-1.5 rounded-full bg-muted px-3 text-xs text-muted-foreground first:rounded-full last:rounded-full hover:bg-muted/80 hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground max-md:min-h-11',
                         itemClassName,
                     )}
                 >

@@ -102,7 +102,7 @@ export function ScheduleDetailDrawer({
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="w-full gap-0 overflow-hidden sm:max-w-2xl [&>button]:flex [&>button]:size-9 [&>button]:items-center [&>button]:justify-center max-md:[&>button]:size-11">
-                <SheetHeader className="shrink-0 border-b px-6 py-6 pr-16">
+                <SheetHeader className="shrink-0 border-b px-4 py-3 pr-16 sm:px-6 sm:py-6">
                     <SheetTitle className="min-w-0 text-xl leading-snug [overflow-wrap:anywhere]">
                         {schedule.topic}
                     </SheetTitle>
@@ -113,7 +113,7 @@ export function ScheduleDetailDrawer({
                     </SheetDescription>
                 </SheetHeader>
 
-                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:space-y-6 sm:px-6 sm:py-6">
                     <div className="flex items-center gap-2">
                         <StatusBadge
                             domain="schedule"
@@ -125,8 +125,8 @@ export function ScheduleDetailDrawer({
                         </StatusBadge>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="flex items-start gap-3">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div className="col-span-2 flex items-start gap-2 sm:col-span-1 sm:gap-3">
                             <User
                                 aria-hidden="true"
                                 className="mt-0.5 size-4 shrink-0 text-muted-foreground"
@@ -144,10 +144,10 @@ export function ScheduleDetailDrawer({
                         </div>
 
                         {schedule.start && (
-                            <div className="flex items-start gap-3">
+                            <div className="flex min-w-0 items-start gap-2 [overflow-wrap:anywhere] sm:gap-3">
                                 <Calendar
                                     aria-hidden="true"
-                                    className="mt-0.5 size-4 text-muted-foreground"
+                                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                                 />
                                 <div>
                                     <p className="text-sm tabular-nums">
@@ -162,10 +162,10 @@ export function ScheduleDetailDrawer({
                             </div>
                         )}
                         {schedule.location && (
-                            <div className="flex items-start gap-3">
+                            <div className="flex min-w-0 items-start gap-2 sm:gap-3">
                                 <MapPin
                                     aria-hidden="true"
-                                    className="mt-0.5 size-4 text-muted-foreground"
+                                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                                 />
                                 <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
                                     {schedule.location}
@@ -173,7 +173,7 @@ export function ScheduleDetailDrawer({
                             </div>
                         )}
                         {schedule.notes && (
-                            <div className="space-y-1 border-t pt-4 sm:col-span-2">
+                            <div className="col-span-2 space-y-1 border-t pt-2 sm:pt-4">
                                 <p className="text-xs font-medium text-muted-foreground">
                                     Catatan penjadwalan
                                 </p>

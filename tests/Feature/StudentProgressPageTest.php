@@ -103,7 +103,7 @@ it('searches the whole filtered set, not only the current page', function (): vo
             ->where('pagination.total', 1));
 });
 
-it('paginates beyond the first page', function (): void {
+it('paginates beyond the first page', function (int $size, int $lastPage): void {
     foreach (range(1, 12) as $number) {
         progressPageProject(['name' => sprintf('Mahasiswa %02d', $number)]);
     }
@@ -111,14 +111,14 @@ it('paginates beyond the first page', function (): void {
     $viewer = User::factory()->asAdmin()->create();
 
     $this->actingAs($viewer)
-        ->get('/progres-mahasiswa?per_page=10&page=2')
+        ->get('/progres-mahasiswa?per_page='.$size.'&page='.$lastPage)
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('rows', 2)
-            ->where('pagination.currentPage', 2)
-            ->where('pagination.lastPage', 2)
+            ->where('pagination.currentPage', $lastPage)
+            ->where('pagination.lastPage', $lastPage)
             ->where('pagination.total', 12)
-            ->where('pagination.perPage', 10));
-});
+            ->where('pagination.perPage', $size));
+})->with([[5, 3], [10, 2]]);
 
 it('counts tahap pills over the full filtered set while filtering by phase', function (): void {
     progressPageProject(['phase' => 'research']);

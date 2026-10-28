@@ -270,12 +270,13 @@ test.describe('Stable document detail journey (#152)', () => {
                     testInfo,
                     `${surface.role}-compact-history`,
                 );
-                for (const width of [1280, 390]) {
+                for (const width of [1280, 390, 320]) {
                     await surface.page.setViewportSize({ width, height: 844 });
                     for (const name of [
                         'draft-detail-v1.pdf',
                         'draft-detail-v2.pdf',
                         'draft-detail-v3.pdf',
+                        longName,
                     ]) {
                         const row = history
                             .getByRole('listitem')
@@ -284,13 +285,46 @@ test.describe('Stable document detail journey (#152)', () => {
                         expect(
                             box?.height,
                             `${surface.role} ${width}px ${name}: compact row`,
-                        ).toBeLessThanOrEqual(104);
+                        ).toBeLessThanOrEqual(46);
                     }
                     expect(
                         await surface.page.evaluate(
                             () => document.documentElement.scrollWidth,
                         ),
                     ).toBeLessThanOrEqual(width);
+                    const info = surface.page.getByRole('region', {
+                        name: 'Informasi dokumen',
+                        exact: true,
+                    });
+                    const studentField = await info
+                        .locator('dl > div')
+                        .filter({
+                            has: surface.page.locator('dt', {
+                                hasText: /^Mahasiswa$/,
+                            }),
+                        })
+                        .boundingBox();
+                    const nimField = await info
+                        .locator('dl > div')
+                        .filter({
+                            has: surface.page.locator('dt', {
+                                hasText: /^NIM$/,
+                            }),
+                        })
+                        .boundingBox();
+                    expect(
+                        Math.abs(studentField!.y - nimField!.y),
+                    ).toBeLessThan(2);
+                    expect(nimField!.x).toBeGreaterThan(studentField!.x);
+                    const details = history
+                        .locator('details')
+                        .filter({ hasText: longName });
+                    await details.locator('summary').press('Enter');
+                    await expect(
+                        details.locator('dd').filter({ hasText: longName }),
+                    ).toBeVisible();
+                    await expect(details).toContainText('Diunggah');
+                    await details.locator('summary').press('Enter');
                 }
                 const old = history
                     .getByRole('link')
@@ -308,6 +342,14 @@ test.describe('Stable document detail journey (#152)', () => {
                 ).toHaveAttribute('href', oldUrl!);
                 await surface.page.reload();
                 await expect(surface.page).toHaveURL(new RegExp(`${oldUrl}$`));
+                await expect(
+                    surface.page
+                        .getByRole('region', {
+                            name: 'Riwayat versi',
+                            exact: true,
+                        })
+                        .locator('[aria-current="page"]'),
+                ).toHaveAttribute('href', oldUrl!);
                 await surface.page.goBack();
                 await expect(surface.page).toHaveURL(
                     new RegExp(`${surface.url}$`),

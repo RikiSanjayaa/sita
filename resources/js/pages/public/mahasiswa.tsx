@@ -17,6 +17,7 @@ import {
     DataTableEmptyState,
     DataTablePagination,
 } from '@/components/ui/data-table';
+import { useResponsiveServerPagination } from '@/hooks/use-responsive-server-pagination';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
@@ -99,6 +100,14 @@ function PublicStudentsContent({
     const [programFilter, setProgramFilter] = useState(
         filters.program || 'semua',
     );
+    const selectPageSize = useResponsiveServerPagination([
+        {
+            key: 'per_page',
+            pageKey: 'page',
+            value: studentPagination.perPage,
+            desktop: 10,
+        },
+    ]);
 
     useEffect(() => {
         const normalizedProgram =
@@ -177,22 +186,8 @@ function PublicStudentsContent({
         );
     }
 
-    function changePageSize(pageSize: number) {
-        router.get(
-            '/mahasiswa-aktif',
-            {
-                page: 1,
-                search: filters.search || undefined,
-                program: filters.program || undefined,
-                stage: filters.stage || undefined,
-                per_page: pageSize,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
+    function changePageSize(pageSize: number): void {
+        selectPageSize('per_page', pageSize);
     }
 
     const hasActiveFilter =
@@ -208,7 +203,31 @@ function PublicStudentsContent({
             description={`Daftar mahasiswa yang masih aktif menjalani proses karya akhir, termasuk mahasiswa baru terdaftar, ${n.proposalExam.toLowerCase()}, bimbingan aktif, hingga ${n.finalExam.toLowerCase()} yang masih berjalan.`}
         >
             <DataSection title="Daftar Mahasiswa">
-                <StickyFilterBar layout="public">
+                <StickyFilterBar
+                    layout="public"
+                    onApplyFilters={(values) =>
+                        router.get(
+                            '/mahasiswa-aktif',
+                            {
+                                search: search || undefined,
+                                program:
+                                    values['Program studi'] === 'semua'
+                                        ? undefined
+                                        : values['Program studi'],
+                                stage:
+                                    values['Tahap mahasiswa'] === 'semua'
+                                        ? undefined
+                                        : values['Tahap mahasiswa'],
+                                per_page: studentPagination.perPage,
+                            },
+                            {
+                                preserveScroll: true,
+                                preserveState: true,
+                                replace: true,
+                            },
+                        )
+                    }
+                >
                     <DataToolbar
                         search={search}
                         onSearchChange={setSearch}

@@ -1,10 +1,11 @@
-import { Inbox, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox, Search } from 'lucide-react';
 import * as React from 'react';
 
 import { Input } from '@/components/ui/input';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
-export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 15, 25, 50, 100];
+export const DEFAULT_PAGE_SIZE_OPTIONS = [5, 10, 15, 25, 50, 100];
 
 /* ─────────────────────────────────────────────────────────────────────
  * Types
@@ -271,19 +272,20 @@ export function DataTablePagination({
     }
 
     const navigation = hasMultiplePages ? (
-        <nav aria-label="Navigasi halaman" className="flex items-center gap-2">
+        <nav aria-label="Navigasi halaman" className="flex shrink-0 items-center gap-0 md:gap-2">
             <button
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() => onPageChange(Math.max(1, safePage - 1))}
-                className="rounded px-3 py-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 md:px-2 md:py-1"
+                className="flex size-11 shrink-0 items-center justify-center rounded text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 md:h-auto md:w-auto md:px-2 md:py-1"
             >
-                Sebelumnya
+                <ChevronLeft aria-hidden className="size-4 md:hidden" />
+                <span className="sr-only md:not-sr-only">Sebelumnya</span>
             </button>
-            <span className="text-xs text-muted-foreground tabular-nums">
-                {hasKnownTotal
-                    ? `Hal ${safePage} / ${totalPages}`
-                    : `Hal ${safePage}`}
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                <span className="hidden md:inline">Hal </span>
+                <span className="sr-only md:hidden">Halaman </span>
+                {safePage}{hasKnownTotal && <> / {totalPages}</>}
             </span>
             <button
                 type="button"
@@ -291,38 +293,40 @@ export function DataTablePagination({
                 onClick={() =>
                     onPageChange(Math.min(totalPages, safePage + 1))
                 }
-                className="rounded px-3 py-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 md:px-2 md:py-1"
+                className="flex size-11 shrink-0 items-center justify-center rounded text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 md:h-auto md:w-auto md:px-2 md:py-1"
             >
-                Berikutnya
+                <ChevronRight aria-hidden className="size-4 md:hidden" />
+                <span className="sr-only md:not-sr-only">Berikutnya</span>
             </button>
         </nav>
     ) : null;
 
     if (placement === 'bottom') {
         return (
-            <div className="flex justify-end border-t px-5 py-2.5">
+            <div data-slot="table-pagination" className="flex justify-end border-t px-2 py-1 md:px-5 md:py-2.5">
                 {navigation}
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-2 border-b px-5 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <p className="text-xs text-muted-foreground tabular-nums">
-                    {hasKnownTotal
-                        ? `Menampilkan ${rangeStart}-${rangeEnd} dari ${totalItems}${itemSuffix}`
-                        : `Menampilkan ${rangeStart}-${rangeEnd}${itemSuffix}`}
+        <div data-slot="table-pagination" className="flex items-center justify-between gap-1 border-b px-2 py-1 md:gap-2 md:px-5 md:py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-1 md:flex-wrap md:gap-x-4 md:gap-y-2">
+                <p className="min-w-0 truncate text-xs text-muted-foreground tabular-nums" title={hasKnownTotal ? `Menampilkan ${rangeStart}-${rangeEnd} dari ${totalItems}${itemSuffix}` : `Menampilkan ${rangeStart}-${rangeEnd}${itemSuffix}`}>
+                    <span className="hidden md:inline">Menampilkan </span>
+                    {rangeStart}-{rangeEnd}
+                    {hasKnownTotal && <><span className="md:hidden"> / </span><span className="hidden md:inline"> dari </span>{totalItems}</>}
+                    <span className="hidden md:inline">{itemSuffix}</span>
                 </p>
                 {canChangePageSize && (
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground sm:border-l sm:pl-4">
-                        <span>Per halaman</span>
+                    <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground md:border-l md:pl-4">
+                        <span className="sr-only md:not-sr-only">Per halaman</span>
                         <select
                             value={pageSize}
                             onChange={(event) =>
                                 onPageSizeChange(Number(event.target.value))
                             }
-                            className="h-11 rounded-lg border bg-transparent px-3 text-xs md:h-8 text-foreground outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/20"
+                            className="h-11 w-14 rounded-lg border bg-transparent px-1 text-base text-foreground outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/20 md:h-8 md:w-auto md:px-3 md:text-xs"
                         >
                             {normalizedPageSizeOptions.map((option) => (
                                 <option key={option} value={option}>
@@ -381,7 +385,9 @@ export function usePagination<T>(
 ) {
     const internalPageState = React.useState(1);
     const [page, setPage] = pageState ?? internalPageState;
-    const [pageSize, setPageSizeState] = React.useState(initialPageSize);
+    const mobile = useIsMobile();
+    const [manualPageSize, setPageSizeState] = React.useState<number | null>(null);
+    const pageSize = manualPageSize ?? (mobile ? 5 : initialPageSize);
     const didMount = React.useRef(false);
     const resetKey = JSON.stringify([...resetDeps, pageSize]);
 

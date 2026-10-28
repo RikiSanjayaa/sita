@@ -24,6 +24,7 @@ import {
     DataTableEmptyState,
     DataTablePagination,
 } from '@/components/ui/data-table';
+import { useResponsiveServerPagination } from '@/hooks/use-responsive-server-pagination';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { progresMahasiswa } from '@/routes';
@@ -112,6 +113,14 @@ function ProgresMahasiswaContent({
     agenda,
 }: PageProps) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const selectPageSize = useResponsiveServerPagination([
+        {
+            key: 'per_page',
+            pageKey: 'page',
+            value: pagination.perPage,
+            desktop: 15,
+        },
+    ]);
 
     function visit(next: Partial<Filters> & { page?: number }): void {
         const merged = { ...filters, ...next };
@@ -171,7 +180,25 @@ function ProgresMahasiswaContent({
                 summary={`${pagination.total} mahasiswa`}
             >
                 <div className="space-y-4">
-                    <StickyFilterBar>
+                    <StickyFilterBar
+                        onApplyFilters={(values) =>
+                            visit({
+                                prodi:
+                                    values['Program studi'] === 'semua'
+                                        ? null
+                                        : Number(values['Program studi']),
+                                angkatan:
+                                    values.Angkatan === 'semua'
+                                        ? null
+                                        : Number(values.Angkatan),
+                                phase:
+                                    values['Tahap mahasiswa'] === 'all'
+                                        ? null
+                                        : values['Tahap mahasiswa'],
+                                page: undefined,
+                            })
+                        }
+                    >
                         <DataToolbar
                             search={search}
                             onSearchChange={setSearch}
@@ -247,6 +274,7 @@ function ProgresMahasiswaContent({
                             {hasActiveFilter ? (
                                 <Button
                                     type="button"
+                                    data-desktop-filter-reset
                                     variant="ghost"
                                     size="sm"
                                     className="text-muted-foreground max-md:h-11"
@@ -274,8 +302,8 @@ function ProgresMahasiswaContent({
                                     totalItems={pagination.total}
                                     pageSize={pagination.perPage}
                                     onPageChange={(page) => visit({ page })}
-                                    onPageSizeChange={(perPage) =>
-                                        visit({ perPage, page: undefined })
+                                    onPageSizeChange={(size) =>
+                                        selectPageSize('per_page', size)
                                     }
                                     itemLabel="mahasiswa"
                                 />

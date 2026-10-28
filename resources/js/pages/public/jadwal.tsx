@@ -17,6 +17,7 @@ import {
     DataTableEmptyState,
     DataTablePagination,
 } from '@/components/ui/data-table';
+import { useResponsiveServerPagination } from '@/hooks/use-responsive-server-pagination';
 import { neutralAcademicTerminology as n } from '@/lib/academic-terminology';
 import { toneClassName, type StatusTone } from '@/lib/status-styles';
 import { cn } from '@/lib/utils';
@@ -120,7 +121,7 @@ function ScheduleTable({
 }) {
     return (
         <section aria-label={title} className="space-y-4">
-            <StickyFilterBar layout="public">
+            <StickyFilterBar layout="public" mobileTitle={title}>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
                     <PageHeader title={title} level={2} className="shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -299,6 +300,20 @@ function PublicSchedulesContent({
     followUpTypeCounts,
 }: PageProps) {
     const [search, setSearch] = useState(filters.search);
+    const selectPageSize = useResponsiveServerPagination([
+        {
+            key: 'upcoming_per_page',
+            pageKey: 'upcoming_page',
+            value: upcomingPagination.perPage,
+            desktop: 10,
+        },
+        {
+            key: 'follow_up_per_page',
+            pageKey: 'follow_up_page',
+            value: followUpPagination.perPage,
+            desktop: 8,
+        },
+    ]);
 
     type ScheduleQuery = {
         search: string;
@@ -381,8 +396,8 @@ function PublicSchedulesContent({
                         visit({ upcomingType, upcomingPage: 1 })
                     }
                     onPageChange={(upcomingPage) => visit({ upcomingPage })}
-                    onPageSizeChange={(upcomingPerPage) =>
-                        visit({ upcomingPerPage, upcomingPage: 1 })
+                    onPageSizeChange={(size) =>
+                        selectPageSize('upcoming_per_page', size)
                     }
                 />
                 <ScheduleTable
@@ -402,8 +417,8 @@ function PublicSchedulesContent({
                         visit({ followUpType, followUpPage: 1 })
                     }
                     onPageChange={(followUpPage) => visit({ followUpPage })}
-                    onPageSizeChange={(followUpPerPage) =>
-                        visit({ followUpPerPage, followUpPage: 1 })
+                    onPageSizeChange={(size) =>
+                        selectPageSize('follow_up_per_page', size)
                     }
                 />
             </div>

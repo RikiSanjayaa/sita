@@ -22,7 +22,7 @@ function ProfileSection({
 }) {
     return (
         <section className="divide-y overflow-hidden rounded-xl border bg-card">
-            <div className="space-y-1 px-4 py-5 md:px-6">
+            <div className="space-y-1 px-4 py-3 md:px-6 md:py-5">
                 <h2 className="flex items-center gap-2 text-lg font-semibold text-balance">
                     {Icon ? (
                         <Icon aria-hidden="true" className="size-5 shrink-0" />
@@ -50,16 +50,27 @@ function FactGrid({
     className: string;
 }) {
     return (
-        <dl className={`grid gap-x-8 gap-y-5 px-4 py-5 md:px-6 ${className}`}>
+        <dl
+            className={`grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 md:gap-x-8 md:gap-y-5 md:px-6 md:py-5 ${className}`}
+        >
             {items.map((item) => (
-                <div key={item.label}>
+                <div
+                    key={item.label}
+                    className={
+                        ['Email', 'Nama', 'Alamat', 'Bidang Keilmuan'].includes(
+                            item.label,
+                        )
+                            ? 'col-span-2 min-w-0 sm:col-span-1'
+                            : 'min-w-0'
+                    }
+                >
                     <dt className="text-xs font-medium text-muted-foreground">
                         {item.label}
                     </dt>
                     <dd
-                        className={`mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground ${tabular ? 'tabular-nums' : ''}`}
+                        className={`mt-0.5 flex min-w-0 items-center gap-1 text-sm font-semibold text-foreground md:mt-1 md:gap-2 ${tabular ? 'tabular-nums' : ''}`}
                     >
-                        <span className="min-w-0 break-words">
+                        <span className="min-w-0 [overflow-wrap:anywhere]">
                             {item.value}
                         </span>
                         {['NIM', 'Email', 'Nomor HP'].includes(item.label) &&
@@ -136,7 +147,7 @@ function PeopleBlock({
     children: ReactNode;
 }) {
     return (
-        <div className="space-y-3 pt-5">
+        <div className="space-y-2 pt-3 md:space-y-3 md:pt-5">
             <h3 className="flex items-center gap-2 px-4 text-sm font-semibold text-foreground md:px-6">
                 {Icon ? (
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -150,7 +161,7 @@ function PeopleBlock({
 
 function EmptyLine({ children }: { children: ReactNode }) {
     return (
-        <p className="px-4 pb-5 text-sm text-muted-foreground md:px-6">
+        <p className="px-4 pb-3 text-sm text-muted-foreground md:px-6 md:pb-5">
             {children}
         </p>
     );
@@ -217,7 +228,7 @@ export function ProfileDetailsSections({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3 md:space-y-6">
             <ProfileSection
                 title="Detail akademik dan peran"
                 description="Ringkasan identitas dan status bimbingan."
@@ -241,7 +252,7 @@ export function ProfileDetailsSections({
                     description="Status terkini dan dosen yang sedang terlibat."
                     icon={FileText}
                 >
-                    <div className="space-y-2 px-4 py-5 md:px-6">
+                    <div className="space-y-2 px-4 py-3 md:px-6 md:py-5">
                         <div>
                             <p className="text-xs font-medium text-muted-foreground">
                                 Judul saat ini

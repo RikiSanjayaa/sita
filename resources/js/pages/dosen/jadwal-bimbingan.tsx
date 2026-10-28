@@ -1170,7 +1170,7 @@ export default function DosenJadwalBimbinganPage() {
                 </DataSection>
 
                 <section aria-label="Jadwal Mendatang" className="space-y-4">
-                    <StickyFilterBar>
+                    <StickyFilterBar mobileTitle="Jadwal Mendatang">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
                             <PageHeader
                                 title="Jadwal Mendatang"
@@ -1386,7 +1386,7 @@ export default function DosenJadwalBimbinganPage() {
                 </section>
 
                 <section aria-label="Riwayat Jadwal" className="space-y-4">
-                    <StickyFilterBar>
+                    <StickyFilterBar mobileTitle="Riwayat Jadwal">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
                             <PageHeader
                                 title="Riwayat Jadwal"
