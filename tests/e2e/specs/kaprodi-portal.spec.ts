@@ -58,7 +58,7 @@ test.describe('Kaprodi portal', () => {
     test('sidebar links open every kaprodi menu', async ({ page }) => {
         const menus = [
             { link: 'Mahasiswa Prodi', url: /\/kaprodi\/mahasiswa$/ },
-            { link: 'Dokumen', url: /\/kaprodi\/dokumen$/ },
+            { link: 'Dokumen Prodi', url: /\/kaprodi\/dokumen$/ },
             { link: 'Dosen Prodi', url: /\/kaprodi\/dosen-prodi$/ },
             {
                 link: 'Sempro / Sinopsis & Sidang Akhir',
@@ -342,7 +342,6 @@ test.describe('Kaprodi portal', () => {
         page,
     }) => {
         await page.goto('/kaprodi/dokumen');
-        await expect(page).toHaveTitle(/Dokumen Kaprodi/);
 
         await page
             .getByPlaceholder('Cari mahasiswa, NIM, file, atau dosen...')

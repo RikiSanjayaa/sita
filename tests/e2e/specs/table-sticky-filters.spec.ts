@@ -102,7 +102,7 @@ const inventory: TableCase[] = [
     },
     {
         path: '/kaprodi/dokumen',
-        section: 'Daftar Dokumen',
+        section: 'Dokumen Prodi',
         role: 'head',
         pageHeading: true,
     },
@@ -174,7 +174,7 @@ async function login(page: Page, role: TableCase['role']): Promise<void> {
     if (role === 'guest') return;
     await page.goto('/login');
     await page.getByLabel('Email').fill(email(role));
-    await page.getByLabel('Kata sandi').fill('password');
+    await page.getByLabel('Kata sandi', { exact: true }).fill('password');
     await page.getByRole('button', { name: 'Masuk', exact: true }).click();
     await expect(page).not.toHaveURL(/\/login$/);
 }

@@ -26,7 +26,12 @@ export function ThreadMembers({
     const [open, setOpen] = useState(false);
     const closeTimer = useRef<number | undefined>(undefined);
     const openedByHover = useRef(false);
-    const members = thread.memberProfiles;
+    const members =
+        thread.threadType === 'private'
+            ? thread.memberProfiles.filter(
+                  (member) => member.id !== auth.user.id,
+              )
+            : thread.memberProfiles;
     const visible = members.slice(0, 2);
     const remaining = members.length - visible.length;
 

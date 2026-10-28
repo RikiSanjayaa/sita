@@ -53,7 +53,9 @@ export async function newGoldenStudentContext(
 
     await page.goto('/login');
     await page.getByLabel('Email').fill(goldenPathStudent.email);
-    await page.getByLabel('Kata sandi').fill(goldenPathStudent.password);
+    await page
+        .getByLabel('Kata sandi', { exact: true })
+        .fill(goldenPathStudent.password);
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(/\/mahasiswa\/dashboard$/);
     await page.close();

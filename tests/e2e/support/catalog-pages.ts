@@ -456,20 +456,20 @@ export const catalogPages: readonly CatalogPage[] = [
         role: 'kaprodi',
         name: 'dokumen',
         path: '/kaprodi/dokumen',
-        heading: 'Daftar Dokumen',
+        heading: 'Dokumen Prodi',
     },
     {
         role: 'kaprodi',
         name: 'dokumen-detail-workspace',
         path: '/kaprodi/dokumen',
-        heading: 'Daftar Dokumen',
+        heading: 'Dokumen Prodi',
         prepare: (page) => openDocumentPage(page, '/kaprodi/dokumen/workspace'),
     },
     {
         role: 'kaprodi',
         name: 'dokumen-detail-thesis',
         path: '/kaprodi/dokumen',
-        heading: 'Daftar Dokumen',
+        heading: 'Dokumen Prodi',
         prepare: (page) => openDocumentPage(page, '/kaprodi/dokumen/thesis'),
     },
     {

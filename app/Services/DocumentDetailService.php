@@ -213,7 +213,7 @@ class DocumentDetailService
             'listUrl' => match ($role) {
                 'dosen' => $defenseId === null ? '/dosen/dokumen-revisi' : '/dosen/seminar-proposal?defense='.$defenseId, 'mahasiswa' => '/mahasiswa/upload-dokumen', default => '/kaprodi/dokumen'
             },
-            'listLabel' => $defenseId !== null && $role === 'dosen' ? 'Kembali ke ujian' : 'Kembali ke dokumen',
+            'listLabel' => $role === 'kaprodi' ? 'Kembali ke Dokumen Prodi' : ($defenseId !== null && $role === 'dosen' ? 'Kembali ke ujian' : 'Kembali ke dokumen'),
             'chatUrl' => $thread === null ? null : '/'.$role.'/pesan?thread='.$thread->id,
             'chatLabel' => $thread === null ? null : 'Buka percakapan',
         ];

@@ -149,39 +149,6 @@ function DocumentBody({
                                 </a>
                             </Button>
                         )}
-                        {review && (
-                            <>
-                                <Button
-                                    type="submit"
-                                    name="status"
-                                    value="needs_revision"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={review.processing}
-                                    className="max-md:min-h-11"
-                                >
-                                    <PencilLine
-                                        aria-hidden
-                                        className="size-4"
-                                    />
-                                    Minta revisi
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    name="status"
-                                    value="approved"
-                                    size="sm"
-                                    disabled={review.processing}
-                                    className="max-md:min-h-11"
-                                >
-                                    <CheckCircle2
-                                        aria-hidden
-                                        className="size-4"
-                                    />
-                                    Setujui
-                                </Button>
-                            </>
-                        )}
                     </>
                 }
             />
@@ -320,6 +287,31 @@ function DocumentBody({
                         processing={review.processing}
                         errors={review.errors}
                     />
+                    <div className="mt-5 flex flex-wrap justify-end gap-2 border-t pt-4">
+                        <Button
+                            type="submit"
+                            name="status"
+                            value="needs_revision"
+                            variant="outline"
+                            size="sm"
+                            disabled={review.processing}
+                            className="max-md:min-h-11"
+                        >
+                            <PencilLine aria-hidden className="size-4" />
+                            Minta revisi
+                        </Button>
+                        <Button
+                            type="submit"
+                            name="status"
+                            value="approved"
+                            size="sm"
+                            disabled={review.processing}
+                            className="max-md:min-h-11"
+                        >
+                            <CheckCircle2 aria-hidden className="size-4" />
+                            Setujui
+                        </Button>
+                    </div>
                 </SectionCard>
             )}
 
