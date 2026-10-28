@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogPasswordResetRequest;
+use App\Http\Middleware\StartSessionWithoutBackgroundWrites;
 use App\Models\User;
 use App\Support\ThemeSchemes;
 use Filament\Facades\Filament;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -35,6 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             LogPasswordResetRequest::class,
+        ], replace: [
+            StartSession::class => StartSessionWithoutBackgroundWrites::class,
         ]);
 
         $middleware->redirectUsersTo(function (Request $request): string {
