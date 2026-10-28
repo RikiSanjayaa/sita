@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { isImageFile, validateChatAttachment } from './attachment';
+import { prepareChatAttachment } from './prepare-attachment';
 import {
     chatValidationErrors,
     isChatSendAcknowledgement,
@@ -52,6 +53,13 @@ type ChatThreadOptions<T extends ChatThread> = {
 
 export type ChatComposerState = {
     /** Staged file, or null when nothing is attached. */
+    reply: ChatMessage | null;
+    editing: ChatMessage | null;
+    startReply: (message: ChatMessage) => void;
+    startEdit: (message: ChatMessage) => void;
+    cancelContext: () => void;
+    preparing: boolean;
+    retryPreparation: () => void;
     attachment: File | null;
     canSend: boolean;
     /** Aborts the upload in progress; the staged file stays for a retry. */
@@ -84,6 +92,7 @@ type ChatThreadState<T extends ChatThread> = {
     activeThreadId: number | null;
     composer: ChatComposerState;
     messagesFor: (thread: T) => ChatMessage[];
+    jumpToMessage: (id: number) => Promise<void>;
     requestedThreadId: number | null;
     /** Requests a thread; resolves to a visible one if it is filtered out. */
     setActiveThreadId: Dispatch<SetStateAction<number | null>>;
@@ -140,6 +149,16 @@ export function useChatThread<T extends ChatThread>({
     const latestReadRequest = useRef(0);
     const readRequests = useRef(new Map<number, number>());
     const receivedMessageIds = useRef(new Set<number>());
+    const latestMessageIds = useRef<Record<number, number>>({});
+    const [context, setContext] = useState<{
+        threadId: number;
+        reply?: ChatMessage;
+        editing?: ChatMessage;
+        text: string;
+    } | null>(null);
+    const [preparing, setPreparing] = useState(false);
+    const failedPreparation = useRef<File | null>(null);
+    const preparationVersion = useRef(0);
 
     const form = useForm<{
         message: string;
@@ -194,6 +213,10 @@ export function useChatThread<T extends ChatThread>({
     useEffect(() => {
         setThreadItems(sortThreads(initialThreads));
         for (const thread of initialThreads) {
+            latestMessageIds.current[thread.id] = Math.max(
+                latestMessageIds.current[thread.id] ?? 0,
+                ...thread.messages.map((message) => message.id),
+            );
             for (const message of thread.messages) {
                 receivedMessageIds.current.add(message.id);
             }
@@ -215,6 +238,139 @@ export function useChatThread<T extends ChatThread>({
 
     const activeThread =
         visibleThreads.find((thread) => thread.id === activeThreadId) ?? null;
+    const currentContext =
+        context?.threadId === activeThreadId ? context : null;
+    const editing = currentContext?.editing ?? null;
+    const reply = currentContext?.reply ?? null;
+    const readOnly = activeThread?.isCompleted || activeThread?.isArchived;
+
+    function applyEdit(threadId: number, message: ChatMessage): void {
+        const update = (row: ChatMessage): ChatMessage => {
+            if (row.id === message.id)
+                return {
+                    ...row,
+                    ...message,
+                    clientMessageId: row.clientMessageId,
+                    ownReview: row.ownReview,
+                };
+            if (row.reply?.available && row.reply.id === message.id)
+                return {
+                    ...row,
+                    reply:
+                        message.quoteAvailable === false
+                            ? { available: false }
+                            : {
+                                  available: true,
+                                  id: message.id,
+                                  author: message.author,
+                                  message: message.message,
+                                  documentName: message.documentName,
+                              },
+                };
+            return row;
+        };
+        setMessagesByThread((current) => ({
+            ...current,
+            [threadId]: (current[threadId] ?? []).map(update),
+        }));
+        setThreadItems((current) =>
+            current.map((thread) =>
+                thread.id === threadId
+                    ? {
+                          ...thread,
+                          messages: thread.messages.map(update),
+                          preview:
+                              latestMessageIds.current[threadId] === message.id
+                                  ? message.message ||
+                                    message.documentName ||
+                                    thread.preview
+                                  : thread.preview,
+                      }
+                    : thread,
+            ),
+        );
+        setContext((current) =>
+            current?.threadId === threadId && current.reply?.id === message.id
+                ? message.quoteAvailable === false
+                    ? null
+                    : { ...current, reply: message }
+                : current,
+        );
+    }
+
+    async function jumpToMessage(id: number): Promise<void> {
+        if (activeThreadId === null) return;
+        try {
+            const response = await fetch(`${sendUrl(activeThreadId)}/${id}`, {
+                headers: { Accept: 'application/json' },
+            });
+            if (!response.ok) throw new Error();
+            const data: { message: ChatMessage } = await response.json();
+            setMessagesByThread((current) => ({
+                ...current,
+                [activeThreadId]: mergeMessages(current[activeThreadId] ?? [], [
+                    data.message,
+                ]),
+            }));
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() =>
+                    document
+                        .querySelector<HTMLElement>(`[data-message-id="${id}"]`)
+                        ?.scrollIntoView({ block: 'center' }),
+                ),
+            );
+        } catch {
+            form.setError('message', 'Pesan asal tidak tersedia.');
+        }
+    }
+
+    async function saveEdit(): Promise<void> {
+        if (
+            editing === null ||
+            activeThreadId === null ||
+            processing ||
+            readOnly
+        )
+            return;
+        const threadId = activeThreadId;
+        const editContext = currentContext;
+        setProcessing(true);
+        form.clearErrors();
+        try {
+            const response = await fetch(`${sendUrl(threadId)}/${editing.id}`, {
+                method: 'PATCH',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN':
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute('content') ?? '',
+                },
+                body: JSON.stringify({ message: editContext?.text ?? '' }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                const errors = chatValidationErrors(data);
+                throw new Error(
+                    errors.message?.[0] ??
+                        'Perubahan belum tersimpan. Coba lagi.',
+                );
+            }
+            applyEdit(threadId, data.message as ChatMessage);
+            setContext((current) => (current === editContext ? null : current));
+        } catch (error) {
+            form.setError(
+                'message',
+                error instanceof Error &&
+                    !['TypeError', 'SyntaxError'].includes(error.name)
+                    ? error.message
+                    : 'Perubahan belum tersimpan. Coba lagi.',
+            );
+        } finally {
+            setProcessing(false);
+        }
+    }
 
     const activeMessages = useMemo(() => {
         const messages =
@@ -348,6 +504,11 @@ export function useChatThread<T extends ChatThread>({
             const channelName = `mentorship.thread.${thread.id}`;
 
             const channel = echo.private(channelName);
+            channel.listen(
+                '.chat.message.updated',
+                (event: { threadId: number; message: ChatMessage }) =>
+                    applyEdit(event.threadId, event.message),
+            );
 
             return channel.listen(
                 '.chat.message.created',
@@ -364,6 +525,10 @@ export function useChatThread<T extends ChatThread>({
                         return;
                     }
                     receivedMessageIds.current.add(event.message.id);
+                    latestMessageIds.current[event.threadId] = Math.max(
+                        latestMessageIds.current[event.threadId] ?? 0,
+                        event.message.id,
+                    );
                     setMessagesByThread((current) => {
                         const currentThread = initialThreads.find(
                             (thread) => thread.id === event.threadId,
@@ -448,6 +613,7 @@ export function useChatThread<T extends ChatThread>({
         return () => {
             for (const [index, thread] of initialThreads.entries()) {
                 channels[index]?.stopListening('.chat.message.created');
+                channels[index]?.stopListening('.chat.message.updated');
                 echo.leave(`mentorship.thread.${thread.id}`);
             }
         };
@@ -455,33 +621,46 @@ export function useChatThread<T extends ChatThread>({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId, initialThreads, activeThreadId, isChatVisible]);
 
-    const canSend = useMemo(
-        () =>
-            !processing &&
-            activeThreadId !== null &&
-            (form.data.message.trim() !== '' || form.data.attachment !== null),
-        [activeThreadId, form.data.attachment, form.data.message, processing],
-    );
+    const canSend =
+        !processing &&
+        !preparing &&
+        !clientError?.startsWith('Gambar gagal') &&
+        !readOnly &&
+        activeThreadId !== null &&
+        (editing !== null
+            ? (currentContext?.text ?? '').trim() !== '' ||
+              editing.documentUrl !== null
+            : form.data.message.trim() !== '' || attachment !== null);
 
-    function pickAttachment(file: File | null): void {
-        if (file === null) {
-            return;
-        }
-
-        const problem = validateChatAttachment(file);
-
-        setClientError(problem);
+    async function pickAttachment(file: File | null): Promise<void> {
+        if (file === null || editing !== null || processing) return;
+        const version = ++preparationVersion.current;
+        failedPreparation.current = null;
+        setPreparing(true);
+        setClientError(null);
         form.clearErrors('attachment', 'document_name');
-
-        if (problem === null) {
-            form.setData('attachment', file);
+        try {
+            const prepared = await prepareChatAttachment(file);
+            if (version !== preparationVersion.current) return;
+            const problem = validateChatAttachment(prepared);
+            setClientError(problem);
+            if (problem === null) form.setData('attachment', prepared);
+        } catch {
+            if (version !== preparationVersion.current) return;
+            failedPreparation.current = file;
+            setClientError(
+                'Gambar gagal disiapkan. Coba siapkan lagi atau hapus pilihan; draft tetap tersimpan.',
+            );
+        } finally {
+            if (version === preparationVersion.current) setPreparing(false);
+            setInputKey((current) => current + 1);
         }
-
-        // Remount the file input so picking the same file again fires change.
-        setInputKey((current) => current + 1);
     }
 
     function removeAttachment(): void {
+        preparationVersion.current++;
+        failedPreparation.current = null;
+        setPreparing(false);
         setClientError(null);
         form.clearErrors('attachment', 'document_name');
         form.setData('attachment', null);
@@ -503,6 +682,10 @@ export function useChatThread<T extends ChatThread>({
     }
 
     function send(): void {
+        if (editing !== null) {
+            void saveEdit();
+            return;
+        }
         if (
             !canSend ||
             activeThreadId === null ||
@@ -514,6 +697,7 @@ export function useChatThread<T extends ChatThread>({
         const threadId = activeThreadId;
         const clientMessageId = crypto.randomUUID();
         const draftVersion = messageVersion.current;
+        const sentReply = reply;
 
         syncThreadSearchParam(threadId, clearParams);
         const trimmedMessage = form.data.message.trim();
@@ -552,6 +736,15 @@ export function useChatThread<T extends ChatThread>({
                 attachmentSizeKb:
                     file === null ? null : Math.ceil(file.size / 1024),
                 previewUrl: pendingPreviewUrl,
+                reply: sentReply
+                    ? {
+                          available: true,
+                          id: sentReply.id,
+                          author: sentReply.author,
+                          message: sentReply.message,
+                          documentName: sentReply.documentName,
+                      }
+                    : null,
                 relatedDocumentId: null,
                 reviewStatus: null,
             },
@@ -597,6 +790,12 @@ export function useChatThread<T extends ChatThread>({
                 );
                 activeSend.current = null;
                 setPendingSend(null);
+                setContext((current) =>
+                    current?.threadId === threadId &&
+                    current.reply?.id === sentReply?.id
+                        ? null
+                        : current,
+                );
                 setProcessing(false);
                 setProgress(null);
                 setClientError(null);
@@ -622,6 +821,9 @@ export function useChatThread<T extends ChatThread>({
                     errors.message?.[0] ??
                     errors.ticket?.[0] ??
                     'Pesan belum terkirim. Periksa koneksi dan coba lagi.',
+                ...(errors.reply_to_id
+                    ? { message: errors.reply_to_id[0] }
+                    : {}),
                 ...(errors.attachment
                     ? { attachment: errors.attachment[0] }
                     : {}),
@@ -675,6 +877,10 @@ export function useChatThread<T extends ChatThread>({
                 }));
                 for (const message of acknowledgement.messages) {
                     receivedMessageIds.current.add(message.id);
+                    latestMessageIds.current[threadId] = Math.max(
+                        latestMessageIds.current[threadId] ?? 0,
+                        message.id,
+                    );
                 }
                 request.finish();
             } catch {
@@ -685,6 +891,7 @@ export function useChatThread<T extends ChatThread>({
         data.set('client_message_id', clientMessageId);
         data.set('message', trimmedMessage);
         data.set('document_name', documentName);
+        if (sentReply !== null) data.set('reply_to_id', String(sentReply.id));
         if (file !== null) data.set('attachment', file);
         xhr.send(data);
     }
@@ -693,7 +900,46 @@ export function useChatThread<T extends ChatThread>({
         activeMessages,
         activeThread,
         activeThreadId,
+        jumpToMessage,
         composer: {
+            reply,
+            editing,
+            preparing,
+            retryPreparation: () => {
+                if (failedPreparation.current)
+                    void pickAttachment(failedPreparation.current);
+            },
+            startReply: (message) => {
+                if (activeThreadId !== null && !readOnly && !processing) {
+                    form.clearErrors('message');
+                    setContext({
+                        threadId: activeThreadId,
+                        reply: message,
+                        text: '',
+                    });
+                }
+            },
+            startEdit: (message) => {
+                if (
+                    activeThreadId !== null &&
+                    !readOnly &&
+                    !processing &&
+                    message.senderUserId === userId
+                ) {
+                    form.clearErrors('message');
+                    setContext({
+                        threadId: activeThreadId,
+                        editing: message,
+                        text: message.message,
+                    });
+                }
+            },
+            cancelContext: () => {
+                if (!processing) {
+                    setContext(null);
+                    form.clearErrors('message');
+                }
+            },
             attachment,
             canSend,
             cancelSend,
@@ -707,7 +953,10 @@ export function useChatThread<T extends ChatThread>({
                 message: form.errors.message ?? null,
             },
             inputKey,
-            message: form.data.message,
+            message:
+                editing !== null
+                    ? (currentContext?.text ?? '')
+                    : form.data.message,
             pickAttachment,
             previewUrl,
             processing,
@@ -716,6 +965,12 @@ export function useChatThread<T extends ChatThread>({
             send,
             setDocumentName: (value) => form.setData('document_name', value),
             setMessage: (value) => {
+                if (editing !== null) {
+                    setContext((current) =>
+                        current ? { ...current, text: value } : null,
+                    );
+                    return;
+                }
                 messageVersion.current += 1;
                 form.setData('message', value);
             },

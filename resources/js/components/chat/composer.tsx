@@ -1,4 +1,4 @@
-import { ArrowUp, Plus } from 'lucide-react';
+import { ArrowUp, Check, Plus, X } from 'lucide-react';
 import { type DragEvent, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,11 @@ type ComposerProps = {
 export function Composer({ composer, disabled, isMobile }: ComposerProps) {
     const fileRef = useRef<HTMLInputElement | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const canAttach = !disabled && !composer.processing;
+    const canAttach =
+        !disabled &&
+        !composer.processing &&
+        !composer.preparing &&
+        composer.editing === null;
 
     function handleDragOver(event: DragEvent<HTMLDivElement>) {
         if (!canAttach) {
@@ -58,6 +62,41 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                 isDragging && 'bg-primary/5 ring-2 ring-primary/40 ring-inset',
             )}
         >
+            {(composer.reply || composer.editing) && (
+                <div
+                    role="region"
+                    aria-label={
+                        composer.editing ? 'Mengedit pesan' : 'Membalas pesan'
+                    }
+                    className="flex min-w-0 items-center gap-2 rounded-xl border bg-card px-3 py-2"
+                >
+                    <div className="min-w-0 flex-1 text-xs">
+                        <p className="font-semibold">
+                            {composer.editing
+                                ? 'Edit teks / caption'
+                                : `Balas ${composer.reply?.author}`}
+                        </p>
+                        <p className="line-clamp-2 break-words text-muted-foreground">
+                            {(composer.editing ?? composer.reply)
+                                ?.documentName ??
+                                (composer.editing ?? composer.reply)?.message}
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={
+                            composer.editing ? 'Batal edit' : 'Batal balas'
+                        }
+                        className="shrink-0 max-md:size-11"
+                        disabled={composer.processing}
+                        onClick={composer.cancelContext}
+                    >
+                        <X className="size-4" />
+                    </Button>
+                </div>
+            )}
             <input
                 key={composer.inputKey}
                 ref={fileRef}
@@ -105,30 +144,63 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                 />
                 <Button
                     type="button"
-                    aria-label="Kirim pesan"
+                    aria-label={
+                        composer.editing ? 'Simpan perubahan' : 'Kirim pesan'
+                    }
                     size="icon"
                     onClick={composer.send}
                     disabled={!composer.canSend}
                     className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-card disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
                 >
-                    <ArrowUp className="size-4" />
+                    {composer.editing ? (
+                        <Check className="size-4" />
+                    ) : (
+                        <ArrowUp className="size-4" />
+                    )}
                 </Button>
             </div>
-            {(composer.attachment !== null || composer.errors.attachment) && (
-                <AttachmentPreview
-                    documentName={composer.documentName}
-                    error={composer.errors.attachment}
-                    file={composer.attachment}
-                    onCancel={composer.cancelSend}
-                    onDocumentNameChange={composer.setDocumentName}
-                    onRemove={composer.removeAttachment}
-                    onReplace={() => fileRef.current?.click()}
-                    previewUrl={composer.previewUrl}
-                    processing={composer.processing}
-                    progress={composer.progress}
-                    showDocumentName={composer.showDocumentName}
-                />
+            {composer.preparing && (
+                <p role="status" className="text-xs text-muted-foreground">
+                    Menyiapkan gambar...
+                </p>
             )}
+            {composer.errors.attachment?.startsWith('Gambar gagal') && (
+                <div className="flex gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={composer.retryPreparation}
+                        disabled={composer.preparing}
+                    >
+                        Coba siapkan lagi
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={composer.removeAttachment}
+                        disabled={composer.preparing}
+                    >
+                        Hapus pilihan
+                    </Button>
+                </div>
+            )}
+            {composer.editing === null &&
+                (composer.attachment !== null ||
+                    composer.errors.attachment) && (
+                    <AttachmentPreview
+                        documentName={composer.documentName}
+                        error={composer.errors.attachment}
+                        file={composer.attachment}
+                        onCancel={composer.cancelSend}
+                        onDocumentNameChange={composer.setDocumentName}
+                        onRemove={composer.removeAttachment}
+                        onReplace={() => fileRef.current?.click()}
+                        previewUrl={composer.previewUrl}
+                        processing={composer.processing}
+                        progress={composer.progress}
+                        showDocumentName={composer.showDocumentName}
+                    />
+                )}
             {composer.errors.message && (
                 <p className="text-xs text-destructive">
                     {composer.errors.message}

@@ -23,6 +23,9 @@ type MessageListProps = {
     threadId: number | null;
     tone: ChatTone;
     userId?: number | null;
+    onReply?: (message: ChatMessage) => void;
+    onEdit?: (message: ChatMessage) => void;
+    onJump?: (id: number) => void;
 };
 
 function sameGroup(
@@ -49,6 +52,9 @@ export function MessageList({
     threadId,
     tone,
     userId,
+    onReply,
+    onEdit,
+    onJump,
 }: MessageListProps) {
     const viewportRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -152,6 +158,26 @@ export function MessageList({
                                     >
                                         <ChatBubble
                                             message={message}
+                                            onReply={
+                                                onReply &&
+                                                message.senderUserId !== null &&
+                                                message.type !== 'pending'
+                                                    ? () => onReply(message)
+                                                    : undefined
+                                            }
+                                            onEdit={
+                                                onEdit &&
+                                                message.senderUserId ===
+                                                    userId &&
+                                                [
+                                                    'text',
+                                                    'attachment',
+                                                    'revision_suggestion',
+                                                ].includes(message.type)
+                                                    ? () => onEdit(message)
+                                                    : undefined
+                                            }
+                                            onJump={onJump}
                                             grouped={grouped}
                                             showTime={
                                                 !sameGroup(

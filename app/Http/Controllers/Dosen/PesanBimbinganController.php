@@ -77,7 +77,7 @@ class PesanBimbinganController extends Controller
                 'participants.user.dosenProfile.programStudi',
                 'latestMessage.sender',
                 'latestMessage.relatedDocument',
-                'messages' => fn($query) => $query->with(['sender', 'relatedDocument'])->latest('created_at')->latest('id')->limit(30),
+                'messages' => fn($query) => $query->with(['sender', 'relatedDocument', 'replyTo.sender', 'replyTo.relatedDocument'])->latest('created_at')->latest('id')->limit(30),
             ])
             ->whereIn('id', $allThreadIds)
             ->withMax('messages', 'created_at')
@@ -218,7 +218,7 @@ class PesanBimbinganController extends Controller
         $canAccess = $this->canAccessThread($lecturer, $thread);
         abort_unless($canAccess, 403, 'Anda tidak memiliki akses ke thread ini.');
 
-        if ($this->completedChatThreads->isCompleted($thread)) {
+        if ($this->completedChatThreads->isReadOnly($thread, $lecturer)) {
             throw ValidationException::withMessages(['message' => CompletedChatThreadService::READ_ONLY_MESSAGE]);
         }
 
@@ -239,7 +239,7 @@ class PesanBimbinganController extends Controller
                 $attachmentDisk,
             );
             $attachmentName = $attachment->getClientOriginalName();
-            $attachmentMime = $attachment->getClientMimeType();
+            $attachmentMime = $attachment->getMimeType();
             $attachmentSizeKb = (int) ceil($attachment->getSize() / 1024);
         }
 
@@ -276,6 +276,9 @@ class PesanBimbinganController extends Controller
 
         $payloads = [];
         foreach ($messagesToSend as $message) {
+            if (isset($data['reply_to_id'])) {
+                $message->update(['reply_to_id' => $data['reply_to_id']]);
+            }
             $payload = [...$this->payloadBuilder->build($message), 'clientMessageId' => $data['client_message_id']];
             $payloads[] = $payload;
             $this->broadcastChatMessage($thread->id, $payload);

@@ -16,10 +16,23 @@ export type ChatReadSnapshot = {
     readNotificationIds: string[];
 };
 
+export type ChatReply =
+    | { available: false }
+    | {
+          available: true;
+          id: number;
+          author: string;
+          message: string;
+          documentName: string | null;
+      };
+
 export type ChatMessage = {
     id: number;
     /** Transient send correlation, shared by HTTP acknowledgement and Echo. */
     clientMessageId?: string;
+    editedAt?: string | null;
+    reply?: ChatReply | null;
+    quoteAvailable?: boolean;
     senderUserId: number | null;
     author: string;
     authorAvatar: string | null;
@@ -64,6 +77,7 @@ export type ChatThread = {
     latestActivityAt: string | null;
     /** The thread's thesis is completed: listed under "Selesai" and read-only. */
     isCompleted?: boolean;
+    isArchived?: boolean;
 };
 
 export type MobileView = 'threads' | 'chat';

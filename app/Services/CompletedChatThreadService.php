@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MentorshipChatThread;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
+use App\Models\User;
 use Illuminate\Support\Collection;
 
 /**
@@ -66,6 +67,29 @@ class CompletedChatThreadService
     public function isCompleted(MentorshipChatThread $thread): bool
     {
         return isset($this->completedThreadIds(new Collection([$thread]))[(int) $thread->getKey()]);
+    }
+
+    /** Completed exams and former supervision remain readable, never mutable. */
+    public function isReadOnly(MentorshipChatThread $thread, User $viewer): bool
+    {
+        if ($this->isCompleted($thread)) {
+            return true;
+        }
+        if ($thread->type === 'pembimbing') {
+            $project = ThesisProject::query()->current()->where('student_user_id', $thread->student_user_id)->first();
+
+            return ($project !== null && $project->state !== 'active')
+                || ((int) $thread->student_user_id !== (int) $viewer->id
+                    && ! in_array($thread->student_user_id, app(DosenBimbinganService::class)->activeStudentIds($viewer), true));
+        }
+        if (in_array($thread->type, ['sempro', 'sidang'], true)) {
+            $defense = ThesisDefense::query()->with('project')->find($thread->context_id);
+
+            return $defense?->status === 'completed'
+                || ($defense !== null && $defense->project?->state !== 'active');
+        }
+
+        return false;
     }
 
     /**

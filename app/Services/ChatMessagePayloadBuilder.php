@@ -26,7 +26,7 @@ class ChatMessagePayloadBuilder
      * @param  array<string, array{id: int, status: string, detailUrl: string}>  $ownReviews
      * @return array<string, mixed>
      */
-    public function build(MentorshipChatMessage $message, array $ownReviews = []): array
+    public function build(MentorshipChatMessage $message, array $ownReviews = [], bool $withReply = true): array
     {
         $message->loadMissing(['sender', 'relatedDocument']);
 
@@ -37,6 +37,9 @@ class ChatMessagePayloadBuilder
 
         return [
             'id' => $message->id,
+            'editedAt' => $message->edited_at?->toIso8601String(),
+            'reply' => $withReply && $message->reply_to_id !== null ? $this->replyContext($message) : null,
+            'quoteAvailable' => $secretLabel === null,
             'senderUserId' => $secretLabel === null ? $message->sender_user_id : null,
             'author' => $secretLabel ?? $message->sender?->name ?? 'Sistem',
             'authorAvatar' => $author['avatar'] ?? null,
@@ -61,6 +64,27 @@ class ChatMessagePayloadBuilder
             'reviewStatus' => $message->relatedDocument === null ? null : DocumentRevisionService::displayStatus($message->relatedDocument),
             'documentEventKind' => $this->documentEventKind($message),
             'ownReview' => $this->ownReview($message, $ownReviews),
+        ];
+    }
+
+    /** Live context uses the ordinary presentation path, never raw source attributes. */
+    public function replyContext(MentorshipChatMessage $message): array
+    {
+        $source = $message->replyTo;
+        if ($source === null
+            || (int) $source->mentorship_chat_thread_id !== (int) $message->mentorship_chat_thread_id
+            || $this->secretSenderLabel($source) !== null) {
+            return ['available' => false];
+        }
+
+        $payload = $this->build($source, withReply: false);
+
+        return [
+            'available' => true,
+            'id' => $payload['id'],
+            'author' => $payload['author'],
+            'message' => $payload['message'],
+            'documentName' => $payload['documentName'],
         ];
     }
 

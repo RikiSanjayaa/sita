@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { FileText } from 'lucide-react';
+import { FileText, MoreHorizontal, Pencil, Reply } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -11,6 +11,13 @@ import { FilenameLabel, highlightText } from '@/components/chat/highlight-text';
 import { ImageLightbox } from '@/components/chat/image-lightbox';
 import { type ChatMessage } from '@/components/chat/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { getInitials } from '@/lib/initials';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +31,9 @@ interface ChatBubbleProps {
     showTime?: boolean;
     /** Latest review status of the bubble's document; falls back to the row's own. */
     reviewStatus?: string | null;
+    onReply?: () => void;
+    onEdit?: () => void;
+    onJump?: (id: number) => void;
 }
 
 function documentCaption(message: ChatMessage): string | undefined {
@@ -48,6 +58,9 @@ export function ChatBubble({
     isActiveMatch = false,
     grouped = false,
     showTime = true,
+    onReply,
+    onEdit,
+    onJump,
 }: ChatBubbleProps) {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const isPending = message.type === 'pending';
@@ -190,6 +203,34 @@ export function ChatBubble({
                                 />
                             </svg>
                         )}
+                        {message.reply &&
+                            (message.reply.available ? (
+                                <button
+                                    type="button"
+                                    aria-label="Lihat pesan asal"
+                                    onClick={() => {
+                                        if (message.reply?.available)
+                                            onJump?.(message.reply.id);
+                                    }}
+                                    className="mb-2 block min-h-11 w-full rounded-lg border border-current/30 px-2 py-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2"
+                                >
+                                    <span className="block font-semibold">
+                                        {message.reply.author}
+                                    </span>
+                                    {message.reply.documentName && (
+                                        <span className="block font-medium break-words">
+                                            {message.reply.documentName}
+                                        </span>
+                                    )}
+                                    <span className="line-clamp-2 break-words">
+                                        {message.reply.message}
+                                    </span>
+                                </button>
+                            ) : (
+                                <p className="mb-2 text-xs">
+                                    Pesan asal tidak tersedia
+                                </p>
+                            ))}
                         {thumbnailUrl !== null && (
                             <button
                                 type="button"
@@ -264,16 +305,56 @@ export function ChatBubble({
                                 )}
                             </div>
                         )}
-                        {showTime && (
+                        {(showTime || onReply || onEdit) && (
                             <div
                                 className={cn(
-                                    'mt-1 text-right text-xs tabular-nums',
+                                    'mt-1 flex items-center justify-end gap-2 text-xs tabular-nums',
                                     isMe
                                         ? 'text-primary-foreground'
                                         : 'text-muted-foreground',
                                 )}
                             >
-                                {message.time}
+                                {message.editedAt && <span>Diedit</span>}
+                                {showTime && <span>{message.time}</span>}
+                                {(onReply || onEdit) && !isPending && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                aria-label="Aksi pesan"
+                                                className={cn(
+                                                    'size-8 shrink-0 max-md:size-11',
+                                                    isMe &&
+                                                        'hover:bg-primary-foreground/10 hover:text-primary-foreground',
+                                                )}
+                                            >
+                                                <MoreHorizontal className="size-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align={isMe ? 'end' : 'start'}
+                                        >
+                                            {onReply && (
+                                                <DropdownMenuItem
+                                                    onSelect={onReply}
+                                                >
+                                                    <Reply className="size-4" />
+                                                    Balas
+                                                </DropdownMenuItem>
+                                            )}
+                                            {onEdit && (
+                                                <DropdownMenuItem
+                                                    onSelect={onEdit}
+                                                >
+                                                    <Pencil className="size-4" />
+                                                    Edit teks / caption
+                                                </DropdownMenuItem>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
                             </div>
                         )}
                     </div>
