@@ -323,7 +323,7 @@ From `xl`, a dashboard agenda beside the action queue is size-contained to the a
 
 Public pages (`/`, `/jadwal`, `/pembimbing`, `/topik`, `/mahasiswa-aktif`) are guest-visible and follow the same tokens and patterns. They are a read-and-look-up surface, not a landing page: `PublicLayout` (`resources/js/components/public/`) gives a header with the page nav, a `PageHeader` h1 with description, and a footer; the page content sits directly on the page background in a `max-w-6xl` column with no outer card.
 
-The public header keeps five visible text links, without pill fills or borders. The current page uses primary text and an underline as well as `aria-current="page"`. On phones the links share one compact row with 44px touch targets; logo, account and appearance controls stay separate.
+The public header preserves its desktop pill navigation from `md`. Only on phones, the same five destinations use text links without pill fills or borders; the current page has primary text and an underline. Both layouts keep `aria-current="page"`. Mobile links share one compact row with 44px touch targets; logo, account and appearance controls stay separate.
 
 Public list pages compose the data-list patterns (see Components, Data lists and tables), with the page content directly on the background and the header not sticky on phones. Expanded detail (topik) is rendered only when open. The product owner approved this treatment for the list pages (#82); tables and lists in the mahasiswa, dosen and kaprodi portals adopt it too.
 
