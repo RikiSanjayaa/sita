@@ -478,7 +478,7 @@ test('admin service schedules and completes sidang with revision', function (): 
     foreach ([$primarySupervisor, $secondarySupervisor, $examiner] as $lecturer) {
         DosenProfile::query()->create([
             'user_id' => $lecturer->id,
-            'nik' => fake()->numerify('730101010101####'),
+            'nik' => '730101010101'.str_pad((string) $lecturer->id, 4, '0', STR_PAD_LEFT),
             'program_studi_id' => $prodi->id,
             'concentration' => 'Data Science',
             'supervision_quota' => 10,

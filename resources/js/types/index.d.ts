@@ -4,7 +4,13 @@ import { LucideIcon } from 'lucide-react';
 import { type StudentProgress } from '@/components/profile/student-progress-peek';
 import { type AcademicTerminology } from '@/lib/academic-terminology';
 
-export type AppRole = 'mahasiswa' | 'dosen' | 'kaprodi' | 'admin' | 'penguji';
+export type AppRole =
+    | 'mahasiswa'
+    | 'dosen'
+    | 'kaprodi'
+    | 'admin'
+    | 'super_admin'
+    | 'penguji';
 
 export interface Auth {
     user: User;

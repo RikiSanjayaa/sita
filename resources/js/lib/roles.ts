@@ -5,6 +5,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
     dosen: 'Dosen',
     kaprodi: 'Kaprodi',
     admin: 'Admin',
+    super_admin: 'Super Admin',
     penguji: 'Penguji',
 };
 
@@ -13,6 +14,7 @@ export const ROLE_PORTAL_LABELS: Record<AppRole, string> = {
     dosen: 'Portal Dosen',
     kaprodi: 'Portal Kaprodi',
     admin: 'Portal Admin',
+    super_admin: 'Portal Admin',
     penguji: 'Portal Penguji',
 };
 
@@ -21,6 +23,7 @@ export const ROLE_DASHBOARD_PATHS: Record<AppRole, string> = {
     dosen: '/dosen/dashboard',
     kaprodi: '/kaprodi/dashboard',
     admin: '/admin',
+    super_admin: '/admin',
     penguji: '/mahasiswa/dashboard',
 };
 

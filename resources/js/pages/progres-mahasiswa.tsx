@@ -18,6 +18,7 @@ import {
     StudentTitleAdvisors,
 } from '@/components/patterns/student-cells';
 import { type StudentProgress } from '@/components/profile/student-progress-peek';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DataTableContainer,
@@ -39,6 +40,7 @@ type ProgressMoment = {
 
 type ProgressRow = {
     id: number;
+    isSelf: boolean;
     projectId: number | null;
     name: string;
     nim: string | null;
@@ -90,7 +92,7 @@ type PageProps = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Progres Mahasiswa', href: progresMahasiswa().url },
+    { title: 'Progress Seluruh Mahasiswa', href: progresMahasiswa().url },
 ];
 
 export default function ProgresMahasiswaPage() {
@@ -98,7 +100,7 @@ export default function ProgresMahasiswaPage() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Progres Mahasiswa" />
+            <Head title="Progress Seluruh Mahasiswa" />
             <ProgresMahasiswaContent {...props} />
         </AppLayout>
     );
@@ -169,8 +171,8 @@ function ProgresMahasiswaContent({
     return (
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
             <PageHeader
-                title="Progres Mahasiswa"
-                description="Pantau tahap, pembimbing, dan aktivitas terakhir semua mahasiswa. Yang paling baru maju ada di atas. Halaman ini hanya untuk melihat."
+                title="Progress Seluruh Mahasiswa"
+                description="Daftar progres lintas mahasiswa, bukan halaman progres pribadi. Baris Anda didahulukan jika sesuai filter; mahasiswa lain diurutkan dari progres terbaru. Halaman ini hanya untuk melihat."
             />
 
             <AgendaStrip agenda={agenda} />
@@ -368,16 +370,22 @@ function ProgressTableRow({ row }: { row: ProgressRow }) {
         <tr
             className={cn(
                 stackedTable.tr,
-                'align-top transition-colors hover:bg-muted/30',
+                'align-top transition-colors',
+                row.isSelf
+                    ? 'bg-primary-muted/60 hover:bg-primary-muted'
+                    : 'hover:bg-muted/30',
             )}
         >
             <td className={stackedTable.tdPlain}>
-                <StudentIdentity
-                    name={row.name}
-                    nim={row.nim}
-                    avatar={row.avatar}
-                    profileUrl={row.profileUrl}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                    <StudentIdentity
+                        name={row.name}
+                        nim={row.nim}
+                        avatar={row.avatar}
+                        profileUrl={row.profileUrl}
+                    />
+                    {row.isSelf ? <Badge variant="soft">Anda</Badge> : null}
+                </div>
             </td>
             <td className={stackedTable.td}>
                 <StudentCohort

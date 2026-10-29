@@ -18,12 +18,19 @@ test.describe('compact mobile table rows (#129)', () => {
 
         const rows = page.locator('main table tbody tr');
         await expect(rows.first()).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
 
         for (const row of await rows.all()) {
-            const cohort = await row.locator('td').nth(1).boundingBox();
-            const risk = await row.locator('td').nth(3).boundingBox();
-            expect(Math.abs(cohort!.y - risk!.y)).toBeLessThan(2);
-            expect(risk!.x).toBeGreaterThan(cohort!.x);
+            const [cohort, risk] = await row
+                .locator('td')
+                .evaluateAll((cells) =>
+                    [cells[1], cells[3]].map((cell) => {
+                        const { x, y } = cell.getBoundingClientRect();
+                        return { x, y };
+                    }),
+                );
+            expect(Math.abs(cohort.y - risk.y)).toBeLessThan(2);
+            expect(risk.x).toBeGreaterThan(cohort.x);
         }
         expect(
             await page.evaluate(() => document.documentElement.scrollWidth),

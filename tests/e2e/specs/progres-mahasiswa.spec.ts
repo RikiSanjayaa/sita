@@ -1,15 +1,29 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { runArtisan, seedPlaywrightScenarios } from '../support/db';
 import { authStatePath, thesisScenarios } from '../support/thesis-fixtures';
 
-// Progres Mahasiswa (/progres-mahasiswa) is read-only and open to every logged-in
+// Progress Seluruh Mahasiswa (/progres-mahasiswa) is read-only and open to every logged-in
 // role. Search, filters and sorting are all server round trips, so assertions
 // read the URL and the rendered table rather than client state. The table lists
-// the same students as kaprodi Mahasiswa Prodi, newest stage progress first.
+// the same students as kaprodi Mahasiswa Prodi, with self first for students.
 const rows = 'tbody tr';
+const pageTitle = 'Progress Seluruh Mahasiswa';
 
-test.describe('Progres Mahasiswa', () => {
+async function expectGlobalLabels(page: Page): Promise<void> {
+    await expect(
+        page.getByRole('heading', { name: pageTitle, exact: true }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(new RegExp(`^${pageTitle}(?: - .+)?$`));
+    await expect(page.locator('header').first()).toContainText(pageTitle);
+    await expect(
+        page
+            .locator('a[href="/progres-mahasiswa"]')
+            .filter({ hasText: pageTitle }),
+    ).toHaveAttribute('href', '/progres-mahasiswa');
+}
+
+test.describe('Progress Seluruh Mahasiswa', () => {
     test.describe.configure({ mode: 'serial' });
 
     test.beforeAll(() => {
@@ -23,6 +37,52 @@ test.describe('Progres Mahasiswa', () => {
             await page.goto('/progres-mahasiswa');
 
             await expect(page).toHaveURL(/\/login/);
+        });
+    });
+
+    test.describe('mobile mahasiswa', () => {
+        test.use({
+            storageState: authStatePath('mahasiswa'),
+            viewport: { width: 390, height: 844 },
+        });
+
+        test('keeps Anda readable and restores self priority after filter reset', async ({
+            page,
+        }) => {
+            await page.goto('/progres-mahasiswa');
+            const self = page.locator(rows).first();
+            await expect(self).toContainText('Mahasiswa SiTA');
+            await expect(self.getByText('Anda', { exact: true })).toBeVisible();
+            await page
+                .getByRole('button', { name: 'Filter', exact: true })
+                .click();
+            await page.getByRole('combobox', { name: 'Tambah filter' }).click();
+            await page
+                .getByRole('option', { name: 'Tahap mahasiswa', exact: true })
+                .click();
+            await page
+                .getByRole('combobox', { name: 'Tahap mahasiswa', exact: true })
+                .click();
+            await page
+                .getByRole('option', { name: /Belum ada tugas akhir/ })
+                .click();
+            await expect(page).toHaveURL(/phase=none/);
+            await expect(
+                page.locator('tbody').getByText('Anda', { exact: true }),
+            ).toHaveCount(0);
+            await page
+                .getByRole('button', { name: 'Reset filter', exact: true })
+                .click();
+            await expect(page).not.toHaveURL(/phase=/);
+            await expect(self).toContainText('Mahasiswa SiTA');
+            await expect(self.getByText('Anda', { exact: true })).toBeVisible();
+            expect(
+                await page.evaluate(
+                    () =>
+                        document.documentElement.scrollWidth <=
+                        window.innerWidth,
+                ),
+            ).toBe(true);
         });
     });
 
@@ -50,10 +110,17 @@ test.describe('Progres Mahasiswa', () => {
         }) => {
             await page.goto('/progres-mahasiswa');
 
-            await expect(
-                page.getByRole('heading', { name: 'Progres Mahasiswa' }),
-            ).toBeVisible();
+            await expectGlobalLabels(page);
             await expect(page.locator(rows).first()).toBeVisible();
+            await expect(page.locator(rows).first()).toContainText(
+                'Mahasiswa SiTA',
+            );
+            await expect(
+                page.locator(rows).first().getByText('Anda', { exact: true }),
+            ).toBeVisible();
+            await expect(
+                page.locator('tbody').getByText('Anda', { exact: true }),
+            ).toHaveCount(1);
 
             const firstName = (
                 await page.locator(`${rows} a p`).first().innerText()
@@ -65,6 +132,9 @@ test.describe('Progres Mahasiswa', () => {
                 .fill(firstName);
             await expect(page).toHaveURL(/search=/);
             await expect(page.locator(rows).first()).toContainText(firstName);
+            await expect(
+                page.locator(rows).first().getByText('Anda', { exact: true }),
+            ).toBeVisible();
 
             await page
                 .getByPlaceholder('Cari nama, NIM, atau prodi...')
@@ -88,6 +158,26 @@ test.describe('Progres Mahasiswa', () => {
             await expect(page).not.toHaveURL(/phase=/);
 
             // Program studi select filters in SQL and is reflected in the URL.
+            await expect(page.locator(rows).first()).toContainText(
+                'Mahasiswa SiTA',
+            );
+
+            // A real phase excludes self rather than appending it outside the result.
+            await phasePills
+                .getByRole('radio', { name: /Belum ada tugas akhir/ })
+                .click();
+            await expect(page).toHaveURL(/phase=none/);
+            await expect(
+                page.locator('tbody').getByText('Anda', { exact: true }),
+            ).toHaveCount(0);
+            await page.getByRole('button', { name: 'Reset filter' }).click();
+            await expect(page).not.toHaveURL(/phase=/);
+            await expect(page.locator(rows).first()).toContainText(
+                'Mahasiswa SiTA',
+            );
+            await expect(
+                page.locator(rows).first().getByText('Anda', { exact: true }),
+            ).toBeVisible();
             await page.getByRole('combobox', { name: 'Program studi' }).click();
             await page.getByRole('option').nth(1).click();
             await expect(page).toHaveURL(/prodi=/);
@@ -142,6 +232,9 @@ test.describe('Progres Mahasiswa', () => {
             await expect(page.locator(rows).first()).toContainText(
                 'Sidang dijadwalkan',
             );
+            await expect(
+                page.locator('tbody').getByText('Anda', { exact: true }),
+            ).toHaveCount(0);
         });
     });
 
@@ -151,9 +244,10 @@ test.describe('Progres Mahasiswa', () => {
         test('opens the progress list', async ({ page }) => {
             await page.goto('/progres-mahasiswa');
 
+            await expectGlobalLabels(page);
             await expect(
-                page.getByRole('heading', { name: 'Progres Mahasiswa' }),
-            ).toBeVisible();
+                page.locator('tbody').getByText('Anda', { exact: true }),
+            ).toHaveCount(0);
         });
     });
 
@@ -163,9 +257,26 @@ test.describe('Progres Mahasiswa', () => {
         test('opens the progress list', async ({ page }) => {
             await page.goto('/progres-mahasiswa');
 
+            await expectGlobalLabels(page);
             await expect(
-                page.getByRole('heading', { name: 'Progres Mahasiswa' }),
-            ).toBeVisible();
+                page.locator('tbody').getByText('Anda', { exact: true }),
+            ).toHaveCount(0);
         });
     });
+
+    for (const account of ['admin', 'superadmin'] as const) {
+        test.describe(account, () => {
+            test.use({ storageState: authStatePath(account) });
+
+            test('uses the global list label without a self marker', async ({
+                page,
+            }) => {
+                await page.goto('/progres-mahasiswa');
+                await expectGlobalLabels(page);
+                await expect(
+                    page.locator('tbody').getByText('Anda', { exact: true }),
+                ).toHaveCount(0);
+            });
+        });
+    }
 });
