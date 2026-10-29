@@ -87,8 +87,8 @@ class StudentProgressController extends Controller
             'filterOptions' => [
                 'prodi' => ProgramStudi::query()
                     ->orderBy('name')
-                    ->get(['id', 'name'])
-                    ->map(fn (ProgramStudi $prodi): array => ['value' => $prodi->id, 'label' => $prodi->name])
+                    ->get(['id', 'name', 'degree_levels'])
+                    ->map(fn (ProgramStudi $prodi): array => ['value' => $prodi->id, 'label' => AcademicTerminology::programStudiLabel($prodi)])
                     ->values()
                     ->all(),
                 'angkatan' => MahasiswaProfile::query()

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\DegreeLevel;
+use App\Models\ProgramStudi;
 use App\Models\ThesisProject;
 use App\Models\User;
 
@@ -109,6 +110,11 @@ final class AcademicTerminology
         $project->loadMissing('student.mahasiswaProfile');
 
         return self::forStudent($project->student);
+    }
+
+    public static function programStudiLabel(ProgramStudi $program): string
+    {
+        return $program->name.' ('.implode(', ', $program->degreeLevelOptions()).')';
     }
 
     /**
