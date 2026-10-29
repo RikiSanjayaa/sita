@@ -182,7 +182,7 @@ export function ChatBubble({
                         <div
                             className={cn(
                                 'relative min-w-0 rounded-2xl text-sm leading-snug',
-                                compact ? 'p-1' : 'p-2',
+                                compact ? 'p-1' : 'p-3',
                                 isMe
                                     ? 'bg-primary text-primary-foreground'
                                     : 'bg-card text-card-foreground',
@@ -320,7 +320,12 @@ export function ChatBubble({
                                 />
                             )}
                             {message.message && (
-                                <div className="break-words whitespace-pre-wrap">
+                                <div
+                                    className={cn(
+                                        'break-words whitespace-pre-wrap',
+                                        compact && 'px-2 pt-1',
+                                    )}
+                                >
                                     {highlightText(
                                         message.message,
                                         searchTerm,
@@ -332,13 +337,18 @@ export function ChatBubble({
                                 <div
                                     className={cn(
                                         'mt-1 flex items-center justify-end gap-2 text-xs tabular-nums',
+                                        compact && 'px-2 pb-2',
                                         isMe
                                             ? 'text-primary-foreground'
                                             : 'text-muted-foreground',
                                     )}
                                 >
                                     {message.editedAt && <span>Diedit</span>}
-                                    {showTime && <span>{message.time}</span>}
+                                    {showTime && (
+                                        <time dateTime={message.sentAt}>
+                                            {message.time}
+                                        </time>
+                                    )}
                                 </div>
                             )}
                         </div>

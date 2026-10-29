@@ -22,6 +22,8 @@ function isMessage(value: unknown): value is ChatMessage {
         typeof value.message === 'string' &&
         'time' in value &&
         typeof value.time === 'string' &&
+        'sentAt' in value &&
+        typeof value.sentAt === 'string' &&
         'type' in value &&
         typeof value.type === 'string' &&
         'authorAvatar' in value &&

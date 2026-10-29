@@ -100,7 +100,7 @@ export function ThreadList<T extends ChatThread>({
                 className={cn(
                     'relative mx-2 flex min-h-17 shrink-0 items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors before:absolute before:inset-x-2 before:top-0 before:left-19 before:h-px before:bg-border first:before:hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset [&[aria-current]+button]:before:hidden',
                     activeThreadId === thread.id
-                        ? 'bg-muted before:hidden'
+                        ? 'bg-muted before:hidden dark:bg-background'
                         : 'hover:bg-muted/50',
                 )}
                 onClick={() => onSelect(thread.id)}

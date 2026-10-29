@@ -47,7 +47,8 @@ class ChatMessagePayloadBuilder
             'message' => $this->displayText($secretLabel === null
                 ? $message->message
                 : str_replace((string) $message->sender?->name, $secretLabel, (string) $message->message)),
-            'time' => WitaDateTime::format($message->created_at, withLabel: false),
+            'sentAt' => $message->created_at->toIso8601String(),
+            'time' => WitaDateTime::format($message->created_at, 'H.i', withLabel: false),
             'type' => $message->message_type,
             'documentName' => $message->attachment_name ?? $message->relatedDocument?->file_name,
             'documentUrl' => $hasFile

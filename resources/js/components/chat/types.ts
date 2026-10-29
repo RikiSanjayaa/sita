@@ -38,6 +38,8 @@ export type ChatMessage = {
     authorAvatar: string | null;
     authorProfileUrl: string | null;
     message: string;
+    /** Original send instant; calendar grouping always uses Asia/Makassar. */
+    sentAt: string;
     time: string;
     type: string;
     documentName: string | null;

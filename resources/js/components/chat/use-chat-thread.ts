@@ -728,6 +728,7 @@ export function useChatThread<T extends ChatThread>({
                 authorAvatar: null,
                 authorProfileUrl: null,
                 message: trimmedMessage,
+                sentAt: new Date().toISOString(),
                 time: 'Mengirim...',
                 type: 'pending',
                 documentName: sentFileName,

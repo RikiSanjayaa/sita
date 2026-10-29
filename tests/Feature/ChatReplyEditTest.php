@@ -173,3 +173,40 @@ it('authorizes active group replies but rejects an ended supervisor edit and rep
     $this->actingAs($lecturer)->postJson(route('dosen.pesan.messages.store', $thread), ['client_message_id' => (string) Str::uuid(), 'reply_to_id' => $source->id, 'message' => 'Jawab arsip'])->assertUnprocessable();
     expect($source->fresh()->message)->toBe('Arahan diperbarui')->and($thread->messages()->count())->toBe(2);
 });
+
+it('keeps the original WITA day and clock through send edit and reload across UTC midnight', function (string $portal): void {
+    Event::fake([ChatMessageCreated::class, ChatMessageUpdated::class]);
+    $timezone = date_default_timezone_get();
+    date_default_timezone_set('UTC');
+
+    try {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-28T16:05:00Z'));
+        [$owner, , $thread] = replyEditFixture($portal);
+        $response = $this->actingAs($owner)->postJson(route("{$portal}.pesan.messages.store", $thread), [
+            'message' => 'Pesan setelah tengah malam WITA',
+            'client_message_id' => (string) Str::uuid(),
+        ])->assertCreated()
+            ->assertJsonPath('messages.0.time', '00.05')
+            ->assertJsonPath('messages.0.sentAt', '2026-10-28T16:05:00+00:00');
+        $id = $response->json('messages.0.id');
+        Event::assertDispatched(ChatMessageCreated::class, fn ($event): bool => $event->messagePayload['id'] === $id
+            && $event->messagePayload['time'] === '00.05'
+            && $event->messagePayload['sentAt'] === '2026-10-28T16:05:00+00:00');
+
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-30T10:00:00Z'));
+        $this->actingAs($owner)->patchJson(route("{$portal}.pesan.messages.update", [$thread, $id]), ['message' => 'Diperbaiki dua hari kemudian'])
+            ->assertOk()
+            ->assertJsonPath('message.time', '00.05')
+            ->assertJsonPath('message.sentAt', '2026-10-28T16:05:00+00:00');
+        $this->actingAs($owner)->getJson(route("{$portal}.pesan.messages.show", [$thread, $id]))
+            ->assertOk()
+            ->assertJsonPath('message.time', '00.05')
+            ->assertJsonPath('message.sentAt', '2026-10-28T16:05:00+00:00');
+        Event::assertDispatched(ChatMessageUpdated::class, fn ($event): bool => $event->messagePayload['id'] === $id
+            && $event->messagePayload['time'] === '00.05'
+            && $event->messagePayload['sentAt'] === '2026-10-28T16:05:00+00:00');
+    } finally {
+        $this->travelBack();
+        date_default_timezone_set($timezone);
+    }
+})->with(['mahasiswa', 'dosen']);
