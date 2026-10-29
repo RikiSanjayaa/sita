@@ -1,0 +1,162 @@
+name: screenshot catalog
+
+# Refresh the guide reference at pr-assets/catalog/ from merged main only.
+# Pull request evidence is uploaded separately with scripts/pr-screenshots.sh.
+on:
+  push:
+    branches:
+      - main
+
+# Queue main refreshes so only one writer updates the catalog at a time.
+concurrency:
+  group: screenshot-catalog-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: capture (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      REVERB_APP_ID: local-app
+      REVERB_APP_KEY: local-key
+      REVERB_APP_SECRET: local-secret
+      REVERB_HOST: 127.0.0.1
+      REVERB_PORT: '9011'
+      REVERB_SCHEME: http
+      REVERB_ALLOWED_ORIGINS: 127.0.0.1,localhost
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, sqlite3, pdo_sqlite, curl, dom, fileinfo, xml
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Locate Composer cache
+        id: composer-cache-dir
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture catalog
+        run: npm run catalog -- --shard=${{ matrix.shard }}/4
+
+      - name: Upload shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-shard-${{ matrix.shard }}
+          path: catalog-output/
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-report-shard-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    name: publish to pr-assets
+    needs: capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: catalog-shard-*
+          path: catalog-output
+          merge-multiple: true
+
+      - name: Checkout pr-assets
+        uses: actions/checkout@v4
+        with:
+          ref: pr-assets
+          path: assets
+
+      - name: Update catalog
+        env:
+          SUBJECT: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets/catalog
+          node scripts/catalog.mjs sync catalog-output assets/catalog
+          node scripts/catalog.mjs index assets/catalog
+          cd assets
+          git add -A catalog
+          if git diff --cached --quiet; then
+            echo "Catalog unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          subject=$(printf '%s' "$SUBJECT" | head -n 1)
+          git commit -m "catalog: ${GITHUB_SHA::7} ${subject}"
+          for attempt in 1 2 3; do
+            git push origin HEAD:pr-assets && exit 0
+            git pull --rebase origin pr-assets
+          done
+          exit 1

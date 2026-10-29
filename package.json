@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "catalog": "playwright test -c playwright.catalog.config.ts",
         "build:ssr": "vite build && vite build --ssr",
         "dev": "vite",
         "e2e": "playwright test",

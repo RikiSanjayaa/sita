@@ -166,6 +166,12 @@ use Illuminate\Support\Facades\Auth;
 - Use stable selectors in E2E assertions. Prefer page titles, labels, roles, unique section copy, or scoped locators over generic repeated text.
 - `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification. Each fixme must have a comment linking its tracking issue.
 
+### Guide screenshot catalog
+
+- Guide/docs work: use the [latest main catalog](https://github.com/RikiSanjayaa/sita/blob/pr-assets/catalog/README.md). It refreshes after pushes to `main`; keep this reference separate from PR screenshot evidence under "UI work". `scripts/pr-screenshots.sh` does not update the catalog.
+- Catalog changes: maintain page/state entries in `tests/e2e/support/catalog-pages.ts` and verify with `npm run catalog -- -g "role/page"`. This command resets the dedicated Playwright database; the normal E2E suite excludes the catalog spec. Main captures every listed page at 1280/390px, light/dark, and publishes the index to `pr-assets/catalog/`.
+- The catalog does not capture or compare PRs and does not post preview comments. See [CI and visual evidence](README.md#ci-dan-bukti-visual) for the tradeoffs.
+
 ### Test Conventions
 
 - Use `actingAs()` for authentication.
