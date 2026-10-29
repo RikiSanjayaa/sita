@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.2.0](https://github.com/RikiSanjayaa/sita/compare/v1.1.0...v1.2.0) (2026-10-29)
+
+
+### Fitur
+
+* add live chat replies, message editing and image preparation ([#185](https://github.com/RikiSanjayaa/sita/issues/185)) ([51f3d3f](https://github.com/RikiSanjayaa/sita/commit/51f3d3fe712d88e35a6f3f46710c7bfee7596e47))
+* add mentorship session notes ([#156](https://github.com/RikiSanjayaa/sita/issues/156)) ([b0aa97e](https://github.com/RikiSanjayaa/sita/commit/b0aa97ead269b907ea0a0090432a6ce45464c73e))
+* add stable document review pages and defense files ([#153](https://github.com/RikiSanjayaa/sita/issues/153)) ([d526561](https://github.com/RikiSanjayaa/sita/commit/d52656190c1b7fe7455a36830d213a924fc910a0))
+* clarify global student progress and prioritize own row ([#182](https://github.com/RikiSanjayaa/sita/issues/182)) ([23117af](https://github.com/RikiSanjayaa/sita/commit/23117af57b27232b274972fc219771252dc68e1d))
+* compact mobile tables and document details ([#180](https://github.com/RikiSanjayaa/sita/issues/180)) ([3f119c3](https://github.com/RikiSanjayaa/sita/commit/3f119c3c74e6ba08a3a01d0d329b183b7e5e5a39))
+* confirm examiner assessments and final exam outcomes ([#186](https://github.com/RikiSanjayaa/sita/issues/186)) ([38c7006](https://github.com/RikiSanjayaa/sita/commit/38c700619b0850a49bfabe4a0247494c9e0b9f71))
+* lindungi privasi nomor HP pengguna ([d657df3](https://github.com/RikiSanjayaa/sita/commit/d657df3dcfaff072aafe91bb9401367c12e4554b))
+* refine chat identity and compact portal shell ([#163](https://github.com/RikiSanjayaa/sita/issues/163)) ([3d28b67](https://github.com/RikiSanjayaa/sita/commit/3d28b676f03ba8836afa24a0bf7fbc70167d0ddd))
+* refine document review and portal controls ([#178](https://github.com/RikiSanjayaa/sita/issues/178)) ([05b3bf9](https://github.com/RikiSanjayaa/sita/commit/05b3bf9fe219f4e55714109d4d093ccac44417ec))
+* reveal chat actions on interaction and add text copying ([#188](https://github.com/RikiSanjayaa/sita/issues/188)) ([8d821e9](https://github.com/RikiSanjayaa/sita/commit/8d821e9205dc79b603aafd4f59c8981885c75a28))
+* satukan kontrol drawer sesi bimbingan ([#157](https://github.com/RikiSanjayaa/sita/issues/157)) ([#160](https://github.com/RikiSanjayaa/sita/issues/160)) ([23929fc](https://github.com/RikiSanjayaa/sita/commit/23929fc036c78b8031d96d61cbe40e7e9568277f))
+* satukan workspace chat grup dan pribadi ([#159](https://github.com/RikiSanjayaa/sita/issues/159)) ([#162](https://github.com/RikiSanjayaa/sita/issues/162)) ([7dea4ea](https://github.com/RikiSanjayaa/sita/commit/7dea4ea137434aadc02540b2b9f98776c0fb7459))
+* separate user import templates by role ([#184](https://github.com/RikiSanjayaa/sita/issues/184)) ([492a0de](https://github.com/RikiSanjayaa/sita/commit/492a0de098c9373dc6131ad5152dff97901879e7))
+* tandai butir revisi dokumen selesai ([#158](https://github.com/RikiSanjayaa/sita/issues/158)) ([#161](https://github.com/RikiSanjayaa/sita/issues/161)) ([5a2f20d](https://github.com/RikiSanjayaa/sita/commit/5a2f20dc3c96ae336c73dc3849eb9ffe72efbc93))
+
+
+### Perbaikan
+
+* distinguish programme filter options by degree ([#190](https://github.com/RikiSanjayaa/sita/issues/190)) ([b6d2b94](https://github.com/RikiSanjayaa/sita/commit/b6d2b941ff320891816f246c582a01e3cfec7de8))
+* preserve chat focus and thread selection with visible unread counts ([#189](https://github.com/RikiSanjayaa/sita/issues/189)) ([970a9f0](https://github.com/RikiSanjayaa/sita/commit/970a9f084b63ca57eb14063ed96f12cb2a0b210f))
+* preserve save feedback across background requests ([#181](https://github.com/RikiSanjayaa/sita/issues/181)) ([#183](https://github.com/RikiSanjayaa/sita/issues/183)) ([a006b9b](https://github.com/RikiSanjayaa/sita/commit/a006b9b7dd2cc75ef156c188a403bdb9d676d327))
+* preserve sidebar state on prefetched navigation ([#191](https://github.com/RikiSanjayaa/sita/issues/191)) ([c5dd1cf](https://github.com/RikiSanjayaa/sita/commit/c5dd1cf8d5447556c58a623a9705dff0964163e5))
+* refine agenda, unread counts and document review UX ([#148](https://github.com/RikiSanjayaa/sita/issues/148)) ([#149](https://github.com/RikiSanjayaa/sita/issues/149)) ([e375f1e](https://github.com/RikiSanjayaa/sita/commit/e375f1eb8ffd2d9b65b438c48dd2250d17d5410d))
+
+
+### Dokumentasi
+
+* refresh README screenshots and outstanding issue status ([#166](https://github.com/RikiSanjayaa/sita/issues/166)) ([8d0fc98](https://github.com/RikiSanjayaa/sita/commit/8d0fc982a78fe6994718a28e886ea179f4d9bc2e))
+
 ## [1.1.0](https://github.com/RikiSanjayaa/sita/compare/v1.0.1...v1.1.0) (2026-10-26)
 
 
