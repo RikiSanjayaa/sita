@@ -324,6 +324,10 @@ export function ChatBubble({
                                     className={cn(
                                         'break-words whitespace-pre-wrap',
                                         compact && 'px-2 pt-1',
+                                        compact &&
+                                            !showTime &&
+                                            !message.editedAt &&
+                                            'pb-2',
                                     )}
                                 >
                                     {highlightText(
