@@ -18,6 +18,10 @@ const row = (page: Page, id: number) =>
 async function action(page: Page, bubble: Locator, name: string) {
     await bubble
         .getByRole('button', { name: 'Aksi pesan', exact: true })
+        .locator('..')
+        .hover();
+    await bubble
+        .getByRole('button', { name: 'Aksi pesan', exact: true })
         .click();
     await page.getByRole('menuitem', { name, exact: true }).click();
 }
@@ -186,6 +190,9 @@ test('two accounts reply to text and files and edit live text/captions with canc
         await expect(row(peer.page, caption.id)).toContainText(
             'Caption gambar diperbaiki',
         );
+        await row(peer.page, source.id)
+            .getByText('Metode penelitian sudah diperbaiki', { exact: true })
+            .hover();
         await row(peer.page, source.id)
             .getByRole('button', { name: 'Aksi pesan' })
             .click();

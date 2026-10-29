@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
-import { FileText, MoreHorizontal, Pencil, Reply } from 'lucide-react';
+import { Copy, FileText, MoreHorizontal, Pencil, Reply } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import {
     AttachmentCard,
@@ -18,6 +19,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useClipboard } from '@/hooks/use-clipboard';
 import { getInitials } from '@/lib/initials';
 import { cn } from '@/lib/utils';
 
@@ -63,7 +65,10 @@ export function ChatBubble({
     onJump,
 }: ChatBubbleProps) {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [, copy] = useClipboard();
     const isPending = message.type === 'pending';
+    const hasActions = Boolean(onReply || onEdit) && !isPending;
     const thumbnailUrl =
         message.attachmentKind === 'image' ? message.previewUrl : null;
     const compact = message.reply != null || thumbnailUrl !== null;
@@ -175,11 +180,26 @@ export function ChatBubble({
 
                     <div
                         className={cn(
-                            'flex min-w-0 items-end gap-1',
+                            'group/message relative flex min-w-0 items-end gap-1',
                             isMe && 'flex-row-reverse',
                         )}
                     >
                         <div
+                            onClick={(event) => {
+                                if (
+                                    !hasActions ||
+                                    !window.matchMedia(
+                                        '(hover: none), (max-width: 767px)',
+                                    ).matches ||
+                                    (event.target as Element).closest(
+                                        'a, button, [role="button"], [role="dialog"]',
+                                    ) ||
+                                    window.getSelection()?.isCollapsed === false
+                                ) {
+                                    return;
+                                }
+                                setIsMenuOpen(true);
+                            }}
                             className={cn(
                                 'relative min-w-0 rounded-2xl text-sm leading-snug',
                                 compact ? 'p-1' : 'p-3',
@@ -356,15 +376,18 @@ export function ChatBubble({
                                 </div>
                             )}
                         </div>
-                        {(onReply || onEdit) && !isPending && (
-                            <DropdownMenu>
+                        {hasActions && (
+                            <DropdownMenu
+                                open={isMenuOpen}
+                                onOpenChange={setIsMenuOpen}
+                            >
                                 <DropdownMenuTrigger asChild>
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
                                         aria-label="Aksi pesan"
-                                        className="size-8 shrink-0 text-muted-foreground max-md:size-11"
+                                        className="pointer-events-none absolute size-11 shrink-0 text-muted-foreground opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 md:static md:size-8 md:group-focus-within/message:pointer-events-auto md:group-focus-within/message:opacity-100 md:group-hover/message:pointer-events-auto md:group-hover/message:opacity-100 md:data-[state=open]:pointer-events-auto md:data-[state=open]:opacity-100"
                                     >
                                         <MoreHorizontal className="size-4" />
                                     </Button>
@@ -382,6 +405,26 @@ export function ChatBubble({
                                         <DropdownMenuItem onSelect={onEdit}>
                                             <Pencil className="size-4" />
                                             Edit teks / caption
+                                        </DropdownMenuItem>
+                                    )}
+                                    {message.message.trim() && (
+                                        <DropdownMenuItem
+                                            onSelect={async () => {
+                                                if (
+                                                    await copy(message.message)
+                                                ) {
+                                                    toast.success(
+                                                        'Teks pesan disalin',
+                                                    );
+                                                } else {
+                                                    toast.error(
+                                                        'Gagal menyalin pesan. Pilih dan salin teks secara manual.',
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <Copy className="size-4" />
+                                            Salin teks
                                         </DropdownMenuItem>
                                     )}
                                 </DropdownMenuContent>
