@@ -12,7 +12,7 @@ SiTA (Sistem Informasi Tugas Akhir) Universitas Bumigora mencatat perjalanan tug
 | **Review dokumen bimbingan**                                                                                                                                       | **Pengaturan privasi nomor HP**                                                                                                                                      |
 | ![Review dokumen dosen](https://raw.githubusercontent.com/RikiSanjayaa/sita/ab1e444ab898439f912ce3d4d1544765f924fc81/catalog/dosen/dokumen-detail-1280-light.png)  | ![Privasi nomor HP](https://raw.githubusercontent.com/RikiSanjayaa/sita/ab1e444ab898439f912ce3d4d1544765f924fc81/catalog/mahasiswa/pengaturan-profil-1280-light.png) |
 
-Tangkapan layar memakai data contoh dari seeder. Galeri di atas berasal dari katalog CI untuk revisi aplikasi [`3d28b67`](https://github.com/RikiSanjayaa/sita/commit/3d28b676f03ba8836afa24a0bf7fbc70167d0ddd), yang memuat workspace chat terpadu, review dokumen dan pengaturan privasi nomor HP; tautan gambar dipatok ke commit aset agar tidak berubah diam-diam. [Katalog lengkap](https://github.com/RikiSanjayaa/sita/blob/ab1e444ab898439f912ce3d4d1544765f924fc81/catalog/README.md) memuat halaman dan state lain pada 1280px dan 390px, terang dan gelap.
+Tangkapan layar memakai data contoh dari seeder. Galeri di atas adalah arsip katalog CI untuk revisi aplikasi [`3d28b67`](https://github.com/RikiSanjayaa/sita/commit/3d28b676f03ba8836afa24a0bf7fbc70167d0ddd), yang memuat workspace chat terpadu, review dokumen dan pengaturan privasi nomor HP; tautan gambar dipatok ke commit aset agar tidak berubah diam-diam. [Arsip lengkap](https://github.com/RikiSanjayaa/sita/blob/ab1e444ab898439f912ce3d4d1544765f924fc81/catalog/README.md) memuat halaman dan state lain pada 1280px dan 390px, terang dan gelap. Untuk membuat guide, gunakan [katalog terbaru main](https://github.com/RikiSanjayaa/sita/blob/pr-assets/catalog/README.md), yang diperbarui otomatis setelah push ke `main`. Screenshot perubahan yang belum merge tetap ada pada PR sesuai [AGENTS.md](AGENTS.md#ui-work).
 
 ## Fitur
 
@@ -299,6 +299,18 @@ Tugas akhir `completed` yang melewati masa tenggang (`SITA_ARCHIVE_GRACE_DAYS`, 
 | `npm run hooks:install`                           | Pasang git hook yang menjalankan test sebelum push                           |
 
 Playwright memakai database SQLite terpisah (`database/playwright.sqlite`) yang di-reset dan di-seed otomatis, jadi data lokal tidak tersentuh. Install browser sekali dengan `npx playwright install`.
+
+### CI dan bukti visual
+
+Pest pada PHP 8.4, PHP 8.5 experimental, dan seluruh Playwright tetap berjalan pada setiap PR serta push ke `main`/`develop`. Tiga shard E2E mempertahankan satu worker dan database terpisah per runner; status `e2e` hanya lulus bila semuanya berhasil. Mengurangi shard tanpa mengurangi pekerjaan akan memperpanjang waktu tunggu; menambah worker dalam satu shard berisiko menabrakkan fixture SQLite. Trace, video dan screenshot kegagalan, screenshot tahap golden path, serta design detector tetap tersedia.
+
+Workflow tests dan linter membatalkan run lama pada ref yang sama ketika ada commit baru. Instalasi memakai `npm ci` serta cache unduhan npm/Composer berdasarkan lockfile, bukan cache database, session, hasil test atau build. Build tetap lokal pada tiap runner agar tidak menambah tahap serial dan transfer artifact untuk build yang singkat.
+
+Konfigurasi Playwright menetapkan `BCRYPT_ROUNDS=4` hanya untuk server dan helper Artisan pengujian, mengikuti Pest. Akun fixture tetap login melalui hashing sebenarnya; cost test yang rendah tidak mengukur ketahanan password produksi. Konfigurasi aplikasi di luar proses Playwright dan `.env.example` tetap memakai cost 12.
+
+Katalog screenshot tetap diperbarui dari setiap push ke `main` sebagai referensi [tampilan terbaru untuk guide](https://github.com/RikiSanjayaa/sita/blob/pr-assets/catalog/README.md). Empat shard capture dan satu publish memperbarui gambar serta indeks `pr-assets/catalog/`; pekerjaan ini hanya terjadi setelah merge/push ke `main`, bukan pada PR. Clock fixture tetap dipatok dan gambar historis dipertahankan.
+
+Yang dihapus adalah capture katalog pada PR, pembanding before/after, dan komentar preview otomatis. Pembanding lama memakai katalog `main` terbaru, bukan merge-base PR, sehingga perubahan di luar PR maupun noise render bisa masuk daftar preview. CI PR tetap memeriksa seluruh skenario E2E dan design detector. Penulis PR wajib melampirkan screenshot terarah untuk halaman/state terdampak, termasuk before untuk redesign, sesuai [aturan UI](AGENTS.md#ui-work). `scripts/pr-screenshots.sh` mengunggah bukti PR ke folder terpisah; script ini tidak memperbarui katalog dan tidak mempromosikan tampilan PR yang belum merge.
 
 ## Deployment
 

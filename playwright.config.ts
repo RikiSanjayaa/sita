@@ -14,6 +14,8 @@ const baseURL =
     process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${appPort}`;
 // Support helpers read PLAYWRIGHT_BASE_URL; workers inherit it from here.
 process.env.PLAYWRIGHT_BASE_URL = baseURL;
+// Match Pest's fixture-only hashing cost in both servers and Artisan helpers.
+process.env.BCRYPT_ROUNDS = '4';
 const databasePath = path.join(
     currentDirectory,
     'database',
@@ -100,7 +102,7 @@ export default defineConfig({
         {
             name: 'chromium',
             testMatch: /specs[\\/].*\.spec\.ts/,
-            // The screenshot catalog has its own config (npm run catalog).
+            // The main screenshot catalog runs with its own config.
             testIgnore: /screenshot-catalog\.spec\.ts/,
             dependencies: ['setup'],
         },

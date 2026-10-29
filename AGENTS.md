@@ -166,13 +166,11 @@ use Illuminate\Support\Facades\Auth;
 - Use stable selectors in E2E assertions. Prefer page titles, labels, roles, unique section copy, or scoped locators over generic repeated text.
 - `test.fixme(...)` is acceptable for planned scenarios that are scaffolded but not yet stable enough to run in CI/local verification. Each fixme must have a comment linking its tracking issue.
 
-### Screenshot catalog
+### Guide screenshot catalog
 
-- `npm run catalog` captures every page listed in `tests/e2e/support/catalog-pages.ts` (public, mahasiswa, dosen, kaprodi, admin, plus a few dialog, sheet and empty states) at 1280 and 390 px, light and dark, full page, into `catalog-output/<role>/<page>-<width>-<theme>.png`. It runs the normal bootstrap first (fresh seed), takes 8 to 18 minutes on one worker (CI shards it in four) and is not part of `npm run e2e`. Narrow it with `npm run catalog -- -g "mahasiswa/dashboard"`; add `--project=catalog` to skip the bootstrap on a database that is already seeded.
-- Add a page with one entry in `catalog-pages.ts`. Its `heading` must be visible on the final URL, otherwise the run fails, so a redirect to a login screen can never end up in the catalog.
-- Output is stable run to run: the browser clock (`page.clock`) and the server clock (`CATALOG_FIXED_NOW`, honoured only when `APP_ENV=playwright`) are pinned, animations are off, fonts are awaited and seed data is deterministic. Two runs on the same code give identical images apart from a few anti-aliased edge pixels (a handful of pixels off by a few levels on rounded borders); `scripts/catalog.mjs` ignores that noise (under 20 pixels off by more than 8 levels) when it compares and when it writes to `pr-assets`. A real difference without a code change means something is not deterministic and needs fixing.
-- Every push to `main` runs `.github/workflows/screenshot-catalog.yml`, which commits the changed images to `catalog/` on the `pr-assets` branch (message `catalog: <sha> <subject>`) and regenerates `catalog/README.md`, the index of all pages. Read a change with `git log -p pr-assets -- catalog/<role>/` or in GitHub's image diff for a commit on that branch.
-- A pull request that touches `resources/js`, `resources/css`, `resources/views` or `app/Filament` gets one automatic comment listing the changed pages with before (main catalog) and after images; the after images live under `pr-<n>/catalog/` on `pr-assets`. That comment is in addition to the screenshots described under "UI work", not a replacement: it does not cover new states or pages outside the list.
+- Guide/docs work: use the [latest main catalog](https://github.com/RikiSanjayaa/sita/blob/pr-assets/catalog/README.md). It refreshes after pushes to `main`; keep this reference separate from PR screenshot evidence under "UI work". `scripts/pr-screenshots.sh` does not update the catalog.
+- Catalog changes: maintain page/state entries in `tests/e2e/support/catalog-pages.ts` and verify with `npm run catalog -- -g "role/page"`. This command resets the dedicated Playwright database; the normal E2E suite excludes the catalog spec. Main captures every listed page at 1280/390px, light/dark, and publishes the index to `pr-assets/catalog/`.
+- The catalog does not capture or compare PRs and does not post preview comments. See [CI and visual evidence](README.md#ci-dan-bukti-visual) for the tradeoffs.
 
 ### Test Conventions
 
