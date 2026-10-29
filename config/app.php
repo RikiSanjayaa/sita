@@ -57,12 +57,6 @@ return [
     'base_path' => env('APP_BASE_PATH', ''),
 
     /*
-    | Fixed "now" for the screenshot catalog (ISO 8601). Honoured only when
-    | APP_ENV=playwright; see AppServiceProvider::freezeTimeForScreenshotCatalog().
-    */
-    'catalog_fixed_now' => env('CATALOG_FIXED_NOW'),
-
-    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

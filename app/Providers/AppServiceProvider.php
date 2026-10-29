@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Support\WitaDateTime;
-use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Filament\Support\Facades\FilamentTimezone;
 use Filament\Tables\Table;
@@ -35,26 +34,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
-        $this->freezeTimeForScreenshotCatalog();
-    }
-
-    /**
-     * The screenshot catalog (`npm run catalog`) needs the same text on every
-     * run ("5 detik yang lalu", seeded dates), so it pins the clock. Only the
-     * playwright environment honours CATALOG_FIXED_NOW; production ignores it.
-     */
-    protected function freezeTimeForScreenshotCatalog(): void
-    {
-        $fixedNow = config('app.catalog_fixed_now');
-
-        if (! app()->environment('playwright') || ! is_string($fixedNow) || $fixedNow === '') {
-            return;
-        }
-
-        $now = CarbonImmutable::parse($fixedNow);
-
-        CarbonImmutable::setTestNow($now);
-        Carbon::setTestNow($now);
     }
 
     protected function configureResendClient(): void
