@@ -87,9 +87,16 @@ for (const role of ['student', 'lecturer'] as const) {
                                 mode === 'dark',
                             );
                             await Promise.all(
-                                document.getAnimations()
-                                    .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-                                    .map((animation) => animation.finished.catch(() => {})),
+                                document
+                                    .getAnimations()
+                                    .filter(
+                                        (animation) =>
+                                            animation.effect?.getTiming()
+                                                .iterations !== Infinity,
+                                    )
+                                    .map((animation) =>
+                                        animation.finished.catch(() => {}),
+                                    ),
                             );
                         }, appearance);
                         await session.page.screenshot({
