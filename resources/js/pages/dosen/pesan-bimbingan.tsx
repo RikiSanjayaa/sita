@@ -121,7 +121,7 @@ function DosenPesanBimbinganContent({
     const [mobileView, setMobileView] = useState<MobileView>(() =>
         initialRecipientId !== ''
             ? 'threads'
-            : resolveInitialMobileView(initialThreads),
+            : resolveInitialMobileView(initialThreads, auth.user?.id),
     );
     const [search, setSearch] = useUrlState('search', '');
     const [groupThreadFilter, setGroupThreadFilter] =
@@ -228,7 +228,7 @@ function DosenPesanBimbinganContent({
                     groupFilterToggle={() =>
                         setIsGroupFilterOpen((current) => !current)
                     }
-                    hasUnread={(thread) => thread.unread > 0}
+                    unreadCount={(thread) => thread.unread}
                     isMobile={isMobile}
                     messagesFor={chat.messagesFor}
                     mobileView={mobileView}
@@ -281,6 +281,7 @@ function DosenPesanBimbinganContent({
                     <MessageList
                         key={activeThread?.id ?? 'empty'}
                         messages={chat.activeMessages}
+                        onCompose={chat.composer.focusMessageInput}
                         onReply={
                             !activeThread?.isCompleted &&
                             !activeThread?.isArchived

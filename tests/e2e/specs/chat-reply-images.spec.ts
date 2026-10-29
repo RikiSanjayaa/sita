@@ -83,6 +83,9 @@ test('two accounts reply to text and files and edit live text/captions with canc
             'Metode penelitian versi awal',
         );
         await action(peer.page, row(peer.page, source.id), 'Balas');
+        await expect(
+            peer.page.getByPlaceholder('Tulis pesan...'),
+        ).toBeFocused();
         await attachDocumentStates(peer.page, info, 'dosen-reply-context');
         await peer.page.getByRole('button', { name: 'Batal balas' }).click();
         await expect(
@@ -107,6 +110,9 @@ test('two accounts reply to text and files and edit live text/captions with canc
             .getByPlaceholder('Tulis pesan...')
             .fill('Edit dibatalkan');
         await owner.page.getByRole('button', { name: 'Batal edit' }).click();
+        await expect(
+            owner.page.getByPlaceholder('Tulis pesan...'),
+        ).toBeFocused();
         await expect(owner.page.getByPlaceholder('Tulis pesan...')).toHaveValue(
             'Draft pesan berikutnya',
         );
@@ -134,6 +140,9 @@ test('two accounts reply to text and files and edit live text/captions with canc
         await expect(
             owner.page.getByText('Perubahan ditolak demo.'),
         ).toBeVisible();
+        await expect(
+            owner.page.getByPlaceholder('Tulis pesan...'),
+        ).toBeFocused();
         await expect(owner.page.getByPlaceholder('Tulis pesan...')).toHaveValue(
             'Metode penelitian sudah diperbaiki',
         );
@@ -143,6 +152,9 @@ test('two accounts reply to text and files and edit live text/captions with canc
             .getByRole('button', { name: 'Simpan perubahan' })
             .click();
         await expect(row(peer.page, source.id)).toContainText('Diedit');
+        await expect(
+            owner.page.getByPlaceholder('Tulis pesan...'),
+        ).toBeFocused();
         await expect(
             row(peer.page, reply.id).getByRole('button', {
                 name: 'Lihat pesan asal',

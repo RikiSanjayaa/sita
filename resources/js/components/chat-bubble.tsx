@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Copy, FileText, MoreHorizontal, Pencil, Reply } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -35,6 +35,7 @@ interface ChatBubbleProps {
     reviewStatus?: string | null;
     onReply?: () => void;
     onEdit?: () => void;
+    onCompose?: () => void;
     onJump?: (id: number) => void;
 }
 
@@ -62,10 +63,12 @@ export function ChatBubble({
     showTime = true,
     onReply,
     onEdit,
+    onCompose,
     onJump,
 }: ChatBubbleProps) {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const focusComposerOnClose = useRef(false);
     const [, copy] = useClipboard();
     const isPending = message.type === 'pending';
     const hasActions = Boolean(onReply || onEdit) && !isPending;
@@ -394,15 +397,35 @@ export function ChatBubble({
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
                                     align={isMe ? 'end' : 'start'}
+                                    onCloseAutoFocus={(event) => {
+                                        if (focusComposerOnClose.current) {
+                                            focusComposerOnClose.current = false;
+                                            // Transfer focus after the menu releases its focus trap.
+                                            event.preventDefault();
+                                            onCompose?.();
+                                        }
+                                    }}
                                 >
                                     {onReply && (
-                                        <DropdownMenuItem onSelect={onReply}>
+                                        <DropdownMenuItem
+                                            onSelect={() => {
+                                                focusComposerOnClose.current =
+                                                    Boolean(onCompose);
+                                                onReply();
+                                            }}
+                                        >
                                             <Reply className="size-4" />
                                             Balas
                                         </DropdownMenuItem>
                                     )}
                                     {onEdit && (
-                                        <DropdownMenuItem onSelect={onEdit}>
+                                        <DropdownMenuItem
+                                            onSelect={() => {
+                                                focusComposerOnClose.current =
+                                                    Boolean(onCompose);
+                                                onEdit();
+                                            }}
+                                        >
                                             <Pencil className="size-4" />
                                             Edit teks / caption
                                         </DropdownMenuItem>

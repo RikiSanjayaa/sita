@@ -111,6 +111,28 @@ it('turns on for an incoming message and off only after the receipt is saved', f
     expect(unreadCount($this, $lecturer))->toBe(0);
 });
 
+it('shows incoming unread messages in the thread list until that conversation is read', function (string $role): void {
+    ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
+    $reader = $role === 'mahasiswa' ? $student : $lecturer;
+    $sender = $role === 'mahasiswa' ? $lecturer : $student;
+    unreadMessage($thread, $sender);
+    unreadMessage($thread, $reader);
+    unreadMessage($thread, $sender, 'document_event');
+
+    $this->actingAs($reader)->get(route($role.'.pesan'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('threads.0.id', $thread->id)
+            ->where('threads.0.unread', 1));
+
+    unreadRead($this, $reader, $role.'.pesan.read', $thread)->assertOk();
+
+    $this->actingAs($reader)->get(route($role.'.pesan'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('threads.0.unread', 0));
+})->with(['mahasiswa', 'dosen']);
+
 it('acknowledges a read with exact remaining thread and sidebar counts', function (string $role): void {
     ['student' => $student, 'lecturer' => $lecturer, 'thread' => $thread] = unreadBimbingan();
     $reader = $role === 'mahasiswa' ? $student : $lecturer;

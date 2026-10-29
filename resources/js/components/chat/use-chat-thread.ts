@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import {
+    useCallback,
     useEffect,
     useEffectEvent,
     useMemo,
@@ -23,6 +24,7 @@ import {
 } from './types';
 import {
     mergeMessages,
+    rememberThreadId,
     resolveInitialThreadId,
     sortThreads,
     syncThreadSearchParam,
@@ -52,6 +54,8 @@ type ChatThreadOptions<T extends ChatThread> = {
 };
 
 export type ChatComposerState = {
+    bindMessageInput: (input: HTMLInputElement | null) => void;
+    focusMessageInput: () => void;
     /** Staged file, or null when nothing is attached. */
     reply: ChatMessage | null;
     editing: ChatMessage | null;
@@ -133,7 +137,7 @@ export function useChatThread<T extends ChatThread>({
         sortThreads(initialThreads),
     );
     const [requestedThreadId, setActiveThreadId] = useState<number | null>(() =>
-        resolveInitialThreadId(initialThreads),
+        resolveInitialThreadId(initialThreads, userId),
     );
     const [messagesByThread, setMessagesByThread] = useState<
         Record<number, ChatMessage[]>
@@ -150,6 +154,10 @@ export function useChatThread<T extends ChatThread>({
     const readRequests = useRef(new Map<number, number>());
     const receivedMessageIds = useRef(new Set<number>());
     const latestMessageIds = useRef<Record<number, number>>({});
+    const messageInputRef = useRef<HTMLInputElement | null>(null);
+    const bindMessageInput = useCallback((input: HTMLInputElement | null) => {
+        messageInputRef.current = input;
+    }, []);
     const [context, setContext] = useState<{
         threadId: number;
         reply?: ChatMessage;
@@ -235,6 +243,12 @@ export function useChatThread<T extends ChatThread>({
 
         return visibleThreads[0]?.id ?? null;
     }, [requestedThreadId, visibleThreads]);
+
+    useEffect(() => {
+        if (activeThreadId !== null && isChatVisible) {
+            rememberThreadId(activeThreadId, userId);
+        }
+    }, [activeThreadId, isChatVisible, userId]);
 
     const activeThread =
         visibleThreads.find((thread) => thread.id === activeThreadId) ?? null;
@@ -903,6 +917,10 @@ export function useChatThread<T extends ChatThread>({
         activeThreadId,
         jumpToMessage,
         composer: {
+            bindMessageInput,
+            focusMessageInput: () => {
+                messageInputRef.current?.focus({ preventScroll: true });
+            },
             reply,
             editing,
             preparing,
@@ -918,6 +936,7 @@ export function useChatThread<T extends ChatThread>({
                         reply: message,
                         text: '',
                     });
+                    messageInputRef.current?.focus({ preventScroll: true });
                 }
             },
             startEdit: (message) => {
@@ -933,12 +952,14 @@ export function useChatThread<T extends ChatThread>({
                         editing: message,
                         text: message.message,
                     });
+                    messageInputRef.current?.focus({ preventScroll: true });
                 }
             },
             cancelContext: () => {
                 if (!processing) {
                     setContext(null);
                     form.clearErrors('message');
+                    messageInputRef.current?.focus({ preventScroll: true });
                 }
             },
             attachment,

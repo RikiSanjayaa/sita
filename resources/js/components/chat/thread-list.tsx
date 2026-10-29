@@ -35,7 +35,7 @@ type ThreadListProps<T extends ChatThread> = {
     emptyState: { title: string; description: string };
     groupExtra?: ReactNode;
     groupFilterToggle?: () => void;
-    hasUnread?: (thread: T) => boolean;
+    unreadCount?: (thread: T) => number;
     isMobile: boolean;
     messagesFor: (thread: T) => ChatMessage[];
     mobileView: MobileView;
@@ -55,7 +55,7 @@ export function ThreadList<T extends ChatThread>({
     emptyState,
     groupExtra,
     groupFilterToggle,
-    hasUnread,
+    unreadCount,
     isMobile,
     messagesFor,
     mobileView,
@@ -90,6 +90,7 @@ export function ThreadList<T extends ChatThread>({
     function renderRow(thread: T) {
         const latestMessage = messagesFor(thread).at(-1);
         const isPrivate = thread.threadType === 'private';
+        const unread = unreadCount?.(thread) ?? 0;
         return (
             <button
                 key={thread.id}
@@ -127,10 +128,13 @@ export function ThreadList<T extends ChatThread>({
                                 latestMessage?.documentName ||
                                 thread.preview}
                         </span>
-                        {hasUnread?.(thread) && (
-                            <span className="size-2 shrink-0 rounded-full bg-primary">
-                                <span className="sr-only">
-                                    Pesan belum dibaca
+                        {unread > 0 && (
+                            <span
+                                aria-label={`${unread} pesan belum dibaca`}
+                                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-xs font-medium text-primary-foreground tabular-nums"
+                            >
+                                <span aria-hidden="true">
+                                    {unread > 99 ? '99+' : unread}
                                 </span>
                             </span>
                         )}
