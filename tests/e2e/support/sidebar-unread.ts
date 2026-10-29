@@ -621,9 +621,19 @@ export async function openPrivateThread(
 
     try {
         await page.goto(viewer.pesanPath);
-        await page
-            .getByRole('button', { name: 'Cari percakapan', exact: true })
-            .click();
+        const search = page.getByRole('button', {
+            name: 'Cari percakapan',
+            exact: true,
+        });
+        const back = page.getByRole('button', {
+            name: 'Kembali ke daftar percakapan',
+            exact: true,
+        });
+        await expect(search.or(back)).toBeVisible();
+        if (await back.isVisible()) {
+            await back.click();
+        }
+        await search.click();
         await page.getByPlaceholder('Cari percakapan...').fill(partner.name);
 
         const row = page.locator(`[data-thread-id="${thread.id}"]`);
