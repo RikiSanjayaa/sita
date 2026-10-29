@@ -44,6 +44,7 @@ for (const touch of [false, true]) {
             const content = message.getByText(text, { exact: true });
             await expect(trigger).toHaveCSS('opacity', '0');
             async function openMenu() {
+                await expect(page.getByRole('menu')).toHaveCount(0);
                 if (touch) {
                     await content.tap();
                 } else {

@@ -269,7 +269,6 @@ test.describe('every searchable table keeps its complete controls together (#94)
                             await page
                                 .getByRole('option', {
                                     name: prefix,
-                                    exact: true,
                                 })
                                 .click();
                         }
@@ -437,7 +436,6 @@ test.describe('every searchable table keeps its complete controls together (#94)
                             const option = item.sharedToolbar
                                 ? page.getByRole('option', {
                                       name: prefix,
-                                      exact: true,
                                   })
                                 : page.getByRole('option').last();
                             await option.click();
