@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { CardContent } from '@/components/ui/card';
 
 import { ChatEmptyState } from './empty-state';
+import { messageDateLabel, messageDay } from './message-date';
 import { type ChatMessage, type ChatTone } from './types';
 import { type MessageSearchState } from './use-message-search';
 
@@ -23,6 +24,9 @@ type MessageListProps = {
     threadId: number | null;
     tone: ChatTone;
     userId?: number | null;
+    onReply?: (message: ChatMessage) => void;
+    onEdit?: (message: ChatMessage) => void;
+    onJump?: (id: number) => void;
 };
 
 function sameGroup(
@@ -49,6 +53,9 @@ export function MessageList({
     threadId,
     tone,
     userId,
+    onReply,
+    onEdit,
+    onJump,
 }: MessageListProps) {
     const viewportRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -59,6 +66,27 @@ export function MessageList({
     }>({ threadId: null, messageId: undefined });
     const [atBottom, setAtBottom] = useState(true);
     const latestMessage = messages.at(-1);
+    const [today, setToday] = useState(() => messageDay(new Date()));
+    const days = useMemo(() => {
+        const sections: { day: string; messages: ChatMessage[] }[] = [];
+        for (const message of messages) {
+            const day = messageDay(message.sentAt);
+            const previous = sections.at(-1);
+            if (previous?.day === day) previous.messages.push(message);
+            else sections.push({ day, messages: [message] });
+        }
+        return sections;
+    }, [messages]);
+
+    useEffect(() => {
+        const nextMidnight =
+            new Date(`${today}T00:00:00+08:00`).getTime() + 86_400_000;
+        const timer = window.setTimeout(
+            () => setToday(messageDay(new Date())),
+            Math.max(0, nextMidnight - Date.now()) + 50,
+        );
+        return () => window.clearTimeout(timer);
+    }, [today]);
 
     const reviewStatusByDocument = useMemo(() => {
         const statuses = new Map<number, string>();
@@ -128,61 +156,109 @@ export function MessageList({
             >
                 <div
                     ref={contentRef}
-                    className={search.isOpen ? 'pt-36' : 'pt-16'}
+                    className={search.isOpen ? 'pt-40' : 'pt-11'}
                 >
                     {threadId !== null && notice}
                     {threadId !== null ? (
                         <div className="flex flex-col pb-1">
-                            {messages.map((message, index) => {
-                                const messageId = String(message.id);
-                                const grouped = sameGroup(
-                                    messages[index - 1],
-                                    message,
-                                );
-                                return (
+                            {days.map(({ day, messages }) => (
+                                <section
+                                    key={day}
+                                    aria-label={messageDateLabel(day, today)}
+                                >
                                     <div
-                                        key={message.id}
-                                        data-message-id={message.id}
-                                        data-message-grouped={grouped}
-                                        ref={(element) => {
-                                            search.messageRefs.current[
-                                                messageId
-                                            ] = element;
-                                        }}
+                                        className={`pointer-events-none sticky z-[1] flex justify-center py-2 ${search.isOpen ? 'top-40' : 'top-11'}`}
                                     >
-                                        <ChatBubble
-                                            message={message}
-                                            grouped={grouped}
-                                            showTime={
-                                                !sameGroup(
-                                                    message,
-                                                    messages[index + 1],
-                                                )
-                                            }
-                                            reviewStatus={
-                                                message.relatedDocumentId ===
-                                                null
-                                                    ? null
-                                                    : (reviewStatusByDocument.get(
-                                                          message.relatedDocumentId,
-                                                      ) ?? null)
-                                            }
-                                            isMe={
-                                                message.senderUserId === userId
-                                            }
-                                            searchTerm={
-                                                search.matchIds.has(messageId)
-                                                    ? search.normalizedQuery
-                                                    : ''
-                                            }
-                                            isActiveMatch={
-                                                search.activeMatchId ===
-                                                messageId
-                                            }
-                                        />
+                                        <time
+                                            dateTime={day}
+                                            className="rounded-full bg-card px-3 py-1 text-xs font-medium text-card-foreground"
+                                        >
+                                            {messageDateLabel(day, today)}
+                                        </time>
                                     </div>
-                                );
-                            })}
+                                    {messages.map((message, index) => {
+                                        const messageId = String(message.id);
+                                        const grouped = sameGroup(
+                                            messages[index - 1],
+                                            message,
+                                        );
+                                        return (
+                                            <div
+                                                key={message.id}
+                                                data-message-id={message.id}
+                                                data-message-grouped={grouped}
+                                                ref={(element) => {
+                                                    search.messageRefs.current[
+                                                        messageId
+                                                    ] = element;
+                                                }}
+                                            >
+                                                <ChatBubble
+                                                    message={message}
+                                                    onReply={
+                                                        onReply &&
+                                                        message.senderUserId !==
+                                                            null &&
+                                                        message.type !==
+                                                            'pending'
+                                                            ? () =>
+                                                                  onReply(
+                                                                      message,
+                                                                  )
+                                                            : undefined
+                                                    }
+                                                    onEdit={
+                                                        onEdit &&
+                                                        message.senderUserId ===
+                                                            userId &&
+                                                        [
+                                                            'text',
+                                                            'attachment',
+                                                            'revision_suggestion',
+                                                        ].includes(message.type)
+                                                            ? () =>
+                                                                  onEdit(
+                                                                      message,
+                                                                  )
+                                                            : undefined
+                                                    }
+                                                    onJump={onJump}
+                                                    grouped={grouped}
+                                                    showTime={
+                                                        !sameGroup(
+                                                            message,
+                                                            messages[index + 1],
+                                                        )
+                                                    }
+                                                    reviewStatus={
+                                                        message.relatedDocumentId ===
+                                                        null
+                                                            ? null
+                                                            : (reviewStatusByDocument.get(
+                                                                  message.relatedDocumentId,
+                                                              ) ?? null)
+                                                    }
+                                                    isMe={
+                                                        message.senderUserId ===
+                                                        userId
+                                                    }
+                                                    searchTerm={
+                                                        search.matchIds.has(
+                                                            messageId,
+                                                        )
+                                                            ? search.normalizedQuery
+                                                            : ''
+                                                    }
+                                                    isActiveMatch={
+                                                        search.activeMatchId ===
+                                                        messageId
+                                                    }
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </section>
+                            ))}
                         </div>
                     ) : (
                         <ChatEmptyState
@@ -198,9 +274,9 @@ export function MessageList({
             {threadId !== null && !atBottom && (
                 <Button
                     type="button"
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    className="absolute right-3 bottom-3 gap-2 rounded-full border shadow-md max-md:min-h-11"
+                    className="absolute right-3 bottom-3 gap-2 rounded-full border bg-card text-card-foreground shadow-md hover:bg-card/90 hover:text-card-foreground max-md:min-h-11"
                     onClick={() => {
                         const viewport = viewportRef.current;
                         if (!viewport) return;

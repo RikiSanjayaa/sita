@@ -151,12 +151,12 @@ function PesanPageContent({
                 <ChatPanel
                     emptyTitle="Pilih Percakapan"
                     footer={
-                        activeThread?.isCompleted ? (
+                        activeThread?.isCompleted ||
+                        activeThread?.isArchived ? (
                             <div className="shrink-0 p-4 text-center">
                                 <p className="text-sm font-medium text-muted-foreground">
-                                    {academicTerminology.finalWork} Anda sudah
-                                    selesai. Percakapan ini hanya dapat dibaca
-                                    dan dihapus setelah masa arsip.
+                                    Percakapan ini hanya dapat dibaca karena
+                                    {` ${academicTerminology.finalWork} atau sesi terkait sudah selesai.`}
                                 </p>
                             </div>
                         ) : (
@@ -182,6 +182,21 @@ function PesanPageContent({
                     <MessageList
                         key={activeThread?.id ?? 'empty'}
                         messages={chat.activeMessages}
+                        onReply={
+                            !activeThread?.isCompleted &&
+                            !activeThread?.isArchived &&
+                            !mentorshipTicket?.suspended
+                                ? chat.composer.startReply
+                                : undefined
+                        }
+                        onEdit={
+                            !activeThread?.isCompleted &&
+                            !activeThread?.isArchived &&
+                            !mentorshipTicket?.suspended
+                                ? chat.composer.startEdit
+                                : undefined
+                        }
+                        onJump={chat.jumpToMessage}
                         notice={
                             !hasDosbing &&
                             activeThread?.threadType === 'pembimbing' ? (

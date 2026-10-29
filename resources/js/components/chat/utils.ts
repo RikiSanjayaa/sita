@@ -56,14 +56,19 @@ export function mergeMessages(
         return serverMessages;
     }
 
-    const serverMessageIds = new Set(
-        serverMessages.map((message) => message.id),
+    const merged = new Map(
+        serverMessages.map((message) => [message.id, message]),
     );
-
-    return [
-        ...serverMessages,
-        ...localMessages.filter((message) => !serverMessageIds.has(message.id)),
-    ];
+    for (const message of localMessages) {
+        const server = merged.get(message.id);
+        if (!server || (message.editedAt ?? '') > (server.editedAt ?? '')) {
+            merged.set(message.id, {
+                ...message,
+                ownReview: server?.ownReview ?? message.ownReview,
+            });
+        }
+    }
+    return [...merged.values()].sort((a, b) => a.id - b.id);
 }
 
 export function syncThreadSearchParam(

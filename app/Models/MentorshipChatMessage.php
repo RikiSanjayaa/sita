@@ -29,6 +29,8 @@ class MentorshipChatMessage extends Model
         'attachment_size_kb',
         'message_type',
         'message',
+        'reply_to_id',
+        'edited_at',
         'sent_at',
     ];
 
@@ -39,6 +41,7 @@ class MentorshipChatMessage extends Model
     {
         return [
             'sent_at' => 'datetime',
+            'edited_at' => 'datetime',
             'attachment_size_kb' => 'integer',
         ];
     }
@@ -75,6 +78,11 @@ class MentorshipChatMessage extends Model
     public function thread(): BelongsTo
     {
         return $this->belongsTo(MentorshipChatThread::class, 'mentorship_chat_thread_id');
+    }
+
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reply_to_id');
     }
 
     public function sender(): BelongsTo

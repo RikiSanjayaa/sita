@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ChatMessageController;
 use App\Http\Controllers\DocumentDetailController;
 use App\Http\Controllers\Dosen\DashboardController;
 use App\Http\Controllers\Dosen\DokumenRevisiController;
@@ -49,6 +50,8 @@ Route::middleware(['auth', 'verified', 'role:dosen'])->prefix('dosen')->name('do
         ->name('pesan.private.store');
     Route::post('pesan/{thread}/messages', [PesanBimbinganController::class, 'storeMessage'])
         ->name('pesan.messages.store');
+    Route::get('pesan/{thread}/messages/{message}', [ChatMessageController::class, 'show'])->name('pesan.messages.show');
+    Route::patch('pesan/{thread}/messages/{message}', [ChatMessageController::class, 'update'])->name('pesan.messages.update');
     Route::post('pesan/{thread}/read', [PesanBimbinganController::class, 'markAsRead'])
         ->name('pesan.read');
 

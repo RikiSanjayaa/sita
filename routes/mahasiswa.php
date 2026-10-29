@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ChatMessageController;
 use App\Http\Controllers\DocumentDetailController;
 use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\JadwalBimbinganController;
@@ -44,6 +45,8 @@ Route::middleware(['auth', 'verified', 'role:mahasiswa'])->prefix('mahasiswa')->
     Route::get('pesan', [PesanController::class, 'index'])->name('pesan');
     Route::post('pesan/private', [PesanController::class, 'storePrivateThread'])->name('pesan.private.store');
     Route::post('pesan/{thread}/messages', [PesanController::class, 'storeMessage'])->name('pesan.messages.store');
+    Route::get('pesan/{thread}/messages/{message}', [ChatMessageController::class, 'show'])->name('pesan.messages.show');
+    Route::patch('pesan/{thread}/messages/{message}', [ChatMessageController::class, 'update'])->name('pesan.messages.update');
     Route::post('pesan/{thread}/read', [PesanController::class, 'markAsRead'])->name('pesan.read');
 
     Route::get('panduan', PanduanController::class)->name('panduan');

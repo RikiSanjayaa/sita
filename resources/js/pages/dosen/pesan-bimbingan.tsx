@@ -281,6 +281,19 @@ function DosenPesanBimbinganContent({
                     <MessageList
                         key={activeThread?.id ?? 'empty'}
                         messages={chat.activeMessages}
+                        onReply={
+                            !activeThread?.isCompleted &&
+                            !activeThread?.isArchived
+                                ? chat.composer.startReply
+                                : undefined
+                        }
+                        onEdit={
+                            !activeThread?.isCompleted &&
+                            !activeThread?.isArchived
+                                ? chat.composer.startEdit
+                                : undefined
+                        }
+                        onJump={chat.jumpToMessage}
                         search={messageSearch}
                         threadId={activeThread?.id ?? null}
                         tone="flat"
