@@ -71,7 +71,7 @@ class WelcomeController extends Controller
             'advisorPrograms' => $advisorDirectory
                 ->map(fn(array $advisor): array => [
                     'slug' => $advisor['programSlug'],
-                    'name' => $advisor['programStudi'],
+                    'name' => $advisor['programLabel'],
                 ])
                 ->unique('slug')
                 ->sortBy('name')
@@ -358,6 +358,7 @@ class WelcomeController extends Controller
                     'id' => $lecturer->id,
                     'name' => $lecturer->name,
                     'programStudi' => $programStudi?->name ?? 'Belum diatur',
+                    'programLabel' => $programStudi === null ? 'Belum diatur' : AcademicTerminology::programStudiLabel($programStudi),
                     'programSlug' => $programStudi?->slug ?? 'umum',
                     'concentration' => $profile?->concentration ?? ProgramStudi::DEFAULT_GENERAL_CONCENTRATION,
                     'primaryCount' => $primaryCount,
@@ -555,7 +556,7 @@ class WelcomeController extends Controller
             ->get()
             ->map(fn(ThesisProject $project): array => [
                 'programSlug' => $project->programStudi?->slug ?? 'umum',
-                'programStudi' => $project->programStudi?->name ?? '-',
+                'programStudi' => $project->programStudi === null ? '-' : AcademicTerminology::programStudiLabel($project->programStudi),
             ])
             ->unique('programSlug')
             ->sortBy('programStudi')
@@ -694,7 +695,7 @@ class WelcomeController extends Controller
 
                 return [
                     'slug' => $program->slug,
-                    'name' => $program->name,
+                    'name' => AcademicTerminology::programStudiLabel($program),
                 ];
             })
             ->filter()

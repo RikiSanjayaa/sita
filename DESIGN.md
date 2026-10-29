@@ -439,6 +439,8 @@ Approved in #82 for the public list pages; tables and lists in the mahasiswa, do
 Progress Seluruh Mahasiswa (`/progres-mahasiswa`, #179) uses that exact global title in navigation, breadcrumbs, heading and browser tab. Dashboard sections covering only a subset keep their own titles. The authenticated student's eligible row leads the filtered query before pagination, including students without a thesis; a soft primary Anda badge beside the identity stays visible at desktop and phone widths. Search/filter exclusions do not insert self outside the result. Other students retain latest-progress/name/profile-ID order, and non-student ordering stays unchanged.
 The Anda row also has a quiet `primary-muted/60` background across its full desktop/mobile entry, with `primary-muted` on hover. Ordinary rows keep their existing neutral hover; no status hue, extra border or stronger selection treatment is added.
 
+Programme filter options on Progress Seluruh Mahasiswa and the public mahasiswa, topik and pembimbing pages include their configured degree levels: `Ilmu Komputer (S1)` and `Ilmu Komputer (S2)`. A single programme offering several levels lists them together, for example `Rekayasa Perangkat Lunak (D3, S1)`. Keep distinct programme IDs/slugs and the existing page-specific populations; identical names never merge programmes. Labels come from `AcademicTerminology::programStudiLabel()`.
+
 ### Portal: kaprodi
 
 Decided in #85, desktop-first and clean at 390px. The five kaprodi pages (dashboard, Mahasiswa Prodi, Sempro / Sinopsis & Sidang Akhir, Dokumen, Dosen Prodi) all start with `PageHeader` and compose lists from the data-list patterns above.
