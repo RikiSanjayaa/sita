@@ -26,6 +26,7 @@ type MessageListProps = {
     userId?: number | null;
     onReply?: (message: ChatMessage) => void;
     onEdit?: (message: ChatMessage) => void;
+    onCompose?: () => void;
     onJump?: (id: number) => void;
 };
 
@@ -55,6 +56,7 @@ export function MessageList({
     userId,
     onReply,
     onEdit,
+    onCompose,
     onJump,
 }: MessageListProps) {
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -195,6 +197,7 @@ export function MessageList({
                                             >
                                                 <ChatBubble
                                                     message={message}
+                                                    onCompose={onCompose}
                                                     onReply={
                                                         onReply &&
                                                         message.senderUserId !==

@@ -86,6 +86,7 @@ class PesanController extends Controller
             ])
             ->whereIn('id', $allThreadIds)
             ->withMax('messages', 'created_at')
+            ->withCount(['messages as unread_count' => fn ($query) => $query->unreadFor($student->id)])
             ->orderByDesc('messages_max_created_at')
             ->orderByDesc('id')
             ->get();
@@ -164,6 +165,7 @@ class PesanController extends Controller
                 'members' => $members,
                 'memberProfiles' => $memberProfiles,
                 'messages' => $messages,
+                'unread' => (int) $thread->unread_count,
                 'preview' => $this->payloadBuilder->displayText($thread->latestMessage?->message) ?? 'Belum ada pesan',
                 'lastTime' => $thread->latestMessage?->created_at?->diffForHumans() ?? '-',
                 'latestActivityAt' => $thread->latestMessage?->created_at?->toIso8601String(),

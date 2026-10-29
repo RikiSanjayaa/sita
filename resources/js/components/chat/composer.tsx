@@ -19,6 +19,7 @@ type ComposerProps = {
 
 /** Message input with attachment picker and send button. */
 export function Composer({ composer, disabled, isMobile }: ComposerProps) {
+    const { bindMessageInput } = composer;
     const fileRef = useRef<HTMLInputElement | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const canAttach =
@@ -103,9 +104,13 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                 type="file"
                 accept={CHAT_ATTACHMENT_ACCEPT}
                 className="hidden"
-                onChange={(event) =>
-                    composer.pickAttachment(event.target.files?.item(0) ?? null)
-                }
+                onChange={(event) => {
+                    const file = event.target.files?.item(0) ?? null;
+                    if (file !== null) {
+                        composer.pickAttachment(file);
+                        composer.focusMessageInput();
+                    }
+                }}
             />
             <div className="flex items-center gap-2">
                 <Button
@@ -120,6 +125,7 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                     <Plus className="size-4" />
                 </Button>
                 <Input
+                    ref={bindMessageInput}
                     value={composer.message}
                     onChange={(event) =>
                         composer.setMessage(event.target.value)
@@ -148,7 +154,10 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                         composer.editing ? 'Simpan perubahan' : 'Kirim pesan'
                     }
                     size="icon"
-                    onClick={composer.send}
+                    onClick={() => {
+                        composer.send();
+                        composer.focusMessageInput();
+                    }}
                     disabled={!composer.canSend}
                     className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-card disabled:text-muted-foreground disabled:opacity-100 max-md:size-11"
                 >
@@ -177,7 +186,10 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                     <Button
                         type="button"
                         variant="ghost"
-                        onClick={composer.removeAttachment}
+                        onClick={() => {
+                            composer.removeAttachment();
+                            composer.focusMessageInput();
+                        }}
                         disabled={composer.preparing}
                     >
                         Hapus pilihan
@@ -193,7 +205,10 @@ export function Composer({ composer, disabled, isMobile }: ComposerProps) {
                         file={composer.attachment}
                         onCancel={composer.cancelSend}
                         onDocumentNameChange={composer.setDocumentName}
-                        onRemove={composer.removeAttachment}
+                        onRemove={() => {
+                            composer.removeAttachment();
+                            composer.focusMessageInput();
+                        }}
                         onReplace={() => fileRef.current?.click()}
                         previewUrl={composer.previewUrl}
                         processing={composer.processing}

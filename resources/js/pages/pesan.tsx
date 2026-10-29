@@ -32,6 +32,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type ThreadItem = ChatThread & {
     name: string;
+    unread: number;
 };
 
 type PesanPageProps = {
@@ -76,7 +77,7 @@ function PesanPageContent({
         usePage<SharedData>().props;
 
     const [mobileView, setMobileView] = useState<MobileView>(() =>
-        resolveInitialMobileView(initialThreads),
+        resolveInitialMobileView(initialThreads, auth.user?.id),
     );
     const [threadListSearch, setThreadListSearch] = useState('');
 
@@ -134,6 +135,7 @@ function PesanPageContent({
                         description:
                             'Mulai chat pribadi atau buka grup bimbingan yang tersedia.',
                     }}
+                    unreadCount={(thread) => thread.unread}
                     isMobile={isMobile}
                     messagesFor={chat.messagesFor}
                     mobileView={mobileView}
@@ -182,6 +184,7 @@ function PesanPageContent({
                     <MessageList
                         key={activeThread?.id ?? 'empty'}
                         messages={chat.activeMessages}
+                        onCompose={chat.composer.focusMessageInput}
                         onReply={
                             !activeThread?.isCompleted &&
                             !activeThread?.isArchived &&

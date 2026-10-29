@@ -113,17 +113,61 @@ function queryThreadId(threads: ChatThread[]): number | null {
         : null;
 }
 
-export function resolveInitialThreadId(threads: ChatThread[]): number | null {
+function rememberedThreadId(
+    threads: ChatThread[],
+    userId?: number | null,
+): number | null {
+    if (typeof window === 'undefined' || userId == null) return null;
+
+    try {
+        const id = Number(
+            window.sessionStorage.getItem(
+                `chat-thread:${userId}:${window.location.pathname}`,
+            ),
+        );
+        return threads.some((thread) => thread.id === id) ? id : null;
+    } catch {
+        return null;
+    }
+}
+
+export function rememberThreadId(
+    threadId: number,
+    userId?: number | null,
+): void {
+    if (typeof window === 'undefined' || userId == null) return;
+
+    try {
+        window.sessionStorage.setItem(
+            `chat-thread:${userId}:${window.location.pathname}`,
+            String(threadId),
+        );
+    } catch {
+        // Navigation still works when browser storage is unavailable.
+    }
+}
+
+export function resolveInitialThreadId(
+    threads: ChatThread[],
+    userId?: number | null,
+): number | null {
     return (
         queryThreadId(threads) ??
+        rememberedThreadId(threads, userId) ??
         threads.find((thread) => !thread.isCompleted)?.id ??
         threads[0]?.id ??
         null
     );
 }
 
-export function resolveInitialMobileView(threads: ChatThread[]): MobileView {
-    return queryThreadId(threads) === null ? 'threads' : 'chat';
+export function resolveInitialMobileView(
+    threads: ChatThread[],
+    userId?: number | null,
+): MobileView {
+    return (queryThreadId(threads) ?? rememberedThreadId(threads, userId)) ===
+        null
+        ? 'threads'
+        : 'chat';
 }
 
 export function privateTargetProfile(
