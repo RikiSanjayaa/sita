@@ -1,9 +1,3 @@
-const dayFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Makassar',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-});
 const fullDateFormatter = new Intl.DateTimeFormat('id-ID', {
     timeZone: 'Asia/Makassar',
     weekday: 'long',
@@ -13,9 +7,10 @@ const fullDateFormatter = new Intl.DateTimeFormat('id-ID', {
 });
 
 export function messageDay(value: string | Date): string {
-    return dayFormatter.format(
-        typeof value === 'string' ? new Date(value) : value,
-    );
+    const instant =
+        typeof value === 'string' ? Date.parse(value) : value.getTime();
+    // WITA is UTC+08:00; ISO keys must not depend on a display locale.
+    return new Date(instant + 8 * 60 * 60 * 1_000).toISOString().slice(0, 10);
 }
 
 export function messageDateLabel(day: string, today: string): string {
