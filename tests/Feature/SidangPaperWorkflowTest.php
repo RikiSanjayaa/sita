@@ -86,6 +86,9 @@ it('prints the scheduled identity, records actual panel totals, and exports only
         ->assertOk()->assertSee('<p>LULUS</p>', false)->assertDontSee('□ LULUS');
     $sheet = sidangReportSheet($this->post(route('sidang.report'), $params)->assertDownload('rekap-nilai-sidang.xlsx')->streamedContent());
     expect($sheet)->toContain($student->name, 'Sistem Rekap Penilaian', 'A7:A9', 'B+', 'Semester Uji');
+    $formulaLikePeriod = array_replace($params, ['period' => '=2+2']);
+    expect(sidangReportSheet($this->post(route('sidang.report'), $formulaLikePeriod)->streamedContent()))
+        ->toContain('=2+2')->not->toContain('<f>');
 
     $this->actingAs(User::factory()->asAdmin()->create())->get(route('sidang.paper.show', $defense))->assertForbidden();
     $this->actingAs($admin);

@@ -6,6 +6,8 @@ use App\Models\ProgramStudi;
 use App\Support\AcademicTerminology;
 use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
+use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Writer\XLSX\Entity\SheetView;
@@ -45,8 +47,8 @@ final class SidangReportWriter
                     $sheet->setSheetView((new SheetView)->setFreezeRow(6));
                     $terms = AcademicTerminology::forProject($project);
                     $writer->addRow(Row::fromValues(['Rekap Nilai '.$terms['finalWork'].' - '.$program->name], $title));
-                    $writer->addRow(Row::fromValues([$paper['settings']['heading'] ?? SidangSettings::DEFAULTS['heading'], $program->faculty?->name]));
-                    $writer->addRow(Row::fromValues(['Periode', $period ?: 'Semua tanggal sidang']));
+                    $writer->addRow($this->textSafeRow([$paper['settings']['heading'] ?? SidangSettings::DEFAULTS['heading'], $program->faculty?->name]));
+                    $writer->addRow($this->textSafeRow(['Periode', $period ?: 'Semua tanggal sidang']));
                     $writer->addRow(Row::fromValues(['Dicetak', WitaDateTime::format(now(), 'd/m/Y')]));
                     $writer->addRow(Row::fromValues([' ']));
                     $writer->addRow(Row::fromValues([
@@ -68,7 +70,7 @@ final class SidangReportWriter
                     $supervisor = $supervisors->get($index);
                     $assessor = $defense->examiners->find($score['panel_id'])?->lecturer;
                     $first = $index === 0;
-                    $writer->addRow(Row::fromValues([
+                    $writer->addRow($this->textSafeRow([
                         $first ? $number : null, $first ? $student?->name : null,
                         $first && $profile?->nim !== null ? (string) $profile->nim : null,
                         $first ? 'Personal' : null, $first ? $defense->sidang_sk : null,
@@ -95,6 +97,16 @@ final class SidangReportWriter
         }
     }
 
+    private function textSafeRow(array $values, ?Style $style = null): Row
+    {
+        return new Row(array_map(
+            fn ($value): Cell => is_string($value) && str_starts_with($value, '=')
+                ? new StringCell($value, null)
+                : Cell::fromValue($value),
+            $values,
+        ), $style);
+    }
+
     private function writeSignatures(Writer $writer, ProgramStudi $program): void
     {
         $settings = SidangSettings::forProgram($program);
@@ -105,7 +117,7 @@ final class SidangReportWriter
         for ($space = 0; $space < 3; $space++) {
             $writer->addRow(Row::fromValues([' ']));
         }
-        $writer->addRow(Row::fromValues([$settings['dean_name'], null, null, null, null, $head?->name, null, null, null, $settings['staff_name']]));
-        $writer->addRow(Row::fromValues([$settings['dean_nik'], null, null, null, null, $head?->dosenProfile?->nik, null, null, null, $settings['staff_nik']]));
+        $writer->addRow($this->textSafeRow([$settings['dean_name'], null, null, null, null, $head?->name, null, null, null, $settings['staff_name']]));
+        $writer->addRow($this->textSafeRow([$settings['dean_nik'], null, null, null, null, $head?->dosenProfile?->nik, null, null, null, $settings['staff_nik']]));
     }
 }
