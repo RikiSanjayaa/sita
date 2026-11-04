@@ -11,9 +11,10 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
     await page
         .getByPlaceholder('Cari nama, NIM, judul, atau dosen...')
         .fill('Sinta Sidang Terjadwal');
-    const row = page
-        .getByRole('row')
-        .filter({ hasText: 'Sinta Sidang Terjadwal' });
+    const row = page.getByRole('row').filter({
+        has: page.getByRole('cell', { name: /^Sidang .*#/ }),
+        hasText: 'Sinta Sidang Terjadwal',
+    });
     await row.getByRole('button', { name: 'Aksi lainnya' }).click();
     await page.getByRole('menuitem', { name: 'Kelola berkas sidang' }).click();
     await expect(
