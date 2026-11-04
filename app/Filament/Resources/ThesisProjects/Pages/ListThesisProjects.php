@@ -7,13 +7,17 @@ use App\Services\ThesisProjectImportService;
 use App\Support\AcademicTerminology;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
@@ -28,6 +32,26 @@ class ListThesisProjects extends ListRecords
         $finalWork = AcademicTerminology::neutral()['finalWork'];
 
         return [
+            Action::make('exportSidangReport')
+                ->label('Ekspor Rekap Nilai')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->color('gray')
+                ->modalHeading('Rekap Nilai Sidang')
+                ->modalDescription('Hasil sidang lulus dari berkas yang sudah dikonfirmasi, sesuai filter tabel dan tanggal sidang WITA.')
+                ->modalSubmitActionLabel('Unduh Excel')
+                ->schema([
+                    DatePicker::make('from')->label('Dari tanggal')->required(),
+                    DatePicker::make('until')->label('Sampai tanggal')->required()->afterOrEqual('from'),
+                    TextInput::make('period')->label('Nama periode')->maxLength(80)->placeholder('Contoh: Ganjil 2026/2027'),
+                ])
+                ->action(function (array $data): void {
+                    $query = $this->getTableQueryForExport()->reorder()->select('thesis_projects.id')->toBase();
+                    $token = (string) Str::uuid();
+                    Cache::store('database')->put('sidang-export:'.$token, [
+                        'user' => Auth::id(), 'sql' => $query->toSql(), 'bindings' => $query->getBindings(),
+                    ], now()->addMinutes(5));
+                    $this->js('window.location.assign('.json_encode(route('sidang.report', [...$data, 'selection' => $token]), JSON_HEX_TAG | JSON_THROW_ON_ERROR).')');
+                }),
             Action::make('downloadThesisImportTemplate')
                 ->label('Download Template')
                 ->icon('heroicon-m-arrow-down-tray')

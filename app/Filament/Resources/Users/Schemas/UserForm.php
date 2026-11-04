@@ -155,6 +155,9 @@ class UserForm
                             ->label('NIK')
                             ->required()
                             ->maxLength(255),
+                        TextInput::make('sidang_nidn')
+                            ->label('NIDN')
+                            ->maxLength(30),
                         TextInput::make('supervision_quota')
                             ->label('Kuota Bimbingan')
                             ->hintIcon(

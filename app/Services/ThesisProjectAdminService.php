@@ -507,11 +507,13 @@ class ThesisProjectAdminService
         $wasRescheduled = false;
 
         $defense = DB::transaction(function () use ($project, $createdBy, $scheduledFor, $scheduledUntil, $location, $mode, $panelUserIds, $notes, $terminology, &$wasRescheduled): ThesisDefense {
-            $attemptNo = (int) $project->sidangDefenses()->max('attempt_no');
-            $openDefense = $project->sidangDefenses()
-                ->whereIn('status', ['draft', 'scheduled'])
-                ->latest('attempt_no')
-                ->first();
+            $project->newQuery()->lockForUpdate()->findOrFail($project->id);
+            $latest = $project->sidangDefenses()->latest('attempt_no')->lockForUpdate()->first();
+            if ($latest?->status === 'awaiting_finalization') {
+                throw new RuntimeException($terminology['finalExamShort'].' sedang menunggu finalisasi.');
+            }
+            $attemptNo = (int) $latest?->attempt_no;
+            $openDefense = in_array($latest?->status, ['draft', 'scheduled'], true) ? $latest : null;
             $wasRescheduled = $openDefense instanceof ThesisDefense && $openDefense->status === 'scheduled';
 
             $defense = $openDefense instanceof ThesisDefense
@@ -609,6 +611,10 @@ class ThesisProjectAdminService
         }
 
         DB::transaction(function () use ($defense, $project, $updatedBy, $scheduledFor, $scheduledUntil, $location, $mode, $notes, $terminology): void {
+            $defense = $defense->newQuery()->lockForUpdate()->findOrFail($defense->id);
+            if (! in_array($defense->status, ['draft', 'scheduled'], true)) {
+                throw new RuntimeException($terminology['finalExamShort'].' tidak dapat dijadwalkan ulang.');
+            }
             $updates = [
                 'scheduled_for' => $scheduledFor,
                 'scheduled_until' => $scheduledUntil,
@@ -672,9 +678,11 @@ class ThesisProjectAdminService
     ): ThesisProject {
         $terminology = AcademicTerminology::forProject($project);
         $updatedProject = DB::transaction(function () use ($project, $decidedBy, $result, $notes, $revisionNotes, $revisionDueAt, $terminology): ThesisProject {
+            $project = $project->newQuery()->lockForUpdate()->findOrFail($project->id);
             $defense = $project->sidangDefenses()
                 ->latest('attempt_no')
                 ->with('examiners')
+                ->lockForUpdate()
                 ->first();
 
             if (! $defense instanceof ThesisDefense) {

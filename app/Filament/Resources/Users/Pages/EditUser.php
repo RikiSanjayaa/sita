@@ -53,6 +53,7 @@ class EditUser extends EditRecord
         }
         $data['angkatan'] = $this->record->mahasiswaProfile?->angkatan;
         $data['nik'] = $this->record->dosenProfile?->nik;
+        $data['sidang_nidn'] = $this->record->dosenProfile?->sidang_nidn;
         $data['supervision_quota'] = $this->record->dosenProfile?->supervision_quota;
         $data['is_active'] = $this->record->mahasiswaProfile?->is_active ?? $this->record->dosenProfile?->is_active ?? true;
         $data['is_obe_curriculum'] = $this->record->mahasiswaProfile?->is_obe_curriculum ?? false;
@@ -79,6 +80,7 @@ class EditUser extends EditRecord
             'academic_assignments' => $data['academic_assignments'] ?? [],
             'angkatan' => $data['angkatan'] ?? null,
             'nik' => $data['nik'] ?? null,
+            'sidang_nidn' => $data['sidang_nidn'] ?? null,
             'supervision_quota' => $data['supervision_quota'] ?? null,
             'is_active' => $data['is_active'] ?? true,
             'is_obe_curriculum' => (bool) ($data['is_obe_curriculum'] ?? false),
@@ -94,6 +96,7 @@ class EditUser extends EditRecord
             $data['academic_assignments'],
             $data['angkatan'],
             $data['nik'],
+            $data['sidang_nidn'],
             $data['supervision_quota'],
             $data['is_active'],
             $data['is_obe_curriculum'],

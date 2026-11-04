@@ -368,6 +368,8 @@ class TugasAkhirController extends Controller
 
         return [
             'label' => $label,
+            'paperScore' => $defense->sidang_paper['value'] ?? null,
+            'paperGrade' => $defense->sidang_paper['grade'] ?? null,
             'resultLabel' => match ($defense->result) {
                 'pass' => 'Lulus',
                 'pass_with_revision' => $defense->type === 'sidang' ? 'Lulus dengan Syarat' : 'Lulus',
@@ -436,6 +438,8 @@ class TugasAkhirController extends Controller
                 return [
                     'id' => $defense->id,
                     'attemptNo' => $defense->attempt_no,
+                    'paperScore' => $defense->status === 'completed' ? ($defense->sidang_paper['value'] ?? null) : null,
+                    'paperGrade' => $defense->status === 'completed' ? ($defense->sidang_paper['grade'] ?? null) : null,
                     'statusLabel' => match ($defense->status) {
                         'draft' => 'Draft',
                         'scheduled' => 'Dijadwalkan',

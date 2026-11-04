@@ -3,6 +3,7 @@ import {
     CalendarClock,
     CheckCircle2,
     Clock,
+    Download,
     Eye,
     FileWarning,
     Inbox,
@@ -10,6 +11,7 @@ import {
     MoreHorizontal,
     Pencil,
     Plus,
+    Printer,
     Star,
     User,
     XCircle,
@@ -82,6 +84,8 @@ import {
     type AcademicTerminology,
 } from '@/lib/academic-terminology';
 import { cn } from '@/lib/utils';
+import { report } from '@/routes/sidang';
+import { show as showSidangPaper } from '@/routes/sidang/paper';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type ProgramStudi = {
@@ -108,6 +112,8 @@ type ExamRow = {
     averageScore: number | null;
     scoreRequired: boolean;
     grade: string | null;
+    paperRecorded: boolean;
+    readyForReport: boolean;
     student: string;
     terminology: AcademicTerminology;
     nim: string | null;
@@ -307,6 +313,7 @@ export default function KaprodiSemproSidangPage() {
     );
     const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
+    const [showReport, setShowReport] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
@@ -463,6 +470,16 @@ export default function KaprodiSemproSidangPage() {
                                     Jadwalkan {terms.finalExam}
                                 </Button>
                             ) : null}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="max-md:h-11 max-md:flex-1"
+                                onClick={() => setShowReport(true)}
+                            >
+                                <Download className="size-4" aria-hidden />{' '}
+                                Rekap Nilai Sidang
+                            </Button>
                         </DataToolbar>
 
                         <div className="flex flex-col gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
@@ -731,6 +748,28 @@ export default function KaprodiSemproSidangPage() {
                                                                 Lihat detail
                                                                 ujian
                                                             </DropdownMenuItem>
+                                                            {item.typeKey ===
+                                                                'sidang' &&
+                                                                item.statusKey !==
+                                                                    'cancelled' && (
+                                                                    <DropdownMenuItem
+                                                                        asChild
+                                                                    >
+                                                                        <Link
+                                                                            href={
+                                                                                showSidangPaper(
+                                                                                    item.id,
+                                                                                )
+                                                                                    .url
+                                                                            }
+                                                                        >
+                                                                            <Printer className="size-4" />
+                                                                            Kelola
+                                                                            berkas
+                                                                            sidang
+                                                                        </Link>
+                                                                    </DropdownMenuItem>
+                                                                )}
                                                             <DropdownMenuItem
                                                                 asChild
                                                             >
@@ -757,6 +796,69 @@ export default function KaprodiSemproSidangPage() {
                 </DataSection>
             </div>
 
+            <Dialog open={showReport} onOpenChange={setShowReport}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rekap Nilai Sidang</DialogTitle>
+                        <DialogDescription>
+                            File mengikuti filter daftar ujian dan memuat hasil
+                            sidang lulus yang sudah dikonfirmasi dari berkas.
+                            Periode dihitung dari tanggal sidang dalam WITA.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form
+                        method="post"
+                        action={report.url()}
+                        className="space-y-4"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value={
+                                typeof document === 'undefined'
+                                    ? ''
+                                    : (document.querySelector<HTMLMetaElement>(
+                                          'meta[name="csrf-token"]',
+                                      )?.content ?? '')
+                            }
+                        />
+                        <input
+                            type="hidden"
+                            name="ids"
+                            value={
+                                filtered
+                                    .filter((exam) => exam.readyForReport)
+                                    .map((exam) => exam.id)
+                                    .join(',') || '0'
+                            }
+                        />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="space-y-1 text-sm font-medium">
+                                Dari tanggal
+                                <Input type="date" name="from" required />
+                            </label>
+                            <label className="space-y-1 text-sm font-medium">
+                                Sampai tanggal
+                                <Input type="date" name="until" required />
+                            </label>
+                        </div>
+                        <label className="block space-y-1 text-sm font-medium">
+                            Nama periode
+                            <Input
+                                name="period"
+                                placeholder="Contoh: Ganjil 2026/2027"
+                                maxLength={80}
+                            />
+                        </label>
+                        <DialogFooter>
+                            <Button type="submit">
+                                <Download className="size-4" aria-hidden />{' '}
+                                Unduh Excel
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
             <ExamDetailSheet
                 item={selected}
                 open={selected !== null}
@@ -903,6 +1005,32 @@ function ExamDetailSheet({
                                 />
                             </div>
                         </div>
+                        {item.typeKey === 'sidang' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button asChild variant="outline">
+                                    <Link href={showSidangPaper(item.id).url}>
+                                        <Printer
+                                            className="size-4"
+                                            aria-hidden
+                                        />{' '}
+                                        Kelola Berkas Sidang
+                                    </Link>
+                                </Button>
+                                {item.readyForReport && (
+                                    <Badge variant="secondary">
+                                        Siap Direkap
+                                    </Badge>
+                                )}
+                                {item.paperRecorded &&
+                                    !item.readyForReport &&
+                                    item.statusKey ===
+                                        'awaiting_finalization' && (
+                                        <Badge variant="outline">
+                                            Nilai Berkas Tersimpan
+                                        </Badge>
+                                    )}
+                            </div>
+                        )}
                         <DefenseRevisionLog log={item.revisionLog} />
                     </div>
                 </ScrollArea>

@@ -127,6 +127,9 @@ type DefenseItem = {
     titleEn: string;
     defenseStatus: string;
     defenseResult: string;
+    paperScore: number | null;
+    paperGrade: string | null;
+    paperUrl: string | null;
     scheduledFor: string | null;
     /** ISO 8601, for sorting; scheduledFor is the Indonesian display text. */
     scheduledAt: string | null;
@@ -642,11 +645,13 @@ function DefenseDetailSheet({
 
     const canDecide =
         item.myDecision === 'pending' && item.defenseStatus === 'scheduled';
-    const averageScore = calculateAverageAcademicScore([
-        item.myScore,
-        ...item.otherExaminers.map((e) => e.score),
-    ]);
-    const finalGrade = resolveAcademicGrade(averageScore);
+    const averageScore =
+        item.paperScore ??
+        calculateAverageAcademicScore([
+            item.myScore,
+            ...item.otherExaminers.map((e) => e.score),
+        ]);
+    const finalGrade = item.paperGrade ?? resolveAcademicGrade(averageScore);
 
     function handleClose() {
         setShowDecisionForm(false);
@@ -722,6 +727,22 @@ function DefenseDetailSheet({
                                 {item.chatLabel}
                             </Link>
                         </Button>
+                        {item.paperUrl && (
+                            <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="max-md:h-11"
+                            >
+                                <a
+                                    href={item.paperUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Cetak Paket Sidang
+                                </a>
+                            </Button>
+                        )}
 
                         <section aria-labelledby="exam-documents-heading">
                             <h3
@@ -902,7 +923,10 @@ function DefenseDetailSheet({
                                 {averageScore !== null && (
                                     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3">
                                         <span className="font-medium tabular-nums">
-                                            Rata-rata {averageScore.toFixed(2)}
+                                            {item.paperScore !== null
+                                                ? 'Nilai akhir '
+                                                : 'Rata-rata '}
+                                            {averageScore.toFixed(2)}
                                             {finalGrade
                                                 ? ` (Grade ${finalGrade})`
                                                 : ''}

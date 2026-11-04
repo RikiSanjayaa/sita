@@ -109,6 +109,9 @@ class KaprodiPortalService
             ->latest('scheduled_for')
             ->get();
 
+        $latestSidangAttempts = $defenses->where('type', 'sidang')->where('status', '!=', 'cancelled')
+            ->groupBy('project_id')->map(fn (Collection $attempts): int => $attempts->max('attempt_no'));
+
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
             'summaryCards' => collect(['sempro', 'sidang'])
@@ -128,9 +131,13 @@ class KaprodiPortalService
                 'status' => $this->statusLabel($defense->status),
                 'statusKey' => $defense->status,
                 'result' => $this->defenseResultLabel($defense),
-                'averageScore' => $this->averageScore($defense),
+                'averageScore' => $defense->sidang_paper['value'] ?? $this->averageScore($defense),
                 'scoreRequired' => $defense->requiresScore(),
-                'grade' => $this->grade($this->averageScore($defense)),
+                'grade' => $defense->sidang_paper['grade'] ?? $this->grade($this->averageScore($defense)),
+                'paperRecorded' => $defense->sidang_paper !== null,
+                'readyForReport' => $defense->sidang_paper !== null && $defense->status === 'completed'
+                    && in_array($defense->result, ['pass', 'pass_with_revision'], true)
+                    && $defense->attempt_no === $latestSidangAttempts->get($defense->project_id),
                 'student' => $defense->project?->student?->name ?? 'Mahasiswa',
                 'terminology' => $defense->project instanceof ThesisProject
                     ? AcademicTerminology::forProject($defense->project)

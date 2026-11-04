@@ -916,6 +916,16 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await expect(row).toContainText('Dr. Ratna Kusuma');
                 await expect(row).toContainText('Dr. Fajar Nugraha');
 
+                await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+                await kaprodiPage
+                    .getByRole('menuitem', { name: 'Kelola berkas sidang' })
+                    .click();
+                await expect(
+                    kaprodiPage.getByRole('link', {
+                        name: 'Cetak Paket Sidang',
+                    }),
+                ).toBeVisible();
+
                 await studentPage.goto('/mahasiswa/tugas-akhir');
                 await expect(
                     studentPage.getByText(thesis.sidangLocation).first(),

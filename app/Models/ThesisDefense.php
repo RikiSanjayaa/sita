@@ -39,6 +39,7 @@ class ThesisDefense extends Model
             'scheduled_for' => 'datetime',
             'scheduled_until' => 'datetime',
             'decision_at' => 'datetime',
+            'sidang_paper' => 'array',
         ];
     }
 
@@ -55,6 +56,11 @@ class ThesisDefense extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function moderator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'moderator_user_id');
     }
 
     public function decidedBy(): BelongsTo

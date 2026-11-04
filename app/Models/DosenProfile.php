@@ -18,6 +18,7 @@ class DosenProfile extends Model
     protected $fillable = [
         'user_id',
         'nik',
+        'sidang_nidn',
         'program_studi_id',
         'concentration',
         'supervision_quota',

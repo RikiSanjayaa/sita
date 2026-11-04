@@ -33,6 +33,7 @@ class ProgramStudi extends Model
         'slug',
         'concentrations',
         'degree_levels',
+        'sidang_settings',
         'student_guide_content',
         'student_guide_updated_by',
         'student_guide_updated_at',
@@ -43,6 +44,7 @@ class ProgramStudi extends Model
         return [
             'concentrations' => 'array',
             'degree_levels' => 'array',
+            'sidang_settings' => 'array',
             'student_guide_content' => 'array',
             'student_guide_updated_at' => 'datetime',
         ];

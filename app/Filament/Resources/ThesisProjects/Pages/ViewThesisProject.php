@@ -638,6 +638,9 @@ class ViewThesisProject extends ViewRecord
                     ]),
                     TextEntry::make('result_summary')->label('Hasil akhir')
                         ->state($result === 'fail' ? 'Tidak Lulus' : ($type === 'sidang' && $result === 'pass_with_revision' ? 'Lulus dengan Syarat' : 'Lulus')),
+                    TextEntry::make('paper_score')->label('Nilai akhir dari berkas')
+                        ->visible($type === 'sidang' && $defense?->sidang_paper !== null)
+                        ->state(fn (): string => $defense->sidang_paper['value'].' · '.$defense->sidang_paper['grade']),
                     TextEntry::make('deadline_summary')->label('Batas revisi (WITA)')
                         ->visible($result === 'pass_with_revision')
                         ->state(filled($data['revision_due_at'] ?? null) ? \Carbon\Carbon::parse($data['revision_due_at'])->format('d/m/Y H:i') : '-'),

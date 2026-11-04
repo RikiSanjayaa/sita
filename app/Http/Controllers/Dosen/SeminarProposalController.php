@@ -109,6 +109,10 @@ class SeminarProposalController extends Controller
                 'titleEn' => $title?->title_en ?? '-',
                 'defenseStatus' => $defense?->status,
                 'defenseResult' => $defense?->result,
+                'paperScore' => $defense?->sidang_paper['value'] ?? null,
+                'paperGrade' => $defense?->sidang_paper['grade'] ?? null,
+                'paperUrl' => $defense?->type === 'sidang' && $defense->scheduled_for !== null && $defense->status !== 'cancelled'
+                    ? route('sidang.paper.print', $defense) : null,
                 'scheduledFor' => WitaDateTime::formatOrNull($defense?->scheduled_for),
                 'scheduledAt' => $defense?->scheduled_for?->toIso8601String(),
                 'location' => $defense?->location ?? '-',

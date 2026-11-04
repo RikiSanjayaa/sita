@@ -23,24 +23,25 @@ class ThesisDefenseExaminerDecisionService
      */
     public function submit(User $lecturer, ThesisDefense $defense, array $data, ?UploadedFile $annotation = null): ThesisDefenseExaminer
     {
-        $examiner = ThesisDefenseExaminer::query()
-            ->where('defense_id', $defense->id)
-            ->where('lecturer_user_id', $lecturer->id)
-            ->first();
+        return DB::transaction(function () use ($annotation, $data, $defense, $lecturer): ThesisDefenseExaminer {
+            $defense = ThesisDefense::query()->lockForUpdate()->findOrFail($defense->id);
+            $examiner = ThesisDefenseExaminer::query()
+                ->where('defense_id', $defense->id)
+                ->where('lecturer_user_id', $lecturer->id)
+                ->first();
 
-        if (! $examiner instanceof ThesisDefenseExaminer) {
-            throw new RuntimeException('Anda bukan penguji untuk ujian ini.');
-        }
+            if (! $examiner instanceof ThesisDefenseExaminer) {
+                throw new RuntimeException('Anda bukan penguji untuk ujian ini.');
+            }
 
-        if ($defense->status !== 'scheduled') {
-            throw new RuntimeException('Ujian tidak dalam status yang dapat dinilai.');
-        }
+            if ($defense->status !== 'scheduled') {
+                throw new RuntimeException('Ujian tidak dalam status yang dapat dinilai.');
+            }
 
-        if ($examiner->decision !== 'pending') {
-            throw new RuntimeException('Anda sudah mengirim keputusan untuk ujian ini.');
-        }
+            if ($examiner->decision !== 'pending') {
+                throw new RuntimeException('Anda sudah mengirim keputusan untuk ujian ini.');
+            }
 
-        DB::transaction(function () use ($annotation, $data, $defense, $examiner, $lecturer): void {
             $requestsRevision = $data['decision'] === 'pass_with_revision';
 
             $examiner->forceFill([
@@ -81,9 +82,9 @@ class ThesisDefenseExaminerDecisionService
                     'createdAt' => now()->toIso8601String(),
                 ]);
             }
-        });
 
-        return $examiner->fresh();
+            return $examiner->fresh();
+        });
     }
 
     /**
