@@ -4,6 +4,8 @@ use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
 use App\Models\User;
+use App\Services\SidangPaperService;
+use App\Services\SidangReportWriter;
 use App\Services\ThesisProjectAdminService;
 
 function sidangPaperFixture(): array
@@ -36,7 +38,7 @@ function sidangPaperFixture(): array
     return [$defense, $student, $program, $scores];
 }
 
-function sidangReportSheet(string $content): string
+function sidangReportSheet(string $content, string $part = 'xl/worksheets/sheet7.xml'): string
 {
     $file = tempnam(sys_get_temp_dir(), 'sita-sidang-');
     file_put_contents($file, $content);
@@ -44,7 +46,7 @@ function sidangReportSheet(string $content): string
     try {
         expect($archive->open($file))->toBeTrue();
 
-        return $archive->getFromName('xl/worksheets/sheet1.xml');
+        return $archive->getFromName($part);
     } finally {
         $archive->close();
         unlink($file);
@@ -70,9 +72,13 @@ it('prints the scheduled identity, records actual panel totals, and exports only
         ->and($defense->fresh()->sidang_paper['value'])->toEqual(80)
         ->and($defense->fresh()->sidang_paper['grade'])->toBe('B+')
         ->and($defense->examiners()->where('decision', 'pending')->count())->toBe(3);
-    $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))
-        ->assertOk()->assertSee($student->name)->assertSee('Sistem Rekap Penilaian')
-        ->assertSee($moderator->name)->assertSee('001/UJI')->assertSee('□ LULUS');
+    $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))
+        ->assertDownload('berita-acara-'.$defense->id.'.docx')->streamedContent();
+    expect(sidangReportSheet($word, 'word/document.xml'))
+        ->toContain($student->name, 'Sistem Rekap Penilaian', 'TIDAK LULUS', '<w:tbl>')
+        ->not->toContain('Suwist', 'DAFTAR HADIR', '{{');
+    $template = file_get_contents(resource_path('templates/sidang/berkas-sidang.docx'));
+    expect(sidangReportSheet($word, 'word/header1.xml'))->toBe(sidangReportSheet($template, 'word/header1.xml'));
 
     $params = ['from' => '2026-11-04', 'until' => '2026-11-04', 'period' => 'Semester Uji'];
     expect(sidangReportSheet($this->post(route('sidang.report'), $params)->assertOk()->streamedContent()))
@@ -82,13 +88,13 @@ it('prints the scheduled identity, records actual panel totals, and exports only
     app(ThesisProjectAdminService::class)->completeSidang(
         $defense->project, $admin->id, 'pass_with_revision', 'Keputusan resmi.', 'Perbaiki daftar pustaka.', '2026-11-12',
     );
-    $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))
-        ->assertOk()->assertSee('<p>LULUS</p>', false)->assertDontSee('□ LULUS');
+    $word = $this->get(route('sidang.paper.print', [$defense, 'lembar' => 'berita-acara']))->streamedContent();
+    expect(sidangReportSheet($word, 'word/document.xml'))->toContain('>LULUS<')->not->toContain('TIDAK LULUS');
     $sheet = sidangReportSheet($this->post(route('sidang.report'), $params)->assertDownload('rekap-nilai-sidang.xlsx')->streamedContent());
-    expect($sheet)->toContain($student->name, 'Sistem Rekap Penilaian', 'A7:A9', 'B+', 'Semester Uji');
+    expect($sheet)->toContain($student->name, 'Sistem Rekap Penilaian', 'A12:A14', 'B+', 'Semester Uji', '<f>(L12*30%+L13*30%+L14*40%)</f>', '<f>ROUND(M12,0)</f>');
     $formulaLikePeriod = array_replace($params, ['period' => '=2+2']);
     expect(sidangReportSheet($this->post(route('sidang.report'), $formulaLikePeriod)->streamedContent()))
-        ->toContain('=2+2')->not->toContain('<f>');
+        ->toContain('>=2+2</t>')->not->toContain('<f>2+2</f>');
 
     $this->actingAs(User::factory()->asAdmin()->create())->get(route('sidang.paper.show', $defense))->assertForbidden();
     $this->actingAs($admin);
@@ -115,4 +121,23 @@ it('rejects a paper score conflicting with a digital score and rolls back any pa
     $scores['supervisor']['value'] = 0;
     $this->post(route('sidang.paper.store', $defense), ['scores' => $scores])->assertSessionHasNoErrors();
     expect($defense->fresh()->sidang_paper['value'])->toEqual(47.4);
+});
+
+it('continues the reference row pattern past nine defenses and keeps each program on its own sheet', function () {
+    $admin = User::factory()->asSuperAdmin()->create();
+    [$first, , , $scores] = sidangPaperFixture();
+    [$second, $student, , $otherScores] = sidangPaperFixture();
+    app(SidangPaperService::class)->record($first, $admin, ['scores' => $scores]);
+    app(SidangPaperService::class)->record($second, $admin, ['scores' => $otherScores]);
+
+    ob_start();
+    try {
+        app(SidangReportWriter::class)->write([...array_fill(0, 10, $first->fresh()), $second->fresh()], 'Uji');
+        $content = ob_get_contents();
+    } finally {
+        ob_end_clean();
+    }
+
+    expect(sidangReportSheet($content))->toContain('A39:A41', '<f>(L39*30%+L40*30%+L41*40%)</f>', 'A44:B44');
+    expect(sidangReportSheet($content, 'xl/worksheets/rekap2.xml'))->toContain($student->name, 'A12:A14');
 });

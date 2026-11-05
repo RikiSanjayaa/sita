@@ -2,122 +2,282 @@
 
 namespace App\Services;
 
-use App\Models\ProgramStudi;
+use App\Models\ThesisDefense;
 use App\Support\AcademicTerminology;
+use App\Support\SidangOfficeTemplate;
 use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
-use OpenSpout\Common\Entity\Cell;
-use OpenSpout\Common\Entity\Cell\StringCell;
-use OpenSpout\Common\Entity\Row;
-use OpenSpout\Common\Entity\Style\Style;
-use OpenSpout\Writer\XLSX\Entity\SheetView;
-use OpenSpout\Writer\XLSX\Options;
-use OpenSpout\Writer\XLSX\Options\PageOrientation;
-use OpenSpout\Writer\XLSX\Options\PageSetup;
-use OpenSpout\Writer\XLSX\Options\PaperSize;
-use OpenSpout\Writer\XLSX\Writer;
+use DOMDocument;
+use DOMElement;
+use RuntimeException;
+use ZipArchive;
 
 final class SidangReportWriter
 {
+    private const SHEET = 'xl/worksheets/sheet7.xml';
+
+    private const RELATIONSHIP = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
     public function write(iterable $defenses, string $period): void
     {
-        $options = new Options;
-        $options->setPageSetup(new PageSetup(PageOrientation::LANDSCAPE, PaperSize::Legal, fitToHeight: 0, fitToWidth: 1));
-        foreach ([5, 25, 16, 13, 20, 43, 15, 24, 15, 16, 24, 12, 12, 10, 14] as $column => $width) {
-            $options->setColumnWidth($width, $column + 1);
-        }
-        $writer = new Writer($options);
-        $writer->openToFile('php://output');
-        $title = (new Style)->setFontBold()->setFontSize(14);
-        $header = (new Style)->setFontBold()->setBackgroundColor('E2E8F0')->setShouldWrapText();
-        $body = (new Style)->setShouldWrapText();
-        $sheets = [];
-        try {
+        SidangOfficeTemplate::stream('rekap-nilai-sidang.xlsx', function (ZipArchive $zip) use ($defenses, $period): void {
+            $groups = [];
             foreach ($defenses as $defense) {
-                $project = $defense->project;
-                $student = $project->student;
-                $profile = $student?->mahasiswaProfile;
-                $program = $project->programStudi;
-                $key = $program->id.'-'.($profile?->degree_level ?? '');
-                $paper = $defense->sidang_paper;
-                if (! isset($sheets[$key])) {
-                    $sheet = $sheets === [] ? $writer->getCurrentSheet() : $writer->addNewSheetAndMakeItCurrent();
-                    $name = preg_replace('~[\\\\/*?:\[\]]~u', ' ', $program->name);
-                    $sheet->setName(mb_substr(trim($name, " '"), 0, 20).' '.strtoupper($profile?->degree_level ?? '').' '.(count($sheets) + 1));
-                    $sheet->setSheetView((new SheetView)->setFreezeRow(6));
-                    $terms = AcademicTerminology::forProject($project);
-                    $writer->addRow(Row::fromValues(['Rekap Nilai '.$terms['finalWork'].' - '.$program->name], $title));
-                    $writer->addRow($this->textSafeRow([$paper['settings']['heading'] ?? SidangSettings::DEFAULTS['heading'], $program->faculty?->name]));
-                    $writer->addRow($this->textSafeRow(['Periode', $period ?: 'Semua tanggal sidang']));
-                    $writer->addRow(Row::fromValues(['Dicetak', WitaDateTime::format(now(), 'd/m/Y')]));
-                    $writer->addRow(Row::fromValues([' ']));
-                    $writer->addRow(Row::fromValues([
-                        'No.', 'Nama Mahasiswa', 'NIM', 'Jenis Anggota', 'Nomor SK', 'Judul',
-                        'NIDN Pembimbing', 'Nama Pembimbing', 'Pembimbing Ke',
-                        'NIDN Penilai', 'Nama Penilai', 'Nilai Penilai', 'Nilai Akhir', 'Grade', 'Percobaan',
-                    ], $header));
-                    $sheets[$key] = ['sheet' => $sheet, 'program' => $program, 'index' => 0];
+                $terms = AcademicTerminology::forProject($defense->project);
+                $key = $defense->project->program_studi_id.'-'.$terms['degreeLevel'];
+                if (! isset($groups[$key])) {
+                    $groups[$key] = ['sheet' => SidangOfficeTemplate::readXml($zip, self::SHEET), 'first' => $defense, 'count' => 0, 'sk' => []];
                 }
-                $writer->setCurrentSheet($sheets[$key]['sheet']);
-                $number = ++$sheets[$key]['index'];
-                $supervisors = $defense->examiners->filter(fn ($examiner) => $examiner->isSupervisorRole())->sortBy('role')->values();
-                $scoreRows = array_values($paper['scores']);
-                $rowNumber = 7 + ($number - 1) * 3;
-                foreach ([0, 1, 2, 3, 4, 5, 12, 13, 14] as $column) {
-                    $options->mergeCells($column, $rowNumber, $column, $rowNumber + 2, $sheets[$key]['sheet']->getIndex());
+                $this->addDefense($groups[$key]['sheet'], $defense, ++$groups[$key]['count']);
+                $groups[$key]['sk'][] = $defense->sidang_sk;
+            }
+            if ($groups === []) {
+                $groups[] = ['sheet' => SidangOfficeTemplate::readXml($zip, self::SHEET), 'first' => null, 'count' => 0, 'sk' => []];
+            }
+            $workbook = SidangOfficeTemplate::readXml($zip, 'xl/workbook.xml');
+            $relations = SidangOfficeTemplate::readXml($zip, 'xl/_rels/workbook.xml.rels');
+            $types = SidangOfficeTemplate::readXml($zip, '[Content_Types].xml');
+            $sheets = $workbook->getElementsByTagName('sheets')->item(0);
+            $definedNames = $workbook->getElementsByTagName('definedNames')->item(0);
+            $printArea = $definedNames->firstElementChild;
+            foreach (array_values($groups) as $index => $group) {
+                $first = $group['first'];
+                $program = $first?->project->programStudi;
+                $terms = $first === null ? AcademicTerminology::neutral() : AcademicTerminology::forProject($first->project);
+                $settings = SidangSettings::forProgram($program);
+                $head = $program?->kaprodiAssignments->firstWhere('is_primary', true)?->user;
+                $sheet = $group['sheet'];
+                $view = $sheet->getElementsByTagName('sheetView')->item(0);
+                $view->removeAttribute('topLeftCell');
+                $view->setAttribute('tabSelected', $index === 0 ? '1' : '0');
+                foreach ($view->getElementsByTagName('selection') as $selection) {
+                    $selection->setAttribute('activeCell', 'A7');
+                    $selection->setAttribute('sqref', 'A7');
                 }
-                foreach ($scoreRows as $index => $score) {
-                    $supervisor = $supervisors->get($index);
-                    $assessor = $defense->examiners->find($score['panel_id'])?->lecturer;
-                    $first = $index === 0;
-                    $writer->addRow($this->textSafeRow([
-                        $first ? $number : null, $first ? $student?->name : null,
-                        $first && $profile?->nim !== null ? (string) $profile->nim : null,
-                        $first ? 'Personal' : null, $first ? $defense->sidang_sk : null,
-                        $first ? $defense->titleVersion?->title_id : null,
-                        $supervisor?->lecturer?->dosenProfile?->sidang_nidn,
-                        $supervisor?->lecturer?->name,
-                        $supervisor === null ? null : ($supervisor->role === 'primary_supervisor' ? 'I' : 'II'),
-                        $score['nidn'] ?? $assessor?->dosenProfile?->sidang_nidn, $score['name'], (float) $score['value'],
-                        $first ? (float) $paper['value'] : null, $first ? $paper['grade'] : null,
-                        $first ? $defense->attempt_no : null,
-                    ], $body));
+                $last = 49 + max(0, $group['count'] - 9) * 3;
+                $this->writeSk($sheet, $group['sk'], $last - 11);
+                $shift = $last - 49;
+                $title = 'REKAP NILAI '.$terms['finalWork'];
+                if ($program !== null) {
+                    $title .= ' PROGRAM STUDI '.$terms['degreeLevel'].' '.$program->name;
+                }
+                foreach ([
+                    'A7' => mb_strtoupper($title),
+                    'A8' => $period !== '' ? $period : 'REKAP NILAI SIDANG',
+                    'J'.(41 + $shift) => $settings['city'].', '.WitaDateTime::translated(now(), 'd F Y', withLabel: false),
+                    'A'.(42 + $shift) => 'Dekan '.($program?->faculty?->name ?? 'Fakultas Teknik'),
+                    'F'.(42 + $shift) => 'Ketua Program Studi '.trim($terms['degreeLevel'].' '.$program?->name),
+                    'A'.(48 + $shift) => $settings['dean_name'],
+                    'F'.(48 + $shift) => $head?->name,
+                    'J'.(48 + $shift) => $settings['staff_name'],
+                    'A'.(49 + $shift) => $settings['dean_nik'],
+                    'F'.(49 + $shift) => $head?->dosenProfile?->nik,
+                    'J'.(49 + $shift) => $settings['staff_nik'],
+                ] as $address => $value) {
+                    $this->value($sheet, $address, $value);
+                }
+                if ($index === 0) {
+                    $name = $sheets->firstElementChild->getAttribute('name');
+                    $entry = self::SHEET;
+                    $area = $printArea;
+                } else {
+                    $name = 'skrpsi new '.($index + 1);
+                    $entry = 'xl/worksheets/rekap'.($index + 1).'.xml';
+                    $id = 'rIdRekap'.($index + 1);
+                    $this->element($sheets, 'sheet', ['name' => $name, 'sheetId' => (string) (20 + $index)])
+                        ->setAttributeNS(self::RELATIONSHIP, 'r:id', $id);
+                    $this->element($relations->documentElement, 'Relationship', [
+                        'Id' => $id, 'Type' => self::RELATIONSHIP.'/worksheet', 'Target' => substr($entry, 3),
+                    ]);
+                    $this->element($types->documentElement, 'Override', [
+                        'PartName' => '/'.$entry, 'ContentType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml',
+                    ]);
+                    $zip->addFromString('xl/worksheets/_rels/'.basename($entry).'.rels', $zip->getFromName('xl/worksheets/_rels/sheet7.xml.rels'));
+                    $area = $this->element($definedNames, 'definedName', ['name' => '_xlnm.Print_Area', 'localSheetId' => (string) $index]);
+                }
+                $area->textContent = "'".$name."'!".'$A$7:$O$'.$last;
+                SidangOfficeTemplate::saveXml($zip, $entry, $sheet);
+            }
+            SidangOfficeTemplate::saveXml($zip, 'xl/workbook.xml', $workbook);
+            SidangOfficeTemplate::saveXml($zip, 'xl/_rels/workbook.xml.rels', $relations);
+            SidangOfficeTemplate::saveXml($zip, '[Content_Types].xml', $types);
+        });
+    }
+
+    private function addDefense(DOMDocument $sheet, ThesisDefense $defense, int $number): void
+    {
+        $start = 12 + ($number - 1) * 3;
+        if ($number > 9) {
+            $this->insertBlock($sheet, $start);
+        }
+        $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
+        $student = $defense->project->student;
+        $scores = $defense->sidang_paper['scores'];
+        $settings = $defense->sidang_paper['settings'];
+        $supervisors = $defense->examiners->filter(fn ($member) => $member->isSupervisorRole())->sortBy('role')->values();
+        foreach ([
+            'A' => $number, 'B' => $student?->name, 'C' => (string) $student?->mahasiswaProfile?->nim,
+            'D' => 'Personal', 'F' => $defense->titleVersion?->title_id,
+        ] as $column => $value) {
+            $this->value($sheet, $column.$start, $value);
+        }
+        foreach (['examiner_1', 'examiner_2', 'supervisor'] as $offset => $role) {
+            $row = $start + $offset;
+            $score = $scores[$role];
+            $lecturer = $defense->examiners->find($score['panel_id'])?->lecturer;
+            foreach (['J' => $score['nidn'] ?? $lecturer?->dosenProfile?->sidang_nidn, 'K' => $score['name'], 'L' => (float) $score['value']] as $column => $value) {
+                $this->value($sheet, $column.$row, $value);
+            }
+        }
+        foreach ($supervisors->take(2) as $offset => $member) {
+            if ($offset === 1 && $start === 21) {
+                foreach (iterator_to_array($merges->childNodes) as $merge) {
+                    if ($merge instanceof DOMElement && in_array($merge->getAttribute('ref'), ['G21:G23', 'H21:H23'], true)) {
+                        $merges->removeChild($merge);
+                    }
                 }
             }
-            if ($sheets === []) {
-                $writer->getCurrentSheet()->setName('Rekap Nilai Sidang');
-                $writer->addRow(Row::fromValues(['Tidak ada hasil sidang terkonfirmasi yang sesuai dengan filter.'], $title));
+            $row = $start + $offset;
+            $this->value($sheet, 'G'.$row, $member->lecturer?->dosenProfile?->sidang_nidn);
+            $this->value($sheet, 'H'.$row, $member->lecturer?->name);
+            $this->value($sheet, 'I'.$row, $member->role === 'primary_supervisor' ? '1' : '2');
+        }
+        $weights = array_map(fn (string $role): int => (int) $settings[$role], ['examiner_1', 'examiner_2', 'supervisor']);
+        $weighted = sprintf('(L%d*%d%%+L%d*%d%%+L%d*%d%%)', $start, $weights[0], $start + 1, $weights[1], $start + 2, $weights[2]);
+        $grade = '"E"';
+        foreach (array_reverse(SidangSettings::GRADE_KEYS, true) as $index => $key) {
+            $grade = sprintf('IF(M%d>=%d,"%s",%s)', $start, $settings[$key], SidangSettings::GRADES[$index], $grade);
+        }
+        $this->value($sheet, 'M'.$start, (float) $defense->sidang_paper['value'], $weighted);
+        $this->value($sheet, 'N'.$start, (int) round($defense->sidang_paper['value']), 'ROUND(M'.$start.',0)');
+        $this->value($sheet, 'O'.$start, $defense->sidang_paper['grade'], $grade);
+        $merges->setAttribute('count', (string) $merges->getElementsByTagName('mergeCell')->length);
+    }
+
+    private function writeSk(DOMDocument $sheet, array $numbers, int $last): void
+    {
+        $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
+        foreach ($merges->getElementsByTagName('mergeCell') as $merge) {
+            if ($merge->getAttribute('ref') === 'E12:E38') {
+                if (count(array_unique($numbers, SORT_REGULAR)) <= 1) {
+                    $merge->setAttribute('ref', 'E12:E'.$last);
+                    $this->value($sheet, 'E12', $numbers[0] ?? null);
+
+                    return;
+                }
+                $merges->removeChild($merge);
+                break;
             }
-            foreach ($sheets as $sheet) {
-                $writer->setCurrentSheet($sheet['sheet']);
-                $this->writeSignatures($writer, $sheet['program']);
+        }
+        foreach ($numbers as $index => $number) {
+            $start = 12 + $index * 3;
+            $this->merge($merges, 'E'.$start.':E'.($start + 2));
+            $this->value($sheet, 'E'.$start, $number);
+        }
+        $merges->setAttribute('count', (string) $merges->getElementsByTagName('mergeCell')->length);
+    }
+
+    private function insertBlock(DOMDocument $sheet, int $start): void
+    {
+        $data = $sheet->getElementsByTagName('sheetData')->item(0);
+        $merges = $sheet->getElementsByTagName('mergeCells')->item(0);
+        $footer = null;
+        foreach ($data->getElementsByTagName('row') as $row) {
+            if ((int) $row->getAttribute('r') >= $start) {
+                $footer ??= $row;
+                $this->moveRow($row, 3);
             }
-        } finally {
-            $writer->close();
+        }
+        for ($offset = 0; $offset < 3; $offset++) {
+            $row = $this->row($sheet, 36 + $offset)->cloneNode(true);
+            $this->moveRow($row, $start - 36);
+            foreach ($row->getElementsByTagName('c') as $cell) {
+                $cell->replaceChildren();
+                $cell->removeAttribute('t');
+            }
+            $data->insertBefore($row, $footer);
+        }
+        foreach ($merges->getElementsByTagName('mergeCell') as $merge) {
+            $ref = $merge->getAttribute('ref');
+            $merge->setAttribute('ref', preg_replace_callback('/\\d+/', fn (array $match): int => (int) $match[0] + ((int) $match[0] >= $start ? 3 : 0), $ref));
+        }
+        foreach (['A', 'B', 'C', 'D', 'F', 'M', 'N', 'O'] as $column) {
+            $this->merge($merges, $column.$start.':'.$column.($start + 2));
+        }
+        $sheet->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:O'.($start + 13));
+    }
+
+    private function moveRow(DOMElement $row, int $shift): void
+    {
+        $number = (int) $row->getAttribute('r') + $shift;
+        $row->setAttribute('r', (string) $number);
+        foreach ($row->getElementsByTagName('c') as $cell) {
+            $cell->setAttribute('r', rtrim($cell->getAttribute('r'), '0123456789').$number);
         }
     }
 
-    private function textSafeRow(array $values, ?Style $style = null): Row
+    private function row(DOMDocument $sheet, int $number): DOMElement
     {
-        return new Row(array_map(
-            fn ($value): Cell => is_string($value) && str_starts_with($value, '=')
-                ? new StringCell($value, null)
-                : Cell::fromValue($value),
-            $values,
-        ), $style);
+        foreach ($sheet->getElementsByTagName('row') as $row) {
+            if ((int) $row->getAttribute('r') === $number) {
+                return $row;
+            }
+        }
+        throw new RuntimeException('Baris template rekap tidak ditemukan.');
     }
 
-    private function writeSignatures(Writer $writer, ProgramStudi $program): void
+    private function value(DOMDocument $sheet, string $address, string|float|int|null $value, ?string $formula = null): void
     {
-        $settings = SidangSettings::forProgram($program);
-        $head = $program->kaprodiAssignments->firstWhere('is_primary', true)?->user;
-        $writer->addRow(Row::fromValues([' ']));
-        $writer->addRow(Row::fromValues(['Mengetahui', null, null, null, null, 'Disetujui oleh', null, null, null, $settings['city'].', '.WitaDateTime::format(now(), 'd/m/Y', false)]));
-        $writer->addRow(Row::fromValues(['Dekan', null, null, null, null, 'Ketua Program Studi', null, null, null, 'Staf Program Studi']));
-        for ($space = 0; $space < 3; $space++) {
-            $writer->addRow(Row::fromValues([' ']));
+        if ($value === null || $value === '') {
+            return;
         }
-        $writer->addRow($this->textSafeRow([$settings['dean_name'], null, null, null, null, $head?->name, null, null, null, $settings['staff_name']]));
-        $writer->addRow($this->textSafeRow([$settings['dean_nik'], null, null, null, null, $head?->dosenProfile?->nik, null, null, null, $settings['staff_nik']]));
+        $row = $this->row($sheet, (int) ltrim($address, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+        $cell = null;
+        foreach ($row->getElementsByTagName('c') as $candidate) {
+            $ref = $candidate->getAttribute('r');
+            if ($ref === $address) {
+                $cell = $candidate;
+                break;
+            }
+            if (strcmp($ref, $address) > 0) {
+                $cell = $sheet->createElementNS($row->namespaceURI, 'c');
+                $row->insertBefore($cell, $candidate);
+                break;
+            }
+        }
+        $cell ??= $this->element($row, 'c', []);
+        $cell->setAttribute('r', $address);
+        $cell->replaceChildren();
+        $cell->removeAttribute('t');
+        if ($formula !== null) {
+            $this->element($cell, 'f', [])->textContent = $formula;
+            if (is_string($value)) {
+                $cell->setAttribute('t', 'str');
+            }
+            $this->element($cell, 'v', [])->textContent = (string) $value;
+        } elseif (is_string($value)) {
+            $cell->setAttribute('t', 'inlineStr');
+            $text = $this->element($this->element($cell, 'is', []), 't', []);
+            $text->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+            $text->appendChild($sheet->createTextNode($value));
+        } else {
+            $this->element($cell, 'v', [])->textContent = (string) $value;
+        }
+    }
+
+    private function merge(DOMElement $merges, string $range): void
+    {
+        $this->element($merges, 'mergeCell', ['ref' => $range]);
+    }
+
+    private function element(DOMElement $parent, string $name, array $attributes): DOMElement
+    {
+        $element = $parent->ownerDocument->createElementNS($parent->namespaceURI, $name);
+        foreach ($attributes as $attribute => $value) {
+            $element->setAttribute($attribute, $value);
+        }
+        $parent->appendChild($element);
+
+        return $element;
     }
 }

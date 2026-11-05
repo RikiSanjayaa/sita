@@ -734,12 +734,8 @@ function DefenseDetailSheet({
                                 variant="outline"
                                 className="max-md:h-11"
                             >
-                                <a
-                                    href={item.paperUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    Cetak Paket Sidang
+                                <a href={item.paperUrl}>
+                                    Unduh Paket Sidang (.docx)
                                 </a>
                             </Button>
                         )}

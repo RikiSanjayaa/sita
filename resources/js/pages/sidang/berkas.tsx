@@ -147,13 +147,14 @@ export default function BerkasSidang({
             </SectionCard>
             <SectionCard
                 title="Paket cetak"
-                description="Identitas dan jadwal terisi dari SiTA. Pilih paket lengkap atau cetak ulang satu jenis lembar."
+                description="Identitas dan jadwal terisi dari SiTA. Unduh paket lengkap atau satu lembar, lalu buka dan cetak di Word."
             >
                 {defense.canPrint ? (
                     <div className="space-y-3">
                         <Button asChild>
-                            <a href={printUrl} target="_blank" rel="noreferrer">
-                                <Printer aria-hidden /> Cetak Paket Sidang
+                            <a href={printUrl}>
+                                <Printer aria-hidden /> Unduh Paket Sidang
+                                (.docx)
                             </a>
                         </Button>
                         <ul className="grid gap-1 sm:grid-cols-2">
@@ -170,8 +171,6 @@ export default function BerkasSidang({
                                                     query: { lembar: key },
                                                 }).url
                                             }
-                                            target="_blank"
-                                            rel="noreferrer"
                                         >
                                             {name}
                                         </a>

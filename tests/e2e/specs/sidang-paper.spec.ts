@@ -42,17 +42,11 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
         }
     }
 
-    const popup = page.waitForEvent('popup');
+    const wordDownload = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Berita Acara', exact: true }).click();
-    const printPage = await popup;
-    await expect(
-        printPage.getByRole('heading', { name: /Berita Acara Sidang/ }),
-    ).toBeVisible();
-    await expect(printPage.getByText('Sinta Sidang Terjadwal')).toBeVisible();
-    await expect(
-        printPage.getByText('Ruang Sidang E2E', { exact: false }),
-    ).toBeVisible();
-    await printPage.close();
+    expect((await wordDownload).suggestedFilename()).toMatch(
+        /^berita-acara-\d+\.docx$/,
+    );
 
     await page.setViewportSize({ width: 1280, height: 920 });
     await page.goto('/kaprodi/sempro-sidang');

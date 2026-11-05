@@ -7,6 +7,7 @@ use App\Models\ThesisDefense;
 use App\Models\User;
 use App\Policies\SidangPaperPolicy;
 use App\Services\SidangPaperService;
+use App\Services\SidangWordWriter;
 use App\Support\AcademicTerminology;
 use App\Support\SidangSettings;
 use App\Support\WitaDateTime;
@@ -14,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SidangPaperController extends Controller
 {
@@ -78,7 +80,7 @@ class SidangPaperController extends Controller
         return to_route('sidang.paper.show', $defense)->with('success', 'Data berkas sidang disimpan.');
     }
 
-    public function print(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy): \Illuminate\Http\Response
+    public function print(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy, SidangWordWriter $writer): StreamedResponse
     {
         abort_unless($policy->print($request->user(), $defense), 403);
         abort_unless($defense->scheduled_for !== null && $defense->status !== 'cancelled', 404);
@@ -89,14 +91,11 @@ class SidangPaperController extends Controller
             'project.programStudi.kaprodiAssignments.user.dosenProfile', 'titleVersion',
             'examiners.lecturer.dosenProfile', 'moderator', 'revisions.items',
         );
-        $project = $defense->project;
 
-        return response()->view('sidang.paper', [
-            'defense' => $defense,
-            'project' => $project,
-            'terms' => AcademicTerminology::forProject($project),
-            'settings' => $defense->sidang_paper['settings'] ?? SidangSettings::forProgram($project->programStudi),
-            'forms' => $form === null ? self::FORMS : [$form => self::FORMS[$form]],
-        ], headers: ['Cache-Control' => 'private, no-store']);
+        return response()->streamDownload(
+            fn () => $writer->write($defense, $form),
+            ($form ?? 'paket-sidang').'-'.$defense->id.'.docx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Cache-Control' => 'private, no-store'],
+        );
     }
 }

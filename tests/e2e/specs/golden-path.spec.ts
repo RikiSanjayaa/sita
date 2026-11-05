@@ -922,7 +922,7 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     .click();
                 await expect(
                     kaprodiPage.getByRole('link', {
-                        name: 'Cetak Paket Sidang',
+                        name: 'Unduh Paket Sidang (.docx)',
                     }),
                 ).toBeVisible();
 
