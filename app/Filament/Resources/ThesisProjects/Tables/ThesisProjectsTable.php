@@ -33,6 +33,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ThesisProjectsTable
@@ -163,7 +164,8 @@ class ThesisProjectsTable
                     ->visible($isSidangTab)
                     ->badge()
                     ->description(fn (ThesisProject $record): ?string => filled($record->latestSidangDefense?->sidang_sk)
-                        ? 'SK '.$record->latestSidangDefense->sidang_sk : null)
+                        ? 'SK '.Str::limit($record->latestSidangDefense->sidang_sk, 13) : null)
+                    ->tooltip(fn (ThesisProject $record): ?string => $record->latestSidangDefense?->sidang_sk)
                     ->formatStateUsing(fn (string $state): string => self::sidangPaperStatusLabels()[$state] ?? $state)
                     ->color(fn (?string $state): string => BadgeStyles::domainStatusColor('defense', $state)),
                 TextColumn::make('mentorship_ticket')
