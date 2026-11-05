@@ -35,7 +35,7 @@ final class SidangWordWriter
             if ($form !== null) {
                 $first = $query->query('./w:p[1]', $body)->item(0);
                 if ($first !== null) {
-                    foreach ($query->query('.//w:br[@w:type="page"]', $first) as $break) {
+                    foreach ($query->query('./w:pPr/w:pageBreakBefore | .//w:br[@w:type="page"]', $first) as $break) {
                         $break->parentNode->removeChild($break);
                     }
                 }
