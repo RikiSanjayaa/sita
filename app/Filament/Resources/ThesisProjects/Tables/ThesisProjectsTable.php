@@ -57,6 +57,7 @@ class ThesisProjectsTable
             ->columns([
                 TextColumn::make('student.name')
                     ->label('Mahasiswa')
+                    ->wrap($isSidangTab)
                     ->description(fn (ThesisProject $record, ListThesisProjects $livewire): ?string => $isSidangTab($livewire)
                         ? $record->programStudi?->name
                         : null)
