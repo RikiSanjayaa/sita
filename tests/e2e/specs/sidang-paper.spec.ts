@@ -82,11 +82,14 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
         await page.getByRole('button', { name: 'Atur Periode Rekap' }).click();
         const form = page.locator('.fi-modal-window:visible').last();
         await form.getByLabel('Tanggal awal').fill('2096-09-14');
-        await expect(form.getByLabel(/^Semester/)).toHaveValue('ganjil');
+        const semester = form.locator('select').filter({
+            has: page.locator('option[value="ganjil"]'),
+        });
+        await expect(semester).toHaveValue('ganjil');
         await expect(form.getByLabel('Tahun awal akademik')).toHaveValue(
             '2096',
         );
-        await form.getByLabel(/^Semester/).selectOption('genap');
+        await semester.selectOption('genap');
         await form.getByLabel('Tanggal akhir').fill('2096-10-14');
         for (const width of [1280, 390]) {
             await page.setViewportSize({ width, height: 920 });
@@ -110,7 +113,7 @@ test('admin saves an editable semester suggestion and reuses it for Excel', asyn
         await expect(form).toBeHidden();
 
         await page.getByRole('button', { name: 'Ekspor Rekap Nilai' }).click();
-        await form.getByLabel('Periode rekap').selectOption({
+        await form.locator('select').selectOption({
             label: 'Semester Genap 2096/2097 (14/09/2096 - 14/10/2096)',
         });
         await expect(form.getByLabel('Dari tanggal')).toBeHidden();

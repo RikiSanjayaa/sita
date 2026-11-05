@@ -1053,9 +1053,7 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await adminPage
                     .getByRole('button', { name: /Bulk actions|Tindakan/i })
                     .click();
-                await adminPage
-                    .getByRole('button', { name: 'Isi No SK', exact: true })
-                    .click();
+                await adminPage.getByText('Isi No SK', { exact: true }).click();
                 await modal.getByLabel('No SK').fill('001/ADUM/E2E');
                 await modal
                     .getByRole('button', { name: 'Simpan No SK' })
