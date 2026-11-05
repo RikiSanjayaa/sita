@@ -22,8 +22,15 @@ test('kaprodi opens the scheduled packet and downloads a filtered report', async
     ).toBeVisible();
     await expect(page.getByText(/membutuhkan dua penguji/)).toBeVisible();
 
+    const content = page
+        .getByRole('main')
+        .filter({ has: page.getByRole('heading', { name: /Berkas Sidang/ }) })
+        .last();
     for (const width of [1280, 390]) {
         await page.setViewportSize({ width, height: 920 });
+        if (width === 1280) {
+            expect((await content.boundingBox())?.width).toBeGreaterThan(896);
+        }
         for (const theme of ['light', 'dark'] as const) {
             await page.emulateMedia({ colorScheme: theme });
             await page.evaluate((mode) => {

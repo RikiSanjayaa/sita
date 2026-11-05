@@ -110,7 +110,7 @@ export default function BerkasSidang({
         );
     const printUrl = print(defense.id).url;
     const content = (
-        <main className="mx-auto w-full max-w-4xl space-y-5 px-4 py-5 md:px-6">
+        <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
             <Head title={`Berkas ${defense.label}`} />
             <PageHeader
                 title={`Berkas ${defense.label}`}
@@ -298,7 +298,7 @@ export default function BerkasSidang({
                                 return (
                                     <div
                                         key={role}
-                                        className="grid gap-2 border-b pb-3 sm:grid-cols-[minmax(0,1fr)_8rem]"
+                                        className="grid gap-2 border-b pb-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-end"
                                     >
                                         <div className="space-y-2">
                                             <Label
