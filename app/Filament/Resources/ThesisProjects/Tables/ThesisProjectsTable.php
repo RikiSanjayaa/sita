@@ -53,6 +53,9 @@ class ThesisProjectsTable
             ->columns([
                 TextColumn::make('student.name')
                     ->label('Mahasiswa')
+                    ->description(fn (ThesisProject $record, ListThesisProjects $livewire): ?string => $isSidangTab($livewire)
+                        ? $record->programStudi?->name
+                        : null)
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
@@ -80,6 +83,7 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('programStudi.name')
                     ->label('Program Studi')
+                    ->hidden($isSidangTab)
                     ->badge()
                     ->icon(BadgeStyles::programStudiIcon())
                     ->color(fn(?string $state): string => BadgeStyles::programStudiColor($state))
@@ -88,6 +92,7 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('current_title')
                     ->label('Judul Aktif')
+                    ->hidden($isSidangTab)
                     ->state(fn(ThesisProject $record): string => self::resolveCurrentTitle($record)?->title_id ?? '-')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('titles', fn(Builder $builder): Builder => $builder
@@ -298,6 +303,7 @@ class ThesisProjectsTable
                 BulkActionGroup::make([
                     BulkAction::make('renew_mentorship_tickets')
                         ->label('Perpanjang masa aktif 1 tahun')
+                        ->hidden($isSidangTab)
                         ->icon('heroicon-m-arrow-path')
                         ->requiresConfirmation()
                         ->action(function (Collection $records): void {
@@ -446,9 +452,10 @@ class ThesisProjectsTable
                     }),
                 Action::make('edit')
                     ->label('Edit')
+                    ->hidden($isSidangTab)
                     ->icon('heroicon-m-pencil-square')
                     ->url(fn(ThesisProject $record): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
-                ViewAction::make(),
+                ViewAction::make()->hidden($isSidangTab),
             ]);
     }
 

@@ -936,15 +936,18 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await adminSearch.fill(student);
                 await adminSearch.press('Enter');
                 const sidangRow = studentRowIn(adminPage, student);
+                const downloadWord = sidangRow.getByRole('link', {
+                    name: 'Unduh Word',
+                    exact: true,
+                });
+                await expect(downloadWord).toBeInViewport();
                 const word = adminPage.waitForEvent('download');
-                await sidangRow
-                    .getByRole('link', { name: 'Unduh Word' })
-                    .click();
+                await downloadWord.click();
                 expect((await word).suggestedFilename()).toMatch(
                     /^paket-sidang-\d+\.docx$/,
                 );
                 await sidangRow
-                    .getByRole('link', { name: 'Input Nilai' })
+                    .getByRole('link', { name: 'Input Nilai', exact: true })
                     .click();
                 await expect(adminPage).toHaveURL(/#nilai-dari-berkas$/);
                 await expect(
@@ -1014,7 +1017,7 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await adminSearch.fill(student);
                 await adminSearch.press('Enter');
                 await studentRowIn(adminPage, student)
-                    .getByRole('link', { name: 'Finalisasi' })
+                    .getByRole('link', { name: 'Finalisasi', exact: true })
                     .click();
                 const modal = adminPage
                     .locator('.fi-modal-window:visible')
