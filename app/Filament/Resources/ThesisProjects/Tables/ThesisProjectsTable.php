@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\ThesisProjects\Tables;
 
+use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
 use App\Models\ProgramStudi;
 use App\Models\ThesisDefense;
 use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
+use App\Policies\SidangPaperPolicy;
 use App\Services\AdminActionQueueService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
@@ -33,8 +36,20 @@ class ThesisProjectsTable
 {
     public static function configure(Table $table): Table
     {
+        $isSidangTab = fn (ListThesisProjects $livewire): bool => $livewire->activeTab === ListThesisProjects::SIDANG_PAPER_TAB;
+
         return $table
-            ->defaultSort('started_at', 'desc')
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestSidangDefense'))
+            ->defaultSort(function (Builder $query, ListThesisProjects $livewire) use ($isSidangTab): Builder {
+                if ($isSidangTab($livewire)) {
+                    $query->orderBy(ThesisDefense::query()
+                        ->selectRaw("case status when 'awaiting_finalization' then 0 when 'scheduled' then 1 else 2 end")
+                        ->whereColumn('project_id', 'thesis_projects.id')
+                        ->where('type', 'sidang')->latest('attempt_no')->limit(1));
+                }
+
+                return $query->latest('started_at');
+            }, 'desc')
             ->columns([
                 TextColumn::make('student.name')
                     ->label('Mahasiswa')
@@ -48,11 +63,13 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('student.email')
                     ->label('Email Mahasiswa')
+                    ->hidden($isSidangTab)
                     ->searchable()
                     ->copyable()
                     ->toggleable(),
                 TextColumn::make('student.phone_number')
                     ->label('Nomor HP')
+                    ->hidden($isSidangTab)
                     ->copyable()
                     ->description(fn(?ThesisProject $record): ?string => match (true) {
                         blank($record?->student?->phone_number) => null,
@@ -82,6 +99,7 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('phase')
                     ->label('Fase')
+                    ->hidden($isSidangTab)
                     ->badge()
                     ->formatStateUsing(fn(string $state): string => self::phaseLabel($state))
                     ->color(fn(string $state): string => BadgeStyles::phaseColor($state))
@@ -89,6 +107,7 @@ class ThesisProjectsTable
                     ->toggleable(),
                 TextColumn::make('state')
                     ->label('State')
+                    ->hidden($isSidangTab)
                     ->badge()
                     ->formatStateUsing(fn(string $state): string => self::stateLabel($state))
                     ->color(fn(string $state): string => BadgeStyles::stateColor($state))
@@ -124,16 +143,29 @@ class ThesisProjectsTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('next_agenda')
                     ->label('Agenda Terdekat')
+                    ->hidden($isSidangTab)
                     ->state(fn(ThesisProject $record): string => self::formatNextAgenda($record))
                     ->toggleable(),
+                TextColumn::make('latestSidangDefense.scheduled_for')
+                    ->label('Jadwal '.AcademicTerminology::neutral()['finalExamShort'])
+                    ->visible($isSidangTab)
+                    ->formatStateUsing(fn ($state): ?string => WitaDateTime::translated($state, 'd M Y H:i')),
+                TextColumn::make('latestSidangDefense.status')
+                    ->label('Status Berkas')
+                    ->visible($isSidangTab)
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => self::sidangPaperStatusLabels()[$state] ?? $state)
+                    ->color(fn (?string $state): string => BadgeStyles::domainStatusColor('defense', $state)),
                 TextColumn::make('mentorship_ticket')
                     ->label('Masa aktif bimbingan')
+                    ->hidden($isSidangTab)
                     ->badge()
                     ->state(fn(ThesisProject $record): string => self::mentorshipTicketLabel($record))
                     ->color(fn(ThesisProject $record): string => $record->isMentorshipSuspended() ? 'danger' : 'success')
                     ->toggleable(),
                 TextColumn::make('archive_status')
                     ->label('Arsip')
+                    ->hidden($isSidangTab)
                     ->badge()
                     ->state(fn(ThesisProject $record): ?string => self::archiveLabel($record))
                     ->color(fn(ThesisProject $record): string => $record->isArchived() ? 'gray' : 'warning')
@@ -146,6 +178,17 @@ class ThesisProjectsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('sidang_paper_status')
+                    ->label('Status Berkas')
+                    ->visible($isSidangTab)
+                    ->options(self::sidangPaperStatusLabels())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $status = $data['value'] ?? null;
+
+                        return is_string($status) && isset(self::sidangPaperStatusLabels()[$status])
+                            ? $query->whereRelation('latestSidangDefense', 'status', $status)
+                            : $query;
+                    }),
                 SelectFilter::make(AdminActionQueueService::FILTER_NAME)
                     ->label('Perlu tindakan')
                     ->options(fn(): array => app(AdminActionQueueService::class)->options())
@@ -274,6 +317,34 @@ class ThesisProjectsTable
                 ]),
             ])
             ->recordActions([
+                Action::make('unduh_berkas_sidang')
+                    ->label('Unduh Word')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->color('gray')
+                    ->visible(fn (ThesisProject $record): bool => self::canAccessSidangPaper($record))
+                    ->url(fn (ThesisProject $record): string => route('sidang.paper.print', $record->latestSidangDefense)),
+                Action::make('tindakan_berkas_sidang')
+                    ->label(fn (ThesisProject $record): string => match (self::sidangPaperActionStatus($record)) {
+                        'awaiting_finalization' => 'Finalisasi',
+                        'scheduled' => 'Input Nilai',
+                        default => 'Lihat Berkas',
+                    })
+                    ->icon(fn (ThesisProject $record): string => match (self::sidangPaperActionStatus($record)) {
+                        'awaiting_finalization' => 'heroicon-m-check-circle',
+                        'scheduled' => 'heroicon-m-pencil-square',
+                        default => 'heroicon-m-eye',
+                    })
+                    ->visible(fn (ThesisProject $record): bool => self::canAccessSidangPaper($record))
+                    ->url(function (ThesisProject $record): string {
+                        $defense = $record->latestSidangDefense;
+                        $status = self::sidangPaperActionStatus($record);
+                        if ($status === 'awaiting_finalization') {
+                            return ThesisProjectResource::getUrl('view', ['record' => $record, 'action' => 'complete_sidang']);
+                        }
+
+                        return route('sidang.paper.show', ['defense' => $defense, 'dari' => 'daftar'])
+                            .($status === 'scheduled' ? '#nilai-dari-berkas' : '');
+                    }),
                 Action::make('approve_title')
                     ->label('Setujui')
                     ->icon('heroicon-m-check-circle')
@@ -376,9 +447,34 @@ class ThesisProjectsTable
                 Action::make('edit')
                     ->label('Edit')
                     ->icon('heroicon-m-pencil-square')
-                    ->url(fn(ThesisProject $record): string => \App\Filament\Resources\ThesisProjects\ThesisProjectResource::getUrl('edit', ['record' => $record])),
+                    ->url(fn(ThesisProject $record): string => ThesisProjectResource::getUrl('edit', ['record' => $record])),
                 ViewAction::make(),
             ]);
+    }
+
+    private static function sidangPaperStatusLabels(): array
+    {
+        return [
+            'scheduled' => 'Terjadwal',
+            'awaiting_finalization' => 'Menunggu Finalisasi',
+            'completed' => 'Selesai',
+        ];
+    }
+
+    private static function sidangPaperActionStatus(ThesisProject $record): ?string
+    {
+        return $record->state === 'active' ? $record->latestSidangDefense?->status : null;
+    }
+
+    private static function canAccessSidangPaper(ThesisProject $record): bool
+    {
+        $defense = $record->latestSidangDefense;
+        $user = Auth::user();
+
+        return $user !== null && $record->state !== 'cancelled'
+            && $defense?->scheduled_for !== null
+            && in_array($defense->status, ListThesisProjects::SIDANG_PAPER_STATUSES, true)
+            && app(SidangPaperPolicy::class)->manage($user, (int) $record->program_studi_id);
     }
 
     public static function mentorshipTicketLabel(ThesisProject $record): string

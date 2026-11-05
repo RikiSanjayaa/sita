@@ -1,5 +1,8 @@
 <?php
 
+use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
+use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
+use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
@@ -7,11 +10,12 @@ use App\Models\User;
 use App\Services\SidangPaperService;
 use App\Services\SidangReportWriter;
 use App\Services\ThesisProjectAdminService;
+use Livewire\Livewire;
 
-function sidangPaperFixture(): array
+function sidangPaperFixture(?ProgramStudi $program = null): array
 {
     $student = User::factory()->asMahasiswa()->create();
-    $program = ProgramStudi::factory()->create();
+    $program ??= ProgramStudi::factory()->create();
     MahasiswaProfile::factory()->create(['user_id' => $student->id, 'program_studi_id' => $program->id]);
     $project = ensureActiveThesisProject($student);
     $project->update(['phase' => 'sidang']);
@@ -37,6 +41,41 @@ function sidangPaperFixture(): array
 
     return [$defense, $student, $program, $scores];
 }
+
+it('lists only accessible latest sidang records and shows the shortcut for each stage', function (): void {
+    [$scheduled, , $program] = sidangPaperFixture();
+    [$completed] = sidangPaperFixture($program);
+    [$cancelled] = sidangPaperFixture($program);
+    [$foreign] = sidangPaperFixture();
+    $completed->update(['status' => 'completed', 'result' => 'pass']);
+    $cancelled->project->sidangDefenses()->create([
+        'type' => 'sidang', 'attempt_no' => 2, 'status' => 'cancelled', 'scheduled_for' => now(),
+    ]);
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $this->actingAs($admin);
+
+    $page = Livewire::test(ListThesisProjects::class)
+        ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->assertCanSeeTableRecords([$scheduled->project, $completed->project], inOrder: true)
+        ->assertCanNotSeeTableRecords([$cancelled->project, $foreign->project])
+        ->assertTableActionHasUrl('unduh_berkas_sidang', route('sidang.paper.print', $scheduled), $scheduled->project)
+        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Input Nilai', $scheduled->project)
+        ->assertTableActionHasUrl('tindakan_berkas_sidang', route('sidang.paper.show', ['defense' => $scheduled, 'dari' => 'daftar']).'#nilai-dari-berkas', $scheduled->project)
+        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Lihat Berkas', $completed->project);
+
+    $page->filterTable('sidang_paper_status', 'completed')
+        ->assertCanSeeTableRecords([$completed->project])
+        ->assertCanNotSeeTableRecords([$scheduled->project]);
+
+    $scheduled->update(['status' => 'awaiting_finalization']);
+    Livewire::test(ListThesisProjects::class)
+        ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->assertTableActionHasLabel('tindakan_berkas_sidang', 'Finalisasi', $scheduled->project)
+        ->assertTableActionHasUrl('tindakan_berkas_sidang', ThesisProjectResource::getUrl('view', [
+            'record' => $scheduled->project, 'action' => 'complete_sidang',
+        ]), $scheduled->project);
+});
 
 function sidangReportSheet(string $content, string $part = 'xl/worksheets/sheet7.xml'): string
 {

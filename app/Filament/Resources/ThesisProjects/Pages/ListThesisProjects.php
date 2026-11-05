@@ -25,6 +25,10 @@ class ListThesisProjects extends ListRecords
 {
     protected static string $resource = ThesisProjectResource::class;
 
+    public const SIDANG_PAPER_TAB = 'berkas-sidang';
+
+    public const SIDANG_PAPER_STATUSES = ['scheduled', 'awaiting_finalization', 'completed'];
+
     private const MAX_SHOWN_IMPORT_FAILURES = 25;
 
     protected function getHeaderActions(): array
@@ -151,6 +155,12 @@ class ListThesisProjects extends ListRecords
     {
         return [
             'all' => Tab::make('Semua '.AcademicTerminology::neutral()['finalWork']),
+            self::SIDANG_PAPER_TAB => Tab::make('Berkas '.AcademicTerminology::neutral()['finalExamShort'])
+                ->modifyQueryUsing(fn (Builder $query): Builder => $query
+                    ->where('state', '!=', 'cancelled')
+                    ->whereHas('latestSidangDefense', fn (Builder $defense): Builder => $defense
+                        ->whereIn('status', self::SIDANG_PAPER_STATUSES)
+                        ->whereNotNull('scheduled_for'))),
             'perlu-sempro' => Tab::make('Perlu '.AcademicTerminology::neutral()['proposalExamShort'])
                 ->modifyQueryUsing(fn(Builder $query): Builder => $query
                     ->where('state', 'active')

@@ -926,6 +926,35 @@ test.describe('Golden path: from title proposal to graduation', () => {
                     }),
                 ).toBeVisible();
 
+                await adminPage.goto(
+                    '/admin/thesis-projects?tab=berkas-sidang',
+                );
+                const adminSearch = adminPage.getByRole('searchbox', {
+                    name: 'Search',
+                    exact: true,
+                });
+                await adminSearch.fill(student);
+                await adminSearch.press('Enter');
+                const sidangRow = studentRowIn(adminPage, student);
+                const word = adminPage.waitForEvent('download');
+                await sidangRow
+                    .getByRole('link', { name: 'Unduh Word' })
+                    .click();
+                expect((await word).suggestedFilename()).toMatch(
+                    /^paket-sidang-\d+\.docx$/,
+                );
+                await sidangRow
+                    .getByRole('link', { name: 'Input Nilai' })
+                    .click();
+                await expect(adminPage).toHaveURL(/#nilai-dari-berkas$/);
+                await expect(
+                    adminPage.getByRole('heading', {
+                        name: 'Nilai dari berkas',
+                    }),
+                ).toBeInViewport();
+                await adminPage.getByRole('link', { name: 'Kembali' }).click();
+                await expect(adminPage).toHaveURL(/tab=berkas-sidang/);
+
                 await studentPage.goto('/mahasiswa/tugas-akhir');
                 await expect(
                     studentPage.getByText(thesis.sidangLocation).first(),
@@ -975,11 +1004,22 @@ test.describe('Golden path: from title proposal to graduation', () => {
             });
 
             await test.step('12. Admin completes the sidang and the mahasiswa graduates', async () => {
-                await openAdminProject(adminPage, student);
-                const modal = await openWorkflowAction(
-                    adminPage,
-                    /^Selesaikan Sidang/,
+                await adminPage.goto(
+                    '/admin/thesis-projects?tab=berkas-sidang',
                 );
+                const adminSearch = adminPage.getByRole('searchbox', {
+                    name: 'Search',
+                    exact: true,
+                });
+                await adminSearch.fill(student);
+                await adminSearch.press('Enter');
+                await studentRowIn(adminPage, student)
+                    .getByRole('link', { name: 'Finalisasi' })
+                    .click();
+                const modal = adminPage
+                    .locator('.fi-modal-window:visible')
+                    .last();
+                await expect(modal).toBeVisible();
                 await pickFilamentSelect(modal, 0, 'pass');
                 await modal
                     .locator('textarea')

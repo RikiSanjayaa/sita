@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Resources\ThesisProjects\Pages\ListThesisProjects;
 use App\Http\Requests\StoreSidangPaperRequest;
 use App\Models\ThesisDefense;
 use App\Models\User;
@@ -33,6 +34,7 @@ class SidangPaperController extends Controller
         $defense->load('project.student.mahasiswaProfile', 'project.programStudi', 'titleVersion', 'examiners.lecturer');
         $project = $defense->project;
         $admin = $request->user()->hasRole('admin') || $request->user()->hasRole('super_admin');
+        $fromQueue = $admin && $request->query('dari') === 'daftar';
         $terms = AcademicTerminology::forProject($project);
 
         return Inertia::render('sidang/berkas', [
@@ -68,7 +70,15 @@ class SidangPaperController extends Controller
             })->orderBy('name')->get(['id', 'name']),
             'weights' => array_intersect_key(SidangSettings::forProgram($project->programStudi), SidangPaperService::ROLES),
             'forms' => self::FORMS,
-            'backUrl' => $admin ? route('filament.admin.resources.thesis-projects.view', $project) : route('kaprodi.sempro-sidang'),
+            'fromQueue' => $fromQueue,
+            'backUrl' => match (true) {
+                $fromQueue => route('filament.admin.resources.thesis-projects.index', ['tab' => ListThesisProjects::SIDANG_PAPER_TAB]),
+                $admin => route('filament.admin.resources.thesis-projects.view', $project),
+                default => route('kaprodi.sempro-sidang'),
+            },
+            'finalizeUrl' => $admin && $project->state === 'active' && $defense->status === 'awaiting_finalization'
+                ? route('filament.admin.resources.thesis-projects.view', ['record' => $project, 'action' => 'complete_sidang'])
+                : null,
             'admin' => $admin,
         ]);
     }
@@ -77,7 +87,10 @@ class SidangPaperController extends Controller
     {
         $service->record($defense, $request->user(), $request->validated());
 
-        return to_route('sidang.paper.show', $defense)->with('success', 'Data berkas sidang disimpan.');
+        return to_route('sidang.paper.show', [
+            'defense' => $defense,
+            'dari' => $request->query('dari') === 'daftar' ? 'daftar' : null,
+        ])->with('success', 'Data berkas sidang disimpan.');
     }
 
     public function print(Request $request, ThesisDefense $defense, SidangPaperPolicy $policy, SidangWordWriter $writer): StreamedResponse

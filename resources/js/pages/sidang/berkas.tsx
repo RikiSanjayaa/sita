@@ -46,6 +46,8 @@ interface Props {
     weights: Record<ScoreRole, number>;
     forms: Record<string, string>;
     backUrl: string;
+    fromQueue: boolean;
+    finalizeUrl: string | null;
     admin: boolean;
 }
 
@@ -65,6 +67,8 @@ export default function BerkasSidang({
     weights,
     forms,
     backUrl,
+    fromQueue,
+    finalizeUrl,
     admin,
 }: Props) {
     const examiners = defense.panel.filter((member) => !member.supervisor);
@@ -109,6 +113,9 @@ export default function BerkasSidang({
             value,
         );
     const printUrl = print(defense.id).url;
+    const storeUrl = store(defense.id, {
+        query: fromQueue ? { dari: 'daftar' } : {},
+    }).url;
     const content = (
         <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8">
             <Head title={`Berkas ${defense.label}`} />
@@ -252,7 +259,7 @@ export default function BerkasSidang({
                                         sidang_sk,
                                     }),
                                 );
-                                form.post(store(defense.id).url, {
+                                form.post(storeUrl, {
                                     preserveScroll: true,
                                 });
                             }}
@@ -262,7 +269,11 @@ export default function BerkasSidang({
                     )}
                 </SectionCard>
                 <SectionCard
-                    title="Nilai dari berkas"
+                    title={
+                        <span id="nilai-dari-berkas" className="scroll-mt-6">
+                            Nilai dari berkas
+                        </span>
+                    }
                     description="Masukkan nilai total pada lembar masing-masing dosen. Nilai yang sudah tercatat ditampilkan otomatis."
                 >
                     {defense.summary ? (
@@ -278,14 +289,13 @@ export default function BerkasSidang({
                                     pada panel admin.
                                 </p>
                             )}
-                            {admin &&
-                                defense.status === 'awaiting_finalization' && (
-                                    <Button asChild variant="outline">
-                                        <a href={backUrl}>
-                                            Buka finalisasi sidang
-                                        </a>
-                                    </Button>
-                                )}
+                            {finalizeUrl && (
+                                <Button asChild variant="outline">
+                                    <a href={finalizeUrl}>
+                                        Buka finalisasi sidang
+                                    </a>
+                                </Button>
+                            )}
                         </div>
                     ) : defense.editable && canEnterScores ? (
                         <div className="space-y-4">
@@ -384,7 +394,7 @@ export default function BerkasSidang({
                                 disabled={!canPreview || form.processing}
                                 onClick={() => {
                                     form.transform((data) => data);
-                                    form.post(store(defense.id).url, {
+                                    form.post(storeUrl, {
                                         preserveScroll: true,
                                     });
                                 }}
