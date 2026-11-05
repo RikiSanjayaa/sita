@@ -176,6 +176,8 @@ type SemproSidangProps = {
     exams: ExamRow[];
     schedulableProjects: SchedulableProject[];
     calendarEvents: BimbinganEvent[];
+    reportPeriods: { id: number; label: string; range: string }[];
+    activeReportPeriodId: number | null;
 };
 
 type TypeFilter = 'semua' | 'sempro' | 'sidang';
@@ -297,8 +299,15 @@ function DecisionBadge({ decision }: { decision: string }) {
 }
 
 export default function KaprodiSemproSidangPage() {
-    const { auth, programStudi, exams, schedulableProjects, calendarEvents } =
-        usePage<SharedData & SemproSidangProps>().props;
+    const {
+        auth,
+        programStudi,
+        exams,
+        schedulableProjects,
+        calendarEvents,
+        reportPeriods,
+        activeReportPeriodId,
+    } = usePage<SharedData & SemproSidangProps>().props;
     const terms = neutralAcademicTerminology;
     const canScheduleSempro = auth.kaprodiCapabilities?.schedule_sempro ?? true;
     const canScheduleSidang = auth.kaprodiCapabilities?.schedule_sidang ?? true;
@@ -314,6 +323,9 @@ export default function KaprodiSemproSidangPage() {
     const pageState = useUrlState('page', 1);
     const [selected, setSelected] = useState<ExamRow | null>(null);
     const [showReport, setShowReport] = useState(false);
+    const [reportPeriod, setReportPeriod] = useState(
+        activeReportPeriodId === null ? '' : String(activeReportPeriodId),
+    );
     const [selectedEvent, setSelectedEvent] = useState<BimbinganEvent | null>(
         null,
     );
@@ -832,24 +844,61 @@ export default function KaprodiSemproSidangPage() {
                                     .join(',') || '0'
                             }
                         />
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="space-y-1 text-sm font-medium">
-                                Dari tanggal
-                                <Input type="date" name="from" required />
+                        {reportPeriods.length > 0 && (
+                            <label className="block space-y-1 text-sm font-medium">
+                                Periode rekap
+                                <select
+                                    name="period_id"
+                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    value={reportPeriod}
+                                    onChange={(event) =>
+                                        setReportPeriod(event.target.value)
+                                    }
+                                >
+                                    <option value="">
+                                        Rentang tanggal manual
+                                    </option>
+                                    {reportPeriods.map((period) => (
+                                        <option
+                                            key={period.id}
+                                            value={period.id}
+                                        >
+                                            {period.label} ({period.range})
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
-                            <label className="space-y-1 text-sm font-medium">
-                                Sampai tanggal
-                                <Input type="date" name="until" required />
-                            </label>
-                        </div>
-                        <label className="block space-y-1 text-sm font-medium">
-                            Nama periode
-                            <Input
-                                name="period"
-                                placeholder="Contoh: Ganjil 2026/2027"
-                                maxLength={80}
-                            />
-                        </label>
+                        )}
+                        {reportPeriod === '' && (
+                            <>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <label className="space-y-1 text-sm font-medium">
+                                        Dari tanggal
+                                        <Input
+                                            type="date"
+                                            name="from"
+                                            required
+                                        />
+                                    </label>
+                                    <label className="space-y-1 text-sm font-medium">
+                                        Sampai tanggal
+                                        <Input
+                                            type="date"
+                                            name="until"
+                                            required
+                                        />
+                                    </label>
+                                </div>
+                                <label className="block space-y-1 text-sm font-medium">
+                                    Nama periode
+                                    <Input
+                                        name="period"
+                                        placeholder="Contoh: Ganjil 2026/2027"
+                                        maxLength={80}
+                                    />
+                                </label>
+                            </>
+                        )}
                         <DialogFooter>
                             <Button type="submit">
                                 <Download className="size-4" aria-hidden />{' '}

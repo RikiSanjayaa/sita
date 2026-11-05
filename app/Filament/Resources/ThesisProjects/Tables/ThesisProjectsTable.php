@@ -10,6 +10,7 @@ use App\Models\ThesisProject;
 use App\Models\ThesisProjectTitle;
 use App\Policies\SidangPaperPolicy;
 use App\Services\AdminActionQueueService;
+use App\Services\SidangPaperService;
 use App\Services\ThesisProjectAdminService;
 use App\Support\AcademicTerminology;
 use App\Support\Filament\BadgeStyles;
@@ -19,6 +20,7 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Support\Enums\Width;
@@ -31,6 +33,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ThesisProjectsTable
 {
@@ -159,6 +162,8 @@ class ThesisProjectsTable
                     ->label('Status Berkas')
                     ->visible($isSidangTab)
                     ->badge()
+                    ->description(fn (ThesisProject $record): ?string => filled($record->latestSidangDefense?->sidang_sk)
+                        ? 'SK '.$record->latestSidangDefense->sidang_sk : null)
                     ->formatStateUsing(fn (string $state): string => self::sidangPaperStatusLabels()[$state] ?? $state)
                     ->color(fn (?string $state): string => BadgeStyles::domainStatusColor('defense', $state)),
                 TextColumn::make('mentorship_ticket')
@@ -301,6 +306,28 @@ class ThesisProjectsTable
             ->columnManagerResetActionPosition(ColumnManagerResetActionPosition::Footer)
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('isi_nomor_sk')
+                        ->label('Isi No SK')
+                        ->icon('heroicon-m-document-text')
+                        ->visible($isSidangTab)
+                        ->modalHeading('Isi No SK bersama')
+                        ->modalDescription('Satu nomor dari Adum untuk mahasiswa terpilih dalam satu prodi. Pilih sidang yang menunggu finalisasi atau sudah selesai.')
+                        ->modalSubmitActionLabel('Simpan No SK')
+                        ->schema([TextInput::make('sidang_sk')->label('No SK')->required()->maxLength(150)])
+                        ->action(function (Collection $records, array $data, BulkAction $action): void {
+                            $actor = Auth::user();
+                            abort_if($actor === null, 403);
+                            try {
+                                $count = app(SidangPaperService::class)->assignSk($actor, $records, $data['sidang_sk']);
+                            } catch (ValidationException $exception) {
+                                Notification::make()->title('No SK belum disimpan')->body($exception->getMessage())->danger()->send();
+                                $action->halt();
+
+                                return;
+                            }
+                            Notification::make()->title('No SK disimpan untuk '.$count.' mahasiswa')->success()->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     BulkAction::make('renew_mentorship_tickets')
                         ->label('Perpanjang masa aktif 1 tahun')
                         ->hidden($isSidangTab)

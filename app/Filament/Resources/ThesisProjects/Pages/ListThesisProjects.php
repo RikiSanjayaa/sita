@@ -2,17 +2,22 @@
 
 namespace App\Filament\Resources\ThesisProjects\Pages;
 
+use App\Filament\Resources\ThesisProjects\Actions\ManageSidangReportPeriod;
 use App\Filament\Resources\ThesisProjects\ThesisProjectResource;
+use App\Models\SidangReportPeriod;
+use App\Services\SidangReportPeriodService;
 use App\Services\ThesisProjectImportService;
 use App\Support\AcademicTerminology;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -34,8 +39,14 @@ class ListThesisProjects extends ListRecords
     protected function getHeaderActions(): array
     {
         $finalWork = AcademicTerminology::neutral()['finalWork'];
+        $actor = Auth::user();
+        $programId = $actor?->adminProgramStudiId();
+        $superAdmin = $actor?->hasRole('super_admin') ?? false;
+        $periodService = app(SidangReportPeriodService::class);
 
         return [
+            ...($actor !== null && ($superAdmin || $programId !== null)
+                ? [ManageSidangReportPeriod::make($actor)->visible(fn (): bool => $this->activeTab === self::SIDANG_PAPER_TAB)] : []),
             Action::make('exportSidangReport')
                 ->label('Ekspor Rekap Nilai')
                 ->icon('heroicon-m-arrow-down-tray')
@@ -44,9 +55,17 @@ class ListThesisProjects extends ListRecords
                 ->modalDescription('Hasil sidang lulus dari berkas yang sudah dikonfirmasi, sesuai filter tabel dan tanggal sidang WITA.')
                 ->modalSubmitActionLabel('Unduh Excel')
                 ->schema([
-                    DatePicker::make('from')->label('Dari tanggal')->required(),
-                    DatePicker::make('until')->label('Sampai tanggal')->required()->afterOrEqual('from'),
-                    TextInput::make('period')->label('Nama periode')->maxLength(80)->placeholder('Contoh: Ganjil 2026/2027'),
+                    Select::make('period_id')->label('Periode rekap')->placeholder('Rentang tanggal manual')
+                        ->options(fn (): array => $periodService->periods($programId)->mapWithKeys(fn (SidangReportPeriod $period): array => [
+                            $period->id => $period->label().' ('.$period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y').')'
+                                .($superAdmin ? ' - '.$period->programStudi->name : ''),
+                        ])->all())
+                        ->default(fn (): ?int => $programId === null ? null : $periodService->activeId($periodService->periods($programId)))
+                        ->live(),
+                    DatePicker::make('from')->label('Dari tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required(),
+                    DatePicker::make('until')->label('Sampai tanggal')->visible(fn (Get $get): bool => blank($get('period_id')))->required()->afterOrEqual('from'),
+                    TextInput::make('period')->label('Nama periode')->visible(fn (Get $get): bool => blank($get('period_id')))
+                        ->maxLength(80)->placeholder('Contoh: Ganjil 2026/2027'),
                 ])
                 ->action(function (array $data): void {
                     $query = $this->getTableQueryForExport()->reorder()->select('thesis_projects.id')->toBase();

@@ -3,14 +3,52 @@
 namespace App\Services;
 
 use App\Models\ThesisDefense;
+use App\Models\ThesisProject;
 use App\Models\User;
+use App\Policies\SidangPaperPolicy;
 use App\Support\SidangSettings;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class SidangPaperService
 {
     public const ROLES = ['examiner_1' => 'Penguji 1', 'examiner_2' => 'Penguji 2', 'supervisor' => 'Pembimbing penilai'];
+
+    public const SK_STATUSES = ['awaiting_finalization', 'completed'];
+
+    /** @param  Collection<int, ThesisProject>  $selection */
+    public function assignSk(User $actor, Collection $selection, string $number): int
+    {
+        abort_unless($actor->hasAnyRole(['super_admin', 'admin']), 403);
+        $number = trim($number);
+        $this->ensure($number !== '' && mb_strlen($number) <= 150, 'Isi No SK dari Adum, maksimal 150 karakter.');
+        $ids = $selection->pluck('id')->unique()->values();
+        $this->ensure($ids->isNotEmpty(), 'Pilih minimal satu mahasiswa.');
+
+        return DB::transaction(function () use ($actor, $ids, $number): int {
+            $projects = ThesisProject::query()->whereKey($ids->all())->orderBy('id')->lockForUpdate()->get();
+            $policy = app(SidangPaperPolicy::class);
+            abort_unless($projects->count() === $ids->count()
+                && $projects->every(fn (ThesisProject $project): bool => $policy->manage($actor, (int) $project->program_studi_id)), 403);
+            $this->ensure($projects->pluck('program_studi_id')->unique()->count() === 1, 'Pilih mahasiswa dari satu prodi.');
+            $defenses = ThesisDefense::query()->whereIn('project_id', $ids)->where('type', 'sidang')
+                ->orderBy('project_id')->orderByDesc('attempt_no')->lockForUpdate()->get()
+                ->unique('project_id')->keyBy('project_id');
+
+            foreach ($projects as $project) {
+                $defense = $defenses->get($project->id);
+                $this->ensure($project->state !== 'cancelled' && $defense?->scheduled_for !== null
+                    && in_array($defense->status, self::SK_STATUSES, true),
+                    'Pilih sidang yang menunggu finalisasi atau sudah selesai.');
+                $this->ensure(blank($defense->sidang_sk) || $defense->sidang_sk === $number,
+                    'Ada mahasiswa dengan No SK berbeda. Keluarkan baris tersebut sebelum menyimpan.');
+                $defense->forceFill(['sidang_sk' => $number])->save();
+            }
+
+            return $projects->count();
+        });
+    }
 
     public function record(ThesisDefense $defense, User $actor, array $data): void
     {
@@ -32,7 +70,7 @@ final class SidangPaperService
             }
             $defense->forceFill([
                 'moderator_user_id' => $moderator,
-                'sidang_sk' => $data['sidang_sk'] ?? null,
+                'sidang_sk' => $data['sidang_sk'] ?? $defense->sidang_sk,
             ]);
             if (! isset($data['scores'])) {
                 $defense->save();

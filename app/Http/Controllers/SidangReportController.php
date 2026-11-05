@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SidangReportPeriod;
 use App\Models\ThesisDefense;
 use App\Models\User;
 use App\Services\SidangReportWriter;
@@ -23,6 +24,7 @@ class SidangReportController extends Controller
             'from' => ['nullable', 'required_with:until', 'date_format:Y-m-d'],
             'until' => ['nullable', 'required_with:from', 'date_format:Y-m-d', 'after_or_equal:from'],
             'period' => ['nullable', 'string', 'max:80'],
+            'period_id' => ['nullable', 'integer'],
             'selection' => ['nullable', 'string', 'max:80'],
             'ids' => ['nullable', 'string', 'max:500000', 'regex:/^\d+(,\d+)*$/'],
         ]);
@@ -45,6 +47,14 @@ class SidangReportController extends Controller
             $programId = $user->kaprodiAssignment?->program_studi_id;
             abort_if($programId === null, 403);
             $query->whereHas('project', fn (Builder $project): Builder => $project->current());
+        }
+        if (isset($filters['period_id'])) {
+            $period = SidangReportPeriod::query()->findOrFail($filters['period_id']);
+            abort_unless($programId === null || $programId === (int) $period->program_studi_id, 403);
+            $programId = (int) $period->program_studi_id;
+            $filters['from'] = $period->starts_on->toDateString();
+            $filters['until'] = $period->ends_on->toDateString();
+            $filters['period'] = mb_strtoupper($period->label());
         }
         if ($programId !== null) {
             $query->whereHas('project', fn (Builder $project): Builder => $project->where('program_studi_id', $programId));

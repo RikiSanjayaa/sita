@@ -6,6 +6,7 @@ use App\Models\KaprodiAssignment;
 use App\Models\MahasiswaProfile;
 use App\Models\MentorshipDocument;
 use App\Models\ProgramStudi;
+use App\Models\SidangReportPeriod;
 use App\Models\ThesisDefense;
 use App\Models\ThesisDocument;
 use App\Models\ThesisProject;
@@ -111,9 +112,17 @@ class KaprodiPortalService
 
         $latestSidangAttempts = $defenses->where('type', 'sidang')->where('status', '!=', 'cancelled')
             ->groupBy('project_id')->map(fn (Collection $attempts): int => $attempts->max('attempt_no'));
+        $reportPeriodService = app(SidangReportPeriodService::class);
+        $reportPeriods = $reportPeriodService->periods($programStudi->id);
 
         return [
             'programStudi' => $this->programStudiSummary($programStudi),
+            'reportPeriods' => $reportPeriods->map(fn (SidangReportPeriod $period): array => [
+                'id' => $period->id,
+                'label' => $period->label(),
+                'range' => $period->starts_on->format('d/m/Y').' - '.$period->ends_on->format('d/m/Y'),
+            ])->all(),
+            'activeReportPeriodId' => $reportPeriodService->activeId($reportPeriods),
             'summaryCards' => collect(['sempro', 'sidang'])
                 ->map(fn(string $type): array => [
                     'label' => $this->defenseTypeLabel($type),

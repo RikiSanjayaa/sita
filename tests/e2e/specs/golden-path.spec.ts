@@ -1043,6 +1043,26 @@ test.describe('Golden path: from title proposal to graduation', () => {
                 await expect(
                     studentPage.getByText('Sidang Skripsi Selesai').first(),
                 ).toBeVisible();
+                await adminPage.goto(
+                    '/admin/thesis-projects?tab=berkas-sidang',
+                );
+                await adminSearch.fill(student);
+                await adminSearch.press('Enter');
+                const finished = studentRowIn(adminPage, student);
+                await finished.getByRole('checkbox').check();
+                await adminPage
+                    .getByRole('button', { name: /Bulk actions|Tindakan/i })
+                    .click();
+                await adminPage
+                    .getByRole('button', { name: 'Isi No SK', exact: true })
+                    .click();
+                await modal.getByLabel('No SK').fill('001/ADUM/E2E');
+                await modal
+                    .getByRole('button', { name: 'Simpan No SK' })
+                    .click();
+                await expect(
+                    finished.getByText('SK 001/ADUM/E2E'),
+                ).toBeVisible();
                 await attachStageScreenshot(
                     testInfo,
                     studentPage,

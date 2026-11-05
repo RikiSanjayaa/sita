@@ -6,10 +6,13 @@ use App\Models\AdminProfile;
 use App\Models\DosenProfile;
 use App\Models\MahasiswaProfile;
 use App\Models\ProgramStudi;
+use App\Models\SidangReportPeriod;
 use App\Models\User;
 use App\Services\SidangPaperService;
+use App\Services\SidangReportPeriodService;
 use App\Services\SidangReportWriter;
 use App\Services\ThesisProjectAdminService;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 function sidangPaperFixture(?ProgramStudi $program = null): array
@@ -179,4 +182,86 @@ it('continues the reference row pattern past nine defenses and keeps each progra
 
     expect(sidangReportSheet($content))->toContain('A39:A41', '<f>(L39*30%+L40*30%+L41*40%)</f>', 'A44:B44');
     expect(sidangReportSheet($content, 'xl/worksheets/rekap2.xml'))->toContain($student->name, 'A12:A14');
+});
+
+it('saves editable semester periods by program and exports the selected WITA range', function (): void {
+    [$defense, $student, $program, $scores] = sidangPaperFixture();
+    [$otherDefense, $otherStudent, , $otherScores] = sidangPaperFixture($program);
+    $otherDefense->update(['scheduled_for' => '2026-11-05 00:00:00']);
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $this->actingAs($admin);
+    $service = app(SidangReportPeriodService::class);
+    expect($service->suggestion('2026-09-14'))->toBe(['semester' => 'ganjil', 'start_year' => 2026])
+        ->and($service->suggestion('2027-03-01'))->toBe(['semester' => 'genap', 'start_year' => 2026]);
+
+    $data = ['starts_on' => '2026-11-04', 'ends_on' => '2026-11-04', 'semester' => 'genap', 'start_year' => 2026];
+    $page = Livewire::test(ListThesisProjects::class)
+        ->assertActionHidden('manageSidangReportPeriod')
+        ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->assertActionVisible('manageSidangReportPeriod')
+        ->mountAction('manageSidangReportPeriod');
+    $page->set('mountedActions.0.data.starts_on', '2026-11-04')
+        ->assertActionDataSet(['semester' => 'ganjil', 'start_year' => 2026])
+        ->setActionData($data)
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    $period = SidangReportPeriod::query()->sole();
+    expect($period->label())->toBe('Semester Genap 2026/2027');
+    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-04 23:59:00', 'Asia/Makassar'));
+    expect($service->activeId($service->periods($program->id)))->toBe($period->id);
+    $page->mountAction('exportSidangReport')
+        ->assertActionDataSet(['period_id' => $period->id])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect(fn () => $service->save($admin, [
+        ...$data, 'semester' => 'ganjil', 'ends_on' => '2026-11-30',
+    ]))->toThrow(ValidationException::class, 'Rentang tanggal bertumpang tindih');
+    expect($service->save($admin, [...$data, 'period_id' => $period->id])->id)->toBe($period->id);
+
+    foreach ([[$defense, $scores], [$otherDefense, $otherScores]] as [$attempt, $totals]) {
+        app(SidangPaperService::class)->record($attempt, $admin, ['scores' => $totals]);
+        $attempt->update(['status' => 'completed', 'result' => 'pass']);
+    }
+    $sheet = sidangReportSheet($this->post(route('sidang.report'), ['period_id' => $period->id])
+        ->assertDownload('rekap-nilai-sidang.xlsx')->streamedContent());
+    expect($sheet)->toContain($student->name, 'SEMESTER GENAP 2026/2027')->not->toContain($otherStudent->name);
+
+    $foreignAdmin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $foreignAdmin->id, 'program_studi_id' => ProgramStudi::factory()->create()->id]);
+    $this->actingAs($foreignAdmin)->post(route('sidang.report'), ['period_id' => $period->id])->assertForbidden();
+});
+
+it('assigns a shared No SK and preserves grades and existing different numbers', function (): void {
+    [$first, , $program, $scores] = sidangPaperFixture();
+    [$second, , , $secondScores] = sidangPaperFixture($program);
+    [$third, , , $thirdScores] = sidangPaperFixture($program);
+    $admin = User::factory()->asAdmin()->create();
+    AdminProfile::query()->create(['user_id' => $admin->id, 'program_studi_id' => $program->id]);
+    $service = app(SidangPaperService::class);
+    foreach ([[$first, $scores], [$second, $secondScores], [$third, $thirdScores]] as [$attempt, $totals]) {
+        $service->record($attempt, $admin, ['scores' => $totals]);
+        $attempt->update(['status' => 'completed', 'result' => 'pass']);
+    }
+    $paper = $first->fresh()->sidang_paper;
+    $third->forceFill(['sidang_sk' => '002/ADUM'])->save();
+    expect(fn () => $service->assignSk($admin, collect([$first->project, $third->project]), '001/ADUM'))
+        ->toThrow(ValidationException::class, 'Ada mahasiswa dengan No SK berbeda');
+    expect($first->fresh()->sidang_sk)->toBeNull();
+
+    $this->actingAs($admin);
+    Livewire::test(ListThesisProjects::class)
+        ->set('activeTab', ListThesisProjects::SIDANG_PAPER_TAB)
+        ->callTableBulkAction('isi_nomor_sk', [$first->project, $second->project], ['sidang_sk' => '001/ADUM'])
+        ->assertHasNoActionErrors();
+    expect($first->fresh()->sidang_sk)->toBe('001/ADUM')
+        ->and($second->fresh()->sidang_sk)->toBe('001/ADUM')
+        ->and($third->fresh()->sidang_sk)->toBe('002/ADUM')
+        ->and($first->fresh()->sidang_paper)->toBe($paper);
+    expect($service->assignSk($admin, collect([$first->project, $second->project]), '001/ADUM'))->toBe(2);
+
+    $sheet = sidangReportSheet($this->post(route('sidang.report'))->assertOk()->streamedContent());
+    expect($sheet)->toContain('E12:E17', 'E18:E20', '001/ADUM', '002/ADUM');
 });

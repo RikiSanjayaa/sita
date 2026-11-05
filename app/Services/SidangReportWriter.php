@@ -169,9 +169,13 @@ final class SidangReportWriter
                 break;
             }
         }
-        foreach ($numbers as $index => $number) {
+        for ($index = 0, $count = count($numbers); $index < $count;) {
+            $number = $numbers[$index];
             $start = 12 + $index * 3;
-            $this->merge($merges, 'E'.$start.':E'.($start + 2));
+            do {
+                $index++;
+            } while ($index < $count && $numbers[$index] === $number);
+            $this->merge($merges, 'E'.$start.':E'.(11 + $index * 3));
             $this->value($sheet, 'E'.$start, $number);
         }
         $merges->setAttribute('count', (string) $merges->getElementsByTagName('mergeCell')->length);
